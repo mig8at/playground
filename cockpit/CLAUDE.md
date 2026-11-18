@@ -144,6 +144,10 @@ Lo que ya costó, y por qué existe:
 | qué se ve de cada herramienta y a qué app lleva | `tablero/server/internal/hooks/cockpit.go` (con test) |
 | lo que una app le dice a la carcasa | `tools/ui/workbench.js` (todas) · `chat/src/desktop.js` (el chat) |
 
+⚠ **La interfaz de Cockpit no muestra comandos** (Miguel, 2026-11-18): ni `bin/…`, ni `make …`, ni rutas de archivos.
+Cómo se usa cada cosa por consola es para Claude y va en los `CLAUDE.md`; la interfaz dice qué hace cada cosa, en
+palabras.
+
 **La carcasa y las apps se hablan por `postMessage`.** La app manda `badge` (su numerito), `theme` y `palette` (cambió el
 tema o la paleta), `open` (abrí otra app) y `claude` (su asterisco: abrí o cerrá el panel); la carcasa manda `route` (ir a una ruta), `claude` (el panel abierto y si hay actividad sin ver), `visible` (si está a la vista: un
 iframe escondido no se entera solo, y el chat marcaría leído), `theme` y `palette`. Cockpit tiene UN tema y UNA paleta
@@ -168,7 +172,8 @@ con `bin/cockpit open`, y mientras está al frente se ve en la barra. Al menos u
 (`localStorage`, `cockpit.hidden-apps`), no en un archivo: es una preferencia de esta ventana.
 
 **El llavero personal** (engranaje → «Llavero», 2026-11-18): las llaves de Miguel que NO se comparten, en llaveros
-con nombre. Se renombran con doble clic, una llave se mueve de llavero, «Ver» la muestra 20 s y «Copiar» la copia. Cada
+con nombre. Se renombran con doble clic, «Ver» muestra el valor 20 s, «Copiar» lo copia y la papelera borra con dos toques
+(mover una llave de llavero queda sólo por consola, `key-move`: en la interfaz no hacía falta, dijo Miguel). Cada
 valor se guarda cifrado con la **llave personal** (`~/.config/creditop/personal-key`, 600, se crea con la primera llave),
 no con la del equipo: ésa la tiene todo el equipo (decisión de Miguel). El formato es el de `openssl enc`, como el
 llavero del chat. La carcasa no lo implementa: corre `bin/pg vault …` (Rust: `vault`, con una lista de verbos; el valor

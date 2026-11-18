@@ -118,36 +118,41 @@
   .settings-row .state.up::before { background: var(--cockpit-ok) }
   .settings-box.padded { padding: 16px }
   /* EL LLAVERO: los llaveros a la izquierda y las llaves del elegido a la derecha, dentro de una caja. */
-  .vault { display: grid; grid-template-columns: 180px minmax(0, 1fr); min-height: 320px }
+  .vault { display: grid; grid-template-columns: 200px minmax(0, 1fr); min-height: 320px }
   .vault-rings { border-right: 1px solid var(--border); padding: 8px; display: flex; flex-direction: column; gap: 2px }
-  .vault-ring { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 10px; border: 0; border-radius: var(--radius);
-    background: none; color: var(--fg-2); font: inherit; text-align: left; cursor: pointer }
+  .vault-ring { display: flex; align-items: flex-start; gap: 8px; width: 100%; padding: 7px 10px; border: 0; border-radius: var(--radius);
+    background: none; color: var(--fg-2); font: inherit; font-size: 13px; text-align: left; cursor: pointer }
   .vault-ring:hover { background: var(--hover) }
   .vault-ring[aria-selected="true"] { background: var(--muted); color: var(--foreground) }
-  .vault-ring span:nth-child(2) { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-  .vault-ring .count { font-size: 12px; color: var(--fg-3) }
-  .vault-main { padding: 12px 16px; display: flex; flex-direction: column; min-width: 0 }
-  .vault-head { display: flex; align-items: center; gap: 8px }
-  .vault-title { font-weight: 600; font-size: 15px; flex: 1; min-width: 0; cursor: text }
+  .vault-ring .ui-icon { flex: none; margin-top: 1px }
+  /* Los nombres de llavero suelen ser una palabra larga (FINANDINA_EXPERIAN): se parten en vez de cortarse. */
+  .vault-ring-name { flex: 1; min-width: 0; overflow-wrap: break-word }
+  .vault-ring .count { flex: none; font-size: 12px; color: var(--fg-3) }
+  .vault-ring.add { margin-top: 4px; color: var(--fg-3) }
+  .vault-main { padding: 14px 16px; display: flex; flex-direction: column; min-width: 0 }
+  .vault-head { display: flex; align-items: center; gap: 8px; padding-bottom: 10px }
+  .vault-title { font-weight: 600; font-size: 15px; flex: 1; min-width: 0; overflow-wrap: break-word; cursor: text }
   .vault-head input { flex: 1 }
-  .vault-cli { font-size: 12px; color: var(--fg-3); margin: 2px 0 10px }
-  .vault-key { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) auto; gap: 10px; align-items: center;
-    padding: 8px 0; border-top: 1px solid var(--border) }
-  .vault-key-name { font-family: var(--font-mono); font-size: 12px; cursor: text; overflow: hidden; text-overflow: ellipsis }
-  .vault-key-value { font-family: var(--font-mono); font-size: 12px; color: var(--fg-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-  .vault-key-value.shown { color: var(--foreground); user-select: all }
-  .vault-key-value small { color: var(--fg-3); font-family: var(--font-sans) }
-  .vault-tools { display: flex; gap: 2px }
+  .vault-key { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 12px; align-items: center;
+    min-height: 40px; border-top: 1px solid var(--border) }
+  .vault-key-name { font-family: var(--font-mono); font-size: 12px; cursor: text; overflow-wrap: break-word }
+  .vault-key-value { display: flex; align-items: baseline; gap: 8px; min-width: 0; font-family: var(--font-mono); font-size: 12px; color: var(--fg-3) }
+  .vault-key-value .dots { letter-spacing: 1px; overflow: hidden; white-space: nowrap }
+  .vault-key-value .print { flex: none; font-size: 11px }
+  .vault-key-value.shown { color: var(--foreground); user-select: all; overflow-wrap: anywhere }
+  .vault-tools { display: flex; align-items: center; gap: 2px }
   .vault-icon { border: 0; background: none; color: var(--fg-2); padding: 5px; border-radius: var(--radius); cursor: pointer; display: inline-flex }
   .vault-icon:hover { background: var(--hover); color: var(--foreground) }
-  .vault-icon.danger { color: var(--destructive) }
-  .vault-more { grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--fg-2) }
-  .vault-add { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) auto; gap: 8px; margin-top: 12px }
-  .vault input, .vault select { font: inherit; font-size: 12px; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius);
+  .vault-icon.danger:hover { color: var(--destructive) }
+  .vault-confirm { border: 1px solid var(--destructive); background: none; color: var(--destructive); font: inherit; font-size: 12px;
+    padding: 3px 8px; border-radius: var(--radius); cursor: pointer }
+  .vault-add { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 12px; align-items: center;
+    padding-top: 10px; border-top: 1px solid var(--border) }
+  .vault input { font: inherit; font-size: 12px; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius);
     background: var(--background); color: var(--foreground); min-width: 0 }
   .vault input.mono { font-family: var(--font-mono) }
-  .vault-error { color: var(--destructive); font-size: 12px; min-height: 16px; margin-top: 4px }
-  .vault-empty { padding: 16px 0; font-size: 13px; color: var(--fg-2) }
+  .vault-error { color: var(--destructive); font-size: 12px; min-height: 16px; margin-top: 6px }
+  .vault-empty { padding: 14px 0; font-size: 13px; color: var(--fg-2); border-top: 1px solid var(--border) }
   /* LAS MUESTRAS de color (como `.paleta-muestra` de canon): cada círculo lleva dos colores FIJOS de su paleta —el
      acento y el lienzo, en claro o en oscuro según su fila—, no var(--primary): con una paleta puesta, un círculo que
      usara el token cambiaría con ella y dejaría de decir qué se elige. */
@@ -269,7 +274,7 @@
   </header>
   <div class="session-bar" id="sessionBar" role="group" aria-label="Sesiones de Claude" hidden></div>
   <div class="stopbar" id="stopbar" role="status" hidden><span>Claude está frenado: no puede usar herramientas hasta que lo reanudes o le escribas.</span><button type="button" id="resume">Reanudar</button></div>
-  <div class="feed" id="feed" aria-live="polite"><p class="empty">Cuando una sesión de Claude use herramientas o <code>bin/cockpit</code>, lo vas a ver acá, en vivo.</p></div>
+  <div class="feed" id="feed" aria-live="polite"><p class="empty">Cuando una sesión de Claude use herramientas, lo vas a ver acá, en vivo.</p></div>
 </aside>
 <script>
 // Los íconos de cada app (trazos de 24×24, como los de la barra de VS Code).
@@ -708,12 +713,12 @@ async function loadModelState() {
   if (settingsOpen && settingsSection === 'model') paintSettings()
 }
 /* EL LLAVERO PERSONAL: todo pasa por `bin/pg vault` (Rust: `vault`), así lo mismo anda por consola con Cockpit cerrado.
-   Nada se descifra al pintar: «Ver» trae UN valor por 20 s y «Copiar» lo copia sin mostrarlo. */
+   Nada se descifra al pintar: «Ver» trae UN valor por 20 s y «Copiar» lo copia sin mostrarlo. Mover una llave de llavero
+   quedó sólo en la consola (`key-move`): en la interfaz no hacía falta (Miguel, 2026-11-18). */
 let vaultData = null
 let vaultRing = ''
 let vaultError = ''
 let vaultEdit = ''          // 'ring' o el id de la llave que se está renombrando
-let vaultMore = ''          // la llave con su fila de «más» abierta
 let vaultConfirm = ''       // lo que espera el segundo toque para borrar
 const vaultShown = {}       // id de la llave → valor, por 20 s
 const vaultDraft = { name: '', value: '' }
@@ -731,54 +736,57 @@ async function vaultDo(args, input) {
   await loadVault()
   return true
 }
+// Un nombre largo (FINANDINA_EXPERIAN) se parte después de un guión bajo antes que en cualquier letra.
+const breakable = (name) => esc(name).replace(/_/g, '_<wbr>')
 function paintVault() {
   const rings = vaultData?.rings || []
   const ring = rings.find((r) => r.id === vaultRing)
   const list = rings.map((r) => `<button type="button" class="vault-ring" role="tab" aria-selected="${r.id === vaultRing}" data-vring="${r.id}">
-    <span class="ui-icon" data-icon="folder" aria-hidden="true"></span><span>${esc(r.name)}</span><span class="count">${r.keys.length}</span></button>`).join('')
+    <span class="ui-icon" data-icon="folder" aria-hidden="true"></span><span class="vault-ring-name">${breakable(r.name)}</span><span class="count">${r.keys.length}</span></button>`).join('')
   const icon = (act, id, name, title, cls = '') => `<button type="button" class="vault-icon ${cls}" data-vact="${act}" data-vkey="${id}" title="${esc(title)}" aria-label="${esc(title)}"><span class="ui-icon" data-icon="${name}" aria-hidden="true"></span></button>`
-  let main = `<div class="vault-empty">Creá tu primer llavero a la izquierda (por ejemplo «VTEX pruebas») y guardá sus llaves acá.</div>`
+  // Borrar es de dos toques: el primero cambia la papelera por «Borrar», el segundo borra. Cualquier otro clic lo cancela.
+  const trash = (act, id, what) => vaultConfirm === (id || 'ring')
+    ? `<button type="button" class="vault-confirm" data-vact="${act}" data-vkey="${id}">Borrar${what}</button>`
+    : icon(act, id, 'trash', id ? 'Borrar la llave' : 'Borrar el llavero', 'danger')
+  let main = `<div class="vault-empty">Creá tu primer llavero a la izquierda y guardá sus llaves acá.</div>`
   if (ring) {
     const title = vaultEdit === 'ring'
       ? `<input data-vrename="ring" value="${esc(ring.name)}" aria-label="Nombre del llavero">`
-      : `<span class="vault-title" data-vdbl="ring" title="Doble clic para renombrar">${esc(ring.name)}</span>`
+      : `<span class="vault-title" data-vdbl="ring" title="Doble clic para renombrar">${breakable(ring.name)}</span>`
     const n = ring.keys.length
-    const deleteRing = vaultConfirm === 'ring'
-      ? `<button type="button" class="btn btn-outline btn-sm" data-vact="ring-delete">${n ? `Borrar con ${n} llave${n === 1 ? '' : 's'}` : 'Borrar'}</button>`
-      : icon('ring-delete', '', 'trash', 'Borrar el llavero')
     const keys = ring.keys.map((k) => {
       const name = vaultEdit === k.id
         ? `<input class="mono" data-vrename="${k.id}" value="${esc(k.name)}" aria-label="Nombre de la llave">`
-        : `<span class="vault-key-name" data-vdbl="${k.id}" title="Doble clic para renombrar">${esc(k.name)}</span>`
+        : `<span class="vault-key-name" data-vdbl="${k.id}" title="Doble clic para renombrar">${breakable(k.name)}</span>`
       const shown = k.id in vaultShown
       const value = shown ? `<span class="vault-key-value shown">${esc(vaultShown[k.id])}</span>`
-        : `<span class="vault-key-value">•••••••••••• <small>huella ${esc(k.print)}</small></span>`
-      const others = rings.filter((r) => r.id !== ring.id)
-      const more = vaultMore === k.id ? `<div class="vault-more">${others.length ? `Mover a <select data-vmove="${k.id}"><option value="">…</option>${others.map((r) => `<option value="${r.id}">${esc(r.name)}</option>`).join('')}</select>` : ''}
-        <span style="flex:1"></span>${vaultConfirm === k.id ? `<button type="button" class="btn btn-outline btn-sm" data-vact="key-delete" data-vkey="${k.id}">Borrar ${esc(k.name)}</button>` : icon('key-delete', k.id, 'trash', 'Borrar la llave', 'danger')}</div>` : ''
-      return `<div class="vault-key">${name}${value}<span class="vault-tools">${icon('reveal', k.id, shown ? 'eye-off' : 'eye', shown ? 'Ocultar' : 'Ver por 20 s')}${icon('copy', k.id, 'copy', 'Copiar el valor')}${icon('more', k.id, 'more', 'Mover o borrar')}</span>${more}</div>`
-    }).join('') || `<div class="vault-empty">Sin llaves todavía: agregá la primera abajo.</div>`
-    main = `<div class="vault-head"><span class="ui-icon" data-icon="lock" aria-hidden="true"></span>${title}${deleteRing}</div>
-      <div class="vault-cli"><code>bin/pg vault run --ring ${esc(ring.slug)} -- &lt;comando&gt;</code> le pasa estas llaves a un comando sin mostrarlas.</div>
+        : `<span class="vault-key-value"><span class="dots">••••••••</span><span class="print" title="La huella: cambia si cambia el valor">${esc(k.print)}</span></span>`
+      return `<div class="vault-key">${name}${value}<span class="vault-tools">${icon('reveal', k.id, shown ? 'eye-off' : 'eye', shown ? 'Ocultar' : 'Ver por 20 s')}${icon('copy', k.id, 'copy', 'Copiar el valor')}${trash('key-delete', k.id, '')}</span></div>`
+    }).join('') || `<div class="vault-empty">Sin llaves todavía.</div>`
+    main = `<div class="vault-head"><span class="ui-icon" data-icon="lock" aria-hidden="true"></span>${title}${trash('ring-delete', '', n ? ` con ${n} llave${n === 1 ? '' : 's'}` : '')}</div>
       <div>${keys}</div>
       <form class="vault-add" data-vform="add" autocomplete="off">
-        <input class="mono" data-vdraft="name" placeholder="NOMBRE_DE_LA_LLAVE" value="${esc(vaultDraft.name)}" aria-label="Nombre de la llave">
-        <input type="password" data-vdraft="value" placeholder="valor (se cifra al guardar)" value="${esc(vaultDraft.value)}" aria-label="Valor">
-        <button type="submit" class="btn btn-sm">Cifrar y guardar</button></form>`
+        <input class="mono" data-vdraft="name" placeholder="NOMBRE" value="${esc(vaultDraft.name)}" aria-label="Nombre de la llave nueva">
+        <input type="password" data-vdraft="value" placeholder="Valor" value="${esc(vaultDraft.value)}" aria-label="Valor de la llave nueva">
+        <button type="submit" class="btn btn-sm">Guardar</button></form>`
   }
-  const keyFile = vaultData?.keyFile ? ` (<code>${esc(vaultData.keyFile)}</code>)` : ''
   return `<section><div class="settings-box"><div class="vault">
-    <div class="vault-rings" role="tablist" aria-label="Llaveros">${list}<button type="button" class="vault-ring" data-vact="ring-new"><span class="ui-icon" data-icon="plus" aria-hidden="true"></span><span>Nuevo llavero</span></button></div>
+    <div class="vault-rings" role="tablist" aria-label="Llaveros">${list}<button type="button" class="vault-ring add" data-vact="ring-new"><span class="ui-icon" data-icon="plus" aria-hidden="true"></span><span class="vault-ring-name">Nuevo llavero</span></button></div>
     <div class="vault-main">${main}<div class="vault-error" role="alert">${esc(vaultError)}</div></div></div></div>
-    <p>Se guarda sólo cifrado, con tu llave personal${keyFile}, no con la del equipo. Claude ve nombres y huellas; para usar una llave corre <code>bin/pg vault run</code>, y si pide un valor el hook <code>vault-guard</code> se lo niega.</p></section>`
+    <p>Se guardan cifradas con tu llave personal, que el equipo no tiene. Claude las usa sin ver los valores.</p></section>`
 }
 async function vaultClick(e) {
   const ringBtn = e.target.closest('[data-vring]')
-  if (ringBtn) { vaultRing = ringBtn.dataset.vring; vaultEdit = vaultMore = vaultConfirm = ''; vaultError = ''; paintSettings(); return true }
+  if (ringBtn) { vaultRing = ringBtn.dataset.vring; vaultEdit = vaultConfirm = ''; vaultError = ''; paintSettings(); return true }
   const el = e.target.closest('[data-vact]')
+  const act = el?.dataset.vact
+  const id = el?.dataset.vkey
+  // Un «Borrar» a la espera se cancela con cualquier otro clic.
+  if (vaultConfirm && !((act === 'key-delete' && id === vaultConfirm) || (act === 'ring-delete' && vaultConfirm === 'ring'))) {
+    vaultConfirm = ''
+    if (!el) { paintSettings(); return true }
+  }
   if (!el) return false
-  const act = el.dataset.vact
-  const id = el.dataset.vkey
   const ring = vaultData?.rings.find((r) => r.id === vaultRing)
   const key = ring?.keys.find((k) => k.id === id)
   if (act === 'ring-new') {
@@ -807,13 +815,9 @@ async function vaultClick(e) {
       el.querySelector('.ui-icon').dataset.icon = 'check'
       setTimeout(() => { if (el.isConnected) el.querySelector('.ui-icon').dataset.icon = 'copy' }, 1500)
     } catch (err) { vaultError = String(err); paintSettings() }
-  } else if (act === 'more' && key) {
-    vaultMore = vaultMore === key.id ? '' : key.id
-    vaultConfirm = ''
-    paintSettings()
   } else if (act === 'key-delete' && key) {
     if (vaultConfirm !== key.id) { vaultConfirm = key.id; paintSettings(); return true }
-    vaultConfirm = vaultMore = ''
+    vaultConfirm = ''
     await vaultDo(['key-delete', '--ring', ring.id, '--key', key.name])
   }
   return true
@@ -855,15 +859,6 @@ vaultBlocks.addEventListener('input', (e) => {
   const f = e.target.closest('[data-vdraft]')?.dataset.vdraft
   if (f) { vaultDraft[f] = e.target.value; if (vaultError) { vaultError = ''; const box = vaultBlocks.querySelector('.vault-error'); if (box) box.textContent = '' } }
 })
-vaultBlocks.addEventListener('change', (e) => {
-  const sel = e.target.closest('[data-vmove]')
-  if (!sel || !sel.value) return
-  const ring = vaultData?.rings.find((r) => r.id === vaultRing)
-  const key = ring?.keys.find((k) => k.id === sel.dataset.vmove)
-  if (!key) return
-  vaultMore = ''
-  vaultDo(['key-move', '--ring', ring.id, '--key', key.name, '--to', sel.value])
-})
 vaultBlocks.addEventListener('submit', async (e) => {
   if (!e.target.closest('[data-vform="add"]')) return
   e.preventDefault()
@@ -878,8 +873,8 @@ vaultBlocks.addEventListener('submit', async (e) => {
   }
 })
 const MODEL_CHOICES = [
-  { id: 'claude', name: 'Claude', what: 'Claude Sonnet 5.5 en el Bedrock de CreditOp, por el puente de canon: el mismo modelo de canon en producción. Lo paga la empresa; pide la sesión de `playground login`.' },
-  { id: 'gemini', name: 'Gemini', what: 'Gemini por su API, con la llave de connectors/.env: gasta la cuota de esa llave.' },
+  { id: 'claude', name: 'Claude', what: 'Claude Sonnet 5.5 en el Bedrock de CreditOp, por el puente de canon: el mismo modelo de canon en producción. Lo paga la empresa; pide la sesión del playground.' },
+  { id: 'gemini', name: 'Gemini', what: 'Gemini por su API: gasta la cuota de su llave.' },
 ]
 function paintSections() {
   const q = settingsFilter.trim().toLowerCase()
@@ -917,7 +912,7 @@ function paintSettings() {
       ${option('auto-off', !auto, 'Sólo cuando lo abro', 'Queda cerrado; el asterisco del pie marca con un punto lo que no viste.')}</div></section>`
   } else if (settingsSection === 'model') {
     const chosen = modelState?.model || 'claude'
-    const status = modelBusy ? 'Comprobando…' : modelError ? modelError : modelState ? (modelState.ready ? `Listo · ${modelState.detail}` : `No está listo · ${modelState.detail}${modelState.fix ? ` · arreglo: ${modelState.fix}` : ''}`) : ''
+    const status = modelBusy ? 'Comprobando…' : modelError ? modelError : modelState ? (modelState.ready ? `Listo · ${modelState.detail}` : `No está listo · ${modelState.detail}`) : ''
     blocks.innerHTML = `<section><h3>Modelo de segundo plano</h3><div class="options" role="radiogroup" aria-label="Modelo de segundo plano">
       ${MODEL_CHOICES.map((m) => option(`model-${m.id}`, chosen === m.id, m.name, m.what)).join('')}</div></section>
       <section><h3>Estado</h3><div class="settings-box"><div class="settings-row"><span class="settings-row-text">
@@ -925,7 +920,7 @@ function paintSettings() {
         <span class="settings-row-what">${esc(status)}</span></span>
         <span class="state ${modelState?.ready && !modelBusy ? 'up' : ''}">${modelBusy ? '…' : modelState?.ready ? 'listo' : 'no'}</span>
         <button type="button" class="btn btn-outline btn-sm" data-act="model-check" ${modelBusy ? 'disabled' : ''}>Comprobar</button></div></div>
-      <p>Lo usa lo que corre solo con <code>bin/pg model ask --prompt '…'</code>. Wally elige el suyo aparte, en su barra.</p></section>`
+      <p>Wally elige el suyo aparte, en su barra.</p></section>`
   } else if (settingsSection === 'vault') {
     blocks.innerHTML = vaultData || vaultError ? paintVault() : '<section><p>Leyendo el llavero…</p></section>'
   } else if (settingsSection === 'apps') {
@@ -944,7 +939,6 @@ function paintSettings() {
       <li><b>La barra</b>: cada herramienta en su panel; ⌘1, ⌘2… cambian de app. Lo que estabas haciendo sigue ahí.</li>
       <li><b>El asterisco del pie</b>: abre o cierra el panel de Claude, con lo que hace en vivo. Ahí está «Frenar».</li>
       <li><b>Una app que se cae</b> vuelve sola: Cockpit la levanta de nuevo en unos segundos.</li>
-      <li><b>Desde una sesión</b>: <code>bin/cockpit open &lt;app&gt; [ruta]</code>, <code>say</code>, <code>status</code> y <code>restart</code>.</li>
     </ol><p>Cerrar la ventana la esconde: Cockpit sigue juntando el chat y avisando.</p></section>`
   }
 }
