@@ -246,6 +246,7 @@ type Eval struct {
 	Step    *StepEval   // sólo `step:`: la conversión y los fallos de una pantalla del wizard
 	Out     *OutEval    // sólo `out:`: la falla de un proveedor externo
 	Reject  *RejectEval // sólo `reject:`: el rechazo de una entidad CreditopX
+	Funnel  *FunnelEval // sólo `funnel:`: una conversión del embudo del backend
 	Now     int
 	Samples []float64
 	Dates   []string
@@ -329,6 +330,13 @@ func (e evaluator) eval(sig Signal, t time.Time) Eval {
 	}
 	if kindOf(sig) == "reject" {
 		ev = e.evalReject(sig, se, t)
+		if e.rules.Signals[sig].Ignore {
+			ev.Level, ev.Why = levelQuiet, "ignorada en rules.json"
+		}
+		return ev
+	}
+	if kindOf(sig) == "funnel" {
+		ev = e.evalFunnel(sig, se, t)
 		if e.rules.Signals[sig].Ignore {
 			ev.Level, ev.Why = levelQuiet, "ignorada en rules.json"
 		}

@@ -163,3 +163,6 @@ twin monolith assess numstat tsx
 
 # goldfish: la calibración del mapa de impacto
 calibrate calibration horizon
+
+# sentinel: el embudo del backend y la plata en juego (2026-11-18): inglés común
+funnel stake stakes

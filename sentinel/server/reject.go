@@ -36,9 +36,9 @@ import (
 )
 
 // rejectVersion: con qué versión de esta lectura se guardó un día (`Day.Rej`). Menor: se vuelve a pedir.
-const rejectVersion = 1
+const rejectVersion = 3 // 2: con el embudo (funnel.go), que sale de la misma lectura · 3: el embudo, la primera vez de cada solicitud
 
-var rejectKinds = []string{"reject"}
+var rejectKinds = []string{"reject", "funnel"} // lo que guarda profilingReads
 
 // Lo mínimo para hablar del rechazo de una entidad: con menos ofertas o rechazos, cualquier tasa es azar.
 const (

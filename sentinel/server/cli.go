@@ -175,7 +175,7 @@ func (c *cli) now() (*NowReport, error) {
 	r := &NowReport{At: c.reach.Format(time.RFC3339), Freshness: c.freshness(), All: o.All, Apps: o.Apps,
 		Unsent: openNotifier(c.s.store.dir).unsent()}
 	acked := openNotifier(c.s.store.dir).acked()
-	for _, list := range [][]Subject{o.Services, o.Liveness, o.LenderErrors, o.Providers, o.NewMessages, o.Lenders, o.Merchants} {
+	for _, list := range [][]Subject{o.Services, o.Liveness, o.LenderErrors, o.Providers, o.Rejections, o.Funnel, o.NewMessages, o.Lenders, o.Merchants} {
 		for _, x := range list {
 			if x.State == "alert" || x.State == "warn" {
 				if acked[x.Signal] {
@@ -777,6 +777,8 @@ func (s *sentinel) subjectName(sig Signal) string {
 		return "Errores del front (JavaScript)"
 	case "reject":
 		return rejectName(s.lenderNames, key)
+	case "funnel":
+		return funnelName(key)
 	case "step":
 		id, m := stepParts(sig)
 		label := id

@@ -68,6 +68,10 @@ type Subject struct {
 	Out *OutEval `json:"out,omitempty"`
 	// Reject (sólo `reject:`): las ofertas y los rechazos de una entidad CreditopX en la ventana, y su tasa de siempre.
 	Reject *RejectEval `json:"reject,omitempty"`
+	// Funnel (sólo `funnel:`): una conversión del embudo del backend en la ventana, y la de siempre.
+	Funnel *FunnelEval `json:"funnel,omitempty"`
+	// Stake: lo que pesa en lo desembolsado de los últimos 28 días (stake.go). Ordena lo que pide atención.
+	Stake *Stake `json:"stake,omitempty"`
 	// Message (sólo `newmsg:`): el mensaje de error nuevo.
 	Message *MsgView `json:"message,omitempty"`
 	// Acked: el episodio está reconocido («ya lo sé»): la interfaz lo pasa a «Conocidos» hasta que se cierre o empeore.
@@ -105,6 +109,8 @@ type Overview struct {
 	Providers []Subject `json:"providers"`
 	// Rejections: el rechazo de las entidades CreditopX (`reject:6`, `reject:all`), por su tasa (reject.go).
 	Rejections []Subject `json:"rejections"`
+	// Funnel: el embudo del backend (`funnel:profiled`, `funnel:selected`): de las que entran, cuántas siguen (funnel.go).
+	Funnel     []Subject `json:"funnel"`
 	RejectNote string    `json:"rejectNote,omitempty"`
 	// Policies: los cambios de política de las entidades (lender_rules_snapshots), del más nuevo al más viejo: se
 	// marcan como los despliegues.
@@ -159,6 +165,8 @@ type sentinel struct {
 	deploysNote     string // la lista de despliegues no se pudo leer (o le falta el front)
 	rejectNote      string // el rechazo de CreditopX no se pudo leer (reject.go)
 	policyList      []PolicyChange
+	stakeList       Stakes
+	stakesAt        time.Time
 	policiesAt      time.Time
 	releasesNote    string // las versiones de los servicios no se pudieron leer (services.go)
 	// progressAt: la última vez que la pasada en curso dio señales de vida (al empezar y en cada paso de la carga). El
@@ -193,7 +201,7 @@ func (s *sentinel) fetchRange(r reader, from, to time.Time) error {
 		}
 		// El rechazo de CreditopX es una señal más: si falla, la pasada sigue sin él y lo dice (rejectNote).
 		if reqErr == nil {
-			rejErr = r.rejections(from, to, rej)
+			rejErr = r.profilingReads(from, to, rej)
 		}
 	}()
 	go func() {
@@ -394,7 +402,7 @@ func (s *sentinel) backfill(r reader, rules Rules, now time.Time) error {
 			to = now
 		}
 		f := Fresh{}
-		if err := r.rejections(day, to, f); err != nil {
+		if err := r.profilingReads(day, to, f); err != nil {
 			s.rejectNote = "sin la historia del rechazo de CreditopX: " + err.Error()
 			break
 		}
@@ -460,6 +468,13 @@ func (s *sentinel) pass() (*Overview, error) {
 			s.rejectNote = "sin los cambios de política: " + err.Error()
 		} else {
 			s.policyList, s.policiesAt = list, time.Now()
+		}
+	}
+	if time.Since(s.stakesAt) > 30*time.Minute {
+		// Lo que pesa cada entidad y comercio en lo desembolsado: sólo ordena, así que si falla queda lo anterior.
+		if st, err := r.stakes(); err == nil {
+			s.stakeList, s.stakesAt = st, time.Now()
+			s.saveStakes()
 		}
 	}
 	if time.Since(s.deploysAt) > 30*time.Minute {
@@ -563,10 +578,12 @@ func (s *sentinel) overview(rules Rules, now time.Time) *Overview {
 			o.Providers = append(o.Providers, subj)
 		case "reject":
 			o.Rejections = append(o.Rejections, subj)
+		case "funnel":
+			o.Funnel = append(o.Funnel, subj)
 		}
 	}
 	o.Apps = s.apps(o)
-	for _, list := range []*[]Subject{&o.Lenders, &o.Merchants, &o.Services, &o.Liveness, &o.LenderErrors, &o.Steps, &o.Providers, &o.Rejections, &o.NewMessages} {
+	for _, list := range []*[]Subject{&o.Lenders, &o.Merchants, &o.Services, &o.Liveness, &o.LenderErrors, &o.Steps, &o.Providers, &o.Rejections, &o.Funnel, &o.NewMessages} {
 		sortSubjects(*list)
 	}
 	return o
@@ -577,6 +594,10 @@ func sortSubjects(list []Subject) {
 	sort.Slice(list, func(i, j int) bool {
 		if rank[list[i].State] != rank[list[j].State] {
 			return rank[list[i].State] < rank[list[j].State]
+		}
+		// A igual estado, primero lo que más plata mueve (stake.go); después, lo de más volumen.
+		if a, b := stakeShare(list[i].Stake), stakeShare(list[j].Stake); a != b {
+			return a > b
 		}
 		if list[i].Median != list[j].Median {
 			return list[i].Median > list[j].Median
@@ -607,6 +628,8 @@ func (s *sentinel) subject(e evaluator, sig Signal, now time.Time) Subject {
 		subj.Name = providerName(key) + " · llamadas"
 	case "reject":
 		subj.Name = rejectName(s.lenderNames, key)
+	case "funnel":
+		subj.Name = funnelName(key)
 	case "jserr":
 		subj.Name = s.subjectName(sig)
 	case "step":
@@ -636,6 +659,11 @@ func (s *sentinel) subject(e evaluator, sig Signal, now time.Time) Subject {
 	subj.Step = ev.Step
 	subj.Out = ev.Out
 	subj.Reject = ev.Reject
+	subj.Funnel = ev.Funnel
+	subj.Stake = s.stakeList.stakeOf(kind, subj.ID, sig)
+	if t := stakeText(subj.Stake); t != "" && (level >= levelWarn || ev.Level >= levelWarn) {
+		subj.Why += " · " + t
+	}
 	// La curva del día y lo normal por hora, de los días comparables.
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, bogota)
 	comp := comparable(now, e.rules.BaselineDays, e.have)
@@ -728,7 +756,7 @@ func (s *sentinel) decorate(o *Overview) {
 	now := time.Now().In(bogota)
 	o.Gaps = s.notifier.gaps(time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, bogota).AddDate(0, 0, -1))
 	acked := s.notifier.acked()
-	for _, list := range []*[]Subject{&o.Lenders, &o.Merchants, &o.Services, &o.Liveness, &o.LenderErrors, &o.Steps, &o.Providers, &o.Rejections, &o.NewMessages} {
+	for _, list := range []*[]Subject{&o.Lenders, &o.Merchants, &o.Services, &o.Liveness, &o.LenderErrors, &o.Steps, &o.Providers, &o.Rejections, &o.Funnel, &o.NewMessages} {
 		for i := range *list {
 			(*list)[i].Acked = acked[(*list)[i].Signal]
 		}
@@ -900,6 +928,7 @@ func (s *sentinel) saveLast(o *Overview) {
 }
 
 func (s *sentinel) loadLast() {
+	s.loadStakes()
 	raw, err := os.ReadFile(s.lastPath())
 	if err != nil {
 		return

@@ -133,6 +133,47 @@ Medido al crearlo (2026-11-18): el rechazo de CreditopX venía en 14–16 % a co
 el 13, en varias entidades a la vez (Credi ASYCO, Dentix, Crédito Directo X LB, Credi Free, Refurbicredit); sólo Crédito
 Directo X LB tuvo un cambio de política ese día.
 
+## El embudo del backend (`server/funnel.go`)
+
+Que entren igual y se queden en una etapa: el volumen no lo ve y las pantallas de PostHog sólo ven lo que el cliente
+envía. Son las etapas de tracer (la herramienta del repo compartido que sigue UNA solicitud), sumadas para todas y sólo
+con su parte de la base; el porqué de cada una sigue en tracer, por solicitud. Dos conversiones, contadas por la hora del
+EVENTO (así lo de hoy no está «todavía avanzando»):
+
+- `funnel:profiled`: de las que entraron, cuántas se perfilaron (`profiling_reviews`). Lo normal, 83–90 % por hora.
+- `funnel:selected`: de las perfiladas, cuántas eligieron entidad (`user_request_records` con el estado 3). 35–45 %.
+
+En lo guardado, como las pantallas: Approved es la etapa de antes y Total, las que llegaron. Se evalúa como la
+conversión de una pantalla (binomial: alerta con z ≤ −4,5 y ≤ 60 % de lo normal; para mirar con z ≤ −3 y ≤ 75 %), con
+30 solicitudes como mínimo. Sale de la misma lectura que el rechazo de CreditopX (`profilingReads`, `rejectVersion` 3),
+~1 s por día. Pestaña «Embudo» en la tabla y una tabla debajo de la curva en la vista de toda la originación.
+
+- ⚠ **Cuenta la primera vez de cada solicitud.** Contando todas, una solicitud que se vuelve a perfilar contaba dos
+  veces, muchas horas tenían más perfiladas que entradas, lo normal daba 100 % y la semana del 11 al 17/11/2026 sumaba
+  13 «para mirar» y una alerta; con la primera vez, 4 «para mirar» y ninguna alerta (`-backtest 7`).
+- **El buró no entra**, medido el 18/11/2026: `risk_central_user_data` no tiene filas del 10 al 12/11 (sí de antes y
+  de después) y tiene fechas de 2027; `user_request_risk_central_user_data` daba 0 por día y 536.266 el 18 (un relleno).
+  Ninguna dice cuándo se consultó.
+- **La autorización (11) y el desembolso tampoco**: pasan horas o días después de la elección; en una hora no hay con
+  qué compararlas.
+
+## La plata en juego (`server/stake.go`)
+
+Cuánto pesa en lo desembolsado lo que pide atención: lo desembolsado de los últimos 28 días por entidad y por comercio
+(por `disbursed_at`, `COALESCE(final_amount, amount)` como forecast), sólo comercios de Colombia (pesos; Perú fueron 21
+desembolsos que suman 0). Se lee cada 30 minutos y queda en `sentinel/.data/stakes.json` para la consola. Ordena «Pide
+atención» (a igual estado, primero lo que más plata mueve; antes, por volumen) en la interfaz y en `bin/sentinel now`;
+el porqué de lo que está fuera de lo normal lo nombra («mueve 27 % de lo desembolsado (~$133,5 millones por día)») y el
+detalle de una entidad o un comercio lo dice siempre. Lo de todo el flujo (toda la originación, el embudo, el rechazo de
+todas) pesa todo; un servicio, nada que se pueda decir. Medido el 18/11/2026: $13.775 millones en 4.948 desembolsos;
+Addi 27 % y Welli 26 %.
+
+**Es lo desembolsado, no el revenue.** El revenue lo calcula forecast (SaaS + la comisión de cada pareja comercio–entidad
+sobre lo que pase de su base mínima + la tasa general del comercio, `revenue.js`), pero sus tasas viven en la base
+PROPIA de forecast (`lender_rates`, `merchant_config`, cargadas a mano), no en producción, y Sentinel no tiene
+credenciales para leerla. Copiar las de octubre (`seeds/tarifas-*.sql`) sería un índice que envejece sin avisar. Para
+ordenar alcanza con lo desembolsado; pasar a revenue pide leer esa base.
+
 ## Los errores que no estaban (`server/messages.go`)
 
 Un conteo no ve una falla nueva de poco volumen (el «Unknown column 'cell_phone_lenght'» del form-service fueron 12 en
@@ -287,6 +328,8 @@ comercio chico mira 3, 6 o 24 horas. Avisan las del wizard entero y las de los c
 | los proveedores externos (`out:`) | `server/outbound.go` |
 | los errores que no estaban (`newmsg:`) | `server/messages.go` |
 | casos de ejemplo y qué regla rechaza | `server/examples.go` |
+| el embudo del backend (`funnel:`) | `server/funnel.go` |
+| la plata en juego (lo desembolsado por entidad y comercio) | `server/stake.go` |
 | los servicios en producción: versión y tarjetas | `server/services.go` |
 | el LaunchAgent (de fondo) | `server/agent.go` |
 | los despliegues a producción | `go run ./tablero/server/cmd/deploys -json` (lo mismo que `make deploys`) |

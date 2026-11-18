@@ -64,7 +64,7 @@ const filtered = (list) => (query.value.trim() ? (list || []).filter((s) => fold
 // Sin movimiento: lo normal a esta hora es 0 y hoy tampoco entró nada. Van plegados al final de su grupo: son la
 // mayoría de las entidades a cualquier hora y tapaban las que sí se mueven.
 const idle = (s) => s.median === 0 && s.now.total === 0
-const everything = computed(() => [...(data.value?.services || []), ...(data.value?.liveness || []), ...(data.value?.lenderErrors || []), ...(data.value?.providers || []), ...(data.value?.rejections || []), ...(data.value?.steps || []), ...(data.value?.lenders || []), ...(data.value?.merchants || [])])
+const everything = computed(() => [...(data.value?.services || []), ...(data.value?.liveness || []), ...(data.value?.lenderErrors || []), ...(data.value?.providers || []), ...(data.value?.rejections || []), ...(data.value?.funnel || []), ...(data.value?.steps || []), ...(data.value?.lenders || []), ...(data.value?.merchants || [])])
 const bySignal = computed(() => new Map(everything.value.map((s) => [s.signal, s])))
 const followed = computed(() => following.value.map((sig) => bySignal.value.get(sig) || { signal: sig, name: sig, kind: sig.split(':')[0], id: Number(sig.split(':')[1]), state: 'quiet', now: { total: 0 }, median: 0, why: 'Sin datos todavía: no aparece en lo guardado.' }))
 // Lo que se sigue, en dos secciones: entidades primero (son menos y cada una cruza varios comercios), después comercios.
@@ -98,7 +98,7 @@ function spark(s) {
 }
 
 // ── la tabla de la consola: todas las señales ──
-const KIND_TABS = [{ id: 'all', label: 'Todas' }, { id: 'errors', label: 'Errores' }, { id: 'logs', label: 'Vida' }, { id: 'step', label: 'Pantallas' }, { id: 'out', label: 'Proveedores' }, { id: 'reject', label: 'Rechazo' }, { id: 'lender', label: 'Entidades' }, { id: 'merchant', label: 'Comercios' }]
+const KIND_TABS = [{ id: 'all', label: 'Todas' }, { id: 'errors', label: 'Errores' }, { id: 'logs', label: 'Vida' }, { id: 'step', label: 'Pantallas' }, { id: 'out', label: 'Proveedores' }, { id: 'reject', label: 'Rechazo' }, { id: 'funnel', label: 'Embudo' }, { id: 'lender', label: 'Entidades' }, { id: 'merchant', label: 'Comercios' }]
 const tableKind = ref('all')
 const tableQuery = ref('')
 const showIdle = ref(false)
@@ -135,6 +135,7 @@ const selected = computed(() => {
   if (route.value.kind === 'logs') return d.liveness?.find((s) => s.signal === `logs:${route.value.name}`) || d.all
   if (route.value.kind === 'out') return d.providers?.find((s) => s.signal === `out:${route.value.name}`) || d.all
   if (route.value.kind === 'reject') return d.rejections?.find((s) => s.signal === `reject:${route.value.name}`) || d.all
+  if (route.value.kind === 'funnel') return d.funnel?.find((s) => s.signal === `funnel:${route.value.name}`) || d.all
   if (route.value.kind === 'lender') return d.lenders?.find((s) => s.id === route.value.id) || d.all
   if (route.value.kind === 'merchant') return d.merchants?.find((s) => s.id === route.value.id) || d.all
   return d.all
@@ -144,8 +145,10 @@ const selected = computed(() => {
 // este panel y la tabla mostraba alertas que acá no aparecían).
 const stepFollowed = (x) => !x.signal.includes('@') || following.value.includes(`merchant:${x.signal.split('@')[1]}`)
 const outOfNormal = (s) => s.state === 'alert' || s.state === 'warn'
-const noticing = computed(() => [...(data.value?.services || []), ...(data.value?.liveness || []), ...(data.value?.lenderErrors || []), ...(data.value?.providers || []), ...(data.value?.rejections || []), ...(data.value?.newMessages || []), ...(data.value?.steps || []).filter(stepFollowed), ...(data.value?.lenders || []), ...(data.value?.merchants || [])]
-  .filter(outOfNormal))
+const noticing = computed(() => [...(data.value?.services || []), ...(data.value?.liveness || []), ...(data.value?.lenderErrors || []), ...(data.value?.providers || []), ...(data.value?.rejections || []), ...(data.value?.funnel || []), ...(data.value?.newMessages || []), ...(data.value?.steps || []).filter(stepFollowed), ...(data.value?.lenders || []), ...(data.value?.merchants || [])]
+  .filter(outOfNormal)
+  // Lo peor primero y, a igual estado, lo que más plata mueve (stake: su parte de lo desembolsado en 28 días).
+  .sort((a, b) => (SEVERITY[a.state] ?? 9) - (SEVERITY[b.state] ?? 9) || (b.stake?.share || 0) - (a.stake?.share || 0)))
 const attention = computed(() => noticing.value.filter((s) => !s.acked))
 const known = computed(() => noticing.value.filter((s) => s.acked))
 const unfollowed = computed(() => (data.value?.steps || []).filter((x) => !stepFollowed(x) && outOfNormal(x)))
@@ -163,7 +166,7 @@ async function setAck(s, on) {
 function readRoute() {
   const { parts } = readHashRoute()
   if (parts[0] === 'queue') route.value = { kind: 'queue', id: 0 }
-  else if ((parts[0] === 'service' || parts[0] === 'logs' || parts[0] === 'step' || parts[0] === 'jserr' || parts[0] === 'out' || parts[0] === 'reject') && parts[1]) route.value = { kind: parts[0], id: 0, name: decodeURIComponent(parts[1]) }
+  else if ((parts[0] === 'service' || parts[0] === 'logs' || parts[0] === 'step' || parts[0] === 'jserr' || parts[0] === 'out' || parts[0] === 'reject' || parts[0] === 'funnel') && parts[1]) route.value = { kind: parts[0], id: 0, name: decodeURIComponent(parts[1]) }
   else route.value = (parts[0] === 'lender' || parts[0] === 'merchant' || parts[0] === 'lerr') && parts[1] ? { kind: parts[0], id: Number(parts[1]) } : { kind: 'all', id: 0 }
 }
 // Ir a una señal: `setRoute` recibe una URL, no las partes; con la lista escribía `/merchant,94` en la ruta y el
@@ -178,11 +181,12 @@ function pick(s) {
   else if (s.kind === 'jserr') go(['jserr', s.signal.slice(6)])
   else if (s.kind === 'out') go(['out', s.signal.slice(4)])
   else if (s.kind === 'reject') go(['reject', s.signal.slice(7)])
+  else if (s.kind === 'funnel') go(['funnel', s.signal.slice(7)])
   else if (s.kind === 'newmsg') go(['service', s.message.service]) // el error nuevo se mira en su servicio
   else go([s.kind, String(s.id)])
   readRoute()
 }
-const isOn = (s) => route.value.kind === s.kind && (s.kind === 'queue' || (s.kind === 'service' ? route.value.name === s.name : s.kind === 'logs' || s.kind === 'step' || s.kind === 'jserr' || s.kind === 'out' || s.kind === 'reject' ? `${s.kind}:${route.value.name}` === s.signal : route.value.id === s.id))
+const isOn = (s) => route.value.kind === s.kind && (s.kind === 'queue' || (s.kind === 'service' ? route.value.name === s.name : s.kind === 'logs' || s.kind === 'step' || s.kind === 'jserr' || s.kind === 'out' || s.kind === 'reject' || s.kind === 'funnel' ? `${s.kind}:${route.value.name}` === s.signal : route.value.id === s.id))
 
 // El último despliegue a producción de un servicio: los servicios de Loki se llaman como sus repos.
 const lastDeployOf = (name) => (data.value?.deploys || []).find((d) => d.repo === name)
@@ -213,7 +217,7 @@ const ago = (iso) => {
 const STATE_LABEL = { alert: 'alerta', warn: 'para mirar', ok: 'normal', quiet: 'poco volumen' }
 // En la tabla, corto: es una columna.
 const TABLE_KIND = { reject: 'Rechazo', out: 'Proveedor', newmsg: 'Error nuevo', jserr: 'Errores', step: 'Pantalla', lerr: 'Errores', lender: 'Entidad', merchant: 'Comercio', service: 'Errores', queue: 'Cola', all: 'Producción', logs: 'Vida' }
-const KIND_LABEL = { out: 'Proveedor externo', newmsg: 'Error que no estaba', jserr: 'Errores del front', step: 'Pantalla del wizard', lerr: 'Errores de una entidad', lender: 'Entidad', merchant: 'Comercio', all: 'Producción', service: 'Errores en los logs', queue: 'La cola', logs: 'Líneas en los logs' }
+const KIND_LABEL = { funnel: 'Embudo del backend', reject: 'Rechazo de CreditopX', out: 'Proveedor externo', newmsg: 'Error que no estaba', jserr: 'Errores del front', step: 'Pantalla del wizard', lerr: 'Errores de una entidad', lender: 'Entidad', merchant: 'Comercio', all: 'Producción', service: 'Errores en los logs', queue: 'La cola', logs: 'Líneas en los logs' }
 const NOTICE_LABEL = { alert: 'Alerta', warn: 'Para mirar', recovered: 'Volvió a lo normal', stale: 'Sin leer producción', late: 'Atrasados', gap: 'No estuvo mirando' }
 const NOTICE_DOT = { alert: 'alert', warn: 'warn', recovered: 'ok', stale: 'warn', late: 'warn', gap: 'warn' }
 // La cabecera cuenta por nivel («2 alertas · 1 para mirar») con el color del peor: antes decía «3 para mirar» en
@@ -230,7 +234,7 @@ const attentionCounts = computed(() => {
 function pickSignal(sig) {
   const [kind, key] = String(sig).split(':')
   if (kind === 'lender' || kind === 'merchant' || kind === 'lerr') go([kind, key])
-  else if (kind === 'service' || kind === 'logs' || kind === 'step' || kind === 'jserr' || kind === 'out' || kind === 'reject') go([kind, String(sig).slice(kind.length + 1)])
+  else if (kind === 'service' || kind === 'logs' || kind === 'step' || kind === 'jserr' || kind === 'out' || kind === 'reject' || kind === 'funnel') go([kind, String(sig).slice(kind.length + 1)])
   else if (kind === 'queue') go(['queue'])
   else go([])
   readRoute()
@@ -255,6 +259,9 @@ const dayBarMax = computed(() => Math.max(1, selected.value?.now?.total || 0, ..
 const clock = (iso) => (iso ? new Date(iso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false }) : '')
 const dayClock = (iso) => (iso ? new Date(iso).toLocaleString('es-CO', { weekday: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : '')
 const pct = (x) => `${Math.round((x || 0) * 100)} %`
+// Pesos en corto: «$1.234 millones», «$85,3 millones», «$950 mil».
+const money = (x) => (x >= 1e9 ? `$${Math.round(x / 1e6).toLocaleString('es-CO')} millones` : x >= 1e6 ? `$${(x / 1e6).toLocaleString('es-CO', { maximumFractionDigits: 1 })} millones` : `$${Math.round(x / 1e3).toLocaleString('es-CO')} mil`)
+const sharePct = (x) => (x < 0.01 ? 'menos del 1 %' : pct(x))
 const fmt = (x) => (Number.isInteger(x) ? String(x) : (x || 0).toFixed(1))
 const repoShort = (r) => r.replace('legacy-', '')
 
@@ -529,13 +536,14 @@ onBeforeUnmount(() => {
           <p v-if="sourceNoteOf(selected)" class="source-note" role="status">⚠ {{ sourceNoteOf(selected) }}. Lo que se ve acá es lo de la última lectura que sí llegó.</p>
           <p v-if="selected.raw !== selected.state && (selected.raw === 'alert' || selected.raw === 'warn')" class="note">
             Ahora mismo daría «{{ STATE_LABEL[selected.raw] }}», pero todavía no se sostuvo: se avisa cuando dura {{ data.rules.sustain }} lecturas seguidas ({{ data.rules.sustain * data.rules.stepMinutes }} min).</p>
-          <p v-if="hours(selected) > 1" class="note">Mira las últimas {{ hours(selected) }} horas y no una: {{ selected.kind === 'reject' || selected.kind === 'out' ? 'en una hora hay muy pocas para hablar de una tasa' : 'es de lo que seguís, y en una hora entra tan poco que no hay con qué comparar' }}.</p>
+          <p v-if="hours(selected) > 1" class="note">Mira las últimas {{ hours(selected) }} horas y no una: {{ selected.kind === 'reject' || selected.kind === 'out' || selected.kind === 'funnel' ? 'en una hora hay muy pocas para hablar de una tasa' : 'es de lo que seguís, y en una hora entra tan poco que no hay con qué comparar' }}.</p>
           <p v-if="selected.silence" class="note">Callado desde el {{ dayClock(selected.silence.since) }}: {{ silentFor(selected.silence.minutes) }} sin escribir una línea, más que el silencio más largo de las semanas anteriores ({{ silentFor(selected.silence.longest) }}). Se marca hasta que vuelva a escribir, aunque la estadística de la hora ya lo tome por normal.</p>
           <p v-if="selected.shift" class="note">{{ shiftText(selected) }}</p>
+          <p v-if="selected.stake && selected.stake.share < 1" class="note">Mueve {{ sharePct(selected.stake.share) }} de lo desembolsado en los últimos 28 días (~{{ money(selected.stake.perDay) }} por día, {{ selected.stake.count }} créditos): es lo que se deja de colocar si esto se cae.</p>
 
           <div class="cards">
             <div class="card-num"><span class="card-label">{{ spanLabel(selected) }}</span><span class="card-value">{{ selected.now.total }}</span>
-              <span class="card-what">{{ selected.kind === 'jserr' ? 'errores de JavaScript en el front (PostHog)' : selected.kind === 'step' ? 'enviaron esta pantalla (la curva: por hora)' : selected.kind === 'lerr' ? 'errores en los logs que nombran a la entidad' : selected.kind === 'service' ? 'errores en los logs de producción' : selected.kind === 'queue' ? 'trabajos fallidos en la cola' : selected.kind === 'logs' ? 'líneas que escribió en los logs (si deja de escribir, probablemente se cayó)' : selected.kind === 'reject' ? 'ofertas: perfilamientos en que el cliente vio la entidad' : 'solicitudes que entraron' }}</span></div>
+              <span class="card-what">{{ selected.kind === 'jserr' ? 'errores de JavaScript en el front (PostHog)' : selected.kind === 'step' ? 'enviaron esta pantalla (la curva: por hora)' : selected.kind === 'lerr' ? 'errores en los logs que nombran a la entidad' : selected.kind === 'service' ? 'errores en los logs de producción' : selected.kind === 'queue' ? 'trabajos fallidos en la cola' : selected.kind === 'logs' ? 'líneas que escribió en los logs (si deja de escribir, probablemente se cayó)' : selected.kind === 'reject' ? 'ofertas: perfilamientos en que el cliente vio la entidad' : selected.kind === 'funnel' ? `${selected.funnel?.toText || 'llegaron'} (la curva: por hora)` : 'solicitudes que entraron' }}</span></div>
             <div class="card-num"><span class="card-label">Lo normal</span><span class="card-value">{{ fmt(selected.median) }}</span>
               <span class="card-what">casi siempre entre {{ selected.low }} y {{ selected.high }} {{ hours(selected) === 1 ? 'a esta hora' : `en estas ${hours(selected)} horas` }}, en {{ selected.samples?.length || 0 }} días comparables</span></div>
             <div v-if="isService(selected)" class="card-num"><span class="card-label">Desplegado en producción</span>
@@ -547,6 +555,9 @@ onBeforeUnmount(() => {
             <div v-else-if="selected.kind === 'step'" class="card-num"><span class="card-label">La enviaron · fallaron</span>
               <span class="card-value">{{ selected.step?.rate >= 0 ? `${Math.round(selected.step.rate * 100)} %` : '—' }} · {{ selected.step?.done ? `${Math.round(selected.step.failRate * 100)} %` : '—' }}</span>
               <span class="card-what">de {{ selected.step?.views || 0 }} que la vieron; lo normal, {{ selected.step?.baseRate ? `${Math.round(selected.step.baseRate * 100)} %` : '—' }} y {{ selected.step?.baseFail ? `${Math.round(selected.step.baseFail * 100)} %` : '—' }} de fallos</span></div>
+            <div v-else-if="selected.kind === 'funnel'" class="card-num"><span class="card-label">Siguieron</span>
+              <span class="card-value">{{ selected.funnel ? pct(selected.funnel.rate) : '—' }}</span>
+              <span class="card-what">{{ selected.funnel?.reached || 0 }} de {{ selected.funnel?.from || 0 }} que {{ selected.funnel?.fromText }}; lo normal a esta hora, {{ selected.funnel ? pct(selected.funnel.baseRate) : '—' }}</span></div>
             <div v-else-if="selected.kind === 'reject'" class="card-num"><span class="card-label">Rechazadas</span>
               <span class="card-value">{{ selected.reject ? pct(selected.reject.rate) : '—' }}</span>
               <span class="card-what">{{ selected.reject?.rejects || 0 }} de {{ selected.reject?.offers || 0 }} ofertas; lo normal a esta hora, {{ selected.reject ? pct(selected.reject.baseRate) : '—' }}{{ selected.reject?.policy ? ` · ${selected.reject.policy}` : '' }}</span></div>
@@ -642,6 +653,22 @@ onBeforeUnmount(() => {
               </tbody>
             </table>
             <p class="chart-note">De PostHog: de los que vieron cada pantalla, cuántos la enviaron, y de los resultados, cuántos fallaron, contra lo normal de esta hora. Si un despliegue del front rompe una pantalla, el backend no se entera; esto sí.<template v-if="data.stepsNote"> ⚠ {{ data.stepsNote }}</template></p>
+          </section>
+
+          <section v-if="selected.kind === 'all' && data.funnel?.length" class="steps-box">
+            <h3>Embudo del backend</h3>
+            <table class="table steps">
+              <thead><tr><th>Etapa</th><th class="num">De</th><th class="num">Siguieron</th><th class="num">Lo normal</th></tr></thead>
+              <tbody>
+                <tr v-for="x in data.funnel" :key="x.signal" :title="x.why" @click="pick(x)">
+                  <td><i class="dot" :class="`is-${x.state}`" aria-hidden="true"></i>{{ x.name.replace('Embudo · ', '') }}<small v-if="hours(x) > 1" class="muted"> ({{ hours(x) }} h)</small></td>
+                  <td class="num">{{ x.funnel?.from ?? '—' }}</td>
+                  <td class="num"><b>{{ x.funnel ? pct(x.funnel.rate) : '—' }}</b></td>
+                  <td class="num muted">{{ x.funnel?.baseRate ? pct(x.funnel.baseRate) : '—' }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <p class="chart-note">De la base: de las que entraron, cuántas se perfilaron, y de esas, cuántas eligieron entidad (la primera vez de cada solicitud), contra lo normal de esta hora. Que entren igual y se queden en una etapa es lo que el volumen no ve.</p>
           </section>
 
           <section v-if="lenderReject" class="chart-box lender-reject">
@@ -769,7 +796,7 @@ onBeforeUnmount(() => {
               <td class="num">{{ fmt(s.median) }}</td>
               <td class="num muted">{{ s.low }}–{{ s.high }}</td>
               <td class="num">{{ s.z ? s.z.toFixed(1) : '·' }}</td>
-              <td class="num muted">{{ s.kind === 'reject' && s.reject ? `${pct(s.reject.rate)} · lo normal ${pct(s.reject.baseRate)}` : s.kind === 'out' && s.out ? `${s.out.fails} fallas` : isErrors(s) || s.kind === 'logs' || s.kind === 'step' ? '' : `${s.now.approved} · ${s.now.denied}` }}</td>
+              <td class="num muted">{{ s.kind === 'funnel' && s.funnel ? `${pct(s.funnel.rate)} · lo normal ${pct(s.funnel.baseRate)}` : s.kind === 'reject' && s.reject ? `${pct(s.reject.rate)} · lo normal ${pct(s.reject.baseRate)}` : s.kind === 'out' && s.out ? `${s.out.fails} fallas` : isErrors(s) || s.kind === 'logs' || s.kind === 'step' ? '' : `${s.now.approved} · ${s.now.denied}` }}</td>
               <td class="follow-col">
                 <button v-if="canFollow(s)" type="button" class="region-action" :class="{ following: isFollowed(s) }"
                         :aria-pressed="isFollowed(s)" :title="isFollowed(s) ? `Dejar de seguir ${s.name}` : `Seguir ${s.name}`"
