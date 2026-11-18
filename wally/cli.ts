@@ -15,9 +15,9 @@
 //   bin/wally new [--title 'título']                   una conversación vacía
 //   bin/wally delete <id>                              borra una conversación (la de Wally no se borra)
 //   bin/wally ask [--conv <id> | --agent <nombre>] 'pregunta'   le pregunta (sin --conv ni --agent, a Wally)
-//                 [--auto [--rounds 6]]   sin esperar a nadie: corre los comandos que pida (sólo los de la lista
-//                                          blanca, que valida el servidor) y le manda los resultados, hasta que
-//                                          conteste sin pedir nada o se acaben las vueltas
+//                 [--auto [--rounds 12]]  sin esperar a nadie: la corrida la lleva el servidor (corre los comandos
+//                                          de la lista blanca y le manda los resultados) y esto la sigue; Ctrl-C
+//                                          la frena; si este proceso se corta, la corrida sigue en Wally
 //   bin/wally compact [--conv <id> | --agent <nombre>] [--keep 4]   resume lo viejo de la conversación (los últimos
 //                 4 bloques quedan tal cual; el original va a .data/archive). Wally lo hace solo al pasar el tope
 //   cualquiera con --json: la salida en JSON
@@ -161,65 +161,41 @@ try {
         if (!text) throw new Error("falta la pregunta: bin/wally ask 'qué hacemos'");
         const id = flag('conv') || (flag('agent') ? (await agentByName(flag('agent')!)).conv : (await api('/api/main')).id);
         const { default: provider } = await api('/api/providers');
-        let c = await ask({ id, provider, text });
-        let m = c.messages[c.messages.length - 1];
-        // --auto: el agente sigue solo. Lo que corre lo decide el servidor (la lista blanca, sólo lectura); el tope
-        // de vueltas evita que pida y pida sin terminar, y cada vuelta reenvía todo el contexto al proveedor.
-        const rounds: Array<{ ms: number; ran: string[]; refused: string[] }> = [{ ms: m.ms, ran: [], refused: [] }];
-        let autoStopped = '';
-        if (args.includes('--auto')) {
-            const max = Number(flag('rounds') || 6);
-            let nudges = 0;
-            while (rounds.length <= max) {
-                // Contestó sin pedir nada: ¿puede cerrar? Si escribió en pruebas/ sin probar, o el último `probar` dejó
-                // algo en rojo, Wally no lo deja (hasta 3 veces: después frena y lo dice).
-                if (!(m.commands || []).some((x: any) => x.status === 'propuesto')) {
-                    const { reason } = await api(`/api/conversations/${c.id}/pending`);
-                    if (!reason || nudges >= 3) { if (reason && !JSON_OUT) console.error(`  ⚠ quedó sin cerrar bien: ${reason}`); autoStopped = reason || ''; break; }
-                    nudges++;
-                    if (!JSON_OUT) console.error(`  ↻ no puede cerrar todavía (${nudges}/3): ${reason.slice(0, 90)}…`);
-                    c = await ask({ id: c.id, provider, text: reason });
-                    m = c.messages[c.messages.length - 1];
-                    rounds.push({ ms: m.ms, ran: [], refused: [] });
-                    continue;
-                }
-                const ran: string[] = [], refused: string[] = [];
-                for (const cmd of m.commands) {
-                    if (cmd.status === 'no-permitido') { refused.push(cmd.cmd); continue; }
-                    if (cmd.status !== 'propuesto') continue;
-                    // Si otra ventana ya lo tomó (409 «ya está corriendo»), se espera a que termine.
-                    let done: any;
-                    try {
-                        // Sin el tope de 5 min de fetch: compilar Rust por primera vez puede tardar más.
-                        const r = await ask({ action: 'run' }, `/api/conversations/${c.id}/messages/${m.id}/commands/${cmd.id}`);
-                        done = r.messages?.flatMap((x: any) => x.commands || []).find((x: any) => x.id === cmd.id);
-                    } catch (e: any) {
-                        if (!/ya está/.test(e.message)) throw e;
-                        for (let i = 0; i < 120 && (!done || done.status === 'corriendo' || done.status === 'propuesto'); i++) {
-                            await new Promise((ok) => setTimeout(ok, 2000));
-                            done = (await api(`/api/conversations/${c.id}`)).messages.flatMap((x: any) => x.commands || []).find((x: any) => x.id === cmd.id);
-                        }
-                    }
-                    (done?.status === 'corrido' ? ran : refused).push(cmd.cmd);
-                }
-                if (!JSON_OUT) console.error(`  ↻ vuelta ${rounds.length}: corrí ${ran.length}${refused.length ? `, no permitidos ${refused.length} (${refused.join(' · ')})` : ''}`);
-                const next = ran.length
-                    ? `Listo: corrí ${ran.length === 1 ? 'el comando' : `los ${ran.length} comandos`} (la salida va arriba)${refused.length ? `; ${refused.length} no están en la lista: ${refused.join(' · ')}` : ''}. Seguí.`
-                    : `Ninguno de esos comandos está en la lista de sólo lectura (${refused.join(' · ')}). Seguí con lo que tenés o pedí otro.`;
-                c = await ask({ id: c.id, provider, text: next });
-                m = c.messages[c.messages.length - 1];
-                rounds.push({ ms: m.ms, ran, refused });
+        if (!args.includes('--auto')) {
+            const c = await ask({ id, provider, text });
+            const m = c.messages[c.messages.length - 1];
+            const pending = (m.commands || []).filter((x: any) => x.status === 'propuesto').length;
+            out({ conv: c.id, model: m.model, ms: m.ms, answer: m.text, commands: m.commands || [] },
+                `${m.text}\n\n  (${m.model}, ${(m.ms / 1000).toFixed(1)} s${pending ? ` · pide ${pending} comando(s): aprobalos en Wally` : ''})`);
+        } else {
+            // --auto: la corrida la lleva el SERVIDOR (autorun.go): esto la arranca y la sigue. Si este proceso se corta,
+            // la corrida sigue igual (se ve en Wally); Ctrl-C la frena.
+            const started = Date.now();
+            await post(`/api/conversations/${id}/auto`, { text, provider, rounds: Number(flag('rounds') || 0) });
+            let stopping = false;
+            process.on('SIGINT', () => {
+                if (stopping) process.exit(130);
+                stopping = true;
+                if (!JSON_OUT) console.error('  ⏹ frenando la corrida…');
+                post(`/api/conversations/${id}/auto/stop`, {}).catch(() => {});
+            });
+            let lastDoing = '';
+            let st: any = null;
+            for (;;) {
+                await new Promise((ok) => setTimeout(ok, 1500));
+                st = await api(`/api/conversations/${id}/auto`).catch(() => st);
+                if (st && st.doing !== lastDoing && !JSON_OUT && st.doing !== 'terminó') console.error(`  ↻ ${st.doing}`);
+                lastDoing = st?.doing || lastDoing;
+                if (st && st.ended && !st.ended.startsWith('0001')) break;
             }
+            const c = await api(`/api/conversations/${id}`);
+            const m = [...c.messages].reverse().find((x: any) => x.role === 'model') || {};
+            if (st.stopped && !JSON_OUT) console.error(`  ⚠ terminó sin quedar bien: ${st.stopped}`);
+            const secs = ((Date.now() - started) / 1000).toFixed(1);
+            out({ conv: id, model: m.model, rounds: st.round, seconds: Number(secs), stopped: st.stopped || '', byUser: !!st.byUser, answer: m.text, commands: m.commands || [] },
+                `${m.text || ''}\n\n  (${m.model || ''}, ${st.round} vuelta(s), ${secs} s${st.byUser ? ' · la frenaste' : ''})`);
+            if (st.stopped) process.exitCode = 1;
         }
-        const pending = (m.commands || []).filter((x: any) => x.status === 'propuesto').length;
-        // La corrida automática terminó: aviso de macOS y queda «sin ver» en Wally hasta que se abra la conversación.
-        if (args.includes('--auto') && rounds.length > 1) {
-            if (pending) autoStopped = `se acabaron las ${rounds.length - 1} vueltas y todavía pedía ${pending} comando(s)`;
-            await post(`/api/conversations/${c.id}/done`, { rounds: rounds.length, ms: rounds.reduce((s, r) => s + r.ms, 0), stopped: autoStopped }).catch(() => {});
-        }
-        const total = rounds.reduce((s, r) => s + r.ms, 0);
-        out({ conv: c.id, model: m.model, ms: m.ms, totalMs: total, rounds, answer: m.text, commands: m.commands || [] },
-            `${m.text}\n\n  (${m.model}, ${rounds.length > 1 ? `${rounds.length} vueltas, ${(total / 1000).toFixed(1)} s en el modelo` : `${(m.ms / 1000).toFixed(1)} s`}${pending ? ` · pide ${pending} comando(s)${args.includes('--auto') ? ': se acabaron las vueltas' : ': aprobalos en Wally'}` : ''})`);
     } else {
         console.error(fs.readFileSync(new URL(import.meta.url), 'utf8').split('\n').filter((l) => l.startsWith('//')).slice(0, 25).map((l) => l.slice(3)).join('\n'));
         process.exit(cmd ? 2 : 0);

@@ -71,6 +71,16 @@ const tooLongShown = (re: string) => [...document.querySelectorAll('body *')].so
     return el.childElementCount === 0 && el.innerText && el.innerText.length < 200 && new RegExp(re, 'i').test(el.innerText);
 });
 
+/** Después de abrir un chat que se sigue: la dirección es la pedida y hay mensajes. Si no, el chat ya no está. */
+export async function assertChatHasHistory(page: any, chatUrl: string, messageSelector: string) {
+    const id = chatUrl.replace(/\/+$/, '').split('/').pop() || '';
+    await page.waitForSelector(messageSelector, { timeout: 15_000 }).catch(() => {});
+    const count = await page.locator(messageSelector).count();
+    if (!id || !page.url().includes(id) || count < 2) {
+        throw new Error(`el chat que se seguía ya no está (${count} mensaje(s) en ${page.url()}): se abre uno nuevo con todo`);
+    }
+}
+
 /** Cuánto va en un mensaje (`DEEPSEEK_CHUNK`). Medido el 2026-11-17: 109 mil caracteres entraron de una vez y ~130 mil
  *  no; se deja margen. */
 export const CHUNK = Number(process.env.DEEPSEEK_CHUNK || 100_000);
@@ -159,6 +169,10 @@ export async function askDeepSeek(page: any, text: string, { think = true, searc
         const box = page.getByRole('textbox', { name: 'Mensaje a DeepSeek' });
         await Promise.race([box.waitFor({ timeout: 30_000 }), page.waitForURL(/sign_in/, { timeout: 30_000 })]).catch(() => {});
         if (/sign_in/.test(page.url())) throw new Error('DeepSeek no tiene sesión en este Chrome: entrá a mano en chat.deepseek.com');
+        // Seguir un chat: que sea ESE y que tenga la conversación. Si DeepSeek lo borró o lo redirigió a uno vacío,
+        // mandar sólo lo nuevo deja al modelo sin contexto (2026-11-18: Krabby contestó «no tengo acceso al repo»).
+        // Fallar acá hace que Wally abra un chat nuevo con todo.
+        if (chatUrl) await assertChatHasHistory(page, chatUrl, '.ds-message');
         const parts = splitText(text, chunk || Infinity);
         const bodies = chunkBodies(parts);
         if (chatUrl) log('deepseek · sigue su chat');

@@ -312,11 +312,35 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   `RefinanceRevolvingCredit`), escribió los dos párrafos a partir del suyo, sumó esas fuentes y selló las cuatro en
   `2798bb7a`: `knowledge-check` volvió a 0.
 - **Manual o Auto, en la barra de escribir** (2026-11-17, Miguel): un alternador por conversación (se recuerda en esta
-  máquina, `wally.auto`). En **Auto** corre solo los comandos que pida —los de la lista blanca, que valida el servidor—
-  y le manda los resultados, hasta 6 vueltas seguidas (`AUTO_ROUNDS`); al pasar el tope frena y lo dice. Lo mismo que
-  `bin/wally ask --auto`. Si te vas a otra pestaña mientras corre, los comandos quedan corridos y la barra «Mandar
-  resultados» espera. Probado: una pregunta que pedía `trampa F-135` corrió el comando, mandó los resultados sola y
-  contestó.
+  máquina, `wally.auto`). En **Auto** la pregunta arranca una corrida que lleva EL SERVIDOR (abajo, «El modo
+  automático vive en el servidor»).
+- **El modo automático vive en el servidor** (`server/autorun.go`, 2026-11-18; Miguel: «arrancá con la 1»). Antes
+  lo llevaba quien lo lanzaba —la ventana de Wally, o el proceso de `bin/wally ask --auto`—: en la interfaz se cortaba
+  al cambiar de conversación, al recargar o al cerrar Cockpit, y nadie lo podía frenar. Ahora la corrida es del
+  servidor: **`POST /api/conversations/<id>/auto {text, provider, rounds, files}`** la arranca y contesta enseguida
+  (sin `text`, sigue desde los comandos propuestos de la última respuesta); **`…/auto/stop`** la frena (corta la
+  pregunta o el comando en curso; un contenedor de Rust se mata; lo hecho queda); **`GET …/auto`** dice la que anda
+  o la última (vuelta, tope, qué está haciendo, por qué terminó); **`GET /api/live`** trae todas las que andan. El
+  ciclo es el de siempre: preguntar → correr lo que pidió (la lista blanca) → «Listo: corrí…» → … hasta que contesta
+  sin pedir nada y pasa el freno («todavía no terminaste», hasta 3 veces), o se acaba el tope (12 vueltas). Al
+  terminar, `finishRun`: el aviso de macOS y el «sin ver», salvo que la frenaras vos o que la estés mirando (la
+  interfaz lo dice con `/api/live?watching=<id>`). Si el avisador del chat no tiene permiso de avisos, avisa por
+  `osascript`.
+  - **La interfaz**: con Auto, «Preguntar» arranca la corrida (una pestaña nueva primero se vuelve conversación) y
+    arriba de la barra aparece la franja «Auto · vuelta N/12 · s · lo que está haciendo» con **Frenar**; mientras
+    anda, no se puede mandar otra pregunta en esa conversación. Prender Auto con comandos esperando su sí la arranca
+    desde ahí. Si termina mal y no la frenaste, el motivo queda como aviso en su conversación.
+  - **`bin/wally ask --auto`** la arranca y la sigue (muestra cada paso); **Ctrl-C la frena**; si el proceso se
+    corta, la corrida sigue en Wally.
+  Probado (Krabby, DeepSeek): arrancada por consola y la consola cortada a los 10 s, la corrida siguió sola —2
+  vueltas, parches, `probar-api` en verde— y terminó bien; con otra corrida andando, la franja de la interfaz mostró
+  «vuelta 2/10 · esperando la respuesta» y tocar «Frenar» la cortó en la vuelta 3 («la frenaste», sin aviso).
+  ⚠ Dos cosas que salieron de esa prueba: **(1) una pregunta sin proveedor sigue la regla vieja de privacidad** (un
+  agente va por Gemini salvo permiso): la interfaz y `bin/wally` siempre mandan el de la barra, pero un `curl` a mano
+  tiene que mandar `provider`. **(2) Seguir un chat que el proveedor ya no tiene dejaba al modelo SIN CONTEXTO**:
+  Krabby contestó «no tengo acceso al repo» porque DeepSeek no abrió el chat de ayer y le llegó sólo la pregunta
+  nueva. Las recetas de DeepSeek y ChatGPT ahora comprueban que el chat que abren es ése y tiene mensajes
+  (`assertChatHasHistory`); si no, fallan y Wally abre uno nuevo con todo.
 - **La tarjeta de comandos ya no se sale de la burbuja**: la columna de `.commands` crecía con el comando más largo
   (`nowrap`) y la ficha OUT quedaba afuera; ahora es `minmax(0, 1fr)` y el comando se corta con «…». Medido a 1440 px:
   4 tarjetas, ninguna ficha afuera.

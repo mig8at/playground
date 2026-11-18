@@ -364,20 +364,24 @@ function onCockpitMessage(e) {
   cockpitVisible.value = !!d.visible
   if (d.visible && unseen.value[active.value]) markSeen(active.value)
 }
-// Quien corre el modo Auto le cuenta al servidor que terminó: sale el aviso y queda «sin ver» si no estás mirando.
-async function autoFinished(id, stopped = '') {
-  const rounds = autoRounds[id] || 0
-  if (!rounds && !stopped) return
-  try { await api(`/api/conversations/${encodeURIComponent(id)}/done`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ rounds, ms: 0, stopped, quiet: shownToMiguel.value && active.value === id }) }) } catch {}
-}
 const remote = computed(() => (pending.value ? null : remoteBusy.value[active.value] || null))
 let live = null
 async function liveTick() {
   if (document.hidden || pending.value) return
   try {
-    const live = await api('/api/live')
+    const watching = shownToMiguel.value && !isNew(active.value) ? `?watching=${encodeURIComponent(active.value)}` : ''
+    const live = await api('/api/live' + watching)
     remoteBusy.value = live.busy || {}
     unseen.value = live.unseen || {}
+    const before = autoLive.value
+    autoLive.value = live.auto || {}
+    // Una corrida que terminó: si quedó mal (y no la frenaste vos), se dice en su conversación.
+    for (const id of Object.keys(before)) {
+      if (autoLive.value[id]) continue
+      api(`/api/conversations/${encodeURIComponent(id)}/auto`).then((st) => {
+        if (st?.stopped && !st.byUser) errors.value = { ...errors.value, [id]: `Auto terminó sin quedar bien: ${st.stopped}` }
+      }).catch(() => {})
+    }
   } catch { return }
   // La corrida de la conversación que tenés adelante ya la viste.
   if (unseen.value[active.value] && shownToMiguel.value) markSeen(active.value)
@@ -392,14 +396,36 @@ async function liveTick() {
 }
 async function send() {
   const key = active.value
-  const fromAuto = autoSending
-  autoSending = false
-  if (!fromAuto) { autoRounds[key] = 0; autoNudges[key] = 0 }
-  let answered = ''
   const files = attachments.value[key] || []
   const draftBefore = draft.value
   const text = draft.value.trim() || (files.length ? (files.length > 1 ? 'Revisá los archivos adjuntos.' : 'Revisá el archivo adjunto.') : '')
-  if (!text || pending.value || effectivePaused.value || uploading.value[key]) return
+  if (!text || pending.value || effectivePaused.value || uploading.value[key] || autoLive.value[key]) return
+  // En Auto, la pregunta arranca una corrida del servidor (una pestaña nueva primero se vuelve conversación).
+  if (autoRun.value[key]) {
+    let id = key
+    if (isNew(key)) {
+      try {
+        const c = await api('/api/conversations', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ title: '' }) })
+        const t = tabs.value.find((x) => x.key === key)
+        if (t) t.key = c.id
+        setAutoFor(c.id, true)
+        loaded.value = { ...loaded.value, [c.id]: c }
+        if (active.value === key) active.value = c.id
+        writeRoute()
+        id = c.id
+      } catch (e) { errors.value = { ...errors.value, [key]: e.message }; return }
+    }
+    drafts.value = { ...drafts.value, [key]: '', [id]: '' }
+    attachments.value = { ...attachments.value, [key]: [], [id]: [] }
+    pinTab(id)
+    if (!(await startAuto(id, text, files))) {
+      drafts.value = { ...drafts.value, [id]: draftBefore }
+      if (files.length) attachments.value = { ...attachments.value, [id]: files }
+    }
+    liveTick()
+    loadList()
+    return
+  }
   errors.value = { ...errors.value, [key]: '' }
   pending.value = { key, text, files, model: model.value, since: Date.now() }
   attachments.value = { ...attachments.value, [key]: [] }   // salen del campo: ya van con la pregunta
@@ -417,14 +443,12 @@ async function send() {
       const t = tabs.value.find((x) => x.key === key)
       if (t) t.key = c.id
       tabModel.value = { ...tabModel.value, [c.id]: pending.value.model }
-      if (autoRun.value[key]) setAutoFor(c.id, true)
       attachments.value = { ...attachments.value, [c.id]: [] }
       if (active.value === key) active.value = c.id
       writeRoute()
     }
     loaded.value = { ...loaded.value, [c.id]: c }
     loadList()
-    answered = c.id
   } catch (e) {
     errors.value = { ...errors.value, [key]: e.message }
     if (!drafts.value[key]) drafts.value = { ...drafts.value, [key]: draftBefore }   // no se pierde lo escrito
@@ -436,7 +460,6 @@ async function send() {
     scrollDown()
     focusInput()
   }
-  if (answered) autoContinue(answered)
 }
 function setAutoFor(id, on) {
   autoRun.value = { ...autoRun.value, [id]: on || undefined }
@@ -500,67 +523,37 @@ const FILE_ICON = { pdf: 'PDF', documento: 'DOC', texto: 'TXT' }
 // resultados» le avisa al modelo, y las salidas viajan pegadas a la respuesta que las pidió.
 const running = ref('')   // el id del comando que se está corriendo
 
-// MANUAL O AUTO, por conversación (se recuerda en esta máquina): en Auto, Wally corre solo los comandos que pide —los
-// de la lista blanca, que valida el servidor; uno de afuera queda «no permitido»— y le manda los resultados, hasta
-// AUTO_ROUNDS vueltas seguidas (cada vuelta reenvía todo el contexto al proveedor). Lo mismo que `bin/wally ask --auto`.
-const AUTO_ROUNDS = 6
+// MANUAL O AUTO, por conversación (se recuerda en esta máquina). En Auto la corrida la lleva EL SERVIDOR (autorun.go,
+// 2026-11-18): corre solo los comandos que pide —los de la lista blanca, que valida el servidor— y le manda los
+// resultados, hasta que contesta sin pedir nada (y pasa el freno) o se acaban las vueltas. Sigue aunque cambies de
+// conversación, se recargue la página o se cierre Cockpit, y se frena con «Frenar». Lo mismo que `bin/wally ask --auto`.
+const AUTO_ROUNDS = 12
 const autoRun = ref(readPref('wally.auto', {}))
-const autoRounds = {}   // conversación → vueltas automáticas seguidas
-const autoNudges = {}   // conversación → veces seguidas que se le dijo «todavía no terminaste»
-let autoSending = false
 const autoOn = computed(() => !!autoRun.value[active.value])
+const autoLive = ref({})   // id → la corrida que anda (de /api/live): { since, round, max, doing }
+const autoActive = computed(() => autoLive.value[active.value] || null)
 function setAuto(on) {
   const key = active.value
   setAutoFor(key, on)
-  if (on && !isNew(key)) { autoRounds[key] = 0; autoContinue(key) }
+  // Prenderlo con comandos esperando su sí: la corrida arranca desde ahí.
+  const last = messages.value[messages.value.length - 1]
+  if (on && !isNew(key) && last?.role === 'model' && (last.commands || []).some((x) => x.status === 'propuesto')) startAuto(key, '', [])
 }
-async function autoContinue(id) {
-  const c = loaded.value[id]
-  const last = c?.messages?.[c.messages.length - 1]
-  if (!autoRun.value[id] || !last || last.role !== 'model') return
-  const proposed = (last.commands || []).filter((x) => x.status === 'propuesto')
-  if (!proposed.length) {
-    // Contestó sin pedir nada: si escribió en pruebas/ sin probar, o el último `probar` dejó algo en rojo, no puede
-    // cerrar: Wally se lo dice solo (hasta 3 veces seguidas; después frena y avisa).
-    let reason = ''
-    try { reason = (await api(`/api/conversations/${encodeURIComponent(id)}/pending`)).reason } catch {}
-    if (!reason) { await autoFinished(id); autoRounds[id] = 0; autoNudges[id] = 0; return }
-    if ((autoNudges[id] || 0) >= 3 || active.value !== id) {
-      autoNudges[id] = 0
-      errors.value = { ...errors.value, [id]: `Auto frenó sin que quede bien: ${reason}` }
-      await autoFinished(id, reason)
-      autoRounds[id] = 0
-      return
-    }
-    autoNudges[id] = (autoNudges[id] || 0) + 1
-    autoSending = true
-    draft.value = reason
-    send()
-    return
+async function startAuto(id, text, files) {
+  errors.value = { ...errors.value, [id]: '' }
+  try {
+    const st = await api(`/api/conversations/${encodeURIComponent(id)}/auto`, { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text, files: (files || []).map((f) => f.id), provider: effectiveProvider.value, rounds: AUTO_ROUNDS }) })
+    autoLive.value = { ...autoLive.value, [id]: st }
+    return true
+  } catch (e) {
+    errors.value = { ...errors.value, [id]: e.message }
+    return false
   }
-  if ((autoRounds[id] || 0) >= AUTO_ROUNDS) {
-    await autoFinished(id, `${AUTO_ROUNDS} vueltas seguidas pidiendo comandos`)
-    autoRounds[id] = 0
-    errors.value = { ...errors.value, [id]: `Auto: ${AUTO_ROUNDS} vueltas seguidas pidiendo comandos. Decidí vos estos, o mandá otra pregunta.` }
-    return
-  }
-  autoRounds[id] = (autoRounds[id] || 0) + 1
-  for (const x of proposed) {
-    running.value = x.id
-    try {
-      const updated = await api(`/api/conversations/${encodeURIComponent(id)}/messages/${encodeURIComponent(last.id)}/commands/${encodeURIComponent(x.id)}`,
-        { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'run' }) })
-      loaded.value = { ...loaded.value, [id]: updated }
-    } catch (e) {
-      // «ya está corriendo / corrido»: lo tomó otra ventana o `bin/wally ask --auto`; no es un error.
-      if (!/ya está/.test(e.message)) errors.value = { ...errors.value, [id]: e.message }
-    } finally { running.value = '' }
-  }
-  scrollDown()
-  // Los resultados se mandan desde la pestaña de la conversación: si te fuiste a otra, queda la barra «Mandar resultados».
-  if (active.value !== id || !autoRun.value[id]) return
-  autoSending = true
-  sendResults()
+}
+async function stopAuto(id) {
+  try { await api(`/api/conversations/${encodeURIComponent(id)}/auto/stop`, { method: 'POST' }) } catch (e) { errors.value = { ...errors.value, [id]: e.message } }
+  liveTick()
 }
 async function commandAction(m, c, action) {
   const key = active.value
@@ -1101,7 +1094,7 @@ onBeforeUnmount(() => {
             </div>
           </article>
         </template>
-        <div v-if="awaitingResults && !pending" class="results-bar">
+        <div v-if="awaitingResults && !pending && !autoActive && !remote" class="results-bar">
           <span>{{ awaitingResults.ran ? `${awaitingResults.ran} de ${awaitingResults.total} corrido${awaitingResults.total > 1 ? 's' : ''}: sus salidas viajan con la próxima pregunta.` : 'Descartaste todo lo que pidió.' }}</span>
           <button type="button" class="btn btn-sm" :disabled="!!effectivePaused" @click="sendResults"><span class="ui-icon" data-icon="send" aria-hidden="true"></span>{{ awaitingResults.ran ? 'Mandar resultados' : 'Seguir sin eso' }}</button>
         </div>
@@ -1135,6 +1128,15 @@ onBeforeUnmount(() => {
       </div>
       </div>
 
+      <div v-if="autoActive" class="auto-strip" role="status">
+        <i class="spinner" aria-hidden="true"></i>
+        <b>Auto</b>
+        <span class="count">vuelta {{ autoActive.round }}/{{ autoActive.max }} · {{ Math.max(0, Math.round((now - Date.parse(autoActive.since)) / 1000)) }} s</span>
+        <span class="auto-doing" :title="autoActive.doing">{{ autoActive.doing }}</span>
+        <button type="button" class="btn btn-outline btn-sm" title="Frenar la corrida: corta lo que esté haciendo; lo ya hecho queda" @click="stopAuto(active)">
+          <span class="ui-icon" data-icon="close" aria-hidden="true"></span>Frenar
+        </button>
+      </div>
       <form class="composer" @submit.prevent="send">
         <div class="composer-box" :class="{ dragging }" @dragenter.prevent="onDragEnter" @dragover.prevent @dragleave="onDragLeave" @drop.prevent="onDrop">
           <div v-if="pendingFiles.length || uploading[active]" class="file-chips">
@@ -1173,7 +1175,7 @@ onBeforeUnmount(() => {
               <button type="button" class="toggle" role="radio" :aria-checked="!autoOn" :aria-pressed="!autoOn"
                       title="Manual: cada comando que pida espera tu Correr o Descartar" @click="setAuto(false)">Manual</button>
               <button type="button" class="toggle" role="radio" :aria-checked="autoOn" :aria-pressed="autoOn"
-                      :title="`Auto: corre solo los comandos de sólo lectura que pida (la lista blanca la decide el servidor) y le manda los resultados, hasta ${AUTO_ROUNDS} vueltas seguidas. No escribe nada.`" @click="setAuto(true)">
+                      :title="`Auto: la corrida la lleva Wally (sigue aunque cambies de conversación o cierres la ventana): corre solo los comandos que pida (la lista blanca la decide el servidor) y le manda los resultados, hasta ${AUTO_ROUNDS} vueltas. Se frena con «Frenar».`" @click="setAuto(true)">
                 <span class="ui-icon" data-icon="play" aria-hidden="true"></span>Auto
               </button>
             </div>
@@ -1188,7 +1190,7 @@ onBeforeUnmount(() => {
             <span v-else-if="fit.over" class="composer-note warn-text">~{{ Math.round(fit.total / 1000) }} mil car.: {{ providerName }} acepta ~{{ Math.round(fit.limit / 1000) }} mil, no le entra</span>
             <span v-else-if="fit.parts" class="composer-note" :title="'Lo que no entra en un mensaje va en trozos, en el mismo chat: los primeros le piden que no conteste todavía'">~{{ Math.round(fit.total / 1000) }} mil car.: va a {{ providerName }} en {{ fit.parts }} trozos</span>
             <span v-else-if="busyElsewhere" class="composer-note">Wally está contestando en otra pestaña</span>
-            <button type="submit" class="btn btn-sm send" :disabled="(!draft.trim() && !pendingFiles.length) || !!pending || !!effectivePaused || !!uploading[active]" title="Preguntar (Enter)">
+            <button type="submit" class="btn btn-sm send" :disabled="(!draft.trim() && !pendingFiles.length) || !!pending || !!effectivePaused || !!uploading[active] || !!autoActive" title="Preguntar (Enter)">
               <span class="ui-icon" data-icon="send" aria-hidden="true"></span>Preguntar
             </button>
           </div>

@@ -61,11 +61,18 @@ func main() {
 		writeJSON(w, 200, busy)
 	})
 	// Lo de ahora, de una: quién espera respuesta y qué corridas terminaron sin verse (la interfaz lo mira cada 2,5 s).
-	mux.HandleFunc("GET /api/live", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("GET /api/live", func(w http.ResponseWriter, r *http.Request) {
+		// ?watching=<id>: la interfaz tiene esa conversación adelante, con Wally a la vista (no avisa por macOS).
+		if id := r.URL.Query().Get("watching"); id != "" {
+			a.noteWatching(id)
+		}
 		busy := map[string]askingInfo{}
 		a.asking.Range(func(k, v any) bool { busy[k.(string)] = v.(askingInfo); return true })
-		writeJSON(w, 200, map[string]any{"busy": busy, "unseen": a.runsUnseen()})
+		writeJSON(w, 200, map[string]any{"busy": busy, "unseen": a.runsUnseen(), "auto": a.autoRunning()})
 	})
+	mux.HandleFunc("POST /api/conversations/{id}/auto", a.startAuto)
+	mux.HandleFunc("POST /api/conversations/{id}/auto/stop", a.stopAuto)
+	mux.HandleFunc("GET /api/conversations/{id}/auto", a.getAuto)
 	mux.HandleFunc("POST /api/conversations/{id}/done", a.runDone)
 	mux.HandleFunc("POST /api/conversations/{id}/seen", a.runSeen)
 	mux.HandleFunc("POST /api/conversations/{id}/messages/{mid}/commands/{cid}", a.commandAction)
@@ -322,6 +329,10 @@ type app struct {
 	asking sync.Map // id → askingInfo
 	// runs: las corridas automáticas que terminaron y no se vieron (runs.go).
 	runs runStore
+	// autos: las corridas automáticas, que lleva el servidor (autorun.go).
+	autos autoRuns
+	// silent: sin avisos de macOS (las pruebas).
+	silent bool
 }
 
 type askingInfo struct {

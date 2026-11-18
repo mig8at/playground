@@ -30,6 +30,9 @@ type finishedRun struct {
 type runStore struct {
 	mu     sync.Mutex
 	unseen map[string]finishedRun // id de la conversación → la última corrida que terminó y no se vio
+	// La conversación que la interfaz tiene adelante, con Wally a la vista, y cuándo lo dijo por última vez.
+	watchID string
+	watchAt time.Time
 }
 
 // runDone: POST /api/conversations/{id}/done {rounds, ms, stopped} — terminó una corrida automática.
@@ -41,7 +44,17 @@ func (a *app) runDone(w http.ResponseWriter, r *http.Request) {
 		Quiet   bool   `json:"quiet"`   // sin aviso del sistema (quien corre ya lo está mirando)
 	}
 	_ = json.NewDecoder(r.Body).Decode(&in)
-	id := r.PathValue("id")
+	run, err := a.finishRun(r.PathValue("id"), in.Rounds, in.Ms, in.Stopped, in.Quiet)
+	if err != nil {
+		writeErr(w, 404, err)
+		return
+	}
+	writeJSON(w, 200, run)
+}
+
+// finishRun anota una corrida automática que terminó: queda «sin ver» y, salvo quiet o que Miguel la esté mirando,
+// sale el aviso de macOS.
+func (a *app) finishRun(id string, rounds int, ms int64, stopped string, quiet bool) (finishedRun, error) {
 	a.store.mu.Lock()
 	c, ok := a.store.convs[id]
 	who := ""
@@ -55,31 +68,47 @@ func (a *app) runDone(w http.ResponseWriter, r *http.Request) {
 	}
 	a.store.mu.Unlock()
 	if !ok {
-		writeErr(w, 404, fmt.Errorf("no existe esa conversación"))
-		return
+		return finishedRun{}, fmt.Errorf("no existe esa conversación")
 	}
-	run := finishedRun{At: time.Now(), Who: who, OK: in.Stopped == "", Rounds: in.Rounds}
-	run.Text = fmt.Sprintf("Terminó: %d vuelta(s), %d s.", in.Rounds, in.Ms/1000)
-	if in.Stopped != "" {
-		run.Text = "Frenó sin quedar bien: " + strings.TrimSpace(in.Stopped)
+	run := finishedRun{At: time.Now(), Who: who, OK: stopped == "", Rounds: rounds}
+	run.Text = fmt.Sprintf("Terminó: %d vuelta(s), %d s.", rounds, ms/1000)
+	if stopped != "" {
+		run.Text = "Frenó sin quedar bien: " + strings.TrimSpace(stopped)
 		if r := []rune(run.Text); len(r) > 220 {
 			run.Text = string(r[:220]) + "…"
 		}
 	}
+	watched := a.watching(id)
 	a.runs.mu.Lock()
 	if a.runs.unseen == nil {
 		a.runs.unseen = map[string]finishedRun{}
 	}
-	a.runs.unseen[id] = run
+	if !watched {
+		a.runs.unseen[id] = run
+	}
 	a.runs.mu.Unlock()
-	if !in.Quiet {
+	if !quiet && !watched && !a.silent {
 		go func() {
 			if err := macNotice("Wally · "+who, run.Text, "#/c/"+id, !run.OK); err != nil {
 				log.Printf("wally: el aviso no salió: %v", err)
 			}
 		}()
 	}
-	writeJSON(w, 200, run)
+	return run, nil
+}
+
+// watching: ¿la interfaz tiene esa conversación adelante, con Wally a la vista? (la interfaz lo dice en cada
+// consulta de /api/live; vale unos segundos).
+func (a *app) watching(id string) bool {
+	a.runs.mu.Lock()
+	defer a.runs.mu.Unlock()
+	return a.runs.watchID == id && time.Since(a.runs.watchAt) < 8*time.Second
+}
+
+func (a *app) noteWatching(id string) {
+	a.runs.mu.Lock()
+	a.runs.watchID, a.runs.watchAt = id, time.Now()
+	a.runs.mu.Unlock()
 }
 
 // runSeen: POST /api/conversations/{id}/seen — se abrió la conversación: deja de contar.
@@ -112,10 +141,13 @@ func macNotice(title, body, route string, sound bool) error {
 		if sound {
 			args = append(args, "--sound")
 		}
-		if out, err := exec.CommandContext(ctx, bin, args...).CombinedOutput(); err != nil {
-			return fmt.Errorf("avisador: %v %s", err, strings.TrimSpace(string(out)))
+		out, err := exec.CommandContext(ctx, bin, args...).CombinedOutput()
+		if err == nil {
+			return nil
 		}
-		return nil
+		// Sin permiso de avisos para el avisador del chat (macOS lo puede quitar al reinstalar): por osascript, que
+		// avisa igual aunque tocarlo no abra Wally.
+		log.Printf("wally: el avisador del chat no pudo (%v %s): aviso por osascript", err, strings.TrimSpace(string(out)))
 	}
 	script := fmt.Sprintf("display notification %q with title %q", body, title)
 	if out, err := exec.CommandContext(ctx, "osascript", "-e", script).CombinedOutput(); err != nil {

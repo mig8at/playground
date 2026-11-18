@@ -428,3 +428,11 @@ button.file-chip:hover, .file-chip.on { border-color: var(--ring) }
 /* Una corrida que terminó y todavía no viste: un punto al lado del nombre del agente (rojo si frenó sin quedar bien). */
 .unseen-dot { display: inline-block; width: 7px; height: 7px; margin-left: 6px; border-radius: 50%; background: var(--primary); vertical-align: middle }
 .unseen-dot.bad { background: var(--destructive) }
+
+/* Una corrida automática andando en esta conversación: arriba de la barra de escribir, con «Frenar». */
+.auto-strip { display: flex; align-items: center; gap: var(--space-2); margin: 0 var(--space-4) var(--space-2); padding: 6px var(--space-3);
+  border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--card); font-size: var(--text-sm); min-width: 0 }
+.auto-strip .spinner { width: 12px; height: 12px; flex: none }
+.auto-strip .count { flex: none }
+.auto-doing { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-2) }
+.auto-strip .btn { flex: none }

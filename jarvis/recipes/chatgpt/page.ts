@@ -13,6 +13,7 @@
 // - La respuesta va en `[data-markdown-text-style="assistant-message"]`, y el turno dice cuándo terminó
 //   (`data-talvt-turn-state="complete"`). Sus botones traen «Copiar» (`aria-label`), que copia el Markdown.
 // - «Pensar» (al lado del micrófono) es el modo de razonar.
+import { assertChatHasHistory } from '../deepseek/page.ts';
 import { openWorkPage, recordUse } from '../aistudio/page.ts';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -76,6 +77,8 @@ export async function askChatGPT(page: any, text: string, { think = false, tempo
         const box = page.getByRole('textbox', { name: 'Preguntar a ChatGPT' });
         await box.waitFor({ timeout: 30_000 }).catch(() => {});
         if (!(await box.count()) || /auth|login/.test(page.url())) throw new Error('ChatGPT no tiene sesión en este Chrome (o cambió la página): entrá a mano en chatgpt.com');
+        // Seguir un chat: que sea ESE y que tenga la conversación (ver la receta de DeepSeek).
+        if (chatUrl) await assertChatHasHistory(page, chatUrl, '[data-message-author-role]');
         if (think) {
             const pensar = page.getByRole('button', { name: 'Pensar', exact: true });
             if (await pensar.count()) await pensar.click();

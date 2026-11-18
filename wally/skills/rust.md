@@ -89,6 +89,7 @@ lo ve el siguiente.
 ]
 ```
 
+- Se corren TODOS los criterios (hasta 200): no hace falta sacar uno para que entre otro.
 - `pedido`: `metodo`, `ruta` y, si hace falta, `cuerpo` (JSON). `espera`: `estado`, y/o `contiene` y `no_contiene`
   (textos que tienen que estar, o no, en la respuesta). El JSON sale sin espacios: buscá `"id":1`, no `"id": 1`.
 - Escribilos por lo que te PIDIERON. Si uno falla, lo normal es arreglar el código.
