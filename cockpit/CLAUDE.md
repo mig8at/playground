@@ -140,7 +140,7 @@ ejecutan a ciertas horas»): el modelo que usa lo que corre solo, agendado o sin
 (Sonnet 5.5 en el Bedrock de CreditOp, por el puente de canon) o Gemini por su API. La carcasa no lo implementa:
 corre `bin/pg model info --json` y `bin/pg model set <m>` (Rust: `model_state`, `set_model`), que leen y guardan
 `~/.config/creditop-cockpit/settings.json` (`lib/cockpit/settings.go`; no se borra al salir, a diferencia del
-control). Lo agendado pregunta con `bin/pg model ask`, y lee la misma elección con Cockpit cerrado. Wally elige el
+control). Lo agendado pregunta con `bin/pg model ask` o, desde Go, con `lib/background` (la daily del tablero), y lee la misma elección con Cockpit cerrado. Wally elige el
 suyo aparte, en su barra.
 
 **Agregar una app**, en este orden:

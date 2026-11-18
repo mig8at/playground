@@ -1,8 +1,7 @@
 package main
 
 // pg model: EL MODELO DE SEGUNDO PLANO, el que usa lo que corre solo (agendado, a ciertas horas, sin nadie mirando).
-// Cuál es lo decide la configuración de Cockpit («Modelo», lib/cockpit/settings.go); por defecto, Claude por el
-// puente de canon (connectors/claude). Gemini va por su API con la llave de connectors/.env (connectors/gemini).
+// Cuál es lo decide la configuración de Cockpit («Modelo»); la mecánica está en lib/background.
 
 import (
 	"context"
@@ -14,52 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"creditop/my-tools/connectors/claude"
-	"creditop/my-tools/connectors/gemini"
+	"creditop/my-tools/lib/background"
 	"creditop/my-tools/lib/cliflags"
 	"creditop/my-tools/lib/cockpit"
 )
-
-// modelStatus: el modelo elegido y si contesta, sin preguntarle nada.
-type modelStatus struct {
-	Model  string   `json:"model"`         // claude · gemini (la elección)
-	Name   string   `json:"name"`          // lo que atiende de verdad
-	Ready  bool     `json:"ready"`         // se le puede preguntar
-	Detail string   `json:"detail"`        // por dónde va, o por qué no
-	Fix    string   `json:"fix,omitempty"` // qué hacer si no está listo
-	Choice []string `json:"choices"`       // lo que se puede elegir
-}
-
-func modelInfo(ctx context.Context, model string) modelStatus {
-	st := modelStatus{Model: model, Choice: cockpit.BackgroundModels}
-	switch model {
-	case "claude":
-		root, err := myToolsRoot()
-		if err != nil {
-			st.Detail = err.Error()
-			return st
-		}
-		info, err := claude.New(root).Info(ctx)
-		if err != nil {
-			st.Detail = err.Error()
-			if strings.Contains(err.Error(), "playground login") {
-				st.Fix = "playground login"
-			}
-			return st
-		}
-		st.Ready, st.Name = true, info.Model
-		st.Detail = fmt.Sprintf("%s en Bedrock (%s), por el puente de canon", info.Model, info.Region)
-	case "gemini":
-		cfg, err := gemini.LoadConfig()
-		if err != nil {
-			st.Detail = err.Error()
-			return st
-		}
-		st.Ready, st.Name = true, cfg.Model
-		st.Detail = fmt.Sprintf("%s por su API, con la llave de connectors/.env (gasta su cuota)", cfg.Model)
-	}
-	return st
-}
 
 func runModelInfo(args []string) int {
 	fs := flag.NewFlagSet("model info", flag.ContinueOnError)
@@ -67,9 +24,13 @@ func runModelInfo(args []string) int {
 	if fs.Parse(cliflags.Translate(args, cliflags.Legacy)) != nil {
 		return 2
 	}
+	root, err := myToolsRoot()
+	if err != nil {
+		return fail(2, "%v", err)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	st := modelInfo(ctx, cockpit.LoadSettings().BackgroundModel)
+	st := background.Info(ctx, root)
 	if *asJSON {
 		_ = json.NewEncoder(os.Stdout).Encode(st)
 	} else {
@@ -102,7 +63,7 @@ func runModelSet(args []string) int {
 
 func runModelAsk(args []string) int {
 	fs := flag.NewFlagSet("model ask", flag.ContinueOnError)
-	prompt := fs.String("prompt", "", "la pregunta (o --file, o por la entrada estándar con `-`)")
+	prompt := fs.String("prompt", "", "la pregunta (o --file)")
 	file := fs.String("file", "", "la pregunta desde un archivo (- es la entrada estándar)")
 	system := fs.String("system", "", "instrucciones de sistema (opcional)")
 	maxTokens := fs.Int("max-tokens", 0, "tope de la respuesta (Claude: hasta 16384, el de siempre). Muy chico no alcanza: con 60, Sonnet 5.5 lo gastó entero pensando y no escribió nada")
@@ -130,48 +91,26 @@ func runModelAsk(args []string) int {
 	if strings.TrimSpace(text) == "" {
 		return fail(2, "falta --prompt o --file")
 	}
-	model := cockpit.LoadSettings().BackgroundModel
+	root, err := myToolsRoot()
+	if err != nil {
+		return fail(2, "%v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
 	start := time.Now()
-	var out struct {
-		Model      string  `json:"model"`
-		Text       string  `json:"text"`
-		StopReason string  `json:"stopReason,omitempty"`
-		Seconds    float64 `json:"seconds"`
+	ans, err := background.Ask(ctx, root, background.Request{Prompt: text, System: *system, MaxTokens: *maxTokens})
+	if err != nil {
+		return fail(1, "%v", err)
 	}
-	out.Model = model
-	switch model {
-	case "claude":
-		root, err := myToolsRoot()
-		if err != nil {
-			return fail(2, "%v", err)
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-		defer cancel()
-		ans, err := claude.New(root).Ask(ctx, claude.Request{Prompt: text, System: *system, MaxTokens: *maxTokens})
-		if err != nil {
-			return fail(1, "Claude: %v", err)
-		}
-		out.Text, out.StopReason = ans.Text, ans.StopReason
-	case "gemini":
-		cfg, err := gemini.LoadConfig()
-		if err != nil {
-			return fail(2, "%v", err)
-		}
-		ans, err := gemini.New(cfg).Ask(text, *system, nil, nil)
-		if err != nil {
-			return fail(1, "Gemini: %v", err)
-		}
-		out.Text = fmt.Sprint(ans) // sin herramientas, Gemini contesta texto
-	}
-	out.Seconds = time.Since(start).Round(100 * time.Millisecond).Seconds()
+	secs := time.Since(start).Round(100 * time.Millisecond).Seconds()
 	if *asJSON {
-		_ = json.NewEncoder(os.Stdout).Encode(out)
+		_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"model": ans.Model, "text": ans.Text, "stopReason": ans.StopReason, "seconds": secs})
 		return 0
 	}
-	fmt.Println(out.Text)
-	if out.StopReason == "max_tokens" {
+	fmt.Println(ans.Text)
+	if ans.StopReason == "max_tokens" {
 		fmt.Fprintln(os.Stderr, "(la respuesta llegó al tope de largo y se cortó)")
 	}
-	fmt.Fprintf(os.Stderr, "— %s · %.1f s\n", model, out.Seconds)
+	fmt.Fprintf(os.Stderr, "— %s · %.1f s\n", ans.Model, secs)
 	return 0
 }

@@ -1610,6 +1610,28 @@ async function loadToday() {
     if (!j.error && Array.isArray(j.rows)) agendaData.value = j;
   } catch { /* server caído: la agenda no se muestra, el resto del home sí */ }
 }
+// ── PARA LA DAILY: lo que decís en la daily, ya escrito (/api/daily, internal/daily). Lo arma el modelo de segundo
+// plano desde la bitácora, sin lo de my-tools: agendado de lunes a viernes a las 7:30, o a mano con `make daily`. Arriba
+// de todo en el home porque es lo primero que se necesita a la mañana. Se ve la última; las anteriores, con su fecha.
+const dailyDays = ref([]);
+const dailyPick = ref(0);
+async function loadDaily() {
+  try {
+    const j = await (await fetch(`${SERVER}/api/daily`)).json();
+    if (Array.isArray(j.days)) dailyDays.value = j.days;
+  } catch { /* server caído: la daily no se muestra, el resto del home sí */ }
+}
+const dailyShown = computed(() => dailyDays.value[dailyPick.value] || null);
+// El texto en renglones: las viñetas («- …») como lista; lo demás, como párrafo.
+const dailyLines = computed(() => (dailyShown.value?.text || '').split('\n').map((l) => l.trim()).filter(Boolean)
+  .map((l) => (l.startsWith('- ') ? { bullet: true, text: l.slice(2) } : { bullet: false, text: l })));
+const dayLabel = (day) => new Date(`${day}T12:00:00`).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'short' });
+const dailyCopied = ref(false);
+async function copyDaily() {
+  try { await navigator.clipboard.writeText(dailyShown.value?.text || ''); dailyCopied.value = true; setTimeout(() => { dailyCopied.value = false; }, 1500); } catch { /* sin portapapeles */ }
+}
+const dailyOpen = ref(readPreference('daily-open', true) === true);
+watch(dailyOpen, (value) => savePreference('daily-open', value));
 const todayLive = computed(() => agendaData.value.rows.filter((r) => r.class !== 'proyecto' && !r.dormant));
 const todayDormant = computed(() => agendaData.value.rows.filter((r) => r.class !== 'proyecto' && r.dormant));
 // Lo que espera a alguien, por persona o equipo: así se ve a quién escribirle y cuánto le debe a uno.
@@ -1982,7 +2004,7 @@ async function updateStart() {
     // Todo lo local corre junto y todo lo remoto corre junto. Antes se esperaba sprints → esfuerzos →
     // pulso → sprint → avances → cuatro sprints: `fetch` era AJAX, pero la secuencia seguía bloqueando
     // la restauración de la ruta como si fuera una navegación completa.
-    const locales = Promise.allSettled([loadEfforts(), loadTaskLocals(), loadConfig(), loadPulse(), loadBranches(), loadToday()]);
+    const locales = Promise.allSettled([loadEfforts(), loadTaskLocals(), loadConfig(), loadPulse(), loadBranches(), loadToday(), loadDaily()]);
     const sprintRequest = loadSprint();
     const sprintsRequest = loadSprints();
     // Los otros tres sprints se piden apenas llega la LISTA (~0,9 s), sin esperar al sprint actual, que es la llamada
@@ -2090,7 +2112,7 @@ function applyLiveChanges() {
 const homeVisible = computed(() => !active.value && !EDITOR_VIEWS.some((id) => isOpen(id)));
 let todayStale = false;
 function refreshToday() {
-  if (homeVisible.value && document.visibilityState === 'visible') { todayStale = false; void loadToday(); }
+  if (homeVisible.value && document.visibilityState === 'visible') { todayStale = false; void loadToday(); void loadDaily(); }
   else todayStale = true;
 }
 watch(homeVisible, (shown) => { if (shown && todayStale) refreshToday(); });
@@ -2422,6 +2444,29 @@ function documentAction(id) {
            sus filas (que en el sidebar no entran), y si no, el sprint. -->
 
       <div v-else-if="!isOpen('jira')" class="region-body editor-view">
+        <section v-if="dailyDays.length" class="card daily" aria-label="Para la daily">
+          <button type="button" class="region-head group section-toggle" :aria-expanded="dailyOpen"
+                  aria-controls="daily-content" @click="dailyOpen = !dailyOpen">
+            <span class="gh"><span class="ui-icon" data-icon="chevron" aria-hidden="true"></span> Para la daily
+              <span class="mut">· lo del {{ dayLabel(dailyShown.day) }}</span></span>
+          </button>
+          <div id="daily-content" v-show="dailyOpen" class="daily-body">
+            <div class="daily-text">
+              <template v-for="(line, i) in dailyLines" :key="i">
+                <p v-if="!line.bullet" class="daily-lede">{{ line.text }}</p>
+                <p v-else class="daily-item" :class="{ blocked: /^(Me bloquea|Espero)/.test(line.text) }">{{ line.text }}</p>
+              </template>
+            </div>
+            <div class="daily-foot">
+              <span class="daily-days" role="radiogroup" aria-label="Qué día">
+                <button v-for="(d, i) in dailyDays.slice(0, 5)" :key="d.day" type="button" class="daily-day" role="radio"
+                        :aria-checked="dailyPick === i" @click="dailyPick = i">{{ dayLabel(d.day) }}</button>
+              </span>
+              <button type="button" class="btn btn-outline btn-xs" @click="copyDaily">{{ dailyCopied ? 'Copiada' : 'Copiar' }}</button>
+            </div>
+            <p class="daily-source" :title="dailyShown.source">De tu bitácora, sin lo de my-tools; la escribió el modelo de segundo plano. Se arma sola de lunes a viernes a las 7:30.</p>
+          </div>
+        </section>
         <section class="card">
           <!-- `region-head group` de `workbench.css`: la misma barra que los grupos del árbol, en vez de
                un `<h2>` con su propia banda. Y el encabezado ES el botón —antes era un `<button>`
@@ -3011,6 +3056,19 @@ function documentAction(id) {
 /* LA AGENDA DE HOY, abajo del sprint: dos bloques apilados (en movimiento · esperando a…), cada uno una grilla de
    tarjetas que se acomoda sola al ancho. Una tarjeta por tarea y una por persona o equipo. */
 .agenda { container-type: inline-size; width: 100%; box-sizing: border-box } /* con contención de ancho, sin esto mide 0 */
+/* PARA LA DAILY: el texto para decir en voz alta, a lo ancho de lectura; las viñetas con un guion, sin marco. */
+.daily-body { padding: 4px 12px 12px }
+.daily-text { max-width: 72ch; display: grid; gap: 6px; font-size: 14px; line-height: 1.5 }
+.daily-lede { margin: 0; font-weight: 600 }
+.daily-item { margin: 0; padding-left: 16px; position: relative }
+.daily-item::before { content: '–'; position: absolute; left: 2px; color: var(--muted-foreground) }
+.daily-item.blocked { color: var(--warn) } /* el ámbar de los pendientes: algo espera, no algo roto */
+.daily-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 12px; flex-wrap: wrap }
+.daily-days { display: flex; gap: 4px; flex-wrap: wrap }
+.daily-day { border: 0; background: none; color: var(--muted-foreground); font: inherit; font-size: 12px; padding: 2px 8px; border-radius: 4px; cursor: pointer }
+.daily-day::first-letter { text-transform: uppercase }
+.daily-day[aria-checked="true"] { background: var(--sel); color: var(--foreground) }
+.daily-source { margin: 8px 0 0; font-size: 12px; color: var(--muted-foreground) }
 .agenda-cols { display: flex; flex-direction: column; gap: 18px }
 .agenda-k { margin: 0 0 8px; font-size: var(--text-xs); font-weight: 600; color: var(--mut) }
 .agenda-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px }

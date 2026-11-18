@@ -1,6 +1,9 @@
 // Package launchagent deja un servidor de my-tools corriendo DE FONDO como LaunchAgent de macOS: arranca con la
 // sesión, se vuelve a levantar si se cae y sigue aunque Cockpit esté cerrado. Lo usan Sentinel y el chat.
 //
+// O AGENDADO (`Agent.Calendar`, desde el 2026-11-18, para la daily del tablero): corre a ciertas horas y termina, sin
+// arrancar con la sesión ni volver a levantarse. Si el Mac estaba dormido a esa hora, launchd lo corre al despertar.
+//
 // Corre un binario compilado (nunca el temporal de `go run`, que se borra al salir), con la carpeta de my-tools como
 // directorio de trabajo y un PATH explícito: launchd no hereda la shell.
 package launchagent
@@ -23,6 +26,22 @@ type Agent struct {
 	Root  string   // la carpeta de my-tools: su directorio de trabajo
 	Log   string   // el nombre del archivo en ~/Library/Logs
 	Env   map[string]string
+	// Calendar: si tiene horarios, es AGENDADO (StartCalendarInterval) en vez de un servidor siempre prendido.
+	Calendar []When
+}
+
+// When: un horario de launchd. Weekday 0 es domingo (1–5, de lunes a viernes); -1 es «cualquier día».
+type When struct {
+	Weekday, Hour, Minute int
+}
+
+// Weekdays: de lunes a viernes a esa hora.
+func Weekdays(hour, minute int) []When {
+	var out []When
+	for d := 1; d <= 5; d++ {
+		out = append(out, When{Weekday: d, Hour: hour, Minute: minute})
+	}
+	return out
 }
 
 func home() string { h, _ := os.UserHomeDir(); return h }
@@ -72,7 +91,19 @@ func (a Agent) Install() error {
 	}
 	b.WriteString("</array>\n")
 	fmt.Fprintf(&b, "  <key>WorkingDirectory</key><string>%s</string>\n", e(a.Root))
-	b.WriteString("  <key>RunAtLoad</key><true/>\n  <key>KeepAlive</key><true/>\n  <key>ThrottleInterval</key><integer>30</integer>\n")
+	if len(a.Calendar) > 0 {
+		b.WriteString("  <key>StartCalendarInterval</key>\n  <array>\n")
+		for _, w := range a.Calendar {
+			b.WriteString("    <dict>")
+			if w.Weekday >= 0 {
+				fmt.Fprintf(&b, "<key>Weekday</key><integer>%d</integer>", w.Weekday)
+			}
+			fmt.Fprintf(&b, "<key>Hour</key><integer>%d</integer><key>Minute</key><integer>%d</integer></dict>\n", w.Hour, w.Minute)
+		}
+		b.WriteString("  </array>\n")
+	} else {
+		b.WriteString("  <key>RunAtLoad</key><true/>\n  <key>KeepAlive</key><true/>\n  <key>ThrottleInterval</key><integer>30</integer>\n")
+	}
 	b.WriteString("  <key>EnvironmentVariables</key>\n  <dict>\n")
 	b.WriteString("    <key>PATH</key><string>/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/homebrew/bin:/usr/local/go/bin</string>\n")
 	fmt.Fprintf(&b, "    <key>MY_TOOLS_ROOT</key><string>%s</string>\n", e(a.Root))
@@ -93,7 +124,11 @@ func (a Agent) Install() error {
 	if out, err := exec.Command("launchctl", "bootstrap", domain(), a.Plist()).CombinedOutput(); err != nil {
 		return fmt.Errorf("launchctl bootstrap: %v\n%s", err, out)
 	}
-	fmt.Printf("✓ corre de fondo (%s)\n  binario  %s\n  log      %s\n", a.Label, exe, a.LogPath())
+	if len(a.Calendar) > 0 {
+		fmt.Printf("✓ agendado (%s)\n  binario  %s\n  log      %s\n", a.Label, exe, a.LogPath())
+	} else {
+		fmt.Printf("✓ corre de fondo (%s)\n  binario  %s\n  log      %s\n", a.Label, exe, a.LogPath())
+	}
 	return nil
 }
 

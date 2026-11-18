@@ -44,7 +44,16 @@ lugar: el paquete `server/internal/layout`**; no armes `../data/<algo>` a mano e
 - **Renombrar o mover una tarea NO es tocarla**: «días sin tocar» y el cierre siguen las mudanzas de git.
 - **JSON es una proyección, no otro archivo**: `make task-json N=<slug|id>` deriva `tablero.task.v3` del
   Markdown y la pila. No crees sidecars manuales.
-- `data/entries/` (bitácora), `data/pulse/` (el pulso) y `data/cache/` están **fuera de git** a propósito;
+- **La daily** (`internal/daily`, `cmd/daily`, 2026-11-18): lo que Miguel dice en la daily, escrito por el modelo de
+  segundo plano (`lib/background`: Claude por defecto, el elegido en Cockpit) a partir de las entradas de la bitácora de
+  UN día, por tarea, **sin las de nivel `miguel`** ni las que no tienen tarea. Sólo lo registrado: lo que no se anotó no
+  aparece. Queda en `data/daily/<día>.md` (`layout.DailyDir`, fuera de git) y arriba de todo en el home del tablero
+  («Para la daily», `/api/daily`), con los días anteriores y «Copiar». Agendada (`make daily-install`, LaunchAgent
+  `com.creditop.my-tools.daily`, con horario de calendario) corre con `-auto` de lunes a viernes a las 7:30: toma el
+  último día con registro de CreditOp (el lunes, el viernes; un festivo no la deja vacía), no repite una armada DESPUÉS
+  de ese día y avisa por macOS al terminar o al fallar. El día se nombra como se dice («Ayer», o «El viernes» dicha el
+  lunes). Medido el 2026-11-18: la del 17 juntó 328 min de 4 tareas (sin 260 de my-tools) en ~10 s.
+- `data/entries/` (bitácora), `data/pulse/` (el pulso), `data/cache/` y `data/daily/` están **fuera de git** a propósito;
   `tasks/` **sí** se versiona.
 
 ## CINCO piezas, cinco preguntas distintas
@@ -266,6 +275,8 @@ Una pregunta sobre un caso o sobre el estado de un ambiente va al harness, a los
     make worklog DAYS=7              el tiempo registrado, por día
     make task-branches                 en qué ramas vive cada tarea y hasta dónde llegó (mide git)
     make today                          la agenda: último bloque, preguntas vencidas, entrega, dormidas
+    make daily [DAY=…]                  lo que decís en la daily, escrito por el modelo de segundo plano desde la bitácora,
+                                        sin lo de nivel `miguel`; agendada de lunes a viernes a las 7:30 (`make daily-install`)
     make resume N=84                 retomar UNA en frío, con los temas de knowledge: (sin red)
     make closeout                       el cierre del día: a qué tarea tocada le falta qué
     make worklog-add TASK=84 …      la bitácora con minutos medidos por el comando

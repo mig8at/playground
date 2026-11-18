@@ -107,6 +107,9 @@ var slugRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
 func ValidSlug(slug string) bool { return slugRe.MatchString(slug) }
 
 // Dir es la carpeta de una tarea.
+// DailyDir: lo que Miguel dice en la daily, un Markdown por día (internal/daily; fuera de git).
+func (l Layout) DailyDir() string { return filepath.Join(l.Data, "daily") }
+
 func (l Layout) Dir(slug string) string { return filepath.Join(l.Tasks, slug) }
 
 // TaskPath es el documento de una tarea.

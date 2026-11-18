@@ -83,6 +83,18 @@ cuadrilla-publish: ## @dia publica en cuadrilla las ramas de una tarea (a tu par
 today: ## @dia la agenda derivada de las tareas: en movimiento (último bloque, lo que espera a alguien, entrega) y dormidas (≥14 d sin tocar). STAGE=work · JSON=1
 	@cd tablero/server && go run ./cmd/today $(if $(STAGE),-stage $(STAGE)) $(if $(JSON),-json)
 
+daily: ## @dia lo que decís en la daily, escrito por el modelo de segundo plano (Claude) a partir de la bitácora, sin lo de my-tools. Queda en tablero/data/daily y en el home del tablero. DAY=AAAA-MM-DD (sin él, el último día con registro) · PRINT=1 sin guardar · PROMPT=1 lo que se le manda
+	@cd tablero/server && go run ./cmd/daily $(if $(DAY),-day $(DAY)) $(if $(PRINT),-print) $(if $(PROMPT),-prompt)
+
+daily-install: ## @dia agenda la daily de lunes a viernes a las 7:30 (LaunchAgent): la del último día con registro, con aviso de macOS. Volvé a correrlo después de cambiar su código
+	@mkdir -p tablero/server/bin && cd tablero/server && go build -o bin/daily ./cmd/daily && ../../bin/sign bin/daily com.creditop.my-tools.daily && bin/daily -install
+
+daily-status: ## @dia ¿la daily está agendada, y cuál es la última?
+	@cd tablero/server && go run ./cmd/daily -status
+
+daily-uninstall: ## @dia saca la daily de lo agendado (las guardadas se quedan)
+	@cd tablero/server && go run ./cmd/daily -uninstall
+
 resume: ## @dia retomar UNA tarea: pila, documento, pendientes, ramas y conocimiento LOCAL declarado en knowledge:. N=<id|slug>
 	@test -n "$(N)" || { echo "falta N=<id|slug>  ·  ej: make resume N=84"; exit 2; }
 	@cd tablero/server && go run ./cmd/today -n "$(N)" $(if $(JSON),-json)

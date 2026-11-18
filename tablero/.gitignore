@@ -17,6 +17,8 @@ server/data/
 #     mitad del motivo para salir de SQLite. Este repo no se pushea solo.
 data/entries/
 data/cache/
+#   · `daily/` es lo que se dice en la daily, armado de la bitácora: privado como ella (internal/daily)
+data/daily/
 
 # El pulso: cuándo toqué los repos de la compañía, en tramos de 5'. Mismo criterio que la bitácora
 # (dato personal), más una razón propia: son ~288 líneas por día, apendeadas por un agente de fondo.

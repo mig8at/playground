@@ -23,6 +23,7 @@ import (
 	"creditop/my-tools/connectors/repos"
 	"creditop/my-tools/connectors/slack"
 	"creditop/my-tools/tablero/server/internal/agenda"
+	"creditop/my-tools/tablero/server/internal/daily"
 	"creditop/my-tools/tablero/server/internal/env"
 	"creditop/my-tools/tablero/server/internal/layout"
 	"creditop/my-tools/tablero/server/internal/pulse"
@@ -800,6 +801,16 @@ func main() {
 			"rows": agenda.Build(dataDir, agenda.LoadTasks(lay), snap, ""), "branchesMeasuredAt": snap.MeasuredAt,
 			"dormantDays": agenda.DormantDays,
 		})
+	})
+
+	// LA DAILY: lo que Miguel dice en la daily, ya escrito (internal/daily; lo arma `make daily`, o agendado de lunes a
+	// viernes a las 7:30). El home la pone arriba. Sólo lee lo guardado: armarla le pregunta al modelo y no se hace al abrir.
+	mux.HandleFunc("/api/daily", func(w http.ResponseWriter, r *http.Request) {
+		cors(w)
+		if r.Method == http.MethodOptions {
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]any{"days": daily.List(layout.At(dataDir), 10)})
 	})
 
 	// El PULSO: cuándo toqué los repos de la compañía, en tramos de 5 minutos. Lo escribe el agente
