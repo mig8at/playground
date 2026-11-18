@@ -389,7 +389,8 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   ni a la API de Wally ni afuera) y sólo recursos de la misma carpeta; por eso la página tiene que ser autocontenida
   (sin CDNs). Comprobado con una página que hacía `fetch('/api/conversations')`: bloqueado. La interfaz la muestra con
   **«Ver»** en la tarjeta: un iframe con `sandbox` que ocupa el lugar de la conversación, en escritorio o teléfono.
-  Es seguro en Auto por esto (ruta validada, nada se ejecuta, servido aislado), no por el modelo.
+  Es seguro en Auto por esto (ruta validada, nada se ejecuta en la Mac, servido aislado), no por el modelo. Lo único
+  que sí se ejecuta es Rust, y dentro de un contenedor (más abajo).
   **Smeargle** ([`agents/smeargle.md`](agents/smeargle.md)) es el agente que la usa. Primera corrida (DeepSeek, Auto): una
   landing de un taller de bicicletas ficticio —encabezado con un logo SVG, tres servicios con precio, horario y un
   formulario de turno—, en UNA respuesta de 13 mil caracteres con tres archivos (12,7 KB), y `probar` sin errores en
@@ -498,6 +499,29 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   ~3.300 caracteres; el costo es UNA vuelta más la primera vez que usa cada habilidad. ⚠ Lo que costó: con «si se
   contesta sin mirar nada, contestala», Porygon repitió DE MEMORIA su revisión anterior sin correr `cambios`; la base
   ahora dice que lo que cambia con el tiempo (main, producción, el tablero, un archivo) se vuelve a mirar cada vez.
+- **Rust: lo primero que Wally EJECUTA de lo que escribe un modelo, y por eso va en un contenedor** (`server/rust.go`,
+  `wally/rust/`, 2026-11-17; Miguel: «hacer una API en Rust usando un agente»). Compilar Rust ya es correr su código
+  (un `build.rs`, una macro), así que nada corre en la Mac: `compilar`, `testear` y `probar-api pruebas/<proyecto>`
+  hacen `docker run` de la imagen **`wally-rust`** (`make wally-rust`, 1,5 GB) con `--network none`, viendo SÓLO la
+  carpeta del proyecto (`/work`) y un volumen propio para lo compilado (`/target`), con tope de memoria, de procesos y
+  de tiempo (12 min; si se pasa, se mata el contenedor) y sin privilegios nuevos. Comprobado a mano: adentro no hay
+  salida a internet y `/Users` no existe.
+  - **Sin red, las bibliotecas son FIJAS**: la imagen las trae bajadas y compiladas (`axum 0.8.9`, `tokio`, `serde`,
+    `serde_json`; para tests `tower` y `http-body-util`), y la habilidad `rust` da las líneas exactas del `Cargo.toml`.
+    Por eso un proyecto nuevo compila en ~1 s. Para sumar una biblioteca: su `cargo add` en el Dockerfile, `make
+    wally-rust` y su línea en `skills/rust.md`.
+  - **`probar-api`** (`wally/rust/probar-api.sh`, dentro del contenedor): compila, levanta el binario en
+    `127.0.0.1:$PORT` y le hace EN ORDEN, contra el mismo proceso, los pedidos de `criterios.json` (`pedido`: método,
+    ruta, cuerpo; `espera`: estado, `contiene`, `no_contiene`); dice cuál pasa y la tarjeta lo muestra como lista.
+  - **El freno sabe qué es cada proyecto** (`sandboxKind`): una página se comprueba con `probar`, una API en Rust con
+    `probar-api` (que compile no alcanza para cerrar), y lo que no es ninguna de las dos no frena.
+  - Se escriben también `.rs`, `.toml` y `.lock`. «Ver» sólo aparece en lo que es de una página.
+  **Krabby** ([`agents/krabby.md`](agents/krabby.md), con `rust` y `pruebas` precargadas), por DeepSeek en Auto: una
+  API de tareas con cinco rutas (listar, crear con validación, leer, marcar hecha, borrar) en UNA respuesta —121
+  renglones en un `main.rs`, estado en memoria— y `probar-api` con sus 12 criterios en verde al primer intento: 2
+  vueltas, 52 s. Verificado aparte con 13 pedidos que él no escribió (un id que no es número, no reusar ids después de
+  borrar, marcar hecha una que no existe): los 13 pasan. Lo que costó fue del probador: rechazaba un criterio que
+  sólo tenía `no_contiene`.
 - **Los grupos de agentes se sacaron** (2026-11-17, Miguel: «al parecer no funciona por el momento»): un grupo
   «Knowledge» con Wally de coordinador y EVA y M-O en paralelo; su única corrida chocó con el cupo de Google. Se fueron
   su pantalla, su sección de la lista, `server/groups.go` y sus rutas; la lista de temas pasó a `server/topics.go`. Su

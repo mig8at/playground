@@ -136,6 +136,10 @@ var allowList = []allowed{
 	{regexp.MustCompile(`^parchar (pruebas/\S+)$`), func(_ context.Context, _ *app, m []string) (string, int, error) {
 		return "para parchar, entregá los cambios en un bloque ```parche " + m[1] + " … ```", 1, nil
 	}},
+	// Rust (rust.go): compilar, testear y probar una API, DENTRO de un contenedor sin red que sólo ve el proyecto.
+	{regexp.MustCompile(`^(compilar|testear|probar-api) (pruebas/[a-z0-9][a-z0-9_-]{0,40})$`), func(ctx context.Context, a *app, m []string) (string, int, error) {
+		return a.runRust(ctx, m[2], m[1])
+	}},
 	{regexp.MustCompile(`^listar (pruebas(?:/[a-z0-9][a-z0-9_/-]{0,120})?)$`), func(_ context.Context, a *app, m []string) (string, int, error) {
 		out, err := a.listSandbox(strings.TrimPrefix(strings.TrimPrefix(m[1], "pruebas"), "/"))
 		return out, 0, err
@@ -263,7 +267,7 @@ func parseCommands(answer string) []Command {
 		verb := map[string]string{"archivo": "escribir", "parche": "parchar"}[block[1]]
 		c := Command{ID: newID(), Cmd: verb + " " + block[2], Status: "propuesto", Content: block[3]}
 		if !sandboxFile.MatchString(block[2]) {
-			c.Status, c.Reason, c.Content = "no-permitido", "sólo se escribe en pruebas/<proyecto>/…, tipos html, css, js, mjs, json, svg, md o txt", ""
+			c.Status, c.Reason, c.Content = "no-permitido", "sólo se escribe en pruebas/<proyecto>/…, tipos html, css, js, mjs, json, svg, md, txt, rs, toml o lock", ""
 		}
 		out = append(out, c)
 	}
@@ -459,6 +463,10 @@ func (a *app) decideCommand(ctx context.Context, convID, mid, cid, action string
 				att, exit, err = a.runToFile(ctx, shown, "salida: "+shown)
 				if strings.HasPrefix(shown, "probar ") {
 					report = a.sandboxReport(shown)
+				} else if strings.HasPrefix(shown, "probar-api ") && err == nil {
+					if text, terr := a.fileText(att.ID); terr == nil {
+						report = checkTextReport(text)
+					}
 				}
 			}
 			result = Command{Status: "corrido", Exit: exit, Ms: time.Since(start).Milliseconds()}

@@ -32,6 +32,7 @@ func TestSandboxWritesOnlyInsideItsFolder(t *testing.T) {
 		"pruebas/demo/.env",         // oculto
 		"pruebas/demo/run.sh",       // tipo no permitido
 		"pruebas/demo/a.php",
+		"pruebas/demo/build.sh",
 		"wally/WALLY.md",
 		"/etc/hosts.txt",
 		"pruebas/Demo Con Espacio/a.html",
@@ -164,15 +165,32 @@ func TestSandboxPendingBlocksClosingUntested(t *testing.T) {
 		{"lo descartado no cuenta", []Message{msg(Command{Cmd: "escribir pruebas/demo/index.html", Status: "descartado"})}, ""},
 	}
 	for _, c := range cases {
-		got := sandboxPending(Conversation{Messages: c.msgs}, func(string) bool { return true })
+		got := sandboxPending(Conversation{Messages: c.msgs}, func(string) string { return "pagina" })
 		if (c.want == "") != (got == "") || !strings.Contains(got, c.want) {
 			t.Errorf("%s: %q", c.name, got)
 		}
 	}
 	// Un proyecto sin ninguna página (una nota suelta) no tiene qué probar: no frena.
 	onlyNote := Conversation{Messages: []Message{msg(run("escribir pruebas/notas/nota.txt", 0))}}
-	if got := sandboxPending(onlyNote, func(string) bool { return false }); got != "" {
+	if got := sandboxPending(onlyNote, func(string) string { return "" }); got != "" {
 		t.Errorf("sin página no tiene que frenar: %q", got)
+	}
+	// Una API en Rust se comprueba con probar-api, no con probar: compilar solo no alcanza para cerrar.
+	rust := func(string) string { return "rust" }
+	wrote := msg(run("escribir pruebas/api/src/main.rs", 0), run("compilar pruebas/api", 0))
+	if got := sandboxPending(Conversation{Messages: []Message{wrote}}, rust); !strings.Contains(got, "probar-api pruebas/api") {
+		t.Errorf("Rust sin probar-api tiene que frenar: %q", got)
+	}
+	if got := sandboxPending(Conversation{Messages: []Message{wrote, msg(run("probar-api pruebas/api", 0))}}, rust); got != "" {
+		t.Errorf("Rust probado y en verde no frena: %q", got)
+	}
+	if got := sandboxPending(Conversation{Messages: []Message{wrote, msg(run("probar-api pruebas/api", 1))}}, rust); !strings.Contains(got, "dejó problemas") {
+		t.Errorf("Rust con un criterio en rojo frena: %q", got)
+	}
+	// El resumen de probar-api, en datos, sale de sus ✓ y ✗.
+	rep := checkTextReport("La API levantó.\n\nCRITERIOS (2):\n  ✓ lista vacía\n  ✗ crea una tarea — POST /tareas: esperaba estado 201 y dio 404. Contestó (404): \n\nRESULTADO: 1 problema(s) para corregir.")
+	if rep.Problems != 1 || len(rep.Criteria) != 2 || !rep.Criteria[0].OK || rep.Criteria[1].OK || !strings.Contains(rep.Criteria[1].Detail, "404") {
+		t.Errorf("resumen: %+v", rep)
 	}
 }
 

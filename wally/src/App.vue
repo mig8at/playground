@@ -596,7 +596,8 @@ const answerText = (m) => (m.commands?.length ? (m.text || '').replace(/```coman
 // LA VISTA PREVIA de lo que un agente escribió en wally/pruebas: en un iframe AISLADO (sandbox, y el servidor además la
 // sirve sin permiso para hacer pedidos). Ocupa el lugar de la conversación hasta que se cierra.
 const preview = ref({ url: '', path: '', phone: false, nonce: 0 })
-const previewable = (c) => c.status === 'corrido' && /^(escribir|parchar|probar) pruebas\/[a-z0-9]/.test(c.cmd)
+// Sólo lo que es de una página: un `main.rs` o un `Cargo.toml` no tienen qué mostrar.
+const previewable = (c) => c.status === 'corrido' && (/^probar pruebas\/[a-z0-9]/.test(c.cmd) || /^(escribir|parchar) pruebas\/\S+\.(html|css|js|mjs|svg)$/.test(c.cmd))
 function openPreview(c) {
   const rel = c.cmd.replace(/^(escribir|parchar|probar) pruebas\//, '')
   // Un .html se abre tal cual; cualquier otro archivo (css, js) o un proyecto, por su index.
@@ -612,7 +613,7 @@ watch([active, () => messages.value.length, () => writtenIds.value.map((c) => c.
   if (key !== prevKey || !prevCount || !now || now === before) return
   const last = writtenIds.value[writtenIds.value.length - 1]
   if (preview.value.url) preview.value = { ...preview.value, nonce: Date.now() }
-  else if ((autoOn.value || remote.value) && window.innerWidth >= 1100) openPreview(last)
+  else if ((autoOn.value || remote.value) && window.innerWidth >= 1100 && previewable(last)) openPreview(last)
 })
 watch(active, () => { closePreview(); openDiff.value = '' })
 

@@ -28,7 +28,7 @@ const (
 
 // sandboxFile: `pruebas/<proyecto>[/<carpeta>…]/<archivo>.<tipo>`. Sin `..`, sin puntos al comienzo, tipos de una página.
 var (
-	sandboxFile = regexp.MustCompile(`^pruebas/((?:[a-z0-9][a-z0-9_-]{0,40}/){1,4}[A-Za-z0-9][A-Za-z0-9_.-]{0,60}\.(?:html|css|js|mjs|json|svg|md|txt))$`)
+	sandboxFile = regexp.MustCompile(`^pruebas/((?:[a-z0-9][a-z0-9_-]{0,40}/){1,4}[A-Za-z0-9][A-Za-z0-9_.-]{0,60}\.(?:html|css|js|mjs|json|svg|md|txt|rs|toml|lock))$`)
 	sandboxPath = regexp.MustCompile(`^pruebas(?:/((?:[a-z0-9][a-z0-9_-]{0,40}/){0,4}[A-Za-z0-9][A-Za-z0-9_.-]{0,60}))?$`)
 	// fileBlock: lo que entrega el modelo, en el orden en que lo escribió: un archivo entero
 	// (```archivo pruebas/mi-pagina/index.html … ```) o un parche sobre uno que ya existe (```parche … ```).
@@ -76,7 +76,7 @@ func (a *app) writeSandbox(path, content string) (string, error) {
 func (a *app) writeSandboxChange(path, content string) (string, fileChange, error) {
 	m := sandboxFile.FindStringSubmatch(path)
 	if m == nil {
-		return "", fileChange{}, errors.New("sólo se escribe en pruebas/<proyecto>/…, con nombre simple y tipo html, css, js, mjs, json, svg, md o txt")
+		return "", fileChange{}, errors.New("sólo se escribe en pruebas/<proyecto>/…, con nombre simple y tipo html, css, js, mjs, json, svg, md, txt, rs, toml o lock")
 	}
 	if len(content) > sandboxMaxBytes {
 		return "", fileChange{}, fmt.Errorf("el archivo pesa %d bytes y el tope es %d: partilo", len(content), sandboxMaxBytes)
@@ -305,42 +305,53 @@ func (a *app) patchSandboxChange(path, patch string) (string, int, fileChange, e
 
 // sandboxPending: por qué una conversación que escribió en la carpeta de pruebas todavía NO puede darse por terminada
 // ("" si puede). Es el freno del modo automático (Miguel, 2026-11-17; la idea es la lista de «hecho» de los harness de
-// agentes largos): el modelo no decide solo que terminó. Queda pendiente si escribió después del último `probar` (o
-// nunca probó), o si el último `probar` dejó problemas (errores, o un criterio de criterios.json que no pasa).
+// agentes largos): el modelo no decide solo que terminó. Queda pendiente si escribió después de la última
+// comprobación (o nunca comprobó), o si la última dejó problemas (errores, o un criterio de criterios.json que no pasa).
 //
-// hasPage dice si un proyecto tiene alguna página: uno sin ningún .html (una nota, un JSON) no tiene qué probar, y
-// exigírselo hacía que el agente inventara una página y un criterio sólo para poder cerrar (2026-11-17).
-func sandboxPending(c Conversation, hasPage func(project string) bool) string {
-	seq, lastWrite, lastCheck, lastExit := 0, 0, 0, 0
-	project := ""
+// La comprobación depende de qué es el proyecto (`kind`): una página se comprueba con `probar`; una API en Rust, con
+// `probar-api`. Uno que no es ninguna de las dos (una nota, un JSON suelto) no tiene qué comprobar y no frena: exigirlo
+// hacía que el agente inventara una página y un criterio sólo para poder cerrar.
+func sandboxPending(c Conversation, kind func(project string) string) string {
+	type event struct {
+		verb    string
+		project string
+		exit    int
+	}
+	var events []event
 	for _, m := range c.Messages {
 		for _, k := range m.Commands {
-			seq++
-			if k.Status != "corrido" {
-				continue
-			}
 			fields := strings.Fields(k.Cmd)
-			if len(fields) != 2 || !strings.HasPrefix(fields[1], "pruebas/") {
+			if k.Status != "corrido" || len(fields) != 2 || !strings.HasPrefix(fields[1], "pruebas/") {
 				continue
 			}
-			switch fields[0] {
-			case "escribir", "parchar":
-				if k.Exit == 0 {
-					lastWrite = seq
-					project = strings.SplitN(strings.TrimPrefix(fields[1], "pruebas/"), "/", 2)[0]
-				}
-			case "probar":
-				lastCheck, lastExit = seq, k.Exit
-			}
+			events = append(events, event{fields[0], strings.SplitN(strings.TrimPrefix(fields[1], "pruebas/"), "/", 2)[0], k.Exit})
+		}
+	}
+	project := ""
+	lastWrite := -1
+	for i, e := range events {
+		if (e.verb == "escribir" || e.verb == "parchar") && e.exit == 0 {
+			lastWrite, project = i, e.project
+		}
+	}
+	if lastWrite < 0 {
+		return ""
+	}
+	check := map[string]string{"pagina": "probar", "rust": "probar-api"}[kind(project)]
+	if check == "" {
+		return ""
+	}
+	lastCheck, lastExit := -1, 0
+	for i, e := range events {
+		if e.verb == check && e.project == project {
+			lastCheck, lastExit = i, e.exit
 		}
 	}
 	switch {
-	case lastWrite == 0, !hasPage(project):
-		return ""
 	case lastCheck < lastWrite:
-		return fmt.Sprintf("Todavía no terminaste: escribiste en pruebas/%s después del último `probar` (o nunca lo corriste). Pedí `probar pruebas/%s` y no cierres hasta que diga «RESULTADO: sin errores».", project, project)
+		return fmt.Sprintf("Todavía no terminaste: escribiste en pruebas/%s después del último `%s` (o nunca lo corriste). Pedí `%s pruebas/%s` y no cierres hasta que diga «RESULTADO: sin errores».", project, check, check, project)
 	case lastExit != 0:
-		return "Todavía no terminaste: el último `probar` dejó problemas (están en su salida, arriba). Corregí lo que falla —la página, o el criterio si estaba mal escrito— y volvé a correr `probar`. No cierres hasta que diga «RESULTADO: sin errores»."
+		return fmt.Sprintf("Todavía no terminaste: el último `%s` dejó problemas (están en su salida, arriba). Corregí lo que falla —el código, o el criterio si estaba mal escrito— y volvé a correr `%s`. No cierres hasta que diga «RESULTADO: sin errores».", check, check)
 	}
 	return ""
 }
@@ -351,7 +362,7 @@ func (a *app) pending(w http.ResponseWriter, r *http.Request) {
 	c, ok := a.store.convs[r.PathValue("id")]
 	reason := ""
 	if ok {
-		reason = sandboxPending(*c, a.sandboxHasPage)
+		reason = sandboxPending(*c, a.sandboxKind)
 	}
 	a.store.mu.Unlock()
 	if !ok {
@@ -400,15 +411,23 @@ func (a *app) sandboxReport(cmd string) *checkReport {
 	return &r
 }
 
-// sandboxHasPage: ¿el proyecto tiene algún .html?
-func (a *app) sandboxHasPage(project string) bool {
+// sandboxKind: qué es un proyecto de la carpeta, que decide cómo se comprueba: "rust" (tiene Cargo.toml), "pagina"
+// (tiene algún .html) o "" (nada que comprobar).
+func (a *app) sandboxKind(project string) string {
+	dir := filepath.Join(a.root, sandboxDir, project)
+	if _, err := os.Stat(filepath.Join(dir, "Cargo.toml")); err == nil {
+		return "rust"
+	}
 	found := false
-	_ = filepath.WalkDir(filepath.Join(a.root, sandboxDir, project), func(p string, d fs.DirEntry, err error) error {
+	_ = filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
 		if err == nil && !d.IsDir() && strings.HasSuffix(p, ".html") {
 			found = true
 			return filepath.SkipAll
 		}
 		return nil
 	})
-	return found
+	if found {
+		return "pagina"
+	}
+	return ""
 }

@@ -190,7 +190,8 @@ try {
                     // Si otra ventana ya lo tomó (409 «ya está corriendo»), se espera a que termine.
                     let done: any;
                     try {
-                        const r = await post(`/api/conversations/${c.id}/messages/${m.id}/commands/${cmd.id}`, { action: 'run' });
+                        // Sin el tope de 5 min de fetch: compilar Rust por primera vez puede tardar más.
+                        const r = await ask({ action: 'run' }, `/api/conversations/${c.id}/messages/${m.id}/commands/${cmd.id}`);
                         done = r.messages?.flatMap((x: any) => x.commands || []).find((x: any) => x.id === cmd.id);
                     } catch (e: any) {
                         if (!/ya está/.test(e.message)) throw e;
