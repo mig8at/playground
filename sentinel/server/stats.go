@@ -402,7 +402,17 @@ func (e evaluator) eval(sig Signal, t time.Time) Eval {
 			ev.Level = levelOK
 		}
 		ev.Why = fmt.Sprintf("%d errores en la última hora; %s", ev.Now, normal)
-		if ceil > 0 {
+		// Sostenido sobre un normal en cero: el techo deja pasar una hora como cualquier ráfaga, pero dos horas
+		// seguidas sobre el mínimo, con lo normal en ~0, ya no es una ráfaga. Sólo «para mirar» (no avisa por defecto):
+		// el 18/11/2026 customer-service llevaba 29 por hora dos horas y figuraba «normal» porque una ráfaga de otro
+		// día había dejado el techo en 32. Con el techo cambiado, en cambio, la semana daba 20 a 36 avisos (las
+		// ráfagas diarias de messaging-service): se quedó el techo y se agregó esto.
+		prev := window(se.total, t.Add(-time.Duration(e.rules.WindowMinutes)*time.Minute), e.rules.WindowMinutes)
+		if ev.Level == levelOK && ev.Median <= 1 && ev.Now >= th.MinNow && prev >= th.MinNow {
+			ev.Level = levelWarn
+			ev.Why = fmt.Sprintf("%d errores en la última hora y %d en la anterior; lo normal es %s a esta hora (%d días comparables)",
+				ev.Now, prev, fmtNum(ev.Median), len(ev.Samples))
+		} else if ceil > 0 {
 			ev.Why += fmt.Sprintf("; en una hora cualquiera de esos días se llega hasta %s", fmtNum(math.Round(ceil)))
 		}
 	default:

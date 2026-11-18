@@ -6,7 +6,9 @@ producción (sólo lectura: Redash y Loki) en bloques de 5 minutos y dice, por *
 muestra la curva del día contra lo normal, con los **despliegues a producción** marcados. Es el frente «vigía de
 producción» de `my-tools` (#96, antes `playground-local`; desde el 2026-11-13 dentro de `miguel`); su historia sigue en la tarea `sentinel`.
 
-`make sentinel` (UI :5210 · API :5211) o la app Sentinel de Cockpit. **La interfaz**: a la izquierda, toda la
+`make sentinel` (UI :5210 · API :5211) o la app Sentinel de Cockpit. En la vista de toda la originación, debajo de la
+curva, **la línea del día** (`GET /api/day`, lo mismo que `bin/sentinel day`, con 10 min de caché): cada tramo que se
+salió de lo normal hoy, los despliegues y los avisos. **La interfaz**: a la izquierda, toda la
 originación y lo que se SIGUE, en dos secciones —entidades y comercios—, que se agregan a mano desde el buscador, cada
 uno con su curva chica de hoy; al centro, el elegido; abajo, en la consola, la tabla de TODAS las señales (pestañas Errores · Entidades ·
 Comercios, ordenable, con + para seguir); a la derecha, lo que pide atención, **una tarjeta por servicio en
@@ -29,6 +31,7 @@ un agente para que resuma.
 | `bin/sentinel day [AAAA-MM-DD]` | el día: cuánto entró contra lo normal, qué se salió de lo normal y de qué hora a qué hora (con el porqué de su peor momento), los despliegues y los avisos |
 | `bin/sentinel signal <señal\|nombre>` | una señal hora por hora, hoy contra lo normal; de una entidad, también sus errores en los logs |
 | `bin/sentinel ack <señal> [--undo]` | reconoce un episodio («ya lo sé»): pasa de «Pide atención» a «Conocidos» hasta que se cierra o EMPEORA. Va por la API (`POST/DELETE /api/ack`), porque el avisador vive ahí; en la interfaz, «Reconocer» y «Devolver» |
+| `bin/sentinel schema` | **la deriva de esquema**: lo que producción tiene y la base de dev/qa/staging ya NO (columnas renombradas o borradas por una migración que corrió en dev: lo que un servicio desplegado puede estar leyendo, como el `countries.cell_phone_lenght` del 18/11/2026), los cambios de tipo y las migraciones de dev que producción no corrió, con las que por el nombre renombran o borran. Sin respaldos, temporales ni vistas `VW_`. ~5 s, sólo lectura (`server/schema.go`) |
 | `bin/sentinel deploy <repo> [versión] [--hours 2]` | **¿se dañó algo después de un despliegue?** Las horas de después contra las mismas de antes y contra esa franja en los días comparables, en TODAS las señales: errores que subieron, solicitudes que cayeron (con piso de volumen), servicios que se callaron. Sin versión, el último a producción del repo (GitHub). Que algo empeore después no prueba que lo causó: dos repos que se despliegan juntos se ven igual |
 
 **La trazabilidad del día** queda escrita en `sentinel/.data/days/<día>.md` (lo mismo que `bin/sentinel day`): la API
@@ -113,6 +116,11 @@ primera vez (`sentinel/.data/messages.json`). La primera vez se siembra con los 
 que termina, nada es nuevo. Un mensaje que aparece después es `newmsg:<servicio>#<huella>` durante 6 horas: «para
 mirar» desde 5 veces, alerta desde 10. Se olvida a los 14 días sin verse. El mensaje sale de `exception_message` (los
 servicios en Go), del `message` del JSON (los monolitos) o de la línea. Tocar el aviso lleva a la vista del servicio.
+⚠ La línea se recorta EN Loki al mensaje (`line_format`, 300 caracteres): las de legacy-backend traen la traza entera y
+el conector corta las respuestas en 4 MB, así que la siembra fallaba en cada hora y la nota decía «aprendiendo» para
+siempre; ahora la nota dice si falló. Medido el 18/11/2026: 187 mensajes distintos en 7 días (133 de legacy-backend), y
+pasada la siembra 0 o 1 por día se repiten 10 veces; el 16/11 fueron 6, entre ellos un `Connection refused` contra la
+base de producción (55 veces).
 
 ## Las pantallas del wizard (`server/steps.go`, PostHog)
 
@@ -187,6 +195,10 @@ comercio chico mira 3, 6 o 24 horas. Avisan las del wizard entero y las de los c
 - **Errores (logs y cola): lo malo es que SUBAN.** z ≥ 3 / 4,5 y ahora ≥ 1,5 × lo normal, **y además** por encima del
   **techo**: el percentil 99 de TODAS las horas de los días comparables (para alerta, el doble). Los errores llegan en
   ráfagas a cualquier hora; sin el techo, la última semana daba 37 alertas (28 de legacy-application), con él 3.
+- **Errores dos horas seguidas sobre un normal en ~0**: «para mirar» aunque el techo los deje pasar (no avisa por
+  defecto). El techo se quedó como está a propósito: calcularlo por día típico (la mediana, o el percentil 70 entre
+  días) para que una ráfaga de un día no lo suba para todos daba 20 a 36 avisos por semana contra 7, porque
+  messaging-service tiene ráfagas casi todos los días desde el 9/11/2026 (medido el 18/11 con `-backtest 7`).
 - **Sostenido**: el estado que se muestra es el que duró 3 lecturas seguidas (una cada 10 min). Una alerta que recién
   empieza se ve como «para mirar»; `raw` es el nivel del instante.
 - **Después de un despliegue a producción (2 h)** los umbrales se multiplican por 0,75: más sensible.

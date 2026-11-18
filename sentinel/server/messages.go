@@ -30,13 +30,16 @@ import (
 )
 
 const (
-	errorLinesLogQL = `{service_name=~".+"} | detected_level="error"`
+	// La línea se recorta EN Loki al mensaje (el `message` del JSON de los monolitos, o la línea), a 300 caracteres:
+	// las de legacy-backend traen la traza entera y 155 líneas de una hora pasaban del tope de 4 MB del conector, con lo
+	// que la siembra fallaba en cada hora y nunca terminaba (18/11/2026).
+	errorLinesLogQL = `{service_name=~".+"} | detected_level="error" | json message="message" | line_format "{{ if .message }}{{ .message | trunc 300 }}{{ else }}{{ __line__ | trunc 300 }}{{ end }}" | drop __error__, __error_details__`
 	msgSeedDays     = 7
 	msgNewHours     = 6  // un mensaje es «nuevo» durante sus primeras 6 horas
 	msgWarnCount    = 5  // desde que apareció: para mirar
 	msgAlertCount   = 10 // alerta
 	msgForgetDays   = 14 // un mensaje que no se ve hace 14 días se olvida (si vuelve, es nuevo otra vez)
-	msgLokiLimit    = 5000
+	msgLokiLimit    = 2000
 	msgMaxLen       = 180
 )
 
@@ -56,6 +59,7 @@ type msgStore struct {
 	Reach    string                         `json:"reach"`
 	Services map[string]map[string]*MsgSeen `json:"services"`
 	seeding  bool
+	seedErr  string // por qué falló la última siembra (se reintenta en la pasada siguiente)
 }
 
 func openMessages(dir string) *msgStore {
@@ -274,11 +278,11 @@ func (m *msgStore) seed(now time.Time) {
 	if err != nil {
 		return
 	}
-	failed := 0
+	failed, lastErr := 0, ""
 	for t := now.AddDate(0, 0, -msgSeedDays); t.Before(now); t = t.Add(time.Hour) {
 		lines, err := readErrorLines(cl, t, minTime(t.Add(time.Hour), now))
 		if err != nil {
-			failed++
+			failed, lastErr = failed+1, err.Error()
 			continue
 		}
 		m.mu.Lock()
@@ -288,8 +292,10 @@ func (m *msgStore) seed(now time.Time) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if failed > msgSeedDays*24/10 { // más de un 10 % de horas sin leer: se reintenta en la próxima pasada
+		m.seedErr = fmt.Sprintf("no se pudieron leer %d de %d horas (%s); se reintenta", failed, msgSeedDays*24, lastErr)
 		return
 	}
+	m.seedErr = ""
 	stamp := now.In(bogota).Format(time.RFC3339)
 	m.Seeded, m.Reach = stamp, stamp
 	_ = m.save()
@@ -352,6 +358,8 @@ func (m *msgStore) status() string {
 	switch {
 	case m.Seeded != "":
 		return ""
+	case m.seedErr != "" && !m.seeding:
+		return "no se pudieron aprender los mensajes de error: " + m.seedErr
 	case m.seeding:
 		return fmt.Sprintf("aprendiendo los mensajes de error de los últimos %d días: hasta que termine, ninguno es «nuevo»", msgSeedDays)
 	}

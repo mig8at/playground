@@ -130,9 +130,12 @@ type sentinel struct {
 	err             string
 	running         bool
 	loading         string
-	fromDisk        bool      // la vista de arranque salió de last.json
-	notifier        *notifier // sólo en la API que escucha: la pasada por consola no avisa
-	msgs            *msgStore // los mensajes de error nuevos (messages.go); nil fuera de la API
+	fromDisk        bool       // la vista de arranque salió de last.json
+	notifier        *notifier  // sólo en la API que escucha: la pasada por consola no avisa
+	msgs            *msgStore  // los mensajes de error nuevos (messages.go); nil fuera de la API
+	dayMu           sync.Mutex // el resumen de hoy para la línea del día (GET /api/day), con 10 minutos de caché
+	dayAt           time.Time
+	dayCache        *DayReport
 	follow          *following
 	releases        map[string]Release // el último despliegue a producción por repo (services.go)
 	releasesAt      time.Time
@@ -668,6 +671,30 @@ func (s *sentinel) decorate(o *Overview) {
 	}
 }
 
+// today: el resumen de hoy, recalculado si tiene más de 10 minutos (cuesta ~3 s: repasa todas las señales del día).
+func (s *sentinel) today() (*DayReport, error) {
+	s.dayMu.Lock()
+	defer s.dayMu.Unlock()
+	if s.dayCache != nil && time.Since(s.dayAt) < 10*time.Minute {
+		return s.dayCache, nil
+	}
+	rules, err := loadRules(s.rulesPath)
+	if err != nil {
+		return nil, err
+	}
+	reach := s.store.reach()
+	if reach.IsZero() {
+		return nil, fmt.Errorf("todavía no hay nada guardado")
+	}
+	c := &cli{s: s, e: s.evaluator(rules), rules: rules, reach: reach.In(bogota)}
+	d, err := c.day(c.reach.Format("2006-01-02"))
+	if err != nil {
+		return nil, err
+	}
+	s.dayCache, s.dayAt = d, time.Now()
+	return d, nil
+}
+
 // decorateLast: vuelve a poner lo del avisador sobre la última vista (después de reconocer, sin esperar la pasada).
 func (s *sentinel) decorateLast() {
 	s.mu.Lock()
@@ -988,6 +1015,15 @@ func main() {
 		s.notifier.clearAck(Signal(r.URL.Query().Get("signal")))
 		s.decorateLast()
 		writeJSON(w, http.StatusOK, s.view())
+	})
+	// GET /api/day — el resumen de hoy (lo de `bin/sentinel day`): la línea del día de la interfaz.
+	mux.HandleFunc("GET /api/day", func(w http.ResponseWriter, r *http.Request) {
+		d, err := s.today()
+		if err != nil {
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, d)
 	})
 	mux.HandleFunc("POST /api/refresh", func(w http.ResponseWriter, r *http.Request) {
 		go s.run()

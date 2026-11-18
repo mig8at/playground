@@ -259,6 +259,36 @@ const repoShort = (r) => r.replace('legacy-', '')
 // ── la curva: hoy contra lo normal (mediana y rango de los 7 días anteriores), por hora ──
 const W = 720
 const H = 220
+// LA LÍNEA DEL DÍA (GET /api/day, lo de `bin/sentinel day`): cada tramo que se salió de lo normal hoy, con los
+// despliegues y los avisos, en una tira de 0 a 23 h. Se pide al abrir y cada 10 minutos (cuesta ~3 s en el servidor).
+const day = ref(null)
+async function loadDay() {
+  try {
+    const res = await fetch('/api/day')
+    if (res.ok) day.value = await res.json()
+  } catch { /* sin la línea del día; lo demás sigue */ }
+}
+let dayTimer = null
+const DAY_ROW = 26 // la etiqueta arriba de su barra, sin pisar la de la fila anterior
+const timeline = computed(() => {
+  const d = day.value
+  if (!d) return null
+  const x = (iso) => {
+    const t = new Date(iso)
+    return PAD.l + Math.min(24, t.getHours() + t.getMinutes() / 60) / 24 * (W - PAD.l - PAD.r)
+  }
+  const through = d.through
+  const spells = (d.spells || []).slice(0, 12).map((sp, i) => {
+    const x1 = x(sp.from)
+    const x2 = Math.max(x1 + 3, x(sp.to || through))
+    return { ...sp, i, x1, x2, y: 30 + i * DAY_ROW, label: `${sp.name} · ${dayClock(sp.from)}${sp.to ? `–${dayClock(sp.to)}` : ', sigue'}` }
+  })
+  const height = 34 + Math.max(1, spells.length) * DAY_ROW
+  const deploys = (d.deploys || []).map((dp) => ({ ...dp, x: x(dp.at) }))
+  const notices = (d.notices || []).filter((n) => n.level !== 'recovered').map((n) => ({ ...n, x: x(n.at) }))
+  const hours = [0, 6, 12, 18, 24].map((h) => ({ h, x: PAD.l + (h / 24) * (W - PAD.l - PAD.r) }))
+  return { spells, deploys, notices, hours, height, more: Math.max(0, (d.spells || []).length - spells.length) }
+})
 const PAD = { l: 34, r: 12, t: 12, b: 24 }
 const chart = computed(() => chartFor(selected.value))
 // La curva de una señal: la del centro, y la de los errores de una entidad debajo de sus solicitudes.
@@ -370,8 +400,11 @@ onMounted(() => {
   readRoute()
   document.addEventListener('visibilitychange', onVisibility)
   load().then(schedule)
+  loadDay()
+  dayTimer = setInterval(loadDay, 600_000)
 })
 onBeforeUnmount(() => {
+  clearInterval(dayTimer)
   window.removeEventListener('resize', onWindowResize)
   window.removeEventListener('hashchange', readRoute)
   window.removeEventListener('popstate', readRoute)
@@ -494,6 +527,30 @@ onBeforeUnmount(() => {
               <circle class="now" :cx="chart.lastX" :cy="chart.lastY" r="4"><title>hora en curso: todavía se está llenando</title></circle>
             </svg>
             <p class="chart-note">El último punto es la hora en curso: todavía se está llenando.</p>
+          </section>
+          <section v-if="selected?.kind === 'all' && timeline" class="chart-box day-line" aria-label="La línea del día">
+            <div class="chart-head"><h3>La línea del día</h3></div>
+            <p v-if="!timeline.spells.length" class="none">Hoy nada se salió de lo normal.</p>
+            <svg class="chart timeline" :viewBox="`0 0 ${W} ${timeline.height}`" role="img" aria-label="Lo que se salió de lo normal hoy, por hora">
+              <g class="grid">
+                <line v-for="h in timeline.hours" :key="`tl${h.h}`" :x1="h.x" :x2="h.x" y1="10" :y2="timeline.height - 14" />
+                <text v-for="h in timeline.hours" :key="`tt${h.h}`" :x="h.x" :y="timeline.height - 2" text-anchor="middle">{{ h.h }}h</text>
+              </g>
+              <g v-for="dp in timeline.deploys" :key="dp.url" class="deploy-mark">
+                <line :x1="dp.x" :x2="dp.x" y1="6" :y2="timeline.height - 14" />
+                <title>{{ repoShort(dp.repo) }} {{ dp.version }} · {{ dayClock(dp.at) }}</title>
+              </g>
+              <g v-for="sp in timeline.spells" :key="`sp-${sp.signal}-${sp.from}`" class="spell" :class="`is-${sp.level}`" @click="pickSignal(sp.signal)">
+                <rect :x="sp.x1" :y="sp.y - 2" :width="sp.x2 - sp.x1" height="8" rx="2" />
+                <text :x="Math.min(sp.x1, W - PAD.r - 260)" :y="sp.y - 5">{{ sp.label }}</text>
+                <title>{{ sp.why }}</title>
+              </g>
+              <g v-for="n in timeline.notices" :key="`tn-${n.at}-${n.signal}`" class="notice-mark">
+                <circle :cx="n.x" cy="8" r="3" :class="`is-${NOTICE_DOT[n.level] || 'warn'}`" />
+                <title>{{ NOTICE_LABEL[n.level] || n.level }} · {{ n.name }} · {{ dayClock(n.at) }}{{ n.sent ? '' : ' · no salió' }}</title>
+              </g>
+            </svg>
+            <p v-if="timeline.more" class="chart-note">Y {{ timeline.more }} tramos más: <code>bin/sentinel day</code> los lista todos.</p>
           </section>
 
           <section v-if="selected.samples?.length" class="days">
@@ -853,6 +910,15 @@ h3 { margin: 0; font-size: var(--text-xs); font-weight: 600; color: var(--fg-3);
 .attention-row.known { opacity: 0.75 }
 .region-head.toggle { width: 100%; border: 0; background: none; cursor: pointer; font: inherit; color: inherit; text-align: left }
 .chart .gap { fill: var(--fg-2); opacity: 0.12 }
+.day-line { margin-top: var(--space-4) }
+.timeline .spell { cursor: pointer }
+.timeline .spell rect { fill: var(--sentinel-warn); opacity: 0.7 }
+.timeline .spell.is-alert rect { fill: var(--sentinel-alert) }
+.timeline .spell text { fill: var(--fg-2); font-size: 10px }
+.timeline .spell:hover text { fill: var(--foreground) }
+.timeline .notice-mark circle { fill: var(--sentinel-warn) }
+.timeline .notice-mark circle.is-alert { fill: var(--sentinel-alert) }
+.timeline .notice-mark circle.is-ok { fill: var(--sentinel-ok, var(--fg-2)) }
 .over-mark { margin-left: var(--space-1); color: var(--sentinel-warn) }
 .msg-text { font-family: var(--font-mono, ui-monospace, monospace); overflow-wrap: anywhere }
 .app-card.compact { padding-block: var(--space-1) }

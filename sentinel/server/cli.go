@@ -28,7 +28,7 @@ import (
 	"time"
 )
 
-var cliCommands = map[string]bool{"now": true, "day": true, "signal": true, "deploy": true, "ack": true}
+var cliCommands = map[string]bool{"now": true, "day": true, "signal": true, "deploy": true, "ack": true, "schema": true}
 
 // runCLI: un comando de la consola. Devuelve el código de salida.
 func runCLI(root string, args []string) int {
@@ -79,6 +79,8 @@ func runCLI(root string, args []string) int {
 			break
 		}
 		out, err = c.signal(strings.Join(positional, " "))
+	case "schema":
+		out, err = c.schema()
 	case "deploy":
 		if len(positional) == 0 {
 			err = fmt.Errorf("falta el repo: «legacy-backend», «legacy-application», «pre-approvals-service»…")
@@ -306,24 +308,24 @@ func (c *cli) day(date string) (*DayReport, error) {
 func (c *cli) spells(start, end time.Time) []Spell {
 	step := time.Duration(c.rules.StepMinutes) * time.Minute
 	var out []Spell
-	for sig := range c.e.data {
+	// En paralelo por señal (replayRange): antes, una por una, el día tardaba 14 s.
+	for sig, steps := range c.e.replayRange(start.Add(step), end.Add(time.Nanosecond)) {
 		if c.rules.Signals[sig].Ignore {
 			continue
 		}
 		var cur *Spell
 		worst := levelOK
-		for t := start.Add(step); !t.After(end); t = t.Add(step) {
-			ev, level := c.e.sustained(sig, t)
+		for _, st := range steps {
 			switch {
-			case level >= levelWarn && cur == nil:
-				cur = &Spell{Signal: sig, Name: c.s.subjectName(sig), From: t.Format(time.RFC3339), Level: levelName(level), Why: ev.Why}
-				worst = level
-			case level >= levelWarn:
-				if level > worst {
-					worst, cur.Level, cur.Why = level, levelName(level), ev.Why
+			case st.Level >= levelWarn && cur == nil:
+				cur = &Spell{Signal: sig, Name: c.s.subjectName(sig), From: st.At.Format(time.RFC3339), Level: levelName(st.Level), Why: st.Why}
+				worst = st.Level
+			case st.Level >= levelWarn:
+				if st.Level > worst {
+					worst, cur.Level, cur.Why = st.Level, levelName(st.Level), st.Why
 				}
-			case level < levelWarn && cur != nil:
-				cur.To = t.Format(time.RFC3339)
+			case st.Level < levelWarn && cur != nil:
+				cur.To = st.At.Format(time.RFC3339)
 				out = append(out, *cur)
 				cur = nil
 			}

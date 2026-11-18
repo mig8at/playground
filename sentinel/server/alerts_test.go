@@ -189,3 +189,38 @@ func TestGapNoticeSummarizesWhatHappened(t *testing.T) {
 		t.Fatalf("sin alertas: %q · sonido %v", bodies[1], sounds[1])
 	}
 }
+
+// Errores dos horas seguidas sobre el mínimo con lo normal en cero: «para mirar», aunque el techo lo deje pasar.
+func TestErrorsSustainedOverZero(t *testing.T) {
+	now := time.Date(2026, 11, 18, 10, 0, 0, 0, bogota)
+	total := map[string]*[bucketsPerDay]int{}
+	have := map[string]bool{}
+	day := now
+	for i := 0; i < 10; {
+		day = day.AddDate(0, 0, -1)
+		if weekend(day) {
+			continue
+		}
+		key := day.Format("2006-01-02")
+		arr := &[bucketsPerDay]int{}
+		if i < 3 { // ráfagas de otros días, de tarde (dos horas a 40 por hora): suben el techo por encima de 29
+			for m := 0; m < 120; m += 5 {
+				arr[bucketOf(time.Date(day.Year(), day.Month(), day.Day(), 15, m, 0, 0, bogota))] = 40 / 12
+			}
+		}
+		total[key], have[key] = arr, true
+		i++
+	}
+	arr := &[bucketsPerDay]int{}
+	for m := 0; m < 120; m += 5 { // 29 por hora, de 8 a 10
+		arr[bucketOf(now.Add(-2*time.Hour).Add(time.Duration(m)*time.Minute))] = 29 / 12
+	}
+	arr[bucketOf(now.Add(-5*time.Minute))] += 29 - 12*(29/12)
+	arr[bucketOf(now.Add(-65*time.Minute))] += 29 - 12*(29/12)
+	total[now.Format("2006-01-02")], have[now.Format("2006-01-02")] = arr, true
+	e := evaluator{rules: defaultRules(), data: map[Signal]*series{"service:x": {total: total}}, have: have, ceils: map[string]float64{}}
+	ev := e.eval("service:x", now)
+	if ev.Level != levelWarn || !strings.Contains(ev.Why, "en la anterior") {
+		t.Fatalf("nivel %d · %s", ev.Level, ev.Why)
+	}
+}
