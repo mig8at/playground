@@ -475,6 +475,29 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   una guía, lo guardado— recargaba la página entera: se cerraba la vista previa y se cortaba el Auto de la interfaz.
   Se vio en `bin/cockpit logs wally` («page reload pruebas/…»). Un cambio en el servidor sigue pidiendo
   `bin/cockpit restart wally --wait`.
+- **Wally es genérico y carga de a poco: una base corta y HABILIDADES que se piden** (2026-11-17, Miguel: «que no sea
+  solamente de knowledge; que pidan los comandos disponibles, no que los cargue todo de totazo, como vos con los
+  CLAUDE.md»). Antes cada conversación arrancaba con el catálogo entero (8,5 KB, casi todo de knowledge). Ahora:
+  - **[`WALLY.md`](WALLY.md) es la base** (2,5 KB): quién es, cómo trabaja (pedir antes de afirmar, el plan en dos
+    líneas para lo de varios pasos, no inventar, citar, decir qué comprobó y qué no) y qué no puede. Sin comandos.
+  - **[`skills/`](skills/) son sus habilidades**, un archivo cada una (`# nombre: para qué sirve`, sus comandos con un
+    bloque de ejemplo, y cómo usarla): `knowledge`, `knowledge-al-dia`, `codigo`, `trampas`, `tareas`, `herramientas`,
+    `pruebas`, `sentinel`, `canon`. El servidor arma el ÍNDICE solo (`skillIndex`, una línea por habilidad) y lo pega
+    a la base; el detalle se pide con **`ayuda <nombre>`** (`ayuda` solo: el índice). **Agregar una habilidad es
+    agregar un archivo**, sin tocar la base ni el servidor (si trae un comando nuevo, sí su línea en `allowList`).
+  - **Las dos cosas dicen lo mismo, y se prueba**: `TestSkillsMatchTheAllowList` corre cada comando de ejemplo de cada
+    habilidad contra la lista blanca. Lo de «su fila en WALLY.md» de más arriba ahora es «su habilidad».
+  - **Un agente trae precargadas las de su oficio** (`Agent.Skills`; `bin/wally agent create|update --skill …`,
+    `bin/wally skills` las lista): no gasta una vuelta pidiendo ayuda. Smeargle `pruebas` (y sus notas quedaron en el
+    ciclo, sin repetir la habilidad); Porygon y los nueve de knowledge `knowledge`, `knowledge-al-dia`, `codigo`;
+    Noctowl `sentinel`, `trampas`; Mew `tareas`, `trampas`, `knowledge`; Ditto `canon`, `codigo`.
+  Probado con DeepSeek, en Auto, en conversaciones nuevas de Wally: (1) una pregunta que no pide mirar nada: contestó
+  directo, 7,5 s; (2) «¿ya nos pasó que el OTP no valide en staging?»: `ayuda trampas` → `trampas` → `trampa F-135` →
+  la causa, diciendo qué no verificó (4 vueltas, 97 s); (3) «armame una página con un contador»: `ayuda pruebas` → la
+  página, 5 criterios y `probar` en verde (3 vueltas, 48 s). El primer mensaje de una conversación pasó de ~7.700 a
+  ~3.300 caracteres; el costo es UNA vuelta más la primera vez que usa cada habilidad. ⚠ Lo que costó: con «si se
+  contesta sin mirar nada, contestala», Porygon repitió DE MEMORIA su revisión anterior sin correr `cambios`; la base
+  ahora dice que lo que cambia con el tiempo (main, producción, el tablero, un archivo) se vuelve a mirar cada vez.
 - **Los grupos de agentes se sacaron** (2026-11-17, Miguel: «al parecer no funciona por el momento»): un grupo
   «Knowledge» con Wally de coordinador y EVA y M-O en paralelo; su única corrida chocó con el cupo de Google. Se fueron
   su pantalla, su sección de la lista, `server/groups.go` y sus rutas; la lista de temas pasó a `server/topics.go`. Su

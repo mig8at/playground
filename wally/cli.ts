@@ -4,8 +4,11 @@
 //
 //   bin/wally agents                                   los agentes (nombre, intención, temas, peso de su precarga)
 //   bin/wally agent create --name Eevee --intent 'qué hace' [--notes 'lo que tiene que saber' | --notes-file n.md]
-//                          [--file doc.pdf]… [--topic kyc-pipeline]…     uno nuevo: no le pregunta nada al modelo
-//   bin/wally agent update <nombre> [--intent '…'] [--notes '…' | --notes-file n.md]   cambia su intención o sus notas
+//                          [--file doc.pdf]… [--topic kyc-pipeline]… [--skill pruebas]…   uno nuevo: no le pregunta
+//                          nada al modelo. --skill: las habilidades que trae precargadas (las de su oficio)
+//   bin/wally agent update <nombre> [--intent '…'] [--notes '…' | --notes-file n.md] [--skill s]…   cambia su intención,
+//                          sus notas o las habilidades que trae precargadas (--skill ninguna las saca)
+//   bin/wally skills                                   las habilidades de Wally (lo que se pide con `ayuda <nombre>`)
 //   bin/wally agent delete <nombre>                    lo borra con su conversación y sus archivos
 //   bin/wally topics [palabra]                         los temas de knowledge, para elegir los de un agente
 //   bin/wally conversations                            las conversaciones (sin la de Wally ni las de los agentes)
@@ -89,6 +92,7 @@ try {
             `${a.agent.name.padEnd(12)} ${a.agent.intent}\n${' '.repeat(13)}${[
                 a.agent.topics?.length ? `temas: ${a.agent.topics.join(', ')}` : '',
                 a.agent.files?.length ? `archivos: ${a.agent.files.map((f: any) => f.name).join(', ')}` : '',
+                a.agent.skills?.length ? `habilidades: ${a.agent.skills.join(', ')}` : '',
                 a.agent.notes ? 'con notas' : '',
                 `~${Math.round(a.preload / 1000)} mil car. de precarga`,
                 a.changed ? `${a.changed} fuentes cambiaron en main` : '',
@@ -100,7 +104,7 @@ try {
         const notes = flag('notes-file') ? fs.readFileSync(resolve(flag('notes-file')!), 'utf8') : flag('notes') || '';
         const files = [];
         for (const f of flags('file')) files.push(await upload(f));
-        const c = await post('/api/agents', { name, intent, notes, fileIds: files.map((f: any) => f.id), topics: flags('topic') });
+        const c = await post('/api/agents', { name, intent, notes, fileIds: files.map((f: any) => f.id), topics: flags('topic'), skills: flags('skill') });
         out(c, `Listo: ${c.agent.name} · ${c.agent.intent}\n  conversación ${c.id}${files.length ? ` · ${files.length} archivo(s)` : ''}${c.agent.topics?.length ? ` · temas: ${c.agent.topics.join(', ')}` : ''}\n  Está en la pestaña «Agentes» de Wally. Abrilo: bin/cockpit open wally '#/c/${c.id}'`);
     } else if (cmd === 'agent' && sub === 'update') {
         const name = positional()[2];
@@ -110,15 +114,19 @@ try {
         if (flag('intent')) body.intent = flag('intent')!;
         if (flag('notes-file')) body.notes = fs.readFileSync(resolve(flag('notes-file')!), 'utf8');
         else if (flag('notes') !== undefined) body.notes = flag('notes')!;
-        if (!Object.keys(body).length) throw new Error('nada que cambiar: --intent, --notes o --notes-file');
+        if (flags('skill').length) (body as any).skills = flags('skill').filter((s) => s !== 'ninguna');
+        if (!Object.keys(body).length) throw new Error('nada que cambiar: --intent, --notes, --notes-file o --skill');
         const c = await post(`/api/agents/${a.conv}`, body, 'PUT');
-        out(c, `Listo: ${c.agent.name} · ${Object.keys(body).map((k) => (k === 'notes' ? 'notas' : 'intención')).join(' y ')} al día (vale desde la próxima pregunta).`);
+        out(c, `Listo: ${c.agent.name} · ${Object.keys(body).map((k) => ({ notes: 'notas', intent: 'intención', skills: 'habilidades' } as any)[k]).join(' y ')} al día (vale desde la próxima pregunta).`);
     } else if (cmd === 'agent' && sub === 'delete') {
         const name = positional()[2];
         if (!name) throw new Error('falta el nombre: bin/wally agent delete Eevee');
         const a = await agentByName(name);
         await api(`/api/conversations/${a.conv}`, { method: 'DELETE' });
         out({ deleted: a.agent.name, conv: a.conv }, `Borrado: ${a.agent.name} (y su conversación y sus archivos).`);
+    } else if (cmd === 'skills') {
+        const { skills } = await api('/api/skills');
+        out(skills, skills.map((s: any) => `${s.name.padEnd(18)} ${s.about}`).join('\n'));
     } else if (cmd === 'topics') {
         const q = (sub || '').toLowerCase();
         const { topics } = await api('/api/topics');
@@ -212,7 +220,7 @@ try {
         out({ conv: c.id, model: m.model, ms: m.ms, totalMs: total, rounds, answer: m.text, commands: m.commands || [] },
             `${m.text}\n\n  (${m.model}, ${rounds.length > 1 ? `${rounds.length} vueltas, ${(total / 1000).toFixed(1)} s en el modelo` : `${(m.ms / 1000).toFixed(1)} s`}${pending ? ` · pide ${pending} comando(s)${args.includes('--auto') ? ': se acabaron las vueltas' : ': aprobalos en Wally'}` : ''})`);
     } else {
-        console.error(fs.readFileSync(new URL(import.meta.url), 'utf8').split('\n').filter((l) => l.startsWith('//')).slice(0, 22).map((l) => l.slice(3)).join('\n'));
+        console.error(fs.readFileSync(new URL(import.meta.url), 'utf8').split('\n').filter((l) => l.startsWith('//')).slice(0, 25).map((l) => l.slice(3)).join('\n'));
         process.exit(cmd ? 2 : 0);
     }
 } catch (e: any) {

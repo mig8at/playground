@@ -67,6 +67,10 @@ var guides = map[string]string{
 const trapsFile = "tablero/data/traps/doc.md"
 
 var allowList = []allowed{
+	// Las habilidades (skills.go): el índice, o una entera con sus comandos. Es lo primero que pide el modelo.
+	{regexp.MustCompile(`^ayuda(?: ([a-z][a-z0-9-]{1,30}))?$`), func(_ context.Context, a *app, m []string) (string, int, error) {
+		return a.skillHelp(m[1])
+	}},
 	{regexp.MustCompile(`^make knowledge-map$`), makeRun("knowledge-map")},
 	{regexp.MustCompile(`^make knowledge-search Q=(?:'([^'"` + "`" + `$\\;&|<>]{1,120})'|"([^'"` + "`" + `$\\;&|<>]{1,120})")$`),
 		func(ctx context.Context, a *app, m []string) (string, int, error) {
@@ -293,7 +297,7 @@ func (a *app) instructionsFor(mode string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("no pude leer wally/WALLY.md: %v", err)
 	}
-	return "Estas son tus instrucciones (WALLY.md):\n\n" + string(raw), nil
+	return "Estas son tus instrucciones (WALLY.md):\n\n" + strings.TrimRight(string(raw), "\n") + "\n\n" + a.skillIndex(), nil
 }
 
 // modeContext corre lo que un modo adjunta al empezar (el mapa de knowledge), como un archivo.

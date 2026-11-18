@@ -32,6 +32,9 @@ type Agent struct {
 	Notes  string       `json:"notes,omitempty"`
 	Files  []Attachment `json:"files,omitempty"`
 	Topics []string     `json:"topics,omitempty"`
+	// Skills: las habilidades de Wally (skills.go) que este agente trae PRECARGADAS: las de su oficio, para que no
+	// gaste una vuelta pidiendo `ayuda`. Las demás las pide como cualquiera.
+	Skills []string `json:"skills,omitempty"`
 	// Provider: con qué proveedor contesta ESTE agente («aistudio», «deepseek», «chatgpt», «groq»); vacío, el de la
 	// configuración. Elegirlo acá es la decisión de Miguel para este agente: vale aunque el permiso general de agentes
 	// esté apagado (Miguel, 2026-11-17).
@@ -80,9 +83,10 @@ func (a *app) preloadSize(ag Agent) int {
 func (a *app) setAgentProvider(w http.ResponseWriter, r *http.Request) {
 	// Lo que no viene no se toca: `provider` (legado), y la intención o las notas (bin/wally agent update).
 	var in struct {
-		Provider *string `json:"provider"`
-		Intent   *string `json:"intent"`
-		Notes    *string `json:"notes"`
+		Provider *string   `json:"provider"`
+		Intent   *string   `json:"intent"`
+		Notes    *string   `json:"notes"`
+		Skills   *[]string `json:"skills"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		writeErr(w, 400, err)
@@ -97,6 +101,14 @@ func (a *app) setAgentProvider(w http.ResponseWriter, r *http.Request) {
 	if in.Intent != nil && strings.TrimSpace(*in.Intent) == "" {
 		writeErr(w, 400, errors.New("la intención no puede quedar vacía"))
 		return
+	}
+	var skills []string
+	if in.Skills != nil {
+		var err error
+		if skills, err = a.knownSkills(*in.Skills); err != nil {
+			writeErr(w, 400, err)
+			return
+		}
 	}
 	a.store.mu.Lock()
 	defer a.store.mu.Unlock()
@@ -113,6 +125,9 @@ func (a *app) setAgentProvider(w http.ResponseWriter, r *http.Request) {
 	}
 	if in.Notes != nil {
 		c.Agent.Notes = *in.Notes
+	}
+	if in.Skills != nil {
+		c.Agent.Skills = skills
 	}
 	if err := a.store.save(); err != nil {
 		writeErr(w, 500, err)
@@ -200,6 +215,12 @@ func (a *app) createAgent(w http.ResponseWriter, r *http.Request) {
 		}
 		ag.Topics = append(ag.Topics, t)
 	}
+	skills, err := a.knownSkills(in.Skills)
+	if err != nil {
+		writeErr(w, 400, err)
+		return
+	}
+	ag.Skills = skills
 	if in.Model == "" {
 		in.Model = a.chatModels()[0].Name
 	}
@@ -281,9 +302,15 @@ func (a *app) agentContext(ctx context.Context, ag Agent) (string, error) {
 	fmt.Fprintf(&b, "Sos **%s**, uno de los agentes de Wally. Tu intención: %s.\n\n", ag.Name, ag.Intent)
 	b.WriteString("Esta conversación es tuya y larga: Miguel vuelve a ella cuando hay algo de lo tuyo. Abajo va tu contexto " +
 		"precargado, leído en este momento. Trabajá sobre eso y con esa intención; si te piden algo que cae afuera, decilo. " +
-		"Si necesitás ver algo de la máquina (código, knowledge, trampas), pedí comandos de lectura como dice WALLY.md.\n")
+		"Si necesitás algo que no está acá, usá tus habilidades como dice WALLY.md (primero su `ayuda`).\n")
 	if ag.Notes != "" {
 		fmt.Fprintf(&b, "\n===== lo que tenés que saber =====\n%s\n===== fin =====\n", ag.Notes)
+	}
+	// Las habilidades de su oficio, ya leídas: no hace falta que pida su `ayuda`.
+	for _, name := range ag.Skills {
+		if text, exit, _ := a.skillHelp(name); exit == 0 {
+			fmt.Fprintf(&b, "\n===== habilidad «%s» (ya la tenés: no pidas su ayuda) =====\n%s\n===== fin =====\n", name, strings.TrimRight(text, "\n"))
+		}
 	}
 	for _, f := range ag.Files {
 		text, err := a.fileText(f.ID)
@@ -295,8 +322,8 @@ func (a *app) agentContext(ctx context.Context, ag Agent) (string, error) {
 	}
 	if len(ag.Topics) > 0 {
 		b.WriteString("\nTemas de knowledge que te tocan: su texto vigente y el estado de sus fuentes contra main (CAMBIÓ = el " +
-			"archivo es distinto del que se revisó). Lo que propongas para knowledge va en el formato de propuesta de " +
-			"WALLY.md: nadie lo escribe sin verificarlo contra main.\n")
+			"archivo es distinto del que se revisó). Lo que propongas para knowledge va en el formato de propuesta de la " +
+			"habilidad `knowledge-al-dia`: nadie lo escribe sin verificarlo contra main.\n")
 	}
 	for _, t := range ag.Topics {
 		raw, err := os.ReadFile(filepath.Join(a.root, "knowledge", t, "rules.md"))

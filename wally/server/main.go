@@ -70,6 +70,7 @@ func main() {
 	mux.HandleFunc("POST /api/conversations/{id}/seen", a.runSeen)
 	mux.HandleFunc("POST /api/conversations/{id}/messages/{mid}/commands/{cid}", a.commandAction)
 	mux.HandleFunc("GET /api/topics", a.listTopics)
+	mux.HandleFunc("GET /api/skills", func(w http.ResponseWriter, _ *http.Request) { writeJSON(w, 200, map[string]any{"skills": a.skills()}) })
 	mux.HandleFunc("GET /api/main", a.mainConversation)
 	mux.HandleFunc("GET /api/config", a.getConfig)
 	mux.HandleFunc("GET /api/providers", a.providers)

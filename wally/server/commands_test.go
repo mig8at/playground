@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -160,6 +161,52 @@ func TestSentinelDropsFrontErrorTexts(t *testing.T) {
 	for _, ok := range []string{"canon tema asesor/context", "canon tema cuota/context#el-monto", "canon buscar 'deshabilitar asesor'", "sentinel now", "sentinel day", "sentinel day 2026-11-12", "sentinel deploy legacy-backend", "sentinel deploy frontend-monorepo v1.11.12"} {
 		if _, err := commandArgs(ok); err != nil {
 			t.Errorf("%q tenía que pasar: %v", ok, err)
+		}
+	}
+}
+
+// Las habilidades y la lista blanca dicen lo mismo: cada comando de ejemplo de wally/skills/*.md pasa la lista, cada
+// habilidad tiene su línea de índice, y `ayuda` devuelve el índice o la habilidad.
+func TestSkillsMatchTheAllowList(t *testing.T) {
+	a := &app{root: filepath.Join("..", "..")}
+	list := a.skills()
+	if len(list) < 5 {
+		t.Fatalf("leí %d habilidades de wally/skills", len(list))
+	}
+	block := regexp.MustCompile("(?s)```comando\\n(.*?)\\n```")
+	for _, s := range list {
+		if s.About == "" || strings.Contains(s.About, "#") {
+			t.Errorf("%s: su primera línea tiene que ser `# %s: para qué sirve`", s.Name, s.Name)
+		}
+		text, exit, _ := a.skillHelp(s.Name)
+		if exit != 0 {
+			t.Errorf("ayuda %s: %s", s.Name, text)
+		}
+		for _, m := range block.FindAllStringSubmatch(text, -1) {
+			for _, line := range strings.Split(m[1], "\n") {
+				if line = strings.TrimSpace(line); line == "" {
+					continue
+				}
+				if _, err := commandArgs(line); err != nil {
+					t.Errorf("%s: el ejemplo %q no pasa la lista blanca: %v", s.Name, line, err)
+				}
+			}
+		}
+	}
+	if idx, _, _ := a.skillHelp(""); !strings.Contains(idx, "`"+list[0].Name+"`") {
+		t.Errorf("el índice no nombra las habilidades: %q", idx)
+	}
+	if text, exit, _ := a.skillHelp("no-existe"); exit == 0 || !strings.Contains(text, "las que hay") {
+		t.Errorf("una habilidad que no existe tiene que decir cuáles hay: %q", text)
+	}
+	for _, ok := range []string{"ayuda", "ayuda trampas", "ayuda knowledge-al-dia"} {
+		if _, err := commandArgs(ok); err != nil {
+			t.Errorf("%q tenía que pasar: %v", ok, err)
+		}
+	}
+	for _, bad := range []string{"ayuda ../WALLY", "ayuda trampas; ls", "ayuda Trampas"} {
+		if _, err := commandArgs(bad); err == nil {
+			t.Errorf("%q tenía que rechazarse", bad)
 		}
 	}
 }
