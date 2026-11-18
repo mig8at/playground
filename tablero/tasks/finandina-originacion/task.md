@@ -58,6 +58,10 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
   prod no tiene comercios en el pipeline y qa tiene 91, 196 y 237. Termina con la decisión de si hace falta.
   Depende de: en qué flujo arrancan los comercios de Finandina.
 - [x] ~~Comprobar en qa que la 149 rechaza la cédula de extranjería por el riel 4~~ — `lender_rule_failed` (505119).
+- [ ] Conseguir una cuenta de API de Mareigua de Finandina que funcione: la de prueba del Drive («Validador I/E») da
+  «Login o contraseña incorrecta» contra el Mareigua real (2026-11-18). Revisar la clave contra `Mareigua.png` o pedirle
+  una cuenta de API a Finandina. Termina con un `POST /token` que devuelve token y las credenciales 14 (qa) y 8 (local)
+  actualizadas. Depende de: Miguel — revisar la captura, o Finandina — la cuenta.
 - [ ] Cargar en prod la cuenta real de Mareigua de Finandina y comprobar que el proveedor real la acepta (qa
   contesta con el mock). Termina con una consulta real con la cuenta de Finandina y su `credential_id`
   guardado. Depende de: Finandina — la cuenta de producción; y quien cargue en el admin de prod.
