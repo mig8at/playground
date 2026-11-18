@@ -5647,7 +5647,7 @@
       for (const r of data.recipes || []) {
         const tr = document.createElement('tr');
         tr.append(cell(r.name, 'recipe-name'), cell(r.what + (r.writes ? ' · escribe en la base local y limpia' : ''), 'recipe-what'),
-          cell(r.repo, 'mock-owner'), cell(r.params.map((p) => p.what).join(' · ') || '—', 'recipe-params'));
+          cell(r.repo, 'mock-owner'), cell(r.params.map((p) => p.what + (p.optional ? ' (opcional)' : '')).join(' · ') || '—', 'recipe-params'));
         const last = (data.last || {})[r.name];
         const lt = cell(last ? `${agoText(last.at)} · ${last.ok ? '✓' : '✗'} ${last.summary ?? ''}` : 'nunca', 'recipe-last');
         if (last) lt.title = `${new Date(last.at).toLocaleString('es-CO')} · ${(last.ms / 1000).toFixed(1)} s\n${last.summary ?? ''}`;

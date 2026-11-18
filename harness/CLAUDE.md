@@ -124,6 +124,16 @@ wizard: la clase que decide, llamada directo (un método privado, por reflexión
   el agente).
 - Las cinco que vivían sueltas en el Makefile (`harness-duplicate-phone`, `-user-country`, `-merchant-api-country`,
   `-reentry`, `-dni-clash`) son recetas desde el 2026-11-18, con el mismo `make` de siempre.
+- **Las que leen y se usan a diario** (2026-11-18, cada una corrida en local en ~1 s): `salary` y `continuity` (el
+  ingreso y la continuidad que toma el perfilamiento, con la fuente de cada uno), `debt-capacity` (la capacidad del
+  detalle del backoffice y el monto de Finandina, con el cálculo del motor), `cancel-check` (si una solicitud se puede
+  cancelar y qué la frena, sin cancelarla), `lender-quota` (el cupo del mes de una entidad CreditopX, por perfil) y
+  `experian-omit` (si una sucursal se salta Experian según el código; si no coincide con `bin/pg experian check`, hay
+  un bug). `make harness-recipe` dice qué pide cada una.
+- **Al escribir una**: `$request->status` de `UserRequest` es una COLUMNA que tapa la relación del mismo nombre (va
+  `$request->status()->value('name')`); y una receta que copia la lógica en vez de llamarla (`cancel-check` copia las
+  guardas de `safeCancel` porque cancelar escribe y avisa a la tienda) lo dice en su comentario. `CODE` y `ARGS` pasan
+  por `make` sin expandir: `$x` llega entero.
 
 ## Recorridos: cómo se nombra lo que se prueba
 

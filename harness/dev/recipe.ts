@@ -38,7 +38,7 @@ const REPOS: Record<string, string> = {
 // La base del contenedor: el servicio `mysql` de sail, o el puerto local publicado.
 const LOCAL_HOSTS = ['mysql', '127.0.0.1', 'localhost'];
 
-export type Recipe = { name: string; what: string; repo: string; params: { name: string; what: string }[]; writes: boolean; file: string };
+export type Recipe = { name: string; what: string; repo: string; params: { name: string; what: string; optional: boolean }[]; writes: boolean; file: string };
 
 /** Lee el comentario de arriba de una receta: la pregunta (la primera oración) y las marcas. */
 export function parseRecipe(file: string): Recipe {
@@ -52,7 +52,8 @@ export function parseRecipe(file: string): Recipe {
             name: basename(file, '.php'),
             what,
             repo: tag('repo')[0] || 'legacy-backend',
-            params: tag('param').map((p) => { const [name, ...rest] = p.split(/\s+/); return { name, what: rest.join(' ') }; }),
+            // `@param nombre? …`: opcional.
+            params: tag('param').map((p) => { const [raw, ...rest] = p.split(/\s+/); return { name: raw.replace(/\?$/, ''), what: rest.join(' '), optional: raw.endsWith('?') }; }),
             writes: tag('writes').length > 0,
             file,
       };
@@ -161,7 +162,7 @@ function main() {
             console.log(`\n  ${all.length} recetas en harness/recipes (corren en LOCAL):\n`);
             for (const r of all) {
                   console.log(`  ${r.name.padEnd(26)} ${r.repo === 'legacy-backend' ? '' : `[${r.repo}] `}${r.writes ? '[escribe y limpia] ' : ''}${r.what}`);
-                  for (const p of r.params) console.log(`  ${''.padEnd(26)}   --${p.name}  ${p.what}`);
+                  for (const p of r.params) console.log(`  ${''.padEnd(26)}   --${p.name}  ${p.what}${p.optional ? ' (opcional)' : ''}`);
             }
             console.log(`\n  correr una: make harness-recipe NAME=<receta> ARGS='--param valor'  ·  PHP suelto: make harness-recipe CODE='return …;'\n`);
             return 0;
@@ -184,7 +185,7 @@ function main() {
             recipe = parseRecipe(file);
             body = readFileSync(file, 'utf8');
             repo = flags.repo || recipe.repo;
-            const missing = recipe.params.filter((p) => flags[p.name] === undefined).map((p) => `--${p.name} (${p.what})`);
+            const missing = recipe.params.filter((p) => !p.optional && flags[p.name] === undefined).map((p) => `--${p.name} (${p.what})`);
             if (missing.length) { console.error(`la receta ${name} pide: ${missing.join(', ')}`); return 2; }
       }
       const params: Record<string, string> = {};

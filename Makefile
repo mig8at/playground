@@ -644,7 +644,7 @@ harness-merchant-country-fix: ## @har ¿el país de un comercio se puede corregi
 
 harness-recipe: ## @har RECETAS DE CÓDIGO: corre PHP adentro de la app LOCAL (sus clases, sus modelos, su base) y devuelve lo que da, sin armar un flujo. Sin NAME, la lista. NAME=<receta> [ARGS='--param valor'] · CODE='return …;' [REPO=legacy-application] · [JSON=1] [BLOCK=<tarea>]. Sólo local: no corre si la app apunta a otra base
 	@test -z "$(TARGET)" -o "$(TARGET)" = local || { echo "las recetas corren sólo en local (TARGET=local)"; exit 2; }
-	@cd harness && node dev/recipe.ts $(if $(NAME),$(NAME)) $(ARGS) $(if $(CODE),--code '$(subst ','"'"',$(CODE))') $(if $(REPO),--repo $(REPO)) $(if $(JSON),--json)
+	@cd harness && node dev/recipe.ts $(if $(NAME),$(NAME)) $(value ARGS) $(if $(CODE),--code '$(subst ','"'"',$(value CODE))') $(if $(REPO),--repo $(REPO)) $(if $(JSON),--json)
 
 harness-duplicate-phone: ## @har ¿dos altas del MISMO teléfono (una con indicativo y otra sin) crean dos usuarios? Escribe en LOCAL y limpia
 	@cd harness && node dev/recipe.ts duplicate-phone
