@@ -96,12 +96,17 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
   con la credencial cargada y un cierre en qa con el pagaré digital. Depende de: Hans — CRED-463.
 - [x] ~~Correr en qa la guía de Abel sobre el riel 4~~ — 2026-11-17: 11 de 15 con resultado (1–7, 9 por datos, 10, 15). La tabla
   está en la pila.
-- [ ] Cerrar los cuatro casos de la guía que no corrieron:
+- [x] ~~Casos 11 y 13 de la guía~~ — 2026-11-17: el tope de la entidad rechaza (`lender_quota_exhausted`); la oferta que
+  cambia frena el plan del riel 4 (505130), pero con 500.
+- [ ] Que el riel 4 responda 409 `OFFER_CHANGED` cuando la oferta cambia antes de firmar, como el tipo 2 (D15 del ADR),
+  y no 500 «error durante el cálculo del plan de pagos»: si la preaprobación `creditop_x` ya no está aprobada, el plan,
+  los documentos y la autorización del riel tienen que devolver el error que el wizard sabe mostrar. Termina con el
+  caso 11 de la guía en qa mostrando el aviso de volver al listado.
+- [ ] Cerrar los casos de la guía que el arnés no deja correr:
   - el 8, sin experiencia: hace falta dictarle al lambda un buró sin obligaciones de 3 MM;
   - el 12, tercer crédito: hace falta un cliente que vuelve con el mismo celular;
-  - el 11 y el 13, la oferta cambia y el tope de la entidad: hay que tocar un momento la configuración compartida;
   - el 14, pantalla final, y el 9 en pantalla: con navegador, contestando las preguntas PEP.
-  Termina con los cuatro con resultado. Depende de: Miguel — el permiso para tocar la configuración compartida.
+  Termina con los tres con resultado.
 - [ ] Que Abel revise el ADR actualizado al riel 4 (D16–D18, en el PR de las fechas). Depende de: Abel.
 - [ ] Decidir sobre qué score se aplica el corte 646. La política pide Experian Advance 1.1, y el motor
   (`DatacreditoRuleEvaluator`) evalúa el promedio de los modelos del HDC+ (`Experian.php:547`). Abel encontró que
