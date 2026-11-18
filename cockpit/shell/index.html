@@ -262,9 +262,24 @@ let pendingRoute = null // { id, hash }: un aviso que llegó antes de que la app
 const pick = (key, fallback) => { try { return localStorage.getItem(key) || fallback } catch { return fallback } }
 const keep = (key, value) => { try { localStorage.setItem(key, value) } catch { /* no hace falta */ } }
 
+/* LAS APPS QUE NO SE VEN EN LA BARRA (Miguel, 2026-11-18: «poder quitar de la parte visual algunas herramientas»): se
+   eligen en el engranaje → Apps, con un interruptor por app. Ocultar no apaga nada: la app sigue andando (sus avisos,
+   su servidor de fondo) y se abre igual por un aviso o con `bin/cockpit open`; mientras está al frente se ve en la
+   barra, para saber dónde se está. Los atajos ⌘1, ⌘2… cuentan sólo las visibles. */
+const HIDDEN_KEY = 'cockpit.hidden-apps'
+const hiddenApps = new Set((() => { try { return JSON.parse(pick(HIDDEN_KEY, '[]')) } catch { return [] } })())
+const barApps = () => apps.filter((a) => !hiddenApps.has(a.id) || a.id === current)
+function setVisible(id, visible) {
+  if (!visible && apps.filter((a) => !hiddenApps.has(a.id)).length <= 1) return // al menos una queda en la barra
+  if (visible) hiddenApps.delete(id)
+  else hiddenApps.add(id)
+  keep(HIDDEN_KEY, JSON.stringify([...hiddenApps]))
+  render()
+}
+
 function render() {
   bar.innerHTML = ''
-  apps.forEach((app, i) => {
+  barApps().forEach((app, i) => {
     const b = document.createElement('button')
     b.type = 'button'
     b.className = app.id === current ? 'on' : ''
@@ -659,10 +674,12 @@ function paintSettings() {
       const st = appStates.find((x) => x.id === a.id) || {}
       const what = `${(st.ports || []).map((p) => ':' + p.split(':').pop()).join(' · ')}${st.started ? ' · la levantó Cockpit' : st.ready ? ' · la levantó una terminal' : ''}`
       const canRestart = a.id !== 'chat' && st.ready
+      const visible = !hiddenApps.has(a.id)
       return `<div class="settings-row"><span class="settings-row-text"><span class="settings-row-name">${esc(a.name)}</span><span class="settings-row-what">${esc(what)}</span></span>
         <span class="state ${st.ready ? 'up' : ''}">${st.ready ? 'arriba' : 'apagada'}</span>
-        ${canRestart ? `<button type="button" class="btn btn-outline btn-sm" data-restart="${a.id}">Reiniciar</button>` : ''}</div>`
-    }).join('')}</div><p>Reiniciar sirve para que una app tome un cambio en su servidor (Go no se recarga solo). El chat lo cuida Cockpit solo.</p></section>`
+        ${canRestart ? `<button type="button" class="btn btn-outline btn-sm" data-restart="${a.id}">Reiniciar</button>` : ''}
+        <button type="button" class="switch" role="switch" aria-checked="${visible}" data-visible="${a.id}" title="${visible ? 'Se ve en la barra: tocá para ocultarla' : 'Oculta: tocá para mostrarla en la barra'}" aria-label="${esc(a.name)} en la barra"></button></div>`
+    }).join('')}</div><p>El interruptor muestra u oculta la app en la barra; oculta sigue andando (sus avisos, lo de fondo) y se abre igual por un aviso. Reiniciar sirve para que una app tome un cambio en su servidor (Go no se recarga solo). El chat lo cuida Cockpit solo.</p></section>`
   } else {
     blocks.innerHTML = `<section><ol class="settings-steps">
       <li><b>La barra</b>: cada herramienta en su panel; ⌘1, ⌘2… cambian de app. Lo que estabas haciendo sigue ahí.</li>
@@ -693,6 +710,13 @@ document.getElementById('settingsSections').addEventListener('click', (e) => {
   if (id) { settingsSection = id; paintSettings(); if (id === 'model') loadModelState() }
 })
 document.getElementById('settingsBlocks').addEventListener('click', async (e) => {
+  const visibleId = e.target.closest('[data-visible]')?.dataset.visible
+  if (visibleId) {
+    setVisible(visibleId, hiddenApps.has(visibleId))
+    paintSettings()
+    document.querySelector(`#settingsBlocks [data-visible="${visibleId}"]`)?.focus()
+    return
+  }
   const restartId = e.target.closest('[data-restart]')?.dataset.restart
   if (restartId) {
     const b = e.target.closest('button')
@@ -778,13 +802,16 @@ tauri.event.listen('cockpit-activity', (e) => {
 // ⌘1, ⌘2…: cambiar de app (dentro de un iframe el atajo no llega acá; desde la barra, sí).
 window.addEventListener('keydown', (e) => {
   if (!e.metaKey || e.altKey || e.ctrlKey) return
-  const app = apps[Number(e.key) - 1]
+  const app = barApps()[Number(e.key) - 1]
   if (app) { e.preventDefault(); manualAt = Date.now(); select(app.id) }
 })
 
 invoke('apps').then((list) => {
   apps = list
-  const first = apps.some((a) => a.id === pick('cockpit.app', '')) ? pick('cockpit.app', '') : apps[0]?.id
+  // Al abrir, la última que se miró si sigue visible; si no, la primera visible.
+  const last = pick('cockpit.app', '')
+  const visibleApps = apps.filter((a) => !hiddenApps.has(a.id))
+  const first = visibleApps.some((a) => a.id === last) ? last : (visibleApps[0] || apps[0])?.id
   if (first) select(first)
   // El chat se carga siempre, aunque mires otra app: su numerito tiene que estar.
   if (apps.some((a) => a.id === 'chat')) load('chat')

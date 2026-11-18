@@ -136,6 +136,11 @@ Los enlaces `target="_blank"` de cualquier app los atrapa Rust y los abre en el 
 `~/.config/creditop-cockpit/control.json` (600, se borra al salir): `GET /status`, `GET|POST /stop`,
 `POST /open`, `/say`, `/activity`. La llave existe para que una página web cualquiera no pueda manejar Cockpit.
 
+**Qué apps se ven en la barra** (engranaje → «Apps», un interruptor por app; 2026-11-18): ocultar una la saca de la
+barra y de los atajos ⌘1, ⌘2…, nada más: sigue andando (sus avisos, su servidor de fondo) y se abre igual por un aviso o
+con `bin/cockpit open`, y mientras está al frente se ve en la barra. Al menos una queda visible. Se guarda en Cockpit
+(`localStorage`, `cockpit.hidden-apps`), no en un archivo: es una preferencia de esta ventana.
+
 **El modelo de segundo plano** (engranaje → «Modelo», 2026-11-18; Miguel: «para tareas en segundo plano que se
 ejecutan a ciertas horas»): el modelo que usa lo que corre solo, agendado o sin nadie mirando. Claude por defecto
 (Sonnet 5.5 en el Bedrock de CreditOp, por el puente de canon) o Gemini por su API. La carcasa no lo implementa:
