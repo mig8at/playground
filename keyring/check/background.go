@@ -27,13 +27,15 @@ import (
 
 // launchAgent es lo que importa de un .plist de ~/Library/LaunchAgents.
 type launchAgent struct {
-	Label            string            `json:"Label"`
-	ProgramArguments []string          `json:"ProgramArguments"`
-	WorkingDirectory string            `json:"WorkingDirectory"`
-	StandardOutPath  string            `json:"StandardOutPath"`
-	KeepAlive        any               `json:"KeepAlive"`
-	StartInterval    int               `json:"StartInterval"`
-	Environment      map[string]string `json:"EnvironmentVariables"`
+	Label            string   `json:"Label"`
+	ProgramArguments []string `json:"ProgramArguments"`
+	WorkingDirectory string   `json:"WorkingDirectory"`
+	StandardOutPath  string   `json:"StandardOutPath"`
+	KeepAlive        any      `json:"KeepAlive"`
+	StartInterval    int      `json:"StartInterval"`
+	// Calendar: con horario (StartCalendarInterval), como la daily: corre a ciertas horas y termina.
+	Calendar    any               `json:"StartCalendarInterval"`
+	Environment map[string]string `json:"EnvironmentVariables"`
 }
 
 // absPath encuentra las rutas absolutas dentro de un valor de entorno (`nombre=/ruta, otro=/y`).
@@ -123,6 +125,21 @@ func checkAgent(ctx context.Context, file string) Check {
 		default:
 			c.State, c.Detail = OK, "cada "+human(every)+" · corrió hace "+human(age)
 		}
+		return c
+	}
+
+	// Con horario (la daily): entre una corrida y otra no hay proceso, y está bien. Lo que importa es cómo terminó la
+	// última.
+	if a.Calendar != nil {
+		when := "todavía no corrió"
+		if age, ok := logAge(a.StandardOutPath); ok {
+			when = "corrió hace " + human(age)
+		}
+		if last != 0 {
+			c.State, c.Detail = Fail, fmt.Sprintf("con horario · la última corrida terminó con código %d%s", last, fix)
+			return c
+		}
+		c.State, c.Detail = OK, "con horario · "+when
 		return c
 	}
 

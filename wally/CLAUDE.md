@@ -57,6 +57,7 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
 | pieza | qué es |
 |---|---|
 | `make wally` | levanta la interfaz (:5228, Vue) y la API (:5229, Go). En Cockpit es la app Wally |
+| `make wally-install` | **la API de fondo** (LaunchAgent `com.creditop.my-tools.wally`, binario `wally/bin/wally-server`, desde el 2026-11-18): `bin/wally` y los agentes andan con Cockpit cerrado o con Wally oculto. Con ella instalada, el servidor de `make wally` espera el puerto y la interfaz usa la de fondo. **Después de cambiar el servidor: `bin/cockpit restart wally --wait`** (la recompila y la recarga) o `make wally-install`. `make wally-status` · `make wally-uninstall`. Su salida: `~/Library/Logs/my-tools-wally.log` |
 | `server/main.go` | la API: `GET /api/models`, `GET/DELETE /api/conversations[/<id>]`, `DELETE /api/conversations/<id>/messages/<bloque>`, `POST /api/ask {id?, model, text, files?}` |
 | `server/config.go` | la configuración (`GET/PUT /api/config`, en `.data/config.json`) y lo de hoy (`GET /api/usage`); en el sidebar derecho |
 | `server/agents.go` | los agentes: `GET/POST /api/agents` (abajo) |

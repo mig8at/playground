@@ -15,4 +15,4 @@ if [ ! -x "$bin" ] || [ -n "$stale" ] || [ "$root/go.mod" -nt "$bin" ]; then
   fi
   mv -f "$tmp" "$bin"
 fi
-exec "$bin" "$@"
+MY_TOOLS_ROOT="${MY_TOOLS_ROOT:-$root}" exec "$bin" "$@"

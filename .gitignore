@@ -67,6 +67,8 @@ jarvis/.data/
 # correo: lo que se vio y avisó de Gmail (correo/.data) y su binario de fondo — nunca commitear
 /correo/.data/
 /correo/bin/
+/wally/bin/
+/jarvis/bin/
 # wally: las conversaciones (wally/.data) — nunca commitear
 /wally/.data/
 /chat/bin/

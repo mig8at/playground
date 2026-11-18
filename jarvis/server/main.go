@@ -8,6 +8,7 @@
 package main
 
 import (
+	"creditop/my-tools/lib/launchagent"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -31,10 +32,38 @@ var cliMode bool
 
 func main() {
 	addr := flag.String("serve", "", "levanta la API para la interfaz en esta dirección (sólo 127.0.0.1); sirve también las apps locales de jarvis/apps")
+	install := flag.Bool("install", false, "dejar la API de fondo (LaunchAgent)")
+	uninstall := flag.Bool("uninstall", false, "sacarla de fondo")
+	status := flag.Bool("status", false, "¿corre de fondo?")
 	flag.Parse()
+	// DE FONDO (2026-11-18): la API como LaunchAgent, para que `bin/jarvis` ande con Cockpit cerrado o con Jarvis oculto.
+	// `make jarvis-install`; después de cambiar el servidor, de nuevo (o `bin/cockpit restart jarvis`).
+	if *install || *uninstall || *status {
+		wd, _ := os.Getwd()
+		agent := launchagent.Agent{Label: "com.creditop.my-tools.jarvis", Args: []string{"-serve", "127.0.0.1:5203"}, Root: wd, Log: "my-tools-jarvis.log"}
+		var err error
+		switch {
+		case *install:
+			err = agent.Install()
+		case *uninstall:
+			err = agent.Uninstall()
+		default:
+			fmt.Println(agent.Status())
+		}
+		if err != nil {
+			fail(err)
+		}
+		return
+	}
 	if *addr == "" {
 		flag.Usage()
 		os.Exit(2)
+	}
+	// Antes que nada: si otra copia ya escucha (la de fondo, o la de `make jarvis`), ésta espera su turno. Sólo la que
+	// escucha abre el store, las pestañas y las apps de práctica.
+	ln, err := launchagent.Listen("jarvis", *addr)
+	if err != nil {
+		fail(err)
 	}
 	store, err := OpenStore(dataDir())
 	if err != nil {
@@ -46,7 +75,7 @@ func main() {
 	for _, a := range listApps() {
 		go serveDir(a.Addr(), filepath.Join("apps", a.ID), a.Name)
 	}
-	if err := serve(*addr, store, tabs); err != nil {
+	if err := serve(ln, store, tabs); err != nil {
 		fail(err)
 	}
 }
@@ -892,7 +921,8 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 // apiAddr es la dirección de la API, para que el ask que se lanza desde la interfaz le hable a ésta.
 var apiAddr string
 
-func serve(addr string, store *Store, tabs *Tabs) error {
+func serve(ln net.Listener, store *Store, tabs *Tabs) error {
+	addr := ln.Addr().String()
 	apiAddr = addr
 	go watchLive(tabs)
 	host, _, err := net.SplitHostPort(addr)
@@ -912,7 +942,7 @@ func serve(addr string, store *Store, tabs *Tabs) error {
 		_ = srv.Close()
 	}()
 	fmt.Fprintf(os.Stderr, "jarvis: API en http://%s\n", addr)
-	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	if err := srv.Serve(ln); err != nil && err != http.ErrServerClosed {
 		return err
 	}
 	return nil

@@ -16,7 +16,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -50,6 +52,13 @@ Cada herramienta que usa Claude llega sola al panel (hook «cockpit»); say es p
 	// logs no pasa por Cockpit: lee el archivo, así sirve también con Cockpit cerrado o con la app caída.
 	if args[0] == "logs" {
 		return logs(args[1:])
+	}
+	// Una app que corre DE FONDO no la reinicia Cockpit (no es suya): se recompila y se recarga su LaunchAgent. Sirve
+	// también con Cockpit cerrado.
+	if args[0] == "restart" && len(args) > 1 {
+		if bg, ok := background[args[1]]; ok && bg.installed() {
+			return bg.reinstall(args[1])
+		}
 	}
 	ctl, err := cockpit.Load(os.Getenv("HOME"))
 	if err != nil {
@@ -254,4 +263,54 @@ func logs(args []string) int {
 	}
 	fmt.Println(strings.Join(keep, "\n"))
 	return 0
+}
+
+// LAS APPS CON SERVICIO DE FONDO: su API es un LaunchAgent con un binario compilado, así que «tomar un cambio en su
+// servidor» es recompilar y recargar (`make <app>-install`), no matar el proceso de un `make`.
+type backgroundApp struct {
+	label, target, port string
+}
+
+var background = map[string]backgroundApp{
+	"wally":     {"com.creditop.my-tools.wally", "wally-install", "127.0.0.1:5229"},
+	"jarvis":    {"com.creditop.my-tools.jarvis", "jarvis-install", "127.0.0.1:5203"},
+	"sentinel":  {"com.creditop.sentinel", "sentinel-install", "127.0.0.1:5211"},
+	"correo":    {"com.creditop.correo", "correo-install", "127.0.0.1:5225"},
+	"knowledge": {"com.creditop.my-tools.knowledge", "knowledge-flow-install", "127.0.0.1:5233"},
+}
+
+func (b backgroundApp) installed() bool {
+	_, err := os.Stat(filepath.Join(os.Getenv("HOME"), "Library", "LaunchAgents", b.label+".plist"))
+	return err == nil
+}
+
+func (b backgroundApp) reinstall(app string) int {
+	root := os.Getenv("MY_TOOLS_ROOT")
+	if root == "" {
+		root, _ = os.Getwd()
+	}
+	fmt.Printf("cockpit: %s corre de fondo: recompilando y recargando (make %s)…\n", app, b.target)
+	cmd := exec.Command("make", b.target)
+	cmd.Dir = root
+	if out, err := cmd.CombinedOutput(); err != nil {
+		fmt.Fprintf(os.Stderr, "cockpit: make %s falló: %v\n%s", b.target, err, out)
+		return 1
+	}
+	// Si además Cockpit o una terminal tenían SU copia escuchando (la de fondo espera el puerto), también se reinicia:
+	// si no, seguiría contestando la de antes, con el código viejo. Sin Cockpit, o si no era suya, no pasa nada.
+	if ctl, err := cockpit.Load(os.Getenv("HOME")); err == nil {
+		_ = ctl.Do("POST", "/restart", map[string]string{"app": app}, nil, 20*time.Second)
+	}
+	start := time.Now()
+	time.Sleep(time.Second)
+	for time.Since(start) < 90*time.Second {
+		if c, err := net.DialTimeout("tcp", b.port, time.Second); err == nil {
+			c.Close()
+			fmt.Printf("Cockpit: %s contesta de nuevo (%.1f s)\n", app, time.Since(start).Seconds())
+			return 0
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	fmt.Fprintf(os.Stderr, "cockpit: %s no levantó en 90 s (su log: bin/cockpit logs %s)\n", app, app)
+	return 1
 }

@@ -28,12 +28,40 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"creditop/my-tools/lib/launchagent"
 )
 
 func main() {
 	serve := flag.String("serve", "127.0.0.1:5229", "dónde escucha la API")
+	install := flag.Bool("install", false, "dejar la API de fondo (LaunchAgent)")
+	uninstall := flag.Bool("uninstall", false, "sacarla de fondo")
+	status := flag.Bool("status", false, "¿corre de fondo?")
 	flag.Parse()
 	root, err := repoRoot()
+	if err != nil {
+		log.Fatal(err)
+	}
+	// DE FONDO (2026-11-18): la API como LaunchAgent, para que `bin/wally` y lo agéntico anden con Cockpit cerrado o con
+	// Wally oculto. `make wally-install`; después de cambiar el servidor, de nuevo (o `bin/cockpit restart wally`).
+	agent := launchagent.Agent{Label: "com.creditop.my-tools.wally", Args: []string{"-serve", *serve}, Root: root, Log: "my-tools-wally.log"}
+	switch {
+	case *install:
+		if err := agent.Install(); err != nil {
+			log.Fatal(err)
+		}
+		return
+	case *uninstall:
+		if err := agent.Uninstall(); err != nil {
+			log.Fatal(err)
+		}
+		return
+	case *status:
+		fmt.Println(agent.Status())
+		return
+	}
+	// Antes que nada: si otra copia ya escucha (la de fondo, o la de `make wally`), ésta espera su turno.
+	ln, err := launchagent.Listen("wally", *serve)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -97,7 +125,7 @@ func main() {
 		time.Sleep(5 * time.Second)
 		a.checkProviders()
 	}()
-	log.Fatal(http.ListenAndServe(*serve, mux))
+	log.Fatal(http.Serve(ln, mux))
 }
 
 // repoRoot sube desde donde se corre hasta la carpeta que tiene go.mod (la raíz de my-tools).

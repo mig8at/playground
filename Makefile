@@ -344,7 +344,7 @@ style-theme: ## @dia cambia el tema de LAS CUATRO UIs de un saque: pegás un exp
 # `pulso` y no `tablero-pulso` por dos razones: es un nombre propio más (como `panel`, que tampoco es
 # una carpeta), y los nombres de 23 caracteres desalinean la ayuda de `make`.
 .PHONY: sentinel-install sentinel-status sentinel-uninstall chat-install chat-status chat-uninstall
-.PHONY: wally correo correo-install correo-status correo-uninstall knowledge-flow knowledge-flow-install knowledge-flow-status knowledge-flow-uninstall
+.PHONY: wally correo correo-install correo-status correo-uninstall knowledge-flow knowledge-flow-install knowledge-flow-status knowledge-flow-uninstall wally-install wally-status wally-uninstall jarvis-install jarvis-status jarvis-uninstall
 .PHONY: pulse pulse-install pulse-status pulse-uninstall
 pulse: ## @dia mi jornada REAL: cuándo toqué los repos de la compañía, en tramos de 5'. DAYS=7
 	@cd tablero/server && go run ./cmd/pulse report -days $(or $(DAYS),7)
@@ -412,6 +412,24 @@ sentinel-status: ## @dia ¿Sentinel corre de fondo, y hasta dónde llegó lo gua
 
 sentinel-uninstall: ## @dia saca Sentinel de fondo (lo guardado se queda)
 	@go run ./sentinel/server -uninstall
+
+wally-install: ## @dia deja la API de Wally DE FONDO (LaunchAgent): bin/wally y sus agentes andan con Cockpit cerrado o con Wally oculto. Volvé a correrlo después de cambiar su servidor (o bin/cockpit restart wally)
+	@mkdir -p wally/bin && go build -o wally/bin/wally-server ./wally/server && bin/sign wally/bin/wally-server com.creditop.my-tools.wally && wally/bin/wally-server -install
+
+wally-status: ## @dia ¿la API de Wally corre de fondo?
+	@go run ./wally/server -status
+
+wally-uninstall: ## @dia saca la API de Wally de fondo (lo guardado se queda)
+	@go run ./wally/server -uninstall
+
+jarvis-install: ## @dia deja la API de Jarvis DE FONDO (LaunchAgent): bin/jarvis anda con Cockpit cerrado o con Jarvis oculto. Volvé a correrlo después de cambiar su servidor (o bin/cockpit restart jarvis)
+	@mkdir -p jarvis/bin && go build -o jarvis/bin/jarvis-server ./jarvis/server && bin/sign jarvis/bin/jarvis-server com.creditop.my-tools.jarvis && jarvis/bin/jarvis-server -install
+
+jarvis-status: ## @dia ¿la API de Jarvis corre de fondo?
+	@go run ./jarvis/server -status
+
+jarvis-uninstall: ## @dia saca la API de Jarvis de fondo (las corridas y los flujos se quedan)
+	@go run ./jarvis/server -uninstall
 
 knowledge-flow: ## @dia abre Knowledge (:5232 · API :5233): el vigía de knowledge/. Mira main cada 30 min y, si una fuente cambió, la pone al día SOLO con los diez pasos de knowledge-drift (el modelo de segundo plano lee, verifica, aplica y commitea), como un workflow de GitHub. ONCE=1: una mirada y, si hace falta, una corrida, por consola
 	@$(if $(ONCE),MY_TOOLS_ROOT=$(CURDIR) go run ./knowledge-flow/server -once,cd knowledge-flow && npm run dev)

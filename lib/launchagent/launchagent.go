@@ -11,6 +11,7 @@ package launchagent
 import (
 	"fmt"
 	"html"
+	"net"
 	"os"
 	"os/exec"
 	"os/user"
@@ -159,4 +160,29 @@ func (a Agent) Status() string {
 		}
 	}
 	return fmt.Sprintf("de fondo: instalado · %s%s · log %s", state, pid, a.LogPath())
+}
+
+// Listen abre el puerto de un servidor que puede tener DOS copias: la de fondo (LaunchAgent) y la que levanta Cockpit o
+// una terminal con su `make`. Si ya lo tiene otra, ésta no muere: espera y toma el relevo cuando se suelta. Morir
+// tiraba también la interfaz (el `make` de cada app corre servidor y Vite juntos, y si uno cae se apaga el otro).
+// Quien llama arranca su trabajo de fondo DESPUÉS de esto: sólo el que escucha trabaja.
+func Listen(name, addr string) (net.Listener, error) {
+	if !strings.HasPrefix(addr, "127.0.0.1:") && !strings.HasPrefix(addr, "localhost:") {
+		return nil, fmt.Errorf("%s: la API escucha sólo en 127.0.0.1", name)
+	}
+	ln, err := net.Listen("tcp", addr)
+	if err == nil {
+		return ln, nil
+	}
+	if !strings.Contains(err.Error(), "address already in use") {
+		return nil, err
+	}
+	fmt.Fprintf(os.Stderr, "%s: %s ya lo tiene otra copia; espero a que se suelte para tomar el relevo\n", name, addr)
+	for {
+		time.Sleep(3 * time.Second)
+		if ln, err = net.Listen("tcp", addr); err == nil {
+			fmt.Fprintf(os.Stderr, "%s: tomé el relevo en %s\n", name, addr)
+			return ln, nil
+		}
+	}
 }

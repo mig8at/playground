@@ -34,7 +34,14 @@ En la barra el visor se llama **Designer**; por dentro la carpeta y sus `make` s
   (`chat_agent_installed`, `SIDECAR_GRACE`). Sin él, el servidor viene adentro como antes: arranca con Cockpit, se
   vuelve a levantar si se cae y se apaga al salir. `make chat-status` · `make chat-uninstall`. `make chat` es sólo para
   desarrollar su interfaz.
-- **Sentinel y Correo también corren de fondo** (`make sentinel-install`, `make correo-install`); los tres con `lib/launchagent`.
+- **Sentinel, Correo, Knowledge, Wally y Jarvis también corren de fondo** (`make <app>-install`; todos con
+  `lib/launchagent`). **Wally y Jarvis desde el 2026-11-18** (`com.creditop.my-tools.wally` · `.jarvis`): sus API andan
+  con Cockpit cerrado o con la app oculta, así `bin/wally`, `bin/jarvis` y lo agéntico no dependen de la ventana. Cuando
+  Cockpit abre la app con su `make`, el servidor de esa copia no choca: **espera el puerto** (`launchagent.Listen`) y la
+  interfaz usa la API de fondo; si la de fondo se saca, toma el relevo.
+- **`bin/cockpit restart <app>` de una app de fondo la recompila y la recarga** (`make <app>-install`), y reinicia
+  también la copia de Cockpit si la tenía; sirve con Cockpit cerrado. Es el mismo comando de siempre para «que tome un
+  cambio en su servidor».
 - **Dos servidores de la misma app no se pisan**: el chat y Sentinel, si su puerto ya lo tiene otro de los suyos,
   esperan y toman el relevo cuando se suelta. Sólo el que escucha escribe el historial o lo guardado.
 - **Las demás se levantan la primera vez que Miguel las abre** en la barra, con su `make <app>`, y se apagan
@@ -143,7 +150,7 @@ Miguel la abre, así que una oculta puede no tener servidor. Los CLI que hablan 
 `bin/jarvis`) miran antes si el puerto contesta y, si no, corren `bin/cockpit ensure <app>` (`POST /ensure`): la
 levanta sin cambiar la app al frente. Medido: Wally apagado, `bin/wally agents` contestó en 2 s. Con `WALLY_API` o
 `JARVIS_API` puestos (una prueba) no levantan nada. Con Cockpit cerrado no hay quién la levante: el comando lo dice
-y sale 1. Los que tienen servicio de fondo (chat, Sentinel, Correo, Knowledge) y los que no usan servidor (`bin/pg`,
+y sale 1; por eso Wally y Jarvis además corren de fondo (arriba). Los que tienen servicio de fondo (chat, Sentinel, Correo, Knowledge, Wally, Jarvis) y los que no usan servidor (`bin/pg`,
 harness, tablero) no lo necesitan.
 
 **Qué apps se ven en la barra** (engranaje → «Apps», un interruptor por app; 2026-11-18): ocultar una la saca de la
