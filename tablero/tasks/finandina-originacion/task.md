@@ -57,10 +57,7 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
   si los comercios de Finandina van a ir por él. Hoy `MareiguaClient` y `ExperianAciertaClient` leen sólo config;
   prod no tiene comercios en el pipeline y qa tiene 91, 196 y 237. Termina con la decisión de si hace falta.
   Depende de: en qué flujo arrancan los comercios de Finandina.
-- [ ] Comprobar en qa que la 149 rechaza la cédula de extranjería también por el riel 4: CRED-519 la deja sólo con
-  cédula con una regla de la entidad (D13 del ADR), y con el tipo 4 fallar `lender_rules` no la saca del listado. Lo
-  cubre el caso 5 de la guía. Decisión de Miguel (2026-11-17): no se cambia `document_types`; la política y el PRD
-  piden cédula de ciudadanía y el mapa de campos dice CC/CE.
+- [x] ~~Comprobar en qa que la 149 rechaza la cédula de extranjería por el riel 4~~ — `lender_rule_failed` (505119).
 - [ ] Cargar en prod la cuenta real de Mareigua de Finandina y comprobar que el proveedor real la acepta (qa
   contesta con el mock). Termina con una consulta real con la cuenta de Finandina y su `credential_id`
   guardado. Depende de: Finandina — la cuenta de producción; y quien cargue en el admin de prod.
@@ -97,10 +94,14 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
 - [ ] Pagaré digital por Deceval para Finandina en el riel 4 (`promissory_type_id` 2): en qa da 500 al generar los
   documentos porque la 149 no tiene credencial de Deceval (`DecevalSoap::createGirador`, credencial null). Termina
   con la credencial cargada y un cierre en qa con el pagaré digital. Depende de: Hans — CRED-463.
-- [ ] Correr en qa, sobre el riel 4, los casos de la guía de Abel que faltan: 2 y 3 (zona), 4 (edad), 5 (cédula de
-  extranjería), 6 (independiente), 8 (sin experiencia), 9 en pantalla (monto de la tarjeta), 11 (cambia la oferta),
-  12 (tercer crédito del mes), 13 (tope de la entidad), 14 (pantalla final) y 15 (el «Oops!» de Mediarte X). Ya
-  corridos el 2026-11-17: 1, 7 y 10. Termina con cada caso con su resultado en la pila.
+- [x] ~~Correr en qa la guía de Abel sobre el riel 4~~ — 2026-11-17: 11 de 15 con resultado (1–7, 9 por datos, 10, 15). La tabla
+  está en la pila.
+- [ ] Cerrar los cuatro casos de la guía que no corrieron:
+  - el 8, sin experiencia: hace falta dictarle al lambda un buró sin obligaciones de 3 MM;
+  - el 12, tercer crédito: hace falta un cliente que vuelve con el mismo celular;
+  - el 11 y el 13, la oferta cambia y el tope de la entidad: hay que tocar un momento la configuración compartida;
+  - el 14, pantalla final, y el 9 en pantalla: con navegador, contestando las preguntas PEP.
+  Termina con los cuatro con resultado. Depende de: Miguel — el permiso para tocar la configuración compartida.
 - [ ] Que Abel revise el ADR actualizado al riel 4 (D16–D18, en el PR de las fechas). Depende de: Abel.
 - [ ] Decidir sobre qué score se aplica el corte 646. La política pide Experian Advance 1.1, y el motor
   (`DatacreditoRuleEvaluator`) evalúa el promedio de los modelos del HDC+ (`Experian.php:547`). Abel encontró que
@@ -115,21 +116,14 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
 
 ### Fase 2 · Cerrar el QA de CRED-519 (corrida del 9-nov: 6 pasan, 4 fallan, 5 abiertos)
 
+- [x] ~~Reproducir el «Oops!» de Mediarte X (caso 15)~~ — no se reproduce: cierra en 11 (505128, 2026-11-17).
 - [x] ~~Repetir la firma (caso 1)~~ — en qa cierra en 11 con firma y OTP (uReq 505097, 2026-11-17).
-- [ ] Revisar la pantalla final sin «Paga tu cuota» (caso 14): mira lo que se ve, así que va por navegador.
-  Termina con la pantalla de aprobado de una solicitud de Finandina en qa sin ese botón.
 - [ ] Encontrar por qué el listado ofrece 15 MM (casos 9 y 10). El motor de qa decide bien: por el backend
   directo, 1,5 MM queda sin perfil y con 0, con los criterios `finandina_*` en `users_category_log`. Lo que
   falla es otro camino del front; en la corrida, el listado recibió 400 y 401 de `POST /v1/preapprovals/check`.
   Hipótesis de Abel, sin verificar: pre-approvals-service o el API Gateway llaman al backend de develop, que no
   tiene CRED-519. Termina con la llamada ubicada y apuntada a qa (o qa llevado a develop), y el listado
   mostrando el monto de la fórmula (decisión de Abel).
-- [ ] Reproducir el «Oops!» de Mediarte X al pasar a la fecha de pago (caso 15, solicitud 504835). Hipótesis de
-  Abel: el 409 `OFFER_CHANGED` de `OfferStillStandsGuard` (#1834), que aplica a todas las entidades. Termina con la
-  causa en la red del navegador o en PostHog, y su arreglo o descarte.
-- [ ] Correr los casos abiertos: el 8 con un buró sin experiencia (dictado al lambda), el 11 y el 13 en el
-  backoffice de dev devolviendo la configuración como estaba, y el 12 (tercer crédito del mes) en el simulador
-  o con datos armados. Depende de: Abel — cómo se prueba el 12.
 - [ ] Correr las 10 revisiones del backoffice de la guía: el simulador tiene que dar el mismo perfil y monto que
   `/available-quota`.
 - [ ] Ubicar la suite `tests/test_finandina.py` (sin commitear en ningún repo), subirla y dejar los resultados por
