@@ -1749,7 +1749,7 @@
     "params": null,
     "license": "mit",
     "mac": "unknown",
-    "added": "2026-11-13",
+    "added": "2026-11-19",
     "what": "De una imagen arma un modelo de LEGO que se puede construir: piezas reales que encajan entre sí (formato LDraw), no una figura con forma de ladrillos.",
     "why": "Lo difícil es que las piezas queden conectadas y la construcción se sostenga: el modelo se guía por la conectividad. NeurIPS 2026; el modelo chico pesa 206 MB.",
     "ideas": [
