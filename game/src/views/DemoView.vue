@@ -131,6 +131,7 @@ function ride(d){const at=world.elevatorAt(player.x,player.z,player.feet);if(!at
 // La ciudad limpia (2026-10-15, decisión de Miguel): sin gente ni árboles mientras la ciudad se define con cálculos; el
 // muñeco del jugador sí.
 const CIUDAD_LIMPIA=true;
+const INERCIA={arranca:14,frena:18};// (1/s: qué tan rápido la velocidad del jugador alcanza a la que piden las teclas)
 const SIN_ANIMAR=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
 const tiempos={};let planoVista=null,shadowTick=0,animalKit=null,animals=null,casas=null,viviendas=null,barrios=null,edgePass=null,renderer,composer,bloom,scene,camera,controls,world,crowd,traffic,island,folk,city,plan=null,streetLights=[],lightClock=0,sky,stars,sun,hemi,frame=0,last=0,baseMap=null,mapOff={x:0,y:0};
 // (esJugador: las puertas no se le abren solas —2026-10-18, Miguel: «que toque abrir y cerrar con E»—; a la gente, sí)
@@ -496,6 +497,7 @@ const groundHere=(x,z,feet=0)=>{const sz=world.size;if(x>=0&&z>=0&&x<=sz.w&&z<=s
 // apenas al moverse de costado; al caer de un salto, un golpe que se recupera con resorte. Y el cuerpo propio visible
 // («full body awareness»): el muñeco va debajo de la cámara mirando hacia donde se mira, sin la cabeza (el hueso Head a
 // escala 0 se lleva pelo y sombrero), así al mirar abajo se ven el pecho, las piernas y los pies caminando.
+const TERCERA_FOV=72,TERCERA_FOV_CORRE=77;
 const FPS_FOV=75,FPS_RUN_FOV=83,FPS_AIM_FOV=60,FPS_NEAR=.05;
 // Sin armas (2026-10-17, REGLAS.md: «simple como un juego de patio»): el arma en la mano (viewmodel3d) y el disparo
 // (disparo3d) quedan apagados; en primera persona se ven los brazos del muñeco. ARMAS=true los vuelve a prender.
@@ -608,12 +610,21 @@ function step(dt){
  // (hacia dónde mira el cuerpo en tercera persona, ORIENTAR='camara': hacia la cámara, como en Fortnite; de costado o en
  // diagonal gira como mucho 45° hacia donde va, y para atrás camina de espaldas sin darse vuelta)
  {const cam=Math.atan2(f.x,f.z),rel=Math.atan2(st,fw);player.face=fw<0?cam:cam-Math.max(-Math.PI/4,Math.min(Math.PI/4,rel));}
- const move=f.multiplyScalar(fw).add(r.multiplyScalar(st)),moving=move.lengthSq()>0;
+ // EL ARRANQUE Y LA FRENADA (2026-11-19): antes la velocidad era todo o nada —de quieto a 5,2 m/s en un cuadro, y al
+ // soltar la tecla, clavado—. Ahora la velocidad va hacia la que piden las teclas (INERCIA: llega al 95 % en ~0,2 s
+ // al arrancar y frena un poco más rápido), así que arrancar, frenar y cambiar de rumbo se ven como un movimiento. Con
+ // «menos movimiento» pedido en el sistema, queda como antes.
+ const want=f.multiplyScalar(fw).add(r.multiplyScalar(st)),pide=want.lengthSq()>0,corre=keys.has('ShiftLeft')||keys.has('ShiftRight');
+ if(pide)want.normalize().multiplyScalar(corre?RUN:WALK);
+ {const k=SIN_ANIMAR?1:1-Math.exp(-dt*(pide?INERCIA.arranca:INERCIA.frena));player.vx=(player.vx||0)+(want.x-(player.vx||0))*k;player.vz=(player.vz||0)+(want.z-(player.vz||0))*k;}
+ const rapidez=Math.hypot(player.vx,player.vz),moving=rapidez>.35;if(!pide&&!moving)player.vx=player.vz=0;
+ player.rapidez=moving?rapidez:0;
  if(moving){
-  const speed=keys.has('ShiftLeft')||keys.has('ShiftRight')?RUN:WALK;move.normalize().multiplyScalar(speed*dt);
-  player.dir=Math.atan2(move.x,move.z);player.run=speed>WALK;
-  caminar(move.x,move.z);
-  if(player.ground)player.bob+=dt*(speed>WALK?11:8);
+  player.dir=Math.atan2(player.vx,player.vz);player.run=rapidez>(WALK+RUN)/2;// (corre desde la mitad del camino entre las dos: el muñeco no cambia de paso con cada cuadro)
+  const x0=player.x,z0=player.z;caminar(player.vx*dt,player.vz*dt);
+  // (contra una pared la velocidad se pierde: si no, al despegarse saldría disparado)
+  {const hecho=Math.hypot(player.x-x0,player.z-z0)/(rapidez*dt||1);if(hecho<.5){player.vx*=hecho+.5;player.vz*=hecho+.5;}}
+  if(player.ground)player.bob+=dt*(player.run?11:8)*Math.min(1,rapidez/(player.run?RUN:WALK));
  }
  // Un vehículo que lo alcanza lo empuja hacia afuera (sin meterlo en una pared: las de la ciudad, las casas y los barrios).
  const out=player.feet>1?player:traffic.pushOut(player.x,player.z,RADIUS);if((out.x!==player.x||out.z!==player.z)&&!enPared(out.x,out.z)){player.x=out.x;player.z=out.z;}
@@ -675,7 +686,11 @@ function pisoDelCorte(){const lot=world.lotAt(player.x,player.z),L=lot>=0?world.
 function thirdPerson(dt,moving){
  if(avatar&&!acciones?.activa){const h=avatar.holder;h.visible=true;h.position.set(player.x,player.feet,player.z);
   if(moving){const meta=ORIENTAR==='camara'?player.face:player.dir;let d=meta-avatarYaw;d=Math.atan2(Math.sin(d),Math.cos(d));avatarYaw+=d*Math.min(1,dt*12);}h.rotation.y=avatarYaw;
-  moveCharacter(avatar,moving?(player.run?'run':'walk'):'idle',moving?(player.run?RUN:WALK)/3.5:0,dt);}
+  moveCharacter(avatar,moving?(player.run?'run':'walk'):'idle',moving?(player.rapidez||WALK)/3.5:0,dt);
+  // (corriendo, el ritmo del clip sigue a la velocidad: al arrancar y al frenar las piernas no van a fondo)
+  if(avatar.state==='run')avatar.acts.run.timeScale=Math.max(.75,Math.min(1.15,(player.rapidez||RUN)/RUN*1.1));
+  // (el campo de visión se abre un poco al correr, como en primera persona: da sensación de velocidad)
+  {const goal=moving&&player.run?TERCERA_FOV_CORRE:TERCERA_FOV;if(Math.abs(camera.fov-goal)>.02){camera.fov+=(goal-camera.fov)*Math.min(1,dt*5);camera.updateProjectionMatrix();}}}
  const roofed=world.dentro?.(player.x,player.z,player.feet+1)||barrios.dentro(player.x,player.z,player.feet+1)||viviendas.dentro(player.x,player.z,player.feet+1);
  // (arriba: adentro de un edificio o casa, sólo el piso del jugador; afuera, todo entero. La inclinación se lee de la
  // cámara misma, que la mueven el mouse capturado o el arrastre, y se acota)
@@ -686,7 +701,10 @@ function thirdPerson(dt,moving){
  // edificio la vista de arriba se pone sola —la cámara sube en diagonal, sin techo ni pisos de arriba— y al salir vuelve
  // la de atrás; la inclinación pasa de una a otra en un momento, no de golpe.
  const arriba=view.value==='arriba'||ARRIBA_ADENTRO&&view.value==='tercera'&&(roofed||cutA>0);
- if(arriba!==enArriba){enArriba=arriba;cambioT=0;planoVista?.setArboles?.(!arriba);casas?.setArboles?.(!arriba);}cambioT+=dt;
+ if(arriba!==enArriba){enArriba=arriba;cambioT=0;
+  // (2026-11-19: la distancia arranca de donde está la cámara y va a la de la vista nueva; antes saltaba de 4 m a 15 —o
+  // al revés— en un cuadro y sólo la inclinación hacía el recorrido)
+  {const d=Math.hypot(camera.position.x-player.x,camera.position.y-(player.feet+1),camera.position.z-player.z);if(d>1.5){if(arriba)topDist=d;else{camDistS=d;camPosY=null;}}}planoVista?.setArboles?.(!arriba);casas?.setArboles?.(!arriba);}cambioT+=dt;
  if(arriba){const g0=groundHere(player.x,player.z,-1e3);aclarado?.set([]);aclPrev=null;
   if(cambioT<.8){euler.setFromQuaternion(camera.quaternion,'YXZ');euler.x+=(TOP_PITCH-euler.x)*Math.min(1,dt*8);camera.quaternion.setFromEuler(euler);}
   if(roofed){lastBox=cutBoxFor();lastShared=cutBox?.shared;lastFeet=pisoDelCorte();}else cutBox=null;
@@ -707,7 +725,7 @@ function thirdPerson(dt,moving){
   // (2026-10-30, Miguel: «que la vista arranque más alejada»: afuera, 15 m —la calle y lo que rodea—; adentro, 8 —el piso
   // cortado—. La rueda cambia la de donde se está; el paso de una a otra es suave)
   zoomAdentro=!!roofed;const zoom=roofed?topZoom:topZoomAfuera;
-  topDist+=(zoom-topDist)*Math.min(1,dt*(cutA>0&&cutA<1?4:10));const TOP=topDist;
+  topDist+=(zoom-topDist)*Math.min(1,dt*(cutA>0&&cutA<1||cambioT<1.2?4:10));const TOP=topDist;
   const f=new THREE.Vector3();camera.getWorldDirection(f);const head=new THREE.Vector3(player.x,player.feet+1,player.z);
   // (si la cámara queda metida en OTRO edificio —los vecinos no se cortan—, se acerca; el propio no cuenta: está cortado)
   const box=roofed?lastBox:null,own=(x,z)=>box&&x>=box[0]&&x<=box[2]&&z>=box[1]&&z<=box[3];
@@ -767,7 +785,7 @@ function thirdPerson(dt,moving){
  const way=camWay;
  // (la distancia: si lo que tapa aparece más de 1 m más cerca, de una —que no se meta en la pared—; si no, se acorta a
  // CAM_ACORTA m/s y se alarga a CAM_ALARGA)
- const target=best(way);camDistS=target<camDistS-1?target:target<camDistS?Math.max(target,camDistS-CAM_ACORTA*dt):Math.min(target,camDistS+CAM_ALARGA*dt);const dist=camDistS;
+ const target=best(way);camDistS=cambioT<1.2&&camDistS>CAM_DIST?Math.max(target,camDistS+(target-camDistS)*Math.min(1,dt*5)):target<camDistS-1?target:target<camDistS?Math.max(target,camDistS-CAM_ACORTA*dt):Math.min(target,camDistS+CAM_ALARGA*dt);const dist=camDistS;
  camDbg.dist=dist;camDbg.way=way;camDbg.acl=acl?.length||0;
  // (y la altura, suave al pasar de un camino a otro)
  const pos=at(dist,way);camPosY=camPosY==null||Math.abs(pos.y-camPosY)>1.2?pos.y:camPosY+(pos.y-camPosY)*Math.min(1,dt*10);pos.y=camPosY;
@@ -1006,7 +1024,7 @@ onMounted(async()=>{
   const ejes=I.carreteras.filter(c=>c.puntos).flatMap(c=>c.puntos.slice(1).map((p,i)=>({a:c.puntos[i],b:p})));
   const calle=(x,z)=>{let best=null,bd=1e9;for(const {a,b} of ejes){const dx=b.x-a.x,dz=b.z-a.z,L2=dx*dx+dz*dz||1,t=Math.max(0,Math.min(1,((x-a.x)*dx+(z-a.z)*dz)/L2)),dd=Math.hypot(x-a.x-t*dx,z-a.z-t*dz);if(dd<bd){bd=dd;best=a.h+(b.h-a.h)*t;}}return bd<14?best:null;};
   for(const c of I.cells){if(!c.lote||c.manzana==='mirador')continue;for(const u of [.1,.5,.9])for(const v of [.1,.5,.9]){const x=(c.x+u)*CELL,z=(c.y+v)*CELL;n++;ray.set(new THREE.Vector3(x,c.terraza+40,z),new THREE.Vector3(0,-1,0));const h=ray.intersectObjects(objs,false)[0];const ys=h?h.point.y:-99,cal=calle(x,z);if(ys<Math.min(c.terraza,cal??c.terraza)-1)out.push({c:[c.x,c.y],visto:+ys.toFixed(2),lote:c.terraza});}}
-  return {muestras:n,huecos:out.length,ej:out.slice(0,5)};},get zonaAterrizaje(){return zonaAterrizaje;},toggleDrone,camDbg,probarCamara,get planoVista(){return planoVista;},parchearAclarado(){aclarado?.patchTree(world.group,[crowd,traffic,folk,animals,indoor,patrol].filter(Boolean).map(g=>g.group));},get acl(){return aclPrev;},setNight(v){night.value=v;applyLight(true);},get luz(){return luz;}};
+  return {muestras:n,huecos:out.length,ej:out.slice(0,5)};},get zonaAterrizaje(){return zonaAterrizaje;},toggleDrone,camDbg,probarCamara,get planoVista(){return planoVista;},parchearAclarado(){aclarado?.patchTree(world.group,[crowd,traffic,folk,animals,indoor,patrol].filter(Boolean).map(g=>g.group));},get acl(){return aclPrev;},setNight(v){night.value=v;applyLight(true);},get luz(){return luz;},get jugador(){return player;},get camara(){return camera;}};
  resize=new ResizeObserver(()=>{const w=host.value.clientWidth,h=host.value.clientHeight;renderer.setSize(w,h);composer.setPixelRatio(renderer.getPixelRatio());composer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();vm?.resize(w/h);});
  resize.observe(host.value);
  renderer.domElement.addEventListener('pointerdown',onDown);renderer.domElement.addEventListener('wheel',onWheel,{passive:false});window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp);
