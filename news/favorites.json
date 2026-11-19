@@ -1182,5 +1182,77 @@
     "ideas": [
       "Subtítulos en vivo de una reunión"
     ]
+  },
+  {
+    "id": "moondream/parakeet-redux",
+    "group": "tiny",
+    "task": "automatic-speech-recognition",
+    "params": 150000000,
+    "license": "cc-by-4.0",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "El transcriptor Parakeet-TDT-0.6B de NVIDIA con todos los pesos del codificador en −1, 0 o +1: 178 MB, 25 idiomas (español incluido).",
+    "why": "Sus autores miden 113 veces el tiempo real en 8 núcleos de CPU y dicen que queda a 0,3 puntos del original en inglés y le gana en los 25 idiomas de FLEURS y en audios largos. Un candidato serio contra el Whisper del chat (574 MB).",
+    "ideas": [
+      "Ponerlo contra el Whisper del dictado con los mismos 10 audios en español"
+    ]
+  },
+  {
+    "id": "microsoft/Mage-VL-Cowork",
+    "group": "specialist",
+    "task": "image-text-to-text",
+    "params": 4740000000,
+    "license": "apache-2.0",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Un agente de computadora de 4 B que sabe cuándo hacer clic en la pantalla y cuándo escribir código para hacer lo mismo más rápido (editar un archivo en vez de veinte clics).",
+    "why": "66 % en OSWorld-Verified con 50 pasos, lo mejor entre los modelos de 4 B según Microsoft. Es la idea de Jarvis en un modelo que entra en la Mac.",
+    "ideas": [
+      "Que resuelva una receta de Jarvis por su cuenta y comparar con la receta",
+      "Combinarlo con bin/point para los clics"
+    ]
+  },
+  {
+    "id": "microsoft/UserLM-2.0",
+    "group": "specialist",
+    "task": "text-generation",
+    "params": 8030000000,
+    "license": "mit",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Un modelo que hace de USUARIO, no de asistente: le das la intención («quiero cambiar la fecha de mi cuota») y conversa como lo haría una persona, sin salirse del objetivo. 8 B, en inglés.",
+    "why": "Para probar un asistente hace falta alguien que le hable como un cliente real; esto lo automatiza. Al revés de todos los demás modelos.",
+    "ideas": [
+      "Probar un agente de Wally con 50 clientes simulados",
+      "Probar un chatbot de soporte antes de ponerlo frente a clientes"
+    ]
+  },
+  {
+    "id": "google/gnm-v3",
+    "group": "odd",
+    "task": "other",
+    "params": null,
+    "license": "apache-2.0",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Un modelo estadístico paramétrico de la CABEZA humana en 3D, de Google: forma, cara y proporciones, aprendido de miles de escaneos 3D de alta resolución.",
+    "why": "No genera texto ni imágenes: es un «genoma» de cabezas (por eso se llama GNM) con el que se arma cualquier cabeza moviendo perillas.",
+    "ideas": [
+      "Cabezas 3D para los personajes de Office"
+    ]
+  },
+  {
+    "id": "amazon/ALoDLM-8B",
+    "group": "odd",
+    "task": "text-generation",
+    "params": 8190000000,
+    "license": "cc-by-nc-4.0 (no comercial)",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Un modelo de lenguaje por difusión que escribe texto y código pasando varias veces por las mismas capas, y decide solo cuántas vueltas dar según lo difícil que sea cada parte.",
+    "why": "Junta dos ideas raras: generar por difusión (todo el texto a la vez, refinándolo) y pensar en bucle por dentro, como HRM. Sobre Qwen3.",
+    "ideas": [
+      "Ver cómo arma una respuesta de código de golpe"
+    ]
   }
 ]
