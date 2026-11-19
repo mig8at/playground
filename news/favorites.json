@@ -974,5 +974,76 @@
     "ideas": [
       "Probarlo en su demo con una foto de un producto"
     ]
+  },
+  {
+    "id": "ConwayResearch/Underdog-Woof",
+    "group": "tiny",
+    "task": "text-to-speech",
+    "params": null,
+    "license": "no comercial (Underdog 1.0)",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Texto a voz en inglés con dos voces, en un solo archivo de 40,6 MB que corre en la CPU con numpy. Lee números de teléfono, fechas, precios y códigos como los dice una persona.",
+    "why": "Sus autores dicen que tiene menos errores que un modelo de voz 1.000 veces más grande y que va 13,8 veces más rápido que el tiempo real con UN hilo de CPU. Leer bien montos y fechas es justo lo difícil.",
+    "ideas": [
+      "Ponerlo contra Audio8 leyendo montos y fechas (en inglés)"
+    ]
+  },
+  {
+    "id": "ampixa/sanoTTS",
+    "group": "odd",
+    "task": "text-to-speech",
+    "params": null,
+    "license": "gpl-3.0",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Una familia de voces de 294 mil a 2,27 millones de parámetros que hablan en tiempo real en un microcontrolador ESP32-S3 de unos 3 dólares, con un parlante conectado a un pin, o en el navegador.",
+    "why": "Voz neuronal en un chip de juguete: sin nube, sin GPU, sin siquiera una computadora. Tiene demo en la web.",
+    "ideas": [
+      "Un aviso hablado en un ESP32 en el escritorio"
+    ]
+  },
+  {
+    "id": "empero-ai/PiVo-1.4M",
+    "group": "tiny",
+    "task": "text-to-speech",
+    "params": 1401562,
+    "license": "apache-2.0",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Texto a voz completo, vocoder incluido, en 1.401.562 parámetros: dos voces en inglés a 16 kHz, en CPU con NumPy y ONNX Runtime.",
+    "why": "La pregunta de sus autores es «¿cuántos parámetros necesita una voz?». Con licencia Apache 2.0, a diferencia de Underdog.",
+    "ideas": [
+      "Escuchar qué tan natural suena con 1,4 M"
+    ]
+  },
+  {
+    "id": "LiquidAI/d1-2B",
+    "group": "detect",
+    "task": "image-text-to-text",
+    "params": 1918181888,
+    "license": "lfm1.0 (propia de Liquid AI)",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Un modelo de decisión para texto, imágenes y video: le hacés una pregunta cerrada y contesta con una probabilidad calibrada en una sola pasada, sin escribir texto. Sobre LFM3-VL-2B.",
+    "why": "Como Laya, pero mirando imágenes: «¿esta captura muestra un error?» y contesta 0,92, en milisegundos y sin inventar texto.",
+    "ideas": [
+      "Mirar capturas del wizard y decir si hay un error en pantalla",
+      "Clasificar los avisos de Sentinel con su captura"
+    ]
+  },
+  {
+    "id": "fafsaf1/flowhmr-0.46B",
+    "group": "create",
+    "task": "other",
+    "params": 460000000,
+    "license": "no comercial (FlowHMR)",
+    "mac": "unknown",
+    "added": "2026-11-19",
+    "what": "Captura de movimiento desde un video común: recupera el cuerpo 3D de una persona y cómo se mueve por el espacio, físicamente creíble (sin pies que flotan ni atraviesan el piso).",
+    "why": "Motion capture sin trajes ni cámaras especiales, desde un video de celular.",
+    "ideas": [
+      "Animar un personaje de Office con un video tuyo"
+    ]
   }
 ]
