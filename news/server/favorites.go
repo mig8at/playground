@@ -23,6 +23,13 @@ type Favorite struct {
 	Why     string   `json:"why"`
 	Ideas   []string `json:"ideas"`
 	Tried   string   `json:"tried,omitempty"` // lo que dio cuando lo probamos
+	// El historial de lo probado: cuándo, si vale la pena (keep) o se descartó y se borró (dropped), por qué, qué
+	// herramienta lo usa y qué claves de los instalados son suyas (para ver su tamaño y borrarlo desde la ficha).
+	TriedOn    string   `json:"triedOn,omitempty"`
+	Verdict    string   `json:"verdict,omitempty"`
+	VerdictWhy string   `json:"verdictWhy,omitempty"`
+	UsedBy     string   `json:"usedBy,omitempty"`
+	Installed  []string `json:"installed,omitempty"`
 }
 
 var favoriteGroups = map[string]bool{"tried": true, "voice": true, "music": true, "odd": true, "tiny": true, "detect": true, "create": true, "specialist": true, "gpu": true}
@@ -53,6 +60,10 @@ func loadFavorites(path string) ([]Favorite, error) {
 			return nil, fmt.Errorf("favorites.json: %s tiene un grupo desconocido %q", f.ID, f.Group)
 		case f.Mac != "yes" && f.Mac != "no" && f.Mac != "unknown":
 			return nil, fmt.Errorf("favorites.json: %s: mac debe ser yes, no o unknown", f.ID)
+		case f.Verdict != "" && f.Verdict != "keep" && f.Verdict != "dropped":
+			return nil, fmt.Errorf("favorites.json: %s: verdict debe ser keep o dropped", f.ID)
+		case f.Verdict != "" && f.TriedOn == "":
+			return nil, fmt.Errorf("favorites.json: %s tiene veredicto pero no triedOn", f.ID)
 		case f.What == "" || f.Why == "":
 			return nil, fmt.Errorf("favorites.json: a %s le falta qué hace o por qué es interesante", f.ID)
 		}

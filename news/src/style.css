@@ -153,3 +153,31 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 .confirm-actions { display: flex; gap: var(--space-2); margin-top: var(--space-2) }
 .confirm-actions button { font: inherit; padding: 3px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: none; color: inherit; cursor: pointer }
 .confirm-actions .danger { background: var(--destructive); border-color: var(--destructive); color: var(--primary-foreground) }
+
+/* EL HISTORIAL DE PROBADOS Y LAS MARCAS: «vale la pena» en el color del audio (el verde azulado de los temas),
+   «descartado» apagado y tachado; «en uso» dice qué herramienta lo necesita. */
+.fav-stats { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); color: var(--fg-3); font-size: 13px }
+.fav-stats b { color: var(--foreground); font-variant-numeric: tabular-nums }
+.fav-stats .keep b { color: var(--t-audio) }
+.fav-stats .use b { color: var(--primary) }
+.rows.history .row { grid-template-columns: 56px minmax(0, 1fr) auto minmax(0, 170px) 64px }
+.rows.history .row.dropped .hist-name b { text-decoration: line-through; color: var(--fg-3) }
+.hist-name { display: flex; align-items: center; gap: var(--space-2); min-width: 0 }
+.hist-name b { font-weight: 600; white-space: nowrap }
+.hist-why { color: var(--fg-3); font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0 }
+.hist-use { color: var(--primary); font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.model-icon.small { width: 20px; height: 20px; border-radius: 5px }
+.verdict { font-size: var(--text-xs); padding: 1px 7px; border-radius: var(--radius-sm); border: 1px solid var(--border); white-space: nowrap }
+.verdict.keep { color: var(--t-audio); border-color: var(--t-audio) }
+.verdict.dropped { color: var(--fg-3) }
+.verdict-box { margin: var(--space-3) 0; padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card) }
+.verdict-box.keep { border-color: var(--t-audio) }
+.verdict-box p { margin: var(--space-2) 0 0; color: var(--fg-2); font-size: 13px; line-height: 1.5 }
+.in-use-line { color: var(--primary) !important }
+.in-use { flex: none; font-size: var(--text-xs); color: var(--primary); white-space: nowrap }
+.fav-tags { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: 6px }
+.fav-tags .tag { font-size: var(--text-xs); color: var(--fg-3) }
+.installed-name { border: 0; background: none; padding: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0 }
+.installed-name:disabled { cursor: default }
+.installed-name:not(:disabled):hover { text-decoration: underline }
+.doc-installed { margin: 0; width: 100%; padding-left: 0 }

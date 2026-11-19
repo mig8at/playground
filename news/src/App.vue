@@ -27,7 +27,7 @@ const favorites = ref([])
 const installed = ref([])
 const installedBytes = ref(0)
 const loadInstalled = () => api('/api/installed').then((r) => { installed.value = r.installed; installedBytes.value = r.bytes }).catch(() => {})
-const KIND_ICON = { hub: 'download', gguf: 'server', env: 'code' }
+const KIND_ICON = { hub: 'download', gguf: 'server', env: 'code', whisper: 'mic' }
 // Borrar se confirma en la misma fila (el primer toque pregunta, el segundo borra): los diálogos del navegador no
 // siempre aparecen dentro de la ventana de Cockpit.
 const removing = ref('')
@@ -84,7 +84,7 @@ const view = ref('cover') // cover · papers · favorites
 
 // ── los favoritos ──
 const FAV_GROUPS = [
-  { id: 'tried', name: 'Ya probados', icon: 'check' },
+  { id: 'tried', name: 'Probados', icon: 'check' },
   { id: 'voice', name: 'Voz que conversa', icon: 'mic' },
   { id: 'music', name: 'Música y sonido', icon: 'play' },
   { id: 'odd', name: 'Rarezas', icon: 'emoji' },
@@ -98,7 +98,20 @@ const MAC = { yes: 'corre en la Mac', no: 'no corre en la Mac', unknown: 'en la 
 const favGroup = ref('all')
 const favMatches = (f) => (favGroup.value === 'all' || f.group === favGroup.value)
   && (!q.value || `${f.id} ${f.task} ${f.what}`.toLowerCase().includes(q.value))
-const favSections = computed(() => FAV_GROUPS.map((g) => ({ ...g, items: favorites.value.filter((f) => f.group === g.id && favMatches(f)) })).filter((g) => g.items.length))
+// «Probados» no va en tarjetas: es el historial, una tabla con fecha, veredicto, quién lo usa y cuánto ocupa.
+const favSections = computed(() => FAV_GROUPS.filter((g) => g.id !== 'tried').map((g) => ({ ...g, items: favorites.value.filter((f) => f.group === g.id && favMatches(f)) })).filter((g) => g.items.length))
+const triedHistory = computed(() => favorites.value.filter((f) => f.verdict && (favGroup.value === 'all' || favGroup.value === 'tried')
+  && (!q.value || `${f.id} ${f.task} ${f.what}`.toLowerCase().includes(q.value))).sort((a, b) => (b.triedOn || '').localeCompare(a.triedOn || '')))
+const VERDICT = { keep: 'Vale la pena', dropped: 'Descartado' }
+const installedByKey = computed(() => Object.fromEntries(installed.value.map((i) => [i.key, i])))
+const favInstalled = (f) => (f.installed || []).map((k) => installedByKey.value[k]).filter(Boolean)
+const favBytes = (f) => favInstalled(f).reduce((n, i) => n + i.bytes, 0)
+const favOfInstalled = (it) => favorites.value.find((f) => (f.installed || []).includes(it.key))
+const favStats = computed(() => {
+  const tried = favorites.value.filter((f) => f.verdict)
+  return { saved: favorites.value.length, tried: tried.length, keep: tried.filter((f) => f.verdict === 'keep').length,
+    dropped: tried.filter((f) => f.verdict === 'dropped').length, inUse: favorites.value.filter((f) => f.usedBy).length }
+})
 const favCount = (id) => favorites.value.filter((f) => id === 'all' || f.group === id).length
 const favName = (f) => f.id.split('/')[1]
 const favOrg = (f) => f.id.split('/')[0]
@@ -166,6 +179,8 @@ const auxResize = resizeOf('aux', auxW, auxOpen, -1, 'sidebar')
 const toggle = (key, open) => { open.value = !shown.value[key]; saveSize(`news.${key}-open`, open.value ? 1 : 0) }
 const pick = (m) => { selectedId.value = m.id; if (!shown.value.aux) toggle('aux', auxOpen) }
 const pickFav = (f) => { selectedFavId.value = f.id; if (!shown.value.aux) toggle('aux', auxOpen) }
+// Tocar un instalado abre la ficha del favorito al que pertenece (si lo hay).
+const pickInstalled = (it) => { const f = favOfInstalled(it); if (f) { openFavorites('all'); pickFav(f) } }
 const onWindowResize = () => { viewportW.value = window.innerWidth }
 const themeToggle = ref(null)
 let themeBinding = null
@@ -202,7 +217,7 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); wi
         <div class="group-label">Instalados<span v-if="installed.length" class="group-count">{{ bytes(installedBytes) }}</span></div>
         <template v-for="it in installed" :key="it.key">
           <div class="nav-row installed" :class="{ muted: removing === it.key, asking: confirming === it.key }" :title="`${it.name} · ${it.where}${it.usedBy ? ` · lo usa ${it.usedBy}` : ''}`">
-            <span class="ui-icon" :data-icon="KIND_ICON[it.kind]" aria-hidden="true"></span><span class="nav-name">{{ it.name.split('/').pop() }}</span><span class="count">{{ removing === it.key ? 'borrando…' : bytes(it.bytes) }}</span>
+            <span class="ui-icon" :data-icon="KIND_ICON[it.kind]" aria-hidden="true"></span><button type="button" class="nav-name installed-name" :disabled="!favOfInstalled(it)" @click="pickInstalled(it)">{{ it.name.split('/').pop() }}</button><span v-if="it.usedBy" class="in-use" :title="`Lo usa ${it.usedBy}`">en uso</span><span class="count">{{ removing === it.key ? 'borrando…' : bytes(it.bytes) }}</span>
             <button type="button" class="region-action trash" :disabled="removing === it.key" :title="`Borrar ${it.name}`" :aria-label="`Borrar ${it.name}`" @click="removeInstalled(it)"><span class="ui-icon" data-icon="trash" aria-hidden="true"></span></button>
           </div>
           <div v-if="confirming === it.key" class="confirm-row">
@@ -239,7 +254,23 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); wi
       <div class="region-body">
         <!-- los favoritos -->
         <div v-if="view === 'favorites'" class="cover">
-          <p class="fav-intro">Modelos curiosos para no perder de vista: qué hacen, por qué son interesantes y si corren en la Mac.</p>
+          <div class="fav-stats">
+            <span><b>{{ favStats.saved }}</b> guardados</span><span><b>{{ favStats.tried }}</b> probados</span>
+            <span class="keep"><b>{{ favStats.keep }}</b> valen la pena</span><span class="dropped"><b>{{ favStats.dropped }}</b> {{ favStats.dropped === 1 ? 'descartado' : 'descartados' }}</span>
+            <span class="use"><b>{{ favStats.inUse }}</b> en uso</span><span><b>{{ bytes(installedBytes) }}</b> en la Mac</span>
+          </div>
+          <section v-if="triedHistory.length">
+            <h2 class="section-title">Probados <span>el historial: lo que dio cada uno y si se quedó</span></h2>
+            <div class="rows history">
+              <button v-for="f in triedHistory" :key="f.id" type="button" class="row" :class="{ on: selectedFavId === f.id, dropped: f.verdict === 'dropped' }" @click="pickFav(f)">
+                <span class="row-num">{{ day(f.triedOn) }}</span>
+                <span class="hist-name"><span class="model-icon small" :class="`t-${topicOf(f.task)}`"><span class="ui-icon" :data-icon="taskIcon(f.task)" aria-hidden="true"></span></span><b>{{ favName(f) }}</b><span class="hist-why">{{ f.verdictWhy }}</span></span>
+                <span class="verdict" :class="f.verdict">{{ VERDICT[f.verdict] }}</span>
+                <span class="hist-use">{{ f.usedBy ? `en uso · ${f.usedBy}` : '' }}</span>
+                <span class="row-num">{{ favBytes(f) ? bytes(favBytes(f)) : f.verdict === 'dropped' ? 'borrado' : '—' }}</span>
+              </button>
+            </div>
+          </section>
           <section v-for="g in favSections" :key="g.id">
             <h2 class="section-title">{{ g.name }} <span>{{ g.items.length }}</span></h2>
             <div class="favs">
@@ -247,6 +278,7 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); wi
                 <span class="model-top"><span class="model-icon" :class="`t-${topicOf(f.task)}`"><span class="ui-icon" :data-icon="taskIcon(f.task)" aria-hidden="true"></span></span><span class="model-name">{{ favName(f) }}</span><span class="mac" :class="f.mac">{{ f.mac === 'yes' ? 'Mac' : f.mac === 'no' ? 'GPU' : '¿Mac?' }}</span></span>
                 <span class="model-org">{{ favOrg(f) }} · {{ params(f.params) }}</span>
                 <span class="fav-what">{{ f.what }}</span>
+                <span v-if="f.usedBy || favBytes(f)" class="fav-tags"><span v-if="f.usedBy" class="in-use">en uso · {{ f.usedBy }}</span><span v-if="favBytes(f)" class="tag">instalado · {{ bytes(favBytes(f)) }}</span></span>
               </button>
             </div>
           </section>
@@ -327,6 +359,11 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); wi
       <div v-if="selectedFav" class="region-body doc">
         <div class="doc-name">{{ favName(selectedFav) }}</div>
         <div class="doc-org">{{ favOrg(selectedFav) }}</div>
+        <div v-if="selectedFav.verdict" class="verdict-box" :class="selectedFav.verdict">
+          <span class="verdict" :class="selectedFav.verdict">{{ VERDICT[selectedFav.verdict] }}</span> <span class="row-num">probado el {{ day(selectedFav.triedOn) }}</span>
+          <p>{{ selectedFav.verdictWhy }}</p>
+          <p v-if="selectedFav.usedBy" class="in-use-line">Lo usa {{ selectedFav.usedBy }}.</p>
+        </div>
         <dl>
           <dt>Tarea</dt><dd><span class="task" :class="`t-${topicOf(selectedFav.task)}`"><span class="ui-icon" :data-icon="taskIcon(selectedFav.task)" aria-hidden="true"></span>{{ selectedFav.task }}</span></dd>
           <dt>Tamaño</dt><dd>{{ params(selectedFav.params) }}</dd>
@@ -345,6 +382,19 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); wi
         <template v-if="selectedFav.tried">
           <div class="doc-section">Lo que dio al probarlo</div>
           <p class="doc-text">{{ selectedFav.tried }}</p>
+        </template>
+        <template v-if="favInstalled(selectedFav).length">
+          <div class="doc-section">Instalado en la Mac · {{ bytes(favBytes(selectedFav)) }}</div>
+          <template v-for="it in favInstalled(selectedFav)" :key="it.key">
+            <div class="nav-row installed doc-installed" :class="{ asking: confirming === it.key }">
+              <span class="ui-icon" :data-icon="KIND_ICON[it.kind]" aria-hidden="true"></span><span class="nav-name">{{ it.where }}</span><span class="count">{{ bytes(it.bytes) }}</span>
+              <button type="button" class="region-action trash" :disabled="removing === it.key" :aria-label="`Borrar ${it.name}`" @click="removeInstalled(it)"><span class="ui-icon" data-icon="trash" aria-hidden="true"></span></button>
+            </div>
+            <div v-if="confirming === it.key" class="confirm-row">
+              <span>¿Borrar {{ it.name }}? Libera {{ bytes(it.bytes) }}. {{ it.usedBy ? `Lo usa ${it.usedBy}: deja de andar hasta volver a bajarlo.` : 'Se puede volver a bajar.' }}</span>
+              <span class="confirm-actions"><button type="button" class="danger" @click="removeInstalled(it)">Borrar</button><button type="button" @click="confirming = ''">Cancelar</button></span>
+            </div>
+          </template>
         </template>
       </div>
       <div v-else-if="view === 'favorites'" class="region-body"><p class="empty-line pad">Elegí un favorito para ver su ficha.</p></div>

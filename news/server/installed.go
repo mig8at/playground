@@ -6,7 +6,8 @@ package main
 //   - la caché de Hugging Face (`$HF_HOME/hub`, o `~/.cache/huggingface/hub`): un modelo por carpeta `models--autor--nombre`,
 //     con su tamaño real (los archivos de sus snapshots apuntan a `blobs/`, que se comparten);
 //   - los GGUF de `~/.cache/my-tools/models` (los de llama-server), agrupados por modelo: el peso y su proyector juntos;
-//   - los entornos de `~/.cache/my-tools/<carpeta>` que tienen un venv (el código y las librerías de un modelo que se probó).
+//   - los entornos de `~/.cache/my-tools/<carpeta>` que tienen un venv (el código y las librerías de un modelo que se probó);
+//   - los modelos de whisper.cpp de `~/.cache/whisper` (el dictado del chat).
 //
 // Borrar sólo acepta una clave que salió de esta misma lista, y sólo dentro de esas raíces: nunca una ruta que mande
 // el que llama.
@@ -24,14 +25,14 @@ import (
 type Installed struct {
 	Key    string   `json:"key"`
 	Name   string   `json:"name"`
-	Kind   string   `json:"kind"` // hub · gguf · env
+	Kind   string   `json:"kind"` // hub · gguf · env · whisper
 	Where  string   `json:"where"`
 	Bytes  int64    `json:"bytes"`
 	UsedBy string   `json:"usedBy,omitempty"`
 	paths  []string // lo que se borra
 }
 
-type roots struct{ hub, mine string }
+type roots struct{ hub, mine, whisper string }
 
 func defaultRoots() roots {
 	home, _ := os.UserHomeDir()
@@ -46,14 +47,17 @@ func defaultRoots() roots {
 	if x := os.Getenv("XDG_CACHE_HOME"); x != "" {
 		mine = filepath.Join(x, "my-tools")
 	}
-	return roots{hub: hub, mine: mine}
+	return roots{hub: hub, mine: mine, whisper: filepath.Join(home, ".cache", "whisper")}
 }
 
-// Quién usa cada cosa, para que el borrado lo diga antes.
+// Quién usa cada cosa, para que la interfaz lo marque y el borrado lo diga antes. Verificado en el código el
+// 2026-11-19: bin/point (point/main.go), el dictado del chat (chat/server/dictation.go, whisper-cli con este archivo)
+// y la comparación en sombra de Sentinel (sentinel/server/forecast.go).
 var usedBy = map[string]string{
-	"gguf:Qwen3VL-4B-Instruct": "bin/point",
-	"hub:amazon/chronos-2":     "Sentinel -chronos",
-	"env:chronos":              "Sentinel -chronos",
+	"gguf:Qwen3VL-4B-Instruct":         "bin/point",
+	"whisper:ggml-large-v3-turbo-q5_0": "el dictado del chat",
+	"hub:amazon/chronos-2":             "Sentinel -chronos",
+	"env:chronos":                      "Sentinel -chronos",
 }
 
 // dirSize suma los archivos de una carpeta sin seguir enlaces.
@@ -166,6 +170,20 @@ func scanInstalled(r roots) []Installed {
 		}
 		out = append(out, Installed{Key: "env:" + d.Name(), Name: d.Name(), Kind: "env", Where: "entorno (código y librerías)", Bytes: dirSize(p), paths: []string{p}})
 	}
+	// los modelos de whisper.cpp (un .bin por modelo)
+	wfiles, _ := os.ReadDir(r.whisper)
+	for _, f := range wfiles {
+		if f.IsDir() || !strings.HasSuffix(f.Name(), ".bin") {
+			continue
+		}
+		p := filepath.Join(r.whisper, f.Name())
+		st, err := os.Stat(p)
+		if err != nil {
+			continue
+		}
+		name := strings.TrimSuffix(f.Name(), ".bin")
+		out = append(out, Installed{Key: "whisper:" + name, Name: name, Kind: "whisper", Where: "whisper.cpp", Bytes: st.Size(), paths: []string{p}})
+	}
 	for i := range out {
 		out[i].UsedBy = usedBy[out[i].Key]
 	}
@@ -185,7 +203,7 @@ func hasVenv(dir string) bool {
 // inside: la ruta está adentro de una de las raíces (y no es la raíz).
 func (r roots) inside(p string) bool {
 	p = filepath.Clean(p)
-	for _, root := range []string{r.hub, r.mine} {
+	for _, root := range []string{r.hub, r.mine, r.whisper} {
 		// la raíz tal cual y resuelta: los blobs vienen de EvalSymlinks (/var → /private/var en macOS)
 		cands := []string{filepath.Clean(root)}
 		if real, err := filepath.EvalSymlinks(root); err == nil {

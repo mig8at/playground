@@ -25,6 +25,10 @@ licencia, si corre en la Mac, qué hace, por qué es interesante, ideas y, si lo
   por qué); `TestFavoritesFileIsValid` falla con un error de tipeo en el archivo.
 - **«Corre en la Mac» (`mac`: yes · no · unknown) es lo que dice la ficha o lo que sale de su tamaño**, no una prueba:
   `tried` es lo único medido.
+- **Los probados son el historial** (grupo `tried`, una tabla arriba de todo): cuándo se probó (`triedOn`), si vale la
+  pena o se descartó y se borró (`verdict`: `keep` · `dropped`, con `verdictWhy`), qué herramienta lo usa (`usedBy`) y
+  qué claves de «Instalados» son suyas (`installed`), para ver cuánto ocupa y borrarlo desde su ficha. Uno descartado
+  se queda en el historial aunque ya no esté en la Mac.
 - Para sumar uno: agregarlo al archivo con su `group` (`tried`, `voice`, `music`, `odd`, `tiny`, `detect`, `create`,
   `specialist`, `gpu`); la interfaz lo toma al recargar.
 
@@ -37,11 +41,13 @@ Cockpit). Sale de tres lugares, siempre los mismos (`server/installed.go`):
 - la caché de Hugging Face (`$HF_HUB_CACHE`, `$HF_HOME/hub` o `~/.cache/huggingface/hub`): un modelo por carpeta, con el
   tamaño de los blobs a los que apuntan sus snapshots. Un blob que comparten dos modelos no se borra con uno solo;
 - los GGUF de `~/.cache/my-tools/models` (llama-server), agrupados por modelo: el peso y su proyector juntos;
-- los entornos: cada carpeta de `~/.cache/my-tools` con un venv (el código y las librerías de algo que se probó).
+- los entornos: cada carpeta de `~/.cache/my-tools` con un venv (el código y las librerías de algo que se probó);
+- los modelos de whisper.cpp de `~/.cache/whisper` (el dictado del chat usa `ggml-large-v3-turbo-q5_0.bin`).
 
 `DELETE /api/installed?key=…` sólo borra una clave que salió de esa misma lista, sólo dentro de esas carpetas, y pide el
-encabezado `X-News: 1` (una página de otro origen no puede mandarlo sin preguntar). Lo que usa otra herramienta lo dice
-antes de borrar (`usedBy`: Qwen3-VL-4B es de `bin/point`; Chronos, de Sentinel). Borrar no se deshace: se vuelve a bajar.
+encabezado `X-News: 1` (una página de otro origen no puede mandarlo sin preguntar). Lo que usa otra herramienta se marca «en uso» y
+lo dice antes de borrar (`usedBy` en `installed.go`, verificado en el código: Qwen3-VL-4B es de `bin/point`, el Whisper
+de whisper.cpp del dictado del chat, Chronos de Sentinel). Borrar no se deshace: se vuelve a bajar.
 
 ## Cómo lo arma
 
