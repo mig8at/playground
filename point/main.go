@@ -14,7 +14,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"image"
 	_ "image/jpeg"
@@ -30,6 +29,7 @@ import (
 	"syscall"
 	"time"
 
+	"creditop/my-tools/lib/machine"
 	"creditop/my-tools/lib/models"
 )
 
@@ -264,7 +264,7 @@ func ensure() error {
 		return err
 	}
 	if _, err := exec.LookPath("llama-server"); err != nil {
-		return errors.New("falta llama-server: brew install llama.cpp")
+		return fmt.Errorf("falta llama-server: %s", machine.InstallHint("llama-server"))
 	}
 	self, err := os.Executable()
 	if err != nil {

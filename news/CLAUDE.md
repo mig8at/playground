@@ -11,6 +11,26 @@ sean de la semana y los papers más votados; a la derecha la **ficha** del model
 licencia, formatos, librería, idiomas, base, tendencia, y qué hace y qué trae de nuevo. Rutas: `#/<semana>` (p. ej.
 `#/2026-W47`). Por consola: `make news ONCE=1` actualiza la semana de hoy y dice qué eligió.
 
+## Dos máquinas: la Mac y el PC
+
+El repo es uno y News se abre en dos máquinas: la Mac (Apple Silicon, donde se probaron los modelos) y el PC con Linux
+(una GPU NVIDIA con su propia memoria). Desde el 2026-11-19 News pregunta en cuál está (`lib/machine`: `mac` · `pc`, con
+su RAM, su GPU y con qué acelera: `mps`, `cuda` o `cpu`) y habla de ESA: «Instalados» y «Ningún modelo en…» dicen «la
+Mac» o «el PC», y cada favorito trae si corre acá (`here`, que calcula `server/fits.go`).
+
+- **En la Mac no cambia nada**: `here` es lo que dice `mac` en `favorites.json`, y la interfaz se ve como antes.
+- **En el PC** casi nada está probado, así que se **estima por tamaño**: los parámetros a media precisión (2 bytes) y
+  cuantizados a 4 bits (~0,6), con 20 % de margen, contra la memoria de la GPU y el 70 % de la RAM. Da `yes` (entra en
+  la GPU), `slow` (corre en la RAM), `no` o `unknown` (la ficha no dice el tamaño), siempre con el porqué. Un repo en
+  formato de Apple (`mlx-community/…`, `-mlx`, Core ML) es `no` en el PC. La ficha muestra las dos filas, «En la Mac» y
+  «En el PC», y dice cuándo es una estimación.
+- **Cuando algo se prueba en el PC se escribe `pc`** en el favorito (`yes` · `no` · `unknown`): manda sobre la cuenta,
+  igual que `mac` en la Mac. `triedIn` (`mac` · `pc`) dice en qué máquina se probó; sin él es la Mac, que es donde se
+  probó todo hasta ese día. Los dos campos son opcionales: un `favorites.json` sin ellos sigue siendo válido.
+- **Lo que la cuenta no ve**: el tamaño real de un archivo ya cuantizado (un GGUF de 1 bit ocupa mucho menos de lo que
+  dicen sus parámetros) y si el modelo pide algo que la máquina no tiene. Es para orientarse, no para decidir sin probar.
+- **Para sumar una máquina** (otro id): un caso en `lib/machine` y, si se quiere declarar a mano, su campo en `Favorite`.
+
 ## Los favoritos (`#/favorites`)
 
 Modelos curiosos que se guardan para no perderlos de vista (Miguel, 2026-11-19: «no necesariamente para el trabajo, pero
@@ -56,12 +76,13 @@ etapa o máquina desconocida, con un favorito que no existe o con un linaje que 
 
 ## Los instalados
 
-En el sidebar, «Instalados» lista lo que hay en la Mac de los modelos que probamos, con su tamaño y una papelera (el
+En el sidebar, «Instalados» lista lo que hay EN LA MÁQUINA DONDE ESTÁ ABIERTO (la Mac o el PC) de los modelos que probamos, con su tamaño y una papelera (el
 primer toque pregunta en la misma fila y el segundo borra: los diálogos del navegador no siempre aparecen dentro de
 Cockpit). Sale de tres lugares, siempre los mismos (`server/installed.go`):
 
 - la caché de Hugging Face (`$HF_HUB_CACHE`, `$HF_HOME/hub` o `~/.cache/huggingface/hub`): un modelo por carpeta, con el
-  tamaño de los blobs a los que apuntan sus snapshots. Un blob que comparten dos modelos no se borra con uno solo;
+  tamaño de su carpeta (los blobs viven adentro: antes se sumaban además por los enlaces de los snapshots y salía
+  el doble). Un blob que comparten dos modelos no se borra con uno solo;
 - los GGUF de `~/.cache/my-tools/models` (llama-server), agrupados por modelo: el peso y su proyector juntos;
 - los entornos: cada carpeta de `~/.cache/my-tools` con un venv (el código y las librerías de algo que se probó);
 - los modelos de whisper.cpp de `~/.cache/whisper` (el dictado del chat usa `ggml-large-v3-turbo-q5_0.bin`).

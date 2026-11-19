@@ -1,15 +1,16 @@
 package main
 
-// Los modelos instalados en la Mac, en el sidebar de News, con su tamaño y una papelera. La búsqueda, el borrado y el
+// Los modelos instalados en esta máquina (la Mac o el PC: lib/machine), en el sidebar de News, con su tamaño y una papelera. La búsqueda, el borrado y el
 // registro de quién usa qué son de lib/models, el mismo código que el CLI `bin/models`: los dos dicen siempre lo mismo.
 
 import (
 	"net/http"
 
+	"creditop/my-tools/lib/machine"
 	"creditop/my-tools/lib/models"
 )
 
-// installed: lo que hay en la Mac, con quién lo usa según models/registry.json (se lee en cada pedido: editarlo no
+// installed: lo que hay en esta máquina, con quién lo usa según models/registry.json (se lee en cada pedido: editarlo no
 // pide reiniciar News).
 func (s *server) installed() ([]models.Installed, error) {
 	reg, err := models.LoadRegistry(s.root)
@@ -30,7 +31,12 @@ func (s *server) installedRoutes(mux *http.ServeMux) {
 		for _, it := range list {
 			total += it.Bytes
 		}
-		writeJSON(w, 200, map[string]any{"installed": list, "bytes": total})
+		// Sin nada instalado va una lista VACÍA, no null: en una máquina sin modelos (el PC recién armado) la interfaz
+		// leía `.length` de null y dejaba de pintarse entera, sin mensaje.
+		if list == nil {
+			list = []models.Installed{}
+		}
+		writeJSON(w, 200, map[string]any{"installed": list, "bytes": total, "machine": machine.Detect()})
 	})
 	// Borrar pide el encabezado X-News: un navegador no lo manda desde otra página sin preguntar (CORS), así una web
 	// cualquiera no puede borrar modelos aunque la API escuche en 127.0.0.1.

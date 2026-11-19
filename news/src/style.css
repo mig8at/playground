@@ -135,6 +135,10 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
   white-space: nowrap }
 .mac.yes { color: var(--t-audio); border-color: var(--t-audio) }
 .mac.no { color: var(--t-image); border-color: var(--t-image) }
+/* «slow»: corre, pero en la RAM y no en la GPU (sólo sale en el PC, donde la GPU tiene su propia memoria) */
+.mac.slow { color: var(--t-multimodal); border-color: var(--t-multimodal) }
+/* por qué corre o no acá, al lado del chip: la cuenta y si es estimada */
+.here-why { display: block; margin-top: 4px; color: var(--fg-3); font-size: var(--text-xs); line-height: 1.4 }
 .doc-list { margin: 0; padding-left: 18px; color: var(--fg-2); font-size: 13px; line-height: 1.55 }
 .empty-line.pad { padding: var(--space-4) }
 

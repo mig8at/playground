@@ -14,6 +14,7 @@ import { vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle } fro
 const weeks = ref([])
 const data = ref(null)
 const refreshing = ref(false)
+const NO_API = 'No contesta la API de News.'
 const apiError = ref('')
 async function api(path, opts) {
   const res = await fetch(path, opts)
@@ -25,10 +26,18 @@ const routeKey = () => decodeURIComponent(location.hash.replace(/^#\/?/, ''))
 // La vista de investigación que pide la ruta, si pide una.
 const routeView = () => ({ research: 'ideas', 'research/lineages': 'lineages', 'research/cheap': 'cheap' })[routeKey()] || ''
 const favorites = ref([])
-// Los modelos instalados en la Mac (caché de Hugging Face, GGUF de llama-server y entornos), con su tamaño.
+// LA MÁQUINA DONDE ESTÁ ABIERTO NEWS (lib/machine): el repo se usa en la Mac y en el PC con Linux, y «instalado acá» o
+// «corre acá» dependen de cuál. La dice la API; mientras no contesta (o si es un servidor viejo que no la manda) queda
+// la Mac, que es como hablaba la interfaz antes: en la Mac no cambia nada.
+const machine = ref({ id: 'mac', label: 'la Mac', here: 'esta Mac' })
+const setMachine = (m) => { if (m?.id) machine.value = m }
+const GB = 1024 ** 3
+const machineSpec = computed(() => { const m = machine.value; return [m.gpu && m.accel !== 'mps' ? `${m.gpu} · ${Math.round(m.vram / GB)} GB` : m.cpu, m.ram ? `${Math.round(m.ram / GB)} GB de RAM` : ''].filter(Boolean).join(' · ') })
+// Los modelos instalados en esta máquina (caché de Hugging Face, GGUF de llama-server y entornos), con su tamaño.
 const installed = ref([])
 const installedBytes = ref(0)
-const loadInstalled = () => api('/api/installed').then((r) => { installed.value = r.installed; installedBytes.value = r.bytes }).catch(() => {})
+// `|| []`: una máquina sin modelos mandaba null y la interfaz dejaba de pintarse al leerle `.length`
+const loadInstalled = () => api('/api/installed').then((r) => { installed.value = r.installed || []; installedBytes.value = r.bytes || 0; setMachine(r.machine) }).catch(() => {})
 const KIND_ICON = { hub: 'download', gguf: 'server', env: 'code', whisper: 'mic' }
 // Borrar se confirma en la misma fila (el primer toque pregunta, el segundo borra): los diálogos del navegador no
 // siempre aparecen dentro de la ventana de Cockpit.
@@ -47,7 +56,7 @@ async function removeInstalled(it) {
 }
 async function load() {
   try {
-    api('/api/favorites').then((r) => { favorites.value = r.favorites }).catch(() => {})
+    api('/api/favorites').then((r) => { favorites.value = r.favorites || []; setMachine(r.machine) }).catch(() => {})
     api('/api/research').then((r) => { research.value = r }).catch(() => {})
     loadInstalled()
     if (routeKey() === 'favorites') view.value = 'favorites'
@@ -64,7 +73,7 @@ async function load() {
       data.value = wk
       if (!models.value.some((m) => m.id === selectedId.value)) selectedId.value = wk.lead || models.value.find((m) => m.new)?.id
     }
-  } catch { apiError.value = 'No contesta la API de News.' }
+  } catch { apiError.value = NO_API }
 }
 async function refreshNow() {
   try { await api('/api/refresh', { method: 'POST' }); refreshing.value = true } catch { /* lo dice el pie */ }
@@ -100,6 +109,14 @@ const FAV_GROUPS = [
   { id: 'gpu', name: 'Piden GPU NVIDIA', icon: 'server' },
 ]
 const MAC = { yes: 'corre en la Mac', no: 'no corre en la Mac', unknown: 'en la Mac: sin confirmar' }
+// ¿CORRE ACÁ? En la Mac es lo de siempre (`mac`, lo que dice la ficha o se probó). En el PC casi nada está probado, así
+// que el servidor lo estima por tamaño contra la memoria de la GPU y la RAM (`here`, news/server/fits.go) y acá se dice
+// que es una estimación: no es lo mismo «lo probamos» que «por el tamaño debería entrar».
+const onMac = computed(() => machine.value.id === 'mac')
+const hereOf = (f) => (onMac.value || !f.here ? { status: f.mac, basis: 'declared', why: '' } : f.here)
+const HERE = { yes: 'corre en el PC', slow: 'corre en el PC, lento (en la RAM)', no: 'no corre en el PC', unknown: 'en el PC: sin confirmar' }
+const chipText = (f) => (onMac.value ? (f.mac === 'yes' ? 'Mac' : f.mac === 'no' ? 'GPU' : '¿Mac?') : { yes: 'PC', slow: 'PC lento', no: 'no entra', unknown: '¿PC?' }[hereOf(f).status] || '¿PC?')
+const chipTitle = (f) => (onMac.value ? MAC[f.mac] : `${HERE[hereOf(f).status] || ''}${hereOf(f).basis === 'estimated' ? ' (estimado, sin probar)' : ''}: ${hereOf(f).why}`)
 const favGroup = ref('all')
 const favMatches = (f) => (favGroup.value === 'all' || f.group === favGroup.value)
   && (!q.value || `${f.id} ${f.task} ${f.what}`.toLowerCase().includes(q.value))
@@ -115,7 +132,8 @@ const favOfInstalled = (it) => favorites.value.find((f) => (f.installed || []).i
 const favStats = computed(() => {
   const tried = favorites.value.filter((f) => f.verdict)
   return { saved: favorites.value.length, tried: tried.length, keep: tried.filter((f) => f.verdict === 'keep').length,
-    dropped: tried.filter((f) => f.verdict === 'dropped').length, inUse: favorites.value.filter((f) => f.usedBy).length }
+    dropped: tried.filter((f) => f.verdict === 'dropped').length, inUse: favorites.value.filter((f) => f.usedBy).length,
+    here: favorites.value.filter((f) => ['yes', 'slow'].includes(hereOf(f).status)).length }
 })
 const favCount = (id) => favorites.value.filter((f) => id === 'all' || f.group === id).length
 const favName = (f) => f.id.split('/')[1]
@@ -161,7 +179,7 @@ const onAMac = computed(() => research.value.ideas.filter((d) => d.hardware === 
 const cheapIdeas = computed(() => research.value.ideas.filter((d) => d.cheap))
 // Lo que se HACE en la Mac (ajustar, cuantizar, mezclar) va aparte de lo que se entrenó en grande y en la Mac sólo se usa.
 const macGroups = computed(() => [
-  { id: 'make', name: 'Se hace en esta Mac', desc: 'mejorar o adaptar un modelo sin salir de la Mac', items: onAMac.value.filter((d) => d.hardware === 'mac') },
+  { id: 'make', name: 'Se hace en la Mac', desc: 'mejorar o adaptar un modelo sin salir de la Mac', items: onAMac.value.filter((d) => d.hardware === 'mac') },
   { id: 'use', name: 'Se entrena en grande, se usa en la Mac', desc: 'lo que hizo un data center y acá corre', items: onAMac.value.filter((d) => d.hardware !== 'mac') },
 ].filter((g) => g.items.length))
 const ideasById = computed(() => Object.fromEntries(research.value.ideas.map((d) => [d.id, d])))
@@ -203,7 +221,7 @@ const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', '
 const day = (iso) => { if (!iso) return '—'; const [, m, d] = iso.split('-').map(Number); return `${d} ${months[m - 1]}` }
 const num = (n) => (n ?? 0).toLocaleString('es-CO')
 const short = (n) => (n >= 1e6 ? `${(n / 1e6).toLocaleString('es-CO', { maximumFractionDigits: 1 })} M` : n >= 1e3 ? `${(n / 1e3).toLocaleString('es-CO', { maximumFractionDigits: 1 })} mil` : num(n))
-const bytes = (n) => (n >= 1e9 ? `${(n / 1e9).toLocaleString('es-CO', { maximumFractionDigits: 1 })} GB` : n >= 1e6 ? `${Math.round(n / 1e6)} MB` : `${Math.max(1, Math.round(n / 1e3))} KB`)
+const bytes = (n) => (!n ? '0 GB' : n >= 1e9 ? `${(n / 1e9).toLocaleString('es-CO', { maximumFractionDigits: 1 })} GB` : n >= 1e6 ? `${Math.round(n / 1e6)} MB` : `${Math.max(1, Math.round(n / 1e3))} KB`)
 const params = (n) => (!n ? 'no lo declara' : n >= 1e9 ? `${(n / 1e9).toLocaleString('es-CO', { maximumFractionDigits: 1 })} B parámetros` : `${(n / 1e6).toLocaleString('es-CO', { maximumFractionDigits: 0 })} M parámetros`)
 const weekLabel = computed(() => (data.value ? `${day(data.value.from)} al ${day(data.value.to)}` : ''))
 const papers = computed(() => data.value?.papers || [])
@@ -245,7 +263,9 @@ const themeToggle = ref(null)
 let themeBinding = null
 // Mientras se actualiza, cada 5 s; si no, cada minuto (por si cambió de fondo).
 let timer = null
-function schedule() { clearTimeout(timer); timer = setTimeout(async () => { if (!document.hidden) await load(); schedule() }, refreshing.value ? 5000 : 60000) }
+// Sin API reintenta a los 2 s: al abrir, la interfaz está lista antes que el servidor (que compila al arrancar) y se
+// quedaba un minuto en «Sin API» con todo ya andando.
+function schedule() { clearTimeout(timer); timer = setTimeout(async () => { if (!document.hidden) await load(); schedule() }, apiError.value === NO_API ? 2000 : refreshing.value ? 5000 : 60000) }
 const onHash = () => {
   if (routeKey() === 'favorites') { view.value = 'favorites'; return }
   const rv = routeView()
@@ -275,7 +295,7 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); wi
         <button v-for="g in FAV_GROUPS.filter((x) => favCount(x.id))" :key="g.id" type="button" class="nav-row sub" :class="{ on: view === 'favorites' && favGroup === g.id }" @click="openFavorites(g.id)">
           <span class="ui-icon" :data-icon="g.icon" aria-hidden="true"></span><span class="nav-name">{{ g.name }}</span><span class="count">{{ favCount(g.id) }}</span>
         </button>
-        <div class="group-label">Instalados<span v-if="installed.length" class="group-count">{{ bytes(installedBytes) }}</span></div>
+        <div class="group-label" :title="`En ${machine.here}: ${machineSpec}`">Instalados<span v-if="installed.length" class="group-count">{{ bytes(installedBytes) }}</span></div>
         <template v-for="it in installed" :key="it.key">
           <div class="nav-row installed" :class="{ muted: removing === it.key, asking: confirming === it.key }" :title="`${it.name} · ${it.where}${it.usedBy ? ` · lo usa ${it.usedBy}` : ''}`">
             <span class="ui-icon" :data-icon="KIND_ICON[it.kind]" aria-hidden="true"></span><button type="button" class="nav-name installed-name" :disabled="!favOfInstalled(it)" @click="pickInstalled(it)">{{ it.name.split('/').pop() }}</button><span v-if="it.tools?.length" class="in-use" :title="`Lo usa ${it.usedBy}`">{{ it.tools.join(', ') }}</span><span class="count">{{ removing === it.key ? 'borrando…' : bytes(it.bytes) }}</span>
@@ -287,7 +307,7 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); wi
           </div>
         </template>
         <div v-if="removeError" class="confirm-row error">{{ removeError }}</div>
-        <div v-if="!installed.length" class="nav-row muted"><span class="ui-icon" data-icon="box" aria-hidden="true"></span><span class="nav-name">Ningún modelo en la Mac</span></div>
+        <div v-if="!installed.length" class="nav-row muted"><span class="ui-icon" data-icon="box" aria-hidden="true"></span><span class="nav-name">Ningún modelo en {{ machine.label }}</span></div>
         <div class="group-label">Semanas</div>
         <a v-for="w in weeks" :key="w.key" class="nav-row" :class="{ on: data?.key === w.key && view !== 'favorites' && !isResearch(view) }" :href="`#/${w.key}`" @click="(view === 'favorites' || isResearch(view)) && (view = 'cover')">
           <span class="ui-icon" data-icon="clock" aria-hidden="true"></span><span class="nav-name">Semana {{ w.number }}</span><span class="count">{{ day(w.from) }} al {{ day(w.to) }}</span>
@@ -388,10 +408,10 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); wi
           <div class="fav-stats">
             <span><b>{{ favStats.saved }}</b> guardados</span><span><b>{{ favStats.tried }}</b> probados</span>
             <span class="keep"><b>{{ favStats.keep }}</b> valen la pena</span><span class="dropped"><b>{{ favStats.dropped }}</b> {{ favStats.dropped === 1 ? 'descartado' : 'descartados' }}</span>
-            <span class="use"><b>{{ favStats.inUse }}</b> en uso</span><span><b>{{ bytes(installedBytes) }}</b> en la Mac</span>
+            <span class="use"><b>{{ favStats.inUse }}</b> en uso</span><span><b>{{ bytes(installedBytes) }}</b> en {{ machine.label }}</span><span v-if="!onMac" class="use" :title="`De los ${favStats.saved}: los que entran en ${machine.here} (${machineSpec}), por lo probado o estimado por tamaño`"><b>{{ favStats.here }}</b> corren en {{ machine.label }}</span>
           </div>
           <section v-if="triedHistory.length">
-            <h2 class="section-title">Probados <span>el historial: lo que dio cada uno y si se quedó</span></h2>
+            <h2 class="section-title">Probados <span>el historial: lo que dio cada uno y si se quedó{{ onMac ? '' : ' · se probaron en la Mac; «borrado» es de allá' }}</span></h2>
             <div class="rows history">
               <button v-for="f in triedHistory" :key="f.id" type="button" class="row" :class="{ on: selectedFavId === f.id, dropped: f.verdict === 'dropped' }" @click="pickFav(f)">
                 <span class="row-num">{{ day(f.triedOn) }}</span>
@@ -406,7 +426,7 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); wi
             <h2 class="section-title">{{ g.name }} <span>{{ g.items.length }}</span></h2>
             <div class="favs">
               <button v-for="f in g.items" :key="f.id" type="button" class="fav" :class="{ on: selectedFavId === f.id }" @click="pickFav(f)">
-                <span class="model-top"><span class="model-icon" :class="`t-${topicOf(f.task)}`"><span class="ui-icon" :data-icon="taskIcon(f.task)" aria-hidden="true"></span></span><span class="model-name">{{ favName(f) }}</span><span class="mac" :class="f.mac">{{ f.mac === 'yes' ? 'Mac' : f.mac === 'no' ? 'GPU' : '¿Mac?' }}</span></span>
+                <span class="model-top"><span class="model-icon" :class="`t-${topicOf(f.task)}`"><span class="ui-icon" :data-icon="taskIcon(f.task)" aria-hidden="true"></span></span><span class="model-name">{{ favName(f) }}</span><span class="mac" :class="hereOf(f).status" :title="chipTitle(f)">{{ chipText(f) }}</span></span>
                 <span class="model-org">{{ favOrg(f) }} · {{ params(f.params) }}</span>
                 <span class="fav-what">{{ f.what }}</span>
                 <span v-if="f.usedBy || favBytes(f)" class="fav-tags"><span v-if="f.usedBy" class="in-use">en uso · {{ f.usedBy }}</span><span v-if="favBytes(f)" class="tag">instalado · {{ bytes(favBytes(f)) }}</span></span>
@@ -504,7 +524,7 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); wi
         <div class="doc-section">Con qué máquina</div>
         <p class="doc-text">{{ selectedIdea.machine || 'No se publicó.' }}</p>
         <template v-if="selectedIdea.mac">
-          <div class="doc-section">En esta Mac</div>
+          <div class="doc-section">En la Mac</div>
           <p class="doc-text">{{ selectedIdea.mac }}</p>
         </template>
         <template v-if="selectedIdea.cheap">
@@ -538,6 +558,10 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); wi
           <dt>Tamaño</dt><dd>{{ params(selectedFav.params) }}</dd>
           <dt>Licencia</dt><dd>{{ selectedFav.license || 'no la declara' }}</dd>
           <dt>En la Mac</dt><dd><span class="mac" :class="selectedFav.mac">{{ MAC[selectedFav.mac] }}</span></dd>
+          <!-- en el PC, además, lo que da acá: declarado si alguien lo probó, o la estimación por tamaño, dicha como tal -->
+          <template v-if="!onMac && selectedFav.here">
+            <dt>En el PC</dt><dd><span class="mac" :class="selectedFav.here.status">{{ HERE[selectedFav.here.status] }}</span><span class="here-why">{{ selectedFav.here.basis === 'estimated' ? 'Estimado, sin probar: ' : '' }}{{ selectedFav.here.why }}</span></dd>
+          </template>
           <dt>Guardado</dt><dd>{{ day(selectedFav.added) }}</dd>
         </dl>
         <div class="doc-section">Qué hace</div>
@@ -549,11 +573,11 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); wi
           <ul class="doc-list"><li v-for="i in selectedFav.ideas" :key="i">{{ i }}</li></ul>
         </template>
         <template v-if="selectedFav.tried">
-          <div class="doc-section">Lo que dio al probarlo</div>
+          <div class="doc-section">Lo que dio al probarlo{{ (selectedFav.triedIn || 'mac') !== machine.id ? ((selectedFav.triedIn || 'mac') === 'mac' ? ' en la Mac' : ' en el PC') : '' }}</div>
           <p class="doc-text">{{ selectedFav.tried }}</p>
         </template>
         <template v-if="favInstalled(selectedFav).length">
-          <div class="doc-section">Instalado en la Mac · {{ bytes(favBytes(selectedFav)) }}</div>
+          <div class="doc-section">Instalado en {{ machine.label }} · {{ bytes(favBytes(selectedFav)) }}</div>
           <template v-for="it in favInstalled(selectedFav)" :key="it.key">
             <div class="nav-row installed doc-installed" :class="{ asking: confirming === it.key }">
               <span class="ui-icon" :data-icon="KIND_ICON[it.kind]" aria-hidden="true"></span><span class="nav-name">{{ it.where }}</span><span class="count">{{ bytes(it.bytes) }}</span>

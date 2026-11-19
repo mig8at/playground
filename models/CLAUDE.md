@@ -1,6 +1,6 @@
 # models — qué modelo de IA usa cada herramienta
 
-**Para qué existe:** saber qué modelos hay en la Mac, cuánto ocupan y cuáles usa una herramienta, para borrar sin dudar
+**Para qué existe:** saber qué modelos hay en esta máquina (la Mac o el PC: `lib/machine`; cada una tiene los suyos), cuánto ocupan y cuáles usa una herramienta, para borrar sin dudar
 lo que nadie usa (Miguel, 2026-11-19: «un CLI, algo más tipo consola que podamos usar fácilmente desde nuestras
 herramientas locales»). Lo que no está en el registro no lo usa nadie.
 

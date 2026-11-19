@@ -166,3 +166,6 @@ calibrate calibration horizon
 
 # sentinel: el embudo del backend y la plata en juego (2026-11-18): inglés común
 funnel stake stakes reinstall vault novelty trending upvotes gguf onnx mlx safetensors rfilename chronos forecast mmproj gpu qwen ggml turbo timestral mistralai llamaserve lineage datacenter interpretability snooze
+# lib/machine (2026-11-19): la memoria de video (VRAM), la marca de la GPU del PC (NVIDIA), el gibibyte (GiB) y
+# llama.cpp / llama-server, nombres propios del motor de modelos
+vram nvidia gib llama
