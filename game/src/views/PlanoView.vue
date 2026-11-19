@@ -10,7 +10,7 @@ import {useRoute,useRouter} from 'vue-router';
 import '@fontsource/bungee/400.css';
 import '@fontsource-variable/rubik';
 import {planoDe} from '../lib/mapasGuardados.js';
-import {drawWorldStage,drawFloorPlan,drawHogar,CAPAS,ROOM_LABEL} from '../lib/drawPlan.js';
+import {drawWorldStage,drawFloorPlan,drawHogar,drawElevation,CAPAS,ROOM_LABEL} from '../lib/drawPlan.js';
 import {CELL,TYPES} from '../engine/blueprint.js';
 
 const route=useRoute(),router=useRouter();
@@ -23,6 +23,10 @@ const vista=reactive({x:0,y:0,k:1});// (la posición y el zoom del lienzo dentro
 const NOMBRE_CAPA={pintura:'Pintura de vías',equipo:'Mobiliario',arboles:'Árboles',nombres:'Nombres de vías',botines:'Botines'};
 const TIPO={vivienda:'Vivienda',oficinas:'Oficinas',comercio:'Comercio',hotel:'Hotel',casa:'Casa',local:'Local',colegio:'Colegio',comisaria:'Comisaría',biblioteca:'Biblioteca',hospital:'Hospital',objetivo:'Objetivo',residencial:'Residencial'};
 
+const alzado=ref(null),ladoAlzado=ref(null),medidoAlzado=ref(null);
+const LADO={N:'Norte',S:'Sur',E:'Este',W:'Oeste'};
+// (los lados del edificio que dan a algo abierto: una medianera no tiene fachada)
+const ladosAbiertos=computed(()=>elegido.value?Object.entries(elegido.value.sides||{}).filter(([,v])=>v!=='medianera'&&v!=='interior').map(([k])=>k):[]);
 const maxPisos=ref(0),grande=ref(false);// (maxPisos: el plano no es reactivo —es enorme—, así que se anota al cargar)
 const resumen=ref(null);
 
@@ -67,7 +71,9 @@ const medidas=computed(()=>{const L=elegido.value;if(!L)return null;const lv=L.l
 const casaNivel=computed(()=>casa.value?Math.min(nivel.value,casa.value.spec.hogar.levels.length-1):0);
 const casaCuartos=computed(()=>{const c=casa.value;if(!c)return [];return c.spec.hogar.levels[casaNivel.value].rooms.filter(q=>q.type!=='hall').map(q=>({nombre:q.label||ROOM_LABEL[q.type]||q.type,medida:`${(q.u1-q.u0).toFixed(1)} × ${(q.v1-q.v0).toFixed(1)} m`}));});
 async function dibujarPiso(){await nextTick();if(casa.value&&piso.value){drawHogar(piso.value,casa.value.spec.hogar,{level:casaNivel.value,width:piso.value.parentElement.clientWidth});return;}
- const L=elegido.value;if(!L||!piso.value)return;drawFloorPlan(piso.value,L,{level:fichaNivel.value,stage:9,width:piso.value.parentElement.clientWidth});}
+ const L=elegido.value;if(!L||!piso.value)return;
+ if(alzado.value){const lado=ladosAbiertos.value.includes(ladoAlzado.value)?ladoAlzado.value:L.front;ladoAlzado.value=lado;medidoAlzado.value=drawElevation(alzado.value,L,{width:alzado.value.parentElement.clientWidth,lado});}
+ drawFloorPlan(piso.value,L,{level:fichaNivel.value,stage:9,width:piso.value.parentElement.clientWidth});}
 
 async function cargar(){
  estado.value='Armando el plano…';elegido.value=null;casa.value=null;plano=null;resumen.value=null;
@@ -81,7 +87,8 @@ async function cargar(){
 }
 watch([nivel,capas],()=>{dibujar();dibujarPiso();pedirNitido();});
 watch(vista,pedirNitido);
-watch([elegido,casa,grande],dibujarPiso);
+watch([elegido,casa,grande,ladoAlzado],dibujarPiso);
+watch(elegido,()=>{ladoAlzado.value=null;});
 let obs;
 onMounted(()=>{cargar();window.addEventListener('keydown',tecla);obs=new ResizeObserver(()=>{if(!plano||arrastre)return;if(!tocado)ajustar();dibujarPiso();pedirNitido();});obs.observe(host.value);});
 onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydown',tecla);obs?.disconnect();});
@@ -127,6 +134,12 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
    <p class="nivel">{{ fichaNivel===0?'Planta baja':'Piso '+fichaNivel }}<template v-if="nivel>=elegido.floors"> (el último: el visor está en la azotea)</template></p>
    <dl v-if="medidas"><dt>Área</dt><dd>{{ medidas.area }} m²</dd><dt>Pasillo</dt><dd :class="{alerta:medidas.pasillo>30}">{{ medidas.pasillo }} %</dd><dt>Muebles</dt><dd>{{ medidas.muebles }}</dd><dt>Puertas</dt><dd>{{ medidas.puertas }}</dd><dt>Ventanas</dt><dd>{{ medidas.ventanas }}</dd></dl>
    <ul class="cuartos"><li v-for="[t,n] in cuartos" :key="t"><span>{{ t }}</span><b>{{ n }}</b></li></ul>
+   <div class="alzado-cab"><b>La fachada</b>
+    <div class="lados" role="group" aria-label="Lado de la fachada"><button v-for="l in ladosAbiertos" :key="l" :class="{on:l===ladoAlzado}" @click="ladoAlzado=l">{{ LADO[l] }}<small v-if="l===elegido.front"> · frente</small></button></div></div>
+   <div class="ficha-piso"><canvas ref="alzado"></canvas></div>
+   <p v-if="medidoAlzado" class="alzado-med">
+    <template v-if="medidoAlzado.ventanas">Ventanas sobre la de abajo: <b :class="{alerta:medidoAlzado.alineadas<medidoAlzado.ventanas}">{{ medidoAlzado.alineadas }} de {{ medidoAlzado.ventanas }}</b><template v-if="medidoAlzado.alineadas<medidoAlzado.ventanas"> (las que no, con borde naranja)</template> · </template>
+    vidrio por piso: <span v-for="(v,i) in medidoAlzado.vano" :key="i">{{ i===0?'PB':i }} {{ v }} %<template v-if="i<medidoAlzado.vano.length-1">, </template></span> · alto {{ medidoAlzado.alto }} m</p>
   </aside>
   <aside v-else-if="casa" class="ficha" :class="{grande}">
    <button class="cerrar" @click="casa=null" aria-label="Cerrar">×</button>
@@ -183,6 +196,10 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
 .ficha dd{margin:0;font-weight:600;font-variant-numeric:tabular-nums;grid-row:2}
 .ficha dd.alerta{color:var(--ladron)}
 .cuartos{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:4px 14px}
+.alzado-cab{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:16px 0 8px}.alzado-cab>b{font:400 14px var(--t)}
+.lados{display:flex;gap:4px;flex-wrap:wrap}.lados button{background:rgba(255,255,255,.08);border:1px solid var(--borde);border-radius:8px;color:var(--tx2);padding:3px 9px;font:inherit;font-size:12px;cursor:pointer}
+.lados button.on{background:rgba(255,169,77,.18);border-color:rgba(255,169,77,.5);color:var(--tx)}.lados small{color:var(--tx3)}
+.alzado-med{margin-top:8px!important;font-size:12px}.alzado-med b.alerta{color:var(--ladron)}
 .cuartos.uno{grid-template-columns:1fr}
 .cuartos li{display:flex;justify-content:space-between;color:var(--tx2)}.cuartos b{color:var(--tx)}
 .cerrar{position:absolute;right:10px;top:10px;width:28px;height:28px;border-radius:8px;border:1px solid var(--borde);background:rgba(255,255,255,.08);color:var(--tx);cursor:pointer;font-size:16px;line-height:1}

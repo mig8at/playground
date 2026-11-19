@@ -2,6 +2,8 @@
 import {CELL,TYPES} from '../engine/blueprint.js';
 import {City} from '../engine/index.js';
 import {planHouse,FURN_SIZE,FLOOR0,FH} from '../engine/vivienda.js';
+import {AWNINGS,RAISE} from '../engine/fachada.js';
+import {ALTURA} from '../engine/medidas.js';
 const K=City.K;
 const css=name=>getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
@@ -300,7 +302,7 @@ function drawExterior(g,bp,{level=0,px=1,capas=CAPAS}){
   // (el largo va a lo largo del ángulo: una raya de cebra, un tramo de la línea de carril)
   girado(p.x,p.z,-p.ang,()=>g.fillRect(-p.largo/2,-p.ancho/2,p.largo,p.ancho));}
  if(capas.equipo&&px>=2.5)for(const e of bp.equipamiento||[]){const c=EQUIPO[e.tipo];if(!c)continue;g.fillStyle=c;
-  if(e.tipo==='banca')girado(e.x,e.z,-(e.hacia||0),()=>g.fillRect(-.8,-.25,1.6,.5));
+  if(e.tipo==='banca')girado(e.x,e.z,e.ang||0,()=>{const l=e.largo||1.8,f=e.fondo||.6;g.fillRect(-l/2,-f/2,l,f);g.fillStyle='rgba(0,0,0,.25)';g.fillRect(-l/2,-f/2,l,f*.28);});// (ang: a lo largo de la banca, como la guarda el plano)
   else if(e.tipo==='parada')girado(e.x,e.z,-(e.hacia||0),()=>{g.fillRect(-1.6,-.6,3.2,1.2);g.fillStyle='#dfeaf5';g.fillRect(-1.4,-.4,2.8,.8);});
   else if(e.tipo==='farol'){g.beginPath();g.arc(e.x,e.z,.28,0,7);g.fill();g.strokeStyle='rgba(240,190,90,.55)';g.lineWidth=.12;g.beginPath();g.arc(e.x,e.z,1.1,0,7);g.stroke();}
   else if(e.tipo==='semaforo'){g.fillRect(e.x-.3,e.z-.3,.6,.6);g.fillStyle='#e23b2e';g.beginPath();g.arc(e.x,e.z,.16,0,7);g.fill();}
@@ -326,6 +328,61 @@ function drawExterior(g,bp,{level=0,px=1,capas=CAPAS}){
   for(const v of [...(bp.vias?.h||[]),...(bp.vias?.v||[])]){const t=px>=4?v.largo:v.corto,a=v.desde??0,b=v.hasta??(v.eje==='h'?bp.map.W:bp.map.H)*CELL;if(!t||b-a<alto/px*4)continue;
    for(let d=a+paso/2;d<b;d+=paso){if(v.eje==='h')texto(t,d,v.coord,0);else texto(t,v.coord,d,-Math.PI/2);}}}
 }
+
+// ---------- EL ALZADO: la fachada de un edificio, de frente (2026-11-19) ----------
+// El plano ya decide todo lo que se ve desde la calle —en qué piso y a cuántos metros va cada ventana y cada puerta, los
+// tres colores de la regla 60-30-10 (muro, moldura y acento), el zócalo, la banda entre pisos, la cornisa, los toldos, los
+// balcones y el techo—, pero sólo se podía mirar armando el 3D. Esto lo dibuja de frente, a escala, para revisar la
+// composición: que las ventanas caigan una sobre otra, cuánto del frente es vidrio y cómo quedan los colores juntos.
+// `lado`: N, S, E u O del lote (por defecto, su frente). Devuelve lo medido: {ancho, alto, ventanas, alineadas, vano}.
+const VANO={comun:[.9,2.2],ventanal:[.9,2.7],vidriera:[.35,2.6],puerta:[0,2.2]};// (antepecho y dintel, en metros sobre el piso)
+export function drawElevation(canvas,L,{width=560,lado=null}={}){
+ const f=lado||L.front,r=L.rect,H=ALTURA.piso,horiz=f==='N'||f==='S',ancho=horiz?r.w:r.h,sube=L.fachada?.escalinata?RAISE:0,manz=L.fachada?.techo==='mansarda';
+ const alto=L.floors*H+sube,techo=manz?H*.9:.9,dpr=window.devicePixelRatio||1,pad=34,m=Math.min(30,(width-2*pad)/ancho),hgt=(alto+techo)*m+2*pad+10;
+ canvas.width=Math.round(width*dpr);canvas.height=Math.round(hgt*dpr);canvas.style.width=width+'px';canvas.style.height=hgt+'px';
+ const g=canvas.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,width,hgt);
+ const C=L.colores||{},F=L.fachada||{},muro=C.fachada||TYPES[L.type]?.color||'#d9cdb8',mold=C.moldura||'#f2efe6',acento=C.acento||'#3a3d40',marco=C.marco||mold,zoc=C.zocalo||muro;
+ const x0=(width-ancho*m)/2,suelo=hgt-pad,X=u=>x0+u*m,Y=y=>suelo-y*m;
+ // (de frente: lo que en el plano va de oeste a este se ve de izquierda a derecha mirando al norte; del otro lado, al revés)
+ const linea=f==='N'?r.y:f==='S'?r.y+r.h:f==='W'?r.x:r.x+r.w,enLado=w=>horiz?Math.abs(w.y0-linea)<.3&&Math.abs(w.y1-linea)<.3:Math.abs(w.x0-linea)<.3&&Math.abs(w.x1-linea)<.3;
+ const tramo=w=>{const a=horiz?w.x0-r.x:w.y0-r.y,b=horiz?w.x1-r.x:w.y1-r.y,inv=f==='N'||f==='E';const u0=Math.min(a,b),u1=Math.max(a,b);return inv?[ancho-u1,ancho-u0]:[u0,u1];};
+ // el cielo de papel, el suelo y la sombra del edificio
+ g.fillStyle='#eef3f6';g.fillRect(0,0,width,suelo);g.fillStyle='#d9d5c8';g.fillRect(0,suelo,width,hgt-suelo);
+ g.fillStyle=muro;g.fillRect(X(0),Y(alto),ancho*m,alto*m);
+ // el zócalo (y, si el edificio va subido, la base de la escalinata)
+ g.fillStyle=zoc;g.fillRect(X(0),Y(sube+.55),ancho*m,(sube+.55)*m);
+ // las esquinas de piedra
+ if(F.esquinas&&F.esquinas!=='no'){g.fillStyle=mold;let k=0;for(let y=sube+.55;y<alto-.45;y+=.6,k++){const w=k%2?.36:.26;g.fillRect(X(0),Y(y+.48),w*m,.42*m);g.fillRect(X(ancho-w),Y(y+.48),w*m,.42*m);}}
+ const medido={ancho,alto:+alto.toFixed(1),ventanas:0,alineadas:0,vano:[]};let abajo=null;
+ for(let i=0;i<L.floors;i++){const lv=L.levels[i],base=sube+i*H,vs=lv.windows.filter(enLado).map(w=>({...w,t:tramo(w)})),ps=i===0?lv.doors.filter(d=>d.street&&enLado(d)).map(d=>({...d,t:tramo(d)})):[];
+  // la banda entre pisos
+  if(i>0&&F.banda){g.fillStyle=mold;g.fillRect(X(0),Y(base+.12),ancho*m,.2*m);}
+  let vidrio=0;
+  for(const w of vs){const [a,b]=w.t,[p,q]=VANO[w.shop?'vidriera':w.pieza==='ventanal'?'ventanal':'comun'],mk=Math.max(1.5,m*.09);
+   g.fillStyle=marco;g.fillRect(X(a)-mk,Y(base+q)-mk,(b-a)*m+2*mk,(q-p)*m+2*mk);
+   g.fillStyle='#a9cfe2';g.fillRect(X(a),Y(base+q),(b-a)*m,(q-p)*m);g.fillStyle='rgba(255,255,255,.35)';g.fillRect(X(a),Y(base+q),(b-a)*m*.45,(q-p)*m);
+   // la carpintería: un parteluz al medio y, en las comunes, un travesaño
+   g.strokeStyle=marco;g.lineWidth=Math.max(1,m*.05);g.beginPath();g.moveTo(X((a+b)/2),Y(base+q));g.lineTo(X((a+b)/2),Y(base+p));if(!w.shop){g.moveTo(X(a),Y(base+p+(q-p)*.55));g.lineTo(X(b),Y(base+p+(q-p)*.55));}g.stroke();
+   // el alféizar, el balcón y el toldo
+   if(!w.shop){g.fillStyle=mold;g.fillRect(X(a)-mk*2,Y(base+p)+mk,(b-a)*m+mk*4,Math.max(2,m*.1));}
+   if(F.balcones&&i>0&&!w.shop){g.strokeStyle=acento;g.lineWidth=Math.max(1,m*.04);const yb=Y(base+.05),yt=Y(base+1);g.strokeRect(X(a)-m*.2,yt,(b-a)*m+m*.4,yb-yt);g.beginPath();for(let u=a-.1;u<=b+.11;u+=.2){g.moveTo(X(u),yt);g.lineTo(X(u),yb);}g.stroke();}
+   if(w.shop&&AWNINGS[F.toldos]){g.fillStyle=AWNINGS[F.toldos];g.beginPath();g.moveTo(X(a)-m*.1,Y(base+q+.25));g.lineTo(X(b)+m*.1,Y(base+q+.25));g.lineTo(X(b)+m*.25,Y(base+q-.35));g.lineTo(X(a)-m*.25,Y(base+q-.35));g.closePath();g.fill();}
+   vidrio+=(b-a)*(q-p);
+   if(i>1){medido.ventanas++;if(abajo.some(v=>Math.abs((v.t[0]+v.t[1])/2-(a+b)/2)<.16))medido.alineadas++;else{g.strokeStyle='#e0672f';g.lineWidth=2;g.setLineDash([4,3]);g.strokeRect(X(a)-4,Y(base+q)-4,(b-a)*m+8,(q-p)*m+8);g.setLineDash([]);}}}
+  for(const d of ps){const [a,b]=d.t,q=VANO.puerta[1],mk=Math.max(2,m*.1);g.fillStyle=mold;g.fillRect(X(a)-mk,Y(sube+q)-mk,(b-a)*m+2*mk,q*m+mk);g.fillStyle=acento;g.fillRect(X(a),Y(sube+q),(b-a)*m,q*m);
+   g.fillStyle='rgba(255,255,255,.28)';g.fillRect(X(a)+(b-a)*m*.18,Y(sube+q-.25),(b-a)*m*.64,q*m*.4);
+   if(sube){g.fillStyle='#bdb7aa';for(let k=0;k<3;k++)g.fillRect(X(a)-m*(.15+k*.18),Y(sube-k*sube/3),(b-a)*m+m*(.3+k*.36),sube/3*m+1);}}
+  medido.vano.push(+(vidrio/(ancho*H)*100).toFixed(0));abajo=vs;}
+ // el remate: la cornisa y el techo
+ g.fillStyle=mold;g.fillRect(X(0)-m*.15,Y(alto+.05),ancho*m+m*.3,.32*m);
+ if(manz){g.fillStyle=C.techo||'#4b5560';g.beginPath();g.moveTo(X(0),Y(alto+.3));g.lineTo(X(ancho),Y(alto+.3));g.lineTo(X(ancho)-m*.7,Y(alto+techo));g.lineTo(X(0)+m*.7,Y(alto+techo));g.closePath();g.fill();
+  g.fillStyle=marco;for(const w of (L.levels[L.floors-1].windows.filter(enLado).map(tramo))){const c=(w[0]+w[1])/2;g.fillRect(X(c-.45),Y(alto+techo*.78),.9*m,techo*.5*m);g.fillStyle='#a9cfe2';g.fillRect(X(c-.33),Y(alto+techo*.72),.66*m,techo*.38*m);g.fillStyle=marco;}}
+ else{g.fillStyle=muro;g.fillRect(X(0),Y(alto+techo),ancho*m,(techo-.3)*m);g.fillStyle=mold;g.fillRect(X(0),Y(alto+techo),ancho*m,.12*m);}
+ g.strokeStyle='rgba(30,34,38,.55)';g.lineWidth=1;g.strokeRect(X(0)+.5,Y(alto)+.5,ancho*m-1,alto*m-1);
+ // las cotas: el ancho abajo y el alto y cada piso a la izquierda
+ g.fillStyle='#5d6670';g.font='11px system-ui,sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(`${ancho} m · fachada ${({N:'norte',S:'sur',E:'este',W:'oeste'})[f]}`,width/2,suelo+16);
+ g.textAlign='right';for(let i=0;i<L.floors;i++)g.fillText(i===0?'PB':String(i),X(0)-8,Y(sube+i*H+H/2));
+ return medido;}
 
 // ---------- Las casas desde la familia (engine/hogar.js, 2026-10-12) ----------
 // El plano de un piso: cuartos (con su nombre y medida), paredes, puertas (con su giro), ventanas y muebles. u a lo
