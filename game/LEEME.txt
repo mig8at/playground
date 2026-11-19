@@ -16,6 +16,11 @@ EL JUEGO
              Diseño (2026-10-18): la ciudad del juego de fondo (public/fondos: capturas del 3D, la noche en el título),
              paneles de vidrio, ámbar los ladrones y azul la policía, títulos en Bungee y texto en Rubik (paquetes de
              @fontsource: sin internet). Lo prueba harness/pruebas/validar-entrada.mjs (nivel 10).
+  /plano     El plano 2D entero, sin cargar el 3D (2026-11-19; ?ciudad=1&jugadores=3): rueda para acercar, arrastrar
+             para moverse, + y − para cambiar de piso (arriba del último, las azoteas), capas que se apagan (pintura de
+             vías, mobiliario, árboles, nombres de vías, botines) y clic en un edificio para su piso en grande con sus
+             medidas (área, % de pasillo, muebles, puertas, ventanas). Lo dibuja lib/drawPlan.js (drawExterior es lo
+             de afuera, que antes sólo se veía en el 3D).
   /juego     La partida (?ciudad=1&jugadores=3&papel=policia). /demo es lo mismo (lo usan las pruebas de pantalla).
              Lo visual (2026-11-19): pantalla de carga con barra mientras se arma la ciudad; el HUD con el diseño de la
              entrada (vidrio, Bungee y Rubik); el día, el atardecer y la noche se mezclan de a poco (PAL y pasoLuz en

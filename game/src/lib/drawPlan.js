@@ -8,18 +8,23 @@ const css=name=>getComputedStyle(document.documentElement).getPropertyValue(name
 export const ROOM_LABEL={sala:'Sala',dormitorio:'Dormitorio',cocina:'Cocina',bano:'Baño',oficina:'Oficina',abierta:'Oficina abierta',reuniones:'Reuniones',
  cocineta:'Cocineta',habitacion:'Habitación',habitacion_h:'Habitación',enfermeria:'Enfermería',aula:'Aula',sala_prof:'Profesores',lectura:'Lectura',
  archivo:'Archivo',celda:'Celda',boveda:'Bóveda',local:'Local',recepcion:'Recepción',urgencias:'Urgencias',consultorio:'Consultorio',vestibulo:'Vestíbulo',
- garaje:'Garaje',deposito:'Depósito',sala_cocina:'Sala y cocineta',estudio:'Estudio',dormitorio_b:'Dormitorio',hall:'Hall',ropas:'Zona de ropas'};
+ garaje:'Garaje',deposito:'Depósito',sala_cocina:'Sala y cocineta',estudio:'Estudio',dormitorio_b:'Dormitorio',hall:'Hall',ropas:'Zona de ropas',
+ entrada:'Entrada',secretaria:'Secretaría',comedor:'Comedor',sanitario:'Sanitario',interrogatorio:'Interrogatorio',prestamo:'Préstamo',estanteria:'Estantería',infantil:'Sala infantil'};
 // Colores del plano (claros también en modo oscuro: es un plano impreso, como el del juego).
 const ROOM_COLOR={hall:'#efe9df',ropas:'#e2eef0',sala:'#f3e6cf',dormitorio:'#e8e0f0',cocina:'#f6eccd',bano:'#d9ecf2',oficina:'#dfe9f2',abierta:'#e3edf5',reuniones:'#e9e4f2',cocineta:'#f6eccd',
  habitacion:'#ede3ef',habitacion_h:'#f7e4e4',enfermeria:'#f7e9e9',aula:'#f1edcf',sala_prof:'#ece7d2',lectura:'#ece4d4',archivo:'#e4ddcf',celda:'#d6dde6',
- boveda:'#f2e3a6',local:'#f6ddd0',recepcion:'#e2ecf3',urgencias:'#f8dcdc',consultorio:'#f5e6e6',vestibulo:'#efede6',garaje:'#e2e2e2',deposito:'#e6dfd2',sala_cocina:'#f3e6cf',estudio:'#efe2d6',dormitorio_b:'#e8e0f0'};
+ boveda:'#f2e3a6',local:'#f6ddd0',recepcion:'#e2ecf3',urgencias:'#f8dcdc',consultorio:'#f5e6e6',vestibulo:'#efede6',garaje:'#e2e2e2',deposito:'#e6dfd2',sala_cocina:'#f3e6cf',estudio:'#efe2d6',dormitorio_b:'#e8e0f0',
+ entrada:'#efe9df',secretaria:'#e2ecf3',comedor:'#f4e7cc',sanitario:'#d9ecf2',interrogatorio:'#d9dbe2',prestamo:'#ece4d4',estanteria:'#e6dcc6',infantil:'#f6e6ee'};
 // Las calles y los patios, también claros en modo oscuro (los del tema cambian).
 const PAPER={street:'#fbfaf6',avenue:'#f0eee6',alley:'#f5eee1',courtyard:'#e9e3d0',border:'#7f877f',kiosk:'#97b596'};
 const USE_COLOR={edificios:'#d3d8cf',parque:'#cfe2c8',plaza:'#e2eedd',patio:'#ece6d3',comisaria:'#b9cfe6'};
 const ITEM_COLOR={sofa:'#b88b6a',cama:'#9c86b8',cama_s:'#9c86b8',litera:'#7a5a3a',cama_h:'#ffffff',catre:'#8a8f96',camilla:'#ffffff',armario:'#8b6a4e',estante:'#8b6a4e',archivador:'#7d8790',casillero:'#4f7fa8',caminadora:'#3a3e43',bicicleta:'#3a3e43',banco:'#24262a',mancuernas:'#5d6266',colchoneta:'#2f6f8f',espejo_pared:'#cfe3ea',perchero:'#8d969d',maniqui:'#e9e4dc',estanteria_ropa:'#c39a6b',probador:'#8a3b4a',
  escritorio:'#a7825f',pupitre:'#a7825f',mesa:'#b0906c',mesa_centro:'#b0906c',mesa_reunion:'#9a7b5b',mesa_lectura:'#a7825f',mostrador:'#8d7360',meson:'#c9c3b8',
  nevera:'#e8eef2',estufa:'#4b4f53',inodoro:'#ffffff',lavamanos:'#ffffff',ducha:'#bfe0ec',tv:'#2f3437',planta:'#7fae74',silla:'#5d6670',mesa_noche:'#8b6a4e',
- tablero:'#3f5a46',vehiculo:'#c0392b',caja:'#b98a4f',buzones:'#9aa3a8',caja_fuerte:'#5d6266'};
+ tablero:'#3f5a46',vehiculo:'#c0392b',
+ // (2026-11-19: diez muebles del plano no tenían color y salían todos del mismo gris)
+ sillon:'#c29a7a',lampara:'#e8c860',cajon:'#a98a62',tina:'#cfe6ee',comoda:'#8b6a4e',horno:'#5a5f63',lavadora:'#eef1f3',plancha:'#6b7076',repisa:'#9a7b5b',vitrina:'#bfd6dc',
+ probador:'#b7a9c9',estanteria_ropa:'#a48d74',perchero:'#7c6a58',maniqui:'#d9c8b4',caja:'#b98a4f',buzones:'#9aa3a8',caja_fuerte:'#5d6266'};
 
 // El contorno de un edificio de una o más partes (rectángulos en metros): cada borde menos lo que comparte con otra
 // parte (la unión de las dos alas de una L no es pared de afuera).
@@ -69,7 +74,8 @@ function drawLevel(g,lv,{m,stage,small=false,ox=0,oy=0,labels=false}){
  const X=v=>(v-ox)*m,Y=v=>(v-oy)*m,R=(q,f)=>f(X(q.x),Y(q.y),q.w*m,q.h*m);
  // Núcleo (5) y pasillo.
  g.fillStyle='#f4f2ec';for(const c of lv.corridor)R(c,(a,b,w,h)=>g.fillRect(a,b,w,h));
- const core=lv.core;g.fillStyle='#d7d4cc';R(core,(a,b,w,h)=>g.fillRect(a,b,w,h));
+ // (un piso puede no tener núcleo —un local de una planta sin escalera—: se dibuja sin él; antes el plano entero se caía)
+ const core=lv.core;if(core){g.fillStyle='#d7d4cc';R(core,(a,b,w,h)=>g.fillRect(a,b,w,h));}
  if(!small){g.strokeStyle='#8b877f';g.lineWidth=1;// escalera en U: dos carriles con sus peldaños, el descanso al fondo y la pared al medio; ascensor: una X
   const st=lv.stair;if(st){const Pt=(a,b)=>[X(st.x+st.ux*a+st.vx*b),Y(st.z+st.uz*a+st.vz*b)],FR=st.fr,BK=st.bk,run=st.d-FR-BK,W=st.w||2,HW=W/2;g.beginPath();
    const N=st.steps||Math.max(8,Math.round(run/.25));for(let k=0;k<=N;k++){const b=FR+run*k/N;for(const [a0,a1] of [[0,HW],[HW,W]]){const [x0,y0]=Pt(a0,b),[x1,y1]=Pt(a1,b);g.moveTo(x0,y0);g.lineTo(x1,y1);}}
@@ -77,10 +83,10 @@ function drawLevel(g,lv,{m,stage,small=false,ox=0,oy=0,labels=false}){
    // flechas: sube por el carril A hacia el fondo y vuelve por el B
    g.strokeStyle='#5d5a54';g.beginPath();const [a0x,a0y]=Pt(HW/2,FR+.2),[a1x,a1y]=Pt(HW/2,FR+run+BK/2),[b1x,b1y]=Pt(W-HW/2,FR+run+BK/2),[b0x,b0y]=Pt(W-HW/2,FR+.2);g.moveTo(a0x,a0y);g.lineTo(a1x,a1y);g.lineTo(b1x,b1y);g.lineTo(b0x,b0y);g.stroke();}
   const L=lv.liftRect;if(L){g.strokeStyle='#8b877f';g.strokeRect(X(L.x+.2),Y(L.y+.2),(L.w-.4)*m,(L.h-.4)*m);g.beginPath();g.moveTo(X(L.x+.2),Y(L.y+.2));g.lineTo(X(L.x+L.w-.2),Y(L.y+L.h-.2));g.moveTo(X(L.x+L.w-.2),Y(L.y+.2));g.lineTo(X(L.x+.2),Y(L.y+L.h-.2));g.stroke();}}
- if(stage<6){g.strokeStyle='#5d5a54';g.lineWidth=small?.8:1.5;R(core,(a,b,w,h)=>g.strokeRect(a,b,w,h));return;}
+ if(stage<6){if(core){g.strokeStyle='#5d5a54';g.lineWidth=small?.8:1.5;R(core,(a,b,w,h)=>g.strokeRect(a,b,w,h));}return;}
  // Cuartos (6).
  for(const q of lv.rooms){g.fillStyle=ROOM_COLOR[q.type]||'#eee';R(q,(a,b,w,h)=>g.fillRect(a,b,w,h));}
- g.strokeStyle='#3a3d40';g.lineWidth=small?.7:2;for(const q of [...lv.rooms,core])R(q,(a,b,w,h)=>g.strokeRect(a,b,w,h));
+ g.strokeStyle='#3a3d40';g.lineWidth=small?.7:2;for(const q of core?[...lv.rooms,core]:lv.rooms)R(q,(a,b,w,h)=>g.strokeRect(a,b,w,h));
  // Cada departamento, con su contorno más grueso (la pared que lo separa del vecino y del pasillo).
  if(lv.units?.length){g.strokeStyle='#1f2224';g.lineWidth=small?1.3:4;for(const u of lv.units)R(u,(a,b,w,h)=>g.strokeRect(a,b,w,h));}
  // Puertas y ventanas (7): la puerta corta la pared; la ventana es una doble raya celeste.
@@ -159,7 +165,7 @@ export function drawHouse(g,c,{stage,level}){let P=houseCache.get(c);if(!P){P=pl
    g.fillRect(-sz[0]/2,-sz[1]/2,sz[0],sz[1]);g.restore();}
   if(stage>=8&&HL)for(const f of HL.furniture){g.fillStyle=ITEM_COLOR[f.kind]||'#a7825f';g.fillRect(hx(f.u0),hz(f.v1),f.u1-f.u0,f.v1-f.v0);}}
  g.strokeStyle='#6b4e36';g.lineWidth=.35;g.strokeRect(-P.w/2,-P.d/2,P.w,P.d);g.restore();}
-export function drawIslaStage(canvas,bp,{cell,stage=9,level=0,selected=-1,fronts=true,dim=true}){
+export function drawIslaStage(canvas,bp,{cell,stage=9,level=0,selected=-1,fronts=true,dim=true,capas=CAPAS}){
  const I=bp.isla,B=I.bounds,dpr=window.devicePixelRatio||1,m=cell/CELL,city=document.createElement('canvas');
  drawCityStage(city,bp,{cell,stage:Math.min(stage,8),level,selected,fronts});
  canvas.width=Math.round((B.x1-B.x0)*cell*dpr);canvas.height=Math.round((B.y1-B.y0)*cell*dpr);const g=canvas.getContext('2d');
@@ -206,6 +212,7 @@ export function drawIslaStage(canvas,bp,{cell,stage=9,level=0,selected=-1,fronts
  g.setTransform(dpr*m,0,0,dpr*m,-B.x0*cell*dpr,-B.y0*cell*dpr);
  // Las casas armadas del monte, con su plano (etapa 3 en adelante).
  if(stage>=3)for(const c of I.casas||[])if(c.spec)drawHouse(g,c,{stage,level});
+ if(stage>=9)drawExterior(g,bp,{level,px:m,capas});
  if(level===0){g.font='bold 5px sans-serif';g.textAlign='center';g.fillStyle='#3b4446';
   // El nombre de cada pueblo, sobre su plaza (con un fondo para que se lea).
   for(const P of I.pueblos||[]){const x=(P.x+.5)*CELL,y=(P.y+.5)*CELL,w=g.measureText(P.name).width+3;g.fillStyle='rgba(255,252,244,.85)';g.fillRect(x-w/2,y-4.2,w,6);g.fillStyle=P.kind==='costa'?'#2f5f7a':'#4b5a2e';g.fillText(P.name,x,y);}
@@ -213,6 +220,44 @@ export function drawIslaStage(canvas,bp,{cell,stage=9,level=0,selected=-1,fronts
   if(I.globo){const {x,y}=I.globo;g.fillStyle='#e0503a';g.beginPath();g.arc(x,y-2.2,2.4,0,7);g.fill();g.strokeStyle='#5a4632';g.lineWidth=.3;g.beginPath();g.moveTo(x-1.5,y-.8);g.lineTo(x-.7,y+.6);g.moveTo(x+1.5,y-.8);g.lineTo(x+.7,y+.6);g.stroke();g.fillStyle='#8a6a4c';g.fillRect(x-.8,y+.6,1.6,1.2);g.fillStyle='#3b4446';g.fillText('globo',x,y+7);}
   if(I.parapente){const {x,y}=I.parapente;g.fillStyle='#4f7fa8';g.beginPath();g.ellipse(x,y-1.6,3.2,1.3,0,Math.PI,0);g.fill();g.strokeStyle='#3b4446';g.lineWidth=.2;g.beginPath();g.moveTo(x-3,y-1.6);g.lineTo(x,y+.8);g.lineTo(x+3,y-1.6);g.stroke();g.fillStyle='#3b4446';g.fillText('parapente',x,y+6);}}
  g.setTransform(1,0,0,1,0,0);return {x0:B.x0,y0:B.y0};}
+
+// ---------- LO DE AFUERA Y LAS AZOTEAS (2026-11-19) ----------
+// El plano ya traía todo esto medido —1.838 árboles, 482 piezas de mobiliario, 1.259 marcas de pintura, los nombres de
+// 21 vías, los botines y lo que hay en cada azotea, en la ciudad 1— pero el dibujo no lo mostraba: sólo se veía en el 3D.
+// Va en metros (el contexto ya viene escalado) y cada capa se puede apagar: capas={pintura,equipo,arboles,nombres,botines}.
+// `px` es cuántos píxeles mide un metro: lo chico (un hidrante, el nombre de una calle) no se dibuja si no se va a leer.
+const EQUIPO={farol:'#3a3f45',banca:'#8a6a4c',papelera:'#4f7d5a',hidrante:'#d0412f',semaforo:'#23272b',parada:'#2f6fb0',salvavidas:'#e8762c'};
+const AZOTEA={tanque:'#7f97a8',antena:'#4a4f55',matera:'#6f9f5e',tendedero:'#c9c2b4',aire:'#9aa0a6'};
+export const CAPAS={pintura:true,equipo:true,arboles:true,nombres:true,botines:true};
+function drawExterior(g,bp,{level=0,px=1,capas=CAPAS}){
+ const girado=(x,z,ang,f)=>{g.save();g.translate(x,z);g.rotate(ang||0);f();g.restore();};
+ if(capas.pintura&&px>=1.5)for(const p of bp.pintura||[]){g.fillStyle=p.tipo==='amarilla'?'#e0b84a':p.tipo==='cebra'?'#c7c3b8':'#d2cec4';
+  // (el largo va a lo largo del ángulo: una raya de cebra, un tramo de la línea de carril)
+  girado(p.x,p.z,-p.ang,()=>g.fillRect(-p.largo/2,-p.ancho/2,p.largo,p.ancho));}
+ if(capas.equipo&&px>=2.5)for(const e of bp.equipamiento||[]){const c=EQUIPO[e.tipo];if(!c)continue;g.fillStyle=c;
+  if(e.tipo==='banca')girado(e.x,e.z,-(e.hacia||0),()=>g.fillRect(-.8,-.25,1.6,.5));
+  else if(e.tipo==='parada')girado(e.x,e.z,-(e.hacia||0),()=>{g.fillRect(-1.6,-.6,3.2,1.2);g.fillStyle='#dfeaf5';g.fillRect(-1.4,-.4,2.8,.8);});
+  else if(e.tipo==='farol'){g.beginPath();g.arc(e.x,e.z,.28,0,7);g.fill();g.strokeStyle='rgba(240,190,90,.55)';g.lineWidth=.12;g.beginPath();g.arc(e.x,e.z,1.1,0,7);g.stroke();}
+  else if(e.tipo==='semaforo'){g.fillRect(e.x-.3,e.z-.3,.6,.6);g.fillStyle='#e23b2e';g.beginPath();g.arc(e.x,e.z,.16,0,7);g.fill();}
+  else{g.beginPath();g.arc(e.x,e.z,e.tipo==='salvavidas'?.6:.32,0,7);g.fill();}}
+ // (los botines: un rombo dorado donde está la pieza, sólo en la planta baja)
+ if(capas.botines&&level===0)for(const b of bp.botines||[]){if(b.x==null)continue;const r=Math.max(.7,5/px);g.fillStyle='#e9b23a';g.strokeStyle='#5a3d08';g.lineWidth=r*.22;g.beginPath();g.moveTo(b.x,b.z-r);g.lineTo(b.x+r,b.z);g.lineTo(b.x,b.z+r);g.lineTo(b.x-r,b.z);g.closePath();g.fill();g.stroke();}
+ // (las azoteas: en el piso que ya es techo de cada edificio)
+ for(const L of bp.lots){if(level<L.floors||!L.azotea?.objetos)continue;for(const o of L.azotea.objetos){g.fillStyle=AZOTEA[o.tipo]||'#999';
+  if(o.tipo==='tanque'){g.beginPath();g.arc(o.x,o.z,Math.max(o.w,o.d)/2,0,7);g.fill();}else girado(o.x,o.z,-(o.giro||0),()=>g.fillRect(-o.w/2,-o.d/2,o.w,o.d));}}
+ if(capas.arboles){const V=bp.vegetacion||{};
+  for(const s of V.sombrillas||[]){if(px<2)break;g.fillStyle=s.tela;g.globalAlpha=.85;g.beginPath();g.arc(s.x,s.z,s.r,0,7);g.fill();}
+  // (la copa translúcida —lo de abajo se sigue viendo— con su borde, y el tronco: es donde está plantado)
+  for(const a of [...(V.arboles||[]),...(V.palmeras||[])]){g.globalAlpha=.26;g.fillStyle=a.follaje||'#5c8f40';g.beginPath();g.arc(a.x,a.z,a.r,0,7);g.fill();
+   g.globalAlpha=.6;g.strokeStyle=a.color&&a.color!==a.follaje?a.color:'#3f6a2c';g.lineWidth=Math.min(.22,a.r*.08);g.stroke();
+   if(px>=3){g.fillStyle='#5a4028';g.beginPath();g.arc(a.x,a.z,.22,0,7);g.fill();}}
+  g.globalAlpha=1;}
+ // Los nombres de las vías, a lo largo de cada una y repetidos cada tanto.
+ if(capas.nombres&&px>=1.2){const fs=Math.max(2.2,9/px);g.font=`600 ${fs}px system-ui,sans-serif`;g.textAlign='center';g.textBaseline='middle';g.fillStyle='rgba(60,66,72,.6)';
+  const paso=Math.max(96,420/px);
+  for(const v of [...(bp.vias?.h||[]),...(bp.vias?.v||[])]){const t=px>=4?v.largo:v.corto,a=v.desde??0,b=v.hasta??(v.eje==='h'?bp.map.W:bp.map.H)*CELL;if(!t||b-a<fs*4)continue;
+   for(let d=a+paso/2;d<b;d+=paso){if(v.eje==='h')g.fillText(t,d,v.coord);else girado(v.coord,d,-Math.PI/2,()=>g.fillText(t,0,0));}}}
+}
 
 // ---------- Las casas desde la familia (engine/hogar.js, 2026-10-12) ----------
 // El plano de un piso: cuartos (con su nombre y medida), paredes, puertas (con su giro), ventanas y muebles. u a lo
