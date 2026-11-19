@@ -17,6 +17,9 @@ EL JUEGO
              paneles de vidrio, ámbar los ladrones y azul la policía, títulos en Bungee y texto en Rubik (paquetes de
              @fontsource: sin internet). Lo prueba harness/pruebas/validar-entrada.mjs (nivel 10).
   /juego     La partida (?ciudad=1&jugadores=3&papel=policia). /demo es lo mismo (lo usan las pruebas de pantalla).
+             Lo visual (2026-11-19): pantalla de carga con barra mientras se arma la ciudad; el HUD con el diseño de la
+             entrada (vidrio, Bungee y Rubik); el día, el atardecer y la noche se mezclan de a poco (PAL y pasoLuz en
+             DemoView.vue: sol bajo y naranja de 16:30 a 19 y de 6 a 7:30) y el cielo tiene nubes que se corren.
              ?lab=1 muestra los botones de prueba (tamaño, papel, otra ciudad, vista, la cámara libre —V—, día/noche).
 
 EL MÉTODO: TODO SE PRUEBA EN EL 2D
