@@ -639,6 +639,27 @@
       "models": [
         "doctolib-lab/doctosae-bge-large-en-v1.5"
       ]
+    },
+    {
+      "id": "synthetic-queries",
+      "name": "Entrenar un buscador con preguntas que inventa un modelo",
+      "stage": "data",
+      "year": 2022,
+      "who": "Google (Promptagator)",
+      "paper": {
+        "title": "Promptagator: Few-shot Dense Retrieval From 8 Examples",
+        "url": "https://arxiv.org/abs/2209.11755"
+      },
+      "problem": "Un buscador por significado rinde menos en un dominio propio (documentación interna, jerga de la empresa) y no hay preguntas reales etiquetadas para ajustarlo.",
+      "idea": "Que un modelo grande escriba, para cada documento, preguntas que ese documento contesta; con esos pares se ajusta el modelo de embeddings para que cada pregunta quede cerca de su documento.",
+      "evidence": "Con no más de 8 ejemplos para el modelo que genera, el buscador ajustado superó por más de 1,2 puntos de nDCG en promedio, en 11 conjuntos, a modelos muy trabajados entrenados con MS MARCO como ColBERT v2.",
+      "hardware": "mac",
+      "machine": "Generar las preguntas pide un modelo grande (por API); ajustar uno de embeddings chico entra en una Mac.",
+      "mac": "sentence-transformers con la pérdida de negativos del mismo lote, en la GPU de la Mac: 0,6 B en 15 minutos.",
+      "models": [
+        "Qwen/Qwen3-Embedding-0.6B"
+      ],
+      "ours": "2026-11-19, sobre knowledge-search: Claude escribió 1.357 búsquedas para las 336 secciones (4 estilos por sección) y se ajustó Qwen3-Embedding-0.6B una época (15 min en la Mac). Por significado: títulos de tareas reales 22→23 de 37, preguntas del 18/11 19→19 de 20, identificadores 11→20 de 30, búsquedas generadas apartadas 118→130 de 135. Ganó donde las palabras ya resolvían (los identificadores van mezclados con palabras: 30 de 30) y no en las preguntas naturales, donde la vara está saturada: 4 de los fallos reales son tareas con nombre de repo, sin respuesta. No reemplazó al modelo."
     }
   ],
   "lineages": [
