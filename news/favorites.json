@@ -950,7 +950,8 @@
     "why": "Un modelo de lenguaje por difusión que pinta: 47,6 M de parámetros, sin VAE ni espacio latente, y corre en el navegador con WebGPU (115 MB en ONNX). Hay demos que hacen emojis para Slack con él.",
     "ideas": [
       "Íconos de pixel art para las herramientas de my-tools",
-      "Emojis propios para el chat del equipo"
+      "Emojis propios para el chat del equipo",
+      "Armar mapas de juegos retro: Tessera hace las piezas y el piso se dibuja aparte"
     ],
     "triedOn": "2026-11-19",
     "verdict": "keep",
@@ -958,7 +959,7 @@
       "env:tessera"
     ],
     "verdictWhy": "Sprites limpios y reconocibles en ~1,8 s cada cuatro, en CPU y sin red. Licencia no comercial: para lo personal.",
-    "tried": "2026-11-19, en la Mac con la versión ONNX (cfahlgren1/tessera-small-onnx, 117 MB) y onnxruntime en CPU, 13 ideas con 4 versiones cada una: credit card, piggy bank, motorcycle, smartphone, golden coin, warning sign, robot, rubber duck, coffee cup, shopping cart, rocket, hourglass y «moneda de oro» en español. Todas reconocibles y con el estilo de pixel art de 16×16; las cuatro versiones varían poco entre sí. «Moneda de oro» salió bien aunque CLIP es inglés. ~1,8 s por idea (4 sprites), 4 s la primera; carga en 0,3 s. La tarjeta de crédito fue la más floja (una salió como un balde). Segunda prueba, objetos y espacios abiertos: casa, carro rojo, castillo y árbol salen muy bien; un paisaje lo vuelve UN objeto («forest landscape» → un árbol nevado, «beach with palm tree» → una palmera en una isla, «mountains and lake» → una montaña); «city street at night» no sale. En español es débil: «una casa con jardín» salió como un mueble y «un carro azul», naranja. Sirve para íconos y piezas sueltas; una escena se arma juntando sprites."
+    "tried": "2026-11-19, en la Mac con la versión ONNX (cfahlgren1/tessera-small-onnx, 117 MB) y onnxruntime en CPU, 13 ideas con 4 versiones cada una: credit card, piggy bank, motorcycle, smartphone, golden coin, warning sign, robot, rubber duck, coffee cup, shopping cart, rocket, hourglass y «moneda de oro» en español. Todas reconocibles y con el estilo de pixel art de 16×16; las cuatro versiones varían poco entre sí. «Moneda de oro» salió bien aunque CLIP es inglés. ~1,8 s por idea (4 sprites), 4 s la primera; carga en 0,3 s. La tarjeta de crédito fue la más floja (una salió como un balde). Segunda prueba, objetos y espacios abiertos: casa, carro rojo, castillo y árbol salen muy bien; un paisaje lo vuelve UN objeto («forest landscape» → un árbol nevado, «beach with palm tree» → una palmera en una isla, «mountains and lake» → una montaña); «city street at night» no sale. En español es débil: «una casa con jardín» salió como un mueble y «un carro azul», naranja. Sirve para íconos y piezas sueltas; una escena se arma juntando sprites. Tercera: un pueblito de 24×14 casillas armado con 12 piezas generadas en 6 s (dos casas, árboles, pinos, arbustos, flores, cerca, farol, buzón, pozo, perro y carros) sobre un piso dibujado a mano (pasto, camino y calle): se ve como un mapa de juego retro."
   },
   {
     "id": "microsoft/TRELLIS.2-4B",
