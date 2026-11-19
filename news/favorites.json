@@ -1372,5 +1372,61 @@
     "ideas": [
       "Pelo para los personajes de Office"
     ]
+  },
+  {
+    "id": "nvidia/Kumo-Tabular",
+    "group": "specialist",
+    "task": "tabular-classification",
+    "params": null,
+    "license": "openmdw-1.1 (uso comercial permitido)",
+    "mac": "unknown",
+    "added": "2026-11-19",
+    "what": "El modelo base para tablas de NVIDIA: le pasás filas con su resultado como contexto y predice clase o número para filas nuevas, sin entrenar.",
+    "why": "Lo mismo que TabPFN y TabFM, pero con licencia que permite uso comercial (las otras dos son sólo para evaluar). Se instala con structured-data-models de NVIDIA.",
+    "ideas": [
+      "Probarlo con el German Credit de la UCI (riesgo de crédito, público) contra un modelo clásico"
+    ]
+  },
+  {
+    "id": "HuggingFaceBio/Carbon-X",
+    "group": "odd",
+    "task": "text-generation",
+    "params": 14820000000,
+    "license": "apache-2.0",
+    "mac": "unknown",
+    "added": "2026-11-19",
+    "what": "Un modelo de lenguaje de 14 B para ADN: entiende y genera secuencias genéticas, de la familia Carbon de Hugging Face Bio.",
+    "why": "Un modelo de lenguaje cuyo «idioma» es el ADN. 309 likes en un mes.",
+    "ideas": [
+      "Ver su demo"
+    ]
+  },
+  {
+    "id": "harness-hub/Qwen3.8-27B-pi-adapted",
+    "group": "specialist",
+    "task": "text-generation",
+    "params": null,
+    "license": "apache-2.0",
+    "mac": "unknown",
+    "added": "2026-11-19",
+    "what": "Un adaptador para Qwen3.8-27B entrenado con aprendizaje por refuerzo para ser el modelo detrás del agente de código pi (tareas de programación y de terminal).",
+    "why": "Sin pensar, iguala al modelo base pensando al máximo en Terminal-Bench (56,6 % contra 54,2 %) con unas 4,5 veces menos palabras, según sus autores: un agente de código local más barato. 664 likes en tres días.",
+    "ideas": [
+      "Un agente de código local con pi, para tareas de terminal sin gastar el plan"
+    ]
+  },
+  {
+    "id": "microsoft/Aion-1.0-Instruct-2.3B",
+    "group": "tiny",
+    "task": "text-generation",
+    "params": 2290000000,
+    "license": "mit",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "El modelo chico (2,3 B) que Microsoft va a meter en Windows como modelo del sistema operativo a fines de enero de 2027, para tareas de texto y del sistema, en el dispositivo. Habla español, entre otros 8 idiomas.",
+    "why": "Un adelanto del modelo que va a venir dentro de Windows, publicado antes para transparencia.",
+    "ideas": [
+      "Ver qué tan bien resume en español para su tamaño"
+    ]
   }
 ]
