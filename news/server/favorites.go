@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"creditop/my-tools/lib/machine"
 )
@@ -39,6 +41,10 @@ type Favorite struct {
 	TriedIn string `json:"triedIn,omitempty"`
 	// Here: si corre en la máquina donde está abierto News. Lo calcula el servidor (fits.go); no se escribe en el archivo.
 	Here *Fit `json:"here,omitempty"`
+	// Lo medido en Hugging Face (facts.go), que tampoco se escribe en el archivo: cuánto ocupa el repo entero y cuánto
+	// pesa cada GGUF.
+	Storage int64   `json:"storage,omitempty"`
+	GGUF    []int64 `json:"gguf,omitempty"`
 }
 
 var favoriteGroups = map[string]bool{"tried": true, "voice": true, "music": true, "odd": true, "tiny": true, "detect": true, "create": true, "specialist": true, "gpu": true}
@@ -93,14 +99,40 @@ func (s *server) favoritesRoute(mux *http.ServeMux) {
 			return
 		}
 		// cada favorito sale con `here`: si corre en ESTA máquina (lo declarado para ella o, si no hay, la estimación)
+		// …con lo medido en Hugging Face si ya se bajó (facts.go); lo que falte se pide de fondo y sale en el próximo pedido
 		m := machine.Detect()
+		ids := make([]string, len(favs))
 		for i := range favs {
-			fit := fitFor(m, favs[i])
+			ids[i] = favs[i].ID
+		}
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+			defer cancel()
+			s.facts.refresh(ctx, ids, fetchFacts)
+		}()
+		for i := range favs {
+			facts, known := s.facts.get(favs[i].ID)
+			fit := fitWith(m, favs[i], facts, known)
 			favs[i].Here = &fit
+			if known && !facts.Missing {
+				// el tamaño que la ficha escrita a mano no trae, y cuánto pesa de verdad
+				if (favs[i].Params == nil || *favs[i].Params <= 0) && facts.Params > 0 {
+					favs[i].Params = &facts.Params
+				}
+				favs[i].Storage, favs[i].GGUF = facts.Storage, facts.GGUF
+			}
 			if favs[i].TriedOn != "" {
 				favs[i].TriedIn = triedIn(favs[i])
 			}
 		}
-		writeJSON(w, 200, map[string]any{"favorites": favs, "machine": m})
+		// measuring: todavía falta lo medido de alguno (la primera vez en una máquina, o un favorito nuevo). La interfaz
+		// vuelve a pedir en unos segundos en vez de quedarse con la cuenta por parámetros hasta la próxima recarga.
+		measuring := 0
+		for _, id := range ids {
+			if _, known := s.facts.get(id); !known {
+				measuring++
+			}
+		}
+		writeJSON(w, 200, map[string]any{"favorites": favs, "machine": m, "measuring": measuring})
 	})
 }

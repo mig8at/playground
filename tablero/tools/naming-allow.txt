@@ -169,3 +169,5 @@ funnel stake stakes reinstall vault novelty trending upvotes gguf onnx mlx safet
 # lib/machine (2026-11-19): la memoria de video (VRAM), la marca de la GPU del PC (NVIDIA), el gibibyte (GiB) y
 # llama.cpp / llama-server, nombres propios del motor de modelos
 vram nvidia gib llama
+# news/server/facts.go: PyTorch (`import torch`), el motor de casi todos los modelos de Hugging Face
+torch

@@ -164,10 +164,15 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 .fav-stats b { color: var(--foreground); font-variant-numeric: tabular-nums }
 .fav-stats .keep b { color: var(--t-audio) }
 .fav-stats .use b { color: var(--primary) }
-.rows.history .row { grid-template-columns: 56px minmax(0, 1fr) auto minmax(0, 170px) 64px }
+/* el nombre tiene un piso: en una ventana angosta la columna flexible se quedaba en 0 y el historial era una lista de
+   veredictos sin decir de qué modelo */
+.rows.history .row { grid-template-columns: 56px minmax(150px, 1fr) auto minmax(0, 170px) 64px }
+.rows.history { container-type: inline-size }
+@container (max-width: 620px) { .rows.history .row { grid-template-columns: 48px minmax(120px, 1fr) auto } .rows.history .hist-use, .rows.history .row > :last-child { display: none } }
 .rows.history .row.dropped .hist-name b { text-decoration: line-through; color: var(--fg-3) }
 .hist-name { display: flex; align-items: center; gap: var(--space-2); min-width: 0 }
-.hist-name b { font-weight: 600; white-space: nowrap }
+/* el nombre no cede lugar al comentario (se cortaba a «pe…»): ocupa lo suyo, hasta dos tercios, y recién ahí se corta */
+.hist-name b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 0 auto; max-width: 66% }
 .hist-why { color: var(--fg-3); font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0 }
 .hist-use { color: var(--primary); font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .model-icon.small { width: 20px; height: 20px; border-radius: 5px }
@@ -218,3 +223,14 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 .cheap-row b { white-space: normal; min-width: 0 }
 .cheap-row .hw { justify-self: start }
 .cheap-text { color: var(--fg-2); font-size: 13px; line-height: 1.45; white-space: normal; min-width: 0 }
+
+/* las perillas de favoritos (sólo los que corren acá, ordenar por tamaño) y el error de una sección */
+.fav-tools { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-2) 0 var(--space-3) }
+.fav-tools .toggle { font: inherit; font-size: var(--text-xs); padding: 3px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+  background: transparent; color: var(--fg-2); cursor: pointer }
+.fav-tools .toggle:hover { background: var(--hover) }
+.fav-tools .toggle[aria-pressed="true"] { color: var(--primary); border-color: var(--primary) }
+.section-error { margin: var(--space-2) 0; padding: var(--space-2) var(--space-3); border-left: 3px solid var(--destructive); color: var(--destructive);
+  background: color-mix(in oklab, var(--destructive) 8%, transparent); font-size: 13px }
+.engine.ok { color: var(--t-audio) }
+.engine.missing { color: var(--t-image) }

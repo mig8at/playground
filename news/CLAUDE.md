@@ -27,8 +27,15 @@ Mac» o «el PC», y cada favorito trae si corre acá (`here`, que calcula `serv
 - **Cuando algo se prueba en el PC se escribe `pc`** en el favorito (`yes` · `no` · `unknown`): manda sobre la cuenta,
   igual que `mac` en la Mac. `triedIn` (`mac` · `pc`) dice en qué máquina se probó; sin él es la Mac, que es donde se
   probó todo hasta ese día. Los dos campos son opcionales: un `favorites.json` sin ellos sigue siendo válido.
-- **Lo que la cuenta no ve**: el tamaño real de un archivo ya cuantizado (un GGUF de 1 bit ocupa mucho menos de lo que
-  dicen sus parámetros) y si el modelo pide algo que la máquina no tiene. Es para orientarse, no para decidir sin probar.
+- **Lo medido en Hugging Face** (`server/facts.go`, 2026-11-19): por cada favorito se piden a la API pública sus
+  parámetros (`safetensors.total` o `gguf.total`), el tamaño de cada archivo `.gguf` y el del repo entero, y de ahí con
+  qué se corre (llama.cpp, PyTorch, MLX, ONNX). Queda en `news/.data/facts.json`, fuera de git —cada máquina el suyo—,
+  se renueva a la semana y se baja de fondo, de a cuatro: la primera vez la interfaz dice «Midiendo…» y vuelve a
+  pedir. Con eso la cuenta usa el peso REAL del GGUF (un 27 B de 1 bit pesa 5,5 GB y entra en 8 GB de GPU, aunque por
+  parámetros diera «lento»), se completa el tamaño que la ficha escrita a mano no trae, y la ficha dice «En disco» y
+  «Se corre con», con si esa máquina tiene el motor y cómo instalarlo. Lo declarado (`mac`, `pc`) sigue mandando.
+- **Lo que la cuenta todavía no ve**: lo que el modelo pida aparte de memoria, y los repos que no declaran tamaño en
+  ningún lado (quedan `unknown`). Es para orientarse, no para decidir sin probar.
 - **Para sumar una máquina** (otro id): un caso en `lib/machine` y, si se quiere declarar a mano, su campo en `Favorite`.
 
 ## Los favoritos (`#/favorites`)
@@ -87,7 +94,8 @@ Cockpit). Sale de tres lugares, siempre los mismos (`server/installed.go`):
 - los entornos: cada carpeta de `~/.cache/my-tools` con un venv (el código y las librerías de algo que se probó);
 - los modelos de whisper.cpp de `~/.cache/whisper` (el dictado del chat usa `ggml-large-v3-turbo-q5_0.bin`).
 
-`DELETE /api/installed?key=…` sólo borra una clave que salió de esa misma lista, sólo dentro de esas carpetas, y pide el
+`DELETE /api/installed?key=…` sólo borra una clave que salió de esa misma lista, sólo dentro de esas carpetas, pide
+`force=1` si la usa una herramienta del registro (responde 409 sin él: antes el aviso vivía sólo en la pantalla) y pide el
 encabezado `X-News: 1` (una página de otro origen no puede mandarlo sin preguntar). Lo que usa otra herramienta se marca con su
 nombre y lo dice antes de borrar: sale del registro `models/registry.json`, el mismo que lee `bin/models`
 ([`models/CLAUDE.md`](../models/CLAUDE.md)). La búsqueda y el borrado son de `lib/models`, compartidos con ese CLI. Borrar no se deshace: se vuelve a bajar.

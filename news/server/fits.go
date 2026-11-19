@@ -20,12 +20,55 @@ type Fit struct {
 	Status string `json:"status"` // yes · slow (corre, pero en CPU) · no · unknown
 	Basis  string `json:"basis"`  // declared (lo dice el archivo) · estimated (la cuenta de abajo)
 	Why    string `json:"why"`
+	// Engine: con qué se corre y si esta máquina lo tiene (facts.go). Vale en las dos máquinas: que entre en la memoria
+	// no alcanza si falta el motor.
+	Engine *engineState `json:"engine,omitempty"`
 }
 
 // formatos que sólo corren en Apple Silicon: el nombre del repo lo dice (mlx-community/…, …-mlx, …-coreml)
 var appleOnly = regexp.MustCompile(`(?i)(^mlx-community/|[-_/]mlx([-_/]|$)|core-?ml)`)
 
 const gib = 1 << 30
+
+// fitWith: fitFor con lo medido en Hugging Face (facts.go), si lo hay: completa el tamaño que la ficha escrita a mano
+// no trae, usa el peso real de los GGUF en vez de la cuenta por parámetros, y dice con qué motor se corre.
+func fitWith(m machine.Info, f Favorite, facts Facts, known bool) Fit {
+	if !known || facts.Missing {
+		return fitFor(m, f)
+	}
+	if (f.Params == nil || *f.Params <= 0) && facts.Params > 0 {
+		f.Params = &facts.Params
+	}
+	fit := fitFor(m, f)
+	if fit.Basis == "estimated" && len(facts.GGUF) > 0 && !(m.OS != "darwin" && appleOnly.MatchString(f.ID)) {
+		fit = estimateGGUF(m, facts.GGUF)
+	}
+	if e, ok := engines()[facts.Engine]; ok {
+		fit.Engine = &e
+	}
+	return fit
+}
+
+// estimateGGUF: con los archivos reales a la vista no hace falta la cuenta por parámetros. Se elige el GGUF más grande
+// que entra en la GPU (el de mejor calidad que corre rápido); si ninguno entra, el más chico contra la RAM.
+func estimateGGUF(m machine.Info, sizes []int64) Fit {
+	est := func(status, why string) Fit { return Fit{Status: status, Basis: "estimated", Why: why} }
+	var best int64
+	for _, n := range sizes {
+		if need := n * 12 / 10; m.VRAM > 0 && need <= m.VRAM && n > best {
+			best = n
+		}
+	}
+	smallest := sizes[0]
+	switch {
+	case best > 0:
+		return est("yes", fmt.Sprintf("hay un GGUF de %s que entra en la GPU (%s)", diskGB(best), gb(m.VRAM)))
+	case smallest*12/10 <= m.RAM*7/10:
+		return est("slow", fmt.Sprintf("el GGUF más chico pesa %s: no entra en la GPU (%s), corre en la RAM, lento", diskGB(smallest), gb(m.VRAM)))
+	default:
+		return est("no", fmt.Sprintf("el GGUF más chico pesa %s y hay %s de GPU y %s de RAM", diskGB(smallest), gb(m.VRAM), gb(m.RAM)))
+	}
+}
 
 // fitFor: lo declarado para esa máquina si lo hay; si no, la cuenta.
 func fitFor(m machine.Info, f Favorite) Fit {
@@ -81,4 +124,14 @@ func gb(b int64) string {
 		return fmt.Sprintf("%.0f GB", g)
 	}
 	return strings.Replace(fmt.Sprintf("%.1f GB", g), ".", ",", 1) // coma decimal, como el resto de la interfaz
+}
+
+// diskGB: el tamaño de un ARCHIVO, en GB decimales, como lo muestra la interfaz («En disco») y Hugging Face. La memoria
+// (gb) va en GiB, que es como se nombra una GPU de «8 GB»: con la misma unidad el mismo archivo salía 5,5 y 5,9.
+func diskGB(b int64) string {
+	g := float64(b) / 1e9
+	if g >= 10 {
+		return fmt.Sprintf("%.0f GB", g)
+	}
+	return strings.Replace(fmt.Sprintf("%.1f GB", g), ".", ",", 1)
 }

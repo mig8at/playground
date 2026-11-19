@@ -37,28 +37,53 @@ const machineSpec = computed(() => { const m = machine.value; return [m.gpu && m
 const installed = ref([])
 const installedBytes = ref(0)
 // `|| []`: una máquina sin modelos mandaba null y la interfaz dejaba de pintarse al leerle `.length`
-const loadInstalled = () => api('/api/installed').then((r) => { installed.value = r.installed || []; installedBytes.value = r.bytes || 0; setMachine(r.machine) }).catch(() => {})
+// CADA SECCIÓN DICE SU ERROR. Antes los tres pedidos terminaban en un catch vacío: un favorites.json a medio escribir
+// (que la API rechaza con un mensaje claro) o un registro roto se veían como «cero favoritos» o «ningún modelo».
+const sectionError = ref({ favorites: '', research: '', installed: '' })
+const sectionLoaded = ref({ favorites: false, research: false, installed: false })
+const section = (name, promise, apply) => promise.then((r) => { apply(r); sectionError.value[name] = ''; sectionLoaded.value[name] = true })
+  .catch((e) => { sectionError.value[name] = e.message || 'no contestó' })
+const loadInstalled = () => section('installed', api('/api/installed'), (r) => { installed.value = r.installed || []; installedBytes.value = r.bytes || 0; setMachine(r.machine) })
+// `measuring`: el servidor todavía está bajando de Hugging Face el tamaño real de algunos (la primera vez en una máquina
+// tarda unos segundos): se vuelve a pedir hasta que termine, con tope, para que la ficha no se quede con la cuenta vieja.
+const measuring = ref(0)
+let measureTries = 0
+const loadFavorites = () => section('favorites', api('/api/favorites'), (r) => {
+  favorites.value = r.favorites || []; setMachine(r.machine); measuring.value = r.measuring || 0
+  if (measuring.value && measureTries++ < 12) setTimeout(loadFavorites, 4000)
+  else measureTries = 0
+})
+const loadResearch = () => section('research', api('/api/research'), (r) => { research.value = r })
+// Lo que no cambia solo (favoritos, investigación, instalados) se pide al abrir, al volver a la ventana y después de
+// borrar: no en cada vuelta del sondeo, que antes hacía medir todo el disco una vez por minuto.
+const loadSections = () => { loadFavorites(); loadResearch(); loadInstalled() }
 const KIND_ICON = { hub: 'download', gguf: 'server', env: 'code', whisper: 'mic' }
 // Borrar se confirma en la misma fila (el primer toque pregunta, el segundo borra): los diálogos del navegador no
 // siempre aparecen dentro de la ventana de Cockpit.
 const removing = ref('')
 const confirming = ref('')
 const removeError = ref('')
+// La pregunta vence a los 10 s: quedaba armada para siempre, y un segundo toque distraído minutos después borraba.
+let confirmTimer = null
 async function removeInstalled(it) {
-  if (confirming.value !== it.key) { confirming.value = it.key; removeError.value = ''; return }
+  clearTimeout(confirmTimer)
+  if (confirming.value !== it.key) {
+    confirming.value = it.key; removeError.value = ''
+    confirmTimer = setTimeout(() => { confirming.value = '' }, 10000)
+    return
+  }
   confirming.value = ''
   removing.value = it.key
   try {
-    await api(`/api/installed?key=${encodeURIComponent(it.key)}`, { method: 'DELETE', headers: { 'X-News': '1' } })
+    // lo que usa una herramienta sólo se borra con force: el servidor lo exige, y acá va porque la fila ya lo avisó
+    const force = it.tools?.length ? '&force=1' : ''
+    await api(`/api/installed?key=${encodeURIComponent(it.key)}${force}`, { method: 'DELETE', headers: { 'X-News': '1' } })
   } catch (e) { removeError.value = `No se pudo borrar ${it.name}: ${e.message}` }
   removing.value = ''
   loadInstalled()
 }
 async function load() {
   try {
-    api('/api/favorites').then((r) => { favorites.value = r.favorites || []; setMachine(r.machine) }).catch(() => {})
-    api('/api/research').then((r) => { research.value = r }).catch(() => {})
-    loadInstalled()
     if (routeKey() === 'favorites') view.value = 'favorites'
     const rv = routeView()
     if (rv) view.value = rv
@@ -75,8 +100,13 @@ async function load() {
     }
   } catch { apiError.value = NO_API }
 }
+// Al tocar «Actualizar» el sondeo se rearma ya (cada 5 s mientras actualiza): antes seguía con el minuto que tenía
+// puesto y no había señal de nada hasta entonces. Si el pedido falla, lo dice el pie.
+const refreshError = ref('')
 async function refreshNow() {
-  try { await api('/api/refresh', { method: 'POST' }); refreshing.value = true } catch { /* lo dice el pie */ }
+  refreshError.value = ''
+  try { await api('/api/refresh', { method: 'POST' }); refreshing.value = true; schedule() }
+  catch (e) { refreshError.value = `No se pudo actualizar: ${e.message}` }
 }
 
 const TOPICS = [
@@ -118,10 +148,17 @@ const HERE = { yes: 'corre en el PC', slow: 'corre en el PC, lento (en la RAM)',
 const chipText = (f) => (onMac.value ? (f.mac === 'yes' ? 'Mac' : f.mac === 'no' ? 'GPU' : '¿Mac?') : { yes: 'PC', slow: 'PC lento', no: 'no entra', unknown: '¿PC?' }[hereOf(f).status] || '¿PC?')
 const chipTitle = (f) => (onMac.value ? MAC[f.mac] : `${HERE[hereOf(f).status] || ''}${hereOf(f).basis === 'estimated' ? ' (estimado, sin probar)' : ''}: ${hereOf(f).why}`)
 const favGroup = ref('all')
-const favMatches = (f) => (favGroup.value === 'all' || f.group === favGroup.value)
+// dos perillas de la vista: ver sólo lo que corre en esta máquina, y ordenar cada grupo del más chico al más grande
+const onlyHere = ref(false)
+const bySize = ref(false)
+const runsHere = (f) => ['yes', 'slow'].includes(hereOf(f).status)
+// para ordenar, los parámetros, que es el tamaño que muestra la tarjeta; lo que no lo declara va al final
+const weight = (f) => f.params || Infinity
+const favSorted = (list) => (bySize.value ? [...list].sort((a, b) => weight(a) - weight(b)) : list)
+const favMatches = (f) => (favGroup.value === 'all' || f.group === favGroup.value) && (!onlyHere.value || runsHere(f))
   && (!q.value || `${f.id} ${f.task} ${f.what}`.toLowerCase().includes(q.value))
 // «Probados» no va en tarjetas: es el historial, una tabla con fecha, veredicto, quién lo usa y cuánto ocupa.
-const favSections = computed(() => FAV_GROUPS.filter((g) => g.id !== 'tried').map((g) => ({ ...g, items: favorites.value.filter((f) => f.group === g.id && favMatches(f)) })).filter((g) => g.items.length))
+const favSections = computed(() => FAV_GROUPS.filter((g) => g.id !== 'tried').map((g) => ({ ...g, items: favSorted(favorites.value.filter((f) => f.group === g.id && favMatches(f))) })).filter((g) => g.items.length))
 const triedHistory = computed(() => favorites.value.filter((f) => f.verdict && (favGroup.value === 'all' || favGroup.value === 'tried')
   && (!q.value || `${f.id} ${f.task} ${f.what}`.toLowerCase().includes(q.value))).sort((a, b) => (b.triedOn || '').localeCompare(a.triedOn || '')))
 const VERDICT = { keep: 'Vale la pena', dropped: 'Descartado' }
@@ -133,7 +170,7 @@ const favStats = computed(() => {
   const tried = favorites.value.filter((f) => f.verdict)
   return { saved: favorites.value.length, tried: tried.length, keep: tried.filter((f) => f.verdict === 'keep').length,
     dropped: tried.filter((f) => f.verdict === 'dropped').length, inUse: favorites.value.filter((f) => f.usedBy).length,
-    here: favorites.value.filter((f) => ['yes', 'slow'].includes(hereOf(f).status)).length }
+    here: favorites.value.filter(runsHere).length }
 })
 const favCount = (id) => favorites.value.filter((f) => id === 'all' || f.group === id).length
 const favName = (f) => f.id.split('/')[1]
@@ -266,6 +303,7 @@ let timer = null
 // Sin API reintenta a los 2 s: al abrir, la interfaz está lista antes que el servidor (que compila al arrancar) y se
 // quedaba un minuto en «Sin API» con todo ya andando.
 function schedule() { clearTimeout(timer); timer = setTimeout(async () => { if (!document.hidden) await load(); schedule() }, apiError.value === NO_API ? 2000 : refreshing.value ? 5000 : 60000) }
+const onVisible = () => { if (!document.hidden) { loadSections(); load() } }
 const onHash = () => {
   if (routeKey() === 'favorites') { view.value = 'favorites'; return }
   const rv = routeView()
@@ -277,9 +315,11 @@ onMounted(() => {
   window.addEventListener('resize', onWindowResize)
   window.addEventListener('hashchange', onHash)
   if (themeToggle.value) themeBinding = bindThemeToggle(themeToggle.value)
+  loadSections()
+  document.addEventListener('visibilitychange', onVisible)
   load().then(schedule)
 })
-onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); window.removeEventListener('hashchange', onHash); clearTimeout(timer); themeBinding?.destroy?.() })
+onBeforeUnmount(() => { document.removeEventListener('visibilitychange', onVisible); clearTimeout(confirmTimer); window.removeEventListener('resize', onWindowResize); window.removeEventListener('hashchange', onHash); clearTimeout(timer); themeBinding?.destroy?.() })
 </script>
 
 <template>
@@ -307,7 +347,9 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); wi
           </div>
         </template>
         <div v-if="removeError" class="confirm-row error">{{ removeError }}</div>
-        <div v-if="!installed.length" class="nav-row muted"><span class="ui-icon" data-icon="box" aria-hidden="true"></span><span class="nav-name">Ningún modelo en {{ machine.label }}</span></div>
+        <div v-if="sectionError.installed" class="confirm-row error">No se pudo medir lo instalado: {{ sectionError.installed }}</div>
+        <div v-else-if="!sectionLoaded.installed" class="nav-row muted"><span class="ui-icon" data-icon="box" aria-hidden="true"></span><span class="nav-name">Midiendo lo instalado…</span></div>
+        <div v-else-if="!installed.length" class="nav-row muted"><span class="ui-icon" data-icon="box" aria-hidden="true"></span><span class="nav-name">Ningún modelo en {{ machine.label }}</span></div>
         <div class="group-label">Semanas</div>
         <a v-for="w in weeks" :key="w.key" class="nav-row" :class="{ on: data?.key === w.key && view !== 'favorites' && !isResearch(view) }" :href="`#/${w.key}`" @click="(view === 'favorites' || isResearch(view)) && (view = 'cover')">
           <span class="ui-icon" data-icon="clock" aria-hidden="true"></span><span class="nav-name">Semana {{ w.number }}</span><span class="count">{{ day(w.from) }} al {{ day(w.to) }}</span>
@@ -409,6 +451,13 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); wi
             <span><b>{{ favStats.saved }}</b> guardados</span><span><b>{{ favStats.tried }}</b> probados</span>
             <span class="keep"><b>{{ favStats.keep }}</b> valen la pena</span><span class="dropped"><b>{{ favStats.dropped }}</b> {{ favStats.dropped === 1 ? 'descartado' : 'descartados' }}</span>
             <span class="use"><b>{{ favStats.inUse }}</b> en uso</span><span><b>{{ bytes(installedBytes) }}</b> en {{ machine.label }}</span><span v-if="!onMac" class="use" :title="`De los ${favStats.saved}: los que entran en ${machine.here} (${machineSpec}), por lo probado o estimado por tamaño`"><b>{{ favStats.here }}</b> corren en {{ machine.label }}</span>
+          </div>
+          <!-- los errores de la sección, a la vista, y las dos perillas -->
+          <p v-if="sectionError.favorites" class="section-error">No se pudieron leer los favoritos: {{ sectionError.favorites }}</p>
+          <p v-if="measuring" class="empty-line">Midiendo en Hugging Face el tamaño real de {{ measuring }} {{ measuring === 1 ? 'modelo' : 'modelos' }}…</p>
+          <div class="fav-tools">
+            <button type="button" class="toggle" :aria-pressed="onlyHere" :title="`Sólo los que corren en ${machine.here} (${machineSpec})`" @click="onlyHere = !onlyHere">Sólo los que corren en {{ machine.label }}</button>
+            <button type="button" class="toggle" :aria-pressed="bySize" title="Dentro de cada grupo, del más chico al más grande" @click="bySize = !bySize">Ordenar por tamaño</button>
           </div>
           <section v-if="triedHistory.length">
             <h2 class="section-title">Probados <span>el historial: lo que dio cada uno y si se quedó{{ onMac ? '' : ' · se probaron en la Mac; «borrado» es de allá' }}</span></h2>
@@ -556,6 +605,13 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); wi
         <dl>
           <dt>Tarea</dt><dd><span class="task" :class="`t-${topicOf(selectedFav.task)}`"><span class="ui-icon" :data-icon="taskIcon(selectedFav.task)" aria-hidden="true"></span>{{ selectedFav.task }}</span></dd>
           <dt>Tamaño</dt><dd>{{ params(selectedFav.params) }}</dd>
+          <!-- lo medido en Hugging Face: cuánto pesa lo que de verdad se baja -->
+          <template v-if="selectedFav.gguf?.length || selectedFav.storage">
+            <dt>En disco</dt><dd>{{ selectedFav.gguf?.length ? `${selectedFav.gguf.length === 1 ? 'un GGUF de' : `${selectedFav.gguf.length} GGUF, de`} ${bytes(selectedFav.gguf[0])}${selectedFav.gguf.length > 1 ? ` a ${bytes(selectedFav.gguf[selectedFav.gguf.length - 1])}` : ''}` : `${bytes(selectedFav.storage)} el repo entero` }}</dd>
+          </template>
+          <template v-if="selectedFav.here?.engine">
+            <dt>Se corre con</dt><dd>{{ selectedFav.here.engine.name }}<span v-if="selectedFav.here.engine.ready === true" class="engine ok"> · instalado en {{ machine.label }}</span><span v-else-if="selectedFav.here.engine.ready === false" class="engine missing"> · falta en {{ machine.label }}</span><span v-if="selectedFav.here.engine.hint" class="here-why">{{ selectedFav.here.engine.hint }}</span></dd>
+          </template>
           <dt>Licencia</dt><dd>{{ selectedFav.license || 'no la declara' }}</dd>
           <dt>En la Mac</dt><dd><span class="mac" :class="selectedFav.mac">{{ MAC[selectedFav.mac] }}</span></dd>
           <!-- en el PC, además, lo que da acá: declarado si alguien lo probó, o la estimación por tamaño, dicha como tal -->
@@ -615,8 +671,9 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); wi
 
     <footer class="statusbar">
       <span v-if="apiError">{{ apiError }}</span>
-      <span v-else-if="refreshing">actualizando la semana…</span>
-      <span v-else-if="data">Hugging Face al {{ clock(data.fetched) }} · se actualiza cada 6 h{{ data.writtenBy ? ` · textos de ${data.writtenBy === 'claude' ? 'Claude' : 'Gemini'}` : '' }}{{ data.writeError ? ` · ⚠ ${data.writeError}` : '' }}</span>
+      <span v-else-if="refreshError">{{ refreshError }}</span>
+      <span v-else-if="refreshing">actualizando la semana: leyendo Hugging Face y escribiendo los textos (cerca de un minuto)…</span>
+      <span v-else-if="data">Hugging Face al {{ clock(data.fetched) }} · se actualiza cada 6 h{{ data.writtenBy ? ` · textos de ${data.writtenBy === 'claude' ? 'Claude' : 'Gemini'}` : '' }}{{ data.writeError ? ` · ⚠ ${data.writeError}` : '' }}{{ data.fetchWarnings?.length ? ` · ⚠ incompleta: ${data.fetchWarnings.join(', ')}` : '' }}</span>
       <button type="button" class="statusbar-item" :disabled="refreshing" title="Actualizar la semana ahora (lo hace solo cada 6 horas)" @click="refreshNow">Actualizar</button>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
         <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>

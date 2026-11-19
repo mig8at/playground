@@ -75,6 +75,9 @@ type Week struct {
 	WrittenBy   string  `json:"writtenBy,omitempty"`
 	Wrote       string  `json:"wrote,omitempty"` // la huella de lo que se le mandó al modelo
 	WriteError  string  `json:"writeError,omitempty"`
+	// FetchWarnings: lo que no se pudo leer de Hugging Face en esta actualización (un día de papers, la ficha de un
+	// modelo). La semana se guarda igual, pero dice que le falta algo en vez de pasar por completa.
+	FetchWarnings []string `json:"fetchWarnings,omitempty"`
 }
 
 const refreshEvery = 6 * time.Hour
@@ -82,6 +85,10 @@ const refreshEvery = 6 * time.Hour
 type server struct {
 	root, dir string
 	roots     models.Roots // dónde se buscan los modelos instalados (lib/models)
+	facts     *factStore   // lo medido en Hugging Face de cada favorito (facts.go)
+	scanMu    sync.Mutex
+	scan      []models.Installed // la última medida de lo instalado (installed.go)
+	scanAt    time.Time
 	mu        sync.Mutex
 	busy      bool
 	lastErr   string
@@ -97,7 +104,7 @@ func main() {
 		wd, _ := os.Getwd()
 		root = wd
 	}
-	s := &server{root: root, dir: filepath.Join(root, "news", ".data", "weeks"), roots: models.DefaultRoots()}
+	s := &server{root: root, dir: filepath.Join(root, "news", ".data", "weeks"), roots: models.DefaultRoots(), facts: newFactStore(root)}
 	if *once {
 		w, err := s.refresh(context.Background())
 		if err != nil {
@@ -174,13 +181,13 @@ func (s *server) refresh(ctx context.Context) (*Week, error) {
 	if now.Before(to) {
 		upTo = now // los papers de un día que todavía no llegó no existen
 	}
-	models, papers, total, err := fetchWeek(ctx, from, upTo)
+	models, papers, total, warnings, err := fetchWeek(ctx, from, upTo)
 	if err != nil {
 		s.setErr(err)
 		return nil, err
 	}
 	w := &Week{Key: key, Number: number, From: from.Format("2006-01-02"), To: to.Format("2006-01-02"),
-		Fetched: now.Format(time.RFC3339), Models: models, Papers: papers, PapersTotal: total}
+		Fetched: now.Format(time.RFC3339), Models: models, Papers: papers, PapersTotal: total, FetchWarnings: warnings}
 	prev, _ := s.load(key)
 	print := fingerprint(w)
 	if prev != nil && prev.Wrote == print && prev.WriteError == "" {
