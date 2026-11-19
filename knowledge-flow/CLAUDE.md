@@ -20,7 +20,21 @@ o en cola. La ruta es `#/run/<n>`.
   otra vez y arranca otra, hasta que no quede nada. Después espera.
 - **Una corrida no se repite sobre los mismos cambios** (la huella de las fuentes viejas, `fingerprint`): si frenó,
   espera a que la mires o a que entre un cambio nuevo; si terminó y esas fuentes siguen viejas, también espera, porque
-  repetirla sería un bucle que gasta modelo sin arreglar nada.
+  repetirla sería un bucle que gasta modelo sin arreglar nada. **Una que FALLÓ sí se reintenta** (no hubo veredicto):
+  sin límite si fue porque el modelo no contestaba (`modelDown`), y hasta 3 veces seguidas si fue otra cosa.
+- **Sin modelo no arranca** (2026-11-19: las corridas #4, #5 y #6 fallaron en el triaje con la sesión de `playground
+  login` vencida y, por la huella, esos temas quedaban viejos aunque la sesión volviera). Antes de cada corrida pregunta
+  si el modelo de segundo plano contesta (`background.Info`); si no, no gasta una corrida: espera («esperando al
+  modelo» arriba de la corrida), **avisa una vez** por macOS con lo que lo arregla, y mientras haya fuentes viejas
+  vuelve a mirar **cada 2 minutos** en vez de 30. Apenas entrás con `playground login`, arranca sola y avisa que el
+  modelo volvió. La sesión se renueva sólo con el navegador: eso no lo puede hacer Knowledge.
+- **Si el modelo se cae A MITAD de una corrida, esa misma se retoma** desde el paso donde cayó apenas vuelve (`resume`,
+  marcada «retomada»): no nace otra que repita los pasos 1 a 3.
+- **La lista esconde lo superado** (Miguel, 2026-11-19: «que no quede ese ruido»): una corrida frenada o fallada queda
+  «superada» cuando después pasó otra y ninguno de sus temas sigue viejo; «Ver todas» la muestra. No se borra del disco:
+  es la pista si algo vuelve a fallar. Lo que sí pide algo (frenada o fallada con temas todavía viejos) sigue a la vista.
+- **La mirada a main se ve**: mientras trae los clones y comprueba (~5 min, sobre todo el `check` de ~1.300 fuentes),
+  el sidebar y la biblioteca dicen «Mirando main» con su animación y cuánto lleva (`lookingSince`).
 - **Aplica solo** (decisión de Miguel, 2026-11-18) si la verificación sale limpia, y **commitea** lo aplicado por ruta
   (`knowledge/<tema>/rules.md` y `sources.json`) con el número de corrida en el mensaje: cada cambio se puede rastrear
   o deshacer con git. Avisa por macOS al terminar (con sonido si frenó o falló); tocarlo abre la corrida.

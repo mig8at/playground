@@ -60,7 +60,12 @@ type Run struct {
 	Steps       []Step   `json:"steps"`
 	Result      string   `json:"result,omitempty"` // una línea: cómo terminó
 	Commit      string   `json:"commit,omitempty"`
-	dir         string
+	// ModelDown: falló porque el modelo no contestaba (la sesión venció, el puente no responde). No cuenta como intento:
+	// apenas vuelve el modelo, la misma huella se corre de nuevo.
+	ModelDown bool `json:"modelDown,omitempty"`
+	// Resumed: cuántas veces se retomó después de que el modelo volviera.
+	Resumed int `json:"resumed,omitempty"`
+	dir     string
 }
 
 // newSteps: los diez, en orden. Los ids son los de la interfaz y del registro.
@@ -155,11 +160,13 @@ type Summary struct {
 	FinishedAt string `json:"finishedAt,omitempty"`
 	Title      string `json:"title"`
 	Result     string `json:"result,omitempty"`
-	StoppedAt  string `json:"stoppedAt,omitempty"` // el paso donde frenó o falló
+	StoppedAt  string `json:"stoppedAt,omitempty"`  // el paso donde frenó o falló
+	Superseded bool   `json:"superseded,omitempty"` // frenada o fallada que ya no pide nada (pasó otra y sus temas están al día)
+	Resumed    int    `json:"resumed,omitempty"`
 }
 
 func (r *Run) summary() Summary {
-	sum := Summary{ID: r.ID, State: r.State, StartedAt: r.StartedAt, FinishedAt: r.FinishedAt, Result: r.Result}
+	sum := Summary{ID: r.ID, State: r.State, StartedAt: r.StartedAt, FinishedAt: r.FinishedAt, Result: r.Result, Resumed: r.Resumed}
 	n := len(r.Topics)
 	sum.Title = fmt.Sprintf("%d %s", n, map[bool]string{true: "tema", false: "temas"}[n == 1])
 	for _, st := range r.Steps {

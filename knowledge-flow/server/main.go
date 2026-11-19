@@ -48,6 +48,8 @@ type flow struct {
 	running *Run
 	wake    chan struct{}
 	once    bool // -once: una mirada y, como mucho, una corrida
+	// modelDown: el modelo no contestaba en la última pregunta; mientras tanto el vigía pregunta cada modelWait.
+	modelDown bool
 }
 
 // Look: la última mirada a main.
@@ -55,11 +57,12 @@ type Look struct {
 	At       string   `json:"at,omitempty"`
 	Next     string   `json:"next,omitempty"`
 	Looking  bool     `json:"looking"`
-	Changes  []Change `json:"changes"` // las fuentes viejas ahora
-	Sources  int      `json:"sources"` // cuántas fuentes tiene la biblioteca
-	Topics   int      `json:"topics"`  // cuántos temas
-	Queued   []Change `json:"queued"`  // las que entraron mientras corría una corrida
-	Waiting  string   `json:"waiting"` // por qué no arranca otra (una frenada sobre los mismos cambios)
+	Since    string   `json:"lookingSince,omitempty"` // desde cuándo mira (la interfaz muestra cuánto lleva)
+	Changes  []Change `json:"changes"`                // las fuentes viejas ahora
+	Sources  int      `json:"sources"`                // cuántas fuentes tiene la biblioteca
+	Topics   int      `json:"topics"`                 // cuántos temas
+	Queued   []Change `json:"queued"`                 // las que entraron mientras corría una corrida
+	Waiting  string   `json:"waiting"`                // por qué no arranca otra (una frenada sobre los mismos cambios)
 	Error    string   `json:"error,omitempty"`
 	FetchSec float64  `json:"fetchSec"`
 	CheckSec float64  `json:"checkSec"`
@@ -155,11 +158,17 @@ func (f *flow) recover() {
 func (f *flow) loop() {
 	for {
 		f.cycle()
+		// Si quedaron fuentes viejas esperando al modelo, se vuelve a mirar pronto: apenas entres con `playground
+		// login`, arranca sin esperar la media hora.
+		every := lookEvery
 		f.mu.Lock()
-		f.look.Next = time.Now().Add(lookEvery).Format(time.RFC3339)
+		if f.modelDown && len(f.look.Changes) > 0 {
+			every = modelWait
+		}
+		f.look.Next = time.Now().Add(every).Format(time.RFC3339)
 		f.mu.Unlock()
 		select {
-		case <-time.After(lookEvery):
+		case <-time.After(every):
 		case <-f.wake:
 		}
 	}
@@ -183,17 +192,39 @@ func (f *flow) cycle() {
 		fp := fingerprint(changes)
 		// Los mismos cambios que la última corrida no se vuelven a correr: si frenó, espera a que la mires; si pasó y
 		// siguen viejos, algo no selló, y repetirla sería un bucle que gasta modelo sin arreglar nada.
-		if last := f.lastRun(); last != nil && last.Fingerprint == fp {
+		// Una que FALLÓ sí se reintenta (algo se rompió, no hubo veredicto): sin límite si fue porque el modelo no
+		// contestaba, y hasta maxFailedTries si fue otra cosa, para no girar sobre un error que no se arregla solo.
+		if last := f.lastRun(); last != nil && last.Fingerprint == fp && !f.retryable(last, fp) {
 			why := "frenó"
-			if last.State == stPassed {
+			switch last.State {
+			case stPassed:
 				why = "terminó pero estas fuentes siguen viejas"
+			case stFailed:
+				why = fmt.Sprintf("falló %d veces seguidas", maxFailedTries)
 			}
 			f.mu.Lock()
 			f.look.Waiting = fmt.Sprintf("la corrida #%d %s sobre estos mismos cambios: espera a que la mires o a que entre uno nuevo", last.ID, why)
 			f.mu.Unlock()
 			return
 		}
-		r := f.newRun(changes, fp, start, fetchSec, checkSec)
+		// Sin modelo no se arranca: una corrida que falla en el triaje no sirve, y antes quedaba «falló» con su huella
+		// (2026-11-19: tres corridas seguidas con la sesión de `playground login` vencida). Se espera, se avisa una
+		// vez, y se vuelve a preguntar cada modelWait: apenas contesta, arranca sola.
+		if ok, why := f.modelReady(); !ok {
+			f.mu.Lock()
+			f.look.Waiting = "esperando al modelo: " + why + ". Arranca sola apenas conteste"
+			f.mu.Unlock()
+			return
+		}
+		// Si la última corrida sobre estos mismos cambios cayó porque el modelo no contestaba, se RETOMA esa misma desde
+		// el paso donde cayó (los anteriores ya están hechos): no nace otra que repita los pasos 1 a 3 y deje la vieja
+		// como ruido en la lista.
+		var r *Run
+		if last := f.lastRun(); last != nil && last.Fingerprint == fp && last.State == stFailed && last.ModelDown {
+			r = f.resume(last)
+		} else {
+			r = f.newRun(changes, fp, start, fetchSec, checkSec)
+		}
 		f.mu.Lock()
 		f.running = r
 		f.mu.Unlock()
@@ -214,9 +245,9 @@ func (f *flow) cycle() {
 // lookAtMain: pasos 1 y 2. Devuelve las fuentes viejas (sin las de las corridas: las de los temas que tocaría).
 func (f *flow) lookAtMain() (changes []Change, sources, topics int, fetchSec, checkSec float64, err error) {
 	f.mu.Lock()
-	f.look.Looking = true
+	f.look.Looking, f.look.Since = true, time.Now().Format(time.RFC3339)
 	f.mu.Unlock()
-	defer func() { f.mu.Lock(); f.look.Looking = false; f.mu.Unlock() }()
+	defer func() { f.mu.Lock(); f.look.Looking, f.look.Since = false, ""; f.mu.Unlock() }()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 	t := time.Now()
@@ -240,6 +271,61 @@ func (f *flow) lookAtMain() (changes []Change, sources, topics int, fetchSec, ch
 		}
 	}
 	return changes, len(all), len(seen), fetchSec, checkSec, nil
+}
+
+// maxFailedTries: cuántas veces seguidas se reintenta una corrida que falló por algo que no es el modelo.
+const maxFailedTries = 3
+
+// modelWait: cada cuánto se vuelve a preguntar si el modelo contesta, mientras hay fuentes viejas esperándolo.
+const modelWait = 2 * time.Minute
+
+// retryable: si la última corrida sobre esta huella falló y se puede intentar otra vez.
+func (f *flow) retryable(last *Run, fp string) bool {
+	if last.State != stFailed {
+		return false
+	}
+	if last.ModelDown {
+		return true
+	}
+	tries := 0
+	for _, id := range f.runs.ids() {
+		r, err := f.runs.load(id)
+		if err != nil || r.Fingerprint != fp || r.State != stFailed {
+			break
+		}
+		if !r.ModelDown {
+			tries++
+		}
+	}
+	return tries < maxFailedTries
+}
+
+// modelReady: si el modelo de segundo plano contesta. Avisa UNA vez cuando deja de contestar (con lo que lo arregla)
+// y otra cuando vuelve, no en cada mirada.
+func (f *flow) modelReady() (bool, string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	st := background.Info(ctx, f.root)
+	f.mu.Lock()
+	was := f.modelDown
+	f.modelDown = !st.Ready
+	f.mu.Unlock()
+	if st.Ready {
+		if was {
+			_, _ = notice.Send(notice.Notice{Title: "Knowledge · el modelo volvió", Body: "Retoma la puesta al día que estaba esperando.",
+				URL: "cockpit://knowledge/", Group: "creditop-knowledge"})
+		}
+		return true, ""
+	}
+	why := st.Detail
+	if st.Fix != "" {
+		why += " (se arregla con `" + st.Fix + "`)"
+	}
+	if !was {
+		_, _ = notice.Send(notice.Notice{Title: "Knowledge · sin modelo", Body: "Hay fuentes viejas y el modelo no contesta: " + why,
+			URL: "cockpit://knowledge/", Group: "creditop-knowledge", Sound: true})
+	}
+	return false, why
 }
 
 func fingerprint(changes []Change) string {
@@ -290,6 +376,19 @@ func (f *flow) newRun(changes []Change, fp string, lookedAt time.Time, fetchSec,
 	return r
 }
 
+// resume: vuelve a poner en marcha una corrida que cayó por el modelo, desde el paso que falló.
+func (f *flow) resume(r *Run) *Run {
+	for i := range r.Steps {
+		if r.Steps[i].State == stFailed || r.Steps[i].State == stRunning {
+			r.Steps[i] = Step{ID: r.Steps[i].ID, Label: r.Steps[i].Label, Who: r.Steps[i].Who, State: stQueued}
+		}
+	}
+	r.State, r.Result, r.FinishedAt, r.ModelDown = stRunning, "", "", false
+	r.Resumed++
+	f.runs.save(r)
+	return r
+}
+
 // tell: el aviso de cómo terminó (no avisa una corrida que pasó sin cambiar la prosa: eso es lo esperado).
 func (f *flow) tell(r *Run) {
 	title, sound := "Knowledge · al día", false
@@ -326,14 +425,36 @@ func (f *flow) state(w http.ResponseWriter, _ *http.Request) {
 			}
 		}
 	}
+	// Una corrida frenada o fallada queda SUPERADA cuando después pasó otra y ninguno de sus temas sigue viejo: ya no
+	// pide nada, y la interfaz la esconde (Miguel, 2026-11-19: «que no quede ese ruido»). No se borra: es la pista si
+	// algo vuelve a fallar.
+	stale := map[string]bool{}
+	for _, c := range look.Changes {
+		stale[c.Topic] = true
+	}
 	var runs []Summary
+	laterPassed := false
 	for _, id := range f.runs.ids() {
 		if len(runs) >= 40 {
 			break
 		}
-		if r, err := f.runs.load(id); err == nil {
-			runs = append(runs, r.summary())
+		r, err := f.runs.load(id)
+		if err != nil {
+			continue
 		}
+		sum := r.summary()
+		if (r.State == stFailed || r.State == stStopped) && laterPassed && look.At != "" {
+			sum.Superseded = true
+			for _, t := range r.Topics {
+				if stale[t] {
+					sum.Superseded = false
+				}
+			}
+		}
+		if r.State == stPassed {
+			laterPassed = true
+		}
+		runs = append(runs, sum)
 	}
 	model := background.Chosen()
 	writeJSON(w, 200, map[string]any{"look": look, "runs": runs, "running": current != nil, "model": model, "every": lookEvery.Minutes()})

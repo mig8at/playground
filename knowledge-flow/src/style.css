@@ -72,3 +72,9 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 .topic .tag { color: var(--fg-3) }
 .dotc { width: 8px; height: 8px; border-radius: 999px; display: inline-block; flex: none }
 .is-ok-bg { background: var(--kf-ok) } .is-warn-bg { background: var(--kf-warn) } .is-bad-bg { background: var(--kf-bad) } .is-idle-bg { background: var(--fg-3) }
+
+/* Las corridas superadas (frenadas o falladas que ya no piden nada) se esconden; este botón las muestra. «retomada»
+   marca una corrida que siguió desde el paso donde cayó cuando volvió el modelo. */
+.run-row.more { grid-template-columns: 16px 1fr; color: var(--fg-3); font-size: var(--text-xs) }
+.run-row.more .run-title { grid-column: 2 }
+.run-title .tag { margin-left: 6px; font-size: var(--text-xs); font-weight: 400; color: var(--fg-3) }

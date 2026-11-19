@@ -40,9 +40,13 @@ function pick(id) { location.hash = `#/run/${id}` }
 const runs = computed(() => state.value?.runs || [])
 const look = computed(() => state.value?.look || {})
 const runningRun = computed(() => runs.value.find((r) => r.state === 'running'))
+// Las frenadas o falladas que ya no piden nada (pasó otra después y sus temas están al día) se esconden: son ruido.
+// «Ver todas» las muestra; la elegida por la ruta se ve igual.
+const showAll = ref(false)
+const hiddenCount = computed(() => runs.value.filter((r) => r.superseded).length)
 const pastByDay = computed(() => {
   const groups = []
-  for (const r of runs.value.filter((x) => x.state !== 'running')) {
+  for (const r of runs.value.filter((x) => x.state !== 'running' && (showAll.value || !x.superseded || x.id === run.value?.id))) {
     const label = dayLabel(r.startedAt)
     let g = groups.find((x) => x.label === label)
     if (!g) groups.push((g = { label, runs: [] }))
@@ -70,6 +74,8 @@ function dur(from, to) {
   return m < 60 ? `${m}:${String(s % 60).padStart(2, '0')}` : `${Math.floor(m / 60)} h ${m % 60} min`
 }
 const runDur = (r) => dur(r.startedAt, r.finishedAt)
+// Cuánto lleva la mirada a main en curso (el servidor dice desde cuándo).
+const lookingFor = computed(() => (look.value.lookingSince ? dur(look.value.lookingSince) : '…'))
 const topicsOf = (changes) => {
   const by = new Map()
   for (const c of changes || []) by.set(c.topic, (by.get(c.topic) || 0) + 1)
@@ -79,8 +85,11 @@ const staleTopics = computed(() => topicsOf(look.value.changes))
 const queuedTopics = computed(() => topicsOf(look.value.queued))
 const libState = computed(() => {
   if (look.value.error) return { cls: 'is-bad-bg', text: 'No pudo mirar main' }
-  if (state.value?.running) return { cls: 'is-warn-bg', text: 'Poniéndose al día' }
-  if (look.value.waiting) return { cls: 'is-bad-bg', text: 'Esperando que mires una corrida frenada' }
+  if (state.value?.running) return { cls: 'is-warn-bg', text: 'Poniéndose al día', spin: true }
+  if (look.value.looking) return { cls: 'is-idle-bg', text: `Mirando main · ${lookingFor.value}`, spin: true }
+  // «esperando al modelo» se arregla solo (arranca apenas conteste); «frenada» espera que la mires.
+  if (look.value.waiting?.startsWith('esperando al modelo')) return { cls: 'is-warn-bg', text: 'Esperando al modelo' }
+  if (look.value.waiting) return { cls: 'is-bad-bg', text: 'Esperando que mires una corrida' }
   if (staleTopics.value.length) return { cls: 'is-warn-bg', text: 'Vieja' }
   return look.value.at ? { cls: 'is-ok-bg', text: 'Al día con main' } : { cls: 'is-idle-bg', text: 'Todavía no miró' }
 })
@@ -160,6 +169,16 @@ onBeforeUnmount(() => {
         <span class="count">{{ runs.length }}</span>
       </div>
       <div class="region-body">
+        <!-- La mirada a main tarda (traer ~36 clones y comprobar ~1.300 fuentes, unos minutos): se ve que está trabajando,
+             no que se colgó. -->
+        <template v-if="look.looking && !runningRun">
+          <div class="group-label">En curso</div>
+          <div class="run-row" style="cursor: default">
+            <svg class="st st-spin" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="var(--primary)" stroke-width="2" stroke-dasharray="26 12"/></svg>
+            <span class="run-title">Mirando main</span><span class="run-time">{{ lookingFor }}</span>
+            <span class="run-desc">trae los clones sólo-main y comprueba qué fuentes cambiaron; si hay alguna, arranca una corrida</span>
+          </div>
+        </template>
         <template v-if="runningRun">
           <div class="group-label">En curso</div>
           <button type="button" class="run-row" :class="{ on: run?.id === runningRun.id }" @click="pick(runningRun.id)">
@@ -180,10 +199,13 @@ onBeforeUnmount(() => {
           <button v-for="r in g.runs" :key="r.id" type="button" class="run-row" :class="{ on: run?.id === r.id }" @click="pick(r.id)">
             <svg v-if="r.state === 'passed'" class="st" viewBox="0 0 16 16" aria-label="al día"><circle cx="8" cy="8" r="7" fill="var(--kf-ok)"/><path d="M4.5 8.2l2.2 2.2 4.8-4.8" stroke="#123" stroke-width="1.8" fill="none"/></svg>
             <svg v-else class="st" viewBox="0 0 16 16" :aria-label="STATE_TEXT[r.state]"><circle cx="8" cy="8" r="7" :fill="r.state === 'stopped' ? 'var(--kf-warn)' : 'var(--kf-bad)'"/><path d="M5.5 5.5l5 5M10.5 5.5l-5 5" stroke="#123" stroke-width="1.8"/></svg>
-            <span class="run-title">#{{ r.id }} · {{ r.title }}</span><span class="run-time">{{ runDur(r) }}</span>
+            <span class="run-title">#{{ r.id }} · {{ r.title }}<span v-if="r.resumed" class="tag" title="Se retomó desde el paso donde cayó, cuando el modelo volvió"> retomada</span><span v-if="r.superseded" class="tag"> superada</span></span><span class="run-time">{{ runDur(r) }}</span>
             <span class="run-desc">{{ r.result }}</span>
           </button>
         </template>
+        <button v-if="hiddenCount" type="button" class="run-row more" @click="showAll = !showAll">
+          <span class="run-title">{{ showAll ? 'Ocultar las superadas' : `Ver todas (${hiddenCount} ${hiddenCount === 1 ? 'superada oculta' : 'superadas ocultas'})` }}</span>
+        </button>
         <div v-if="state && !runs.length" class="empty">
           <div class="empty-head">
             <div class="empty-title">Sin corridas</div>
@@ -253,8 +275,8 @@ onBeforeUnmount(() => {
       </div>
       <div class="region-body">
         <div class="lib">
-          <div class="run-time"><span class="dotc" :class="libState.cls"></span> {{ libState.text }}</div>
-          <div class="lib-big">{{ staleTopics.length ? `${staleTopics.length} de ${look.topics || '…'} temas viejos` : `${look.topics || '…'} temas al día` }}</div>
+          <div class="run-time"><svg v-if="libState.spin" class="st st-spin" viewBox="0 0 16 16" style="width: 12px; height: 12px; vertical-align: -1px" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="var(--primary)" stroke-width="2" stroke-dasharray="26 12"/></svg><span v-else class="dotc" :class="libState.cls"></span> {{ libState.text }}</div>
+          <div class="lib-big">{{ !look.at && look.looking ? 'Mirando main…' : staleTopics.length ? `${staleTopics.length} de ${look.topics || '…'} temas viejos` : `${look.topics || '…'} temas al día` }}</div>
           <div class="run-time">{{ fresh.toLocaleString('es-CO') }} de {{ (look.sources || 0).toLocaleString('es-CO') }} fuentes al día con main</div>
         </div>
         <p v-if="look.waiting" class="banner is-stop" style="margin: 0 var(--space-2) var(--space-2)">{{ look.waiting }}</p>
@@ -277,7 +299,7 @@ onBeforeUnmount(() => {
     </aside>
 
     <footer class="statusbar">
-      <span>{{ apiError || (look.at ? `miró main a las ${clock(look.at)} · ${look.fetchSec?.toFixed(0)} s de fetch y ${look.checkSec?.toFixed(0)} s de comprobación` : 'mirando main…') }}</span>
+      <span>{{ apiError || (look.looking ? `mirando main · ${lookingFor}` : look.at ? `miró main a las ${clock(look.at)} · ${look.fetchSec?.toFixed(0)} s de fetch y ${look.checkSec?.toFixed(0)} s de comprobación` : 'todavía no miró main') }}</span>
       <button type="button" class="statusbar-item" :disabled="look.looking" title="Que mire main ya (mira solo cada 30 min)" @click="lookNow">Mirar ahora</button>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
         <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>

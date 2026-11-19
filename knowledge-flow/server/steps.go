@@ -17,6 +17,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"creditop/my-tools/connectors/claude"
 )
 
 // errStop: un freno a propósito (no es una falla): la corrida queda «frenada» y espera.
@@ -76,6 +78,7 @@ func (f *flow) execute(ctx context.Context, r *Run) {
 			st.State, r.State, r.Result = stStopped, stStopped, "frenó en «"+st.Label+"»: "+halt.msg
 		default:
 			st.State, r.State, r.Result = stFailed, stFailed, "falló en «"+st.Label+"»: "+err.Error()
+			r.ModelDown = st.Who == "modelo" && modelUnavailable(err)
 		}
 		f.runs.save(r)
 		if err != nil {
@@ -88,6 +91,21 @@ func (f *flow) execute(ctx context.Context, r *Run) {
 	}
 	r.FinishedAt = now()
 	f.runs.save(r)
+}
+
+// modelUnavailable: el error es que el modelo no se pudo usar (sin sesión, la sesión venció, el puente no contesta),
+// no que contestó algo malo. Ésos no cuentan como intento fallido.
+func modelUnavailable(err error) bool {
+	if errors.Is(err, claude.ErrSession) {
+		return true
+	}
+	msg := strings.ToLower(err.Error())
+	for _, s := range []string{"playground login", "sesión del playground", "connection refused", "no such host", "timeout", "deadline exceeded", "eof"} {
+		if strings.Contains(msg, s) {
+			return true
+		}
+	}
+	return false
 }
 
 // ── 3 · paquete ──────────────────────────────────────────────────────────────────────────────────────────────────
