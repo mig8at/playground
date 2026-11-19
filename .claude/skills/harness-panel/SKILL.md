@@ -1321,3 +1321,21 @@ no es la de por defecto (`?vista=buros`, `?consola=mocks`, `?inicio=entidades`).
   adelantar). La elegida se recuerda (`harness.recording`).
 - Verificado el 2026-11-19 en el panel de :5195: las tres de la tarde con sus datos, y una corrida nueva de Pullman
   (468439) apareció sola en el índice al terminar.
+
+## Finandina en la barra, y lo que hizo falta para que cierre sola (2026-11-19)
+
+- **`finandina` en `harness.json`**, al lado de Pullman: en local «Finandina Pruebas» (547, `03751a1d`), en la compartida
+  BUSINESS_FINANDINA (368, `c0fca632`). Sin asesor de prueba en ninguna: se corre por **autogestión** (el ▶ del celular
+  del cliente).
+- **`amount` en el registro**: el monto con que arranca una pestaña NUEVA de ese comercio (`defaultTabConfig(slug)`).
+  Finandina pide mínimo $3.000.000 y con los $2.000.000 de siempre su tarjeta sale con el botón apagado; la suya es
+  5.000.000. Una pestaña ya guardada conserva su monto.
+- **«Hasta el final» rellena con CLICS REALES cuando una pantalla no avanza** (`autofill` de `pkg/autofill-qr.ts`, el del
+  caminador, sobre `devicePage(id)`), con «No» en los radios, hasta 6 veces por pantalla; si llenó algo, no cuenta para
+  «no sale». Hacía falta para las declaraciones PEP de la segunda página del formulario adicional.
+- **La regla de fechas ya no toma tres `Select` con placeholder propio por día/mes/año** (`pkg/date-trio.ts`: «Selecciona
+  Departamento de residencia» no es de una fecha; sólo el placeholder pelado cae por posición). Prueba en
+  `pkg/date-trio.spec.ts`.
+- **El autorrelleno del celular prefiere Bogotá** en los desplegables sin valor pedido, como el caminador: con la primera
+  opción (Amazonas, fuera de las zonas de Finandina) el front cancelaba después del formulario (código 5001).
+- Verificado en local desde el panel: ▶ → «Hasta el final» con Banco Finandina, 468445 en 11 en ~1 min 30 s.

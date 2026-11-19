@@ -790,6 +790,12 @@ export async function deviceEval<A, R>(id: DeviceId, fn: (arg: A) => R, arg: A):
     return d ? await d.page.evaluate(fn as any, arg).catch(() => undefined) as R : undefined;
 }
 
+/** La página de Playwright de un celular, para lo que necesita CLICS REALES y no un `evaluate` (los `Select` de Radix del
+ *  formulario adicional: `autofill` de `pkg/autofill-qr.ts`). */
+export function devicePage(id: DeviceId): Page | null {
+    return open.get(id)?.page ?? null;
+}
+
 /** Cuándo se abrió el celular (para saber si un vigilante sigue mirando al MISMO navegador). */
 export function deviceOpenedAt(id: DeviceId): number | null {
     return open.get(id)?.openedAt ?? null;

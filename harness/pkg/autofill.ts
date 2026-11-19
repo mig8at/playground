@@ -485,9 +485,13 @@ function script(data: AutofillData) {
             const root: ParentNode = panel ?? document;
             const options = Array.from(root.querySelectorAll<HTMLElement>('[role=option]:not([aria-disabled=true])'));
             if (!options.length) { await closePopover(trigger); return false; }
+            /* Sin un valor pedido, BOGOTÁ si está entre las opciones (departamento y ciudad), como el caminador
+             * (`preferredOptions` de `pkg/autofill-qr.ts`); si no, la primera. Con la primera el departamento era
+             * «Amazonas», fuera de las zonas de Banco Finandina, y el front cancelaba la solicitud después del formulario
+             * adicional (local, 2026-11-19, 468444: «Cancelación no voluntaria código 5001»). */
             const chosenOne = searched
                 ? options.find((o) => searched.some((b) => norm(o.textContent || '') === norm(b)))
-                : options[0];
+                : options.find((o) => /bogot[aá]/i.test(o.textContent || '')) ?? options[0];
             if (!chosenOne) { await closePopover(trigger); return false; }
             chosenOne.click();
             await wait(180);

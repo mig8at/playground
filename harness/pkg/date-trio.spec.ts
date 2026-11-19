@@ -172,3 +172,13 @@ test('la regla llega al navegador y decide igual que en Node', async ({ browser 
       expect(onPage!.segundaPasada).toEqual([true, true, true]);   // idempotente
       await context.close();
 });
+
+// El formulario adicional de Finandina (2026-11-19): tres `Select` seguidos con placeholders que NOMBRAN su campo. Por su
+// orden salían día, mes y año, y el relleno los dejaba vacíos buscando una fecha adentro.
+test('un placeholder que nombra otro campo no es parte de una fecha', () => {
+      const texts = ['Selecciona Departamento de residencia', 'Selecciona Ciudad de residencia', 'Selecciona una opción'];
+      expect(texts.map((t, i) => comboPart(t, '', i, MONTHS))).toEqual([null, null, null]);
+      // El placeholder pelado sigue cayendo por posición, y «Día*» por su rótulo.
+      expect(['Selecciona', 'Seleccionar', 'Selecciona'].map((t, i) => comboPart(t, '', i, MONTHS))).toEqual(['dia', 'mes', 'anio']);
+      expect(comboPart('Día*', '', 5, MONTHS)).toBe('dia');
+});

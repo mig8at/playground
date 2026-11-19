@@ -105,6 +105,12 @@ export function comboPart(
       // no es parte de una fecha y adivinarlo por el orden en que apareció es inventar.
       const looksEmpty = t === '' || /seleccion|elegi|choose|select|^-+$|^dd$|^mm$|^aa+$|^yy+$/.test(t);
       if (!looksEmpty) return null;
+      // ⚠ UN PLACEHOLDER QUE NOMBRA OTRA COSA tampoco es de una fecha. Medido el 2026-11-19 en el formulario adicional de
+      // Finandina (`dynamic-form/25`, el `Select` del form-service): «Selecciona Departamento de residencia», «Selecciona
+      // Ciudad de residencia» y «Selecciona una opción» salían `["dia","mes","anio"]` por su orden, el relleno buscaba
+      // «14», «mayo» y un año adentro y los tres quedaban vacíos. Por posición sólo cae el placeholder PELADO
+      // («Selecciona», «Seleccionar»), que es lo que muestra un combo de fecha sin rótulo propio.
+      if (/seleccion|elegi|choose|select/.test(t) && !/^(selecciona|seleccionar|seleccione|elige|elegir|choose|select)\s*\*?$/.test(t)) return null;
 
       if (index === 0) return 'dia';
       if (index === 1) return 'mes';

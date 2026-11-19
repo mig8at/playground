@@ -21,7 +21,7 @@ import { envData, type AutofillData } from '../pkg/autofill.ts';
 import { identityWithoutProviderNotice } from '../pkg/config.ts';
 import { adminSession, ensureLocalAdmin, ADMIN_APP } from '../pkg/admin-access.ts';
 import { laneOf, roleOf, inLane, laneIndex, isDeviceId, LANES, type Lane, type Role } from './devices.ts';
-import { deviceFillOtp, deviceChooseEntity, openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, watchRequests, deviceGoto, deviceReload, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, deviceTap, deviceAdvance, deviceStream, deviceBusyWatch, deviceStorage, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
+import { devicePage, deviceFillOtp, deviceChooseEntity, openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, watchRequests, deviceGoto, deviceReload, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, deviceTap, deviceAdvance, deviceStream, deviceBusyWatch, deviceStorage, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
 import { vpnDev, type VpnStatus } from '../pkg/vpn.ts';
 import { validatePlan, readPlan, writePlan, clearPlan } from '../pkg/run-plan.ts';
 import { prodCatalog, prodMerchant, prodBranches } from '../pkg/prod-catalog.ts';
@@ -29,6 +29,7 @@ import { waitForOtp } from '../pkg/otp-service.ts';
 import { readFlows, writeFlows, branchFor } from '../pkg/flows.ts';
 import { listRecipes, lastRuns } from '../dev/recipe.ts';
 import { listRecordings, recordingVideo } from '../pkg/recordings.ts';
+import { autofill as autofillByClicks } from '../pkg/autofill-qr.ts';
 import { homedir } from 'node:os';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -873,7 +874,7 @@ async function advanceAll(id: DeviceId, until: string | null, opts: { lender?: s
     const whatFor = [until ? `hasta «${until}»` : 'hasta el final', opts.lender && `eligiendo «${opts.lender}»`, opts.follow && 'siguiendo al cliente'].filter(Boolean).join(', ');
     deviceLog(id, `⏩ avanzando ${whatFor}${remote ? ' (espera de ambiente remoto)' : ''}`);
     let why = 'llegó a 80 pasos';
-    let stuck = 0, idle = 0, chosen = false, handoff = false, kycRetried = false, redictatedAt = '', kycSeenAt = 0;
+    let stuck = 0, idle = 0, chosen = false, handoff = false, kycRetried = false, redictatedAt = '', kycSeenAt = 0, clickFills = 0;
     // EL DICTADO A LA LAMBDA SE RENUEVA JUSTO ANTES DE QUE SE CONSULTE. Vive en la memoria de un contenedor (F-139) y se
     // pierde en minutos: se dictó y se confirmó al abrir (16:32:50 UTC) y cuando el pipeline de KYC consultó Ágil Data,
     // tres minutos después, contestó su persona por defecto (JUAN CARLOS PEREZ GOMEZ) y la identidad no coincidió (qa,
@@ -946,6 +947,21 @@ async function advanceAll(id: DeviceId, until: string | null, opts: { lender?: s
             idle = 0;
             deviceLog(id, '▸ ' + r.detail);
             stuck = r.moved ? 0 : stuck + 1;
+            if (r.moved) clickFills = 0;
+            /* LA PRIMERA VEZ QUE UNA PANTALLA NO AVANZA, el relleno con CLICS REALES (el del caminador, `pkg/autofill-qr.ts`).
+             * El autorrelleno del celular escribe desde adentro de la página, y los `Select` de Radix del formulario
+             * adicional (departamento, ciudad, actividad económica) no abren así: Finandina se quedaba en
+             * `dynamic-form/25` con tres «es requerido» (local, 2026-11-19, 468441). El caminador elige Bogotá como
+             * residencia: con la primera opción salía Amazonas, fuera de las zonas de Finandina. */
+            // Corre cada vez que no avanza (un formulario de dos páginas sigue en la misma ruta) y, si llenó algo, eso es
+            // avanzar: no cuenta para el «no sale». Con tope, para que un campo que nunca valida no lo deje girando.
+            // Los radios, «No» (como el caminador): las declaraciones PEP de Finandina son obligatorias.
+            if (stuck >= 1 && clickFills < 6) {
+                clickFills += 1;
+                const page = devicePage(id);
+                const facts = page ? await autofillByClicks(page, [], { hidratar: false, t: 3_000, preferirRadio: /^no$/i }).catch(() => [] as string[]) : [];
+                if (facts.length) { deviceLog(id, `▸ rellenó con clics lo que faltaba: ${facts.join(' · ')}`); stuck = 0; }
+            }
             if (stuck >= 3) { const shown = await screenError(id); why = `toca y no sale de ${pathOf(r.url)}: ${shown ? `la pantalla dice «${shown}»` : 'algo que el panel no sabe llenar'}`; break; }
             await sleep(remote ? 2_000 : 800);
         }
@@ -2290,7 +2306,7 @@ const server = createServer(async (req, res) => {
             .filter(([, v]) => v.panel)
             .map(([slug, v]) => ({
                 slug, name: v.name || slug, country: v.country || '', note: v.note || '', channels: v.channels || null,
-                allied_name: v.allied_name || '',
+                allied_name: v.allied_name || '', amount: v.amount || null,
                 // Lo de cada base (sucursal, ids, slug, asesor de prueba): el panel lo muestra antes de medir el ambiente.
                 bases: v.bases,
                 // La de prod: con ella se encuentra el comercio en el catálogo de prod (ahí el id y el slug pueden ser otros).

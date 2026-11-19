@@ -4159,13 +4159,17 @@
       'score', 'negatives', 'consulted', 'delinquencies'];
     /** La configuración POR DEFECTO de una pestaña nueva: la del HTML (los `value` del marcado, no lo que se tipeó) y
      *  los burós respondiendo con sus valores por defecto. La identidad queda vacía: se genera en cada corrida. */
-    function defaultTabConfig() {
+    function defaultTabConfig(slug) {
       const testCase = {};
       for (const id of TAB_CASE_FIELDS) {
         const f = $(id);
         if (!f) continue;
         testCase[id] = f.tagName === 'SELECT' ? ([...f.options].find((o) => o.defaultSelected) || f.options[0])?.value ?? '' : f.defaultValue;
       }
+      // El monto del comercio, si el registro lo trae (`amount`): una entidad con mínimo (Finandina, $3.000.000) no se
+      // puede elegir con el de siempre.
+      const own = MERCHANTS.find((m) => m.slug === slug)?.amount;
+      if (own) testCase.amount = Number(own).toLocaleString('es-CO');
       return { caso: testCase, doctype: 'CC', gender: 'M', step: 'monto', inject: true, quota: false,
         bureauModes: { agildata: 'ok', mareigua: 'ok', tusdatos: 'ok', experian: 'ok' }, bureauData: { agildata: {}, mareigua: {}, experian: {} } };
     }
@@ -4504,10 +4508,10 @@
         const preview = runTabs.find((x) => x.preview && !isOwner(x));
         if (preview) {
           if (preview.id === activeTab) snapshotTab(preview);
-          Object.assign(preview, { slug: e.slug, canal: pathChannel, preview: !pathChannel, config: defaultTabConfig() });
+          Object.assign(preview, { slug: e.slug, canal: pathChannel, preview: !pathChannel, config: defaultTabConfig(e.slug) });
           t = preview;
         } else {
-          t = { id: newTabId(), slug: e.slug, canal: pathChannel, preview: !pathChannel, config: defaultTabConfig() };
+          t = { id: newTabId(), slug: e.slug, canal: pathChannel, preview: !pathChannel, config: defaultTabConfig(e.slug) };
           runTabs.splice(cur ? runTabs.indexOf(cur) + 1 : runTabs.length, 0, t);
         }
       }
@@ -4992,7 +4996,7 @@
       const adhoc = !!sel.adhoc;
       let m = adhoc ? runTabs.find((x) => x.slug === slug && !x.canal) : runTabs.find((x) => x.slug === slug && x.canal === channel);
       if (!m) {
-        m = { id: newTabId(), slug, canal: adhoc ? null : channel, preview: adhoc, config: adhoc ? defaultTabConfig() : null, ...(adhoc ? { name: sel.name } : {}) };
+        m = { id: newTabId(), slug, canal: adhoc ? null : channel, preview: adhoc, config: adhoc ? defaultTabConfig(slug) : null, ...(adhoc ? { name: sel.name } : {}) };
         const old = adhoc ? runTabs.find((x) => x.preview && !isOwner(x)) : null;
         if (old) runTabs.splice(runTabs.indexOf(old), 1, m); else runTabs.push(m);
       }
