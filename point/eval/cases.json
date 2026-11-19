@@ -1,0 +1,449 @@
+[
+ {
+  "img": "wizard",
+  "q": "¿Dónde le doy para continuar?",
+  "box": [
+   464,
+   553,
+   352,
+   32
+  ],
+  "round": "easy"
+ },
+ {
+  "img": "wizard",
+  "q": "¿Dónde escribo la contraseña?",
+  "box": [
+   464,
+   457,
+   352,
+   32
+  ],
+  "round": "easy"
+ },
+ {
+  "img": "wizard",
+  "q": "No tengo cuenta, ¿dónde me registro?",
+  "box": [
+   639,
+   594,
+   113,
+   19
+  ],
+  "round": "easy"
+ },
+ {
+  "img": "wizard",
+  "q": "Olvidé mi clave, ¿qué toco?",
+  "box": [
+   640,
+   493,
+   103,
+   39
+  ],
+  "round": "easy"
+ },
+ {
+  "img": "payments",
+  "q": "¿Dónde activo el pago contra entrega?",
+  "box": [
+   1014,
+   290,
+   73,
+   37
+  ],
+  "round": "easy"
+ },
+ {
+  "img": "payments",
+  "q": "¿Dónde configuro PasarelaX?",
+  "box": [
+   886,
+   191,
+   97,
+   37
+  ],
+  "round": "easy"
+ },
+ {
+  "img": "payments",
+  "q": "Quiero sumar otro medio de pago",
+  "box": [
+   254,
+   360,
+   179,
+   37
+  ],
+  "round": "easy"
+ },
+ {
+  "img": "payments",
+  "q": "¿Cómo apago la pasarela de tarjetas?",
+  "box": [
+   990,
+   191,
+   97,
+   37
+  ],
+  "round": "easy"
+ },
+ {
+  "img": "shipping",
+  "q": "Quiero ofrecer envío gratis, ¿qué marco?",
+  "box": [
+   270,
+   207,
+   165,
+   27
+  ],
+  "round": "easy"
+ },
+ {
+  "img": "shipping",
+  "q": "¿Dónde cambio la tarifa de Bogotá?",
+  "box": [
+   560,
+   471,
+   140,
+   39
+  ],
+  "round": "easy"
+ },
+ {
+  "img": "shipping",
+  "q": "Ver las transportadoras",
+  "box": [
+   329,
+   125,
+   135,
+   39
+  ],
+  "round": "easy"
+ },
+ {
+  "img": "tasks",
+  "q": "¿Dónde edito la tarea Revisar inventario?",
+  "box": [
+   823,
+   176,
+   68,
+   37
+  ],
+  "round": "easy"
+ },
+ {
+  "img": "tasks",
+  "q": "Borrar la tarea Llamar al proveedor",
+  "box": [
+   903,
+   100,
+   82,
+   37
+  ],
+  "round": "easy"
+ },
+ {
+  "img": "tasks",
+  "q": "Crear una tarea",
+  "box": [
+   469,
+   12,
+   114,
+   37
+  ],
+  "round": "easy"
+ },
+ {
+  "img": "tasks",
+  "q": "Marcar como hecha la tarea Revisar inventario",
+  "box": [
+   293,
+   182,
+   25,
+   25
+  ],
+  "round": "easy"
+ },
+ {
+  "img": "users",
+  "q": "Invitar a alguien al panel",
+  "box": [
+   254,
+   239,
+   119,
+   37
+  ],
+  "round": "easy"
+ },
+ {
+  "img": "general",
+  "q": "¿Dónde cambio la moneda de la tienda?",
+  "box": [
+   273,
+   333,
+   814,
+   37
+  ],
+  "round": "easy"
+ },
+ {
+  "img": "andino",
+  "q": "¿Dónde busco una opción del panel?",
+  "box": [
+   139,
+   9,
+   460,
+   39
+  ],
+  "round": "easy"
+ },
+ {
+  "img": "andino",
+  "q": "Ir a los pedidos",
+  "box": [
+   8,
+   103,
+   213,
+   35
+  ],
+  "round": "easy"
+ },
+ {
+  "img": "hf",
+  "q": "¿Dónde veo los archivos del modelo para descargarlo?",
+  "box": [
+   142,
+   225,
+   216,
+   48
+  ],
+  "round": "easy"
+ },
+ {
+  "img": "hf",
+  "q": "¿Dónde le doy me gusta?",
+  "box": [
+   257,
+   104,
+   54,
+   22
+  ],
+  "round": "easy"
+ },
+ {
+  "img": "hf",
+  "q": "Señalá dónde dice la licencia",
+  "box": [
+   431,
+   175,
+   156,
+   28
+  ],
+  "round": "easy"
+ },
+ {
+  "img": "hf",
+  "q": "¿Dónde inicio sesión?",
+  "box": [
+   1126,
+   18,
+   56,
+   28
+  ],
+  "round": "easy"
+ },
+ {
+  "img": "hf",
+  "q": "¿Qué botón uso para usar este modelo en mi código?",
+  "box": [
+   1117,
+   234,
+   147,
+   30
+  ],
+  "round": "easy"
+ },
+ {
+  "img": "github",
+  "q": "¿Dónde le doy estrella al repositorio?",
+  "box": [
+   1142,
+   188,
+   106,
+   28
+  ],
+  "round": "hard"
+ },
+ {
+  "img": "github",
+  "q": "¿Dónde busco un archivo del repositorio?",
+  "box": [
+   648,
+   262,
+   154,
+   30
+  ],
+  "round": "hard"
+ },
+ {
+  "img": "github",
+  "q": "¿Dónde saco la URL para clonar el repositorio?",
+  "box": [
+   827,
+   261,
+   109,
+   32
+  ],
+  "round": "hard"
+ },
+ {
+  "img": "github",
+  "q": "Abrir la carpeta de notebooks",
+  "box": [
+   75,
+   457,
+   68,
+   17
+  ],
+  "round": "hard"
+ },
+ {
+  "img": "github",
+  "q": "Ver las ramas",
+  "box": [
+   146,
+   261,
+   109,
+   32
+  ],
+  "round": "hard"
+ },
+ {
+  "img": "github",
+  "q": "Abrir el PR 515",
+  "box": [
+   617,
+   457,
+   32,
+   17
+  ],
+  "round": "hard"
+ },
+ {
+  "img": "github",
+  "q": "¿Dónde veo los pull requests?",
+  "box": [
+   228,
+   128,
+   164,
+   32
+  ],
+  "round": "hard"
+ },
+ {
+  "img": "github",
+  "q": "Abrir el archivo con la cita del proyecto",
+  "box": [
+   75,
+   703,
+   84,
+   17
+  ],
+  "round": "hard"
+ },
+ {
+  "img": "github",
+  "q": "Ver el historial de commits",
+  "box": [
+   810,
+   322,
+   113,
+   28
+  ],
+  "round": "hard"
+ },
+ {
+  "img": "hf",
+  "q": "Copiar el nombre del modelo",
+  "box": [
+   222,
+   104,
+   22,
+   22
+  ],
+  "round": "hard"
+ },
+ {
+  "img": "hf",
+  "q": "Abrir el menú de más opciones",
+  "box": [
+   838,
+   235,
+   27,
+   28
+  ],
+  "round": "hard"
+ },
+ {
+  "img": "hf",
+  "q": "¿Dónde despliego el modelo?",
+  "box": [
+   874,
+   235,
+   99,
+   29
+  ],
+  "round": "hard"
+ },
+ {
+  "img": "wizard-mobile",
+  "q": "¿Dónde le doy para continuar?",
+  "box": [
+   24,
+   390,
+   342,
+   32
+  ],
+  "round": "hard"
+ },
+ {
+  "img": "wizard-mobile",
+  "q": "Mostrar la contraseña que escribí",
+  "box": [
+   20,
+   326,
+   140,
+   28
+  ],
+  "round": "hard"
+ },
+ {
+  "img": "wizard-mobile",
+  "q": "Crear una cuenta nueva",
+  "box": [
+   194,
+   431,
+   113,
+   19
+  ],
+  "round": "hard"
+ },
+ {
+  "img": "payments",
+  "q": "¿Dónde pago con PSE?",
+  "box": null,
+  "round": "hard"
+ },
+ {
+  "img": "tasks",
+  "q": "Exportar las tareas a Excel",
+  "box": null,
+  "round": "hard"
+ },
+ {
+  "img": "github",
+  "q": "¿Dónde descargo el instalador para Windows?",
+  "box": null,
+  "round": "hard"
+ }
+]

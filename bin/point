@@ -1,0 +1,21 @@
+#!/bin/sh
+# point — le pasás una captura y una pregunta y devuelve el punto donde tocar, en píxeles (point/main.go), con
+# Qwen3-VL-4B en la Mac. Lo compila la primera vez y cada vez que cambia su código, a ~/.cache/my-tools/point-bin.
+#
+#   bin/point captura.png '¿dónde le doy para continuar?'      → «640 568»  (sale 3 si no está en la pantalla)
+#   bin/point captura.png 'el botón de pagar' --json
+#   bin/point status · bin/point stop
+root=$(cd "$(dirname "$0")/.." && pwd -P) || exit 1
+bin="${XDG_CACHE_HOME:-$HOME/.cache}/my-tools/point-bin"
+stale=$(find "$root/point" -name '*.go' -newer "$bin" 2>/dev/null | head -n 1)
+if [ ! -x "$bin" ] || [ -n "$stale" ] || [ "$root/go.mod" -nt "$bin" ]; then
+  mkdir -p "$(dirname "$bin")" || exit 1
+  tmp="$bin.$$"
+  if ! (cd "$root" && go build -o "$tmp" ./point) >&2; then
+    rm -f "$tmp"
+    echo "point: no compila point/" >&2
+    exit 1
+  fi
+  mv -f "$tmp" "$bin"
+fi
+exec "$bin" "$@"
