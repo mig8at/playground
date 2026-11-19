@@ -106,7 +106,9 @@
       "evidence": "Con 13 B resolvió 12 % más problemas de HumanEval y 17 % más de MBPP, y generó hasta 3 veces más rápido.",
       "hardware": "datacenter",
       "machine": "Se mete al preentrenar: cluster de GPU de Meta.",
-      "models": []
+      "models": [],
+      "ours": "2026-11-19, en la Mac (24 GB), Qwen3.5-9B Q4_K_M con llama.cpp, temperatura 0, 500 palabras por pedido; sin acelerar: 36,5 tok/s escribiendo código, 36,3 en prosa y 35,5 editando un texto (cambiar una palabra y devolverlo entero). Con sus propias cabezas MTP (--spec-type draft-mtp): código 48,6 (×1,33, aceptó 342 de 469 adivinadas), edición 55,7 (×1,57, 112 de 117) y prosa 33,1 (×0,91: aceptó sólo 278 de 662 y adivinar le costó más de lo que ahorró). Fue lo mejor de lo probado: no necesita otro modelo.",
+      "mac": "llama.cpp lo usa con --spec-type draft-mtp si el GGUF trae las cabezas (por ejemplo los «-MTP-GGUF» de Qwen3.5)."
     },
     {
       "id": "lora",
@@ -298,7 +300,8 @@
       "hardware": "mac",
       "machine": "No hay que entrenar nada: sólo un modelo borrador de la misma familia.",
       "mac": "llama-server --model-draft <modelo chico>.",
-      "models": []
+      "models": [],
+      "ours": "2026-11-19, en la Mac (24 GB), Qwen3.5-9B Q4_K_M con llama.cpp, temperatura 0, 500 palabras por pedido; sin acelerar: 36,5 tok/s escribiendo código, 36,3 en prosa y 35,5 editando un texto (cambiar una palabra y devolverlo entero). Con un borrador Qwen3.5-0,8B: edición 46,1 (×1,30) pero código 26,6 (×0,73) y prosa 11,5 (×0,32, aceptó 226 de 1.090). En la Mac el borrador comparte el mismo ancho de banda de memoria que el modelo grande: sólo paga cuando acierta casi siempre. En la prosa la salida cambió desde el carácter 333 (lo mismo con MTP): verificar varias palabras juntas hace las cuentas en otro orden y un empate se inclinó para el otro lado; en código y edición salió idéntica."
     },
     {
       "id": "pruning",
@@ -660,6 +663,95 @@
         "Qwen/Qwen3-Embedding-0.6B"
       ],
       "ours": "2026-11-19, sobre knowledge-search: Claude escribió 1.357 búsquedas para las 336 secciones (4 estilos por sección) y se ajustó Qwen3-Embedding-0.6B una época (15 min en la Mac). Por significado: títulos de tareas reales 22→23 de 37, preguntas del 18/11 19→19 de 20, identificadores 11→20 de 30, búsquedas generadas apartadas 118→130 de 135. Ganó donde las palabras ya resolvían (los identificadores van mezclados con palabras: 30 de 30) y no en las preguntas naturales, donde la vara está saturada: 4 de los fallos reales son tareas con nombre de repo, sin respuesta. No reemplazó al modelo."
+    },
+    {
+      "id": "speculative-sampling",
+      "name": "Muestreo especulativo (con modelos que no son greedy)",
+      "stage": "efficiency",
+      "year": 2023,
+      "who": "DeepMind (Chen y otros)",
+      "paper": {
+        "title": "Accelerating Large Language Model Decoding with Speculative Sampling",
+        "url": "https://arxiv.org/abs/2302.01318"
+      },
+      "problem": "La decodificación especulativa original aseguraba la misma salida sólo eligiendo siempre la palabra más probable; con temperatura, el resultado cambiaba.",
+      "idea": "Una regla de rechazo modificada: se aceptan o se corrigen las palabras del borrador de forma que la distribución final sea exactamente la del modelo grande, también muestreando.",
+      "evidence": "Con Chinchilla (70 B) generó 2 a 2,5 veces más rápido en un montaje distribuido, sin cambiar la calidad ni el modelo.",
+      "hardware": "datacenter",
+      "machine": "Medido sobre Chinchilla 70 B en un montaje distribuido.",
+      "mac": "llama.cpp hace lo mismo: --spec-draft-sampling probabilistic.",
+      "models": []
+    },
+    {
+      "id": "medusa",
+      "name": "Varias cabezas que adivinan las próximas palabras (Medusa)",
+      "stage": "efficiency",
+      "year": 2024,
+      "who": "Princeton, Together AI y otros",
+      "paper": {
+        "title": "Medusa: Simple LLM Inference Acceleration Framework with Multiple Decoding Heads",
+        "url": "https://arxiv.org/abs/2401.10774"
+      },
+      "problem": "Un borrador aparte hay que conseguirlo, mantenerlo y que comparta el vocabulario del modelo grande.",
+      "idea": "Agregarle al propio modelo unas cabezas extra que predicen las palabras 2, 3, 4… y verificar varias continuaciones a la vez con una atención en árbol.",
+      "evidence": "Medusa-1 (cabezas sobre el modelo congelado) aceleró más de 2,2 veces sin perder calidad; Medusa-2 (entrenadas junto al modelo), 2,3 a 3,6 veces.",
+      "hardware": "gpu",
+      "machine": "Entrenar las cabezas es un ajuste corto sobre el modelo congelado.",
+      "models": []
+    },
+    {
+      "id": "eagle",
+      "name": "El borrador lee lo que piensa el modelo (EAGLE)",
+      "stage": "efficiency",
+      "year": 2024,
+      "who": "Universidad de Pekín, Microsoft y otros",
+      "paper": {
+        "title": "EAGLE-3: Scaling up Inference Acceleration of Large Language Models via Training-Time Test",
+        "url": "https://arxiv.org/abs/2503.01840"
+      },
+      "problem": "Un borrador chico adivina mal porque no sabe lo que el modelo grande ya calculó por dentro.",
+      "idea": "Un borrador mínimo que lee las representaciones internas del modelo grande (en EAGLE-3, de varias capas a la vez) y predice palabras desde ahí.",
+      "evidence": "EAGLE aceleró 2,7 a 3,5 veces a LLaMA2-Chat 70B; EAGLE-3, hasta 6,5 veces, unas 1,4 más que EAGLE-2.",
+      "hardware": "gpu",
+      "machine": "El borrador se entrena aparte (pesa ~1 GB para un 9 B).",
+      "mac": "llama.cpp lo soporta (--spec-type draft-eagle3), pero para Qwen3.5-9B el borrador sólo está en safetensors, no en GGUF.",
+      "models": []
+    },
+    {
+      "id": "lookahead",
+      "name": "Adivinar sin borrador (Lookahead)",
+      "stage": "efficiency",
+      "year": 2024,
+      "who": "UC San Diego y otros (Hao AI Lab)",
+      "paper": {
+        "title": "Break the Sequential Dependency of LLM Inference Using Lookahead Decoding",
+        "url": "https://arxiv.org/abs/2402.02057"
+      },
+      "problem": "Todo lo especulativo pedía un modelo borrador o un almacén de datos aparte.",
+      "idea": "El modelo genera en paralelo candidatos de varias palabras (n-gramas) a partir de su propio texto y los verifica él mismo: exacto, sin nada extra.",
+      "evidence": "Hasta 1,8 veces más rápido en MT-bench y 4 veces en completar código escalando en varias GPU.",
+      "hardware": "gpu",
+      "machine": "Sin entrenar nada: sólo cambia cómo se decodifica.",
+      "mac": "llama.cpp tiene variantes por n-gramas (--spec-type ngram-simple, ngram-mod…), sin un segundo modelo.",
+      "models": [],
+      "ours": "2026-11-19, en la Mac (24 GB), Qwen3.5-9B Q4_K_M con llama.cpp, temperatura 0, 500 palabras por pedido; sin acelerar: 36,5 tok/s escribiendo código, 36,3 en prosa y 35,5 editando un texto (cambiar una palabra y devolverlo entero). Con n-gramas del propio texto (--spec-type ngram-simple), sin otro modelo: más lento en los tres (código ×0,68, prosa ×0,72, edición ×0,90): en 500 palabras hay pocas repeticiones largas que copiar."
+    },
+    {
+      "id": "layerskip",
+      "name": "El modelo se usa a sí mismo de borrador (LayerSkip)",
+      "stage": "efficiency",
+      "year": 2024,
+      "who": "Meta",
+      "paper": {
+        "title": "LayerSkip: Enabling Early Exit Inference and Self-Speculative Decoding",
+        "url": "https://arxiv.org/abs/2404.16710"
+      },
+      "problem": "Un borrador aparte ocupa memoria y calcula todo de nuevo.",
+      "idea": "Entrenar para que las primeras capas ya puedan dar una respuesta: se genera con ellas (borrador) y las capas siguientes verifican y corrigen, reusando lo calculado.",
+      "evidence": "Hasta 2,16 veces más rápido en resúmenes, 1,82 en código y 2,0 en análisis semántico (TOPv2).",
+      "hardware": "datacenter",
+      "machine": "Hay que entrenar (o seguir entrenando) el modelo con esa receta.",
+      "models": []
     }
   ],
   "lineages": [
