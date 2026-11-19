@@ -5,7 +5,7 @@ nivel: miguel
 clase: proyecto
 stage: work
 created: "2026-09-15T17:00:00-05:00"
-knowledge: [creditopx-quota, renting-plans, ecommerce-context, lender-listing]
+knowledge: [creditopx-quota, renting-plans, ecommerce-context, lender-listing, backoffice-merchants]
 jira: []
 jira_title: ""
 ramas: ["risk-services-mockery-lambda:dictado-compartido"]
@@ -13,6 +13,12 @@ ramas: ["risk-services-mockery-lambda:dictado-compartido"]
 
 ## Pendientes
 
+- [ ] Pasar `harness-allied-create` al backoffice nuevo: el admin de legacy-application ya no es por donde se crean
+  comercios (CORE-562) y su alta da 500. El comercio y su sede se crean en `merchant-api`, y las entidades y el logo
+  en legacy-backend, por el gateway del backoffice con un token de STAFF; el asesor de prueba se crea aparte. Mapa en
+  la pila (2026-11-19) y lo que está en main en [backoffice-merchants](knowledge:backoffice-merchants). Termina
+  con un comercio de prueba creado por API con su sede, una entidad, su logo de letra y su asesor. Depende de: que
+  CORE-562 llegue a main, y un login de staff por API en los conectores.
 - [x] ~~Que el caminador (`dev/walk-wizard.ts`) también escriba en el registro de fallas~~ — hecho (2026-11-03): escribe
   `runner: walk` con canal «puerta · motor». De paso se cerró un verde falso: sin `CLOSE`, un caso con entidad pedida
   daba «listo» sin mirar si esa entidad estaba en el listado (en los dos motores); ahora lo comprueba sin elegirla.
