@@ -29,15 +29,28 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"creditop/my-tools/lib/models"
 )
 
 const (
 	port     = 5251
 	idle     = 15 * time.Minute
-	model    = "Qwen3VL-4B-Instruct-Q4_K_M.gguf"
-	mmproj   = "mmproj-Qwen3VL-4B-Instruct-Q8_0.gguf"
 	modelURL = "https://huggingface.co/Qwen/Qwen3-VL-4B-Instruct-GGUF/resolve/main/"
 )
+
+// modelFiles: el GGUF y su proyector, pedidos al registro de modelos (models/registry.json, el uso de «point»): la
+// ruta no está escrita acá. Si cambia el modelo de point, se cambia ahí (bin/models replace).
+func modelFiles() (weights, projector string, err error) {
+	paths, err := models.For(models.FindRoot(), "point", "")
+	if err != nil {
+		return "", "", fmt.Errorf("%v (bin/models list; el GGUF se baja de %s)", err, modelURL)
+	}
+	if len(paths) < 2 {
+		return "", "", fmt.Errorf("el modelo de point necesita el GGUF y su proyector; el registro da %v", paths)
+	}
+	return paths[0], paths[1], nil
+}
 
 // Se pide el recuadro del control que hay que tocar (bbox_2d, de 0 a 1000, el formato de Qwen3-VL) y el punto es su
 // centro: medido el 2026-11-19, 39 de 42 contra 37 pidiendo el punto directo. Pedir «el control a tocar» y
@@ -61,9 +74,6 @@ func dir() string {
 }
 
 func stateDir() string { return filepath.Join(dir(), "point") }
-func modelPath(f string) string {
-	return filepath.Join(dir(), "models", f)
-}
 
 func main() {
 	args := os.Args[1:]
@@ -250,10 +260,8 @@ func ensure() error {
 	if healthy() {
 		return nil
 	}
-	for _, f := range []string{model, mmproj} {
-		if _, err := os.Stat(modelPath(f)); err != nil {
-			return fmt.Errorf("falta %s (Qwen/Qwen3-VL-4B-Instruct-GGUF en Hugging Face): curl -L -o %s '%s%s'", f, modelPath(f), modelURL, f)
-		}
+	if _, _, err := modelFiles(); err != nil {
+		return err
 	}
 	if _, err := exec.LookPath("llama-server"); err != nil {
 		return errors.New("falta llama-server: brew install llama.cpp")
@@ -289,7 +297,12 @@ func ensure() error {
 func serve() {
 	os.WriteFile(filepath.Join(stateDir(), "pid"), []byte(strconv.Itoa(os.Getpid())), 0o644)
 	defer os.Remove(filepath.Join(stateDir(), "pid"))
-	cmd := exec.Command("llama-server", "-m", modelPath(model), "--mmproj", modelPath(mmproj),
+	weights, projector, err := modelFiles()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "point:", err)
+		os.Exit(1)
+	}
+	cmd := exec.Command("llama-server", "-m", weights, "--mmproj", projector,
 		"--host", "127.0.0.1", "--port", strconv.Itoa(port), "-ngl", "99", "-c", "8192", "--reasoning-budget", "0", "--no-webui")
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 	if err := cmd.Start(); err != nil {

@@ -7,7 +7,7 @@
 #   bin/point status · bin/point stop
 root=$(cd "$(dirname "$0")/.." && pwd -P) || exit 1
 bin="${XDG_CACHE_HOME:-$HOME/.cache}/my-tools/point-bin"
-stale=$(find "$root/point" -name '*.go' -newer "$bin" 2>/dev/null | head -n 1)
+stale=$(find "$root/point" "$root/lib/models" -name '*.go' -newer "$bin" 2>/dev/null | head -n 1)
 if [ ! -x "$bin" ] || [ -n "$stale" ] || [ "$root/go.mod" -nt "$bin" ]; then
   mkdir -p "$(dirname "$bin")" || exit 1
   tmp="$bin.$$"
@@ -18,4 +18,5 @@ if [ ! -x "$bin" ] || [ -n "$stale" ] || [ "$root/go.mod" -nt "$bin" ]; then
   fi
   mv -f "$tmp" "$bin"
 fi
-exec "$bin" "$@"
+# el modelo sale del registro de la raíz (models/registry.json): se le dice dónde está
+MY_TOOLS_ROOT="$root" exec "$bin" "$@"

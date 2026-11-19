@@ -115,3 +115,30 @@ func TestRepoRegistryIsValid(t *testing.T) {
 		t.Fatal("models/registry.json vacío")
 	}
 }
+
+// For devuelve las rutas de la herramienta en el orden del registro, y dice qué falta si no está.
+func TestFor(t *testing.T) {
+	r := fakeRoots(t)
+	t.Setenv("HOME", filepath.Dir(r.Mine)) // DefaultRoots mira ~/.cache: se arma uno falso con la misma forma
+	home := filepath.Dir(r.Mine)
+	cache := filepath.Join(home, ".cache")
+	os.MkdirAll(cache, 0o755)
+	os.Rename(r.Mine, filepath.Join(cache, "my-tools"))
+	t.Setenv("XDG_CACHE_HOME", "")
+	t.Setenv("HF_HOME", "")
+	t.Setenv("HF_HUB_CACHE", r.Hub)
+	root := t.TempDir()
+	os.MkdirAll(filepath.Join(root, "models"), 0o755)
+	os.WriteFile(RegistryPath(root), []byte(`{"uses":[{"tool":"point","model":"o/Foo","files":["gguf:Foo-4B-Instruct"]},
+	 {"tool":"ghost","model":"o/Nope","files":["gguf:Nope"]}]}`), 0o644)
+	got, err := For(root, "point", "")
+	if err != nil || len(got) != 2 || filepath.Base(got[0]) != "Foo-4B-Instruct-Q4_K_M.gguf" {
+		t.Fatalf("%v %v", got, err)
+	}
+	if _, err := For(root, "ghost", ""); err == nil {
+		t.Fatal("un modelo registrado que no está en la Mac es un error")
+	}
+	if _, err := For(root, "nadie", ""); err == nil {
+		t.Fatal("una herramienta sin registro es un error")
+	}
+}

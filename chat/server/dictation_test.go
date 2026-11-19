@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"creditop/my-tools/lib/models"
 )
 
 // De punta a punta, con Whisper de verdad: una voz de macOS (`say`) en webm, como la manda la interfaz, entra por
@@ -71,5 +73,21 @@ func TestCleanTranscript(t *testing.T) {
 		if got := cleanTranscript(in); got != want {
 			t.Errorf("cleanTranscript(%q) = %q, quería %q", in, got, want)
 		}
+	}
+}
+
+// El dictado usa el Whisper que dice el registro de modelos (el uso de «chat»), salvo que CHAT_WHISPER_MODEL lo pise.
+func TestWhisperModelComesFromTheRegistry(t *testing.T) {
+	t.Setenv("CHAT_WHISPER_MODEL", "")
+	paths, err := models.For(models.FindRoot(), "chat", "")
+	if err != nil {
+		t.Skipf("el modelo del chat no está en esta máquina: %v", err)
+	}
+	if got := whisperModel(); got != paths[0] {
+		t.Fatalf("whisperModel() = %s, el registro dice %s", got, paths[0])
+	}
+	t.Setenv("CHAT_WHISPER_MODEL", "/otro/modelo.bin")
+	if got := whisperModel(); got != "/otro/modelo.bin" {
+		t.Fatalf("CHAT_WHISPER_MODEL no pisa al registro: %s", got)
 	}
 }

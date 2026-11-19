@@ -8,7 +8,8 @@ package main
 //	GET  /api/dictate   ¿está listo? (whisper-cli, ffmpeg y el modelo); si no, qué falta
 //	POST /api/dictate   el audio en el cuerpo → {"text": "…"}
 //
-// El modelo: CHAT_WHISPER_MODEL, o ~/.cache/whisper/ggml-large-v3-turbo-q5_0.bin (se baja una vez, ~550 MB). Con
+// El modelo: CHAT_WHISPER_MODEL, o el que dice el registro de modelos (models/registry.json, `bin/models path chat`):
+// hoy ~/.cache/whisper/ggml-large-v3-turbo-q5_0.bin (se baja una vez, ~550 MB). Con
 // `brew install whisper-cpp` corre sobre Metal: unos segundos de audio se transcriben en uno o dos.
 
 import (
@@ -24,6 +25,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"creditop/my-tools/lib/models"
 )
 
 const maxDictation = 25 << 20 // 25 MB: varios minutos de voz comprimida
@@ -48,9 +51,14 @@ func findTool(name string) string {
 	return ""
 }
 
+// whisperModel: CHAT_WHISPER_MODEL si está; si no, el que dice el registro de modelos (models/registry.json, el uso de
+// «chat»), y si el registro no contesta, el de siempre.
 func whisperModel() string {
 	if m := os.Getenv("CHAT_WHISPER_MODEL"); m != "" {
 		return m
+	}
+	if paths, err := models.For(models.FindRoot(), "chat", ""); err == nil && len(paths) > 0 {
+		return paths[0]
 	}
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".cache", "whisper", "ggml-large-v3-turbo-q5_0.bin")

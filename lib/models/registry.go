@@ -147,3 +147,65 @@ func (reg *Registry) Replace(tool, oldModel, newModel string, newFiles []string,
 	}
 	return free, nil
 }
+
+// For: las rutas de lo que usa una herramienta según el registro, en el orden de sus `files` (y, dentro de un GGUF,
+// el peso antes del proyector). Con model vacío, el primer uso de la herramienta. Es lo mismo que `bin/models path`,
+// para las herramientas en Go. El error dice qué falta: no está en el registro, o está pero no en la Mac.
+func For(root, tool, model string) ([]string, error) {
+	reg, err := LoadRegistry(root)
+	if err != nil {
+		return nil, err
+	}
+	var use *Use
+	for i, u := range reg.Uses {
+		if u.Tool == tool && (model == "" || u.Model == model) {
+			use = &reg.Uses[i]
+			break
+		}
+	}
+	if use == nil {
+		return nil, fmt.Errorf("%s no tiene modelo en models/registry.json", tool)
+	}
+	installed := map[string]Installed{}
+	for _, it := range Scan(DefaultRoots()) {
+		installed[it.Key] = it
+	}
+	var out []string
+	for _, f := range use.Files {
+		it, ok := installed[f]
+		if !ok {
+			return nil, fmt.Errorf("%s (%s, de %s) no está en la Mac", f, use.Model, tool)
+		}
+		out = append(out, it.Locations()...)
+	}
+	return out, nil
+}
+
+// FindRoot: la raíz de my-tools, donde está el registro: MY_TOOLS_ROOT, o subiendo desde la carpeta actual y desde el
+// ejecutable hasta encontrar models/registry.json. Vacío si no la encuentra.
+func FindRoot() string {
+	if r := os.Getenv("MY_TOOLS_ROOT"); r != "" {
+		return r
+	}
+	var starts []string
+	if wd, err := os.Getwd(); err == nil {
+		starts = append(starts, wd)
+	}
+	if exe, err := os.Executable(); err == nil {
+		if real, err := filepath.EvalSymlinks(exe); err == nil {
+			exe = real
+		}
+		starts = append(starts, filepath.Dir(exe))
+	}
+	for _, dir := range starts {
+		for d := dir; ; d = filepath.Dir(d) {
+			if _, err := os.Stat(RegistryPath(d)); err == nil {
+				return d
+			}
+			if filepath.Dir(d) == d {
+				break
+			}
+		}
+	}
+	return ""
+}

@@ -19,6 +19,20 @@ necesita: `hub:autor/modelo`, `gguf:Nombre`, `env:carpeta`, `whisper:nombre`), `
 `source` (dónde lo usa el código) y `since`. Una herramienta que empieza a usar un modelo se agrega acá **en el mismo
 commit**; si no, `bin/models unused` lo ofrece para borrar.
 
+## Las herramientas le piden su modelo al registro
+
+Ninguna tiene la ruta escrita: la piden con `models.For(models.FindRoot(), "<herramienta>", "")` (Go, `lib/models`) o
+con `bin/models path <herramienta>` (cualquier otra cosa). Cambiar el modelo de una herramienta es cambiar el registro.
+
+| herramienta | qué pide | dónde |
+|---|---|---|
+| point | el GGUF de Qwen3-VL-4B y su proyector | `point/main.go` (`modelFiles`; `bin/point` le pasa `MY_TOOLS_ROOT`) |
+| chat | el Whisper del dictado (`CHAT_WHISPER_MODEL` lo pisa; si el registro no contesta, el de siempre) | `chat/server/dictation.go` (`whisperModel`, con su prueba) |
+| sentinel | el venv de Timestral-5M (un pronosticador sin registro, como Chronos-2, usa su lugar de antes) | `sentinel/server/forecast.go` (`forecasterPython`) |
+
+`FindRoot` encuentra el registro por `MY_TOOLS_ROOT` o subiendo desde la carpeta actual y desde el ejecutable: un binario
+fuera del repo (como el de `bin/point`, en `~/.cache`) necesita que su envoltorio le pase `MY_TOOLS_ROOT`.
+
 ## La regla del reemplazo
 
 Si un modelo le gana a otro en la misma tarea (medido con la misma prueba, no por la ficha), `bin/models replace` hace

@@ -20,6 +20,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"creditop/my-tools/lib/models"
 )
 
 const (
@@ -32,12 +34,36 @@ const (
 // hasta el 2026-11-19 Chronos usaba 0,5/2/98/99,5 %.
 var chronosQuantiles = []float64{0.01, 0.05, 0.1, 0.5, 0.9, 0.95, 0.99}
 
-// forecaster: un modelo de pronóstico con su venv y su script (mismo protocolo JSON por stdin y stdout).
-type forecaster struct{ name, label, venv, script string }
+// forecaster: un modelo de pronóstico con su script (mismo protocolo JSON por stdin y stdout). Su venv sale del registro
+// de modelos (models/registry.json, el uso de «sentinel» con ese modelo); `venv` es el lugar de antes, para un modelo
+// que no está registrado (Chronos-2, superado y borrado el 2026-11-19).
+type forecaster struct{ name, label, model, venv, script string }
 
 var forecasters = map[string]forecaster{
-	"chronos":   {"chronos", "Chronos-2", "chronos/venv", "chronos.py"},
-	"timestral": {"timestral", "Timestral-5M", "timestral/.venv", "timestral.py"},
+	"chronos":   {"chronos", "Chronos-2", "amazon/chronos-2", "chronos/venv", "chronos.py"},
+	"timestral": {"timestral", "Timestral-5M", "mistralai/Timestral-5M", "timestral/.venv", "timestral.py"},
+}
+
+// forecasterPython: el python del venv del pronosticador activo: el que dice el registro, o el lugar de antes.
+func forecasterPython(root string) (string, error) {
+	if paths, err := models.For(root, "sentinel", active.model); err == nil {
+		for _, p := range paths {
+			for _, v := range []string{".venv", "venv"} {
+				py := filepath.Join(p, v, "bin", "python")
+				if _, err := os.Stat(py); err == nil {
+					return py, nil
+				}
+			}
+		}
+	} else if !strings.Contains(err.Error(), "no tiene modelo") {
+		return "", err // registrado pero no está en la Mac: decirlo, no buscar en otro lado
+	}
+	home, _ := os.UserHomeDir()
+	py := filepath.Join(home, ".cache", "my-tools", active.venv, "bin", "python")
+	if _, err := os.Stat(py); err != nil {
+		return "", fmt.Errorf("falta el venv de %s en %s (bin/models list)", active.label, py)
+	}
+	return py, nil
 }
 
 // active: el pronosticador de esta corrida (-forecaster). Timestral-5M por defecto desde el 2026-11-19: en los mismos 7
@@ -94,10 +120,9 @@ type chronosReply struct {
 // chronosForecast manda los contextos al script del pronosticador activo (en su venv) y devuelve, por contexto, los cuantiles de
 // la hora siguiente.
 func chronosForecast(root string, contexts, rests [][]float64) (*chronosReply, error) {
-	home, _ := os.UserHomeDir()
-	py := filepath.Join(home, ".cache", "my-tools", active.venv, "bin", "python")
-	if _, err := os.Stat(py); err != nil {
-		return nil, fmt.Errorf("falta el venv de %s en %s", active.label, py)
+	py, err := forecasterPython(root)
+	if err != nil {
+		return nil, err
 	}
 	series := make([][]any, len(contexts))
 	for i, c := range contexts {
@@ -238,7 +263,7 @@ func printChronos(s *sentinel, days int, patterns []string, plain bool) {
 			}
 		}
 	}
-	fmt.Fprintf(os.Stderr, "chronos: %d señales × %d horas = %d pronósticos…\n", len(sigs), len(hours)/max(len(sigs), 1), len(hours))
+	fmt.Fprintf(os.Stderr, "%s: %d señales × %d horas = %d pronósticos…\n", active.name, len(sigs), len(hours)/max(len(sigs), 1), len(hours))
 	reply, err := chronosForecast(s.root, contexts, rests)
 	if err != nil {
 		log.Fatal(err)
