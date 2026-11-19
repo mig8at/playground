@@ -1,0 +1,75 @@
+{
+  "name": "Ver las afiliaciones de Creditop en master y su workspace",
+  "meta": "Ver las afiliaciones de Creditop en master y su workspace",
+  "start": "https://creditop.myvtex.com/admin/test-suite/payment-provider",
+  "device": "chrome",
+  "created": "2026-11-12T09:00:43.655479-05:00",
+  "verified": "0001-01-01T00:00:00Z",
+  "run": "2026-11-12_08-57-40",
+  "steps": [
+    {
+      "action": "goto",
+      "target": "https://creditop.myvtex.com/admin/pci-gateway/#/affiliations",
+      "value": "https://creditop.myvtex.com/admin/pci-gateway/#/affiliations",
+      "instruction": "Abrí https://creditop.myvtex.com/admin/pci-gateway/#/affiliations",
+      "code": "page.goto('https://creditop.myvtex.com/admin/pci-gateway/#/affiliations')"
+    },
+    {
+      "action": "expect",
+      "target": "Creditop",
+      "value": "Creditop",
+      "instruction": "Comprobá que se vea «Creditop»",
+      "code": "expect(page.getByText('Creditop').filter({ visible: true }).first()).toBeVisible()"
+    },
+    {
+      "action": "click",
+      "target": "Creditop prod prueba (2584)",
+      "instruction": "Hacé clic en «Creditop prod prueba (2584)»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "link",
+          "value": "Creditop prod prueba (2584)",
+          "exact": true,
+          "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('link', { name: 'Creditop prod prueba (2584)', exact: true })",
+          "count": 1,
+          "works": true
+        },
+        "frame": "iframe[title=\"IO iframe container\"]"
+      },
+      "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('link', { name: 'Creditop prod prueba (2584)', exact: true }).click()"
+    },
+    {
+      "action": "goto",
+      "target": "https://creditop.myvtex.com/admin/affiliations",
+      "value": "https://creditop.myvtex.com/admin/affiliations",
+      "instruction": "Abrí https://creditop.myvtex.com/admin/affiliations",
+      "code": "page.goto('https://creditop.myvtex.com/admin/affiliations')"
+    },
+    {
+      "action": "click",
+      "target": "Creditop qa",
+      "instruction": "Hacé clic en «Creditop qa»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "link",
+          "value": "Creditop qa",
+          "exact": true,
+          "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('link', { name: 'Creditop qa', exact: true })",
+          "count": 1,
+          "works": true
+        },
+        "frame": "iframe[title=\"IO iframe container\"]"
+      },
+      "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('link', { name: 'Creditop qa', exact: true }).click()"
+    },
+    {
+      "action": "goto",
+      "target": "https://creditop.myvtex.com/admin/affiliations",
+      "value": "https://creditop.myvtex.com/admin/affiliations",
+      "instruction": "Abrí https://creditop.myvtex.com/admin/affiliations",
+      "code": "page.goto('https://creditop.myvtex.com/admin/affiliations')"
+    }
+  ]
+}

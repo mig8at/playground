@@ -663,6 +663,16 @@
           "allied_id": 547
         }
       }
+    },
+    "mareigua-cuentas": {
+      "name": "Mareigua Cuentas Pruebas",
+      "bases": {
+        "local": {
+          "branch": "a2f772a6",
+          "branch_id": 2311,
+          "allied_id": 548
+        }
+      }
     }
   }
 }

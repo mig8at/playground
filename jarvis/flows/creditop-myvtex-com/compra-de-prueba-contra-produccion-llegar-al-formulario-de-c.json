@@ -1,0 +1,36 @@
+{
+  "name": "Compra de prueba contra producción: llegar al formulario de Creditop de prod y parar",
+  "meta": "Compra de prueba contra producción: llegar al formulario de Creditop de prod y parar",
+  "start": "https://creditop.myvtex.com/admin/apps/creditop.creditop@5.2.0/setup",
+  "device": "chrome",
+  "created": "2026-11-12T09:31:33.267191-05:00",
+  "verified": "0001-01-01T00:00:00Z",
+  "run": "2026-11-12_09-29-54",
+  "steps": [
+    {
+      "action": "goto",
+      "target": "https://creditop.myvtex.com/checkout/#/payment",
+      "value": "https://creditop.myvtex.com/checkout/#/payment",
+      "instruction": "Abrí https://creditop.myvtex.com/checkout/#/payment",
+      "code": "page.goto('https://creditop.myvtex.com/checkout/#/payment')"
+    },
+    {
+      "action": "click",
+      "target": "Comprar ahora",
+      "instruction": "Hacé clic en «Comprar ahora»",
+      "why": "Creditop ya está elegido; compro: el conector de master pide el enlace a producción (sucursal 2584)",
+      "ref": {
+        "loc": {
+          "kind": "nth",
+          "role": "button",
+          "value": "Comprar ahora",
+          "nth": 1,
+          "code": "page.getByRole('button', { name: 'Comprar ahora' }).nth(1)",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('button', { name: 'Comprar ahora' }).nth(1).click()"
+    }
+  ]
+}

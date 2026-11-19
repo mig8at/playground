@@ -1,0 +1,18 @@
+Hi. I need to open a ticket with the Payments team to start the homologation of our payment connector. Please escalate it to a support agent.
+
+Connector: Creditop, a Payment Provider Framework (VTEX IO) app, creditop.creditop version 5.2.0, published and deployed as stable. Owner account: creditop.
+Payment method: it adds a NEW payment method, "Creditop": consumer financing (buy now, pay later) for shoppers in Colombia, in Colombian pesos (COP).
+Purchase flow: Redirect. The connector creates the order in Creditop and the shopper is redirected to Creditop's credit application; the result comes back asynchronously through the callback. Capture happens on invoicing; cancellations and refunds go through Creditop. It does not process cards, so the PCI AOC does not apply.
+Creditop endpoints: production https://v2.api.creditop.com/legacy-api · sandbox https://api.dev.creditop.com/legacy-api (each store picks the environment in the app settings).
+Allowed accounts: specific merchant accounts at first; all accounts later.
+
+Testing: on 2026-11-12 we ran the Payment Provider Test Suite against version 5.2.0, linked in the development workspace "pruebas" of the creditop account: 7 out of 7 passed (Approved, Denied, Cancellation, Async approved, Async denied, Boleto and Redirect). We also ran end-to-end purchases in the creditop store: approval, denial, cancellation from the store and capture on invoicing, plus a purchase against production that reaches the credit application.
+
+Questions:
+1. The documentation says a PPF connector installed locally and restricted to specific accounts may not need homologation if it only uses existing payment methods. Since ours adds a new payment method, do we need homologation to use it in a merchant's account? How is the connector enabled for a specific account?
+2. Could you send us the Master Partner Agreement for Financial Services (MPA) to review and sign?
+3. We also want to publish the app on the VTEX App Store. Is that a separate process (App Store developer registration and vtex submit), or does homologation cover it?
+4. Could you provide a test account other than creditop, so we can validate the installation the way an external store would?
+5. The Test Suite does not load the payment methods when the Service URL points to the app installed in master (https://creditop.myvtex.com/_v/creditop.creditop/v5): it shows "paymentMethod.map is not a function". With the app linked in a development workspace it works. Is this expected?
+
+The Test Suite result (7/7) is attached. Thank you.

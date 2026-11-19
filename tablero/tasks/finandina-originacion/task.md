@@ -188,11 +188,14 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
 - [ ] Revisar el consentimiento del onboarding en las sucursales donde la consulta sale con la cuenta de
   Finandina, antes de elegir entidad: el formulario la pone como responsable de los datos (PRD-72). Depende de:
   producto.
-- [ ] Integrar la consulta de Experian de Finandina: sus llaves de prueba son del servicio SOAP HC2
-  (`DHServicePlus`, `consultarHC2`, producto 64, usuario = NIT y clave corta), que ningún repo implementa; el
-  Experian de Creditop es el REST con OAuth. Termina con una consulta HC2 en el ambiente demo de Experian
-  desde local y su respuesta convertida a lo que lee el motor. Depende de: Finandina — el certificado de cliente
-  (el servidor demo exige TLS mutuo), su clave y si hay que autorizar la IP de salida; y la decisión de las cuentas.
+- [x] ~~Integrar Experian con la cuenta de Finandina~~ — PR [#1969](https://github.com/Creditop-SAS/legacy-backend/pull/1969)
+  mergeado a qa; credencial 15 en qa y la 149 en `experian_trigger_bypass_rules.lenders`; uReq 505153 en
+  BUSINESS_FINANDINA (`c0fca632`) cerró en 11 con `credential_id` 15 (2026-11-19).
+- [ ] Probar en qa en BUSINESS_FINANDINA (comercio 368, sucursal `c0fca632`, sólo la 149, sin pipeline nuevo), no en
+  Mediarte. Termina con Duncan y Abel avisados del comercio. Para el canal de asesor le falta un asesor de prueba: el
+  alta por el admin de dev da 500 desde CORE-562. Depende de: Joel — el alta de comercios en el admin de dev.
+- [ ] Preguntar a Finandina si su código de producto de Experian cubre Quanto: la compra es Acierta+Quanto cuando
+  Ágil Data y Mareigua no traen ingreso, y sin cuenta para ese producto sale con la de Creditop. Depende de: Finandina.
 - [ ] Cargar las llaves desde el admin en la base compartida: las de prueba (Experian HC2 y Mareigua «Validador
   I/E») están en `connectors/.env.finandina`, sin versionar, y se siguen usando las que entregó Finandina; las
   de Deceval todavía no llegaron. Depende de: producto — las de Deceval.

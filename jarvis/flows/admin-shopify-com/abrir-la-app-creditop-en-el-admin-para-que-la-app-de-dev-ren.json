@@ -1,0 +1,115 @@
+{
+  "name": "Abrir la app Creditop en el admin para que la app de dev renueve su sesión (solo mirar)",
+  "meta": "Abrir la app Creditop en el admin para que la app de dev renueve su sesión (solo mirar)",
+  "start": "https://admin.shopify.com/store/creditop-dev-store/apps/9bad40b96fc86cca4a4f5ae3e4f293ca",
+  "device": "chrome",
+  "created": "2026-11-13T12:16:52.927372-05:00",
+  "verified": "0001-01-01T00:00:00Z",
+  "run": "2026-11-13_12-14-12",
+  "steps": [
+    {
+      "action": "goto",
+      "target": "https://admin.shopify.com/store/creditop-dev-store/orders?query=1040",
+      "value": "https://admin.shopify.com/store/creditop-dev-store/orders?query=1040",
+      "instruction": "Abrí https://admin.shopify.com/store/creditop-dev-store/orders?query=1040",
+      "code": "page.goto('https://admin.shopify.com/store/creditop-dev-store/orders?query=1040')"
+    },
+    {
+      "action": "click",
+      "target": "#1040",
+      "instruction": "Hacé clic en «#1040»",
+      "why": "Abrir el pedido #1040 para pedir el reembolso",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "link",
+          "value": "#1040",
+          "exact": true,
+          "code": "page.getByRole('link', { name: '#1040', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('link', { name: '#1040', exact: true }).click()"
+    },
+    {
+      "action": "goto",
+      "target": "https://admin.shopify.com/store/creditop-dev-store/orders/7593803448623/refund",
+      "value": "https://admin.shopify.com/store/creditop-dev-store/orders/7593803448623/refund",
+      "instruction": "Abrí https://admin.shopify.com/store/creditop-dev-store/orders/7593803448623/refund",
+      "code": "page.goto('https://admin.shopify.com/store/creditop-dev-store/orders/7593803448623/refund')"
+    },
+    {
+      "action": "fill",
+      "target": "Cantidad / 1",
+      "value": "1",
+      "instruction": "Escribí «1» en «Cantidad / 1»",
+      "why": "Reembolso total de prueba: cantidad 1 y motivo",
+      "param": "Cantidad / 1",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "spinbutton",
+          "value": "Cantidad / 1",
+          "exact": true,
+          "code": "page.getByRole('spinbutton', { name: 'Cantidad / 1', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('spinbutton', { name: 'Cantidad / 1', exact: true }).fill('1')"
+    },
+    {
+      "action": "fill",
+      "target": "Cantidad / 1",
+      "value": "1",
+      "instruction": "Escribí «1» en «Cantidad / 1»",
+      "param": "Cantidad / 1",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "spinbutton",
+          "value": "Cantidad / 1",
+          "exact": true,
+          "code": "page.getByRole('spinbutton', { name: 'Cantidad / 1', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('spinbutton', { name: 'Cantidad / 1', exact: true }).fill('1')"
+    },
+    {
+      "action": "uncheck",
+      "target": "Enviar notificación una vez finalizado el reembolso",
+      "instruction": "Desmarcá «Enviar notificación una vez finalizado el reembolso»",
+      "why": "Sin notificar al comprador y reembolsar los 800.000 de prueba",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Enviar notificación una vez finalizado el reembolso",
+          "visible": true,
+          "code": "page.getByText('Enviar notificación una vez finalizado el reembolso', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "code": "page.getByText('Enviar notificación una vez finalizado el reembolso', { exact: true }).filter({ visible: true }).uncheck()"
+    },
+    {
+      "action": "click",
+      "target": "Reembolsar 800.000,00 $",
+      "instruction": "Hacé clic en «Reembolsar 800.000,00 $»",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Reembolsar 800.000,00 $",
+          "visible": true,
+          "code": "page.getByText('Reembolsar 800.000,00 $', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "code": "page.getByText('Reembolsar 800.000,00 $', { exact: true }).filter({ visible: true }).click()"
+    }
+  ]
+}

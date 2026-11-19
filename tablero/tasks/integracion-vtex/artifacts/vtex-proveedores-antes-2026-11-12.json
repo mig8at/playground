@@ -1,0 +1,462 @@
+{
+ "at": "2026-11-12",
+ "affiliations": [
+  {
+   "id": "28104f7f-3230-4ffe-8f30-9816db8074e3",
+   "implementation": "Vtex.PaymentGateway.Connectors.PromissoryConnector",
+   "name": "Promissory",
+   "configuration": [
+    {
+     "name": "connectorName",
+     "value": "Promissory",
+     "valueKey": null
+    },
+    {
+     "name": "ExpiryDays",
+     "value": "7",
+     "valueKey": null
+    },
+    {
+     "name": "isSelfAuthorized",
+     "value": "false",
+     "valueKey": null
+    }
+   ],
+   "isdelivered": true,
+   "isConfigured": true
+  },
+  {
+   "id": "016cdf25-9bcb-4f67-ae13-e9c85fb80868",
+   "implementation": "Vtex.PaymentGateway.Connectors.PaymentProvider.PaymentProviderConnector_creditop-creditop-v4",
+   "name": "Creditop-test",
+   "configuration": [
+    {
+     "name": "ApplicationAuthenticationLink",
+     "value": "//{hostname}/payment-provider/authenticate-app",
+     "valueKey": null
+    },
+    {
+     "name": "applicationId",
+     "value": "vtex",
+     "valueKey": null
+    },
+    {
+     "name": "requiresDocument",
+     "value": "false",
+     "valueKey": null
+    },
+    {
+     "name": "useAntifraud",
+     "value": "false",
+     "valueKey": null
+    },
+    {
+     "name": "useEarlySecurityCapture",
+     "value": "0",
+     "valueKey": null
+    },
+    {
+     "name": "configReturnRedirectUrl",
+     "value": "",
+     "valueKey": null
+    },
+    {
+     "name": "connectorName",
+     "value": "creditop-creditop-v4",
+     "valueKey": null
+    },
+    {
+     "name": "isProduction",
+     "value": "true",
+     "valueKey": null
+    },
+    {
+     "name": "workspace",
+     "value": "master",
+     "valueKey": null
+    },
+    {
+     "name": "appKey",
+     "value": "6c402138",
+     "valueKey": null
+    },
+    {
+     "name": "appToken",
+     "value": "**********",
+     "valueKey": null
+    }
+   ],
+   "isdelivered": true,
+   "isConfigured": true
+  },
+  {
+   "id": "58fe8b30-87e2-49a9-9152-798e40ca75d3",
+   "implementation": "Vtex.PaymentGateway.Connectors.PaymentProvider.PaymentProviderConnector_creditop-creditop-v4",
+   "name": "[NO USAR] Creditop BNPL",
+   "configuration": [
+    {
+     "name": "ApplicationAuthenticationLink",
+     "value": "//{hostname}/payment-provider/authenticate-app",
+     "valueKey": null
+    },
+    {
+     "name": "applicationId",
+     "value": "vtex",
+     "valueKey": null
+    },
+    {
+     "name": "requiresDocument",
+     "value": "false",
+     "valueKey": null
+    },
+    {
+     "name": "useAntifraud",
+     "value": "false",
+     "valueKey": null
+    },
+    {
+     "name": "useEarlySecurityCapture",
+     "value": "0",
+     "valueKey": null
+    },
+    {
+     "name": "configReturnRedirectUrl",
+     "value": "",
+     "valueKey": null
+    },
+    {
+     "name": "connectorName",
+     "value": "creditop-creditop-v4",
+     "valueKey": null
+    },
+    {
+     "name": "appToken",
+     "value": "**********",
+     "valueKey": null
+    },
+    {
+     "name": "appKey",
+     "value": "638bd7f1",
+     "valueKey": null
+    },
+    {
+     "name": "isProduction",
+     "value": "false",
+     "valueKey": null
+    },
+    {
+     "name": "workspace",
+     "value": "oscarrinc",
+     "valueKey": null
+    }
+   ],
+   "isdelivered": true,
+   "isConfigured": true
+  },
+  {
+   "id": "e362182a-5984-45cb-9821-461b83b60d24",
+   "implementation": "Vtex.PaymentGateway.Connectors.PaymentProvider.PaymentProviderConnector_creditop-creditop-v4",
+   "name": "[NO USAR] Creditop Miguel (dev)",
+   "configuration": [
+    {
+     "name": "ApplicationAuthenticationLink",
+     "value": "//{hostname}/payment-provider/authenticate-app",
+     "valueKey": null
+    },
+    {
+     "name": "applicationId",
+     "value": "vtex",
+     "valueKey": null
+    },
+    {
+     "name": "requiresDocument",
+     "value": "false",
+     "valueKey": null
+    },
+    {
+     "name": "useAntifraud",
+     "value": "false",
+     "valueKey": null
+    },
+    {
+     "name": "useEarlySecurityCapture",
+     "value": "0",
+     "valueKey": null
+    },
+    {
+     "name": "configReturnRedirectUrl",
+     "value": "",
+     "valueKey": null
+    },
+    {
+     "name": "connectorName",
+     "value": "creditop-creditop-v4",
+     "valueKey": null
+    },
+    {
+     "name": "appKey",
+     "value": "530aa4f7",
+     "valueKey": null
+    },
+    {
+     "name": "appToken",
+     "value": "**********",
+     "valueKey": null
+    },
+    {
+     "name": "isProduction",
+     "value": "false",
+     "valueKey": null
+    },
+    {
+     "name": "workspace",
+     "value": "migueldev",
+     "valueKey": null
+    }
+   ],
+   "isdelivered": true,
+   "isConfigured": true
+  },
+  {
+   "id": "03117030-34eb-4e21-9b92-ba6e7fd76577",
+   "implementation": "Vtex.PaymentGateway.Connectors.PaymentProvider.PaymentProviderConnector_creditop-creditop-v5",
+   "name": "Creditop qa",
+   "configuration": [
+    {
+     "name": "ApplicationAuthenticationLink",
+     "value": "//{hostname}/payment-provider/authenticate-app",
+     "valueKey": null
+    },
+    {
+     "name": "applicationId",
+     "value": "vtex",
+     "valueKey": null
+    },
+    {
+     "name": "requiresDocument",
+     "value": "false",
+     "valueKey": null
+    },
+    {
+     "name": "useAntifraud",
+     "value": "false",
+     "valueKey": null
+    },
+    {
+     "name": "useEarlySecurityCapture",
+     "value": "0",
+     "valueKey": null
+    },
+    {
+     "name": "configReturnRedirectUrl",
+     "value": "",
+     "valueKey": null
+    },
+    {
+     "name": "connectorName",
+     "value": "creditop-creditop-v5",
+     "valueKey": null
+    },
+    {
+     "name": "appKey",
+     "value": "ecf9342be",
+     "valueKey": null
+    },
+    {
+     "name": "appToken",
+     "value": "**********",
+     "valueKey": null
+    },
+    {
+     "name": "isProduction",
+     "value": "false",
+     "valueKey": null
+    },
+    {
+     "name": "workspace",
+     "value": "master",
+     "valueKey": null
+    }
+   ],
+   "isdelivered": true,
+   "isConfigured": true
+  },
+  {
+   "id": "facb0b0a-8ca8-4e7f-ab5a-a9440772cc24",
+   "implementation": "Vtex.PaymentGateway.Connectors.PaymentProvider.PaymentProviderConnector_creditop-creditop-v5",
+   "name": "Mario Hernández (qa)",
+   "configuration": [
+    {
+     "name": "ApplicationAuthenticationLink",
+     "value": "//{hostname}/payment-provider/authenticate-app",
+     "valueKey": null
+    },
+    {
+     "name": "applicationId",
+     "value": "vtex",
+     "valueKey": null
+    },
+    {
+     "name": "requiresDocument",
+     "value": "false",
+     "valueKey": null
+    },
+    {
+     "name": "useAntifraud",
+     "value": "false",
+     "valueKey": null
+    },
+    {
+     "name": "useEarlySecurityCapture",
+     "value": "0",
+     "valueKey": null
+    },
+    {
+     "name": "configReturnRedirectUrl",
+     "value": "",
+     "valueKey": null
+    },
+    {
+     "name": "workspace",
+     "value": "master",
+     "valueKey": null
+    },
+    {
+     "name": "connectorName",
+     "value": "creditop-creditop-v5",
+     "valueKey": null
+    },
+    {
+     "name": "isProduction",
+     "value": "false",
+     "valueKey": null
+    },
+    {
+     "name": "appKey",
+     "value": "1126106a",
+     "valueKey": null
+    },
+    {
+     "name": "appToken",
+     "value": "**********",
+     "valueKey": null
+    }
+   ],
+   "isdelivered": true,
+   "isConfigured": true
+  },
+  {
+   "id": "1d6028c0-8e6e-4b46-a79d-7e31d8581f79",
+   "implementation": "Vtex.PaymentGateway.Connectors.PaymentProvider.PaymentProviderConnector_creditop-creditop-v5",
+   "name": "Creditop prod prueba (2584)",
+   "configuration": [
+    {
+     "name": "ApplicationAuthenticationLink",
+     "value": "//{hostname}/payment-provider/authenticate-app",
+     "valueKey": null
+    },
+    {
+     "name": "applicationId",
+     "value": "vtex",
+     "valueKey": null
+    },
+    {
+     "name": "requiresDocument",
+     "value": "false",
+     "valueKey": null
+    },
+    {
+     "name": "useAntifraud",
+     "value": "false",
+     "valueKey": null
+    },
+    {
+     "name": "useEarlySecurityCapture",
+     "value": "0",
+     "valueKey": null
+    },
+    {
+     "name": "configReturnRedirectUrl",
+     "value": "",
+     "valueKey": null
+    },
+    {
+     "name": "workspace",
+     "value": "master",
+     "valueKey": null
+    },
+    {
+     "name": "connectorName",
+     "value": "creditop-creditop-v5",
+     "valueKey": null
+    },
+    {
+     "name": "isProduction",
+     "value": "false",
+     "valueKey": null
+    },
+    {
+     "name": "appKey",
+     "value": "84297564",
+     "valueKey": null
+    },
+    {
+     "name": "appToken",
+     "value": "**********",
+     "valueKey": null
+    }
+   ],
+   "isdelivered": true,
+   "isConfigured": true
+  }
+ ],
+ "rules": [
+  {
+   "id": "e70cba25-7591-4e03-bbe1-66340493c864",
+   "name": "Creditop qa",
+   "salesChannels": [
+    {
+     "id": ":ALL:"
+    }
+   ],
+   "paymentSystem": {
+    "id": 1035,
+    "name": "Creditop",
+    "implementation": null
+   },
+   "connector": {
+    "implementation": "Vtex.PaymentGateway.Connectors.PaymentProvider.PaymentProviderConnector_creditop-creditop-v5",
+    "affiliationId": "1d6028c0-8e6e-4b46-a79d-7e31d8581f79"
+   },
+   "issuer": {
+    "name": null
+   },
+   "antifraud": {
+    "implementation": null,
+    "affiliationId": null
+   },
+   "installmentOptions": null,
+   "isSelfAuthorized": null,
+   "requiresAuthentication": null,
+   "enabled": true,
+   "installmentsService": false,
+   "isDefault": null,
+   "beginDate": null,
+   "endDate": null,
+   "condition": null,
+   "multiMerchantList": null,
+   "country": null,
+   "dateIntervals": null,
+   "externalInterest": false,
+   "minimumValue": null,
+   "deadlines": [],
+   "cobrand": {
+    "name": null
+   },
+   "cardLevel": {
+    "name": null
+   },
+   "excludedBinsRanges": null
+  }
+ ]
+}

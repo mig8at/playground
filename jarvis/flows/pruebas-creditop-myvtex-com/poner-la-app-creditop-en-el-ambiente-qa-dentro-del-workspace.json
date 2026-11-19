@@ -1,0 +1,68 @@
+{
+  "name": "Poner la app Creditop en el ambiente QA dentro del workspace pruebas",
+  "meta": "Poner la app Creditop en el ambiente QA dentro del workspace pruebas",
+  "start": "https://pruebas--creditop.myvtex.com/admin/apps/creditop.creditop@5.2.0/setup",
+  "device": "chrome",
+  "created": "2026-11-12T09:20:29.511553-05:00",
+  "verified": "0001-01-01T00:00:00Z",
+  "run": "2026-11-12_09-17-03",
+  "steps": [
+    {
+      "action": "reload",
+      "target": "recargar",
+      "instruction": "Recargá la página",
+      "code": "page.reload()"
+    },
+    {
+      "action": "goto",
+      "target": "https://pruebas--creditop.myvtex.com/admin/apps/creditop.creditop@5.2.0/setup",
+      "value": "https://pruebas--creditop.myvtex.com/admin/apps/creditop.creditop@5.2.0/setup",
+      "instruction": "Abrí https://pruebas--creditop.myvtex.com/admin/apps/creditop.creditop@5.2.0/setup",
+      "code": "page.goto('https://pruebas--creditop.myvtex.com/admin/apps/creditop.creditop@5.2.0/setup')"
+    },
+    {
+      "action": "select",
+      "target": "Ambiente de Creditop",
+      "value": "develop",
+      "instruction": "Elegí «develop» en «Ambiente de Creditop»",
+      "why": "En el workspace pruebas la app llama a QA: ahí apuntan las afiliaciones de pruebas",
+      "param": "Ambiente de Creditop",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "combobox",
+          "value": "Ambiente de Creditop",
+          "exact": true,
+          "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('combobox', { name: 'Ambiente de Creditop', exact: true })",
+          "count": 1,
+          "works": true
+        },
+        "frame": "iframe[title=\"IO iframe container\"]"
+      },
+      "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('combobox', { name: 'Ambiente de Creditop', exact: true }).selectOption('develop')"
+    },
+    {
+      "action": "click",
+      "target": "SAVE",
+      "instruction": "Hacé clic en «SAVE»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "SAVE",
+          "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('button', { name: 'SAVE' })",
+          "count": 1,
+          "works": true
+        },
+        "frame": "iframe[title=\"IO iframe container\"]"
+      },
+      "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('button', { name: 'SAVE' }).click()"
+    },
+    {
+      "action": "reload",
+      "target": "recargar",
+      "instruction": "Recargá la página",
+      "code": "page.reload()"
+    }
+  ]
+}

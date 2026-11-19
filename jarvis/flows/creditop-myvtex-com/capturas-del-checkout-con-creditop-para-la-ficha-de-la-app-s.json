@@ -1,0 +1,32 @@
+{
+  "name": "Capturas del checkout con Creditop para la ficha de la App Store (sin comprar)",
+  "meta": "Capturas del checkout con Creditop para la ficha de la App Store (sin comprar)",
+  "start": "https://creditop.myvtex.com/admin/test-suite/payment-provider",
+  "device": "chrome",
+  "created": "2026-11-12T09:07:44.529723-05:00",
+  "verified": "0001-01-01T00:00:00Z",
+  "run": "2026-11-12_09-06-36",
+  "steps": [
+    {
+      "action": "goto",
+      "target": "https://creditop.myvtex.com/checkout/cart/add?sku=1\u0026qty=1\u0026seller=1\u0026sc=1\u0026redirect=true",
+      "value": "https://creditop.myvtex.com/checkout/cart/add?sku=1\u0026qty=1\u0026seller=1\u0026sc=1\u0026redirect=true",
+      "instruction": "Abrí https://creditop.myvtex.com/checkout/cart/add?sku=1\u0026qty=1\u0026seller=1\u0026sc=1\u0026redirect=true",
+      "code": "page.goto('https://creditop.myvtex.com/checkout/cart/add?sku=1\u0026qty=1\u0026seller=1\u0026sc=1\u0026redirect=true')"
+    },
+    {
+      "action": "goto",
+      "target": "https://creditop.myvtex.com/checkout/#/payment",
+      "value": "https://creditop.myvtex.com/checkout/#/payment",
+      "instruction": "Abrí https://creditop.myvtex.com/checkout/#/payment",
+      "why": "Voy al paso de pago para fotografiar el bloque de Creditop; no se compra nada",
+      "code": "page.goto('https://creditop.myvtex.com/checkout/#/payment')"
+    },
+    {
+      "action": "reload",
+      "target": "recargar",
+      "instruction": "Recargá la página",
+      "code": "page.reload()"
+    }
+  ]
+}

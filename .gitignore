@@ -81,3 +81,8 @@ wally/sandbox/
 
 # las notas de reuniones tal como se bajaron (Gemini y Read AI): nombres, datos internos; sólo local
 knowledge/meetings/raw/
+
+# Un binario de bin/pg compilado suelto en la raíz (2026-11-19): no va al repo.
+/pg
+# Respuestas reales de las centrales de riesgo (cédulas y reportes): nunca a GitHub.
+tablero/tasks/*/artifacts/centrales-reales-*/

@@ -251,7 +251,7 @@
         "run",
         "dev",
         "--prefix",
-        "/Users/miguelochoa/Desktop/CREDITOP/playground/game"
+        "/Users/miguelochoa/Desktop/CREDITOP/my-tools/game"
       ],
       "port": 5180,
       "autoPort": false
@@ -352,6 +352,26 @@
       ],
       "cwd": "office",
       "port": 5220
+    },
+    {
+      "name": "shopify-test-mode",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/miguelochoa/Desktop/CREDITOP/github/shopify-test-mode && PORT=8116 npm run local"
+      ],
+      "port": 8116
+    },
+    {
+      "name": "news",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "cwd": "news",
+      "port": 5240,
+      "autoPort": false
     }
   ]
 }

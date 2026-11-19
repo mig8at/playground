@@ -1,0 +1,162 @@
+{
+  "name": "Comprar sólo con la app pública (la QA ya está desinstalada)",
+  "meta": "Comprar sólo con la app pública (la QA ya está desinstalada)",
+  "start": "https://creditop-dev-store.myshopify.com/cart/58721841053999:1",
+  "device": "chrome",
+  "created": "2026-11-13T19:37:03.475987-05:00",
+  "verified": "0001-01-01T00:00:00Z",
+  "run": "2026-11-13_19-34-37",
+  "steps": [
+    {
+      "action": "expect",
+      "target": "Pagar ahora",
+      "value": "Pagar ahora",
+      "instruction": "Comprobá que se vea «Pagar ahora»",
+      "code": "expect(page.getByText('Pagar ahora').filter({ visible: true }).first()).toBeVisible()"
+    },
+    {
+      "action": "fill",
+      "target": "Email o número de teléfono móvil",
+      "value": "shopify-1650215200@creditop.com",
+      "instruction": "Escribí «shopify-1650215200@creditop.com» en «Email o número de teléfono móvil»",
+      "param": "Email o número de teléfono móvil",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Email o número de teléfono móvil",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Email o número de teléfono móvil', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('textbox', { name: 'Email o número de teléfono móvil', exact: true }).fill('shopify-1650215200@creditop.com')"
+    },
+    {
+      "action": "fill",
+      "target": "Nombre (opcional)",
+      "value": "CARLOS",
+      "instruction": "Escribí «CARLOS» en «Nombre (opcional)»",
+      "param": "Nombre (opcional)",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Nombre (opcional)",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Nombre (opcional)', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('textbox', { name: 'Nombre (opcional)', exact: true }).fill('CARLOS')"
+    },
+    {
+      "action": "fill",
+      "target": "Apellidos",
+      "value": "RUIZ",
+      "instruction": "Escribí «RUIZ» en «Apellidos»",
+      "param": "Apellidos",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Apellidos",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Apellidos', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('textbox', { name: 'Apellidos', exact: true }).fill('RUIZ')"
+    },
+    {
+      "action": "fill",
+      "target": "Dirección",
+      "value": "Calle 100 # 10-20",
+      "instruction": "Escribí «Calle 100 # 10-20» en «Dirección»",
+      "param": "Dirección",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Dirección",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Dirección', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('textbox', { name: 'Dirección', exact: true }).fill('Calle 100 # 10-20')"
+    },
+    {
+      "action": "fill",
+      "target": "Ciudad",
+      "value": "Bogotá",
+      "instruction": "Escribí «Bogotá» en «Ciudad»",
+      "param": "Ciudad",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Ciudad",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Ciudad', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('textbox', { name: 'Ciudad', exact: true }).fill('Bogotá')"
+    },
+    {
+      "action": "click",
+      "target": "Pagar ahora",
+      "instruction": "Hacé clic en «Pagar ahora»",
+      "why": "Pagar ahora con el único Creditop que queda (modo de prueba)",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Pagar ahora",
+          "visible": true,
+          "code": "page.getByText('Pagar ahora', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "code": "page.getByText('Pagar ahora', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "action": "click",
+      "target": "Creditop (anterior)",
+      "instruction": "Hacé clic en «Creditop (anterior)»",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Creditop (anterior)",
+          "visible": true,
+          "code": "page.getByText('Creditop (anterior)', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "code": "page.getByText('Creditop (anterior)', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "action": "click",
+      "target": "Pagar ahora",
+      "instruction": "Hacé clic en «Pagar ahora»",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Pagar ahora",
+          "visible": true,
+          "code": "page.getByText('Pagar ahora', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "code": "page.getByText('Pagar ahora', { exact: true }).filter({ visible: true }).click()"
+    }
+  ]
+}

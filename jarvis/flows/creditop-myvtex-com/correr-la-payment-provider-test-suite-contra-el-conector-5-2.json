@@ -1,0 +1,475 @@
+{
+  "name": "Correr la Payment Provider Test Suite contra el conector 5.2.0 enlazado en el workspace pruebas",
+  "meta": "Correr la Payment Provider Test Suite contra el conector 5.2.0 enlazado en el workspace pruebas",
+  "start": "https://creditop.myvtex.com/admin/test-suite/payment-provider",
+  "device": "chrome",
+  "created": "2026-11-12T08:54:50.684386-05:00",
+  "verified": "0001-01-01T00:00:00Z",
+  "run": "2026-11-12_08-49-50",
+  "steps": [
+    {
+      "action": "goto",
+      "target": "https://creditop.myvtex.com/admin/test-suite/payment-provider",
+      "value": "https://creditop.myvtex.com/admin/test-suite/payment-provider",
+      "instruction": "Abrí https://creditop.myvtex.com/admin/test-suite/payment-provider",
+      "code": "page.goto('https://creditop.myvtex.com/admin/test-suite/payment-provider')"
+    },
+    {
+      "action": "fill",
+      "target": "Service URL",
+      "value": "https://pruebas--creditop.myvtex.com/_v/creditop.creditop/v5",
+      "instruction": "Escribí «https://pruebas--creditop.myvtex.com/_v/creditop.creditop/v5» en «Service URL»",
+      "why": "URL del conector enlazado en el workspace pruebas, como en octubre con un workspace de desarrollo",
+      "param": "Service URL",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Service URL",
+          "exact": true,
+          "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('textbox', { name: 'Service URL', exact: true })",
+          "count": 1,
+          "works": true
+        },
+        "frame": "iframe[title=\"IO iframe container\"]"
+      },
+      "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('textbox', { name: 'Service URL', exact: true }).fill('https://pruebas--creditop.myvtex.com/_v/creditop.creditop/v5')"
+    },
+    {
+      "action": "select",
+      "target": "Payment method",
+      "value": "Creditop",
+      "instruction": "Elegí «Creditop» en «Payment method»",
+      "why": "Elijo el medio de pago Creditop, el único que anuncia el conector",
+      "param": "Payment method",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "combobox",
+          "value": "Payment method",
+          "exact": true,
+          "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('combobox', { name: 'Payment method', exact: true })",
+          "count": 1,
+          "works": true
+        },
+        "frame": "iframe[title=\"IO iframe container\"]"
+      },
+      "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('combobox', { name: 'Payment method', exact: true }).selectOption('Creditop')"
+    },
+    {
+      "action": "check",
+      "target": "Approved flow",
+      "instruction": "Marcá «Approved flow»",
+      "why": "Marco todos los casos: es lo que VTEX pide en verde para homologar",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "checkbox",
+          "value": "Approved flow",
+          "exact": true,
+          "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('checkbox', { name: 'Approved flow', exact: true })",
+          "count": 1,
+          "works": true
+        },
+        "frame": "iframe[title=\"IO iframe container\"]"
+      },
+      "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('checkbox', { name: 'Approved flow', exact: true }).check()"
+    },
+    {
+      "action": "check",
+      "target": "Denied flow",
+      "instruction": "Marcá «Denied flow»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "checkbox",
+          "value": "Denied flow",
+          "exact": true,
+          "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('checkbox', { name: 'Denied flow', exact: true })",
+          "count": 1,
+          "works": true
+        },
+        "frame": "iframe[title=\"IO iframe container\"]"
+      },
+      "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('checkbox', { name: 'Denied flow', exact: true }).check()"
+    },
+    {
+      "action": "check",
+      "target": "Async approved flow",
+      "instruction": "Marcá «Async approved flow»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "checkbox",
+          "value": "Async approved flow",
+          "exact": true,
+          "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('checkbox', { name: 'Async approved flow', exact: true })",
+          "count": 1,
+          "works": true
+        },
+        "frame": "iframe[title=\"IO iframe container\"]"
+      },
+      "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('checkbox', { name: 'Async approved flow', exact: true }).check()"
+    },
+    {
+      "action": "check",
+      "target": "Async denied flow",
+      "instruction": "Marcá «Async denied flow»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "checkbox",
+          "value": "Async denied flow",
+          "exact": true,
+          "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('checkbox', { name: 'Async denied flow', exact: true })",
+          "count": 1,
+          "works": true
+        },
+        "frame": "iframe[title=\"IO iframe container\"]"
+      },
+      "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('checkbox', { name: 'Async denied flow', exact: true }).check()"
+    },
+    {
+      "action": "check",
+      "target": "Cancellation flow",
+      "instruction": "Marcá «Cancellation flow»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "checkbox",
+          "value": "Cancellation flow",
+          "exact": true,
+          "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('checkbox', { name: 'Cancellation flow', exact: true })",
+          "count": 1,
+          "works": true
+        },
+        "frame": "iframe[title=\"IO iframe container\"]"
+      },
+      "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('checkbox', { name: 'Cancellation flow', exact: true }).check()"
+    },
+    {
+      "action": "check",
+      "target": "Boleto flow",
+      "instruction": "Marcá «Boleto flow»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "checkbox",
+          "value": "Boleto flow",
+          "exact": true,
+          "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('checkbox', { name: 'Boleto flow', exact: true })",
+          "count": 1,
+          "works": true
+        },
+        "frame": "iframe[title=\"IO iframe container\"]"
+      },
+      "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('checkbox', { name: 'Boleto flow', exact: true }).check()"
+    },
+    {
+      "action": "check",
+      "target": "Redirect flow",
+      "instruction": "Marcá «Redirect flow»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "checkbox",
+          "value": "Redirect flow",
+          "exact": true,
+          "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('checkbox', { name: 'Redirect flow', exact: true })",
+          "count": 1,
+          "works": true
+        },
+        "frame": "iframe[title=\"IO iframe container\"]"
+      },
+      "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('checkbox', { name: 'Redirect flow', exact: true }).check()"
+    },
+    {
+      "action": "click",
+      "target": "Run Test",
+      "instruction": "Hacé clic en «Run Test»",
+      "why": "Corro los 7 casos: son pagos sintéticos de la suite, el conector contesta en modo prueba sin llamar a Creditop",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Run Test",
+          "exact": true,
+          "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('button', { name: 'Run Test', exact: true })",
+          "count": 1,
+          "works": true
+        },
+        "frame": "iframe[title=\"IO iframe container\"]"
+      },
+      "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('button', { name: 'Run Test', exact: true }).click()"
+    },
+    {
+      "action": "click",
+      "target": "Async approved flow fail",
+      "instruction": "Hacé clic en «Async approved flow fail»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Async approved flow fail",
+          "exact": true,
+          "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('button', { name: 'Async approved flow fail', exact: true })",
+          "count": 1,
+          "works": true
+        },
+        "frame": "iframe[title=\"IO iframe container\"]"
+      },
+      "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('button', { name: 'Async approved flow fail', exact: true }).click()"
+    },
+    {
+      "action": "goto",
+      "target": "https://creditop.myvtex.com/admin/test-suite/payment-provider",
+      "value": "https://creditop.myvtex.com/admin/test-suite/payment-provider",
+      "instruction": "Abrí https://creditop.myvtex.com/admin/test-suite/payment-provider",
+      "why": "Vuelvo al formulario para correr con AppKey y AppToken: el aviso asincrónico tiene que llevarlos",
+      "code": "page.goto('https://creditop.myvtex.com/admin/test-suite/payment-provider')"
+    },
+    {
+      "action": "fill",
+      "target": "Service URL",
+      "value": "https://pruebas--creditop.myvtex.com/_v/creditop.creditop/v5",
+      "instruction": "Escribí «https://pruebas--creditop.myvtex.com/_v/creditop.creditop/v5» en «Service URL»",
+      "param": "Service URL",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Service URL",
+          "exact": true,
+          "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('textbox', { name: 'Service URL', exact: true })",
+          "count": 1,
+          "works": true
+        },
+        "frame": "iframe[title=\"IO iframe container\"]"
+      },
+      "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('textbox', { name: 'Service URL', exact: true }).fill('https://pruebas--creditop.myvtex.com/_v/creditop.creditop/v5')"
+    },
+    {
+      "action": "check",
+      "target": "Test with AppKey and AppToken",
+      "instruction": "Marcá «Test with AppKey and AppToken»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "switch",
+          "value": "Test with AppKey and AppToken",
+          "exact": true,
+          "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('switch', { name: 'Test with AppKey and AppToken', exact: true })",
+          "count": 1,
+          "works": true
+        },
+        "frame": "iframe[title=\"IO iframe container\"]"
+      },
+      "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('switch', { name: 'Test with AppKey and AppToken', exact: true }).check()"
+    },
+    {
+      "action": "fill",
+      "target": "AppKey",
+      "instruction": "Escribí «AppKey» (lo escribís vos)",
+      "secret": true,
+      "pause": true,
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "AppKey",
+          "exact": true,
+          "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('textbox', { name: 'AppKey', exact: true })",
+          "count": 1,
+          "works": true
+        },
+        "frame": "iframe[title=\"IO iframe container\"]"
+      },
+      "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('textbox', { name: 'AppKey', exact: true }).fill('test-suite')"
+    },
+    {
+      "action": "fill",
+      "target": "AppToken",
+      "instruction": "Escribí «AppToken» (lo escribís vos)",
+      "secret": true,
+      "pause": true,
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "AppToken",
+          "exact": true,
+          "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('textbox', { name: 'AppToken', exact: true })",
+          "count": 1,
+          "works": true
+        },
+        "frame": "iframe[title=\"IO iframe container\"]"
+      },
+      "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('textbox', { name: 'AppToken', exact: true }).fill('test-suite')"
+    },
+    {
+      "action": "select",
+      "target": "Payment method",
+      "value": "Creditop",
+      "instruction": "Elegí «Creditop» en «Payment method»",
+      "param": "Payment method",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "combobox",
+          "value": "Payment method",
+          "exact": true,
+          "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('combobox', { name: 'Payment method', exact: true })",
+          "count": 1,
+          "works": true
+        },
+        "frame": "iframe[title=\"IO iframe container\"]"
+      },
+      "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('combobox', { name: 'Payment method', exact: true }).selectOption('Creditop')"
+    },
+    {
+      "action": "check",
+      "target": "Approved flow",
+      "instruction": "Marcá «Approved flow»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "checkbox",
+          "value": "Approved flow",
+          "exact": true,
+          "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('checkbox', { name: 'Approved flow', exact: true })",
+          "count": 1,
+          "works": true
+        },
+        "frame": "iframe[title=\"IO iframe container\"]"
+      },
+      "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('checkbox', { name: 'Approved flow', exact: true }).check()"
+    },
+    {
+      "action": "check",
+      "target": "Denied flow",
+      "instruction": "Marcá «Denied flow»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "checkbox",
+          "value": "Denied flow",
+          "exact": true,
+          "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('checkbox', { name: 'Denied flow', exact: true })",
+          "count": 1,
+          "works": true
+        },
+        "frame": "iframe[title=\"IO iframe container\"]"
+      },
+      "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('checkbox', { name: 'Denied flow', exact: true }).check()"
+    },
+    {
+      "action": "check",
+      "target": "Async approved flow",
+      "instruction": "Marcá «Async approved flow»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "checkbox",
+          "value": "Async approved flow",
+          "exact": true,
+          "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('checkbox', { name: 'Async approved flow', exact: true })",
+          "count": 1,
+          "works": true
+        },
+        "frame": "iframe[title=\"IO iframe container\"]"
+      },
+      "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('checkbox', { name: 'Async approved flow', exact: true }).check()"
+    },
+    {
+      "action": "check",
+      "target": "Async denied flow",
+      "instruction": "Marcá «Async denied flow»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "checkbox",
+          "value": "Async denied flow",
+          "exact": true,
+          "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('checkbox', { name: 'Async denied flow', exact: true })",
+          "count": 1,
+          "works": true
+        },
+        "frame": "iframe[title=\"IO iframe container\"]"
+      },
+      "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('checkbox', { name: 'Async denied flow', exact: true }).check()"
+    },
+    {
+      "action": "check",
+      "target": "Cancellation flow",
+      "instruction": "Marcá «Cancellation flow»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "checkbox",
+          "value": "Cancellation flow",
+          "exact": true,
+          "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('checkbox', { name: 'Cancellation flow', exact: true })",
+          "count": 1,
+          "works": true
+        },
+        "frame": "iframe[title=\"IO iframe container\"]"
+      },
+      "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('checkbox', { name: 'Cancellation flow', exact: true }).check()"
+    },
+    {
+      "action": "check",
+      "target": "Boleto flow",
+      "instruction": "Marcá «Boleto flow»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "checkbox",
+          "value": "Boleto flow",
+          "exact": true,
+          "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('checkbox', { name: 'Boleto flow', exact: true })",
+          "count": 1,
+          "works": true
+        },
+        "frame": "iframe[title=\"IO iframe container\"]"
+      },
+      "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('checkbox', { name: 'Boleto flow', exact: true }).check()"
+    },
+    {
+      "action": "check",
+      "target": "Redirect flow",
+      "instruction": "Marcá «Redirect flow»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "checkbox",
+          "value": "Redirect flow",
+          "exact": true,
+          "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('checkbox', { name: 'Redirect flow', exact: true })",
+          "count": 1,
+          "works": true
+        },
+        "frame": "iframe[title=\"IO iframe container\"]"
+      },
+      "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('checkbox', { name: 'Redirect flow', exact: true }).check()"
+    },
+    {
+      "action": "click",
+      "target": "Run Test",
+      "instruction": "Hacé clic en «Run Test»",
+      "why": "Corro los 7 casos otra vez, ahora con AppKey y AppToken de relleno",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Run Test",
+          "exact": true,
+          "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('button', { name: 'Run Test', exact: true })",
+          "count": 1,
+          "works": true
+        },
+        "frame": "iframe[title=\"IO iframe container\"]"
+      },
+      "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('button', { name: 'Run Test', exact: true }).click()"
+    }
+  ]
+}
