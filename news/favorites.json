@@ -1120,5 +1120,62 @@
     "ideas": [
       "Ver su demo"
     ]
+  },
+  {
+    "id": "prism-ml/Ternary-Bonsai-2-27B-gguf",
+    "group": "tiny",
+    "task": "image-text-to-text",
+    "params": 27000000000,
+    "license": "apache-2.0",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Un modelo de 27 B (razona, programa, usa herramientas y ve imágenes) con todos sus pesos en tres valores (−1, 0, 1): 1,72 bits por peso, 5,95 GB en vez de 54 GB, en GGUF para llama.cpp con Metal.",
+    "why": "Sus autores dicen que conserva el 98 % de la capacidad del original y que da ~47 tokens por segundo en una MacBook M5 Max. Un modelo de clase 27 B que entra en la Mac y en el llama-server que ya tenemos; hay una demo que lo corre en el navegador con WebGPU.",
+    "ideas": [
+      "Un modelo de fondo local, sin red, para cuando el Bedrock no contesta",
+      "Compararlo contra el modelo de fondo en el dictamen de Sentinel"
+    ]
+  },
+  {
+    "id": "MuyaoYuan/LoCo-7B",
+    "group": "odd",
+    "task": "text-generation",
+    "params": 7620000000,
+    "license": "mit",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Un modelo de razonamiento al que le enseñaron a dejar de pensar de más: detecta cuándo se está dando vueltas, lo compara con un camino más corto que llega a la misma respuesta y aprende a cortar ahí.",
+    "why": "Respuestas 42–45 % más cortas en matemáticas y 23–36 % en código, con la misma precisión o mejor, según sus autores. La misma idea que el modelo editado por otra IA, pero entrenando.",
+    "ideas": [
+      "Comparar cuánto escribe contra el original en el mismo problema"
+    ]
+  },
+  {
+    "id": "SJTU-DENG-Lab/WaveForcing-1.3B",
+    "group": "create",
+    "task": "text-to-video",
+    "params": 1300000000,
+    "license": "apache-2.0",
+    "mac": "unknown",
+    "added": "2026-11-19",
+    "what": "Texto a video en streaming, en 4 o 5 pasos: el video sale mientras se genera, sobre Wan2.1 de 1,3 B.",
+    "why": "El paper se llama «a la velocidad de la luz»: video casi en tiempo real con un modelo chico. Necesita el codificador y el VAE de Wan2.1.",
+    "ideas": [
+      "Ver cuántos cuadros por segundo da en la Mac"
+    ]
+  },
+  {
+    "id": "netease-youdao/Confucius4-R2T2",
+    "group": "specialist",
+    "task": "automatic-speech-recognition",
+    "params": 2040000000,
+    "license": "propia de NetEase",
+    "mac": "unknown",
+    "added": "2026-11-19",
+    "what": "Transcripción en vivo de «prefijo estable»: lo que ya escribió no lo vuelve a cambiar mientras seguís hablando.",
+    "why": "Los transcriptores en vivo suelen reescribir el principio de la frase a medida que oyen más; éste no, y eso es lo que permite mostrar subtítulos sin que salten. 617 likes en dos meses.",
+    "ideas": [
+      "Subtítulos en vivo de una reunión"
+    ]
   }
 ]
