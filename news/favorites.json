@@ -1428,5 +1428,75 @@
     "ideas": [
       "Ver qué tan bien resume en español para su tamaño"
     ]
+  },
+  {
+    "id": "bigai/GS1-2B",
+    "group": "detect",
+    "task": "text-classification",
+    "params": 2000000000,
+    "license": "apache-2.0",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Una familia de modelos de decisión (0,8 B, 2 B y 4 B): le das candidatos definidos en el momento y devuelve una distribución de probabilidad entre ellos, sin generar texto. Para rutear agentes, verificar, extraer y controlar.",
+    "why": "La misma idea que Laya y d1-2B, pero con licencia Apache 2.0 y tres tamaños. Ya son cuatro grupos sacando «modelos de decisión»: se está volviendo una categoría.",
+    "ideas": [
+      "Ponerlo contra Laya en la misma clasificación de avisos de Sentinel"
+    ]
+  },
+  {
+    "id": "nvidia/Nemotron-Labs-Sigma-3B",
+    "group": "odd",
+    "task": "text-generation",
+    "params": 3000000000,
+    "license": "propia de NVIDIA",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Un modelo de lenguaje por difusión CONTINUA: en vez de escribir palabra por palabra, parte de ruido en un espacio de 16 dimensiones y lo va limpiando hasta que es texto.",
+    "why": "Otra forma de generar texto, más parecida a cómo se generan imágenes. Experimental, de NVIDIA Labs.",
+    "ideas": [
+      "Ver cómo arma una respuesta entera de una vez"
+    ]
+  },
+  {
+    "id": "doctolib-lab/doctosae-bge-large-en-v1.5",
+    "group": "odd",
+    "task": "feature-extraction",
+    "params": null,
+    "license": "cc-by-nc-4.0 (no comercial)",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Autoencoders dispersos sobre los vectores de un modelo de embeddings: convierten cada vector en unos pocos «conceptos» activos que se pueden leer, y buscan comparando esos conceptos.",
+    "why": "Explica POR QUÉ dos textos salen parecidos en una búsqueda por significado: qué conceptos comparten. Lo hicieron para búsqueda médica, pero la idea sirve para cualquier índice.",
+    "ideas": [
+      "Entender por qué knowledge-search trae un tema y no otro"
+    ]
+  },
+  {
+    "id": "evanlyhf/MobileAIFactory-BC5CDR-NER-Qwen3.5-0.8B-Q4_K_M-GGUF",
+    "group": "odd",
+    "task": "token-classification",
+    "params": 800000000,
+    "license": "apache-2.0",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Un modelo de 0,8 B para extraer entidades biomédicas, hecho SOLO por un sistema de agentes: le das la tarea y el teléfono destino, y el sistema decide si ajusta, busca datos reales o genera sintéticos, deshace lo que empeora y entrega el modelo cuantizado para llama.cpp.",
+    "why": "Lo interesante no es el modelo sino la fábrica: un agente que construye un modelo chico especializado para una tarea. F1 0,83, +0,125 sobre el primer intento.",
+    "ideas": [
+      "Una fábrica así para un extractor de datos de solicitudes en español"
+    ]
+  },
+  {
+    "id": "game2player/Game2Player-9B",
+    "group": "odd",
+    "task": "image-text-to-text",
+    "params": 9410000000,
+    "license": "apache-2.0",
+    "mac": "unknown",
+    "added": "2026-11-19",
+    "what": "Juega videojuegos mirando la pantalla: recibe capturas, la descripción de la tarea y las últimas acciones, y predice la próxima tecla o movimiento del mouse.",
+    "why": "Un agente visual entrenado con experiencia de juego a escala; lo mismo que hace un agente de computadora, pero en juegos.",
+    "ideas": [
+      "Ponerlo a jugar uno de los juegos de my-tools"
+    ]
   }
 ]
