@@ -45,7 +45,20 @@ const cliHelp = `correo — los correos de los remitentes que se siguen (Shopify
   bin/correo noreply <id> [--undo]           «no hace falta responder» (un acuse automático); --undo lo devuelve
   bin/correo refresh                         que lo de fondo lea ya
 
-  --json en cualquiera, para un agente. El seguimiento es su id (shopify, vtex…) o su nombre.`
+  --json en cualquiera, para un agente. El seguimiento es su id (shopify, vtex…) o su nombre.
+  El servidor es otra cosa (make correo, o el de fondo): sus flags, con bin/correo --flags.`
+
+// unknownCommand: qué se escribió y, si se parece a uno, cuál. Una línea: la ayuda entera tapaba el error.
+func unknownCommand(cmd string) string {
+	msg := fmt.Sprintf("correo: no conozco «%s»", cmd)
+	for known := range cliCommands {
+		if known != "help" && (strings.HasPrefix(known, cmd) || strings.HasPrefix(cmd, known)) {
+			msg += fmt.Sprintf(" (¿%s?)", known)
+			break
+		}
+	}
+	return msg + " · bin/correo help lista los comandos"
+}
 
 func runCLI(root string, args []string) int {
 	cmd, rest := args[0], args[1:]

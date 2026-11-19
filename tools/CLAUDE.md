@@ -108,3 +108,21 @@ Decisión de Miguel (2026-11-18), para todas las herramientas de my-tools:
   `tablero/tools/naming-debt.txt` como deuda, y se baja renombrando con `tablero/tools/rename/`. Al renombrar un
   comando o un target, el nombre viejo sigue como alias, porque las tareas guardan el comando exacto de cada
   medición.
+
+## La ayuda de un CLI no arranca nada (2026-11-19)
+
+Un agente que no conoce un comando prueba `help`, `--help` o el comando pelado. Para todos los `bin/*`:
+
+- **`help`, `-h`, `--help` y el comando sin argumentos** muestran la ayuda por stdout y salen con 0. No levantan un
+  servidor, no abren Chrome, no pasan por Cockpit ni tocan la red.
+- **Un comando que no existe** dice cuál fue en una línea (`no conozco «X»`, con el parecido si lo hay), por stderr, y
+  sale con 2. Tampoco arranca nada: se revisa ANTES de asegurar que la app esté arriba.
+- **Faltó un argumento** de un comando que sí existe: el uso por stderr y 2.
+- Los que además son un servidor (`sentinel`, `correo`) sólo sirven con sus flags (`-serve`, `-once`, `-install`…):
+  el binario sin argumentos sigue siendo el servidor (así lo corre el LaunchAgent), pero el envoltorio `bin/` muestra
+  la ayuda. Los flags del servidor: `bin/sentinel --flags`.
+- Los que leen texto por stdin (`aistudio`, `chatgpt`, `deepseek`, `groq`, `kimi`) no muestran la ayuda sin
+  argumentos cuando les llega algo por stdin: eso es una pregunta.
+
+Antes (medido ese día): `bin/sentinel help` y `bin/correo` levantaban la API y no volvían; `bin/jarvis --help` y
+`bin/wally help` esperaban a que Cockpit arrancara la app; `models`, `point` y `jarvis help` salían con 2.

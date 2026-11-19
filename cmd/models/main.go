@@ -23,8 +23,10 @@ import (
 )
 
 func main() {
-	if len(os.Args) < 2 {
-		usage()
+	// La ayuda pedida sale por stdout con 0; antes `help` daba 2, como si hubiera fallado.
+	if len(os.Args) < 2 || os.Args[1] == "help" || os.Args[1] == "-h" || os.Args[1] == "--help" {
+		fmt.Println(helpText)
+		return
 	}
 	root := os.Getenv("MY_TOOLS_ROOT")
 	if root == "" {
@@ -52,6 +54,9 @@ func main() {
 			list = free
 		}
 		if *asJSON {
+			if list == nil {
+				list = []models.Installed{} // vacío es [], no null: quien lo recorre no tiene que distinguirlos
+			}
 			json.NewEncoder(os.Stdout).Encode(list)
 			return
 		}
@@ -93,7 +98,8 @@ func main() {
 	case "replace":
 		replace(root, reg, roots, args)
 	default:
-		usage()
+		fmt.Fprintf(os.Stderr, "models: no conozco «%s» · bin/models help lista los comandos\n", cmd)
+		os.Exit(2)
 	}
 }
 
@@ -252,9 +258,18 @@ func size(n int64) string {
 	}
 }
 
+const helpText = `models — los modelos de IA de esta máquina y qué herramienta usa cuál
+
+  bin/models list [--json]      lo instalado, con su peso y quién lo usa
+  bin/models unused [--json]    lo que no usa ninguna herramienta (se puede borrar)
+  bin/models path <modelo|herramienta|clave>   la ruta en disco del modelo (para la herramienta que lo carga)
+  bin/models rm <clave> [--force]              borra uno; --force, aunque una herramienta lo use
+  bin/models replace --tool T --old M --new M --files k1,k2 [--why '…'] [--keep]
+                                el nuevo queda para la herramienta, el viejo se borra (--keep lo deja) y queda en el historial`
+
+// usage: faltó un argumento. Va a stderr y sale 2.
 func usage() {
-	fmt.Fprintln(os.Stderr, `uso: bin/models list|unused [--json] · path <modelo|herramienta|clave> · rm <clave> [--force]
-     replace --tool T --old M --new M --files k1,k2 [--why '…'] [--keep]`)
+	fmt.Fprintln(os.Stderr, helpText)
 	os.Exit(2)
 }
 
