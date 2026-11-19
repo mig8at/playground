@@ -10,7 +10,7 @@
       "lambda": true,
       "close": true,
       "manual": true,
-      "measured": "2026-11-19: 505165, 505166 y 505167 en 11, 12 pantallas"
+      "measured": "2026-11-19: 505165 a 505169 en 11, 12 pantallas"
     },
     "pullman": {
       "description": "CrediPullman (CreditopX) entrando por la tienda de Amoblando Pullman, hasta «Autorizada»",
@@ -20,7 +20,7 @@
       "lambda": true,
       "close": true,
       "manual": true,
-      "measured": "2026-11-07: 10 pantallas en 52 s hasta el 11, en local"
+      "measured": "2026-11-19: 468438 en 11, 11 pantallas, a la vez que Finandina"
     }
   }
 }
