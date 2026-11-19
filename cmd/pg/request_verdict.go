@@ -22,6 +22,27 @@ import (
 
 var cancelCode = regexp.MustCompile(`(?i)c[oó]digo\s*(\d+)`)
 
+// RUIDO CONOCIDO DE LOKI: líneas que el backend registra como `error` y son el camino normal. No cuentan como errores de
+// la solicitud; el dictamen dice cuántas hubo, aparte. Al sumar una: el porqué, y dónde está en el código.
+var knownLokiNoise = []struct {
+	re  *regexp.Regexp
+	why string
+}{
+	// `OnboardingController::validateOtpCodeAndRedirectOrchestrator` (legacy-backend, Modules/Onboarding): después del OTP,
+	// un cliente nuevo (todavía «temporal») en un comercio que no es Corbeta recibe ONB002, y el front lo manda a los
+	// datos personales. Sale en CADA solicitud nueva (qa 505175, local 468444 y 468451, 2026-11-19).
+	{regexp.MustCompile(`temporal user without corbeta onboarding, returning ONB002`), "ONB002: cliente nuevo después del OTP, va a datos personales"},
+}
+
+func knownNoise(msg string) string {
+	for _, k := range knownLokiNoise {
+		if k.re.MatchString(msg) {
+			return k.why
+		}
+	}
+	return ""
+}
+
 func runRequestVerdict(args []string) int {
 	fs := flag.NewFlagSet("request verdict", flag.ContinueOnError)
 	target := fs.String("target", "", "ambiente (obligatorio)")
@@ -85,15 +106,16 @@ func runRequestVerdict(args []string) int {
 		Lines   int            `json:"lines"`
 		ByLevel map[string]int `json:"byLevel"`
 		Errors  []string       `json:"errors"`
+		Known   map[string]int `json:"known"`
 	}
-	lk := lokiOut{ByLevel: map[string]int{}, Errors: []string{}}
+	lk := lokiOut{ByLevel: map[string]int{}, Errors: []string{}, Known: map[string]int{}}
 	switch {
 	case *noLoki:
 		lk.Skipped = "--no-loki"
 	case *target == "prod":
 		lk.Skipped = "en prod se mira con el tracer del equipo"
 	default:
-		lk = lokiOut{ByLevel: map[string]int{}, Errors: []string{}}
+		lk = lokiOut{ByLevel: map[string]int{}, Errors: []string{}, Known: map[string]int{}}
 		// ⚠ La base local es una copia de dev: si el Loki de `local` apuntara al de dev, el mismo número de solicitud sería
 		// la corrida de OTRA persona (la regla de harness/CLAUDE.md, `pkg/loki.ts:porQueNo`).
 		if cfg, _, err := logs.LoadConfig(*target); *target == "local" && (err != nil || !logs.IsLocal(cfg.URL)) {
@@ -124,8 +146,16 @@ func runRequestVerdict(args []string) int {
 			}
 			for _, v := range st.Values {
 				lk.Lines++
+				isErr := lvl == "error" || lvl == "critical" || lvl == "emergency"
+				if isErr {
+					if why := knownNoise(v[1]); why != "" {
+						lk.Known[why]++
+						lk.ByLevel["conocido"]++
+						continue
+					}
+				}
 				lk.ByLevel[lvl]++
-				if (lvl == "error" || lvl == "critical" || lvl == "emergency") && len(lk.Errors) < 3 {
+				if isErr && len(lk.Errors) < 3 {
 					lk.Errors = append(lk.Errors, trimTo(logMessage(v[1]), 200))
 				}
 			}
@@ -173,6 +203,14 @@ func runRequestVerdict(args []string) int {
 		verdict = append(verdict, fmt.Sprintf("Loki: %d %s que la nombra%s", n, map[bool]string{true: "error", false: "errores"}[n == 1], map[bool]string{true: "", false: "n"}[n == 1]))
 	}
 
+	if lk.Skipped == "" && len(lk.Known) > 0 {
+		parts := []string{}
+		for why, n := range lk.Known {
+			parts = append(parts, fmt.Sprintf("%s (%d)", why, n))
+		}
+		sort.Strings(parts)
+		verdict = append(verdict, "Loki, ruido conocido: "+strings.Join(parts, " · "))
+	}
 	if *asJSON {
 		return printJSON(map[string]any{"target": *target, "source": src.Name(), "request": h, "records": recs,
 			"centrals": centrals, "logs": logRows, "loki": lk, "verdict": verdict})
