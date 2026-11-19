@@ -15,7 +15,8 @@
 // Lo único que SÍ necesita puntería es elegir una entidad concreta del listado, porque ahí el caminador
 // no puede tomar «la primera»: el caso pide una. Se resuelve por el NOMBRE de la entidad, que se lee de
 // la base — el listado lo muestra y es lo único estable sin testids.
-import { readFileSync } from 'node:fs';
+import fs, { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { blockDevOverlays } from './dev-overlays.ts';
 import { chromium, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import { autofill, clickAdvance, validationErrors, readToEnd, HANDS, waitForPerson, type Field } from './autofill-qr.ts';
@@ -86,13 +87,20 @@ const JARVIS_CHROME = process.env.JARVIS_CHROME === '1';
 const JARVIS_CDP = process.env.JARVIS_CDP || 'ws://127.0.0.1:5203/api/chrome/cdp';
 const jarvisPages = new WeakMap<BrowserContext, Page[]>();
 
-/* JARVIS_SLOW=<ms>: una pausa antes de cada acción en el Chrome de la persona, para que se vea cada campo y cada clic
- * (`make jarvis-walk SLOW=1200`). Sólo con JARVIS_CHROME: sin ventana no hay a quién mostrarle. */
-const JARVIS_SLOW = Number(process.env.JARVIS_SLOW || 0);
+/* HARNESS_SLOW=<ms> (o JARVIS_SLOW): una pausa antes de cada acción, para que se vea cada campo y cada clic, en el Chrome
+ * de la persona (`make jarvis-walk SLOW=1200`) o en la ventana y el video del Chromium propio (`make harness-run`). */
+const SLOW = Number(process.env.HARNESS_SLOW || process.env.JARVIS_SLOW || 0);
+/* HARNESS_VIDEO=<carpeta>: graba cada caso (un .webm por pestaña, del tamaño del celular) y al cerrar lo pasa a .mp4,
+ * que se comparte en Slack o WhatsApp. Sólo con el Chromium propio: Playwright no graba un contexto que no creó, y el
+ * del Chrome de la persona no lo crea él (`make harness-run`). */
+const VIDEO_DIR = process.env.HARNESS_VIDEO || '';
+const PHONE = { width: 420, height: 900 };
 
 export async function openBrowser(opts: { headed?: boolean } = {}): Promise<Browser> {
-    if (JARVIS_CHROME) return chromium.connectOverCDP(JARVIS_CDP, JARVIS_SLOW > 0 ? { slowMo: JARVIS_SLOW } : {});
-    return chromium.launch({ headless: !opts.headed });
+    const slow = SLOW > 0 ? { slowMo: SLOW } : {};
+    if (JARVIS_CHROME) return chromium.connectOverCDP(JARVIS_CDP, slow);
+    // Con ventana, del tamaño del celular (más la barra de la ventana), para que se vea como uno.
+    return chromium.launch({ headless: !opts.headed, ...slow, ...(opts.headed ? { args: [`--window-size=${PHONE.width},${PHONE.height + 90}`] } : {}) });
 }
 
 const UA_MOBILE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 '
@@ -180,7 +188,8 @@ export function evidenceNotice(consoleOut: string[], red: string[], maximum = 3)
 export async function openContext(browser: Browser, baseURL: string, opts: { traza?: string; storageState?: string } = {})
 : Promise<{ ctx: BrowserContext; page: Page; evidencia: Evidence }> {
     const ctx = JARVIS_CHROME ? browser.contexts()[0] : await browser.newContext({
-        baseURL, userAgent: UA_MOBILE, viewport: { width: 420, height: 900 },
+        baseURL, userAgent: UA_MOBILE, viewport: PHONE,
+        ...(VIDEO_DIR ? { recordVideo: { dir: VIDEO_DIR, size: PHONE } } : {}),
         ...(opts.storageState ? { storageState: opts.storageState } : {}),
     });
     await blockDevOverlays(ctx);
@@ -293,7 +302,22 @@ export async function closeContext(ctx: BrowserContext, saveTo: string | null): 
     }
     if (saveTo) await ctx.tracing.stop({ path: saveTo }).catch(() => {});
     else await ctx.tracing.stop().catch(() => {});
+    // El video se escribe al cerrar el contexto: se piden antes las rutas y se espera el archivo después.
+    const videos = VIDEO_DIR ? ctx.pages().map((p) => p.video()).filter((v) => v !== null) : [];
     await ctx.close().catch(() => {});
+    for (const v of videos) {
+        const webm = await v!.path().catch(() => null);
+        if (webm) console.log(`  🎬 video: ${toMp4(webm)}`);
+    }
+}
+
+/** El .webm de Playwright a .mp4 (H.264, que abre cualquier teléfono). Sin ffmpeg queda el .webm y se dice. */
+function toMp4(webm: string): string {
+    const mp4 = webm.replace(/\.webm$/, '.mp4');
+    const r = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', webm, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', mp4]);
+    if (r.status !== 0) return `${webm} (sin pasar a mp4: ${r.error ? 'falta ffmpeg' : String(r.stderr).trim().slice(0, 120)})`;
+    fs.rmSync(webm, { force: true });
+    return mp4;
 }
 
 /** Un banner de error a la vista. Es el muro que el motor HTTP no ve: el front puede responder 200 y
