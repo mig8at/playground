@@ -159,6 +159,12 @@
     .row.recording .row-meta, .row.named-run .row-meta { white-space: nowrap }
     .row.named-run.elsewhere { opacity: .55 }
     .device-otp.run-lender { color: var(--fg-2) }
+    .run-card { margin: 0 var(--space-3) var(--space-2); padding: var(--space-2) var(--space-3); border: 1px solid var(--border);
+      border-radius: var(--radius-md, 8px); font-size: var(--text-xs, 12px); color: var(--fg-2); line-height: 1.45 }
+    .run-card strong { color: var(--fg-1, inherit); font-size: var(--text-sm, 13px) }
+    .run-card .run-journey { margin: 2px 0 4px }
+    .run-card ul { margin: 0; padding-left: 14px }
+    .run-card li + li { margin-top: 2px }
     .row.recording.failed .row-meta { color: var(--warn) }
     .sidebar .region-body, .auxiliarybar .region-body { overflow-x: hidden; padding-block: var(--space-1) }
 
@@ -1099,6 +1105,9 @@
         </div>
         <fieldset class="cfg region-body props" id="viewClient" role="tabpanel" aria-labelledby="tabClient"><legend class="sr-only">El cliente de la próxima corrida</legend>
           <section class="alert view-note" id="noteClient" role="note" hidden></section>
+          <!-- LA FICHA DE LA CORRIDA CON NOMBRE de esta pestaña (`runs.json`): su recorrido en palabras y lo que la hace distinta
+               de las otras. Sólo con una corrida abierta desde «Corridas» (o `?corrida=`). -->
+          <section class="run-card" id="runCard" hidden></section>
           <!-- UN SOLO PANEL, con cuatro grupos a la vista: Caso · Identidad · Ingreso y empleo · Buró. Con
                las filas de 28 entra todo sin plegables. «Arranque», «Canal» y la demora son de la CORRIDA
                y viven en el pie; sus controles reales quedan acá abajo, ocultos. -->
@@ -2204,12 +2213,13 @@
         const row = document.createElement('div');
         row.className = 'row named-run' + (here ? '' : ' elsewhere');
         row.setAttribute('role', 'treeitem'); row.tabIndex = 0; row.dataset.run = r.key;
-        row.title = `${r.description}\n${CHANNEL_LONG[r.channel] || r.channel} · elegir ${r.lenderName || `la entidad ${r.lender}`}`
+        const jt = r.journeyText || {};
+        row.title = `${r.description}\n${[jt.channel, jt.rail && `${jt.rail.name} (${jt.rail.id})`, jt.product, ...(jt.variations || [])].filter(Boolean).join(' · ')} · elegir ${r.lenderName || `la entidad ${r.lender}`}`
           + (r.case && Object.keys(r.case).length ? ` · ${Object.entries(r.case).map(([k, v]) => `${k} ${v}`).join(' · ')}` : '')
           + (here ? '' : `\nNo corre en ${target}: abrirla cambia a ${r.targets[0]}.`) + (r.measured ? `\nCerró: ${r.measured}` : '');
         row.innerHTML = '<span class="ui-icon" data-icon="start" aria-hidden="true"></span><span class="row-name"></span><span class="row-meta"></span>';
         row.querySelector('.row-name').textContent = r.name;
-        row.querySelector('.row-meta').textContent = r.targets.join(' · ');
+        row.querySelector('.row-meta').textContent = `${(r.journey || [])[1] || ''} · ${r.targets.join(' · ')}`;
         row.onclick = () => openRun(r.key);
         row.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openRun(r.key); } };
         body.appendChild(row);
@@ -2247,10 +2257,33 @@
       if (typeof snapshotTab === 'function') snapshotTab(t);
       saveTabs(); renderStage();
     }
+    /** La ficha de la corrida de esta pestaña, arriba de la vista Cliente: su recorrido en palabras y sus notas. */
+    function renderRunCard(t) {
+      const box = $('runCard');
+      if (!box) return;
+      const r = t?.run ? namedRuns.find((x) => x.key === t.run) : null;
+      box.hidden = !r;
+      if (!r) return;
+      const j = r.journeyText || {};
+      const rail = j.rail || {};
+      box.replaceChildren();
+      const head = document.createElement('div'); head.innerHTML = '<strong></strong>'; head.firstChild.textContent = `Corrida «${r.name}»`;
+      const line = (txt) => { const d = document.createElement('div'); d.className = 'run-journey'; d.textContent = txt; return d; };
+      box.append(head,
+        line([j.channel, `${rail.name} (${rail.id})`, j.product, ...(j.variations || [])].filter(Boolean).join(' · ')),
+        line(`Política: ${rail.policyOwner} · se origina ${rail.origination} · termina en: ${rail.outcome}`),
+        line(`En el listado: ${r.lenderName || `la entidad ${r.lender}`}`));
+      if (r.notes?.length) {
+        const ul = document.createElement('ul');
+        for (const n of r.notes) { const li = document.createElement('li'); li.textContent = n; ul.appendChild(li); }
+        box.appendChild(ul);
+      }
+    }
     /** El rótulo del celular con la entidad a elegir en el listado, si la pestaña es de una corrida con nombre. */
     function syncRunLender() {
       let t = null;
       try { t = currentTab(); } catch { return; }
+      renderRunCard(t);
       for (const id of ['advisorRunLender', 'clientRunLender']) {
         const el = $(id);
         if (!el) continue;
@@ -5217,6 +5250,9 @@
     }
 
     function applyChannel() {
+      // El permiso del asesor es del canal Asesor: con otro canal no aplica, y un «✗ permiso del asesor» del canal anterior
+      // no puede quedar en el pie (se veía al abrir Finandina por autogestión en qa, que no tiene asesor de prueba).
+      if (channel !== 'asesor' && permState !== 'na') { permState = 'na'; permDetail = ''; permSeq++; queueMicrotask(updateGo); }
       queueMicrotask(renderMerchants);   // lo que falta para probar depende del canal
       queueMicrotask(() => { renderTrain(); followRunOnMap(); });   // y la entrada del mapa también
       // El celular de la tienda sólo existe en los canales que entran por ella.

@@ -1418,3 +1418,13 @@ apenas aparece el nombre no sirve: la tarjeta sigue consultando con el botón ap
 puede elegir, devuelve `found: true` con lo que dice la tarjeta («Sin cupo disponible», el monto mínimo o máximo) en vez de
 «no está en el listado». Medido en local: Finandina 146,1 s → 116,6 s (468457 → 468456); Pullman sigue cerrando (468458,
 55 s); con un cliente sin cupo, «está en el listado pero no se pudo elegir» en el acto.
+
+## Cada corrida dice su recorrido y en qué se diferencia (2026-11-19)
+
+`runs.json` suma `journey` (`[canal, riel-N, producto, +variación…]`, ids de `journeys.json`, la gramática del
+`recorrido:` de las tareas; `pkg/runs.ts` los valida y exige que el canal sea el de `channel`) y `notes` (lo propio:
+Finandina, por qué es riel 4 sin API, su mínimo, el tope mensual y la formalización vacía; Pullman, por qué es riel 2).
+`describeJourney` lo pone en palabras con los nombres del catálogo, y lo usan la lista del CLI (`make harness-run`, que
+compara; `CHECK=1` mira el `response_type` de la entidad en cada ambiente de `targets`), la vista «Corridas» (el riel en
+la fila y el recorrido en el tooltip) y la **ficha** `#runCard` arriba de la vista Cliente cuando la pestaña es de una
+corrida. Y con un canal que no es Asesor, `applyChannel` limpia el «✗ permiso del asesor» que quedaba del canal anterior.

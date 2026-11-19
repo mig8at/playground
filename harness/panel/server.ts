@@ -23,7 +23,7 @@ import { adminSession, ensureLocalAdmin, ADMIN_APP } from '../pkg/admin-access.t
 import { laneOf, roleOf, inLane, laneIndex, isDeviceId, LANES, type Lane, type Role } from './devices.ts';
 import { devicePage, deviceBlockers, setTerminalHook, deviceFillOtp, deviceChooseEntity, openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, watchRequests, deviceGoto, deviceReload, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, deviceTap, deviceAdvance, deviceStream, deviceBusyWatch, deviceStorage, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
 import { vpnDev, type VpnStatus } from '../pkg/vpn.ts';
-import { readRuns } from '../pkg/runs.ts';
+import { readRuns, describeJourney } from '../pkg/runs.ts';
 import { requestVerdict, type Target } from '../pkg/backend-reads.ts';
 import { prodCatalog, prodMerchant, prodBranches } from '../pkg/prod-catalog.ts';
 import { waitForOtp } from '../pkg/otp-service.ts';
@@ -1874,7 +1874,7 @@ const server = createServer(async (req, res) => {
     // en cada pedido: lo que se agrega al archivo se ve al recargar. Reemplazan al plan de corrida (`/api/plan`).
     if (path === '/api/runs') {
         const { errors, runs } = readRuns();
-        return json(res, 200, { errors, runs: Object.entries(runs).map(([key, r]) => ({ key, ...r })) });
+        return json(res, 200, { errors, runs: Object.entries(runs).map(([key, r]) => ({ key, ...r, journeyText: describeJourney(r) })) });
     }
 
     // Permiso del asesor al comercio — lo dispara la SELECCIÓN de comercio en el panel (funnel), no el

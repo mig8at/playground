@@ -21,7 +21,7 @@ import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { addRecordings, type Recording } from '../pkg/recordings.ts';
-import { readRuns, runCase, CHANNELS, type NamedRun } from '../pkg/runs.ts';
+import { readRuns, runCase, describeJourney, CHANNELS, type NamedRun } from '../pkg/runs.ts';
 import { requestVerdict, type Target } from '../pkg/backend-reads.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -40,11 +40,32 @@ const wantTarget = (process.env.TARGET || '').trim();
 
 const names = (process.argv[2] ?? '').split(',').map((s) => s.trim()).filter(Boolean);
 if (names.length === 0) {
-    console.log('\n  CORRIDAS · make harness-run RUN=<nombre>[,<otra>…] [TARGET=…] [SLOW=600] [HEADED=1] [VIDEO=0] [BLOCK=<tarea>]\n');
-    for (const [k, r] of Object.entries(runs)) console.log(`  ${k.padEnd(12)} ${r.targets.join(',').padEnd(10)} ${r.description}${r.measured ? `\n  ${''.padEnd(23)}cerró: ${r.measured}` : ''}`);
-    console.log('\n  En el panel: la vista «Corridas» de la barra izquierda.\n');
-    console.log('');
+    // LA LISTA COMPARA: cada corrida con su recorrido en palabras (canal, riel con sus dos ejes, producto, variaciones) y
+    // lo que la hace distinta. Con CHECK=1, el riel declarado contra el de la entidad en la base de cada ambiente.
+    const check = process.env.CHECK === '1';
+    console.log('\n  CORRIDAS (harness/runs.json) · make harness-run RUN=<nombre>[,<otra>…] [TARGET=…] [PANEL=1] [CHECK=1]\n');
+    for (const [k, r] of Object.entries(runs)) {
+        const j = describeJourney(r);
+        console.log(`  ▸ ${r.name} (${k}) · ${r.targets.join(', ')}`);
+        console.log(`    ${j.channel} · ${j.rail.name} (${j.rail.id}) · ${j.product}${j.variations.length ? ` · ${j.variations.join(', ')}` : ''}`);
+        console.log(`    política: ${j.rail.policyOwner} · se origina ${j.rail.origination} · termina en: ${j.rail.outcome}`);
+        console.log(`    elige ${r.lenderName ?? `la entidad ${r.lender}`} (${r.lender})${r.case && Object.keys(r.case).length ? ` · caso ${Object.entries(r.case).map(([a, b]) => `${a} ${b}`).join(', ')}` : ''}`);
+        for (const n of r.notes ?? []) console.log(`    · ${n}`);
+        if (check) for (const t of r.targets) console.log(`    ${checkRail(r, t)}`);
+        if (r.measured) console.log(`    cerró: ${r.measured}`);
+        console.log('');
+    }
+    console.log('  En el panel: la vista «Corridas» de la barra izquierda (la deja armada para avanzar con Continuar).\n');
     process.exit(0);
+}
+/** ¿El riel declarado es el de la entidad en ESA base? Una entidad puede cambiar de tipo entre ambientes. */
+function checkRail(r: NamedRun, target: string): string {
+    const want = r.journey[1].replace(/^riel-/, '');
+    const q = spawnSync(path.resolve(ROOT, '..', 'bin', 'pg'), ['sql', '--target', target, '--json', '--query', `SELECT response_type FROM lenders WHERE id = ${Number(r.lender)}`], { encoding: 'utf8' });
+    let got = '';
+    try { const rows = JSON.parse(q.stdout); got = String((rows.rows ?? rows)[0]?.response_type ?? ''); } catch { /* sin lectura */ }
+    if (!got) return `? ${target}: no se pudo leer el tipo de la entidad ${r.lender}`;
+    return got === want ? `✓ ${target}: la entidad ${r.lender} es tipo ${got}, como dice el recorrido` : `✗ ${target}: el recorrido dice riel ${want} y la entidad ${r.lender} es tipo ${got}`;
 }
 const unknown = names.filter((n) => !runs[n]);
 if (unknown.length) {

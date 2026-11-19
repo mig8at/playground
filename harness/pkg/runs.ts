@@ -44,6 +44,35 @@ export interface NamedRun {
     close?: boolean;
     /** Cuándo cerró por última vez con estas perillas, y cómo. */
     measured?: string;
+    /** EL RECORRIDO, con los ids de `journeys.json` y la misma gramática que el `recorrido:` de las tareas:
+     *  `[canal, riel-N, producto, +variación…]`. Es lo que dice en qué se diferencia de las otras corridas. */
+    journey: string[];
+    /** Lo propio de esta corrida que el recorrido no dice (por qué decide quien decide, un mínimo, un hueco conocido). */
+    notes?: string[];
+}
+
+const JOURNEYS = JSON.parse(readFileSync(join(ROOT, 'journeys.json'), 'utf8'));
+/** El canal del panel ↔ el del catálogo de recorridos. */
+const CHANNEL_JOURNEY: Record<keyof typeof CHANNELS, string> = { asesor: 'advisor', autogestion: 'self-service', ecommerce: 'store' };
+
+export interface RunJourney {
+    channel: string;
+    rail: { id: string; name: string; policyOwner: string; origination: string; outcome: string };
+    product: string;
+    variations: string[];
+}
+/** El recorrido de una corrida en palabras (los nombres de `journeys.json`). */
+export function describeJourney(run: NamedRun): RunJourney {
+    const [channel, rail, product, ...rest] = run.journey;
+    const r = JOURNEYS.rails[(rail || '').replace(/^riel-/, '')] ?? {};
+    const axes = JOURNEYS.railAxes;
+    return {
+        channel: JOURNEYS.channels[channel]?.name ?? channel,
+        rail: { id: rail, name: r.name ?? rail, policyOwner: axes.policyOwner.values[r.policyOwner] ?? '?',
+            origination: axes.origination.values[r.origination] ?? '?', outcome: JOURNEYS.outcomes[r.outcome]?.name ?? '?' },
+        product: JOURNEYS.products[product]?.name ?? product,
+        variations: rest.map((v) => JOURNEYS.variations[v.replace(/^\+/, '')]?.name ?? v),
+    };
 }
 
 /** Valida el archivo entero: los errores (vacío = válido) y las corridas. `merchants` son las claves del registro. */
@@ -62,6 +91,16 @@ export function validateRuns(raw: unknown, merchants: string[]): { errors: strin
         if (!Number.isInteger(r?.lender) || r.lender <= 0) err('`lender` es el id de la entidad (un número)');
         if (!Array.isArray(r?.targets) || !r.targets.length) err('`targets` dice dónde corre (al menos uno)');
         else for (const t of r.targets) if (!(TARGETS as readonly string[]).includes(t)) err(`\`targets\`: «${t}» no es ${TARGETS.join(', ')}`);
+        // El recorrido: canal, riel, producto y variaciones del catálogo, y el canal tiene que ser el mismo que `channel`.
+        const j: string[] = Array.isArray(r?.journey) ? r.journey : [];
+        if (j.length < 3) err('`journey` es [canal, riel-N, producto, +variación…] con los ids de journeys.json');
+        else {
+            if (!JOURNEYS.channels[j[0]]) err(`\`journey\`: el canal «${j[0]}» no está en journeys.json (${Object.keys(JOURNEYS.channels).join(', ')})`);
+            else if (r?.channel in CHANNELS && CHANNEL_JOURNEY[r.channel as keyof typeof CHANNELS] !== j[0]) err(`\`journey\` dice «${j[0]}» y \`channel\` «${r.channel}»: tienen que ser el mismo canal`);
+            if (!/^riel-\d$/.test(j[1]) || !JOURNEYS.rails[j[1].slice(5)]) err(`\`journey\`: «${j[1]}» no es un riel (riel-0 … riel-4)`);
+            if (!JOURNEYS.products[j[2]]) err(`\`journey\`: el producto «${j[2]}» no está en journeys.json (${Object.keys(JOURNEYS.products).join(', ')})`);
+            for (const v of j.slice(3)) if (!v.startsWith('+') || !JOURNEYS.variations[v.slice(1)]) err(`\`journey\`: «${v}» no es una variación (+${Object.keys(JOURNEYS.variations).join(', +')})`);
+        }
         for (const [k, v] of Object.entries<any>(r?.case ?? {})) {
             if (!(CASE_KEYS as readonly string[]).includes(k)) err(`\`case.${k}\` no es un campo del panel (${CASE_KEYS.join(', ')})`);
             else if (typeof v !== 'string' && typeof v !== 'number') err(`\`case.${k}\` es texto o número`);

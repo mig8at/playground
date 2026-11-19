@@ -208,6 +208,13 @@ Se diferencian en **qué recorren**, y eso decide qué pueden encontrar (la tabl
 | **3a · el wizard por HTTP** | `make harness-walk-wizard` | loaders, actions y zod de cada pantalla, sin navegador | ~20 s por caso |
 | **3b · el backend directo** | `make harness-case` | la API del backend, sin front | segundos |
 
+**Las corridas con nombre (`runs.json`, 2026-11-19) son la puerta de todo lo de arriba para los casos que ya cierran.**
+Cada una dice su recorrido (`journey`: canal, riel, producto, variaciones de `journeys.json`) y lo que la hace distinta
+(`notes`); `make harness-run` sin `RUN` las compara una al lado de la otra y con `CHECK=1` verifica el riel contra la
+base de cada ambiente. Con la misma corrida: `make harness-run RUN=x` es el camino 2 con video y dictamen; `PANEL=1` (o
+la vista «Corridas») la deja armada en el panel, el camino 1, para avanzarla tocando Continuar. Un caso nuevo o una
+pregunta puntual siguen por `harness-walk-wizard` o `harness-case`; cuando cierra, se suma a `runs.json`.
+
 **Cuál usar:**
 - **¿Esta regla excluye de verdad?** o **¿qué pasa si el cliente es así?** → **3b**.
 - **¿El flujo pasa pantalla por pantalla?**, rápido y con varios comercios → **3a**.
