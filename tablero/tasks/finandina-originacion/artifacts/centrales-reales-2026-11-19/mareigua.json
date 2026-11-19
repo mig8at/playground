@@ -1,0 +1,10 @@
+{
+  "host": "https://macia.wikiplata.com:44375",
+  "token": {
+    "status": 400,
+    "body": {
+      "error": "invalid_grant",
+      "error_description": "Login o contraseña incorrecta"
+    }
+  }
+}
