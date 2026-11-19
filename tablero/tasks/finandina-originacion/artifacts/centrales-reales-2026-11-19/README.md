@@ -10,6 +10,14 @@ Las cuentas salen del llavero personal de Miguel y no se imprimieron.
 | **Mareigua** (`macia.wikiplata.com:44375`) | la de Finandina (las claves del Drive) | `POST /token` **400** `invalid_grant`, «Login o contraseña incorrecta». No se llegó a consultar la cédula | `mareigua.json` |
 | **Ágil Data** | — | **No se probó.** Finandina no tiene cuenta de Ágil Data: la cascada siempre consulta con la de CreditOp. Las credenciales reales de CreditOp sólo están en los secretos de los ambientes desplegados; en local hay un host falso y claves de relleno | — |
 
+## Con una cédula inventada
+
+La misma consulta de Experian con una cédula que no existe (1234567890, apellido PEREZ) responde 200 con el código
+**09**: «El número de identificación enviado no existe en los archivos de validación de la base de datos». No trae nombre
+ni modelos (`experian-cedula-falsa.json`). Con la cédula real, en cambio, devuelve el nombre completo correcto. **No es un
+mock:** el ambiente de pruebas valida la identidad contra datos reales, y lo que no entrega por este canal es la historia
+de crédito (código 14).
+
 ## Qué significa
 
 - **Experian:** la cuenta de Finandina **funciona**: autentica y consulta. El código 14 es lo esperado en el ambiente de
