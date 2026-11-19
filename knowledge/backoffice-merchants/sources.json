@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "title": "Comercios en el backoffice nuevo",
+  "summary": "Qué hace el backoffice nuevo (apps/backoffice) con un comercio en main: el BFF y sus dos proxies, las rutas de legacy-backend con el token de staff, las ubicaciones en merchant-api y el gateway con su authorizer. El alta y la edición completa de CORE-562 todavía no están en main.",
+  "reviewedAt": "2026-11-19T15:00:00+00:00",
+  "sources": [
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/backoffice/app/routes.ts",
+      "commit": "33a5289bbe71b830a3ecf7cebdc69bf3e560588e",
+      "blob": "77568a6d4b5b269568d5628090589c8b3dc8cded",
+      "sections": [
+        "quien-atiende-cada-pantalla"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/backoffice/app/routes/api-backoffice-proxy.ts",
+      "commit": "33a5289bbe71b830a3ecf7cebdc69bf3e560588e",
+      "blob": "7efd1d19de30b40044079c07aace9123a13079bb",
+      "sections": [
+        "quien-atiende-cada-pantalla",
+        "para-automatizarlo"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/backoffice/app/routes/api-merchant-api-proxy.ts",
+      "commit": "33a5289bbe71b830a3ecf7cebdc69bf3e560588e",
+      "blob": "2a3b324c4df4d5487bd137a607ea6a6080928761",
+      "sections": [
+        "quien-atiende-cada-pantalla"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/backoffice/app/providers/merchants/merchant-api-url.ts",
+      "commit": "33a5289bbe71b830a3ecf7cebdc69bf3e560588e",
+      "blob": "a94d89f21269af67e3ff0845724eaebdfcc2fa10",
+      "sections": [
+        "quien-atiende-cada-pantalla"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/backoffice/app/utils/upstream.server.ts",
+      "commit": "33a5289bbe71b830a3ecf7cebdc69bf3e560588e",
+      "blob": "d040c8664770d876a3f53da5d475487c139d7513",
+      "sections": [
+        "quien-atiende-cada-pantalla"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Backoffice/routes/backoffice.php",
+      "commit": "bf0ddcc79bbbc430005e07e7e64956575f6de939",
+      "blob": "0b184a75eac03d3d0dbbc41c84b96c67499da053",
+      "sections": [
+        "lo-que-hace-legacy-backend-con-un-comercio",
+        "la-ubicacion-de-las-sedes-es-de-merchant-api",
+        "para-automatizarlo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Http/Kernel.php",
+      "commit": "bf0ddcc79bbbc430005e07e7e64956575f6de939",
+      "blob": "e59fdd5fa47411673a3e06ad8bd6edd63a1fbd3a",
+      "sections": [
+        "lo-que-hace-legacy-backend-con-un-comercio"
+      ]
+    },
+    {
+      "repo": "merchant-api",
+      "path": "internal/modules/merchant/module.go",
+      "commit": "d8f3a34315906b890fef84c89803fb76b4200a9a",
+      "blob": "a9f2421a1592aec18cb29a56debf819cfdbfe0e7",
+      "sections": [
+        "la-ubicacion-de-las-sedes-es-de-merchant-api"
+      ]
+    },
+    {
+      "repo": "infrastructure",
+      "path": "environments/development/api-gateway-backoffice/terragrunt.hcl",
+      "commit": "efd3679696724daa789eb03a95a06b5d8c1eaf5d",
+      "blob": "8d198b21e41b9c9243a0ef89eaede707fae353ba",
+      "sections": [
+        "el-gateway-del-backoffice",
+        "para-automatizarlo"
+      ]
+    },
+    {
+      "repo": "infrastructure",
+      "path": "environments/prod/api-gateway-backoffice/terragrunt.hcl",
+      "commit": "efd3679696724daa789eb03a95a06b5d8c1eaf5d",
+      "blob": "f2fcb4376c79b777d2ba5a34580670b383a2d708",
+      "sections": [
+        "el-gateway-del-backoffice"
+      ]
+    },
+    {
+      "repo": "infrastructure",
+      "path": "environments/prod/ecs-application/terragrunt.hcl",
+      "commit": "efd3679696724daa789eb03a95a06b5d8c1eaf5d",
+      "blob": "d8c00695aa34455fc3904254de389d0d765d9c04",
+      "sections": [
+        "el-gateway-del-backoffice"
+      ]
+    },
+    {
+      "repo": "infrastructure",
+      "path": "environments/development/ecs-application/terragrunt.hcl",
+      "commit": "efd3679696724daa789eb03a95a06b5d8c1eaf5d",
+      "blob": "aac4aaa5cadb09f5986c86e80457542307ab7ff5",
+      "sections": [
+        "el-gateway-del-backoffice"
+      ]
+    }
+  ]
+}
