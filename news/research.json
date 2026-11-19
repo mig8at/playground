@@ -214,7 +214,8 @@
         "bigai/GS1-2B",
         "convaiinnovations/laya",
         "thaitea/laya-vision",
-        "LiquidAI/d1-2B"
+        "LiquidAI/d1-2B",
+        "charcot-ai/marimba"
       ],
       "ours": "2026-11-19, en el triaje de 23 alertas de Sentinel: GS1 atrapó 8 de 9 urgentes pero dio por ruido una caída real con 0,89; Laya, 2 de 9. Sin ajustarlos con datos propios, «calibrado» no significó acertar en nuestro dominio."
     },
@@ -254,7 +255,8 @@
       "mac": "llama-quantize (de llama.cpp) convierte un modelo a Q4_K_M, Q8_0, etc. Todo lo que corre en my-tools va así.",
       "models": [
         "Qwen/Qwen3-VL-4B-Instruct",
-        "Qwen/Qwen3-Embedding-0.6B"
+        "Qwen/Qwen3-Embedding-0.6B",
+        "qda-lab/QDA-DeepSeek-R1-Distill-Llama-8B-W4A16"
       ],
       "ours": "Qwen3-VL-4B en Q4_K_M acierta 39 de 42 en bin/point; Qwen3-Embedding en Q8_0 sostiene knowledge-search a ~0,34 s por búsqueda."
     },
@@ -415,7 +417,8 @@
       "machine": "Las fichas no dicen con qué máquina.",
       "models": [
         "evanlyhf/MobileAIFactory-BC5CDR-NER-Qwen3.5-0.8B-Q4_K_M-GGUF",
-        "thaitea/laya-vision"
+        "thaitea/laya-vision",
+        "qda-lab/QDA-DeepSeek-R1-Distill-Llama-8B-W4A16"
       ]
     },
     {

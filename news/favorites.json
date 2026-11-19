@@ -1580,14 +1580,98 @@
   },
   {
     "id": "apple/FastFrames-S",
-    "group": "gpu",
+    "group": "create",
     "task": "text-to-video",
     "params": 1300000000,
     "license": "apple-amlr (investigación)",
-    "mac": "no",
+    "mac": "unknown",
     "added": "2026-11-19",
     "what": "Video que se genera mientras lo mirás: un modelo de difusión de dos pasos que produce video de 480p con latencia interactiva. De Apple; hay una versión de 14 B.",
-    "why": "Video generado en tiempo real, casi como un videojuego. Pero pide Linux con GPU NVIDIA.",
+    "why": "Video generado en tiempo real, casi como un videojuego. Oficialmente pide Linux con GPU NVIDIA, pero el 18/11 salió un port no oficial a MLX (pratikgx/FastFrames-S-MLX) que corre en Apple Silicon; su codificador de texto solo pesa ~11 GB, así que en 24 GB va justo.",
+    "ideas": [
+      "Probar el port de MLX: 5 segundos de video de 832×480"
+    ]
+  },
+  {
+    "id": "charcot-ai/marimba",
+    "group": "detect",
+    "task": "audio-classification",
+    "params": null,
+    "license": "apache-2.0",
+    "mac": "unknown",
+    "added": "2026-11-19",
+    "what": "Un modelo de decisión para audio: sobre los últimos 8 segundos contesta preguntas cerradas con probabilidad: ¿alguien está hablando?, ¿terminó su turno?, ¿qué idioma es?, ¿aparece tal término? Usa el oído de Qwen3-ASR-0.6B congelado y una sola pasada sirve para todas las preguntas.",
+    "why": "La idea de Laya y GS1 llevada al audio. Es otra forma de lo que preguntaste con SAVA: decidir si la persona terminó, pero también detectar una palabra o el idioma sin transcribir.",
+    "ideas": [
+      "Detectar si en una llamada se dijo un término (por ejemplo, «pagaré») sin transcribirla entera"
+    ]
+  },
+  {
+    "id": "fredreick/HDM-Qwen3.5-4B",
+    "group": "odd",
+    "task": "text-classification",
+    "params": 658692,
+    "license": "apache-2.0",
+    "mac": "unknown",
+    "added": "2026-11-19",
+    "what": "Un bloque de 2,7 MB que se pone encima de Qwen3.5-4B sin tocarlo: el modelo contesta rápido sin pensar, y el bloque mira cómo quedó por dentro y predice si esa respuesta rápida está bien o si vale la pena ponerlo a razonar.",
+    "why": "Aprender CUÁNDO pensar: razonar sólo cuando sirve ahorra la mayor parte del tiempo. Que eso entre en 658 mil parámetros es lo curioso.",
+    "ideas": [
+      "Combinarlo con el modelo de fondo: contestar rápido y razonar sólo lo dudoso"
+    ]
+  },
+  {
+    "id": "manifestro/kezek-v1",
+    "group": "voice",
+    "task": "audio-to-audio",
+    "params": null,
+    "license": "apache-2.0",
+    "mac": "unknown",
+    "added": "2026-11-19",
+    "what": "De una grabación mono de exactamente dos personas saca una pista por persona, con la misma duración: lo que se pisan y los «ajá» quedan en la pista de quien los dijo, y las dos pistas suman exactamente el audio original.",
+    "why": "Separar hablantes en una grabación de un solo canal es difícil, y éste está hecho para conversaciones reales. Pide GPU CUDA con bf16 según la ficha.",
+    "ideas": [
+      "Separar asesor y cliente en una llamada grabada antes de transcribirla"
+    ]
+  },
+  {
+    "id": "mohsenvand/cold-attention-clrs30",
+    "group": "tiny",
+    "task": "other",
+    "params": 150000,
+    "license": "apache-2.0",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "«Atención en el cero absoluto»: bloques de ~150 mil parámetros que aprenden los 30 algoritmos clásicos de CLRS-30 (ordenar, caminos más cortos…) entrenados con listas de hasta 16 elementos y probados con 64.",
+    "why": "Una atención llevada a temperatura cero conserva sólo dos cantidades exactas (el mejor y cuántos lo alcanzan): con eso, una red diminuta generaliza un algoritmo a tamaños que nunca vio.",
+    "ideas": [
+      "Ver si un algoritmo aprendido generaliza de verdad, en la CPU"
+    ]
+  },
+  {
+    "id": "Jack97/CaDet",
+    "group": "detect",
+    "task": "video-classification",
+    "params": null,
+    "license": "propia",
+    "mac": "unknown",
+    "added": "2026-11-19",
+    "what": "Detecta videos generados con IA mirando 8 cuadros: busca el «ritmo» que deja el decodificador (VAE) de los generadores de video, además de lo que no tiene sentido en la escena.",
+    "why": "Entrenado con pares de un video real y su copia pasada una vez por un VAE: aprende la huella del generador, no sólo errores visibles.",
+    "ideas": [
+      "Mirar si un video de un cliente fue generado (fraude de identidad)"
+    ]
+  },
+  {
+    "id": "qda-lab/QDA-DeepSeek-R1-Distill-Llama-8B-W4A16",
+    "group": "specialist",
+    "task": "text-generation",
+    "params": 8030261248,
+    "license": "mit",
+    "mac": "unknown",
+    "added": "2026-11-19",
+    "what": "Un R1 destilado de 8 B llevado a 4 bits por un sistema de AGENTES que diseña la cuantización: prueba, mide y corrige en ciclo cerrado. 5,7 GB contra 16,1 GB y conserva el 96,2 % de la precisión.",
+    "why": "Une dos ideas de la investigación: cuantizar y dejar que agentes hagan la investigación. Le gana en promedio a otras cuantizaciones de 4 bits del mismo modelo en su tabla.",
     "ideas": []
   }
 ]
