@@ -38,10 +38,12 @@ function outline(g,parts,X,Y){g.beginPath();
 
 // ---------- La ciudad hasta la etapa elegida ----------
 // fronts: la raya en el frente de cada lote (el minimapa del demo la apaga: a esa escala ensucia).
-export function drawCityStage(canvas,bp,{cell,stage,level=0,selected=-1,fronts=true}){
+// (sobre: {g, x, y} dibuja la ciudad en un contexto ajeno, corrida a ese punto en píxeles del dispositivo, en vez de en su
+// propio lienzo: lo usa la región del visor —abajo, drawIslaStage—, donde un lienzo de la ciudad entera no cabría)
+export function drawCityStage(canvas,bp,{cell,stage,level=0,selected=-1,fronts=true,sobre=null}){
  const {map}=bp,{W,H,kind}=map,dpr=window.devicePixelRatio||1,m=cell/CELL;// px por metro
- canvas.width=Math.round(W*cell*dpr);canvas.height=Math.round(H*cell*dpr);
- const g=canvas.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);
+ if(!sobre){canvas.width=Math.round(W*cell*dpr);canvas.height=Math.round(H*cell*dpr);}
+ const g=sobre?sobre.g:canvas.getContext('2d');g.setTransform(dpr,0,0,dpr,sobre?.x||0,sobre?.y||0);
  // Etapa 1: el terreno con su rejilla de casillas.
  g.fillStyle=PAPER.courtyard;g.fillRect(0,0,W*cell,H*cell);
  if(stage===1){g.strokeStyle='rgba(0,0,0,.08)';g.lineWidth=1;g.beginPath();for(let x=0;x<=W;x++){g.moveTo(x*cell,0);g.lineTo(x*cell,H*cell);}for(let y=0;y<=H;y++){g.moveTo(0,y*cell);g.lineTo(W*cell,y*cell);}g.stroke();
@@ -57,7 +59,7 @@ export function drawCityStage(canvas,bp,{cell,stage,level=0,selected=-1,fronts=t
  for(const c of bp.courts){g.fillStyle=PAPER.courtyard;g.fillRect(c.x0*cell,c.y0*cell,(c.x1-c.x0+1)*cell,(c.y1-c.y0+1)*cell);}
  for(const L of bp.lots){g.fillStyle=TYPES[L.type].color;for(const P of L.parts)g.fillRect(P.x*m,P.y*m,P.w*m,P.h*m);}
  // Etapas 5–8: el piso elegido de cada edificio, en chico.
- if(stage>=5)for(const L of bp.lots){const lv=L.levels[Math.min(level,L.levels.length-1)];if(level>=L.floors)continue;drawLevel(g,lv,{m,stage,small:true});}
+ if(stage>=5)for(const L of bp.lots){const lv=L.levels[Math.min(level,L.levels.length-1)];if(level>=L.floors)continue;drawLevel(g,lv,{m,stage,small:m<10,labels:m>=16});}
  for(const L of bp.lots){g.strokeStyle=L.id===selected?'#c0392b':'rgba(40,46,50,.55)';g.lineWidth=L.id===selected?2.5:1;outline(g,L.parts,v=>v*m,v=>v*m);
   if(level>=L.floors&&stage>=5){g.fillStyle='rgba(255,255,255,.55)';for(const P of L.parts)g.fillRect(P.x*m,P.y*m,P.w*m,P.h*m);}
   // Etapa 4: los pisos de cada uno.
@@ -162,11 +164,17 @@ export function drawHouse(g,c,{stage,level}){let P=houseCache.get(c);if(!P){P=pl
    g.fillRect(-sz[0]/2,-sz[1]/2,sz[0],sz[1]);g.restore();}
   if(stage>=8&&HL)for(const f of HL.furniture){g.fillStyle=ITEM_COLOR[f.kind]||'#a7825f';g.fillRect(hx(f.u0),hz(f.v1),f.u1-f.u0,f.v1-f.v0);}}
  g.strokeStyle='#6b4e36';g.lineWidth=.35;g.strokeRect(-P.w/2,-P.d/2,P.w,P.d);g.restore();}
-export function drawIslaStage(canvas,bp,{cell,stage=9,level=0,selected=-1,fronts=true,dim=true,capas=CAPAS}){
- const I=bp.isla,B=I.bounds,dpr=window.devicePixelRatio||1,m=cell/CELL,city=document.createElement('canvas');
- drawCityStage(city,bp,{cell,stage:Math.min(stage,8),level,selected,fronts});
- canvas.width=Math.round((B.x1-B.x0)*cell*dpr);canvas.height=Math.round((B.y1-B.y0)*cell*dpr);const g=canvas.getContext('2d');
- g.setTransform(1,0,0,1,0,0);g.fillStyle='#2b3a44';g.fillRect(0,0,canvas.width,canvas.height);g.drawImage(city,-B.x0*cell*dpr,-B.y0*cell*dpr);
+// LA REGIÓN (2026-11-19): con region={x,y,w,h} —en píxeles del dispositivo de la imagen entera a esta escala— se dibuja
+// sólo ese recorte, en un lienzo de ese tamaño. Es lo que deja acercar el plano y verlo nítido: a 40 px por metro la
+// imagen entera mediría decenas de miles de píxeles de lado. Todo el dibujo fija su transformación en absoluto, así que
+// alcanza con correr cada setTransform del contexto lo que mide el recorte.
+export function drawIslaStage(canvas,bp,{cell,stage=9,level=0,selected=-1,fronts=true,dim=true,capas=CAPAS,region=null}){
+ const I=bp.isla,B=I.bounds,dpr=window.devicePixelRatio||1,m=cell/CELL;
+ canvas.width=region?Math.round(region.w):Math.round((B.x1-B.x0)*cell*dpr);canvas.height=region?Math.round(region.h):Math.round((B.y1-B.y0)*cell*dpr);const g=canvas.getContext('2d');
+ const rx=region?.x||0,ry=region?.y||0;if(region){const fija=g.setTransform.bind(g);g.setTransform=(a,b,c,d,e,f)=>fija(a,b,c,d,e-rx,f-ry);}
+ g.setTransform(1,0,0,1,0,0);g.fillStyle='#2b3a44';g.fillRect(rx,ry,canvas.width,canvas.height);
+ if(region){g.save();drawCityStage(null,bp,{cell,stage:Math.min(stage,8),level,selected,fronts,sobre:{g,x:-B.x0*cell*dpr,y:-B.y0*cell*dpr}});g.restore();}
+ else{const city=document.createElement('canvas');drawCityStage(city,bp,{cell,stage:Math.min(stage,8),level,selected,fronts});g.drawImage(city,-B.x0*cell*dpr,-B.y0*cell*dpr);}
  g.setTransform(dpr*m,0,0,dpr*m,-B.x0*cell*dpr,-B.y0*cell*dpr);g.globalAlpha=dim&&level>0?.5:1;
  // 1: el terreno; desde la 2, las terrazas del monte (el suelo aplanado de cada manzana) con el borde de cada manzana
  for(const q of I.cells){g.fillStyle=q.plaza!=null?'#e6dfcd':stage>=2&&q.terraza!=null?'#dccfae':q.zona==='montaña'?`hsl(${80-Math.min(40,q.h/3)},${Math.max(8,28-q.h/4)}%,${Math.min(78,52+q.h/4)}%)`:ISLA_COL[q.zona];g.fillRect(q.x*CELL,q.y*CELL,CELL+.05,CELL+.05);
@@ -202,7 +210,7 @@ export function drawIslaStage(canvas,bp,{cell,stage=9,level=0,selected=-1,fronts
    if(!open){g.beginPath();g.moveTo(x,y);open=true;}else g.lineTo(x,y);}if(open)g.stroke();}}
  g.globalAlpha=1;g.setTransform(dpr,0,0,dpr,-B.x0*cell*dpr,-B.y0*cell*dpr);
  if(stage>=3)for(const L of I.lots){if(level>=L.floors)continue;g.fillStyle=ISLA_LOT[L.kind];for(const P of L.parts)g.fillRect(P.x*m,P.y*m,P.w*m,P.h*m);
-  if(stage>=5)drawLevel(g,L.levels[level],{m,stage,small:true});
+  if(stage>=5)drawLevel(g,L.levels[level],{m,stage,small:m<10,labels:m>=16});
   g.strokeStyle=L.id===selected?'#c0392b':ISLA_BORDE[L.kind]||'rgba(40,46,50,.7)';g.lineWidth=L.id===selected?2.5:L.kind==='puesto'||L.kind==='tienda'?2.2:1.2;outline(g,L.parts,v=>v*m,v=>v*m);
   if((L.kind==='puesto'||L.kind==='tienda')&&level===0){const q=L.rect,t=L.kind==='puesto'?'POLICÍA':'TIENDA';const fs=Math.max(6,m*1.1);g.font=`bold ${fs}px sans-serif`;g.textAlign='center';const w=g.measureText(t).width+3,cx=(q.x+q.w/2)*m,y=q.y*m-2;
    g.fillStyle=L.kind==='puesto'?'#2f5f9a':'#c0672f';g.fillRect(cx-w/2,y-fs,w,fs+2);g.fillStyle='#fff';g.fillText(t,cx,y);}}
@@ -293,7 +301,7 @@ function drawExterior(g,bp,{level=0,px=1,capas=CAPAS}){
    if(px>=3){g.fillStyle='#5a4028';g.beginPath();g.arc(a.x,a.z,.22,0,7);g.fill();}}
   g.globalAlpha=1;}
  // Los nombres de las vías, a lo largo de cada una y repetidos cada tanto.
- if(capas.nombres&&px>=1.2){const fs=Math.max(2.2,9/px);g.font=`600 ${fs}px system-ui,sans-serif`;g.textAlign='center';g.textBaseline='middle';g.fillStyle='rgba(60,66,72,.6)';
+ if(capas.nombres&&px>=1.2){const fs=Math.max(9/px,Math.min(2.2,14/px));// (de lejos, legible; de cerca, no más de 14 px)g.font=`600 ${fs}px system-ui,sans-serif`;g.textAlign='center';g.textBaseline='middle';g.fillStyle='rgba(60,66,72,.6)';
   const paso=Math.max(96,420/px);
   for(const v of [...(bp.vias?.h||[]),...(bp.vias?.v||[])]){const t=px>=4?v.largo:v.corto,a=v.desde??0,b=v.hasta??(v.eje==='h'?bp.map.W:bp.map.H)*CELL;if(!t||b-a<fs*4)continue;
    for(let d=a+paso/2;d<b;d+=paso){if(v.eje==='h')g.fillText(t,d,v.coord);else girado(v.coord,d,-Math.PI/2,()=>g.fillText(t,0,0));}}}

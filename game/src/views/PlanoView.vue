@@ -16,7 +16,8 @@ import {CELL,TYPES} from '../engine/blueprint.js';
 const route=useRoute(),router=useRouter();
 const seed=ref(Math.max(1,Number(route.query.ciudad)||1)),team=ref(Math.max(2,Number(route.query.jugadores)||3));
 const estado=ref('Armando el plano…'),nivel=ref(0),capas=reactive({...CAPAS}),elegido=ref(null),cursor=ref(null),tardo=ref(0);
-const host=ref(null),lienzo=ref(null),piso=ref(null);
+const host=ref(null),lienzo=ref(null),piso=ref(null),nitido=ref(null),nitidoListo=ref(false),escala=ref(0);
+let relojNitido=0;
 let plano=null,origen={x0:0,y0:0},celda=20,arrastre=null,tocado=false;// (tocado: ya acercó o movió; mientras no, el plano se reajusta al cambiar el tamaño de la ventana)
 const vista=reactive({x:0,y:0,k:1});// (la posición y el zoom del lienzo dentro del visor, en píxeles de pantalla)
 const NOMBRE_CAPA={pintura:'Pintura de vías',equipo:'Mobiliario',arboles:'Árboles',nombres:'Nombres de vías',botines:'Botines'};
@@ -33,6 +34,15 @@ function dibujar(){
  lienzo.value.style.width=lienzo.value.width/dpr+'px';lienzo.value.style.height=lienzo.value.height/dpr+'px';
  tardo.value=Math.round(performance.now()-t0);
 }
+// LA CAPA NÍTIDA: el lienzo de base se dibuja una vez (a ~4 px por metro) y al acercar sólo se estira. Cuando la vista
+// se queda quieta un momento, encima se dibuja SÓLO lo que se ve, a la escala de la pantalla (hasta 42 px por metro):
+// mientras se arrastra o se gira la rueda se ve la base estirada, y al soltar llega el detalle.
+function pedirNitido(){nitidoListo.value=false;clearTimeout(relojNitido);if(!plano)return;escala.value=celda/CELL*vista.k;relojNitido=setTimeout(dibujarNitido,140);}
+function dibujarNitido(){
+ if(!plano||!host.value||!nitido.value||vista.k<=1.05)return;const t0=performance.now(),dpr=window.devicePixelRatio||1,w=host.value.clientWidth,h=host.value.clientHeight;
+ drawWorldStage(nitido.value,plano,{cell:celda*vista.k,stage:9,level:nivel.value,dim:false,capas:{...capas},selected:elegido.value?.id??-1,region:{x:-vista.x*dpr,y:-vista.y*dpr,w:w*dpr,h:h*dpr}});
+ nitido.value.style.width=w+'px';nitido.value.style.height=h+'px';nitidoListo.value=true;tardo.value=Math.round(performance.now()-t0);
+}
 function ajustar(){
  if(!host.value||!lienzo.value)return;tocado=false;const w=host.value.clientWidth,h=host.value.clientHeight,cw=parseFloat(lienzo.value.style.width),ch=parseFloat(lienzo.value.style.height);
  vista.k=Math.min(w/cw,h/ch)*.96;vista.x=(w-cw*vista.k)/2;vista.y=(h-ch*vista.k)/2;
@@ -40,12 +50,12 @@ function ajustar(){
 // De un punto de la pantalla a metros del plano.
 function aMetros(e){const r=host.value.getBoundingClientRect(),px=(e.clientX-r.left-vista.x)/vista.k,py=(e.clientY-r.top-vista.y)/vista.k;return {x:(px/celda+origen.x0)*CELL,z:(py/celda+origen.y0)*CELL};}
 const loteEn=(x,z)=>[...plano.lots,...(plano.isla.lots||[])].find(L=>L.parts.some(P=>x>=P.x&&x<=P.x+P.w&&z>=P.y&&z<=P.y+P.h))||null;
-function rueda(e){e.preventDefault();tocado=true;const r=host.value.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top,k=Math.max(.15,Math.min(8,vista.k*(e.deltaY<0?1.18:1/1.18)));
+function rueda(e){e.preventDefault();tocado=true;const r=host.value.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top,k=Math.max(.15,Math.min(42*CELL/celda,vista.k*(e.deltaY<0?1.18:1/1.18)));// (hasta 42 px por metro, como el piso ampliado)
  vista.x=mx-(mx-vista.x)*k/vista.k;vista.y=my-(my-vista.y)*k/vista.k;vista.k=k;}
 function baja(e){arrastre={x:e.clientX,y:e.clientY,vx:vista.x,vy:vista.y,movio:false};host.value.setPointerCapture?.(e.pointerId);}
 function mueve(e){if(plano){const p=aMetros(e);cursor.value={x:p.x.toFixed(1),z:p.z.toFixed(1)};}
  if(!arrastre)return;const dx=e.clientX-arrastre.x,dy=e.clientY-arrastre.y;if(Math.abs(dx)+Math.abs(dy)>4)arrastre.movio=tocado=true;vista.x=arrastre.vx+dx;vista.y=arrastre.vy+dy;}
-function sube(e){const a=arrastre;arrastre=null;if(!a||a.movio||!plano)return;const p=aMetros(e),L=loteEn(p.x,p.z);elegido.value=L;dibujar();}
+function sube(e){const a=arrastre;arrastre=null;if(!a||a.movio||!plano)return;const p=aMetros(e),L=loteEn(p.x,p.z);elegido.value=L;dibujar();pedirNitido();}
 function tecla(e){if(e.target.tagName==='INPUT')return;if(e.key==='+'||e.key==='=')nivel.value=Math.min(maxPisos.value,nivel.value+1);else if(e.key==='-')nivel.value=Math.max(0,nivel.value-1);else if(e.key==='0')ajustar();else if(e.key==='Escape')elegido.value=null;}
 
 const fichaNivel=computed(()=>elegido.value?Math.min(nivel.value,elegido.value.floors-1):0);
@@ -64,11 +74,12 @@ async function cargar(){
   muebles:plano.lots.reduce((a,L)=>a+L.levels.slice(0,L.floors).reduce((b,lv)=>b+lv.furniture.length,0),0),ms:Math.round(performance.now()-t0),guardado:r.guardado};
  nivel.value=0;estado.value='';await nextTick();dibujar();ajustar();
 }
-watch([nivel,capas],()=>{dibujar();dibujarPiso();});
+watch([nivel,capas],()=>{dibujar();dibujarPiso();pedirNitido();});
+watch(vista,pedirNitido);
 watch([elegido,grande],dibujarPiso);
 let obs;
-onMounted(()=>{cargar();window.addEventListener('keydown',tecla);obs=new ResizeObserver(()=>{if(!plano||arrastre)return;if(!tocado)ajustar();dibujarPiso();});obs.observe(host.value);});
-onBeforeUnmount(()=>{window.removeEventListener('keydown',tecla);obs?.disconnect();});
+onMounted(()=>{cargar();window.addEventListener('keydown',tecla);obs=new ResizeObserver(()=>{if(!plano||arrastre)return;if(!tocado)ajustar();dibujarPiso();pedirNitido();});obs.observe(host.value);});
+onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydown',tecla);obs?.disconnect();});
 </script>
 
 <template>
@@ -89,10 +100,12 @@ onBeforeUnmount(()=>{window.removeEventListener('keydown',tecla);obs?.disconnect
   </header>
 
   <div ref="host" class="visor" :class="{arrastrando:arrastre}" @wheel="rueda" @pointerdown="baja" @pointermove="mueve" @pointerup="sube" @pointerleave="cursor=null">
-   <canvas ref="lienzo" :style="{transform:`translate(${vista.x}px,${vista.y}px) scale(${vista.k})`}"></canvas>
+   <canvas ref="lienzo" class="base" :style="{transform:`translate(${vista.x}px,${vista.y}px) scale(${vista.k})`}"></canvas>
+   <canvas ref="nitido" class="nitido" :class="{listo:nitidoListo}"></canvas>
    <div v-if="estado" class="estado">{{ estado }}</div>
    <div class="pie">
     <span v-if="cursor">x {{ cursor.x }} m · z {{ cursor.z }} m</span>
+    <span v-if="escala">{{ escala.toFixed(1) }} px por metro</span>
     <span v-if="resumen">{{ resumen.edificios }} edificios · {{ resumen.casas }} casas · {{ resumen.muebles.toLocaleString('es-CO') }} muebles · {{ resumen.arboles.toLocaleString('es-CO') }} árboles · {{ resumen.mobiliario }} de mobiliario</span>
     <span v-if="resumen">plano {{ resumen.guardado?'guardado':'armado' }} en {{ (resumen.ms/1000).toFixed(1) }} s · dibujo {{ tardo }} ms</span>
     <span class="ayuda">rueda: acercar · arrastrar: mover · clic: un edificio · + −: pisos</span>
@@ -135,7 +148,9 @@ onBeforeUnmount(()=>{window.removeEventListener('keydown',tecla);obs?.disconnect
 .jugar{margin-left:auto;background:linear-gradient(135deg,var(--ladron),var(--ladron2));color:#2a1705;font-weight:600;border:0}
 .visor{position:relative;overflow:hidden;cursor:grab;touch-action:none;min-width:0}
 .visor.arrastrando{cursor:grabbing}
-.visor canvas{position:absolute;left:0;top:0;transform-origin:0 0;image-rendering:auto;box-shadow:0 20px 60px rgba(0,0,0,.45)}
+.visor canvas.base{position:absolute;left:0;top:0;transform-origin:0 0;box-shadow:0 20px 60px rgba(0,0,0,.45)}
+.visor canvas.nitido{position:absolute;left:0;top:0;opacity:0;pointer-events:none;transition:opacity .12s}
+.visor canvas.nitido.listo{opacity:1}
 .estado{position:absolute;inset:0;display:grid;place-items:center;font:400 18px var(--t);color:var(--tx2)}
 .pie{position:absolute;left:12px;right:12px;bottom:10px;display:flex;gap:14px;flex-wrap:wrap;pointer-events:none;font-size:12px;color:var(--tx2)}
 .pie span{background:var(--panel);border:1px solid var(--borde);border-radius:8px;padding:3px 9px;font-variant-numeric:tabular-nums}
