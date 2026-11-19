@@ -13,12 +13,9 @@
       "Reemplazar al Whisper del dictado del chat"
     ],
     "triedOn": "2026-11-19",
-    "verdict": "keep",
-    "installed": [
-      "hub:mlx-community/parakeet-tdt-0.6b-v3",
-      "env:parakeet-mlx"
-    ],
-    "verdictWhy": "Empata con el Whisper del chat en precisión (0 errores) y es más rápido (0,53 s contra 0,88 s por dictado); pesa 2,5 GB contra 574 MB. Falta decidir si reemplaza al del chat.",
+    "verdict": "dropped",
+    "installed": [],
+    "verdictWhy": "Empata con el Whisper del chat en precisión y es ~0,35 s más rápido por dictado, pero pesa 2,6 GB más, pide un entorno de Python y no se probó con el vocabulario de CreditOp que usa el dictado. Sigue Whisper; Parakeet se borró (Miguel, 2026-11-19).",
     "tried": "2026-11-19, contra el Whisper del dictado del chat con los mismos 10 audios en español de texto conocido: 0 errores en 141 palabras los dos. Con el modelo cargado: 0,13 s por audio contra 0,65 s del Whisper sin contar su carga. Una llamada completa, como la hace el chat (arrancar, cargar y transcribir): 0,53 s contra 0,88 s. Carga desde la caché: 0,37 s. Escribe «4500» sin punto y «12» en cifras, igual que Whisper. Se probó el original porque Parakeet-Redux sólo corre con el motor Photon de Moondream, que manda telemetría (el nombre de la Mac y conteos de uso) a moondream.ai cada minuto sin opción de apagarla; ese paquete se borró sin correrlo."
   },
   {
@@ -35,7 +32,7 @@
       "El dictado del chat",
       "Validar que una voz generada dice lo que tenía que decir"
     ],
-    "tried": "Lo usa el dictado del chat desde el 2026-11-11 (whisper-cli con ggml-large-v3-turbo-q5_0, 574 MB). El 2026-11-19 sirvió de vara para caramel-1 y Audio8: oyó inglés real en caramel y las cuatro frases de Audio8 exactas. El 2026-11-19 le ganó a Whistle (17 MB) en 10 audios en español: 0 errores contra 12 de 141 palabras; Whistle fue 18 veces más rápido (0,05 s contra 0,92 s por audio) y se borró.",
+    "tried": "Lo usa el dictado del chat desde el 2026-11-11 (whisper-cli con ggml-large-v3-turbo-q5_0, 574 MB). El 2026-11-19 sirvió de vara para caramel-1 y Audio8: oyó inglés real en caramel y las cuatro frases de Audio8 exactas. El 2026-11-19 le ganó a Whistle (17 MB) en 10 audios en español: 0 errores contra 12 de 141 palabras; Whistle fue 18 veces más rápido (0,05 s contra 0,92 s por audio) y se borró. El 2026-11-19 empató con Parakeet-TDT-0.6B-v3 (0 errores los dos); Parakeet fue más rápido (0,53 s contra 0,88 s por dictado) pero se quedó Whisper por tamaño (574 MB contra 3,2 GB), por no sumar Python al chat y por el vocabulario del dictado.",
     "triedOn": "2026-11-11",
     "verdict": "keep",
     "verdictWhy": "Está en uso en el chat.",
