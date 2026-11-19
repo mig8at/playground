@@ -134,7 +134,8 @@
     "why": "Un asistente de voz completo en 2 B de parámetros, con GGUF para llama.cpp: todo en la Mac.",
     "ideas": [
       "Un Jarvis al que se le habla",
-      "Dictar una nota y que la ordene"
+      "Dictar una nota y que la ordene",
+      "Un avatar 3D que habla y mueve los labios, todo en el navegador (la demo townbox/ava ya lo hace con este modelo)"
     ]
   },
   {
@@ -891,6 +892,79 @@
     "why": "La mayoría de los modelos de video miran un archivo entero; éste mira en streaming. 11 B: en la Mac está al límite.",
     "ideas": [
       "Que mire la pantalla mientras trabajás y avise cuando aparece un error"
+    ]
+  },
+  {
+    "id": "RikiyaT/Qwen3.5-0.8B-weight-space-programming",
+    "group": "odd",
+    "task": "text-generation",
+    "params": 870000000,
+    "license": "apache-2.0",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Qwen3.5-0.8B con un arreglo hecho a mano por otra IA: un modelo grande abrió sus pesos en Python, encontró la «dirección» que lo hacía quedarse en bucle en los problemas de matemáticas y la restó de 131.072 pesos (el 0,016 % del modelo), sin entrenar nada.",
+    "why": "Cirugía de pesos en vez de entrenamiento: el original se queda dando vueltas hasta el límite casi siempre; el editado, casi nunca. Es una forma nueva de arreglar un modelo, y se ve lado a lado en su demo.",
+    "ideas": [
+      "Comparar el original y el editado en el mismo problema",
+      "Buscar la «dirección» de un defecto en un modelo chico propio"
+    ]
+  },
+  {
+    "id": "linlinlinlinsdada/Jeveration",
+    "group": "odd",
+    "task": "image-to-image",
+    "params": null,
+    "license": "apache-2.0",
+    "mac": "unknown",
+    "added": "2026-11-19",
+    "what": "Un modelo de visión congelado que devuelve una imagen entera de 512×512 en UNA sola pasada, como una decisión. El mismo archivo hace texto a imagen, bordes o profundidad a imagen, colorear, tres estilos, y además segmentación, profundidad y normales.",
+    "why": "Generar sin difusión ni pasos: un «Sistema 1» que dibuja. Los pesos son sólo tensores, cargados con weights_only.",
+    "ideas": [
+      "Colorear una foto vieja en un instante",
+      "Ver qué tan rápido es contra un generador por difusión"
+    ]
+  },
+  {
+    "id": "kkt94/Llama-V-JEPA-LM-Qwen3-1.7B",
+    "group": "specialist",
+    "task": "video-text-to-text",
+    "params": 2030000000,
+    "license": "apache-2.0 (con la condición de nombre de Llama)",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Un modelo que entiende el MOVIMIENTO en un video: dirección, orden, posición, velocidad, cuántas veces pasa algo y si terminó. Une el codificador de video V-JEPA 2.1 (un «modelo de mundo») con Qwen3-1.7B.",
+    "why": "Los modelos de video comunes ven fotos sueltas; éste lee cómo cambia la escena. Sus autores dicen que le gana a Qwen3-VL-2B por mucho en las pruebas de movimiento (91,6 contra 61,7 en SSv2). 2 B: entra en la Mac.",
+    "ideas": [
+      "Mirar una grabación de pantalla y contar qué pasos dio el usuario y en qué orden"
+    ]
+  },
+  {
+    "id": "thejagstudio/tessera-small",
+    "group": "tiny",
+    "task": "text-to-image",
+    "params": 47600000,
+    "license": "cc-by-nc-4.0 (no comercial)",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Dibuja pixel art de 16×16 desde unas palabras («pato de goma», «gato astronauta»). Cada píxel es una «palabra» de una paleta de 512 colores, y los 256 se destapan a la vez en unos 16 pasos.",
+    "why": "Un modelo de lenguaje por difusión que pinta: 47,6 M de parámetros, sin VAE ni espacio latente, y corre en el navegador con WebGPU (115 MB en ONNX). Hay demos que hacen emojis para Slack con él.",
+    "ideas": [
+      "Íconos de pixel art para las herramientas de my-tools",
+      "Emojis propios para el chat del equipo"
+    ]
+  },
+  {
+    "id": "microsoft/TRELLIS.2-4B",
+    "group": "gpu",
+    "task": "image-to-3d",
+    "params": 4000000000,
+    "license": "mit",
+    "mac": "no",
+    "added": "2026-11-19",
+    "what": "Convierte una imagen en un modelo 3D de alta fidelidad con una estructura nueva de vóxeles dispersos (O-Voxel) y un transformer de 4 B.",
+    "why": "El generador de 3D abierto de Microsoft, con licencia MIT; su demo es de lo más visitado de la semana. Pide GPU NVIDIA.",
+    "ideas": [
+      "Probarlo en su demo con una foto de un producto"
     ]
   }
 ]
