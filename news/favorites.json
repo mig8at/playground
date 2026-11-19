@@ -220,7 +220,7 @@
   },
   {
     "id": "convaiinnovations/laya",
-    "group": "detect",
+    "group": "tried",
     "task": "text-classification",
     "params": 421293830,
     "license": "apache-2.0",
@@ -231,7 +231,11 @@
     "ideas": [
       "Clasificar los avisos de Sentinel (ruido o real) sin gastar un modelo grande",
       "Rutear correos de Correo por tema"
-    ]
+    ],
+    "tried": "2026-11-19, con las 23 alertas que Sentinel mandó del 12 al 19/11, sólo con su texto y la misma pregunta: «mirar ya», «echarle ojo» o «ruido». La vara fueron dos jueces Claude a ciegas (Opus y Sonnet), que coincidieron en 19 de 23 y en 21 de 23 si sólo se mira «mirar ya» o no; para los dos, 9 había que mirarlas ya. Laya (el modelo multilingüe, porque las alertas están en español): 8 de 19 en las 3 clases, 8 de 21 en mirar sí/no (peor que contestar siempre «no») y sólo 2 de las 9 urgentes, a 23 ms por alerta. Mandó a «echarle ojo» los errores de Welli, que mueve el 26 % de lo desembolsado, y el pico de OTP del 18/11.",
+    "verdictWhy": "Rapidísimo pero, sin ajustarlo con ejemplos propios, contesta casi al azar en este dominio; sus probabilidades rondan 0,4–0,6 para todo. No reemplaza al dictamen. Se borró (el modelo y su entorno).",
+    "triedOn": "2026-11-19",
+    "verdict": "dropped"
   },
   {
     "id": "desert-ant-labs/ear",
@@ -1431,7 +1435,7 @@
   },
   {
     "id": "bigai/GS1-2B",
-    "group": "detect",
+    "group": "tried",
     "task": "text-classification",
     "params": 2000000000,
     "license": "apache-2.0",
@@ -1441,7 +1445,11 @@
     "why": "La misma idea que Laya y d1-2B, pero con licencia Apache 2.0 y tres tamaños. Ya son cuatro grupos sacando «modelos de decisión»: se está volviendo una categoría.",
     "ideas": [
       "Ponerlo contra Laya en la misma clasificación de avisos de Sentinel"
-    ]
+    ],
+    "tried": "2026-11-19, con las 23 alertas que Sentinel mandó del 12 al 19/11, sólo con su texto y la misma pregunta: «mirar ya», «echarle ojo» o «ruido». La vara fueron dos jueces Claude a ciegas (Opus y Sonnet), que coincidieron en 19 de 23 y en 21 de 23 si sólo se mira «mirar ya» o no; para los dos, 9 había que mirarlas ya. GS1-2B (en la GPU de la Mac): 8 de las 19 en las 3 clases, 15 de 21 en mirar sí/no, y atrapó 8 de las 9 urgentes, a ~0,53 s por alerta. Casi no usa «echarle ojo»: manda a «mirar» errores chicos (Crédito 365, Prami) y a «ruido» los silencios. La que se le escapó la dio por ruido con 0,89: customer-profiling sin escribir una línea (lo normal, 1.082 por hora) justo después de un despliegue.",
+    "verdictWhy": "Mejor que Laya y atrapa casi todo lo urgente, pero no sirve para callar avisos: descarta con 0,89 de confianza una caída real después de un despliegue, y sobre-alerta lo chico. El dictamen de Claude sigue; GS1 se borró (8,6 GB más su entorno).",
+    "triedOn": "2026-11-19",
+    "verdict": "dropped"
   },
   {
     "id": "nvidia/Nemotron-Labs-Sigma-3B",
