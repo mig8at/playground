@@ -393,14 +393,25 @@ async function ctaInCard(page: Page, header: ReturnType<Page['getByRole']>) {
 
 /** `lookOnly`: sólo confirma que la entidad está en el listado, SIN abrir ni elegir su tarjeta (elegir escribe en la
  *  solicitud). Es lo que necesita una corrida que termina en el listado y pidió una entidad concreta. */
-export async function chooseEntity(page: Page, name: string, opts: { lookOnly?: boolean } = {}): Promise<{ ok: boolean; visibles: string[]; motivo?: string }> {
+export async function chooseEntity(page: Page, name: string, opts: { lookOnly?: boolean } = {}): Promise<{ ok: boolean; found?: boolean; visibles: string[]; motivo?: string }> {
     // El listado se arma con las tarjetas ya resueltas: se espera a que aparezca alguna antes de mirar.
     // ⚠ Y NO SÓLO A UN BOTÓN «continuar/solicitar/elegir»: en los listados de tarjetas desplegables no
     // hay ninguno, y esta espera se comía sus 30 s enteros en cada caso (medido el 2026-09-25). La señal
     // de que el listado está completo la da la pantalla: «Hemos terminado de consultar…».
-    await page.getByText(/hemos terminado de consultar/i)
-        .or(page.getByRole('button', { name: /continuar|solicitar|elegir|seleccionar/i }))
-        .first().waitFor({ state: 'visible', timeout: 30_000 }).catch(() => {});
+    // ⚠ TAMBIÉN LOS BOTONES DE ELEGIR DE UNA TARJETA y el NOMBRE de la entidad: el listado de una sola opción («Opción más
+    // adecuada según tu perfil», Finandina) no dice «Hemos terminado…» ni tiene «continuar»: su botón es «Activar mi
+    // crédito». Sin esto la espera se comía sus 30 s enteros en cada corrida (medido el 2026-11-19: 30–35 s en local y qa).
+    // ⚠ Y LISTO, NO SÓLO DIBUJADO: la tarjeta aparece con su nombre mientras todavía consulta, con el botón apagado; mirar
+    // ahí daba «no se pudo elegir». Se espera a que termine: el texto final, o un botón de elegir HABILITADO.
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const cta = /continuar|solicitar|elegir|seleccionar|activar mi cr[eé]dito|validar pre ?aprobado/i;
+    for (const until = Date.now() + 30_000; Date.now() < until;) {
+        if (await page.getByText(/hemos terminado de consultar/i).first().isVisible().catch(() => false)) break;
+        const ready = await page.getByRole('button', { name: cta }).evaluateAll((bs) =>
+            bs.some((b) => !(b as HTMLButtonElement).disabled && (b as HTMLElement).offsetParent !== null)).catch(() => false);
+        if (ready) break;
+        await page.waitForTimeout(300);
+    }
     /* ⚠ UN CREDITOPX ROTATIVO MUESTRA ANTES SU PRESENTACIÓN: «Así funciona tu cupo rotativo» con un solo «Continuar»,
      * que tapa el listado. Sin pasarla, el nombre de la entidad no está en la pantalla y el caminador decía «no está en
      * el listado» (2026-11-06, la copia de Mario Hernández en qa, entidad 200). Se pasa como la pasaría el cliente. */
@@ -412,7 +423,7 @@ export async function chooseEntity(page: Page, name: string, opts: { lookOnly?: 
     }
     // JARVIS_HANDS: la entidad la elige la persona; se marca su tarjeta y se espera a que la página siga.
     if (HANDS && !opts.lookOnly) {
-        const card = page.getByRole('button', { name: new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') }).first();
+        const card = page.getByRole('button', { name: new RegExp(escaped, 'i') }).first();
         if (await card.isVisible().catch(() => false)) {
             return (await waitForPerson(page, card)) ? { ok: true, visibles: [name] } : { ok: false, visibles: [name], motivo: `nadie eligió «${name}» en 15 min` };
         }
@@ -452,12 +463,19 @@ export async function chooseEntity(page: Page, name: string, opts: { lookOnly?: 
         }
     }
     // La tarjeta puede no ser un `button`: se prueba por texto y se clickea su botón de avance.
-    const card = page.getByText(new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')).first();
+    const card = page.getByText(new RegExp(escaped, 'i')).first();
     if (await card.count().catch(() => 0)) {
         if (opts.lookOnly) return { ok: true, visibles };
         await card.click({ timeout: 5_000 }).catch(() => {});
         const av = await clickAdvance(page);
         if (av.ok) return { ok: true, visibles };
+        /* ⚠ ESTÁ, PERO NO SE PUEDE ELEGIR: no es «no está en el listado». Medido el 2026-11-19: Finandina en el listado
+         * con «Activar mi crédito» apagado porque el monto superaba su cupo, y el caminador decía que no estaba. Se dice
+         * lo que la tarjeta muestra (el monto mínimo o máximo, «no pudimos consultar…»). */
+        const said = await card.locator('xpath=ancestor::*[.//button][1]').innerText().catch(() => '');
+        const why = said.split('\n').map((l) => l.trim())
+            .find((l) => /sin cupo|m[ií]nimo|m[aá]ximo|supera|inferior|no pudimos|no est[aá] disponible|no cumple/i.test(l)) ?? '';
+        return { ok: false, found: true, visibles, motivo: `está en el listado pero no se pudo elegir${why ? `: ${why}` : ` (${av.motivo ?? 'su botón no responde'})`}` };
     }
     return { ok: false, visibles };
 }

@@ -1263,7 +1263,7 @@ async function runBrowser(c: Case, i: number, browser: any): Promise<Result> {
             if (!entityName) return finish('trabado', 'con --engine navegador hay que pedir la entidad (`#hash:ID`)');
             const el = await chooseEntity(page, entityName, { lookOnly: !flag('close') });
             r.enListado = el.ok;
-            if (!el.ok) return finish('trabado', `«${entityName}» no está en el listado · visibles: ${el.visibles.slice(0, 8).join(' · ')}`);
+            if (!el.ok) return finish('trabado', el.found ? `«${entityName}» ${el.motivo}` : `«${entityName}» no está en el listado · visibles: ${el.visibles.slice(0, 8).join(' · ')}`);
             if (!flag('close')) return finish('listo', `llegó al listado, con «${entityName}»`);
             log(`elegí «${entityName}» en el listado${el.motivo ? ` · ⚠ ${el.motivo}` : ''}`);
             await page.waitForTimeout(1500);

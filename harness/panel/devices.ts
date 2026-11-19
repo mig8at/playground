@@ -842,7 +842,7 @@ export async function deviceChooseEntity(id: DeviceId, name: string): Promise<{ 
     const d = open.get(id);
     if (!d) return { ok: false, detail: 'el celular no está abierto', visibles: [] };
     const r = await chooseEntity(d.page, name);
-    if (!r.ok) return { ok: false, detail: `«${name}» no está en el listado`, visibles: r.visibles };
+    if (!r.ok) return { ok: false, detail: r.found ? `«${name}» ${r.motivo}` : `«${name}» no está en el listado`, visibles: r.visibles };
     return { ok: true, detail: `eligió «${name}»${r.motivo ? ` (⚠ ${r.motivo})` : ''}`, visibles: r.visibles };
 }
 

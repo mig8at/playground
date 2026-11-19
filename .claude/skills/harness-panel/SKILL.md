@@ -1407,3 +1407,14 @@ porque qa guarda la hora de Colombia y la base local UTC; en local sólo si su L
 - Verificado el 2026-11-19: qa 505175 (Experian con la de Banco Finandina, credencial 15; Loki 96 líneas, 1 error),
   local 468444 (cancelada, código 5001), el panel con 468453 y `harness-run` con 468451 (en local consultó Experian
   dos veces: Acierta+Quanto con la de CreditOp y Acierta con la de Finandina).
+
+## Elegir la entidad: sin los 30 s y sin el falso «no está» (2026-11-19)
+
+`chooseEntity` (`pkg/wizard-browser.ts`, lo comparten el panel y el caminador) esperaba «Hemos terminado de consultar» o
+un botón continuar/solicitar/elegir. El listado de una sola opción («Opción más adecuada según tu perfil», Finandina) no
+tiene ninguno —su botón es «Activar mi crédito»— y se comía los 30 s en cada corrida. Ahora espera a que el listado
+TERMINE: el texto final o un botón de elegir habilitado (`activar mi crédito`, `validar pre aprobado` incluidos; mirar
+apenas aparece el nombre no sirve: la tarjeta sigue consultando con el botón apagado). Y si la entidad está pero no se
+puede elegir, devuelve `found: true` con lo que dice la tarjeta («Sin cupo disponible», el monto mínimo o máximo) en vez de
+«no está en el listado». Medido en local: Finandina 146,1 s → 116,6 s (468457 → 468456); Pullman sigue cerrando (468458,
+55 s); con un cliente sin cupo, «está en el listado pero no se pudo elegir» en el acto.
