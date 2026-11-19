@@ -36,15 +36,11 @@
       "Vigilar una señal de producción por su rango esperado en vez de reglas fijas",
       "Pronosticar el volumen de solicitudes del día"
     ],
-    "tried": "2026-11-18, en Sentinel en modo sombra, 7 días: calibra bien en las colas (97 % de las horas dentro de p2–p98), ve ráfagas de errores que el techo de Sentinel deja pasar, pero no ve un servicio que se calla y da alertas falsas en festivos aunque se le diga. Quedó en sombra.",
+    "tried": "2026-11-18, en Sentinel en modo sombra, 7 días: calibra bien en las colas (97 % de las horas dentro de p2–p98), ve ráfagas de errores que el techo de Sentinel deja pasar, pero no ve un servicio que se calla y da alertas falsas en festivos aunque se le diga. Quedó en sombra. El 2026-11-19, con las mismas bandas que Timestral (1–99 / 5–95 %): 72 % de las horas entre p10 y p90 y 85 % entre p5 y p95; 10 alertas y 68 «para mirar», contra 81 %, 90 %, 10 y 49 de Timestral-5M. Superado y borrado.",
     "triedOn": "2026-11-18",
-    "verdict": "keep",
-    "verdictWhy": "Ve ráfagas de errores que las reglas de Sentinel dejan pasar; quedó en sombra, sin decidir nada.",
-    "usedBy": "Sentinel -chronos",
-    "installed": [
-      "hub:amazon/chronos-2",
-      "env:chronos"
-    ]
+    "verdict": "dropped",
+    "verdictWhy": "Superado por Timestral-5M el 2026-11-19 en la comparación de Sentinel (mejor calibrado, menos ruido, sin la alerta falsa del festivo, 24 veces más chico). Borrado de la Mac (1,5 GB).",
+    "installed": []
   },
   {
     "id": "Qwen/Qwen3-VL-4B-Instruct",

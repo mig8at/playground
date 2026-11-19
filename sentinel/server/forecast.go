@@ -40,8 +40,9 @@ var forecasters = map[string]forecaster{
 	"timestral": {"timestral", "Timestral-5M", "timestral/.venv", "timestral.py"},
 }
 
-// active: el pronosticador de esta corrida (-forecaster); Chronos si no se dice.
-var active = forecasters["chronos"]
+// active: el pronosticador de esta corrida (-forecaster). Timestral-5M por defecto desde el 2026-11-19: en los mismos 7
+// días le ganó a Chronos-2 (mejor calibrado, menos ruido, sin la alerta falsa del festivo) y Chronos se borró de la Mac.
+var active = forecasters["timestral"]
 
 func countSignal(sig Signal) bool {
 	switch kindOf(sig) {

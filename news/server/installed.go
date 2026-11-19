@@ -56,8 +56,6 @@ func defaultRoots() roots {
 var usedBy = map[string]string{
 	"gguf:Qwen3VL-4B-Instruct":         "bin/point",
 	"whisper:ggml-large-v3-turbo-q5_0": "el dictado del chat",
-	"hub:amazon/chronos-2":             "Sentinel -chronos",
-	"env:chronos":                      "Sentinel -chronos",
 	"hub:mistralai/Timestral-5M":       "Sentinel -forecaster timestral",
 	"env:timestral":                    "Sentinel -forecaster timestral",
 }

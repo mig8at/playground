@@ -364,7 +364,10 @@ bandas: alerta fuera de 1–99 %, «para mirar» fuera de 5–95 %. Mismos 7 dí
 
 Los dos ven las mismas ráfagas de preapprovals-service (224 errores el 18/11 a las 17 h, 36 el 19/11 a las 3 h) y el pico
 de errores del front (109 el 18/11), y ninguno ve un servicio que se calla. Timestral marcó la madrugada del festivo (2
-solicitudes contra 7,7). Si algún día se integra un pronosticador, es éste: igual de útil, mejor calibrado y 24 veces más chico.
+solicitudes contra 7,7). Si algún día se integra un pronosticador, es éste: igual de útil, mejor calibrado y 24 veces más chico. **Desde el
+2026-11-19 es el de por defecto** (`-chronos 7` ya corre Timestral) y Chronos-2 se borró de la Mac (Miguel: «si un
+modelo supera al otro, se registra y se borra»): `-forecaster chronos` pide volver a armar su venv
+(`~/.cache/my-tools/chronos/venv` con `chronos-forecasting`).
 
 ## Lo que ya costó
 
