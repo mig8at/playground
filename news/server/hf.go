@@ -87,13 +87,15 @@ type hfPaper struct {
 var formats = map[string]bool{"safetensors": true, "gguf": true, "onnx": true, "bin": true, "mlx": true}
 
 // fetchWeek junta la semana [from, to]. Lo que no se puede leer de un modelo o de un día no corta: queda sin ficha.
-func fetchWeek(ctx context.Context, from, to time.Time) ([]Model, []Paper, int, error) {
+func fetchWeek(ctx context.Context, from, to time.Time) ([]Model, []Paper, int, []string, error) {
 	var trending []hfModel
 	if err := getJSON(ctx, hfBase+"/api/models?sort=trendingScore&limit=100", &trending); err != nil {
-		return nil, nil, 0, fmt.Errorf("los modelos en tendencia: %w", err)
+		return nil, nil, 0, nil, fmt.Errorf("los modelos en tendencia: %w", err)
 	}
 	fromS, toS := from.Format("2006-01-02"), to.Format("2006-01-02")
 	var models []Model
+	var warnings []string
+	noCard := 0
 	for i, m := range trending {
 		created := m.CreatedAt
 		if len(created) >= 10 {
@@ -114,6 +116,8 @@ func fetchWeek(ctx context.Context, from, to time.Time) ([]Model, []Paper, int, 
 			var d hfModel
 			if err := getJSON(ctx, hfBase+"/api/models/"+m.ID, &d); err == nil {
 				item.card(d)
+			} else {
+				noCard++
 			}
 		}
 		models = append(models, item)
@@ -122,6 +126,7 @@ func fetchWeek(ctx context.Context, from, to time.Time) ([]Model, []Paper, int, 
 	for day := from; !day.After(to); day = day.AddDate(0, 0, 1) {
 		var list []hfPaper
 		if err := getJSON(ctx, hfBase+"/api/daily_papers?limit=100&date="+day.Format("2006-01-02"), &list); err != nil {
+			warnings = append(warnings, "sin los papers del "+day.Format("2/1"))
 			continue
 		}
 		for _, p := range list {
@@ -134,7 +139,10 @@ func fetchWeek(ctx context.Context, from, to time.Time) ([]Model, []Paper, int, 
 	if len(papers) > 25 {
 		papers = papers[:25]
 	}
-	return models, papers, total, nil
+	if noCard > 0 {
+		warnings = append(warnings, fmt.Sprintf("%d modelos sin ficha", noCard))
+	}
+	return models, papers, total, warnings, nil
 }
 
 // card llena la ficha con lo que el modelo declara: licencia, tamaño, librería, idiomas, base y formatos.

@@ -11,6 +11,53 @@ sean de la semana y los papers más votados; a la derecha la **ficha** del model
 licencia, formatos, librería, idiomas, base, tendencia, y qué hace y qué trae de nuevo. Rutas: `#/<semana>` (p. ej.
 `#/2026-W47`). Por consola: `make news ONCE=1` actualiza la semana de hoy y dice qué eligió.
 
+## Cómo está armada la pantalla (el taller, 2026-11-19)
+
+Usa las regiones de `tools/ui` y nada propio para dividir la pantalla:
+
+- **El sidebar son cuatro vistas** (`sidebar en-bloques` y `.view`, como el del chat): **Semana** (las semanas y, con
+  su encabezado de grupo, los temas), **Favoritos**, **Instalados** e **Investigación**. Cada una se pliega con su
+  encabezado y scrollea sola; las abiertas se reparten el alto, salvo Instalados, que mide lo que tiene (hasta un
+  tercio). Lo abierto queda en `news.sidebar-views`. Los encabezados llevan el dato que resume la vista (la semana, el
+  conteo, lo que ocupan los instalados o qué máquina es) y su acción frecuente (actualizar la semana, volver a medir).
+- **La consola** (la región `panel`, abajo del editor; arranca cerrada y se abre con su botón del pie o tocando el
+  contador de avisos). Tres pestañas:
+  - **Actividad**: la bitácora del servidor (`server/activity.go`, `GET /api/activity`): cada actualización paso a
+    paso, lo medido en Hugging Face, lo borrado. Vive en memoria, los últimos 200 renglones desde que arrancó.
+  - **Esta Mac / Este PC** (`GET /api/machine`): procesador, memoria, GPU y con qué acelera; los motores para correr
+    modelos y si están; y en qué carpetas se buscan los instalados.
+  - **Avisos**: lo que pide atención ahora, con qué hacer (sin sesión del modelo de fondo, semana incompleta, una
+    sección que no cargó, un motor que falta y cuántos favoritos lo piden). Sale de lo que la interfaz ya sabe.
+- **El pie quedó corto**: de cuándo es lo de Hugging Face, el contador de avisos y «Actualizar». El detalle de un
+  error largo (el del modelo de fondo) ya no se corta ahí: está en Avisos.
+
+## Dos máquinas: la Mac y el PC
+
+El repo es uno y News se abre en dos máquinas: la Mac (Apple Silicon, donde se probaron los modelos) y el PC con Linux
+(una GPU NVIDIA con su propia memoria). Desde el 2026-11-19 News pregunta en cuál está (`lib/machine`: `mac` · `pc`, con
+su RAM, su GPU y con qué acelera: `mps`, `cuda` o `cpu`) y habla de ESA: «Instalados» y «Ningún modelo en…» dicen «la
+Mac» o «el PC», y cada favorito trae si corre acá (`here`, que calcula `server/fits.go`).
+
+- **En la Mac no cambia nada**: `here` es lo que dice `mac` en `favorites.json`, y la interfaz se ve como antes.
+- **En el PC** casi nada está probado, así que se **estima por tamaño**: los parámetros a media precisión (2 bytes) y
+  cuantizados a 4 bits (~0,6), con 20 % de margen, contra la memoria de la GPU y el 70 % de la RAM. Da `yes` (entra en
+  la GPU), `slow` (corre en la RAM), `no` o `unknown` (la ficha no dice el tamaño), siempre con el porqué. Un repo en
+  formato de Apple (`mlx-community/…`, `-mlx`, Core ML) es `no` en el PC. La ficha muestra las dos filas, «En la Mac» y
+  «En el PC», y dice cuándo es una estimación.
+- **Cuando algo se prueba en el PC se escribe `pc`** en el favorito (`yes` · `no` · `unknown`): manda sobre la cuenta,
+  igual que `mac` en la Mac. `triedIn` (`mac` · `pc`) dice en qué máquina se probó; sin él es la Mac, que es donde se
+  probó todo hasta ese día. Los dos campos son opcionales: un `favorites.json` sin ellos sigue siendo válido.
+- **Lo medido en Hugging Face** (`server/facts.go`, 2026-11-19): por cada favorito se piden a la API pública sus
+  parámetros (`safetensors.total` o `gguf.total`), el tamaño de cada archivo `.gguf` y el del repo entero, y de ahí con
+  qué se corre (llama.cpp, PyTorch, MLX, ONNX). Queda en `news/.data/facts.json`, fuera de git —cada máquina el suyo—,
+  se renueva a la semana y se baja de fondo, de a cuatro: la primera vez la interfaz dice «Midiendo…» y vuelve a
+  pedir. Con eso la cuenta usa el peso REAL del GGUF (un 27 B de 1 bit pesa 5,5 GB y entra en 8 GB de GPU, aunque por
+  parámetros diera «lento»), se completa el tamaño que la ficha escrita a mano no trae, y la ficha dice «En disco» y
+  «Se corre con», con si esa máquina tiene el motor y cómo instalarlo. Lo declarado (`mac`, `pc`) sigue mandando.
+- **Lo que la cuenta todavía no ve**: lo que el modelo pida aparte de memoria, y los repos que no declaran tamaño en
+  ningún lado (quedan `unknown`). Es para orientarse, no para decidir sin probar.
+- **Para sumar una máquina** (otro id): un caso en `lib/machine` y, si se quiere declarar a mano, su campo en `Favorite`.
+
 ## Los favoritos (`#/favorites`)
 
 Modelos curiosos que se guardan para no perderlos de vista (Miguel, 2026-11-19: «no necesariamente para el trabajo, pero
@@ -56,17 +103,19 @@ etapa o máquina desconocida, con un favorito que no existe o con un linaje que 
 
 ## Los instalados
 
-En el sidebar, «Instalados» lista lo que hay en la Mac de los modelos que probamos, con su tamaño y una papelera (el
+En el sidebar, «Instalados» lista lo que hay EN LA MÁQUINA DONDE ESTÁ ABIERTO (la Mac o el PC) de los modelos que probamos, con su tamaño y una papelera (el
 primer toque pregunta en la misma fila y el segundo borra: los diálogos del navegador no siempre aparecen dentro de
 Cockpit). Sale de tres lugares, siempre los mismos (`server/installed.go`):
 
 - la caché de Hugging Face (`$HF_HUB_CACHE`, `$HF_HOME/hub` o `~/.cache/huggingface/hub`): un modelo por carpeta, con el
-  tamaño de los blobs a los que apuntan sus snapshots. Un blob que comparten dos modelos no se borra con uno solo;
+  tamaño de su carpeta (los blobs viven adentro: antes se sumaban además por los enlaces de los snapshots y salía
+  el doble). Un blob que comparten dos modelos no se borra con uno solo;
 - los GGUF de `~/.cache/my-tools/models` (llama-server), agrupados por modelo: el peso y su proyector juntos;
 - los entornos: cada carpeta de `~/.cache/my-tools` con un venv (el código y las librerías de algo que se probó);
 - los modelos de whisper.cpp de `~/.cache/whisper` (el dictado del chat usa `ggml-large-v3-turbo-q5_0.bin`).
 
-`DELETE /api/installed?key=…` sólo borra una clave que salió de esa misma lista, sólo dentro de esas carpetas, y pide el
+`DELETE /api/installed?key=…` sólo borra una clave que salió de esa misma lista, sólo dentro de esas carpetas, pide
+`force=1` si la usa una herramienta del registro (responde 409 sin él: antes el aviso vivía sólo en la pantalla) y pide el
 encabezado `X-News: 1` (una página de otro origen no puede mandarlo sin preguntar). Lo que usa otra herramienta se marca con su
 nombre y lo dice antes de borrar: sale del registro `models/registry.json`, el mismo que lee `bin/models`
 ([`models/CLAUDE.md`](../models/CLAUDE.md)). La búsqueda y el borrado son de `lib/models`, compartidos con ese CLI. Borrar no se deshace: se vuelve a bajar.

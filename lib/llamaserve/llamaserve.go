@@ -13,6 +13,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"creditop/my-tools/lib/machine"
 )
 
 // Spec: qué servidor y dónde lleva su estado (~/.cache/my-tools/<Name>: pid, last-use y server.log).
@@ -63,7 +65,7 @@ func (s Spec) Ensure(wait time.Duration) error {
 		return nil
 	}
 	if _, err := exec.LookPath("llama-server"); err != nil {
-		return fmt.Errorf("falta llama-server: brew install llama.cpp")
+		return fmt.Errorf("falta llama-server: %s", machine.InstallHint("llama-server"))
 	}
 	os.MkdirAll(s.dir(), 0o755)
 	logf, err := os.OpenFile(filepath.Join(s.dir(), "server.log"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)

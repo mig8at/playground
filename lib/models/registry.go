@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"creditop/my-tools/lib/machine"
 )
 
 // Use: una herramienta que usa un modelo.
@@ -150,7 +152,7 @@ func (reg *Registry) Replace(tool, oldModel, newModel string, newFiles []string,
 
 // For: las rutas de lo que usa una herramienta según el registro, en el orden de sus `files` (y, dentro de un GGUF,
 // el peso antes del proyector). Con model vacío, el primer uso de la herramienta. Es lo mismo que `bin/models path`,
-// para las herramientas en Go. El error dice qué falta: no está en el registro, o está pero no en la Mac.
+// para las herramientas en Go. El error dice qué falta: no está en el registro, o está pero no en esta máquina.
 func For(root, tool, model string) ([]string, error) {
 	reg, err := LoadRegistry(root)
 	if err != nil {
@@ -174,7 +176,7 @@ func For(root, tool, model string) ([]string, error) {
 	for _, f := range use.Files {
 		it, ok := installed[f]
 		if !ok {
-			return nil, fmt.Errorf("%s (%s, de %s) no está en la Mac", f, use.Model, tool)
+			return nil, fmt.Errorf("%s (%s, de %s) no está en %s", f, use.Model, tool, machine.Detect().Label)
 		}
 		out = append(out, it.Locations()...)
 	}

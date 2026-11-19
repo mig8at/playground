@@ -16,6 +16,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
    Propios (como el semáforo de Sentinel): el tema no tiene una paleta por categoría. */
 :root {
   --t-text: #2563eb;
+  --news-warn: #b45309;
   --t-multimodal: #7c3aed;
   --t-image: #c2410c;
   --t-audio: #0f766e;
@@ -23,6 +24,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 }
 .dark {
   --t-text: #93c5fd;
+  --news-warn: #fbbf24;
   --t-multimodal: #c4b5fd;
   --t-image: #fdba74;
   --t-audio: #5eead4;
@@ -135,6 +137,10 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
   white-space: nowrap }
 .mac.yes { color: var(--t-audio); border-color: var(--t-audio) }
 .mac.no { color: var(--t-image); border-color: var(--t-image) }
+/* «slow»: corre, pero en la RAM y no en la GPU (sólo sale en el PC, donde la GPU tiene su propia memoria) */
+.mac.slow { color: var(--t-multimodal); border-color: var(--t-multimodal) }
+/* por qué corre o no acá, al lado del chip: la cuenta y si es estimada */
+.here-why { display: block; margin-top: 4px; color: var(--fg-3); font-size: var(--text-xs); line-height: 1.4 }
 .doc-list { margin: 0; padding-left: 18px; color: var(--fg-2); font-size: 13px; line-height: 1.55 }
 .empty-line.pad { padding: var(--space-4) }
 
@@ -160,10 +166,15 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 .fav-stats b { color: var(--foreground); font-variant-numeric: tabular-nums }
 .fav-stats .keep b { color: var(--t-audio) }
 .fav-stats .use b { color: var(--primary) }
-.rows.history .row { grid-template-columns: 56px minmax(0, 1fr) auto minmax(0, 170px) 64px }
+/* el nombre tiene un piso: en una ventana angosta la columna flexible se quedaba en 0 y el historial era una lista de
+   veredictos sin decir de qué modelo */
+.rows.history .row { grid-template-columns: 56px minmax(150px, 1fr) auto minmax(0, 170px) 64px }
+.rows.history { container-type: inline-size }
+@container (max-width: 620px) { .rows.history .row { grid-template-columns: 48px minmax(120px, 1fr) auto } .rows.history .hist-use, .rows.history .row > :last-child { display: none } }
 .rows.history .row.dropped .hist-name b { text-decoration: line-through; color: var(--fg-3) }
 .hist-name { display: flex; align-items: center; gap: var(--space-2); min-width: 0 }
-.hist-name b { font-weight: 600; white-space: nowrap }
+/* el nombre no cede lugar al comentario (se cortaba a «pe…»): ocupa lo suyo, hasta dos tercios, y recién ahí se corta */
+.hist-name b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 0 auto; max-width: 66% }
 .hist-why { color: var(--fg-3); font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0 }
 .hist-use { color: var(--primary); font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .model-icon.small { width: 20px; height: 20px; border-radius: 5px }
@@ -214,3 +225,39 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 .cheap-row b { white-space: normal; min-width: 0 }
 .cheap-row .hw { justify-self: start }
 .cheap-text { color: var(--fg-2); font-size: 13px; line-height: 1.45; white-space: normal; min-width: 0 }
+
+/* las perillas de favoritos (sólo los que corren acá, ordenar por tamaño) y el error de una sección */
+.fav-tools { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-2) 0 var(--space-3) }
+.fav-tools .toggle { font: inherit; font-size: var(--text-xs); padding: 3px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+  background: transparent; color: var(--fg-2); cursor: pointer }
+.fav-tools .toggle:hover { background: var(--hover) }
+.fav-tools .toggle[aria-pressed="true"] { color: var(--primary); border-color: var(--primary) }
+.section-error { margin: var(--space-2) 0; padding: var(--space-2) var(--space-3); border-left: 3px solid var(--destructive); color: var(--destructive);
+  background: color-mix(in oklab, var(--destructive) 8%, transparent); font-size: 13px }
+.engine.ok { color: var(--t-audio) }
+.engine.missing { color: var(--t-image) }
+
+/* EL SIDEBAR EN VISTAS (`en-bloques` + `.view` de la base, como el chat): cada vista es un panel con su encabezado y su
+   propio scroll. Lo que queda adentro son las filas de siempre; el rótulo de grupo de antes ya no hace falta salvo en
+   «Temas», que usa el encabezado de grupo de la base (se pega arriba al recorrer). */
+.sidebar.en-bloques .region-body { padding-block: var(--space-1) }
+.sidebar.en-bloques .view > .region-head .count { margin-left: auto }
+/* «Instalados» suele ser corta (o estar vacía): mide lo que tiene, hasta un tercio, en vez de llevarse un cuarto del
+   alto con una sola fila; las otras tres se reparten el resto */
+.sidebar.en-bloques .view.open.fit { flex: 0 1 auto; max-height: 34% }
+.sidebar.en-bloques .view > .region-head .region-actions { margin-left: var(--space-1) }
+
+/* LA CONSOLA: renglones de log de la base. El color del renglón sale de su tipo (un tinte de tinta, no una caja); las
+   claves de «Esta máquina» y «Avisos» van en una columna de ancho fijo para que el texto quede alineado. */
+.console-body { padding-block: var(--space-2) }
+.console-body .log-line[data-kind="ok"] .log-text { color: var(--foreground) }
+.console-body .log-line[data-kind="warn"] .log-text, .console-body .log-line[data-kind="warn"] .log-key { color: var(--news-warn) }
+.console-body .log-line[data-kind="error"] .log-text, .console-body .log-line[data-kind="error"] .log-key { color: var(--destructive) }
+.console-body .log-line[data-kind="info"] .log-text { color: var(--fg-2) }
+.log-key { flex: none; width: 11rem; color: var(--fg-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.log-text { min-width: 0; overflow-wrap: anywhere }
+.log-line.notice { align-items: baseline; padding-block: 2px }
+.log-line.notice .log-key { width: 4rem }
+.log-fix { display: block; color: var(--fg-3) }
+.console-empty { margin: 0; padding: var(--space-2) var(--gutter); color: var(--fg-3); font-size: 13px }
+.statusbar-item.warn { color: var(--news-warn) }
