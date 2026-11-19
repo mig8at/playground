@@ -165,4 +165,4 @@ twin monolith assess numstat tsx
 calibrate calibration horizon
 
 # sentinel: el embudo del backend y la plata en juego (2026-11-18): inglés común
-funnel stake stakes reinstall vault novelty trending upvotes gguf onnx mlx safetensors rfilename chronos forecast mmproj
+funnel stake stakes reinstall vault novelty trending upvotes gguf onnx mlx safetensors rfilename chronos forecast mmproj gpu

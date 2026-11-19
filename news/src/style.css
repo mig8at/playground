@@ -118,3 +118,22 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 .doc dd { margin: 0; overflow-wrap: anywhere }
 .doc-section { margin: var(--space-4) 0 4px; font-size: var(--text-xs); color: var(--fg-3); text-transform: uppercase; letter-spacing: .04em }
 .doc-text { margin: 0; color: var(--fg-2); font-size: 13px; line-height: 1.55 }
+
+/* LOS FAVORITOS: las filas de sus grupos van un poco adentro; cada favorito es una tarjeta con lo que hace, y una marca
+   dice si corre en la Mac. */
+.nav-row.sub { padding-left: calc(var(--space-2) + 12px) }
+.fav-intro { margin: 0; color: var(--fg-3); font-size: 13px }
+.favs { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-2) }
+.fav { display: flex; flex-direction: column; gap: 3px; padding: var(--space-3); text-align: left; font: inherit; color: inherit;
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-md); cursor: pointer; min-width: 0 }
+.fav:hover { border-color: var(--fg-3) }
+.fav.on { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary) }
+.fav .model-name { flex: 1 }
+.fav-what { margin-top: 6px; color: var(--fg-2); font-size: 13px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical; overflow: hidden }
+.mac { flex: none; font-size: var(--text-xs); padding: 1px 6px; border-radius: var(--radius-sm); border: 1px solid var(--border); color: var(--fg-3);
+  white-space: nowrap }
+.mac.yes { color: var(--t-audio); border-color: var(--t-audio) }
+.mac.no { color: var(--t-image); border-color: var(--t-image) }
+.doc-list { margin: 0; padding-left: 18px; color: var(--fg-2); font-size: 13px; line-height: 1.55 }
+.empty-line.pad { padding: var(--space-4) }

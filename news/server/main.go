@@ -323,6 +323,7 @@ func (s *server) routes() *http.ServeMux {
 		}()
 		writeJSON(w, 202, map[string]bool{"ok": true})
 	})
+	s.favoritesRoute(mux)
 	return mux
 }
 

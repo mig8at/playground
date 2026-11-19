@@ -1,0 +1,413 @@
+[
+  {
+    "id": "amazon/chronos-2",
+    "group": "tried",
+    "task": "time-series-forecasting",
+    "params": 119477664,
+    "license": "apache-2.0",
+    "mac": "yes",
+    "added": "2026-11-18",
+    "what": "Pronostica series de tiempo: le das la historia de una curva y te devuelve el rango en que debería caer cada punto siguiente, con cuantiles. No se entrena: lee la serie y pronostica.",
+    "why": "Hace algo en lo que los modelos de lenguaje no se especializan, y con 120 M de parámetros corre en la Mac en segundos. Acepta covariables (datos que se conocen de antemano, como si es festivo).",
+    "ideas": [
+      "Vigilar una señal de producción por su rango esperado en vez de reglas fijas",
+      "Pronosticar el volumen de solicitudes del día"
+    ],
+    "tried": "2026-11-18, en Sentinel en modo sombra, 7 días: calibra bien en las colas (97 % de las horas dentro de p2–p98), ve ráfagas de errores que el techo de Sentinel deja pasar, pero no ve un servicio que se calla y da alertas falsas en festivos aunque se le diga. Quedó en sombra."
+  },
+  {
+    "id": "Qwen/Qwen3-VL-4B-Instruct",
+    "group": "tried",
+    "task": "image-text-to-text",
+    "params": 4437815808,
+    "license": "apache-2.0",
+    "mac": "yes",
+    "added": "2026-11-18",
+    "what": "Modelo de visión general: lee imágenes y contesta. Además sabe ubicar cosas: devuelve el recuadro (o el punto) de lo que le pedís en una captura.",
+    "why": "Señala dónde tocar en una pantalla casi tan bien como los especialistas en interfaces, y mucho más rápido. Corre en llama-server en la Mac.",
+    "ideas": [
+      "bin/point: dónde tocar en una captura",
+      "Que Jarvis toque un botón que no tiene localizador"
+    ],
+    "tried": "2026-11-19: 39 de 42 preguntas sobre capturas reales, pidiéndole el recuadro del control y tocando su centro; 2–3 s una captura nueva. Es el modelo de bin/point."
+  },
+  {
+    "id": "Qwen/Qwen3-Embedding-0.6B",
+    "group": "tried",
+    "task": "feature-extraction",
+    "params": 595776512,
+    "license": "apache-2.0",
+    "mac": "yes",
+    "added": "2026-11-18",
+    "what": "Convierte un texto en un vector que representa su significado: dos textos que dicen lo mismo con otras palabras quedan cerca.",
+    "why": "Es la base de una búsqueda por significado en local, sin mandar nada afuera, y pesa 639 MB.",
+    "ideas": [
+      "Buscar en knowledge/ con preguntas escritas como se preguntan",
+      "Encontrar tareas parecidas en el tablero"
+    ],
+    "tried": "2026-11-18: encontró el tema correcto de knowledge en 19 de 20 preguntas reales; la búsqueda de hoy, en 4. Sin integrar todavía."
+  },
+  {
+    "id": "naklecha/caramel-1",
+    "group": "voice",
+    "task": "audio-to-audio",
+    "params": 413198848,
+    "license": "apache-2.0",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Un modelo que conversa en voz y aprendió SÓLO de grabaciones de gente hablando: nunca vio una palabra escrita. Cada 80 ms decide si habla o se calla.",
+    "why": "Suena muy humano aunque casi no dice nada con sentido todavía. Dos copias pueden conversar entre ellas en tiempo real, y el autor dice que tiene más sentido cada vez que le suma datos. Es ver nacer el lenguaje sin texto.",
+    "ideas": [
+      "Poner dos copias a conversar y escucharlas",
+      "Ver cómo aprende a tomar turnos en una conversación"
+    ]
+  },
+  {
+    "id": "higurashi-ai/Haru-4B",
+    "group": "voice",
+    "task": "audio-to-audio",
+    "params": 5270000897,
+    "license": "apache-2.0",
+    "mac": "unknown",
+    "added": "2026-11-19",
+    "what": "Conversa por voz en dúplex completo: escucha y habla al mismo tiempo, como en una llamada, sin esperar a que termines. Multilingüe (inglés, español, portugués, alemán, francés, chino, japonés, ruso).",
+    "why": "2.140 likes en su primera semana. Es la forma en que hablan las personas, no el «hablo yo, hablás vos» de los asistentes. Es un modelo base de investigación: sabe conversar, no está afinado para obedecer.",
+    "ideas": [
+      "Probar una conversación en español en tiempo real",
+      "Comparar la latencia contra un asistente por turnos"
+    ]
+  },
+  {
+    "id": "LiquidAI/LFM3-Omni-2B",
+    "group": "voice",
+    "task": "any-to-any",
+    "params": 2166928384,
+    "license": "lfm1.0 (propia de Liquid AI)",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Un modelo chico que recibe voz, texto e imagen y contesta con voz o texto, de punta a punta.",
+    "why": "Un asistente de voz completo en 2 B de parámetros, con GGUF para llama.cpp: todo en la Mac.",
+    "ideas": [
+      "Un Jarvis al que se le habla",
+      "Dictar una nota y que la ordene"
+    ]
+  },
+  {
+    "id": "shhivv/taiga-s1",
+    "group": "tiny",
+    "task": "other",
+    "params": 1228163,
+    "license": "mit",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Construye piezas de CAD en FreeCAD comando por comando. Le das la lista de operaciones («placa 40×30 → agujero de 6 mm → repetir ×6 → redondear bordes») y elige cada paso: plano, croquis, restricción, extrusión.",
+    "why": "Tiene 1,2 MILLONES de parámetros (miles de veces menos que un modelo de lenguaje) y decide en ~1 ms en CPU. Entrenado con piezas de hasta 5 operaciones, armó las 100 de prueba de 11. La idea es la que importa: un modelo grande planea, uno minúsculo ejecuta.",
+    "ideas": [
+      "El mismo esquema para Jarvis: Claude planea y un modelo chico ejecuta los pasos repetidos",
+      "Diseñar una pieza simple para imprimir en 3D"
+    ]
+  },
+  {
+    "id": "n4ze3m/tiny-voca",
+    "group": "tiny",
+    "task": "text-to-speech",
+    "params": null,
+    "license": "apache-2.0",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Texto a voz en inglés, con dos voces, en 4,5 M de parámetros contando el generador de audio.",
+    "why": "Corre 70 veces más rápido que el tiempo real en cuatro hilos de CPU. Lo entrenaron desde cero con 18 horas de voz sintética.",
+    "ideas": [
+      "Avisos hablados de Sentinel sin red",
+      "Ver cuánto se puede achicar una voz"
+    ]
+  },
+  {
+    "id": "singam96/ShadeNet-5-35M",
+    "group": "tiny",
+    "task": "image-to-image",
+    "params": null,
+    "license": "apache-2.0",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "De una sola foto saca tres mapas: el color real de cada superficie sin sombras (albedo), la profundidad y hacia dónde mira cada superficie (normales).",
+    "why": "Es render inverso (desarmar una foto en sus materiales y su forma) en una sola pasada, con 35 M de parámetros sobre DINOv2. Tiene una demo en el navegador.",
+    "ideas": [
+      "Volver a iluminar una foto de producto",
+      "Sacar un relieve a partir de una foto"
+    ]
+  },
+  {
+    "id": "VoightKampffLabs/voi-slop-detect-380M",
+    "group": "detect",
+    "task": "text-classification",
+    "params": 377538561,
+    "license": "apache-2.0",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Mide qué parte de un texto en inglés escribió una IA: 0 si es humano, ~0,3 si una persona escribió y un chatbot pulió, 1 si lo escribió entero un modelo.",
+    "why": "No dice sólo «IA sí o no»: estima la fracción de palabras que cambió un modelo. Corre en CPU y trae ONNX. El nombre viene de la prueba de Voight-Kampff de Blade Runner.",
+    "ideas": [
+      "Medir cuánto de un PR o una descripción escribió un modelo",
+      "Ver cómo cambia un texto al pasarlo por un chatbot"
+    ]
+  },
+  {
+    "id": "convaiinnovations/laya",
+    "group": "detect",
+    "task": "text-classification",
+    "params": 421293830,
+    "license": "apache-2.0",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Un modelo de decisión: le das un estado (un texto, un correo, un ticket o un JSON) y preguntas con tipo, y devuelve las respuestas con probabilidades calibradas, en una sola pasada.",
+    "why": "~33 ms por decisión, más de 100 idiomas y probabilidades en las que se puede confiar (que un 80 % sea de verdad 80 %). Es el «Sistema 1» rápido al lado de un modelo grande que razona. Permite uso comercial.",
+    "ideas": [
+      "Clasificar los avisos de Sentinel (ruido o real) sin gastar un modelo grande",
+      "Rutear correos de Correo por tema"
+    ]
+  },
+  {
+    "id": "desert-ant-labs/ear",
+    "group": "detect",
+    "task": "audio-classification",
+    "params": null,
+    "license": "propia, código disponible",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Adivina qué idioma se habla en 5 a 30 segundos de audio, entre 102, y avisa cuando no está seguro.",
+    "why": "Tarda 7,6 ms en una MacBook Pro, todo en el dispositivo. Sirve como paso previo para elegir el transcriptor correcto.",
+    "ideas": [
+      "Elegir el transcriptor según el idioma antes de transcribir"
+    ]
+  },
+  {
+    "id": "ccore/Qwen3.5-4B-3D-Coder",
+    "group": "create",
+    "task": "text-generation",
+    "params": 4539265536,
+    "license": "apache-2.0",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Un modelo de código de 4 B afinado para escribir escenas 3D interactivas con Three.js. Con el codificador de imagen de Qwen3.5 también acepta una imagen de referencia.",
+    "why": "Generar 3D jugable desde una descripción, en la Mac (tiene GGUF). Es una vista previa de alguien independiente, no de Qwen: 1.224 likes.",
+    "ideas": [
+      "Una escena 3D de la oficina para Office",
+      "Pasar un boceto a una escena"
+    ]
+  },
+  {
+    "id": "speridlabs/idol",
+    "group": "gpu",
+    "task": "image-to-3d",
+    "params": null,
+    "license": "apache-2.0",
+    "mac": "no",
+    "added": "2026-11-19",
+    "what": "Convierte UNA foto de un objeto en un modelo 3D (Gaussian splat, un .ply estándar), inventando los lados que la foto no muestra.",
+    "why": "Menos de 2 s y 7,2 GB de memoria de video; 2.496 likes en tres semanas. Pide una GPU NVIDIA con CUDA: en la Mac no corre.",
+    "ideas": [
+      "Probarlo en una máquina con GPU NVIDIA alquilada"
+    ]
+  },
+  {
+    "id": "nvidia/MotionBricks",
+    "group": "gpu",
+    "task": "robotics",
+    "params": null,
+    "license": "no la declara en la ficha",
+    "mac": "unknown",
+    "added": "2026-11-19",
+    "what": "Genera en tiempo real el movimiento de un robot humanoide o de un personaje: le das las poses recientes y las que tiene que alcanzar, y arma el movimiento entre ellas.",
+    "why": "Las «primitivas inteligentes» convierten poses objetivo en bloques reutilizables para caminar o agarrar cosas, sin reentrenar.",
+    "ideas": [
+      "Animar a un personaje de Office"
+    ]
+  },
+  {
+    "id": "openai/privacy-filter",
+    "group": "specialist",
+    "task": "token-classification",
+    "params": 1399486865,
+    "license": "apache-2.0",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Encuentra y tapa datos personales en un texto: personas, direcciones, correos, teléfonos, números de cuenta y otros, ocho categorías.",
+    "why": "1,5 B de parámetros pero sólo 50 M activos por palabra, así que corre en una laptop o en el navegador, con 128.000 tokens de una vez. Entrenado sobre todo en inglés: falta ver si reconoce una cédula colombiana.",
+    "ideas": [
+      "Tapar cédulas y celulares antes de mandar un log o un hilo a un modelo de afuera"
+    ]
+  },
+  {
+    "id": "nvidia/Nemotron-3-Diarization",
+    "group": "specialist",
+    "task": "voice-activity-detection",
+    "params": 99226504,
+    "license": "openmdw-1.1",
+    "mac": "unknown",
+    "added": "2026-11-19",
+    "what": "Separa quién habla cuándo en un audio, hasta 8 personas, en vivo o sobre una grabación.",
+    "why": "100 M de parámetros, uso comercial permitido. Ningún modelo pago te da esto en local, y junto con un transcriptor arma la transcripción por persona. Pide NeMo, la librería de NVIDIA, que es pesada.",
+    "ideas": [
+      "Transcribir una reunión con quién dijo qué, sin que el audio salga de la Mac"
+    ]
+  },
+  {
+    "id": "Prior-Labs/tabpfn_3_5",
+    "group": "specialist",
+    "task": "tabular-classification",
+    "params": null,
+    "license": "no comercial (TabPFN-3.5 License)",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Predice sobre una tabla sin entrenar: le das filas con su resultado y predice las nuevas, con probabilidades, en una sola pasada. Clasifica y estima números.",
+    "why": "Un «modelo base» para tablas, como los de lenguaje pero para un Excel. ⚠ La licencia es sólo para evaluar e investigar: nada que llegue a producción.",
+    "ideas": [
+      "Ver si con los datos de una solicitud se anticipa qué entidad la aprueba, y qué columnas pesan"
+    ]
+  },
+  {
+    "id": "facebook/sam3.1",
+    "group": "specialist",
+    "task": "mask-generation",
+    "params": null,
+    "license": "propia de Meta (pide aceptar términos)",
+    "mac": "unknown",
+    "added": "2026-11-19",
+    "what": "Recorta cualquier cosa de una imagen por texto: le pedís «todos los botones» y devuelve la silueta exacta de cada uno.",
+    "why": "Segmentación abierta por texto, con seguimiento en video. Complementa a un modelo que señala.",
+    "ideas": [
+      "Sacar todos los controles de una captura de una vez"
+    ]
+  },
+  {
+    "id": "mlabonne/chessfly",
+    "group": "odd",
+    "task": "other",
+    "params": null,
+    "license": "other (no la detalla)",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "El conectoma completo de una mosca de la fruta adulta —138.639 neuronas y 15 millones de conexiones, cableadas exactamente como la reconstrucción FlyWire— entrenado para jugar ajedrez.",
+    "why": "No es una red inventada: es el cerebro de una mosca, con su cableado real, al que sólo se le ajustan las corrientes de entrada y salida. Acierta la jugada favorita de Stockfish el 30 % de las veces (una jugada al azar, 3 %). Se juega en el navegador, en su Space.",
+    "ideas": [
+      "Jugarle una partida en el Space",
+      "Ver qué otras tareas aprende un cableado biológico fijo"
+    ]
+  },
+  {
+    "id": "mlabonne/LFM2.5-230M-Chess",
+    "group": "tiny",
+    "task": "text-generation",
+    "params": 230000000,
+    "license": "lfm1.0 (propia de Liquid AI)",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Un motor de ajedrez con interfaz de modelo de lenguaje: le das la posición en texto y contesta la jugada. Afinado desde LFM2.5-230M destilando a Stockfish.",
+    "why": "Su autor lo presenta como ~2000 de Elo con 230 M de parámetros: nivel de jugador de club en un modelo que corre en cualquier lado.",
+    "ideas": [
+      "Jugar contra él en la terminal",
+      "Ponerlo contra chessfly"
+    ]
+  },
+  {
+    "id": "pollen-robotics/microduck-policies",
+    "group": "odd",
+    "task": "robotics",
+    "params": null,
+    "license": "apache-2.0",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Las políticas (el «cerebro» de movimiento) de un pato robot chiquito de Pollen Robotics: caminar, pararse, sentarse, recoger del piso, patear una pelota con cada pata, rodar y dar una voltereta.",
+    "why": "Cada habilidad es un archivo ONNX suelto: se puede cargar en cualquier lado y correr en un simulador. Es un robot de juguete entero, abierto.",
+    "ideas": [
+      "Correr una política en un simulador y verla caminar"
+    ]
+  },
+  {
+    "id": "nvidia/RFD4-Proteina",
+    "group": "odd",
+    "task": "other",
+    "params": 440000000,
+    "license": "bsd-3-clause",
+    "mac": "unknown",
+    "added": "2026-11-19",
+    "what": "Diseña proteínas: genera a la vez la secuencia y la estructura de todos los átomos, condicionada a lo que se quiere conservar (un blanco al que unirse, un motivo de enzima, un ligando).",
+    "why": "Diseño de moléculas con 0,44 B de parámetros y licencia BSD. Es ciencia de verdad que se puede mirar desde una laptop.",
+    "ideas": [
+      "Generar una proteína chica y verla en 3D"
+    ]
+  },
+  {
+    "id": "m-a-p/YuE2-3B",
+    "group": "music",
+    "task": "text-to-audio",
+    "params": 3630000000,
+    "license": "cc-by-nc-4.0 (no comercial)",
+    "mac": "unknown",
+    "added": "2026-11-19",
+    "what": "Convierte una letra y un estilo en una canción completa, con voz y acompañamiento, y deja editar la melodía y los acordes en una partitura.",
+    "why": "Sus autores dicen que compite con Suno v5/v6 (mejor promedio en WildSongBench, eligiendo la mejor de 8). Un Suno abierto de 3,6 B.",
+    "ideas": [
+      "Una canción para la daily",
+      "Cambiar los acordes de una canción generada y volver a cantarla"
+    ]
+  },
+  {
+    "id": "m-a-p/SheetSage2",
+    "group": "music",
+    "task": "feature-extraction",
+    "params": 60000000,
+    "license": "cc-by-nc-4.0 (no comercial)",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Escucha una grabación y escribe su partitura de guía: melodía, acordes, compases, tonalidad y estructura, en ABC o MIDI, con una vista previa en piano.",
+    "why": "Lo inverso a generar música: la transcribe. 60 M de parámetros.",
+    "ideas": [
+      "Sacar los acordes de una canción para tocarla"
+    ]
+  },
+  {
+    "id": "OpenMOSS-Team/MOSS-SoundEffect-v2.0",
+    "group": "music",
+    "task": "text-to-audio",
+    "params": 1420000000,
+    "license": "apache-2.0",
+    "mac": "unknown",
+    "added": "2026-11-19",
+    "what": "Genera efectos de sonido desde una descripción: ambientes, ciudad, animales, acciones humanas y clips cortos casi musicales, de hasta 30 s.",
+    "why": "Sonido que no es voz ni música, con licencia Apache 2.0 y 1,4 B de parámetros.",
+    "ideas": [
+      "Sonidos para los avisos de Cockpit o para Office"
+    ]
+  },
+  {
+    "id": "ccore/Qwen3.5-4B-GLB-3D-Coder",
+    "group": "create",
+    "task": "text-generation",
+    "params": 4539265536,
+    "license": "apache-2.0",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Describís un personaje, un objeto, un edificio o un ambiente y escribe una página Three.js con la vista previa y un botón «Exportar GLB»: un modelo 3D low-poly editable.",
+    "why": "Del mismo autor que el 3D-Coder, pero termina en un archivo 3D estándar (GLB) que se abre en Blender o en un juego.",
+    "ideas": [
+      "Personajes low-poly para Office",
+      "Un objeto para imprimir en 3D"
+    ]
+  },
+  {
+    "id": "baidu/Unlimited-OCR",
+    "group": "specialist",
+    "task": "image-text-to-text",
+    "params": 3340000000,
+    "license": "mit",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Lee documentos e imágenes y los pasa a texto (OCR) con un modelo de visión de 3,3 B.",
+    "why": "5.021 likes, licencia MIT y una demo en Hugging Face: OCR abierto que corre en local.",
+    "ideas": [
+      "Pasar a texto un PDF escaneado sin mandarlo afuera"
+    ]
+  }
+]

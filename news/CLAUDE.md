@@ -11,6 +11,23 @@ sean de la semana y los papers más votados; a la derecha la **ficha** del model
 licencia, formatos, librería, idiomas, base, tendencia, y qué hace y qué trae de nuevo. Rutas: `#/<semana>` (p. ej.
 `#/2026-W47`). Por consola: `make news ONCE=1` actualiza la semana de hoy y dice qué eligió.
 
+## Los favoritos (`#/favorites`)
+
+Modelos curiosos que se guardan para no perderlos de vista (Miguel, 2026-11-19: «no necesariamente para el trabajo, pero
+interesantes, y que puedan correr en la máquina»). Arriba en el sidebar, «Favoritos», con un grupo por tipo (Ya
+probados, Voz que conversa, Música y sonido, Rarezas, Diminutos, Detectores raros, Para crear, Especialistas, Piden GPU
+NVIDIA); al centro una tarjeta por modelo con lo que hace y si corre en la Mac; a la derecha su ficha: tarea, tamaño,
+licencia, si corre en la Mac, qué hace, por qué es interesante, ideas y, si lo probamos, lo que dio.
+
+- **Viven en `news/favorites.json`, en git**: no salen de una semana, así que sobreviven al cambio de semana. Los elige
+  y los escribe Claude, a mano, después de leer la ficha de cada modelo en Hugging Face; los datos (tamaño, licencia,
+  fecha) salen de su API. `GET /api/favorites` los sirve y se niega a uno a medio escribir (sin id, grupo, qué hace o
+  por qué); `TestFavoritesFileIsValid` falla con un error de tipeo en el archivo.
+- **«Corre en la Mac» (`mac`: yes · no · unknown) es lo que dice la ficha o lo que sale de su tamaño**, no una prueba:
+  `tried` es lo único medido.
+- Para sumar uno: agregarlo al archivo con su `group` (`tried`, `voice`, `music`, `odd`, `tiny`, `detect`, `create`,
+  `specialist`, `gpu`); la interfaz lo toma al recargar.
+
 ## Cómo lo arma
 
 - **La semana es la ISO**, de lunes a domingo. La de hoy se actualiza **cada 6 horas** mientras el servidor corre (y al
@@ -40,4 +57,5 @@ licencia, formatos, librería, idiomas, base, tendencia, y qué hace y qué trae
 | la API, las semanas guardadas y la actualización cada 6 h | `server/main.go` (pruebas en `server/main_test.go`) |
 | traer la semana de Hugging Face | `server/hf.go` |
 | los textos con el modelo de fondo | `server/write.go` |
+| los favoritos: el archivo y su ruta | `favorites.json` · `server/favorites.go` |
 | la interfaz | `src/App.vue` · `src/style.css`, con la base de `tools/ui` (`make style-sync`); los colores de cada tema son propios (`--t-*`) |

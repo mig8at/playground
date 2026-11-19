@@ -47,3 +47,14 @@ func TestFingerprintOnlyNewModelsAndPapers(t *testing.T) {
 		t.Fatal("un modelo nuevo más tiene que cambiar la huella")
 	}
 }
+
+// Los favoritos del repo se leen enteros: un error de tipeo en el JSON lo dice la prueba, no la interfaz en blanco.
+func TestFavoritesFileIsValid(t *testing.T) {
+	favs, err := loadFavorites("../favorites.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(favs) == 0 {
+		t.Fatal("favorites.json vacío")
+	}
+}

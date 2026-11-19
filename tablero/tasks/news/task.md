@@ -14,6 +14,7 @@ jira_title: ""
 - [x] ~~La portada, la ficha y los papers con una semana real~~ — 2026-11-18.
 - [x] ~~El servidor que junta la semana y le pide los textos al modelo de fondo~~ — 2026-11-18.
 - [x] ~~Verla en la barra de Cockpit~~ — 2026-11-18: después de `make cockpit`, con la semana 47 y sus textos.
+- [x] ~~Los favoritos: modelos curiosos que corren en la Mac, con su ficha, en el sidebar~~ — 2026-11-19: 28 guardados.
 - [ ] Ver el cambio de semana: el lunes 23 de noviembre la 47 queda guardada y arranca la 48 sola.
 
 ## Objetivo

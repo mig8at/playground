@@ -69,6 +69,7 @@
     "audio": "audio-lines",
     "box": "box",
     "paper": "file-text",
-    "popular": "flame"
+    "popular": "flame",
+    "star": "star"
   }
 }

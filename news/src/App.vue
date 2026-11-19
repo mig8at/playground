@@ -4,7 +4,10 @@
  * elegido, documentada.
  *
  * Todo lo arma el servidor (news/server): junta la semana de la API pública de Hugging Face y le pide al modelo de
- * fondo los textos. La ruta es `#/<semana>` (p. ej. `#/2026-W47`); sin ella, la última. */
+ * fondo los textos. La ruta es `#/<semana>` (p. ej. `#/2026-W47`); sin ella, la última.
+ *
+ * Los favoritos (`#/favorites`) son modelos curiosos que se guardan para no perderlos de vista, con qué hacen, por qué
+ * son interesantes, si corren en la Mac y lo que dieron al probarlos: los escribe Claude en news/favorites.json. */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle } from './workbench.js'
 
@@ -19,8 +22,11 @@ async function api(path, opts) {
   return body
 }
 const routeKey = () => decodeURIComponent(location.hash.replace(/^#\/?/, ''))
+const favorites = ref([])
 async function load() {
   try {
+    api('/api/favorites').then((r) => { favorites.value = r.favorites }).catch(() => {})
+    if (routeKey() === 'favorites') view.value = 'favorites'
     const list = await api('/api/weeks')
     weeks.value = list.weeks
     refreshing.value = list.refreshing
@@ -53,7 +59,31 @@ const VIDEO_TASKS = ['image-to-video', 'text-to-video', 'video']
 const taskIcon = (task) => (VIDEO_TASKS.includes(task) ? 'video' : TOPIC_ICON[topicOf(task)])
 const topic = ref('all')
 const search = ref('')
-const view = ref('cover') // cover · papers
+const view = ref('cover') // cover · papers · favorites
+
+// ── los favoritos ──
+const FAV_GROUPS = [
+  { id: 'tried', name: 'Ya probados', icon: 'check' },
+  { id: 'voice', name: 'Voz que conversa', icon: 'mic' },
+  { id: 'music', name: 'Música y sonido', icon: 'play' },
+  { id: 'odd', name: 'Rarezas', icon: 'emoji' },
+  { id: 'tiny', name: 'Diminutos', icon: 'box' },
+  { id: 'detect', name: 'Detectores raros', icon: 'eye' },
+  { id: 'create', name: 'Para crear', icon: 'image' },
+  { id: 'specialist', name: 'Especialistas', icon: 'multimodal' },
+  { id: 'gpu', name: 'Piden GPU NVIDIA', icon: 'server' },
+]
+const MAC = { yes: 'corre en la Mac', no: 'no corre en la Mac', unknown: 'en la Mac: sin confirmar' }
+const favGroup = ref('all')
+const favMatches = (f) => (favGroup.value === 'all' || f.group === favGroup.value)
+  && (!q.value || `${f.id} ${f.task} ${f.what}`.toLowerCase().includes(q.value))
+const favSections = computed(() => FAV_GROUPS.map((g) => ({ ...g, items: favorites.value.filter((f) => f.group === g.id && favMatches(f)) })).filter((g) => g.items.length))
+const favCount = (id) => favorites.value.filter((f) => id === 'all' || f.group === id).length
+const favName = (f) => f.id.split('/')[1]
+const favOrg = (f) => f.id.split('/')[0]
+const openFavorites = (g) => { favGroup.value = g; view.value = 'favorites'; if (location.hash !== '#/favorites') history.replaceState(null, '', '#/favorites') }
+const selectedFavId = ref('')
+const selectedFav = computed(() => (view.value === 'favorites' ? favorites.value.find((f) => f.id === selectedFavId.value) : null))
 
 const models = computed(() => (data.value?.models || []).map((m) => ({ ...m, topic: topicOf(m.task) })))
 const q = computed(() => search.value.trim().toLowerCase())
@@ -113,13 +143,18 @@ const sidebarResize = resizeOf('sidebar', sidebarW, sidebarOpen, 1, 'aux')
 const auxResize = resizeOf('aux', auxW, auxOpen, -1, 'sidebar')
 const toggle = (key, open) => { open.value = !shown.value[key]; saveSize(`news.${key}-open`, open.value ? 1 : 0) }
 const pick = (m) => { selectedId.value = m.id; if (!shown.value.aux) toggle('aux', auxOpen) }
+const pickFav = (f) => { selectedFavId.value = f.id; if (!shown.value.aux) toggle('aux', auxOpen) }
 const onWindowResize = () => { viewportW.value = window.innerWidth }
 const themeToggle = ref(null)
 let themeBinding = null
 // Mientras se actualiza, cada 5 s; si no, cada minuto (por si cambió de fondo).
 let timer = null
 function schedule() { clearTimeout(timer); timer = setTimeout(async () => { if (!document.hidden) await load(); schedule() }, refreshing.value ? 5000 : 60000) }
-const onHash = () => { data.value = null; load() }
+const onHash = () => {
+  if (routeKey() === 'favorites') { view.value = 'favorites'; return }
+  if (view.value === 'favorites') view.value = 'cover'
+  data.value = null; load()
+}
 onMounted(() => {
   window.addEventListener('resize', onWindowResize)
   window.addEventListener('hashchange', onHash)
@@ -135,8 +170,15 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); wi
       <div class="rsz rsz-edge-right" v-resize="sidebarResize"></div>
       <div class="region-head"><span>News</span></div>
       <div class="region-body">
+        <div class="group-label">Favoritos</div>
+        <button type="button" class="nav-row" :class="{ on: view === 'favorites' && favGroup === 'all' }" @click="openFavorites('all')">
+          <span class="ui-icon" data-icon="star" aria-hidden="true"></span><span class="nav-name">Todos</span><span class="count">{{ favCount('all') }}</span>
+        </button>
+        <button v-for="g in FAV_GROUPS.filter((x) => favCount(x.id))" :key="g.id" type="button" class="nav-row sub" :class="{ on: view === 'favorites' && favGroup === g.id }" @click="openFavorites(g.id)">
+          <span class="ui-icon" :data-icon="g.icon" aria-hidden="true"></span><span class="nav-name">{{ g.name }}</span><span class="count">{{ favCount(g.id) }}</span>
+        </button>
         <div class="group-label">Semanas</div>
-        <a v-for="w in weeks" :key="w.key" class="nav-row" :class="{ on: data?.key === w.key }" :href="`#/${w.key}`">
+        <a v-for="w in weeks" :key="w.key" class="nav-row" :class="{ on: data?.key === w.key && view !== 'favorites' }" :href="`#/${w.key}`" @click="view === 'favorites' && (view = 'cover')">
           <span class="ui-icon" data-icon="clock" aria-hidden="true"></span><span class="nav-name">Semana {{ w.number }}</span><span class="count">{{ day(w.from) }} al {{ day(w.to) }}</span>
         </a>
         <div v-if="!weeks.length" class="nav-row muted"><span class="ui-icon" data-icon="clock" aria-hidden="true"></span><span class="nav-name">{{ refreshing ? 'Juntando la primera semana…' : 'Todavía no hay semanas' }}</span></div>
@@ -156,12 +198,28 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); wi
 
     <main class="editor">
       <div class="region-head">
-        <span>{{ view === 'papers' ? 'Papers de la semana' : data ? `Semana ${data.number} · ${weekLabel}` : 'News' }}</span>
+        <span>{{ view === 'favorites' ? 'Favoritos' : view === 'papers' ? 'Papers de la semana' : data ? `Semana ${data.number} · ${weekLabel}` : 'News' }}</span>
         <input v-model="search" class="search" type="search" placeholder="Buscar un modelo o una tarea" aria-label="Buscar">
       </div>
       <div class="region-body">
+        <!-- los favoritos -->
+        <div v-if="view === 'favorites'" class="cover">
+          <p class="fav-intro">Modelos curiosos para no perder de vista: qué hacen, por qué son interesantes y si corren en la Mac.</p>
+          <section v-for="g in favSections" :key="g.id">
+            <h2 class="section-title">{{ g.name }} <span>{{ g.items.length }}</span></h2>
+            <div class="favs">
+              <button v-for="f in g.items" :key="f.id" type="button" class="fav" :class="{ on: selectedFavId === f.id }" @click="pickFav(f)">
+                <span class="model-top"><span class="model-icon" :class="`t-${topicOf(f.task)}`"><span class="ui-icon" :data-icon="taskIcon(f.task)" aria-hidden="true"></span></span><span class="model-name">{{ favName(f) }}</span><span class="mac" :class="f.mac">{{ f.mac === 'yes' ? 'Mac' : f.mac === 'no' ? 'GPU' : '¿Mac?' }}</span></span>
+                <span class="model-org">{{ favOrg(f) }} · {{ params(f.params) }}</span>
+                <span class="fav-what">{{ f.what }}</span>
+              </button>
+            </div>
+          </section>
+          <p v-if="!favSections.length" class="empty-line">Ningún favorito coincide.</p>
+        </div>
+
         <!-- la portada -->
-        <div v-if="!data" class="empty"><div class="empty-head">
+        <div v-else-if="!data" class="empty"><div class="empty-head">
           <div class="empty-title">{{ apiError ? 'Sin API' : refreshing ? 'Juntando la semana…' : 'Todavía no hay semanas' }}</div>
           <div class="empty-desc">{{ apiError || 'Junta los modelos y los papers de Hugging Face y le pide al modelo de fondo los textos: tarda un minuto.' }}</div>
         </div></div>
@@ -230,8 +288,32 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); wi
 
     <aside v-show="shown.aux" class="auxiliarybar" aria-label="La ficha del modelo">
       <div class="rsz rsz-edge-left" v-resize="auxResize"></div>
-      <div class="region-head"><span>Ficha</span><a v-if="selected" class="region-action" :href="hf(selected.id)" target="_blank" rel="noopener" title="Abrir en Hugging Face" aria-label="Abrir en Hugging Face"><span class="ui-icon" data-icon="external" aria-hidden="true"></span></a></div>
-      <div v-if="selected" class="region-body doc">
+      <div class="region-head"><span>Ficha</span><a v-if="selectedFav || (selected && view !== 'favorites')" class="region-action" :href="hf(selectedFav?.id || selected.id)" target="_blank" rel="noopener" title="Abrir en Hugging Face" aria-label="Abrir en Hugging Face"><span class="ui-icon" data-icon="external" aria-hidden="true"></span></a></div>
+      <div v-if="selectedFav" class="region-body doc">
+        <div class="doc-name">{{ favName(selectedFav) }}</div>
+        <div class="doc-org">{{ favOrg(selectedFav) }}</div>
+        <dl>
+          <dt>Tarea</dt><dd><span class="task" :class="`t-${topicOf(selectedFav.task)}`"><span class="ui-icon" :data-icon="taskIcon(selectedFav.task)" aria-hidden="true"></span>{{ selectedFav.task }}</span></dd>
+          <dt>Tamaño</dt><dd>{{ params(selectedFav.params) }}</dd>
+          <dt>Licencia</dt><dd>{{ selectedFav.license || 'no la declara' }}</dd>
+          <dt>En la Mac</dt><dd><span class="mac" :class="selectedFav.mac">{{ MAC[selectedFav.mac] }}</span></dd>
+          <dt>Guardado</dt><dd>{{ day(selectedFav.added) }}</dd>
+        </dl>
+        <div class="doc-section">Qué hace</div>
+        <p class="doc-text">{{ selectedFav.what }}</p>
+        <div class="doc-section">Por qué es interesante</div>
+        <p class="doc-text">{{ selectedFav.why }}</p>
+        <template v-if="selectedFav.ideas?.length">
+          <div class="doc-section">Ideas</div>
+          <ul class="doc-list"><li v-for="i in selectedFav.ideas" :key="i">{{ i }}</li></ul>
+        </template>
+        <template v-if="selectedFav.tried">
+          <div class="doc-section">Lo que dio al probarlo</div>
+          <p class="doc-text">{{ selectedFav.tried }}</p>
+        </template>
+      </div>
+      <div v-else-if="view === 'favorites'" class="region-body"><p class="empty-line pad">Elegí un favorito para ver su ficha.</p></div>
+      <div v-else-if="selected" class="region-body doc">
         <div class="doc-name">{{ selected.name }}</div>
         <div class="doc-org">{{ selected.org }}</div>
         <dl>
