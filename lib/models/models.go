@@ -1,4 +1,4 @@
-// Package models: los modelos de IA instalados en la Mac y qué herramienta usa cada uno. Lo comparten el CLI
+// Package models: los modelos de IA instalados en esta máquina (la Mac o el PC: lib/machine) y qué herramienta usa cada uno. Lo comparten el CLI
 // `bin/models` y la sección «Instalados» de News, así los dos dicen siempre lo mismo (Miguel, 2026-11-19: «un CLI, algo
 // más tipo consola que podamos usar fácilmente desde nuestras herramientas locales»).
 //
@@ -45,18 +45,21 @@ type Roots struct{ Hub, Mine, Whisper string }
 
 func DefaultRoots() Roots {
 	home, _ := os.UserHomeDir()
-	hub := filepath.Join(home, ".cache", "huggingface", "hub")
+	// la caché del usuario: $XDG_CACHE_HOME si está (Linux; huggingface_hub también la respeta) o ~/.cache, que es
+	// lo que usan las dos máquinas hoy
+	cache := filepath.Join(home, ".cache")
+	if x := os.Getenv("XDG_CACHE_HOME"); x != "" {
+		cache = x
+	}
+	hub := filepath.Join(cache, "huggingface", "hub")
 	if h := os.Getenv("HF_HOME"); h != "" {
 		hub = filepath.Join(h, "hub")
 	}
 	if h := os.Getenv("HF_HUB_CACHE"); h != "" {
 		hub = h
 	}
-	mine := filepath.Join(home, ".cache", "my-tools")
-	if x := os.Getenv("XDG_CACHE_HOME"); x != "" {
-		mine = filepath.Join(x, "my-tools")
-	}
-	return Roots{Hub: hub, Mine: mine, Whisper: filepath.Join(home, ".cache", "whisper")}
+	// whisper.cpp guarda en ~/.cache/whisper y no mira XDG: se deja ahí, que es donde lo busca el dictado del chat
+	return Roots{Hub: hub, Mine: filepath.Join(cache, "my-tools"), Whisper: filepath.Join(home, ".cache", "whisper")}
 }
 
 func dirSize(dir string) int64 {
@@ -144,8 +147,18 @@ func Scan(r Roots) []Installed {
 		if snap := latestSnapshot(full); snap != "" {
 			it.locate = []string{snap}
 		}
+		// El tamaño es el de su carpeta, UNA vez. En la caché real los blobs viven DENTRO de la carpeta del modelo
+		// (models--autor--nombre/blobs/), así que ya los cuenta dirSize: sumarlos además por los enlaces de los
+		// snapshots daba el doble (medido con la forma real en TestScanRealHubLayoutCountsOnce). Sólo se suma aparte
+		// el blob que quedó FUERA de la carpeta (una caché vieja o compartida).
+		inside := full
+		if real, err := filepath.EvalSymlinks(full); err == nil {
+			inside = real
+		}
 		for p, n := range blobs {
-			it.Bytes += n
+			if !strings.HasPrefix(p, inside+string(filepath.Separator)) {
+				it.Bytes += n
+			}
 			if owners[p] == 1 {
 				it.remove = append(it.remove, p)
 			}

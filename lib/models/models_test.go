@@ -142,3 +142,20 @@ func TestFor(t *testing.T) {
 		t.Fatal("una herramienta sin registro es un error")
 	}
 }
+
+// La caché de Hugging Face REAL guarda los blobs DENTRO de la carpeta del modelo (models--autor--nombre/blobs/<hash>)
+// y los snapshots son enlaces a ellos. El tamaño de un modelo es el de su carpeta, una sola vez: sumar además los blobs
+// a los que apuntan los snapshots lo contaba dos veces, y ése es el número con el que se decide qué borrar.
+func TestScanRealHubLayoutCountsOnce(t *testing.T) {
+	base := t.TempDir()
+	r := Roots{Hub: filepath.Join(base, "hub"), Mine: filepath.Join(base, "mine"), Whisper: filepath.Join(base, "whisper")}
+	model := filepath.Join(r.Hub, "models--a--real")
+	os.MkdirAll(filepath.Join(model, "blobs"), 0o755)
+	os.MkdirAll(filepath.Join(model, "snapshots", "rev"), 0o755)
+	os.WriteFile(filepath.Join(model, "blobs", "abc"), make([]byte, 1000), 0o644)
+	os.Symlink(filepath.Join("..", "..", "blobs", "abc"), filepath.Join(model, "snapshots", "rev", "model.safetensors"))
+	got := Scan(r)
+	if len(got) != 1 || got[0].Bytes != 1000 {
+		t.Fatalf("un modelo de 1000 bytes debe medir 1000: %+v", got)
+	}
+}

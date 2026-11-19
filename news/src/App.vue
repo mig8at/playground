@@ -8,12 +8,13 @@
  *
  * Los favoritos (`#/favorites`) son modelos curiosos que se guardan para no perderlos de vista, con qué hacen, por qué
  * son interesantes, si corren en la Mac y lo que dieron al probarlos: los escribe Claude en news/favorites.json. */
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle } from './workbench.js'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { vResize, readSize, saveSize, readPref, savePref, fitRegions, cssSize, bindThemeToggle, bindPanelMaximize } from './workbench.js'
 
 const weeks = ref([])
 const data = ref(null)
 const refreshing = ref(false)
+const NO_API = 'No contesta la API de News.'
 const apiError = ref('')
 async function api(path, opts) {
   const res = await fetch(path, opts)
@@ -25,31 +26,64 @@ const routeKey = () => decodeURIComponent(location.hash.replace(/^#\/?/, ''))
 // La vista de investigación que pide la ruta, si pide una.
 const routeView = () => ({ research: 'ideas', 'research/lineages': 'lineages', 'research/cheap': 'cheap' })[routeKey()] || ''
 const favorites = ref([])
-// Los modelos instalados en la Mac (caché de Hugging Face, GGUF de llama-server y entornos), con su tamaño.
+// LA MÁQUINA DONDE ESTÁ ABIERTO NEWS (lib/machine): el repo se usa en la Mac y en el PC con Linux, y «instalado acá» o
+// «corre acá» dependen de cuál. La dice la API; mientras no contesta (o si es un servidor viejo que no la manda) queda
+// la Mac, que es como hablaba la interfaz antes: en la Mac no cambia nada.
+const machine = ref({ id: 'mac', label: 'la Mac', here: 'esta Mac' })
+const setMachine = (m) => { if (m?.id) machine.value = m }
+const GB = 1024 ** 3
+const machineSpec = computed(() => { const m = machine.value; return [m.gpu && m.accel !== 'mps' ? `${m.gpu} · ${Math.round(m.vram / GB)} GB` : m.cpu, m.ram ? `${Math.round(m.ram / GB)} GB de RAM` : ''].filter(Boolean).join(' · ') })
+// Los modelos instalados en esta máquina (caché de Hugging Face, GGUF de llama-server y entornos), con su tamaño.
 const installed = ref([])
 const installedBytes = ref(0)
-const loadInstalled = () => api('/api/installed').then((r) => { installed.value = r.installed; installedBytes.value = r.bytes }).catch(() => {})
+// `|| []`: una máquina sin modelos mandaba null y la interfaz dejaba de pintarse al leerle `.length`
+// CADA SECCIÓN DICE SU ERROR. Antes los tres pedidos terminaban en un catch vacío: un favorites.json a medio escribir
+// (que la API rechaza con un mensaje claro) o un registro roto se veían como «cero favoritos» o «ningún modelo».
+const sectionError = ref({ favorites: '', research: '', installed: '' })
+const sectionLoaded = ref({ favorites: false, research: false, installed: false })
+const section = (name, promise, apply) => promise.then((r) => { apply(r); sectionError.value[name] = ''; sectionLoaded.value[name] = true })
+  .catch((e) => { sectionError.value[name] = e.message || 'no contestó' })
+const loadInstalled = () => section('installed', api('/api/installed'), (r) => { installed.value = r.installed || []; installedBytes.value = r.bytes || 0; setMachine(r.machine) })
+// `measuring`: el servidor todavía está bajando de Hugging Face el tamaño real de algunos (la primera vez en una máquina
+// tarda unos segundos): se vuelve a pedir hasta que termine, con tope, para que la ficha no se quede con la cuenta vieja.
+const measuring = ref(0)
+let measureTries = 0
+const loadFavorites = () => section('favorites', api('/api/favorites'), (r) => {
+  favorites.value = r.favorites || []; setMachine(r.machine); measuring.value = r.measuring || 0
+  if (measuring.value && measureTries++ < 12) setTimeout(loadFavorites, 4000)
+  else measureTries = 0
+})
+const loadResearch = () => section('research', api('/api/research'), (r) => { research.value = r })
+// Lo que no cambia solo (favoritos, investigación, instalados) se pide al abrir, al volver a la ventana y después de
+// borrar: no en cada vuelta del sondeo, que antes hacía medir todo el disco una vez por minuto.
+const loadSections = () => { loadFavorites(); loadResearch(); loadInstalled() }
 const KIND_ICON = { hub: 'download', gguf: 'server', env: 'code', whisper: 'mic' }
 // Borrar se confirma en la misma fila (el primer toque pregunta, el segundo borra): los diálogos del navegador no
 // siempre aparecen dentro de la ventana de Cockpit.
 const removing = ref('')
 const confirming = ref('')
 const removeError = ref('')
+// La pregunta vence a los 10 s: quedaba armada para siempre, y un segundo toque distraído minutos después borraba.
+let confirmTimer = null
 async function removeInstalled(it) {
-  if (confirming.value !== it.key) { confirming.value = it.key; removeError.value = ''; return }
+  clearTimeout(confirmTimer)
+  if (confirming.value !== it.key) {
+    confirming.value = it.key; removeError.value = ''
+    confirmTimer = setTimeout(() => { confirming.value = '' }, 10000)
+    return
+  }
   confirming.value = ''
   removing.value = it.key
   try {
-    await api(`/api/installed?key=${encodeURIComponent(it.key)}`, { method: 'DELETE', headers: { 'X-News': '1' } })
+    // lo que usa una herramienta sólo se borra con force: el servidor lo exige, y acá va porque la fila ya lo avisó
+    const force = it.tools?.length ? '&force=1' : ''
+    await api(`/api/installed?key=${encodeURIComponent(it.key)}${force}`, { method: 'DELETE', headers: { 'X-News': '1' } })
   } catch (e) { removeError.value = `No se pudo borrar ${it.name}: ${e.message}` }
   removing.value = ''
   loadInstalled()
 }
 async function load() {
   try {
-    api('/api/favorites').then((r) => { favorites.value = r.favorites }).catch(() => {})
-    api('/api/research').then((r) => { research.value = r }).catch(() => {})
-    loadInstalled()
     if (routeKey() === 'favorites') view.value = 'favorites'
     const rv = routeView()
     if (rv) view.value = rv
@@ -64,10 +98,15 @@ async function load() {
       data.value = wk
       if (!models.value.some((m) => m.id === selectedId.value)) selectedId.value = wk.lead || models.value.find((m) => m.new)?.id
     }
-  } catch { apiError.value = 'No contesta la API de News.' }
+  } catch { apiError.value = NO_API }
 }
+// Al tocar «Actualizar» el sondeo se rearma ya (cada 5 s mientras actualiza): antes seguía con el minuto que tenía
+// puesto y no había señal de nada hasta entonces. Si el pedido falla, lo dice el pie.
+const refreshError = ref('')
 async function refreshNow() {
-  try { await api('/api/refresh', { method: 'POST' }); refreshing.value = true } catch { /* lo dice el pie */ }
+  refreshError.value = ''
+  try { await api('/api/refresh', { method: 'POST' }); refreshing.value = true; schedule() }
+  catch (e) { refreshError.value = `No se pudo actualizar: ${e.message}` }
 }
 
 const TOPICS = [
@@ -100,11 +139,26 @@ const FAV_GROUPS = [
   { id: 'gpu', name: 'Piden GPU NVIDIA', icon: 'server' },
 ]
 const MAC = { yes: 'corre en la Mac', no: 'no corre en la Mac', unknown: 'en la Mac: sin confirmar' }
+// ¿CORRE ACÁ? En la Mac es lo de siempre (`mac`, lo que dice la ficha o se probó). En el PC casi nada está probado, así
+// que el servidor lo estima por tamaño contra la memoria de la GPU y la RAM (`here`, news/server/fits.go) y acá se dice
+// que es una estimación: no es lo mismo «lo probamos» que «por el tamaño debería entrar».
+const onMac = computed(() => machine.value.id === 'mac')
+const hereOf = (f) => (onMac.value || !f.here ? { status: f.mac, basis: 'declared', why: '' } : f.here)
+const HERE = { yes: 'corre en el PC', slow: 'corre en el PC, lento (en la RAM)', no: 'no corre en el PC', unknown: 'en el PC: sin confirmar' }
+const chipText = (f) => (onMac.value ? (f.mac === 'yes' ? 'Mac' : f.mac === 'no' ? 'GPU' : '¿Mac?') : { yes: 'PC', slow: 'PC lento', no: 'no entra', unknown: '¿PC?' }[hereOf(f).status] || '¿PC?')
+const chipTitle = (f) => (onMac.value ? MAC[f.mac] : `${HERE[hereOf(f).status] || ''}${hereOf(f).basis === 'estimated' ? ' (estimado, sin probar)' : ''}: ${hereOf(f).why}`)
 const favGroup = ref('all')
-const favMatches = (f) => (favGroup.value === 'all' || f.group === favGroup.value)
+// dos perillas de la vista: ver sólo lo que corre en esta máquina, y ordenar cada grupo del más chico al más grande
+const onlyHere = ref(false)
+const bySize = ref(false)
+const runsHere = (f) => ['yes', 'slow'].includes(hereOf(f).status)
+// para ordenar, los parámetros, que es el tamaño que muestra la tarjeta; lo que no lo declara va al final
+const weight = (f) => f.params || Infinity
+const favSorted = (list) => (bySize.value ? [...list].sort((a, b) => weight(a) - weight(b)) : list)
+const favMatches = (f) => (favGroup.value === 'all' || f.group === favGroup.value) && (!onlyHere.value || runsHere(f))
   && (!q.value || `${f.id} ${f.task} ${f.what}`.toLowerCase().includes(q.value))
 // «Probados» no va en tarjetas: es el historial, una tabla con fecha, veredicto, quién lo usa y cuánto ocupa.
-const favSections = computed(() => FAV_GROUPS.filter((g) => g.id !== 'tried').map((g) => ({ ...g, items: favorites.value.filter((f) => f.group === g.id && favMatches(f)) })).filter((g) => g.items.length))
+const favSections = computed(() => FAV_GROUPS.filter((g) => g.id !== 'tried').map((g) => ({ ...g, items: favSorted(favorites.value.filter((f) => f.group === g.id && favMatches(f))) })).filter((g) => g.items.length))
 const triedHistory = computed(() => favorites.value.filter((f) => f.verdict && (favGroup.value === 'all' || favGroup.value === 'tried')
   && (!q.value || `${f.id} ${f.task} ${f.what}`.toLowerCase().includes(q.value))).sort((a, b) => (b.triedOn || '').localeCompare(a.triedOn || '')))
 const VERDICT = { keep: 'Vale la pena', dropped: 'Descartado' }
@@ -115,7 +169,8 @@ const favOfInstalled = (it) => favorites.value.find((f) => (f.installed || []).i
 const favStats = computed(() => {
   const tried = favorites.value.filter((f) => f.verdict)
   return { saved: favorites.value.length, tried: tried.length, keep: tried.filter((f) => f.verdict === 'keep').length,
-    dropped: tried.filter((f) => f.verdict === 'dropped').length, inUse: favorites.value.filter((f) => f.usedBy).length }
+    dropped: tried.filter((f) => f.verdict === 'dropped').length, inUse: favorites.value.filter((f) => f.usedBy).length,
+    here: favorites.value.filter(runsHere).length }
 })
 const favCount = (id) => favorites.value.filter((f) => id === 'all' || f.group === id).length
 const favName = (f) => f.id.split('/')[1]
@@ -161,7 +216,7 @@ const onAMac = computed(() => research.value.ideas.filter((d) => d.hardware === 
 const cheapIdeas = computed(() => research.value.ideas.filter((d) => d.cheap))
 // Lo que se HACE en la Mac (ajustar, cuantizar, mezclar) va aparte de lo que se entrenó en grande y en la Mac sólo se usa.
 const macGroups = computed(() => [
-  { id: 'make', name: 'Se hace en esta Mac', desc: 'mejorar o adaptar un modelo sin salir de la Mac', items: onAMac.value.filter((d) => d.hardware === 'mac') },
+  { id: 'make', name: 'Se hace en la Mac', desc: 'mejorar o adaptar un modelo sin salir de la Mac', items: onAMac.value.filter((d) => d.hardware === 'mac') },
   { id: 'use', name: 'Se entrena en grande, se usa en la Mac', desc: 'lo que hizo un data center y acá corre', items: onAMac.value.filter((d) => d.hardware !== 'mac') },
 ].filter((g) => g.items.length))
 const ideasById = computed(() => Object.fromEntries(research.value.ideas.map((d) => [d.id, d])))
@@ -203,7 +258,7 @@ const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', '
 const day = (iso) => { if (!iso) return '—'; const [, m, d] = iso.split('-').map(Number); return `${d} ${months[m - 1]}` }
 const num = (n) => (n ?? 0).toLocaleString('es-CO')
 const short = (n) => (n >= 1e6 ? `${(n / 1e6).toLocaleString('es-CO', { maximumFractionDigits: 1 })} M` : n >= 1e3 ? `${(n / 1e3).toLocaleString('es-CO', { maximumFractionDigits: 1 })} mil` : num(n))
-const bytes = (n) => (n >= 1e9 ? `${(n / 1e9).toLocaleString('es-CO', { maximumFractionDigits: 1 })} GB` : n >= 1e6 ? `${Math.round(n / 1e6)} MB` : `${Math.max(1, Math.round(n / 1e3))} KB`)
+const bytes = (n) => (!n ? '0 GB' : n >= 1e9 ? `${(n / 1e9).toLocaleString('es-CO', { maximumFractionDigits: 1 })} GB` : n >= 1e6 ? `${Math.round(n / 1e6)} MB` : `${Math.max(1, Math.round(n / 1e3))} KB`)
 const params = (n) => (!n ? 'no lo declara' : n >= 1e9 ? `${(n / 1e9).toLocaleString('es-CO', { maximumFractionDigits: 1 })} B parámetros` : `${(n / 1e6).toLocaleString('es-CO', { maximumFractionDigits: 0 })} M parámetros`)
 const weekLabel = computed(() => (data.value ? `${day(data.value.from)} al ${day(data.value.to)}` : ''))
 const papers = computed(() => data.value?.papers || [])
@@ -212,19 +267,70 @@ const hf = (id) => `https://huggingface.co/${id}`
 
 // ── las regiones, con el contrato de la base ──
 const viewportW = ref(window.innerWidth)
+const viewportH = ref(window.innerHeight)
+/* LAS VISTAS DEL SIDEBAR, como en el chat y VS Code: cada bloque se pliega con su encabezado, las abiertas se reparten
+   el alto y una cerrada ocupa una fila. Lo abierto se recuerda en este navegador (`news.sidebar-views`). */
+const sidebarViews = ref(readPref('news.sidebar-views', {}) || {})
+const isViewOpen = (id) => sidebarViews.value[id] ?? true
+function toggleView(id) { sidebarViews.value = { ...sidebarViews.value, [id]: !isViewOpen(id) }; savePref('news.sidebar-views', sidebarViews.value) }
+
+/* LA CONSOLA (la región `panel` del taller): lo que News hace sola, que antes era una frase en el pie que se pisaba.
+   Tres pestañas: Actividad (la bitácora del servidor: cada actualización, lo medido, lo borrado), Esta máquina (qué
+   es, qué motores tiene para correr modelos y dónde se buscan los instalados) y Avisos (lo que hoy pide atención, con
+   qué hacer). Arranca cerrada: se abre con su botón del pie o tocando el contador de avisos. */
+const consoleTab = ref(readPref('news.console-tab', 'activity'))
+const pickConsoleTab = (id) => { consoleTab.value = id; savePref('news.console-tab', id) }
+const activity = ref([])
+const machineInfo = ref(null)
+const loadActivity = () => api('/api/activity').then((r) => { activity.value = r.entries || [] }).catch(() => {})
+const loadMachine = () => api('/api/machine').then((r) => { machineInfo.value = r; setMachine(r.machine) }).catch(() => {})
+const hhmmss = (iso) => new Date(iso).toLocaleTimeString('es-CO', { hour12: false })
+const gbOf = (n) => (n ? `${Math.round(n / GB)} GB` : '—')
+// Avisos: lo que pide atención AHORA, cada uno con qué hacer. Sale de lo que ya se sabe; no es otra consulta.
+const notices = computed(() => {
+  const out = []
+  if (apiError.value) out.push({ kind: 'error', text: apiError.value, fix: 'Levantala con `make news`.' })
+  if (refreshError.value) out.push({ kind: 'error', text: refreshError.value })
+  if (data.value?.writeError) out.push({ kind: 'warn', text: `Los textos de la semana no se escribieron: ${data.value.writeError}`, fix: 'El modelo de fondo necesita sesión; sin él la portada muestra los datos de Hugging Face sin el «qué hace».' })
+  for (const w of data.value?.fetchWarnings || []) out.push({ kind: 'warn', text: `La semana quedó incompleta: ${w}`, fix: 'Tocá «Actualizar» para volver a leer.' })
+  for (const [k, e] of Object.entries(sectionError.value)) if (e) out.push({ kind: 'error', text: `No se pudo leer ${({ favorites: 'los favoritos', research: 'la investigación', installed: 'lo instalado' })[k]}: ${e}` })
+  // MLX fuera de Apple Silicon no es algo que falte instalar: no va como aviso (lo dice la ficha de cada modelo)
+  for (const e of machineInfo.value?.engines || []) if (e.id !== 'mlx' && e.ready === false && e.hint && favorites.value.some((f) => f.here?.engine?.name === e.name)) out.push({ kind: 'info', text: `Falta ${e.name} en ${machine.value.label}: ${favorites.value.filter((f) => f.here?.engine?.name === e.name).length} favoritos lo piden`, fix: e.hint })
+  const unknown = favorites.value.filter((f) => hereOf(f).status === 'unknown').length
+  if (unknown && !onMac.value) out.push({ kind: 'info', text: `${unknown} favoritos no declaran su tamaño: no se sabe si corren en ${machine.value.label}` })
+  return out
+})
+const noticeCount = computed(() => notices.value.filter((n) => n.kind !== 'info').length)
+
 const sidebarOpen = ref(readSize('news.sidebar-open', 1) !== 0)
 const sidebarW = ref(readSize('news.sidebar-w', 240))
 const auxOpen = ref(readSize('news.aux-open', 1) !== 0)
 const auxW = ref(readSize('news.aux-w', 320))
+const panelOpen = ref(readSize('news.panel-open', 0) !== 0)
+const panelH = ref(readSize('news.panel-h', 220))
 const shown = computed(() => {
   const min = cssSize('--sidebar-min', 220)
   const [aux, sidebar] = fitRegions(viewportW.value - cssSize('--editor-min', 420), [
     { size: auxOpen.value ? auxW.value : 0, min },
     { size: sidebarOpen.value ? sidebarW.value : 0, min },
   ])
-  return { sidebar, aux }
+  const [panel] = fitRegions(viewportH.value - 240, [{ size: panelOpen.value ? panelH.value : 0, min: cssSize('--panel-min', 124) }])
+  return { sidebar, aux, panel }
 })
-const layoutVars = computed(() => ({ '--sidebar-w': `${shown.value.sidebar}px`, '--auxiliarybar-w': `${shown.value.aux}px` }))
+const layoutVars = computed(() => ({ '--sidebar-w': `${shown.value.sidebar}px`, '--auxiliarybar-w': `${shown.value.aux}px`, '--panel-h': `${shown.value.panel}px` }))
+const panelResize = {
+  label: 'Alto de la consola', axis: 'y', sign: -1, defaultValue: 220,
+  min: () => cssSize('--panel-min', 124), max: () => viewportH.value - 240,
+  get: () => shown.value.panel,
+  set: (v) => { if (!v) panelOpen.value = false; else { panelOpen.value = true; panelH.value = v } },
+  reopen: () => panelH.value,
+  commit: (v) => { saveSize('news.panel-open', v ? 1 : 0); if (v) saveSize('news.panel-h', panelH.value) },
+}
+function togglePanel(open = !shown.value.panel) { panelOpen.value = open; saveSize('news.panel-open', open ? 1 : 0); if (open) { loadActivity(); loadMachine() } }
+const openNotices = () => { pickConsoleTab('notices'); togglePanel(true) }
+const maximize = ref(null)
+let maximizeBinding = null
+watch(() => [shown.value.panel > 0, maximize.value], ([open, el]) => { maximizeBinding?.destroy?.(); maximizeBinding = open && el ? bindPanelMaximize(el) : null }, { flush: 'post' })
 const resizeOf = (key, w, open, sign, other) => ({
   label: key === 'sidebar' ? 'Ancho de las semanas' : 'Ancho de la ficha', sign, defaultValue: key === 'sidebar' ? 240 : 320,
   min: () => cssSize('--sidebar-min', 220), max: () => viewportW.value - shown.value[other] - cssSize('--editor-min', 420),
@@ -240,12 +346,15 @@ const pick = (m) => { selectedId.value = m.id; if (!shown.value.aux) toggle('aux
 const pickFav = (f) => { selectedFavId.value = f.id; if (!shown.value.aux) toggle('aux', auxOpen) }
 // Tocar un instalado abre la ficha del favorito al que pertenece (si lo hay).
 const pickInstalled = (it) => { const f = favOfInstalled(it); if (f) { openFavorites('all'); pickFav(f) } }
-const onWindowResize = () => { viewportW.value = window.innerWidth }
+const onWindowResize = () => { viewportW.value = window.innerWidth; viewportH.value = window.innerHeight }
 const themeToggle = ref(null)
 let themeBinding = null
 // Mientras se actualiza, cada 5 s; si no, cada minuto (por si cambió de fondo).
 let timer = null
-function schedule() { clearTimeout(timer); timer = setTimeout(async () => { if (!document.hidden) await load(); schedule() }, refreshing.value ? 5000 : 60000) }
+// Sin API reintenta a los 2 s: al abrir, la interfaz está lista antes que el servidor (que compila al arrancar) y se
+// quedaba un minuto en «Sin API» con todo ya andando.
+function schedule() { clearTimeout(timer); timer = setTimeout(async () => { if (!document.hidden) { await load(); if (shown.value.panel) loadActivity() } schedule() }, apiError.value === NO_API ? 2000 : refreshing.value ? 5000 : 60000) }
+const onVisible = () => { if (!document.hidden) { loadSections(); load() } }
 const onHash = () => {
   if (routeKey() === 'favorites') { view.value = 'favorites'; return }
   const rv = routeView()
@@ -257,25 +366,68 @@ onMounted(() => {
   window.addEventListener('resize', onWindowResize)
   window.addEventListener('hashchange', onHash)
   if (themeToggle.value) themeBinding = bindThemeToggle(themeToggle.value)
+  loadSections()
+  loadMachine()
+  if (panelOpen.value) loadActivity()
+  document.addEventListener('visibilitychange', onVisible)
   load().then(schedule)
 })
-onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); window.removeEventListener('hashchange', onHash); clearTimeout(timer); themeBinding?.destroy?.() })
+onBeforeUnmount(() => { maximizeBinding?.destroy?.(); document.removeEventListener('visibilitychange', onVisible); clearTimeout(confirmTimer); window.removeEventListener('resize', onWindowResize); window.removeEventListener('hashchange', onHash); clearTimeout(timer); themeBinding?.destroy?.() })
 </script>
 
 <template>
   <div class="workbench" :style="layoutVars">
-    <aside v-show="shown.sidebar" class="sidebar" aria-label="Semanas y temas">
+    <aside v-show="shown.sidebar" class="sidebar en-bloques" aria-label="Semana, favoritos, instalados e investigación">
+      <!-- CUATRO VISTAS (`en-bloques` y `.view` de la base, como el sidebar del chat): la semana, los favoritos, lo
+           instalado en esta máquina y la investigación. Cada una se pliega con su encabezado, las abiertas se reparten
+           el alto y scrollean por separado, y una cerrada ocupa una fila (no desaparece). Antes era una sola lista
+           larga: para llegar a Investigación había que pasar por todo lo demás. -->
       <div class="rsz rsz-edge-right" v-resize="sidebarResize"></div>
-      <div class="region-head"><span>News</span></div>
-      <div class="region-body">
-        <div class="group-label">Favoritos</div>
+      <section class="view wb-bloque" :class="{ open: isViewOpen('week') }">
+        <div class="region-head">
+          <button type="button" class="view-tog" :aria-expanded="isViewOpen('week')" @click="toggleView('week')">
+            <span class="ui-icon chev" data-icon="chevron" aria-hidden="true"></span><span>Semana</span>
+          </button>
+          <span v-if="data" class="count" :title="weekLabel">{{ data.number ? `W${data.number}` : '' }}</span><div class="region-actions"><button type="button" class="region-action" :disabled="refreshing" title="Actualizar la semana ahora (lo hace sola cada 6 horas)" aria-label="Actualizar la semana" @click="refreshNow"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span></button></div>
+        </div>
+        <div v-if="isViewOpen('week')" class="region-body">
+        <a v-for="w in weeks" :key="w.key" class="nav-row" :class="{ on: data?.key === w.key && view !== 'favorites' && !isResearch(view) }" :href="`#/${w.key}`" @click="(view === 'favorites' || isResearch(view)) && (view = 'cover')">
+          <span class="ui-icon" data-icon="clock" aria-hidden="true"></span><span class="nav-name">Semana {{ w.number }}</span><span class="count">{{ day(w.from) }} al {{ day(w.to) }}</span>
+        </a>
+        <div v-if="!weeks.length" class="nav-row muted"><span class="ui-icon" data-icon="clock" aria-hidden="true"></span><span class="nav-name">{{ refreshing ? 'Juntando la primera semana…' : 'Todavía no hay semanas' }}</span></div>
+        <div class="region-head group"><span>Temas</span></div>
+        <button v-for="t in TOPICS" :key="t.id" type="button" class="nav-row" :class="{ on: topic === t.id && view === 'cover' }" @click="topic = t.id; view = 'cover'">
+          <span class="ui-icon topic-icon" :class="`t-${t.id}`" :data-icon="TOPIC_ICON[t.id]" aria-hidden="true"></span><span class="nav-name">{{ t.name }}</span><span class="count">{{ countFor(t.id) }}</span>
+        </button>
+        <button v-if="otherCount" type="button" class="nav-row" :class="{ on: topic === 'other' && view === 'cover' }" @click="topic = 'other'; view = 'cover'">
+          <span class="ui-icon topic-icon t-other" data-icon="box" aria-hidden="true"></span><span class="nav-name">Otros</span><span class="count">{{ otherCount }}</span>
+        </button>
+        </div>
+      </section>
+      <section class="view wb-bloque" :class="{ open: isViewOpen('favorites') }">
+        <div class="region-head">
+          <button type="button" class="view-tog" :aria-expanded="isViewOpen('favorites')" @click="toggleView('favorites')">
+            <span class="ui-icon chev" data-icon="chevron" aria-hidden="true"></span><span>Favoritos</span>
+          </button>
+          <span class="count">{{ favCount('all') || '' }}</span>
+        </div>
+        <div v-if="isViewOpen('favorites')" class="region-body">
         <button type="button" class="nav-row" :class="{ on: view === 'favorites' && favGroup === 'all' }" @click="openFavorites('all')">
           <span class="ui-icon" data-icon="star" aria-hidden="true"></span><span class="nav-name">Todos</span><span class="count">{{ favCount('all') }}</span>
         </button>
         <button v-for="g in FAV_GROUPS.filter((x) => favCount(x.id))" :key="g.id" type="button" class="nav-row sub" :class="{ on: view === 'favorites' && favGroup === g.id }" @click="openFavorites(g.id)">
           <span class="ui-icon" :data-icon="g.icon" aria-hidden="true"></span><span class="nav-name">{{ g.name }}</span><span class="count">{{ favCount(g.id) }}</span>
         </button>
-        <div class="group-label">Instalados<span v-if="installed.length" class="group-count">{{ bytes(installedBytes) }}</span></div>
+        </div>
+      </section>
+      <section class="view wb-bloque fit" :class="{ open: isViewOpen('installed') }">
+        <div class="region-head">
+          <button type="button" class="view-tog" :aria-expanded="isViewOpen('installed')" @click="toggleView('installed')">
+            <span class="ui-icon chev" data-icon="chevron" aria-hidden="true"></span><span>Instalados</span>
+          </button>
+          <span class="count" :title="`En ${machine.here}: ${machineSpec}`">{{ installed.length ? bytes(installedBytes) : machine.id === 'mac' ? 'Mac' : 'PC' }}</span><div class="region-actions"><button type="button" class="region-action" title="Volver a medir lo instalado" aria-label="Volver a medir lo instalado" @click="loadInstalled"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span></button></div>
+        </div>
+        <div v-if="isViewOpen('installed')" class="region-body">
         <template v-for="it in installed" :key="it.key">
           <div class="nav-row installed" :class="{ muted: removing === it.key, asking: confirming === it.key }" :title="`${it.name} · ${it.where}${it.usedBy ? ` · lo usa ${it.usedBy}` : ''}`">
             <span class="ui-icon" :data-icon="KIND_ICON[it.kind]" aria-hidden="true"></span><button type="button" class="nav-name installed-name" :disabled="!favOfInstalled(it)" @click="pickInstalled(it)">{{ it.name.split('/').pop() }}</button><span v-if="it.tools?.length" class="in-use" :title="`Lo usa ${it.usedBy}`">{{ it.tools.join(', ') }}</span><span class="count">{{ removing === it.key ? 'borrando…' : bytes(it.bytes) }}</span>
@@ -287,20 +439,19 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); wi
           </div>
         </template>
         <div v-if="removeError" class="confirm-row error">{{ removeError }}</div>
-        <div v-if="!installed.length" class="nav-row muted"><span class="ui-icon" data-icon="box" aria-hidden="true"></span><span class="nav-name">Ningún modelo en la Mac</span></div>
-        <div class="group-label">Semanas</div>
-        <a v-for="w in weeks" :key="w.key" class="nav-row" :class="{ on: data?.key === w.key && view !== 'favorites' && !isResearch(view) }" :href="`#/${w.key}`" @click="(view === 'favorites' || isResearch(view)) && (view = 'cover')">
-          <span class="ui-icon" data-icon="clock" aria-hidden="true"></span><span class="nav-name">Semana {{ w.number }}</span><span class="count">{{ day(w.from) }} al {{ day(w.to) }}</span>
-        </a>
-        <div v-if="!weeks.length" class="nav-row muted"><span class="ui-icon" data-icon="clock" aria-hidden="true"></span><span class="nav-name">{{ refreshing ? 'Juntando la primera semana…' : 'Todavía no hay semanas' }}</span></div>
-        <div class="group-label">Temas</div>
-        <button v-for="t in TOPICS" :key="t.id" type="button" class="nav-row" :class="{ on: topic === t.id && view === 'cover' }" @click="topic = t.id; view = 'cover'">
-          <span class="ui-icon topic-icon" :class="`t-${t.id}`" :data-icon="TOPIC_ICON[t.id]" aria-hidden="true"></span><span class="nav-name">{{ t.name }}</span><span class="count">{{ countFor(t.id) }}</span>
-        </button>
-        <button v-if="otherCount" type="button" class="nav-row" :class="{ on: topic === 'other' && view === 'cover' }" @click="topic = 'other'; view = 'cover'">
-          <span class="ui-icon topic-icon t-other" data-icon="box" aria-hidden="true"></span><span class="nav-name">Otros</span><span class="count">{{ otherCount }}</span>
-        </button>
-        <div class="group-label">Investigación</div>
+        <div v-if="sectionError.installed" class="confirm-row error">No se pudo medir lo instalado: {{ sectionError.installed }}</div>
+        <div v-else-if="!sectionLoaded.installed" class="nav-row muted"><span class="ui-icon" data-icon="box" aria-hidden="true"></span><span class="nav-name">Midiendo lo instalado…</span></div>
+        <div v-else-if="!installed.length" class="nav-row muted"><span class="ui-icon" data-icon="box" aria-hidden="true"></span><span class="nav-name">Ningún modelo en {{ machine.label }}</span></div>
+        </div>
+      </section>
+      <section class="view wb-bloque" :class="{ open: isViewOpen('research') }">
+        <div class="region-head">
+          <button type="button" class="view-tog" :aria-expanded="isViewOpen('research')" @click="toggleView('research')">
+            <span class="ui-icon chev" data-icon="chevron" aria-hidden="true"></span><span>Investigación</span>
+          </button>
+          <span class="count">{{ research.ideas.length || '' }}</span>
+        </div>
+        <div v-if="isViewOpen('research')" class="region-body">
         <button type="button" class="nav-row" :class="{ on: view === 'papers' }" @click="view = 'papers'">
           <span class="ui-icon" data-icon="paper" aria-hidden="true"></span><span class="nav-name">Papers</span><span class="count">{{ data?.papersTotal ?? '' }}</span>
         </button>
@@ -316,7 +467,8 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); wi
         <button type="button" class="nav-row" :class="{ on: view === 'cheap' }" @click="openResearch('cheap')">
           <span class="ui-icon" data-icon="local" aria-hidden="true"></span><span class="nav-name">Hecho con poco</span><span class="count">{{ onAMac.length + cheapIdeas.length || '' }}</span>
         </button>
-      </div>
+        </div>
+      </section>
     </aside>
 
     <main class="editor">
@@ -388,10 +540,17 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); wi
           <div class="fav-stats">
             <span><b>{{ favStats.saved }}</b> guardados</span><span><b>{{ favStats.tried }}</b> probados</span>
             <span class="keep"><b>{{ favStats.keep }}</b> valen la pena</span><span class="dropped"><b>{{ favStats.dropped }}</b> {{ favStats.dropped === 1 ? 'descartado' : 'descartados' }}</span>
-            <span class="use"><b>{{ favStats.inUse }}</b> en uso</span><span><b>{{ bytes(installedBytes) }}</b> en la Mac</span>
+            <span class="use"><b>{{ favStats.inUse }}</b> en uso</span><span><b>{{ bytes(installedBytes) }}</b> en {{ machine.label }}</span><span v-if="!onMac" class="use" :title="`De los ${favStats.saved}: los que entran en ${machine.here} (${machineSpec}), por lo probado o estimado por tamaño`"><b>{{ favStats.here }}</b> corren en {{ machine.label }}</span>
+          </div>
+          <!-- los errores de la sección, a la vista, y las dos perillas -->
+          <p v-if="sectionError.favorites" class="section-error">No se pudieron leer los favoritos: {{ sectionError.favorites }}</p>
+          <p v-if="measuring" class="empty-line">Midiendo en Hugging Face el tamaño real de {{ measuring }} {{ measuring === 1 ? 'modelo' : 'modelos' }}…</p>
+          <div class="fav-tools">
+            <button type="button" class="toggle" :aria-pressed="onlyHere" :title="`Sólo los que corren en ${machine.here} (${machineSpec})`" @click="onlyHere = !onlyHere">Sólo los que corren en {{ machine.label }}</button>
+            <button type="button" class="toggle" :aria-pressed="bySize" title="Dentro de cada grupo, del más chico al más grande" @click="bySize = !bySize">Ordenar por tamaño</button>
           </div>
           <section v-if="triedHistory.length">
-            <h2 class="section-title">Probados <span>el historial: lo que dio cada uno y si se quedó</span></h2>
+            <h2 class="section-title">Probados <span>el historial: lo que dio cada uno y si se quedó{{ onMac ? '' : ' · se probaron en la Mac; «borrado» es de allá' }}</span></h2>
             <div class="rows history">
               <button v-for="f in triedHistory" :key="f.id" type="button" class="row" :class="{ on: selectedFavId === f.id, dropped: f.verdict === 'dropped' }" @click="pickFav(f)">
                 <span class="row-num">{{ day(f.triedOn) }}</span>
@@ -406,7 +565,7 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); wi
             <h2 class="section-title">{{ g.name }} <span>{{ g.items.length }}</span></h2>
             <div class="favs">
               <button v-for="f in g.items" :key="f.id" type="button" class="fav" :class="{ on: selectedFavId === f.id }" @click="pickFav(f)">
-                <span class="model-top"><span class="model-icon" :class="`t-${topicOf(f.task)}`"><span class="ui-icon" :data-icon="taskIcon(f.task)" aria-hidden="true"></span></span><span class="model-name">{{ favName(f) }}</span><span class="mac" :class="f.mac">{{ f.mac === 'yes' ? 'Mac' : f.mac === 'no' ? 'GPU' : '¿Mac?' }}</span></span>
+                <span class="model-top"><span class="model-icon" :class="`t-${topicOf(f.task)}`"><span class="ui-icon" :data-icon="taskIcon(f.task)" aria-hidden="true"></span></span><span class="model-name">{{ favName(f) }}</span><span class="mac" :class="hereOf(f).status" :title="chipTitle(f)">{{ chipText(f) }}</span></span>
                 <span class="model-org">{{ favOrg(f) }} · {{ params(f.params) }}</span>
                 <span class="fav-what">{{ f.what }}</span>
                 <span v-if="f.usedBy || favBytes(f)" class="fav-tags"><span v-if="f.usedBy" class="in-use">en uso · {{ f.usedBy }}</span><span v-if="favBytes(f)" class="tag">instalado · {{ bytes(favBytes(f)) }}</span></span>
@@ -484,6 +643,50 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); wi
       </div>
     </main>
 
+    <section v-if="shown.panel" class="panel" aria-label="Consola de News">
+      <div class="rsz rsz-edge-top" v-resize="panelResize"></div>
+      <nav class="tabs" role="tablist" aria-label="Consola">
+        <button type="button" role="tab" class="tab" :class="{ on: consoleTab === 'activity' }" :aria-selected="consoleTab === 'activity'" @click="pickConsoleTab('activity')">Actividad</button>
+        <button type="button" role="tab" class="tab" :class="{ on: consoleTab === 'machine' }" :aria-selected="consoleTab === 'machine'" @click="pickConsoleTab('machine')">{{ machine.id === 'mac' ? 'Esta Mac' : 'Este PC' }}</button>
+        <button type="button" role="tab" class="tab" :class="{ on: consoleTab === 'notices' }" :aria-selected="consoleTab === 'notices'" @click="pickConsoleTab('notices')">Avisos <span v-if="notices.length" class="count" :class="{ filtered: noticeCount }">{{ notices.length }}</span></button>
+        <div class="region-actions">
+          <button v-if="consoleTab === 'activity'" type="button" class="region-action" title="Volver a leer la actividad" aria-label="Volver a leer la actividad" @click="loadActivity"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span></button>
+          <button ref="maximize" type="button" class="region-action"></button>
+          <button type="button" class="region-action" title="Cerrar la consola" aria-label="Cerrar la consola" @click="togglePanel(false)"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
+        </div>
+      </nav>
+      <!-- la subbanda dice qué se está viendo: de cuándo es la semana y si se está actualizando -->
+      <div v-if="consoleTab === 'activity'" class="subband">
+        <span class="grow"><strong>{{ data ? `Semana ${data.number}` : 'Sin semana' }}</strong>{{ data ? ` · Hugging Face al ${clock(data.fetched)} · se actualiza cada 6 h` : '' }}</span>
+        <span v-if="refreshing" class="count filtered">actualizando…</span>
+      </div>
+      <div v-else-if="consoleTab === 'machine'" class="subband"><span class="grow"><strong>{{ machine.id === 'mac' ? 'La Mac' : 'El PC' }}</strong> · {{ machineSpec }}</span></div>
+      <div class="region-body console-body">
+        <template v-if="consoleTab === 'activity'">
+          <div v-for="(e, i) in activity" :key="i" class="log-line" :data-kind="e.kind"><span class="log-time">{{ hhmmss(e.at) }}</span><span class="log-text">{{ e.text }}</span></div>
+          <p v-if="!activity.length" class="console-empty">Todavía no pasó nada en esta sesión del servidor: acá queda cada actualización, lo que se mide y lo que se borra.</p>
+        </template>
+        <template v-else-if="consoleTab === 'machine'">
+          <template v-if="machineInfo">
+            <div class="log-line"><span class="log-key">Procesador</span><span class="log-text">{{ machineInfo.machine.cpu || '—' }}</span></div>
+            <div class="log-line"><span class="log-key">Memoria</span><span class="log-text">{{ gbOf(machineInfo.machine.ram) }} de RAM{{ machineInfo.machine.accel === 'mps' ? ', compartida con la GPU (memoria unificada)' : '' }}</span></div>
+            <div class="log-line"><span class="log-key">GPU</span><span class="log-text">{{ machineInfo.machine.gpu ? `${machineInfo.machine.gpu}${machineInfo.machine.accel === 'mps' ? '' : ` · ${gbOf(machineInfo.machine.vram)}`} · acelera con ${({ mps: 'Metal (MPS)', cuda: 'CUDA', cpu: 'CPU' })[machineInfo.machine.accel]}` : 'sin GPU para modelos: todo corre en la CPU' }}</span></div>
+            <div class="region-head group"><span>Motores para correr modelos</span></div>
+            <div v-for="e in machineInfo.engines" :key="e.id" class="log-line" :data-kind="e.ready === true ? 'ok' : e.ready === false ? 'warn' : 'info'">
+              <span class="log-key">{{ e.name }}</span><span class="log-text">{{ e.ready === true ? 'instalado' : e.ready === false ? 'falta' : 'no se puede saber desde acá' }}{{ e.hint ? ` · ${e.hint}` : '' }}</span>
+            </div>
+            <div class="region-head group"><span>Dónde se buscan los instalados</span></div>
+            <div v-for="r in machineInfo.roots" :key="r.path" class="log-line"><span class="log-key">{{ r.name }}</span><span class="log-text">{{ r.path }}</span></div>
+          </template>
+          <p v-else class="console-empty">Leyendo la máquina…</p>
+        </template>
+        <template v-else>
+          <div v-for="(n, i) in notices" :key="i" class="log-line notice" :data-kind="n.kind"><span class="log-key">{{ ({ error: 'error', warn: 'aviso', info: 'dato' })[n.kind] }}</span><span class="log-text">{{ n.text }}<span v-if="n.fix" class="log-fix">{{ n.fix }}</span></span></div>
+          <p v-if="!notices.length" class="console-empty">Nada pide atención: la semana está completa y con sus textos.</p>
+        </template>
+      </div>
+    </section>
+
     <aside v-show="shown.aux" class="auxiliarybar" aria-label="La ficha del modelo">
       <div class="rsz rsz-edge-left" v-resize="auxResize"></div>
       <div class="region-head"><span>Ficha</span><a v-if="selectedIdea" class="region-action" :href="selectedIdea.paper.url" target="_blank" rel="noopener" title="Abrir el paper" aria-label="Abrir el paper"><span class="ui-icon" data-icon="external" aria-hidden="true"></span></a><a v-else-if="selectedFav || (selected && view !== 'favorites' && !isResearch(view))" class="region-action" :href="hf(selectedFav?.id || selected.id)" target="_blank" rel="noopener" title="Abrir en Hugging Face" aria-label="Abrir en Hugging Face"><span class="ui-icon" data-icon="external" aria-hidden="true"></span></a></div>
@@ -504,7 +707,7 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); wi
         <div class="doc-section">Con qué máquina</div>
         <p class="doc-text">{{ selectedIdea.machine || 'No se publicó.' }}</p>
         <template v-if="selectedIdea.mac">
-          <div class="doc-section">En esta Mac</div>
+          <div class="doc-section">En la Mac</div>
           <p class="doc-text">{{ selectedIdea.mac }}</p>
         </template>
         <template v-if="selectedIdea.cheap">
@@ -536,8 +739,19 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); wi
         <dl>
           <dt>Tarea</dt><dd><span class="task" :class="`t-${topicOf(selectedFav.task)}`"><span class="ui-icon" :data-icon="taskIcon(selectedFav.task)" aria-hidden="true"></span>{{ selectedFav.task }}</span></dd>
           <dt>Tamaño</dt><dd>{{ params(selectedFav.params) }}</dd>
+          <!-- lo medido en Hugging Face: cuánto pesa lo que de verdad se baja -->
+          <template v-if="selectedFav.gguf?.length || selectedFav.storage">
+            <dt>En disco</dt><dd>{{ selectedFav.gguf?.length ? `${selectedFav.gguf.length === 1 ? 'un GGUF de' : `${selectedFav.gguf.length} GGUF, de`} ${bytes(selectedFav.gguf[0])}${selectedFav.gguf.length > 1 ? ` a ${bytes(selectedFav.gguf[selectedFav.gguf.length - 1])}` : ''}` : `${bytes(selectedFav.storage)} el repo entero` }}</dd>
+          </template>
+          <template v-if="selectedFav.here?.engine">
+            <dt>Se corre con</dt><dd>{{ selectedFav.here.engine.name }}<span v-if="selectedFav.here.engine.ready === true" class="engine ok"> · instalado en {{ machine.label }}</span><span v-else-if="selectedFav.here.engine.ready === false" class="engine missing"> · falta en {{ machine.label }}</span><span v-if="selectedFav.here.engine.hint" class="here-why">{{ selectedFav.here.engine.hint }}</span></dd>
+          </template>
           <dt>Licencia</dt><dd>{{ selectedFav.license || 'no la declara' }}</dd>
           <dt>En la Mac</dt><dd><span class="mac" :class="selectedFav.mac">{{ MAC[selectedFav.mac] }}</span></dd>
+          <!-- en el PC, además, lo que da acá: declarado si alguien lo probó, o la estimación por tamaño, dicha como tal -->
+          <template v-if="!onMac && selectedFav.here">
+            <dt>En el PC</dt><dd><span class="mac" :class="selectedFav.here.status">{{ HERE[selectedFav.here.status] }}</span><span class="here-why">{{ selectedFav.here.basis === 'estimated' ? 'Estimado, sin probar: ' : '' }}{{ selectedFav.here.why }}</span></dd>
+          </template>
           <dt>Guardado</dt><dd>{{ day(selectedFav.added) }}</dd>
         </dl>
         <div class="doc-section">Qué hace</div>
@@ -549,11 +763,11 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); wi
           <ul class="doc-list"><li v-for="i in selectedFav.ideas" :key="i">{{ i }}</li></ul>
         </template>
         <template v-if="selectedFav.tried">
-          <div class="doc-section">Lo que dio al probarlo</div>
+          <div class="doc-section">Lo que dio al probarlo{{ (selectedFav.triedIn || 'mac') !== machine.id ? ((selectedFav.triedIn || 'mac') === 'mac' ? ' en la Mac' : ' en el PC') : '' }}</div>
           <p class="doc-text">{{ selectedFav.tried }}</p>
         </template>
         <template v-if="favInstalled(selectedFav).length">
-          <div class="doc-section">Instalado en la Mac · {{ bytes(favBytes(selectedFav)) }}</div>
+          <div class="doc-section">Instalado en {{ machine.label }} · {{ bytes(favBytes(selectedFav)) }}</div>
           <template v-for="it in favInstalled(selectedFav)" :key="it.key">
             <div class="nav-row installed doc-installed" :class="{ asking: confirming === it.key }">
               <span class="ui-icon" :data-icon="KIND_ICON[it.kind]" aria-hidden="true"></span><span class="nav-name">{{ it.where }}</span><span class="count">{{ bytes(it.bytes) }}</span>
@@ -590,13 +804,17 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); wi
     </aside>
 
     <footer class="statusbar">
+      <!-- el detalle (el error del modelo de fondo, lo que faltó de la semana) vive en la consola: acá va lo corto -->
       <span v-if="apiError">{{ apiError }}</span>
+      <span v-else-if="refreshError">{{ refreshError }}</span>
       <span v-else-if="refreshing">actualizando la semana…</span>
-      <span v-else-if="data">Hugging Face al {{ clock(data.fetched) }} · se actualiza cada 6 h{{ data.writtenBy ? ` · textos de ${data.writtenBy === 'claude' ? 'Claude' : 'Gemini'}` : '' }}{{ data.writeError ? ` · ⚠ ${data.writeError}` : '' }}</span>
-      <button type="button" class="statusbar-item" :disabled="refreshing" title="Actualizar la semana ahora (lo hace solo cada 6 horas)" @click="refreshNow">Actualizar</button>
+      <span v-else-if="data">Hugging Face al {{ clock(data.fetched) }}{{ data.writtenBy ? ` · textos de ${data.writtenBy === 'claude' ? 'Claude' : 'Gemini'}` : '' }}</span>
+      <button v-if="notices.length" type="button" class="statusbar-item" :class="{ warn: noticeCount }" title="Ver los avisos en la consola" @click="openNotices">{{ notices.length }} {{ notices.length === 1 ? 'aviso' : 'avisos' }}</button>
+      <button type="button" class="statusbar-item" :disabled="refreshing" title="Actualizar la semana ahora (lo hace sola cada 6 horas)" @click="refreshNow">Actualizar</button>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
         <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
         <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Mostrar u ocultar las semanas" aria-label="Mostrar u ocultar las semanas" @click="toggle('sidebar', sidebarOpen)"><span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span></button>
+        <button type="button" class="region-action" :aria-pressed="!!shown.panel" title="Mostrar u ocultar la consola" aria-label="Mostrar u ocultar la consola" @click="togglePanel()"><span class="ui-icon" data-icon="console" aria-hidden="true"></span></button>
         <button type="button" class="region-action" :aria-pressed="!!shown.aux" title="Mostrar u ocultar la ficha" aria-label="Mostrar u ocultar la ficha" @click="toggle('aux', auxOpen)"><span class="ui-icon" data-icon="detail" aria-hidden="true"></span></button>
       </div>
     </footer>

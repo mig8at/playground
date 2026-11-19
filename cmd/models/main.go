@@ -1,4 +1,4 @@
-// models — los modelos de IA instalados en la Mac y qué herramienta usa cada uno, por consola (lib/models, el mismo
+// models — los modelos de IA instalados en esta máquina (la Mac o el PC) y qué herramienta usa cada uno, por consola (lib/models, el mismo
 // código que la sección «Instalados» de News). El registro de quién usa qué está en models/registry.json.
 //
 //	bin/models list [--json]                    lo instalado, con tamaño y quién lo usa
@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	"creditop/my-tools/lib/machine"
 	"creditop/my-tools/lib/models"
 )
 
@@ -149,7 +150,7 @@ func replace(root string, reg *models.Registry, roots models.Roots, args []strin
 	}
 	for _, f := range newFiles {
 		if !installed[f] {
-			fail(fmt.Errorf("%s no está instalado: el ganador tiene que estar en la Mac antes de reemplazar", f))
+			fail(fmt.Errorf("%s no está instalado: el ganador tiene que estar en %s antes de reemplazar", f, machine.Detect().Label))
 		}
 	}
 	today := time.Now().Format("2006-01-02")
@@ -198,7 +199,7 @@ func markFavorites(root, oldM, newM, tool, why, today string) error {
 			if reason != "" && !strings.HasSuffix(reason, ".") {
 				reason += "."
 			}
-			f["verdictWhy"] = strings.Join(strings.Fields(fmt.Sprintf("Superado por %s el %s en %s. %s Borrado de la Mac.", newM, today, tool, reason)), " ")
+			f["verdictWhy"] = strings.Join(strings.Fields(fmt.Sprintf("Superado por %s el %s en %s. %s Borrado de %s.", newM, today, tool, reason, machine.Detect().Label)), " ")
 			delete(f, "usedBy")
 			if f["triedOn"] == nil {
 				f["triedOn"] = today
