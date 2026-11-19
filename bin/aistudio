@@ -8,8 +8,14 @@
 #   bin/aistudio image --prompt '…' --out imagen.png [--aspect 1:1] [--json]
 root=$(cd "$(dirname "$0")/.." && pwd -P) || exit 1
 case "$1" in
+  # La ayuda no abre Chrome ni le pregunta nada a Gemini: es el encabezado de este archivo.
+  help|-h|--help) sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  # Sin argumentos: la ayuda, salvo que venga texto por stdin (`cat doc.md | bin/aistudio`), que es una pregunta.
+  "") if [ -t 0 ]; then sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'; exit 0; fi; recipe=ask ;;
   ask|speak|transcribe|image|usage) recipe=$1; shift ;;
   uso) recipe=usage; shift ;; # el nombre de antes
-  *) recipe=ask ;;
+  -*) recipe=ask ;;
+  # Una palabra suelta que no es una receta: antes caía en ask y se perdía en su mensaje de uso.
+  *) echo "aistudio: no conozco «$1» (ask · speak · transcribe · image · usage) · bin/aistudio help" >&2; exit 2 ;;
 esac
 exec node "$root/jarvis/recipes/aistudio/$recipe.ts" "$@"

@@ -55,6 +55,14 @@ bin/cockpit — manejar Cockpit por consola (y que se vea en su panel «Claude»
 Cada herramienta que usa Claude llega sola al panel (hook «cockpit»); say es para la intención y las conclusiones.`))
 		return 0
 	}
+	// Un comando que no existe se dice antes de buscar a Cockpit: con Cockpit cerrado contestaba «no está abierto»,
+	// que manda a abrir la app por un error de tipeo.
+	switch args[0] {
+	case "status", "apps", "open", "ensure", "restart", "say", "logs", "doctor", "session":
+	default:
+		fmt.Fprintf(os.Stderr, "cockpit: no conozco %q (bin/cockpit help)\n", args[0])
+		return 2
+	}
 	// logs no pasa por Cockpit: lee el archivo, así sirve también con Cockpit cerrado o con la app caída.
 	if args[0] == "logs" {
 		return logs(args[1:])

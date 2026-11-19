@@ -972,14 +972,26 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 func main() {
 	// La consola (cli.go): `sentinel now|day|signal|deploy …`. Va antes de los flags del servidor.
-	if len(os.Args) > 1 && cliCommands[os.Args[1]] {
-		root, err := os.Getwd()
-		if err == nil {
-			if r := os.Getenv("MY_TOOLS_ROOT"); r != "" {
-				root = r
+	// Lo que no es un comando NO arranca el servidor: antes `sentinel help` o un comando mal escrito levantaban la API
+	// y se quedaban colgados (un agente que pide ayuda no espera un servicio). El servidor sólo sale con sus flags
+	// (`-serve`, `-once`, `-install`…), que es como lo llaman make, Cockpit y el LaunchAgent.
+	if len(os.Args) > 1 {
+		switch a := os.Args[1]; {
+		case a == "help" || a == "-h" || a == "--help" || a == "-help":
+			fmt.Println(cliHelp)
+			os.Exit(0)
+		case cliCommands[a]:
+			root, err := os.Getwd()
+			if err == nil {
+				if r := os.Getenv("MY_TOOLS_ROOT"); r != "" {
+					root = r
+				}
 			}
+			os.Exit(runCLI(root, os.Args[1:]))
+		case !strings.HasPrefix(a, "-"):
+			fmt.Fprintln(os.Stderr, unknownCommand(a))
+			os.Exit(2)
 		}
-		os.Exit(runCLI(root, os.Args[1:]))
 	}
 	serve := flag.String("serve", "127.0.0.1:5211", "dónde escucha la API (sólo 127.0.0.1)")
 	every := flag.Duration("every", 5*time.Minute, "cada cuánto pide lo que falta")
@@ -994,7 +1006,13 @@ func main() {
 	plain := flag.Bool("plain", false, "con -chronos: sin la covariable de fines de semana y festivos")
 	which := flag.String("forecaster", "timestral", "con -chronos: qué modelo pronostica (timestral, por defecto desde el 2026-11-19 · chronos)")
 	only := flag.String("signals", "", "con -backtest: sólo estas señales, separadas por coma; acepta * («service:*,logs:*,lender:24»)")
+	serverFlags := flag.Bool("flags", false, "lista estos flags del servidor y sale")
 	flag.Parse()
+	if *serverFlags {
+		flag.CommandLine.SetOutput(os.Stdout)
+		flag.PrintDefaults()
+		return
+	}
 	root, err := os.Getwd()
 	if err != nil {
 		log.Fatal(err)

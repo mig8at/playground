@@ -92,9 +92,19 @@ func takeTabFlag(argv []string) []string {
 func main() {
 	os.Args = takeTabFlag(translateLegacy(os.Args))
 	if len(os.Args) < 2 {
-		usage()
+		help(os.Stdout)
+		return
 	}
 	cmd, args := os.Args[1], os.Args[2:]
+	// La ayuda y un comando que no existe se contestan ANTES de todo: ni aviso al panel ni levantar la API por Cockpit
+	// (antes `--help` y un comando mal escrito esperaban a que arrancara Jarvis para recién decir que no era eso).
+	switch {
+	case cmd == "help" || cmd == "--help" || cmd == "-h":
+		help(os.Stdout)
+		return
+	case !known(cmd):
+		unknownCommand(cmd)
+	}
 	// En una sesión de Claude desde la conversación, cada comando aparece en el panel de la interfaz (si no hay
 	// sesión abierta, el servidor lo ignora). Dentro de ask no: sus eventos ya van por su propio canal.
 	inSession := cmd != "ask" && cmd != "start" && cmd != "chrome" && cmd != "think" && cmd != "finish" && cmd != "docs" && cmd != "recipe" && os.Getenv("JARVIS_ASK") == "" && os.Getenv("JARVIS_EVENTS") == ""
@@ -103,7 +113,7 @@ func main() {
 	}
 	// Si la API de Jarvis está apagada (la app oculta en Cockpit, o nadie la abrió), se levanta sola antes de pedirle
 	// nada. `docs` y `recipe` no la usan.
-	if cmd != "docs" && cmd != "recipe" && cmd != "receta" && cmd != "help" {
+	if cmd != "docs" && cmd != "recipe" && cmd != "receta" {
 		ensureUp()
 	}
 	var err error
@@ -211,8 +221,6 @@ func main() {
 		err = call(http.MethodDelete, "/api/live/steps", nil, nil)
 	case "close":
 		err = call(http.MethodPost, "/api/live/stop", nil, nil)
-	case "help", "--help", "-h":
-		usage()
 	default:
 		unknownCommand(cmd)
 	}
@@ -225,8 +233,27 @@ func main() {
 	}
 }
 
+// usage: faltó un argumento. La ayuda va a stderr y sale 2; pedida (`help`), va a stdout y sale 0.
 func usage() {
-	fmt.Fprintln(os.Stderr, `uso: bin/jarvis <comando>
+	help(os.Stderr)
+	os.Exit(2)
+}
+
+// known: ¿main entiende este comando? `receta` es el nombre de antes de recipe.
+func known(cmd string) bool {
+	if cmd == "receta" {
+		return true
+	}
+	for _, c := range commands {
+		if c == cmd {
+			return true
+		}
+	}
+	return false
+}
+
+func help(w io.Writer) {
+	fmt.Fprintln(w, `uso: bin/jarvis <comando>
   ua iphone|reset|'<agente>'   la pestaña se presenta con otro agente (en tu Chrome, para el wizard «como celular»); después, reload
   open <url> (en tu Chrome, con Jarvis) · look [--all | --search texto] · close
   click <n> · dblclick <n> · hover <n> · fill <n> <valor> · check <n> · uncheck <n> · select <n> <valor>
@@ -244,7 +271,6 @@ func usage() {
   project <id> '<nombre>' <url>   un proyecto con nombre propio para un sitio real (sus flujos van a jarvis/flows/<id>)
   steps · script · report [meta] · reset
   ask [--url URL] [--steps 40] [--answer R] [--guide] "<meta>"   Claude maneja la sesión hasta cumplir la meta`)
-	os.Exit(2)
 }
 
 // commands son los comandos que entiende main (los de antes, en castellano, se traducen al entrar: legacy.go). Sólo

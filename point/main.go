@@ -92,7 +92,12 @@ func main() {
 			rest = append(rest, a)
 		}
 	}
+	const usage = "uso: bin/point <imagen> '<pregunta>' [--box] [--mark marcada.png] [--json]   ·   bin/point status   ·   bin/point stop"
 	switch {
+	case len(rest) == 0 || rest[0] == "help" || rest[0] == "-h" || rest[0] == "--help":
+		// La ayuda pedida sale por stdout con 0 (antes 2, como un error). Sale 3 cuando lo pedido no está en la captura.
+		fmt.Println(usage)
+		fmt.Println("  dice el punto en píxeles donde tocar; sale 3 si lo pedido no está en la pantalla. Local, sin red.")
 	case len(rest) == 1 && rest[0] == "serve":
 		serve()
 	case len(rest) == 1 && rest[0] == "status":
@@ -102,7 +107,10 @@ func main() {
 	case len(rest) == 2:
 		os.Exit(locate(rest[0], rest[1], o))
 	default:
-		fmt.Fprintln(os.Stderr, "uso: bin/point <imagen> '<pregunta>' [--box] [--mark marcada.png] [--json]   ·   bin/point status   ·   bin/point stop")
+		if len(rest) == 1 {
+			fmt.Fprintf(os.Stderr, "point: no conozco «%s», o falta la pregunta\n", rest[0])
+		}
+		fmt.Fprintln(os.Stderr, usage)
 		os.Exit(2)
 	}
 }
