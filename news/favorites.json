@@ -1045,5 +1045,75 @@
     "ideas": [
       "Animar un personaje de Office con un video tuyo"
     ]
+  },
+  {
+    "id": "StarpowerTechnology/WVY-Blender-5m",
+    "group": "tiny",
+    "task": "text-generation",
+    "params": 5250000,
+    "license": "no la declara",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Un modelo de lenguaje de 5,25 MILLONES de parámetros, entrenado desde cero, que convierte una descripción («un cohete despegando de noche») en una escena 3D animada y editable en Blender: geometría, materiales, cuadros clave, luces y cámara. Se le puede pedir cambios sobre la escena hecha.",
+    "why": "21 MB para animar en 3D: el mismo patrón que Taiga-S1 (un modelo minúsculo que maneja una herramienta), aplicado a la animación. Sus autores arman modelos chicos para herramientas creativas.",
+    "ideas": [
+      "Una animación corta para una presentación, desde una frase"
+    ]
+  },
+  {
+    "id": "minishlab/blink-8M",
+    "group": "tiny",
+    "task": "feature-extraction",
+    "params": 7700000,
+    "license": "mit",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Embeddings estáticos en inglés: una sola tabla de 30.000 × 256 (7,7 M de parámetros, 31 MB) y un promedio, sin transformer. Convierte un texto en un vector para buscar por significado.",
+    "why": "Órdenes de magnitud más rápido que un modelo de embeddings normal, porque no calcula nada: busca en la tabla. Sus autores dicen que le gana a todos los de su tamaño y a veces a modelos mucho más grandes.",
+    "ideas": [
+      "Ponerlo contra Qwen3-Embedding en las mismas 20 preguntas de knowledge (sólo inglés, ojo)"
+    ]
+  },
+  {
+    "id": "Cactus-Compute/whistle",
+    "group": "tiny",
+    "task": "automatic-speech-recognition",
+    "params": null,
+    "license": "apache-2.0",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Transcribe voz con tiempos por palabra y saca embeddings de voz, en siete idiomas (español incluido), en un modelo de 16,9 MB.",
+    "why": "Whisper large-v3-turbo del chat pesa 574 MB; éste, 34 veces menos. Tiene demo en el navegador.",
+    "ideas": [
+      "Ponerlo contra el Whisper del dictado del chat con audios en español"
+    ]
+  },
+  {
+    "id": "nvidia/Nemotron-3.5-Parse",
+    "group": "specialist",
+    "task": "image-text-to-text",
+    "params": 630800504,
+    "license": "openmdw-1.1",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Convierte páginas de documentos en información estructurada: texto, tablas, datos de gráficos, orden de lectura, tipo de cada bloque y su caja, en Markdown, HTML o JSON. Para escaneos, PDFs, presentaciones y formularios.",
+    "why": "Va más allá del OCR: entiende la estructura (qué es tabla, qué es título, qué número está en el gráfico). 0,63 B, uso comercial permitido.",
+    "ideas": [
+      "Ponerlo contra Indra OCR en la misma página con una tabla"
+    ]
+  },
+  {
+    "id": "nvidia/strata",
+    "group": "gpu",
+    "task": "other",
+    "params": null,
+    "license": "openmdw-1.1",
+    "mac": "no",
+    "added": "2026-11-19",
+    "what": "Un modelo del clima de todo el planeta a escala de kilómetros: predice la atmósfera en 3D paso a paso, imitando una simulación que resuelve tormentas.",
+    "why": "Lo que antes pedía una supercomputadora, aproximado por un modelo que avanza por pedazos del globo en una GPU.",
+    "ideas": [
+      "Ver su demo"
+    ]
   }
 ]
