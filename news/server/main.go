@@ -200,8 +200,16 @@ func (s *server) refresh(ctx context.Context) (*Week, error) {
 		s.note("info", "la lista no cambió: se conservan los textos")
 	} else {
 		s.note("info", "pidiendo los textos al modelo de fondo")
+		// Cada tanda dice cuál fue: «los papers: el modelo no devolvió JSON» se arregla reintentando, y antes el aviso no
+		// decía cuál y culpaba a la sesión aunque la otra tanda hubiera salido bien (2026-11-19).
 		errM := writeModels(ctx, s.root, w)
+		if errM != nil {
+			errM = fmt.Errorf("los modelos: %w", errM)
+		}
 		errP := writePapers(ctx, s.root, w)
+		if errP != nil {
+			errP = fmt.Errorf("los papers: %w", errP)
+		}
 		if err := errors.Join(errM, errP); err != nil {
 			w.WriteError = firstLine(err.Error())
 			s.note("warn", "sin textos nuevos: "+w.WriteError)

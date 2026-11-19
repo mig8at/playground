@@ -291,7 +291,15 @@ const notices = computed(() => {
   const out = []
   if (apiError.value) out.push({ kind: 'error', text: apiError.value, fix: 'Levantala con `make news`.' })
   if (refreshError.value) out.push({ kind: 'error', text: refreshError.value })
-  if (data.value?.writeError) out.push({ kind: 'warn', text: `Los textos de la semana no se escribieron: ${data.value.writeError}`, fix: 'El modelo de fondo necesita sesión; sin él la portada muestra los datos de Hugging Face sin el «qué hace».' })
+  // El consejo sale del ERROR: sólo uno de sesión pide iniciarla. «No devolvió JSON» o un plazo vencido se arreglan
+  // pidiéndolo de nuevo, y la semana lo reintenta sola en la próxima actualización (no conserva un texto con error).
+  if (data.value?.writeError) {
+    const e = data.value.writeError
+    const session = /sesi[oó]n|login|credencial|token|expir|unauthori|forbidden|\b40[13]\b/i.test(e)
+    out.push({ kind: 'warn', text: `Una parte de los textos de la semana no se escribió: ${e}`,
+      fix: session ? 'El modelo de fondo necesita sesión (Cockpit → engranaje → Modelo); sin él, lo que falta se ve con los datos de Hugging Face, sin el texto.'
+        : 'Tocá «Actualizar» para pedirlo de nuevo; si no, se reintenta solo en la próxima actualización (cada 6 h). Mientras, quedan los textos de la vez anterior.' })
+  }
   for (const w of data.value?.fetchWarnings || []) out.push({ kind: 'warn', text: `La semana quedó incompleta: ${w}`, fix: 'Tocá «Actualizar» para volver a leer.' })
   for (const [k, e] of Object.entries(sectionError.value)) if (e) out.push({ kind: 'error', text: `No se pudo leer ${({ favorites: 'los favoritos', research: 'la investigación', installed: 'lo instalado' })[k]}: ${e}` })
   // MLX fuera de Apple Silicon no es algo que falte instalar: no va como aviso (lo dice la ficha de cada modelo)
@@ -383,7 +391,7 @@ onBeforeUnmount(() => { maximizeBinding?.destroy?.(); document.removeEventListen
            el alto y scrollean por separado, y una cerrada ocupa una fila (no desaparece). Antes era una sola lista
            larga: para llegar a Investigación había que pasar por todo lo demás. -->
       <div class="rsz rsz-edge-right" v-resize="sidebarResize"></div>
-      <section class="view wb-bloque" :class="{ open: isViewOpen('week') }">
+      <section class="view wb-bloque week" :class="{ open: isViewOpen('week') }">
         <div class="region-head">
           <button type="button" class="view-tog" :aria-expanded="isViewOpen('week')" @click="toggleView('week')">
             <span class="ui-icon chev" data-icon="chevron" aria-hidden="true"></span><span>Semana</span>
@@ -430,7 +438,7 @@ onBeforeUnmount(() => { maximizeBinding?.destroy?.(); document.removeEventListen
         <div v-if="isViewOpen('installed')" class="region-body">
         <template v-for="it in installed" :key="it.key">
           <div class="nav-row installed" :class="{ muted: removing === it.key, asking: confirming === it.key }" :title="`${it.name} · ${it.where}${it.usedBy ? ` · lo usa ${it.usedBy}` : ''}`">
-            <span class="ui-icon" :data-icon="KIND_ICON[it.kind]" aria-hidden="true"></span><button type="button" class="nav-name installed-name" :disabled="!favOfInstalled(it)" @click="pickInstalled(it)">{{ it.name.split('/').pop() }}</button><span v-if="it.tools?.length" class="in-use" :title="`Lo usa ${it.usedBy}`">{{ it.tools.join(', ') }}</span><span class="count">{{ removing === it.key ? 'borrando…' : bytes(it.bytes) }}</span>
+            <span class="ui-icon" :data-icon="KIND_ICON[it.kind]" aria-hidden="true"></span><span class="installed-text"><button type="button" class="nav-name installed-name" :disabled="!favOfInstalled(it)" @click="pickInstalled(it)">{{ it.name.split('/').pop() }}</button><span class="installed-meta"><span v-if="it.tools?.length" class="in-use" :title="`Lo usa ${it.usedBy}`">{{ it.tools.join(', ') }}</span><span class="count">{{ removing === it.key ? 'borrando…' : bytes(it.bytes) }}</span></span></span>
             <button type="button" class="region-action trash" :disabled="removing === it.key" :title="`Borrar ${it.name}`" :aria-label="`Borrar ${it.name}`" @click="removeInstalled(it)"><span class="ui-icon" data-icon="trash" aria-hidden="true"></span></button>
           </div>
           <div v-if="confirming === it.key" class="confirm-row">

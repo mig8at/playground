@@ -149,8 +149,19 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 .group-count { margin-left: auto; text-transform: none; letter-spacing: 0; font-variant-numeric: tabular-nums }
 .nav-row.installed { cursor: default }
 .nav-row.installed .count { font-variant-numeric: tabular-nums }
-.nav-row.installed .trash { flex: none; width: 22px; height: 22px; margin-right: -4px; opacity: .45 }
+/* LA PAPELERA APARECE AL PASAR (como en VS Code), encima del tamaño: fija le quitaba al nombre 30 px y en una barra de 240
+   los nombres quedaban en «Qwen…». Con el teclado aparece al enfocarla, y mientras pregunta queda a la vista. */
+.nav-row.installed { position: relative }
+.nav-row.installed .trash { position: absolute; right: var(--space-1); top: 50%; translate: 0 -50%; width: 22px; height: 22px; opacity: 0;
+  background: var(--hover); border-radius: var(--radius-sm) }
 .nav-row.installed:hover .trash, .nav-row.installed .trash:focus-visible { opacity: 1 }
+/* El nombre manda: la etiqueta de la herramienta cede primero (su nombre entero va en el tooltip). */
+/* DOS RENGLONES: el nombre entero arriba y, abajo, quién lo usa y cuánto pesa. En uno solo competían los cuatro y salían
+   «Qwen…» y «kno…». */
+.nav-row.installed { padding-block: 5px }
+.installed-text { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto }
+.installed-meta { display: flex; gap: var(--space-2); min-width: 0; line-height: 1.3 }
+.nav-row.installed .in-use { overflow: hidden; text-overflow: ellipsis }
 .nav-row.installed .trash:hover { color: var(--destructive) }
 .nav-row.installed.asking .trash { opacity: 1; color: var(--destructive) }
 .confirm-row { margin: 2px var(--space-2) var(--space-2) calc(var(--space-2) + 4px); padding: var(--space-2) var(--space-3); font-size: var(--text-xs);
@@ -244,8 +255,17 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 .sidebar.en-bloques .view > .region-head .count { margin-left: auto }
 /* «Instalados» suele ser corta (o estar vacía): mide lo que tiene, hasta un tercio, en vez de llevarse un cuarto del
    alto con una sola fila; las otras tres se reparten el resto */
-.sidebar.en-bloques .view.open.fit { flex: 0 1 auto; max-height: 34% }
+.sidebar.en-bloques .view.open.fit { flex: 0 1 auto; max-height: 28% }
 .sidebar.en-bloques .view > .region-head .region-actions { margin-left: var(--space-1) }
+/* LAS ABIERTAS TOMAN LO QUE TIENEN y ceden lo que sobra (2026-11-19): con `flex: 1 1 0` de la base se repartían el alto en
+   partes iguales y «Semana», con diez filas, quedaba en tres y media con la última cortada por la mitad. Ahora la base es
+   su contenido: la corta entra entera y la larga es la que se achica, con un piso de cuatro filas. Lo que no entra se
+   DESVANECE abajo (en el relleno, así una que entra no pierde su última fila): se lee como «sigue», no como un corte. */
+.sidebar.en-bloques .view.open:not(.fit) { flex: 1 1 auto; min-height: calc(var(--view-head-h, 36px) + 4 * 30px) }
+/* «Semana» es la navegación principal: es la que MENOS se achica (sus temas son lo que más se toca). */
+.sidebar.en-bloques .view.open.week { flex-shrink: .2 }
+.sidebar.en-bloques .view.open > .region-body { padding-bottom: 16px;
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 16px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 16px), transparent) }
 
 /* LA CONSOLA: renglones de log de la base. El color del renglón sale de su tipo (un tinte de tinta, no una caja); las
    claves de «Esta máquina» y «Avisos» van en una columna de ancho fijo para que el texto quede alineado. */
