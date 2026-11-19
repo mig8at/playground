@@ -58,6 +58,8 @@ var usedBy = map[string]string{
 	"whisper:ggml-large-v3-turbo-q5_0": "el dictado del chat",
 	"hub:amazon/chronos-2":             "Sentinel -chronos",
 	"env:chronos":                      "Sentinel -chronos",
+	"hub:mistralai/Timestral-5M":       "Sentinel -forecaster timestral",
+	"env:timestral":                    "Sentinel -forecaster timestral",
 }
 
 // dirSize suma los archivos de una carpeta sin seguir enlaces.

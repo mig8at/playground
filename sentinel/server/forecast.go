@@ -27,8 +27,21 @@ const (
 	chronosMinDaily    = 200 // sin -signals: las señales de conteo con al menos esto por día, en promedio
 )
 
-// los cuantiles que se piden: 0,5 % y 99,5 % son «alerta»; 2 % y 98 %, «para mirar»; 10 % y 90 %, para medir la calibración.
-var chronosQuantiles = []float64{0.005, 0.02, 0.1, 0.5, 0.9, 0.98, 0.995}
+// los cuantiles que se piden: 1 % y 99 % son «alerta»; 5 % y 95 %, «para mirar»; 10 % y 90 %, para medir la calibración.
+// Son los que da Timestral (21 fijos, de 1 % a 99 %), así los dos pronosticadores se comparan con las mismas bandas;
+// hasta el 2026-11-19 Chronos usaba 0,5/2/98/99,5 %.
+var chronosQuantiles = []float64{0.01, 0.05, 0.1, 0.5, 0.9, 0.95, 0.99}
+
+// forecaster: un modelo de pronóstico con su venv y su script (mismo protocolo JSON por stdin y stdout).
+type forecaster struct{ name, label, venv, script string }
+
+var forecasters = map[string]forecaster{
+	"chronos":   {"chronos", "Chronos-2", "chronos/venv", "chronos.py"},
+	"timestral": {"timestral", "Timestral-5M", "timestral/.venv", "timestral.py"},
+}
+
+// active: el pronosticador de esta corrida (-forecaster); Chronos si no se dice.
+var active = forecasters["chronos"]
 
 func countSignal(sig Signal) bool {
 	switch kindOf(sig) {
@@ -77,13 +90,13 @@ type chronosReply struct {
 	Seconds float64       `json:"seconds"`
 }
 
-// chronosForecast manda los contextos a forecast/chronos.py (en su venv) y devuelve, por contexto, los cuantiles de
+// chronosForecast manda los contextos al script del pronosticador activo (en su venv) y devuelve, por contexto, los cuantiles de
 // la hora siguiente.
 func chronosForecast(root string, contexts, rests [][]float64) (*chronosReply, error) {
 	home, _ := os.UserHomeDir()
-	py := filepath.Join(home, ".cache", "my-tools", "chronos", "venv", "bin", "python")
+	py := filepath.Join(home, ".cache", "my-tools", active.venv, "bin", "python")
 	if _, err := os.Stat(py); err != nil {
-		return nil, fmt.Errorf("falta el venv de Chronos en %s", py)
+		return nil, fmt.Errorf("falta el venv de %s en %s", active.label, py)
 	}
 	series := make([][]any, len(contexts))
 	for i, c := range contexts {
@@ -100,13 +113,13 @@ func chronosForecast(root string, contexts, rests [][]float64) (*chronosReply, e
 		req["rest"] = rests
 	}
 	body, _ := json.Marshal(req)
-	cmd := exec.Command(py, "-I", filepath.Join(root, "sentinel", "forecast", "chronos.py"))
+	cmd := exec.Command(py, "-I", filepath.Join(root, "sentinel", "forecast", active.script))
 	cmd.Stdin = bytes.NewReader(body)
 	var out, errb bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &errb
 	if err := cmd.Run(); err != nil {
 		lines := strings.Split(strings.TrimSpace(errb.String()), "\n")
-		return nil, fmt.Errorf("chronos: %v: %s", err, lines[len(lines)-1])
+		return nil, fmt.Errorf("%s: %v: %s", active.name, err, lines[len(lines)-1])
 	}
 	var r chronosReply
 	if err := json.Unmarshal(out.Bytes(), &r); err != nil {
@@ -253,7 +266,7 @@ func printChronos(s *sentinel, days int, patterns []string, plain bool) {
 }
 
 func reportChronos(hours []shadowHour, sigs []Signal, days int, reply *chronosReply, took time.Duration, plain bool) {
-	// calibración: si el rango sirve, el 80 % de las horas cae entre p10 y p90 y el 96 % entre p2 y p98.
+	// calibración: si el rango sirve, el 80 % de las horas cae entre p10 y p90 y el 90 % entre p5 y p95.
 	in80, in96, n := 0, 0, 0
 	for _, h := range hours {
 		n++
@@ -265,14 +278,14 @@ func reportChronos(hours []shadowHour, sigs []Signal, days int, reply *chronosRe
 		}
 	}
 	pct := func(a, b int) string { return fmt.Sprintf("%.0f %%", 100*float64(a)/float64(max(b, 1))) }
-	fmt.Printf("Chronos-2 contra Sentinel, últimos %d días: %d señales de conteo, %d horas (%s en %s, %s en total)\n",
-		days, len(sigs), n, reply.Device, time.Duration(reply.Seconds*float64(time.Second)).Round(time.Second), took.Round(time.Second))
+	fmt.Printf("%s contra Sentinel, últimos %d días: %d señales de conteo, %d horas (%s en %s, %s en total)\n",
+		active.label, days, len(sigs), n, reply.Device, time.Duration(reply.Seconds*float64(time.Second)).Round(time.Second), took.Round(time.Second))
 	if plain {
 		fmt.Println("sin la covariable de fines de semana y festivos (-plain)")
 	} else {
 		fmt.Println("con la covariable de fines de semana y festivos")
 	}
-	fmt.Printf("calibración del rango: entre p10 y p90 cayó el %s (debería ~80 %%); entre p2 y p98, el %s (~96 %%)\n\n", pct(in80, n), pct(in96, n))
+	fmt.Printf("calibración del rango: entre p10 y p90 cayó el %s (debería ~80 %%); entre p5 y p95, el %s (~90 %%)\n\n", pct(in80, n), pct(in96, n))
 
 	// episodios: horas seguidas marcadas de la misma señal cuentan como uno.
 	type ep struct {
@@ -330,8 +343,8 @@ func reportChronos(hours []shadowHour, sigs []Signal, days int, reply *chronosRe
 	ruleWarns, ruleWarnsShared := count(rules, levelWarn)
 	fmt.Println("episodios (horas seguidas de una señal = uno)        alerta   para mirar")
 	fmt.Printf("  Sentinel (sus reglas)                               %4d       %4d\n", ruleAlerts, ruleWarns)
-	fmt.Printf("    de esos, Chronos también marcó algo               %4d       %4d\n", ruleAlertsShared, ruleWarnsShared)
-	fmt.Printf("  Chronos (fuera del rango 0,5–99,5 / 2–98)           %4d       %4d\n", chrAlerts, chrWarns)
+	fmt.Printf("    de esos, el modelo también marcó algo             %4d       %4d\n", ruleAlertsShared, ruleWarnsShared)
+	fmt.Printf("  %-18s (fuera del rango 1–99 / 5–95)     %4d       %4d\n", active.label, chrAlerts, chrWarns)
 	fmt.Printf("    de esos, Sentinel también marcó algo              %4d       %4d\n\n", chrAlertsShared, chrWarnsShared)
 
 	// por día: hábil o de descanso, que es lo que Sentinel ya sabe y Chronos no.
@@ -356,7 +369,7 @@ func reportChronos(hours []shadowHour, sigs []Signal, days int, reply *chronosRe
 		}
 	}
 	sort.Strings(dates)
-	fmt.Println("horas marcadas por día            Sentinel  Chronos  los dos")
+	fmt.Printf("horas marcadas por día            Sentinel  %-7s  los dos\n", strings.SplitN(active.label, "-", 2)[0])
 	for _, d := range dates {
 		t, _ := time.ParseInLocation("2006-01-02", d, bogota)
 		kind := "hábil"
@@ -387,7 +400,7 @@ func reportChronos(hours []shadowHour, sigs []Signal, days int, reply *chronosRe
 				continue
 			}
 			h := x.worst
-			fmt.Printf("  %-22s %-30s hubo %s; Chronos esperaba %s (rango %s–%s)\n", span(x),
+			fmt.Printf("  %-22s %-30s hubo %s; esperaba %s (rango %s–%s)\n", span(x),
 				x.sig, fmtNum(h.actual), fmtNum(h.q[3]), fmtNum(h.q[0]), fmtNum(h.q[6]))
 			if shown++; shown == 20 {
 				break
@@ -397,15 +410,15 @@ func reportChronos(hours []shadowHour, sigs []Signal, days int, reply *chronosRe
 			fmt.Println("  ninguna")
 		}
 	}
-	show("alertas de Chronos que Sentinel no marcó (las primeras 20):", chr, true)
-	fmt.Println("\nalertas de Sentinel que Chronos no marcó:")
+	show("alertas de "+active.label+" que Sentinel no marcó (las primeras 20):", chr, true)
+	fmt.Println("\nalertas de Sentinel que " + active.label + " no marcó:")
 	shown := 0
 	for _, x := range rules {
 		if x.level < levelAlert || x.other >= levelWarn {
 			continue
 		}
 		h := x.worst
-		fmt.Printf("  %-22s %-30s hubo %s; Chronos esperaba %s (rango %s–%s)\n", span(x),
+		fmt.Printf("  %-22s %-30s hubo %s; esperaba %s (rango %s–%s)\n", span(x),
 			x.sig, fmtNum(h.actual), fmtNum(h.q[3]), fmtNum(h.q[0]), fmtNum(h.q[6]))
 		shown++
 	}

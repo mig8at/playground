@@ -332,7 +332,7 @@ Un modelo de pronóstico de series (`amazon/chronos-2`, Apache 2.0, 478 MB), pro
 modelos de lenguaje no se especializan: dar el rango en que debería caer cada hora. **No decide nada**: `go run
 ./sentinel/server -chronos 7` pronostica cada hora de los últimos 7 días desde las 4 semanas anteriores y cruza lo
 que habría marcado contra lo que marcó Sentinel (`-plain`, sin la covariable de fines de semana y festivos;
-`-signals`, como el backtest). Corre en la Mac (MPS) desde su venv, `~/.cache/my-tools/chronos/venv`
+`-signals`, como el backtest; `-forecaster timestral`, con Timestral-5M en vez de Chronos-2). Corre en la Mac (MPS) desde su venv, `~/.cache/my-tools/chronos/venv`
 (`chronos-forecasting` 2.3.2, ~1,1 GB con torch); el modelo queda en la caché de Hugging Face. Sólo señales de CONTEO
 (solicitudes, errores, líneas): las de tasa se evalúan como proporción. Con los mismos pisos de magnitud que las reglas.
 
@@ -349,6 +349,22 @@ Medido el 2026-11-18, 22 señales con ≥ 200 por día, 4.114 horas, ~1 min (28 
   contra 31 esperadas: alerta falsa, igual que un domingo. Sentinel, que compara con días comparables, no lo marcó.
 
 Lectura: no reemplaza las reglas; podría sumar las ráfagas de errores que el techo esconde. Sin integrar a las pasadas.
+
+**Timestral-5M contra Chronos-2** (`-forecaster timestral`, 2026-11-19): el pronosticador de Mistral de 5 M de parámetros
+(`mistralai/Timestral-5M`; código de github.com/mistralai/timestral en `~/.cache/my-tools/timestral/.venv`; script
+`forecast/timestral.py`, el mismo protocolo). Da 21 cuantiles fijos, así que las dos corridas usan desde entonces las mismas
+bandas: alerta fuera de 1–99 %, «para mirar» fuera de 5–95 %. Mismos 7 días, 22 señales, 3.894 horas:
+
+| | Timestral-5M | Chronos-2 |
+|---|---|---|
+| calibración p10–p90 (debería 80 %) · p5–p95 (90 %) | **81 % · 90 %** | 72 % · 85 % |
+| alertas · «para mirar» | 10 · **49** | 10 · 68 |
+| la alerta falsa del festivo del 16/11 a las 8 h | no la da | la da |
+| tiempo | 12 s en CPU | 26 s en la GPU |
+
+Los dos ven las mismas ráfagas de preapprovals-service (224 errores el 18/11 a las 17 h, 36 el 19/11 a las 3 h) y el pico
+de errores del front (109 el 18/11), y ninguno ve un servicio que se calla. Timestral marcó la madrugada del festivo (2
+solicitudes contra 7,7). Si algún día se integra un pronosticador, es éste: igual de útil, mejor calibrado y 24 veces más chico.
 
 ## Lo que ya costó
 

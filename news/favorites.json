@@ -806,7 +806,7 @@
   },
   {
     "id": "mistralai/Timestral-5M",
-    "group": "tiny",
+    "group": "tried",
     "task": "time-series-forecasting",
     "params": 5000000,
     "license": "propia de Mistral (other)",
@@ -816,7 +816,16 @@
     "why": "Chronos-2 tiene 120 M; éste, 24 veces menos. Si pronostica parecido, se podría correr en cada pasada de Sentinel sin notarlo. Mistral lo evalúa en GIFT-Eval.",
     "ideas": [
       "Ponerlo contra Chronos-2 en la misma comparación de Sentinel (-chronos)"
-    ]
+    ],
+    "triedOn": "2026-11-19",
+    "verdict": "keep",
+    "verdictWhy": "Igual de útil que Chronos-2 en Sentinel, mejor calibrado, menos ruido y sin la alerta falsa del festivo; 24 veces más chico.",
+    "usedBy": "Sentinel -chronos -forecaster timestral",
+    "installed": [
+      "env:timestral",
+      "hub:mistralai/Timestral-5M"
+    ],
+    "tried": "2026-11-19, en la comparación en sombra de Sentinel, los mismos 7 días, 22 señales y 3.894 horas que Chronos-2, con las mismas bandas (alerta fuera de 1–99 %, «para mirar» fuera de 5–95 %) y la covariable de fines de semana y festivos. Calibración: 81 % de las horas entre p10 y p90 (debería 80) y 90 % entre p5 y p95 (debería 90); Chronos-2, 72 % y 85 %. Alertas: 10 cada uno; «para mirar», 49 contra 68. Los dos ven las ráfagas de errores de preapprovals-service (224 el 18/11 a las 17 h, 36 el 19/11 a las 3 h) y el pico de errores del front (109 el 18/11). Timestral NO dio la alerta falsa del festivo del 16/11 a las 8 h que dio Chronos, pero marcó la madrugada de ese festivo (2 solicitudes contra 7,7). Ninguno ve los servicios que se callan. 12 s en CPU contra 26 s de Chronos en la GPU."
   },
   {
     "id": "google/timesfm-3.0-pytorch",

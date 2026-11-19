@@ -992,6 +992,7 @@ func main() {
 	fresh := flag.Bool("fresh", false, "con -backtest: antes, una pasada contra producción (lo de los últimos minutos; tarda y pide la VPN)")
 	chronos := flag.Int("chronos", 0, "Chronos-2 en modo sombra: su rango hora por hora contra lo que marcó Sentinel en los últimos N días, y sale (lee lo guardado)")
 	plain := flag.Bool("plain", false, "con -chronos: sin la covariable de fines de semana y festivos")
+	which := flag.String("forecaster", "chronos", "con -chronos: qué modelo pronostica (chronos · timestral)")
 	only := flag.String("signals", "", "con -backtest: sólo estas señales, separadas por coma; acepta * («service:*,logs:*,lender:24»)")
 	flag.Parse()
 	root, err := os.Getwd()
@@ -1034,6 +1035,11 @@ func main() {
 	// PostHog y GitHub) y pasaba de 10 minutos. Con -fresh, la hace igual.
 	if *chronos > 0 {
 		s.loadLast()
+		f, ok := forecasters[*which]
+		if !ok {
+			log.Fatalf("sentinel: -forecaster %q no existe (chronos · timestral)", *which)
+		}
+		active = f
 		printChronos(s, *chronos, splitPatterns(*only), *plain)
 		return
 	}
