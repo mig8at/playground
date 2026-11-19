@@ -4475,11 +4475,23 @@
         renderChannelChoice.retry = setTimeout(() => { if (!$('tabStart').hidden) renderStage(); }, 500);
         return;
       }
-      // SIN ASESOR DE PRUEBA EN ESTE AMBIENTE, PRIMERO SE CREA: los canales no se muestran hasta que exista. Se ofrece
-      // crearlo acá mismo y, creado y medido de nuevo el ambiente, la pregunta vuelve con los canales.
+      // SIN ASESOR DE PRUEBA EN ESTE AMBIENTE, SÓLO EL CANAL ASESOR LO NECESITA (2026-11-19). Antes la pregunta no mostraba
+      // NINGÚN canal hasta crearlo, y Finandina en qa —que corre por autogestión, sin asesor— no se podía abrir. Ahora los
+      // canales salen como siempre; «Asesor» apagado con el motivo, y al lado se ofrece crearlo.
       const e = entryOf(t.slug);
       const noAdvisor = e?.readiness && !e.readiness.advisor && target !== 'local' && e.allied_id;
-      $('tabStartDesc').textContent = noAdvisor ? `No tiene asesor de prueba en ${target}. Creálo para elegir el canal.` : '¿Por qué canal entra esta corrida?';
+      $('tabStartDesc').textContent = noAdvisor ? `¿Por qué canal entra esta corrida? Sin asesor de prueba en ${target}, el canal Asesor espera a que lo crees.` : '¿Por qué canal entra esta corrida?';
+      for (const c of CHANNEL_ORDER) {
+        const real = document.querySelector(`#channelOptions button[data-c="${c}"]`);
+        if (!real || real.hidden) continue;
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'btn btn-outline btn-sm'; b.textContent = CHANNEL_LONG[c] || c;
+        const needsAdvisor = noAdvisor && c === 'asesor';
+        b.disabled = real.disabled || needsAdvisor;
+        b.title = needsAdvisor ? `No tiene asesor de prueba en ${target}: crealo con el botón de al lado.` : (real.title || '');
+        b.onclick = () => pickChannel(t, c);
+        box.appendChild(b);
+      }
       if (noAdvisor) {
         const mk = document.createElement('button');
         mk.type = 'button'; mk.className = 'btn btn-sm'; mk.textContent = 'Crear asesor de prueba';
@@ -4491,16 +4503,6 @@
           renderStage();
         };
         box.appendChild(mk);
-        return;
-      }
-      for (const c of CHANNEL_ORDER) {
-        const real = document.querySelector(`#channelOptions button[data-c="${c}"]`);
-        if (!real || real.hidden) continue;
-        const b = document.createElement('button');
-        b.type = 'button'; b.className = 'btn btn-outline btn-sm'; b.textContent = CHANNEL_LONG[c] || c;
-        b.disabled = real.disabled; b.title = real.title || '';
-        b.onclick = () => pickChannel(t, c);
-        box.appendChild(b);
       }
     }
 
