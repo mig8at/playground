@@ -80,6 +80,7 @@ const refreshEvery = 6 * time.Hour
 
 type server struct {
 	root, dir string
+	roots     roots // dónde se buscan los modelos instalados
 	mu        sync.Mutex
 	busy      bool
 	lastErr   string
@@ -95,7 +96,7 @@ func main() {
 		wd, _ := os.Getwd()
 		root = wd
 	}
-	s := &server{root: root, dir: filepath.Join(root, "news", ".data", "weeks")}
+	s := &server{root: root, dir: filepath.Join(root, "news", ".data", "weeks"), roots: defaultRoots()}
 	if *once {
 		w, err := s.refresh(context.Background())
 		if err != nil {
@@ -324,6 +325,7 @@ func (s *server) routes() *http.ServeMux {
 		writeJSON(w, 202, map[string]bool{"ok": true})
 	})
 	s.favoritesRoute(mux)
+	s.installedRoutes(mux)
 	return mux
 }
 

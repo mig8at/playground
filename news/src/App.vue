@@ -23,9 +23,30 @@ async function api(path, opts) {
 }
 const routeKey = () => decodeURIComponent(location.hash.replace(/^#\/?/, ''))
 const favorites = ref([])
+// Los modelos instalados en la Mac (caché de Hugging Face, GGUF de llama-server y entornos), con su tamaño.
+const installed = ref([])
+const installedBytes = ref(0)
+const loadInstalled = () => api('/api/installed').then((r) => { installed.value = r.installed; installedBytes.value = r.bytes }).catch(() => {})
+const KIND_ICON = { hub: 'download', gguf: 'server', env: 'code' }
+// Borrar se confirma en la misma fila (el primer toque pregunta, el segundo borra): los diálogos del navegador no
+// siempre aparecen dentro de la ventana de Cockpit.
+const removing = ref('')
+const confirming = ref('')
+const removeError = ref('')
+async function removeInstalled(it) {
+  if (confirming.value !== it.key) { confirming.value = it.key; removeError.value = ''; return }
+  confirming.value = ''
+  removing.value = it.key
+  try {
+    await api(`/api/installed?key=${encodeURIComponent(it.key)}`, { method: 'DELETE', headers: { 'X-News': '1' } })
+  } catch (e) { removeError.value = `No se pudo borrar ${it.name}: ${e.message}` }
+  removing.value = ''
+  loadInstalled()
+}
 async function load() {
   try {
     api('/api/favorites').then((r) => { favorites.value = r.favorites }).catch(() => {})
+    loadInstalled()
     if (routeKey() === 'favorites') view.value = 'favorites'
     const list = await api('/api/weeks')
     weeks.value = list.weeks
@@ -110,6 +131,7 @@ const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', '
 const day = (iso) => { if (!iso) return '—'; const [, m, d] = iso.split('-').map(Number); return `${d} ${months[m - 1]}` }
 const num = (n) => (n ?? 0).toLocaleString('es-CO')
 const short = (n) => (n >= 1e6 ? `${(n / 1e6).toLocaleString('es-CO', { maximumFractionDigits: 1 })} M` : n >= 1e3 ? `${(n / 1e3).toLocaleString('es-CO', { maximumFractionDigits: 1 })} mil` : num(n))
+const bytes = (n) => (n >= 1e9 ? `${(n / 1e9).toLocaleString('es-CO', { maximumFractionDigits: 1 })} GB` : n >= 1e6 ? `${Math.round(n / 1e6)} MB` : `${Math.max(1, Math.round(n / 1e3))} KB`)
 const params = (n) => (!n ? 'no lo declara' : n >= 1e9 ? `${(n / 1e9).toLocaleString('es-CO', { maximumFractionDigits: 1 })} B parámetros` : `${(n / 1e6).toLocaleString('es-CO', { maximumFractionDigits: 0 })} M parámetros`)
 const weekLabel = computed(() => (data.value ? `${day(data.value.from)} al ${day(data.value.to)}` : ''))
 const papers = computed(() => data.value?.papers || [])
@@ -177,6 +199,19 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); wi
         <button v-for="g in FAV_GROUPS.filter((x) => favCount(x.id))" :key="g.id" type="button" class="nav-row sub" :class="{ on: view === 'favorites' && favGroup === g.id }" @click="openFavorites(g.id)">
           <span class="ui-icon" :data-icon="g.icon" aria-hidden="true"></span><span class="nav-name">{{ g.name }}</span><span class="count">{{ favCount(g.id) }}</span>
         </button>
+        <div class="group-label">Instalados<span v-if="installed.length" class="group-count">{{ bytes(installedBytes) }}</span></div>
+        <template v-for="it in installed" :key="it.key">
+          <div class="nav-row installed" :class="{ muted: removing === it.key, asking: confirming === it.key }" :title="`${it.name} · ${it.where}${it.usedBy ? ` · lo usa ${it.usedBy}` : ''}`">
+            <span class="ui-icon" :data-icon="KIND_ICON[it.kind]" aria-hidden="true"></span><span class="nav-name">{{ it.name.split('/').pop() }}</span><span class="count">{{ removing === it.key ? 'borrando…' : bytes(it.bytes) }}</span>
+            <button type="button" class="region-action trash" :disabled="removing === it.key" :title="`Borrar ${it.name}`" :aria-label="`Borrar ${it.name}`" @click="removeInstalled(it)"><span class="ui-icon" data-icon="trash" aria-hidden="true"></span></button>
+          </div>
+          <div v-if="confirming === it.key" class="confirm-row">
+            <span>¿Borrar {{ it.name }}? Libera {{ bytes(it.bytes) }}. {{ it.usedBy ? `Lo usa ${it.usedBy}: deja de andar hasta volver a bajarlo.` : 'Se puede volver a bajar.' }}</span>
+            <span class="confirm-actions"><button type="button" class="danger" @click="removeInstalled(it)">Borrar</button><button type="button" @click="confirming = ''">Cancelar</button></span>
+          </div>
+        </template>
+        <div v-if="removeError" class="confirm-row error">{{ removeError }}</div>
+        <div v-if="!installed.length" class="nav-row muted"><span class="ui-icon" data-icon="box" aria-hidden="true"></span><span class="nav-name">Ningún modelo en la Mac</span></div>
         <div class="group-label">Semanas</div>
         <a v-for="w in weeks" :key="w.key" class="nav-row" :class="{ on: data?.key === w.key && view !== 'favorites' }" :href="`#/${w.key}`" @click="view === 'favorites' && (view = 'cover')">
           <span class="ui-icon" data-icon="clock" aria-hidden="true"></span><span class="nav-name">Semana {{ w.number }}</span><span class="count">{{ day(w.from) }} al {{ day(w.to) }}</span>

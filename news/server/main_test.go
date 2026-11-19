@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -56,5 +58,50 @@ func TestFavoritesFileIsValid(t *testing.T) {
 	}
 	if len(favs) == 0 {
 		t.Fatal("favorites.json vacío")
+	}
+}
+
+// Los instalados: los GGUF se agrupan con su proyector, un blob compartido no se borra con uno solo de sus dueños, y
+// nada fuera de las raíces se puede borrar.
+func TestInstalledScanAndRemove(t *testing.T) {
+	tmp := t.TempDir()
+	r := roots{hub: filepath.Join(tmp, "hub"), mine: filepath.Join(tmp, "mine")}
+	write := func(p string, n int) {
+		os.MkdirAll(filepath.Dir(p), 0o755)
+		os.WriteFile(p, make([]byte, n), 0o644)
+	}
+	write(filepath.Join(r.mine, "models", "Foo-4B-Instruct-Q4_K_M.gguf"), 100)
+	write(filepath.Join(r.mine, "models", "mmproj-Foo-4B-Instruct-Q8_0.gguf"), 10)
+	write(filepath.Join(r.mine, "tool", ".venv", "bin", "python"), 5)
+	write(filepath.Join(r.mine, "chat", "x"), 5) // sin venv: no es un modelo
+	write(filepath.Join(r.hub, "blobs", "shared"), 50)
+	write(filepath.Join(r.hub, "blobs", "own"), 20)
+	for _, m := range []string{"models--a--x", "models--b--y"} {
+		os.MkdirAll(filepath.Join(r.hub, m, "snapshots", "1"), 0o755)
+		os.Symlink(filepath.Join(r.hub, "blobs", "shared"), filepath.Join(r.hub, m, "snapshots", "1", "w"))
+	}
+	os.Symlink(filepath.Join(r.hub, "blobs", "own"), filepath.Join(r.hub, "models--a--x", "snapshots", "1", "v"))
+
+	got := map[string]int64{}
+	for _, it := range scanInstalled(r) {
+		got[it.Key] = it.Bytes
+	}
+	if got["gguf:Foo-4B-Instruct"] != 110 || got["env:tool"] != 5 || got["hub:a/x"] != 70 || got["hub:b/y"] != 50 || len(got) != 4 {
+		t.Fatalf("%v", got)
+	}
+	if _, err := removeInstalled(r, "hub:a/x"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(r.hub, "blobs", "shared")); err != nil {
+		t.Fatal("borró un blob que también usa b/y")
+	}
+	if _, err := os.Stat(filepath.Join(r.hub, "blobs", "own")); !os.IsNotExist(err) {
+		t.Fatal("no borró el blob propio de a/x")
+	}
+	if _, err := removeInstalled(r, "env:../../etc"); err == nil {
+		t.Fatal("una clave que no está en la lista no se borra")
+	}
+	if r.inside(r.mine) || r.inside("/etc/passwd") || !r.inside(filepath.Join(r.mine, "tool")) {
+		t.Fatal("inside")
 	}
 }

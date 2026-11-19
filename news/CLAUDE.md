@@ -28,6 +28,21 @@ licencia, si corre en la Mac, qué hace, por qué es interesante, ideas y, si lo
 - Para sumar uno: agregarlo al archivo con su `group` (`tried`, `voice`, `music`, `odd`, `tiny`, `detect`, `create`,
   `specialist`, `gpu`); la interfaz lo toma al recargar.
 
+## Los instalados
+
+En el sidebar, «Instalados» lista lo que hay en la Mac de los modelos que probamos, con su tamaño y una papelera (el
+primer toque pregunta en la misma fila y el segundo borra: los diálogos del navegador no siempre aparecen dentro de
+Cockpit). Sale de tres lugares, siempre los mismos (`server/installed.go`):
+
+- la caché de Hugging Face (`$HF_HUB_CACHE`, `$HF_HOME/hub` o `~/.cache/huggingface/hub`): un modelo por carpeta, con el
+  tamaño de los blobs a los que apuntan sus snapshots. Un blob que comparten dos modelos no se borra con uno solo;
+- los GGUF de `~/.cache/my-tools/models` (llama-server), agrupados por modelo: el peso y su proyector juntos;
+- los entornos: cada carpeta de `~/.cache/my-tools` con un venv (el código y las librerías de algo que se probó).
+
+`DELETE /api/installed?key=…` sólo borra una clave que salió de esa misma lista, sólo dentro de esas carpetas, y pide el
+encabezado `X-News: 1` (una página de otro origen no puede mandarlo sin preguntar). Lo que usa otra herramienta lo dice
+antes de borrar (`usedBy`: Qwen3-VL-4B es de `bin/point`; Chronos, de Sentinel). Borrar no se deshace: se vuelve a bajar.
+
 ## Cómo lo arma
 
 - **La semana es la ISO**, de lunes a domingo. La de hoy se actualiza **cada 6 horas** mientras el servidor corre (y al
@@ -58,4 +73,5 @@ licencia, si corre en la Mac, qué hace, por qué es interesante, ideas y, si lo
 | traer la semana de Hugging Face | `server/hf.go` |
 | los textos con el modelo de fondo | `server/write.go` |
 | los favoritos: el archivo y su ruta | `favorites.json` · `server/favorites.go` |
+| los instalados: buscarlos, medirlos y borrarlos | `server/installed.go` (prueba con carpetas falsas en `main_test.go`) |
 | la interfaz | `src/App.vue` · `src/style.css`, con la base de `tools/ui` (`make style-sync`); los colores de cada tema son propios (`--t-*`) |
