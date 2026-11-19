@@ -87,3 +87,27 @@ func TestResumeRequeuesTheFailedStep(t *testing.T) {
 		t.Fatalf("pasos: package %s · triage %s", r.step("package").State, r.step("triage").State)
 	}
 }
+
+// Se borran las frenadas y las falladas; las que pasaron no (están atadas a un commit). Y un número borrado no se reusa.
+func TestDeleteRunAndNumbers(t *testing.T) {
+	dir := t.TempDir()
+	f := &flow{runs: &runStore{dir: dir + "/runs"}}
+	for id, st := range map[int]string{1: stPassed, 2: stFailed, 3: stStopped} {
+		f.runs.save(&Run{ID: id, State: st})
+	}
+	if f.deleteRun(1) == nil {
+		t.Fatal("una que pasó no se borra")
+	}
+	if err := f.deleteRun(2); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.deleteRun(3); err != nil {
+		t.Fatal(err)
+	}
+	if n := f.runs.next(); n != 2 {
+		t.Fatalf("después de la #1 sigue la #2: %d", n)
+	}
+	if n := f.runs.next(); n != 3 {
+		t.Fatalf("la #2 ya se dio: %d", n)
+	}
+}

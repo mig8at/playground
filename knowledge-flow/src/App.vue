@@ -27,6 +27,29 @@ async function load() {
     run.value = id ? await api(`/api/runs/${id}`) : null
   } catch { apiError.value = 'No contesta la API. ¿Está arriba? (make knowledge-flow, o make knowledge-flow-install para que corra de fondo)' }
 }
+// Borrar: el primer toque pregunta en la misma línea y el segundo borra (los diálogos del navegador no siempre salen
+// dentro de Cockpit). Sólo las frenadas y las falladas: las que pasaron están atadas a un commit.
+const confirming = ref('')
+const deleteError = ref('')
+const canDelete = (r) => r && (r.state === 'failed' || r.state === 'stopped')
+async function deleteRun(id) {
+  if (confirming.value !== `run-${id}`) { confirming.value = `run-${id}`; deleteError.value = ''; return }
+  confirming.value = ''
+  try {
+    await api(`/api/runs/${id}`, { method: 'DELETE', headers: { 'X-Knowledge': '1' } })
+    if (routeId.value === id) location.hash = ''
+    await load()
+  } catch (e) { deleteError.value = e.message }
+}
+async function cleanSuperseded() {
+  if (confirming.value !== 'clean') { confirming.value = 'clean'; deleteError.value = ''; return }
+  confirming.value = ''
+  try {
+    await api('/api/runs/clean', { method: 'POST', headers: { 'X-Knowledge': '1' } })
+    if (runs.value.find((r) => r.id === routeId.value)?.superseded) location.hash = ''
+    await load()
+  } catch (e) { deleteError.value = e.message }
+}
 async function lookNow() { try { await api('/api/look', { method: 'POST' }); setTimeout(load, 800) } catch { /* lo dice el pie */ } }
 
 function readRoute() {
@@ -206,6 +229,10 @@ onBeforeUnmount(() => {
         <button v-if="hiddenCount" type="button" class="run-row more" @click="showAll = !showAll">
           <span class="run-title">{{ showAll ? 'Ocultar las superadas' : `Ver todas (${hiddenCount} ${hiddenCount === 1 ? 'superada oculta' : 'superadas ocultas'})` }}</span>
         </button>
+        <button v-if="hiddenCount" type="button" class="run-row more" :class="{ asking: confirming === 'clean' }" @click="cleanSuperseded">
+          <span class="run-title">{{ confirming === 'clean' ? `¿Borrar las ${hiddenCount}? Tocá de nuevo para confirmar` : `Borrar las superadas (${hiddenCount})` }}</span>
+        </button>
+        <p v-if="deleteError" class="banner is-stop" style="margin: var(--space-2)">{{ deleteError }}</p>
         <div v-if="state && !runs.length" class="empty">
           <div class="empty-head">
             <div class="empty-title">Sin corridas</div>
@@ -219,6 +246,11 @@ onBeforeUnmount(() => {
       <div class="region-head">
         <span>{{ run ? `Corrida #${run.id}` : 'Knowledge' }}</span>
         <span v-if="run" class="count">{{ stepCount }} de {{ run.steps.length }} pasos</span>
+        <template v-if="canDelete(run)">
+          <button v-if="confirming === `run-${run.id}`" type="button" class="btn btn-sm danger-btn" @click="deleteRun(run.id)">Borrar la #{{ run.id }}</button>
+          <button v-if="confirming === `run-${run.id}`" type="button" class="btn btn-sm btn-outline" @click="confirming = ''">Cancelar</button>
+          <button v-else type="button" class="region-action" title="Borrar esta corrida (no pasó: no hay nada que perder)" :aria-label="`Borrar la corrida #${run.id}`" @click="deleteRun(run.id)"><span class="ui-icon" data-icon="trash" aria-hidden="true"></span></button>
+        </template>
       </div>
       <div class="region-body">
         <template v-if="run">

@@ -33,6 +33,11 @@ o en cola. La ruta es `#/run/<n>`.
 - **La lista esconde lo superado** (Miguel, 2026-11-19: «que no quede ese ruido»): una corrida frenada o fallada queda
   «superada» cuando después pasó otra y ninguno de sus temas sigue viejo; «Ver todas» la muestra. No se borra del disco:
   es la pista si algo vuelve a fallar. Lo que sí pide algo (frenada o fallada con temas todavía viejos) sigue a la vista.
+  La última mirada se guarda (`.data/look.json`): después de un reinicio, las superadas se esconden sin esperar a mirar.
+- **Se pueden borrar** las frenadas y las falladas (Miguel, 2026-11-19: «para mantenerlo limpio»): la papelera de la
+  cabecera de la corrida (el primer toque pregunta en la línea, el segundo borra) y «Borrar las superadas (N)» abajo de
+  la lista (`DELETE /api/runs/{id}` · `POST /api/runs/clean`, con el encabezado `X-Knowledge: 1`). **Las que pasaron no
+  se borran**: cada una está atada a un commit de `knowledge/`. Un número borrado no se reusa (`.data/last-run`).
 - **La mirada a main se ve**: mientras trae los clones y comprueba (~5 min, sobre todo el `check` de ~1.300 fuentes),
   el sidebar y la biblioteca dicen «Mirando main» con su animación y cuánto lleva (`lookingSince`).
 - **Aplica solo** (decisión de Miguel, 2026-11-18) si la verificación sale limpia, y **commitea** lo aplicado por ruta

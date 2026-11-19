@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -133,11 +134,22 @@ func (s *runStore) ids() []int {
 	return out
 }
 
+// next: el número de la próxima corrida. Nunca reusa uno: si se borró la última, la que sigue no toma su número
+// (el mayor que hubo queda en .data/last-run).
 func (s *runStore) next() int {
+	last := 0
 	if ids := s.ids(); len(ids) > 0 {
-		return ids[0] + 1
+		last = ids[0]
 	}
-	return 1
+	mark := filepath.Join(filepath.Dir(s.dir), "last-run")
+	if raw, err := os.ReadFile(mark); err == nil {
+		if n, err := strconv.Atoi(strings.TrimSpace(string(raw))); err == nil && n > last {
+			last = n
+		}
+	}
+	_ = os.MkdirAll(filepath.Dir(mark), 0o755)
+	_ = os.WriteFile(mark, []byte(strconv.Itoa(last+1)), 0o644)
+	return last + 1
 }
 
 // step: el paso por id.

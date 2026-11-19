@@ -95,6 +95,7 @@ func main() {
 	}
 	f := &flow{root: root, runs: &runStore{dir: filepath.Join(root, "knowledge-flow", ".data", "runs")}, wake: make(chan struct{}, 1)}
 	f.recover()
+	f.loadLook()
 	f.once = *once
 	if *once {
 		f.cycle()
@@ -114,6 +115,33 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/state", f.state)
 	mux.HandleFunc("GET /api/runs/{id}", f.getRun)
+	mux.HandleFunc("DELETE /api/runs/{id}", func(w http.ResponseWriter, r *http.Request) {
+		if !guard(w, r) {
+			return
+		}
+		id, _ := strconv.Atoi(r.PathValue("id"))
+		if err := f.deleteRun(id); err != nil {
+			writeJSON(w, 409, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(w, 200, map[string]int{"deleted": id})
+	})
+	// Borra de una vez todas las superadas.
+	mux.HandleFunc("POST /api/runs/clean", func(w http.ResponseWriter, r *http.Request) {
+		if !guard(w, r) {
+			return
+		}
+		f.mu.Lock()
+		look := f.look
+		f.mu.Unlock()
+		var deleted []int
+		for id, ok := range f.superseded(look) {
+			if ok && f.deleteRun(id) == nil {
+				deleted = append(deleted, id)
+			}
+		}
+		writeJSON(w, 200, map[string]any{"deleted": deleted})
+	})
 	mux.HandleFunc("POST /api/look", func(w http.ResponseWriter, _ *http.Request) {
 		select {
 		case f.wake <- struct{}{}:
@@ -186,6 +214,9 @@ func (f *flow) cycle() {
 			f.look.Error = err.Error()
 		}
 		f.mu.Unlock()
+		if err == nil {
+			f.saveLook()
+		}
 		if err != nil || len(changes) == 0 {
 			return
 		}
@@ -425,39 +456,101 @@ func (f *flow) state(w http.ResponseWriter, _ *http.Request) {
 			}
 		}
 	}
-	// Una corrida frenada o fallada queda SUPERADA cuando después pasó otra y ninguno de sus temas sigue viejo: ya no
-	// pide nada, y la interfaz la esconde (Miguel, 2026-11-19: «que no quede ese ruido»). No se borra: es la pista si
-	// algo vuelve a fallar.
-	stale := map[string]bool{}
-	for _, c := range look.Changes {
-		stale[c.Topic] = true
-	}
+	superseded := f.superseded(look)
 	var runs []Summary
-	laterPassed := false
 	for _, id := range f.runs.ids() {
 		if len(runs) >= 40 {
 			break
 		}
+		if r, err := f.runs.load(id); err == nil {
+			sum := r.summary()
+			sum.Superseded = superseded[id]
+			runs = append(runs, sum)
+		}
+	}
+	model := background.Chosen()
+	writeJSON(w, 200, map[string]any{"look": look, "runs": runs, "running": current != nil, "model": model, "every": lookEvery.Minutes()})
+}
+
+// superseded: las corridas frenadas o falladas que ya no piden nada: después pasó otra y ninguno de sus temas sigue
+// viejo en la última mirada (Miguel, 2026-11-19: «que no quede ese ruido»). Sin ninguna mirada todavía, ninguna.
+func (f *flow) superseded(look Look) map[int]bool {
+	out := map[int]bool{}
+	if look.At == "" {
+		return out
+	}
+	stale := map[string]bool{}
+	for _, c := range look.Changes {
+		stale[c.Topic] = true
+	}
+	laterPassed := false
+	for _, id := range f.runs.ids() {
 		r, err := f.runs.load(id)
 		if err != nil {
 			continue
 		}
-		sum := r.summary()
-		if (r.State == stFailed || r.State == stStopped) && laterPassed && look.At != "" {
-			sum.Superseded = true
+		if (r.State == stFailed || r.State == stStopped) && laterPassed {
+			out[id] = true
 			for _, t := range r.Topics {
 				if stale[t] {
-					sum.Superseded = false
+					out[id] = false
 				}
 			}
 		}
 		if r.State == stPassed {
 			laterPassed = true
 		}
-		runs = append(runs, sum)
 	}
-	model := background.Chosen()
-	writeJSON(w, 200, map[string]any{"look": look, "runs": runs, "running": current != nil, "model": model, "every": lookEvery.Minutes()})
+	return out
+}
+
+// lookPath: la última mirada, guardada, para que un reinicio sepa qué está viejo antes de volver a mirar.
+func (f *flow) lookPath() string { return filepath.Join(filepath.Dir(f.runs.dir), "look.json") }
+
+func (f *flow) saveLook() {
+	f.mu.Lock()
+	raw, _ := json.Marshal(f.look)
+	f.mu.Unlock()
+	_ = os.WriteFile(f.lookPath(), raw, 0o644)
+}
+
+func (f *flow) loadLook() {
+	raw, err := os.ReadFile(f.lookPath())
+	if err != nil {
+		return
+	}
+	var l Look
+	if json.Unmarshal(raw, &l) == nil {
+		l.Looking, l.Since, l.Waiting, l.Queued = false, "", "", nil
+		f.look = l
+	}
+}
+
+// deleteRun borra una corrida frenada o fallada (la carpeta entera: su run.json y lo de drift). Las que pasaron no:
+// cada una está atada a un commit de knowledge/ y es el rastro de qué cambió y por qué. La que corre, tampoco.
+func (f *flow) deleteRun(id int) error {
+	f.mu.Lock()
+	running := f.running != nil && f.running.ID == id
+	f.mu.Unlock()
+	r, err := f.runs.load(id)
+	switch {
+	case err != nil:
+		return fmt.Errorf("no existe la corrida #%d", id)
+	case running || r.State == stRunning:
+		return fmt.Errorf("la corrida #%d está corriendo", id)
+	case r.State == stPassed:
+		return fmt.Errorf("la corrida #%d pasó y está atada a un commit: no se borra", id)
+	}
+	return os.RemoveAll(filepath.Dir(f.runs.path(id)))
+}
+
+// guard: lo que borra pide el encabezado X-Knowledge (una página de otro origen no puede mandarlo sin preguntar).
+func guard(w http.ResponseWriter, r *http.Request) bool {
+	if r.Header.Get("X-Knowledge") != "1" {
+		writeJSON(w, 403, map[string]string{"error": "falta el encabezado X-Knowledge"})
+		return false
+	}
+	return true
 }
 
 func (f *flow) getRun(w http.ResponseWriter, r *http.Request) {
