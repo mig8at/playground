@@ -1273,5 +1273,103 @@
     "ideas": [
       "Ver cómo arma una respuesta de código de golpe"
     ]
+  },
+  {
+    "id": "nvidia/NVIDIA-NemotronLabs-RE-USE",
+    "group": "tiny",
+    "task": "audio-to-audio",
+    "params": 9600000,
+    "license": "openmdw-1.1",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Arregla audio de voz arruinado: ruido, eco, saturación, banda angosta (de teléfono), artefactos de códec, paquetes perdidos y micrófonos malos, en varios idiomas, conservando la voz de la persona.",
+    "why": "9,6 MILLONES de parámetros para restaurar voz de todo tipo de daño. Se puede poner antes de un transcriptor para que una nota de voz de WhatsApp o una llamada se entienda mejor.",
+    "ideas": [
+      "Limpiar un audio malo y ver si Whisper transcribe mejor después"
+    ]
+  },
+  {
+    "id": "gertelrina/aadd",
+    "group": "detect",
+    "task": "audio-classification",
+    "params": null,
+    "license": "mit",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Detecta 12 tipos de daño en una grabación de voz, cada 20 ms: ruido de fondo, música, eco, saturación, banda angosta, códec, paquetes perdidos, zumbido eléctrico, clics y más. Dice qué daño y dónde.",
+    "why": "El diagnóstico antes del arreglo: dice si vale la pena limpiar un audio y qué tiene. Trae CLI y API de Python.",
+    "ideas": [
+      "Junto a RE-USE: detectar qué tiene un audio y limpiarlo sólo si hace falta"
+    ]
+  },
+  {
+    "id": "pipecat-ai/voice-reader",
+    "group": "detect",
+    "task": "audio-classification",
+    "params": null,
+    "license": "bsd-2-clause",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Un modelo chico en CPU que oye CÓMO suena una persona: tono, sarcasmo, energía, risa y velocidad al hablar, y lo escribe como una nota al principio del mensaje que le llega a un modelo de lenguaje.",
+    "why": "Le agrega a un asistente de voz lo que se pierde al transcribir: si el «sí, claro» fue sarcástico. Experimental, sus autores dicen que son pistas, no veredictos.",
+    "ideas": [
+      "Sumar el tono al dictado del chat, como una marca al lado del texto"
+    ]
+  },
+  {
+    "id": "laion/clap2-large-audioxl-s1B",
+    "group": "specialist",
+    "task": "feature-extraction",
+    "params": 340000000,
+    "license": "apache-2.0",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Pone audios y textos en el mismo espacio de significado: busca sonidos con palabras («perro ladrando», «teclado») y clasifica audio sin entrenar. Acepta audio de cualquier largo. Familia de 27 M a 340 M.",
+    "why": "Lo que CLIP hizo con imágenes, para el sonido, con licencia Apache. Hay tamaños chicos.",
+    "ideas": [
+      "Ordenar una carpeta de audios por lo que suena en ellos"
+    ]
+  },
+  {
+    "id": "thaitea/laya-vision",
+    "group": "detect",
+    "task": "visual-question-answering",
+    "params": 201000000,
+    "license": "cc-by-nc-sa-4.0 (no comercial)",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Decisiones tipadas sobre una imagen en una sola pasada, sin generar texto: opción múltiple, sí/no con probabilidad o un nivel en una escala que escribís vos. 201 M (SmolVLM recortado).",
+    "why": "La versión visual de Laya, diez veces más chica que d1-2B. La encontró un bucle de autoinvestigación automática en 2 horas de entrenamiento.",
+    "ideas": [
+      "¿Esta captura del wizard muestra un error?, en milisegundos"
+    ]
+  },
+  {
+    "id": "tomaarsen/TinyCLIP-39M-PixelArt",
+    "group": "tiny",
+    "task": "sentence-similarity",
+    "params": 80000000,
+    "license": "apache-2.0",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Un CLIP chiquito afinado para pixel art: busca sprites con palabras y los ordena por parecido.",
+    "why": "El compañero de Tessera: uno genera los sprites y éste los encuentra o elige el mejor de cuatro.",
+    "ideas": [
+      "Que Tessera genere 8 versiones y TinyCLIP elija la que más se parece a la idea"
+    ]
+  },
+  {
+    "id": "hyz317/HairDeck",
+    "group": "create",
+    "task": "image-to-3d",
+    "params": null,
+    "license": "apache-2.0",
+    "mac": "unknown",
+    "added": "2026-11-19",
+    "what": "De una sola imagen de un personaje saca su pelo en 3D como «tarjetas» estilizadas, con colores y los huesos que lo animan, y lo exporta en GLB o en un avatar VRM.",
+    "why": "El pelo es de lo más difícil de modelar y animar en 3D; esto lo hace desde un dibujo.",
+    "ideas": [
+      "Pelo para los personajes de Office"
+    ]
   }
 ]
