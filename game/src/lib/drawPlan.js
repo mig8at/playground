@@ -148,7 +148,13 @@ export function drawWorldStage(canvas,bp,opts){return drawIslaStage(canvas,bp,op
 // El plano de una casa armada del monte, en su lugar: la huella (3–4) y, desde la 6, los cuartos y las paredes del piso
 // pedido; 7, puertas y ventanas; 8, los muebles.
 const houseCache=new WeakMap();
-export function drawHouse(g,c,{stage,level}){let P=houseCache.get(c);if(!P){P=planHouse(c.spec);houseCache.set(c,P);}
+// (los modelos de las casas, llevados al mueble del plano que les corresponde, para dibujarlos con su símbolo)
+const MODELO={Bed_King:'cama',Bed_Single:'cama_s',C2_Bed:'cama_s',Couch_Medium2:'sofa',C2_SofaDouble:'sofa',Couch_Small2:'sillon',C2_Sofa:'sillon',Kitchen_Fridge:'nevera',Kitchen_Oven:'estufa',
+ Kitchen_Sink:'lavamanos',Kitchen_2Drawers:'comoda',Kitchen_Cabinet1:'comoda',Table_RoundSmall:'mesa',C2_CoffeeTable:'mesa_centro',Shelf_1:'estante',Bookshelf:'estante',C2_BookCaseBooks:'estante',
+ NightStand_1:'mesa_noche',Drawer_1:'comoda',Bathroom_Toilet:'inodoro',Bathroom_Sink:'lavamanos',Bathroom_Shower1:'ducha',C2_Lamp:'lampara',C2_Closet:'armario',C2_Closet2:'armario',C2_ChairCushioned:'silla'};
+// px: los píxeles por metro a los que se está dibujando (el contexto viene en metros): desde 4 los muebles van con su
+// símbolo y desde 16 cada cuarto lleva su nombre.
+export function drawHouse(g,c,{stage,level,px=1}){let P=houseCache.get(c);if(!P){P=planHouse(c.spec);houseCache.set(c,P);}
  g.save();g.translate(c.x,c.z);g.rotate(-(c.ry||0));
  g.fillStyle='#efe2c4';g.fillRect(-P.w/2,-P.d/2,P.w,P.d);
  if(stage>=6){const two=P.rooms.length>1&&P.rooms.some(r=>r.y0>1),lv=two&&level>=1?1:0,y0=lv?FLOOR0+FH:FLOOR0;
@@ -160,9 +166,16 @@ export function drawHouse(g,c,{stage,level}){let P=houseCache.get(c);if(!P){P=pl
   g.fillStyle='#3a3d40';for(const b of P.boxes)if(b.solid&&b.y1-b.y0>1.5&&b.y0<y0+1&&b.y1>y0+1&&(b.cat==='interior'||b.cat==='tablas'||b.cat==='liso'))g.fillRect(b.x0,b.z0,b.x1-b.x0,b.z1-b.z0);
   if(stage>=7)for(const o of P.openings){if(Math.abs(o.y0-(y0+(o.kind==='window'?.85:0)))>1.3)continue;g.strokeStyle=o.kind==='window'?'#5aa9d6':'#f4f2ec';g.lineWidth=o.kind==='window'?.35:.5;g.beginPath();
    if(o.axis==='x'){g.moveTo(o.c-o.w/2,o.at);g.lineTo(o.c+o.w/2,o.at);}else{g.moveTo(o.at,o.c-o.w/2);g.lineTo(o.at,o.c+o.w/2);}g.stroke();}
-  if(stage>=8)for(const f of P.furniture){const sz=FURN_SIZE[f.m];if(!sz||Math.abs(f.y-y0)>.5)continue;g.save();g.translate(f.x,f.z);g.rotate(-(f.rot||0));g.fillStyle=/Bed/.test(f.m)?'#9c86b8':/Sofa|Couch/.test(f.m)?'#b88b6a':/Kitchen/.test(f.m)?'#c9c3b8':/Bathroom/.test(f.m)?'#ffffff':'#a7825f';
-   g.fillRect(-sz[0]/2,-sz[1]/2,sz[0],sz[1]);g.restore();}
-  if(stage>=8&&HL)for(const f of HL.furniture){g.fillStyle=ITEM_COLOR[f.kind]||'#a7825f';g.fillRect(hx(f.u0),hz(f.v1),f.u1-f.u0,f.v1-f.v0);}}
+  if(stage>=8)for(const f of P.furniture){const sz=FURN_SIZE[f.m];if(!sz||Math.abs(f.y-y0)>.5)continue;g.save();g.translate(f.x,f.z);g.rotate(-(f.rot||0));
+   if(px>=4){g.scale(1/px,1/px);glyph(g,MODELO[f.m]||'caja',sz[0]*px,sz[1]*px,px);}
+   else{g.fillStyle=/Bed/.test(f.m)?'#9c86b8':/Sofa|Couch/.test(f.m)?'#b88b6a':/Kitchen/.test(f.m)?'#c9c3b8':/Bathroom/.test(f.m)?'#ffffff':'#a7825f';g.fillRect(-sz[0]/2,-sz[1]/2,sz[0],sz[1]);}g.restore();}
+  // (los del plano de hogar traen hacia dónde miran en `dir` —en u,v—; en la casa la v va al revés)
+  if(stage>=8&&HL)for(const f of HL.furniture){if(px<4){g.fillStyle=ITEM_COLOR[f.kind]||'#a7825f';g.fillRect(hx(f.u0),hz(f.v1),f.u1-f.u0,f.v1-f.v0);continue;}
+   const ry=f.dir?Math.atan2(f.dir[0],-f.dir[1]):0,alX=Math.abs(Math.sin(ry))>.5,w=f.u1-f.u0,d=f.v1-f.v0;
+   g.save();g.translate(hx((f.u0+f.u1)/2),hz((f.v0+f.v1)/2));g.rotate(-ry);g.scale(1/px,1/px);glyph(g,f.kind,(alX?d:w)*px,(alX?w:d)*px,px,f.pc);g.restore();}
+  if(HL&&px>=16){g.textAlign='center';g.textBaseline='middle';g.fillStyle='rgba(40,44,48,.8)';
+   for(const q of HL.rooms){if(q.type==='hall'||(q.u1-q.u0)*px<46)continue;g.save();g.translate(hx((q.u0+q.u1)/2),hz(q.v1)+.42);if(Math.cos(c.ry||0)<0)g.rotate(Math.PI);// (una casa que mira al otro lado: el nombre no queda de cabeza)
+    g.scale(1/px,1/px);g.font='600 11px system-ui,sans-serif';g.fillText(ROOM_LABEL[q.type]||q.label||q.type,0,0);g.restore();}}}
  g.strokeStyle='#6b4e36';g.lineWidth=.35;g.strokeRect(-P.w/2,-P.d/2,P.w,P.d);g.restore();}
 // LA REGIÓN (2026-11-19): con region={x,y,w,h} —en píxeles del dispositivo de la imagen entera a esta escala— se dibuja
 // sólo ese recorte, en un lienzo de ese tamaño. Es lo que deja acercar el plano y verlo nítido: a 40 px por metro la
@@ -216,7 +229,7 @@ export function drawIslaStage(canvas,bp,{cell,stage=9,level=0,selected=-1,fronts
    g.fillStyle=L.kind==='puesto'?'#2f5f9a':'#c0672f';g.fillRect(cx-w/2,y-fs,w,fs+2);g.fillStyle='#fff';g.fillText(t,cx,y);}}
  g.setTransform(dpr*m,0,0,dpr*m,-B.x0*cell*dpr,-B.y0*cell*dpr);
  // Las casas armadas del monte, con su plano (etapa 3 en adelante).
- if(stage>=3)for(const c of I.casas||[])if(c.spec)drawHouse(g,c,{stage,level});
+ if(stage>=3)for(const c of I.casas||[])if(c.spec)drawHouse(g,c,{stage,level,px:m});
  if(stage>=9)drawExterior(g,bp,{level,px:m,capas});
  if(level===0){g.font='bold 5px sans-serif';g.textAlign='center';g.fillStyle='#3b4446';
   // El nombre de cada pueblo, sobre su plaza (con un fondo para que se lea).
@@ -235,10 +248,15 @@ export function drawIslaStage(canvas,bp,{cell,stage=9,level=0,selected=-1,fronts
 const CAMAS=new Set(['cama','cama_s','cama_h','catre','camilla','litera']),GUARDA=new Set(['armario','comoda','archivador','estante','casillero','repisa','estanteria_ropa','vitrina','buzones','cajon','perchero']),
  MESAS=new Set(['mesa','mesa_centro','mesa_reunion','mesa_lectura']),BARRAS=new Set(['meson','mostrador','plancha','horno','lavadora']);
 function drawItem(g,f,X,Y,m){
- const ry=f.ry||0,sx=Math.sin(ry),alX=Math.abs(sx)>.5,W=(alX?f.h:f.w)*m,D=(alX?f.w:f.h)*m,k=f.kind,col=ITEM_COLOR[k]||'#999',lw=Math.max(.6,Math.min(1.4,m*.035));
+ const ry=f.ry||0,alX=Math.abs(Math.sin(ry))>.5;
+ g.save();g.translate(X(f.x+f.w/2),Y(f.y+f.h/2));g.rotate(-ry);glyph(g,f.kind,(alX?f.h:f.w)*m,(alX?f.w:f.h)*m,m,f.pc);g.restore();}
+// El símbolo, ya en el marco del mueble (el centro en el origen, el frente hacia +y) y en píxeles: m son los píxeles
+// por metro. Lo usan los edificios (drawItem) y las casas (drawHouse y drawHogar).
+function glyph(g,k,W,D,m,pc=false){
+ const col=ITEM_COLOR[k]||'#999',lw=Math.max(.6,Math.min(1.4,m*.035)),f={pc};
  const box=(x,y,w,h,r=0)=>{g.beginPath();if(r>0&&g.roundRect)g.roundRect(x,y,w,h,Math.min(r,w/2,h/2));else g.rect(x,y,w,h);},pinta=(c=col)=>{g.fillStyle=c;g.fill();g.stroke();},
   circ=(x,y,r)=>{g.beginPath();g.arc(x,y,Math.max(.5,r),0,7);},oscuro='rgba(0,0,0,.42)',claro='rgba(255,255,255,.55)';
- g.save();g.translate(X(f.x+f.w/2),Y(f.y+f.h/2));g.rotate(-ry);g.strokeStyle=oscuro;g.lineWidth=lw;g.lineJoin='round';
+ g.strokeStyle=oscuro;g.lineWidth=lw;g.lineJoin='round';g.lineCap='butt';
  const x0=-W/2,y0=-D/2,r=Math.min(W,D)*.12;
  if(CAMAS.has(k)){box(x0,y0,W,D,r);pinta('#f4f1ea');// (el colchón claro, la cobija del color de la cama y las almohadas contra la cabecera)
   box(x0,y0+D*.3,W,D*.7,r);pinta();const n=W>D*.62?2:1,aw=W/n*.7,ah=D*.16;for(let i=0;i<n;i++){box(x0+W/n*(i+.5)-aw/2,y0+D*.07,aw,ah,ah*.4);pinta('#ffffff');}
@@ -266,7 +284,6 @@ function drawItem(g,f,X,Y,m){
   if(k==='horno'){circ(0,D*.1,Math.min(W,D)*.26);g.stroke();}if(k==='lavadora'){circ(0,0,Math.min(W,D)*.3);g.stroke();}}
  else if(k==='caminadora'||k==='bicicleta'||k==='banco'){box(x0,y0,W,D,r*2);pinta();g.strokeStyle=claro;g.beginPath();g.moveTo(x0+W*.15,y0+D*.2);g.lineTo(x0+W*.85,y0+D*.2);g.stroke();}
  else{box(x0,y0,W,D,k==='colchoneta'||k==='probador'?r:0);pinta();}
- g.restore();
 }
 
 // ---------- LO DE AFUERA Y LAS AZOTEAS (2026-11-19) ----------
@@ -322,7 +339,8 @@ export function drawHogar(canvas,P,{level=0,width=560}={}){
  for(const q of L.rooms){g.fillStyle=COL[q.type]||'#eee';g.fillRect(X(q.u0),Y(q.v1),(q.u1-q.u0)*m,(q.v1-q.v0)*m);}
  // la escalera: sus peldaños
  for(const q of L.rooms.filter(q=>q.type==='escalera')){g.strokeStyle='#b9ad98';g.lineWidth=1;for(let v=q.v0+.25;v<q.v1;v+=.27){g.beginPath();g.moveTo(X(q.u0),Y(v));g.lineTo(X(q.u1),Y(v));g.stroke();}}
- for(const f of L.furniture){g.fillStyle=ITEM_COLOR[f.kind]||'#999';g.fillRect(X(f.u0),Y(f.v1),(f.u1-f.u0)*m,(f.v1-f.v0)*m);g.strokeStyle='rgba(0,0,0,.25)';g.lineWidth=.8;g.strokeRect(X(f.u0),Y(f.v1),(f.u1-f.u0)*m,(f.v1-f.v0)*m);}
+ for(const f of L.furniture){const ry=f.dir?Math.atan2(f.dir[0],-f.dir[1]):0,alX=Math.abs(Math.sin(ry))>.5,w=f.u1-f.u0,d=f.v1-f.v0;// (el frente abajo: la v va al revés)
+  g.save();g.translate(X((f.u0+f.u1)/2),Y((f.v0+f.v1)/2));g.rotate(-ry);glyph(g,f.kind,(alX?d:w)*m,(alX?w:d)*m,m,f.pc);g.restore();}
  // paredes: el contorno de cada cuarto (la fachada más gruesa) y, encima, los vanos de las puertas en blanco
  g.strokeStyle='#3a3d40';g.lineCap='square';for(const q of L.rooms){g.lineWidth=2;g.strokeRect(X(q.u0),Y(q.v1),(q.u1-q.u0)*m,(q.v1-q.v0)*m);}
  g.lineWidth=5;g.strokeRect(X(0),Y(P.D),P.W*m,P.D*m);

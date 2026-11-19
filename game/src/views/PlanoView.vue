@@ -10,12 +10,12 @@ import {useRoute,useRouter} from 'vue-router';
 import '@fontsource/bungee/400.css';
 import '@fontsource-variable/rubik';
 import {planoDe} from '../lib/mapasGuardados.js';
-import {drawWorldStage,drawFloorPlan,CAPAS,ROOM_LABEL} from '../lib/drawPlan.js';
+import {drawWorldStage,drawFloorPlan,drawHogar,CAPAS,ROOM_LABEL} from '../lib/drawPlan.js';
 import {CELL,TYPES} from '../engine/blueprint.js';
 
 const route=useRoute(),router=useRouter();
 const seed=ref(Math.max(1,Number(route.query.ciudad)||1)),team=ref(Math.max(2,Number(route.query.jugadores)||3));
-const estado=ref('Armando el plano…'),nivel=ref(0),capas=reactive({...CAPAS}),elegido=ref(null),cursor=ref(null),tardo=ref(0);
+const estado=ref('Armando el plano…'),nivel=ref(0),capas=reactive({...CAPAS}),elegido=ref(null),casa=ref(null),cursor=ref(null),tardo=ref(0);
 const host=ref(null),lienzo=ref(null),piso=ref(null),nitido=ref(null),nitidoListo=ref(false),escala=ref(0);
 let relojNitido=0;
 let plano=null,origen={x0:0,y0:0},celda=20,arrastre=null,tocado=false;// (tocado: ya acercó o movió; mientras no, el plano se reajusta al cambiar el tamaño de la ventana)
@@ -50,22 +50,27 @@ function ajustar(){
 // De un punto de la pantalla a metros del plano.
 function aMetros(e){const r=host.value.getBoundingClientRect(),px=(e.clientX-r.left-vista.x)/vista.k,py=(e.clientY-r.top-vista.y)/vista.k;return {x:(px/celda+origen.x0)*CELL,z:(py/celda+origen.y0)*CELL};}
 const loteEn=(x,z)=>[...plano.lots,...(plano.isla.lots||[])].find(L=>L.parts.some(P=>x>=P.x&&x<=P.x+P.w&&z>=P.y&&z<=P.y+P.h))||null;
+// (una casa del monte: su huella es un rectángulo girado alrededor de su centro)
+const casaEn=(x,z)=>(plano.isla.casas||[]).find(c=>{if(!c.spec?.hogar)return false;const dx=x-c.x,dz=z-c.z,k=Math.cos(c.ry||0),n=Math.sin(c.ry||0);return Math.abs(dx*k-dz*n)<=c.w/2&&Math.abs(dx*n+dz*k)<=c.d/2;})||null;
 function rueda(e){e.preventDefault();tocado=true;const r=host.value.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top,k=Math.max(.15,Math.min(42*CELL/celda,vista.k*(e.deltaY<0?1.18:1/1.18)));// (hasta 42 px por metro, como el piso ampliado)
  vista.x=mx-(mx-vista.x)*k/vista.k;vista.y=my-(my-vista.y)*k/vista.k;vista.k=k;}
 function baja(e){arrastre={x:e.clientX,y:e.clientY,vx:vista.x,vy:vista.y,movio:false};host.value.setPointerCapture?.(e.pointerId);}
 function mueve(e){if(plano){const p=aMetros(e);cursor.value={x:p.x.toFixed(1),z:p.z.toFixed(1)};}
  if(!arrastre)return;const dx=e.clientX-arrastre.x,dy=e.clientY-arrastre.y;if(Math.abs(dx)+Math.abs(dy)>4)arrastre.movio=tocado=true;vista.x=arrastre.vx+dx;vista.y=arrastre.vy+dy;}
-function sube(e){const a=arrastre;arrastre=null;if(!a||a.movio||!plano)return;const p=aMetros(e),L=loteEn(p.x,p.z);elegido.value=L;dibujar();pedirNitido();}
-function tecla(e){if(e.target.tagName==='INPUT')return;if(e.key==='+'||e.key==='=')nivel.value=Math.min(maxPisos.value,nivel.value+1);else if(e.key==='-')nivel.value=Math.max(0,nivel.value-1);else if(e.key==='0')ajustar();else if(e.key==='Escape')elegido.value=null;}
+function sube(e){const a=arrastre;arrastre=null;if(!a||a.movio||!plano)return;const p=aMetros(e),L=loteEn(p.x,p.z);elegido.value=L;casa.value=L?null:casaEn(p.x,p.z);dibujar();pedirNitido();}
+function tecla(e){if(e.target.tagName==='INPUT')return;if(e.key==='+'||e.key==='=')nivel.value=Math.min(maxPisos.value,nivel.value+1);else if(e.key==='-')nivel.value=Math.max(0,nivel.value-1);else if(e.key==='0')ajustar();else if(e.key==='Escape')elegido.value=casa.value=null;}
 
 const fichaNivel=computed(()=>elegido.value?Math.min(nivel.value,elegido.value.floors-1):0);
 const cuartos=computed(()=>{const L=elegido.value;if(!L)return [];const lv=L.levels[fichaNivel.value],n={};for(const q of lv.rooms){const t=ROOM_LABEL[q.type]||q.type;n[t]=(n[t]||0)+1;}return Object.entries(n).sort((a,b)=>b[1]-a[1]);});
 const medidas=computed(()=>{const L=elegido.value;if(!L)return null;const lv=L.levels[fichaNivel.value],area=L.parts.reduce((a,P)=>a+P.w*P.h,0),pas=lv.corridor.reduce((a,q)=>a+q.w*q.h,0);
  return {area:Math.round(area),pasillo:Math.round(pas/area*100),muebles:lv.furniture.length,puertas:lv.doors.length,ventanas:lv.windows.length};});
-async function dibujarPiso(){await nextTick();const L=elegido.value;if(!L||!piso.value)return;drawFloorPlan(piso.value,L,{level:fichaNivel.value,stage:9,width:piso.value.parentElement.clientWidth});}
+const casaNivel=computed(()=>casa.value?Math.min(nivel.value,casa.value.spec.hogar.levels.length-1):0);
+const casaCuartos=computed(()=>{const c=casa.value;if(!c)return [];return c.spec.hogar.levels[casaNivel.value].rooms.filter(q=>q.type!=='hall').map(q=>({nombre:q.label||ROOM_LABEL[q.type]||q.type,medida:`${(q.u1-q.u0).toFixed(1)} × ${(q.v1-q.v0).toFixed(1)} m`}));});
+async function dibujarPiso(){await nextTick();if(casa.value&&piso.value){drawHogar(piso.value,casa.value.spec.hogar,{level:casaNivel.value,width:piso.value.parentElement.clientWidth});return;}
+ const L=elegido.value;if(!L||!piso.value)return;drawFloorPlan(piso.value,L,{level:fichaNivel.value,stage:9,width:piso.value.parentElement.clientWidth});}
 
 async function cargar(){
- estado.value='Armando el plano…';elegido.value=null;plano=null;resumen.value=null;
+ estado.value='Armando el plano…';elegido.value=null;casa.value=null;plano=null;resumen.value=null;
  router.replace({query:{ciudad:seed.value,jugadores:team.value}});
  const t0=performance.now(),r=await planoDe({seed:seed.value,team:team.value,parks:true});
  if(!r.plano){estado.value='No se pudo armar el plano de esta ciudad.';return;}
@@ -76,7 +81,7 @@ async function cargar(){
 }
 watch([nivel,capas],()=>{dibujar();dibujarPiso();pedirNitido();});
 watch(vista,pedirNitido);
-watch([elegido,grande],dibujarPiso);
+watch([elegido,casa,grande],dibujarPiso);
 let obs;
 onMounted(()=>{cargar();window.addEventListener('keydown',tecla);obs=new ResizeObserver(()=>{if(!plano||arrastre)return;if(!tocado)ajustar();dibujarPiso();pedirNitido();});obs.observe(host.value);});
 onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydown',tecla);obs?.disconnect();});
@@ -123,6 +128,16 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
    <dl v-if="medidas"><dt>Área</dt><dd>{{ medidas.area }} m²</dd><dt>Pasillo</dt><dd :class="{alerta:medidas.pasillo>30}">{{ medidas.pasillo }} %</dd><dt>Muebles</dt><dd>{{ medidas.muebles }}</dd><dt>Puertas</dt><dd>{{ medidas.puertas }}</dd><dt>Ventanas</dt><dd>{{ medidas.ventanas }}</dd></dl>
    <ul class="cuartos"><li v-for="[t,n] in cuartos" :key="t"><span>{{ t }}</span><b>{{ n }}</b></li></ul>
   </aside>
+  <aside v-else-if="casa" class="ficha" :class="{grande}">
+   <button class="cerrar" @click="casa=null" aria-label="Cerrar">×</button>
+   <button class="ampliar" @click="grande=!grande">{{ grande?'Achicar':'Ampliar' }}</button>
+   <small>Casa del monte · {{ casa.spec.hogar.label||'vivienda' }}</small>
+   <b>{{ casa.direccion?.texto||'Casa' }}</b>
+   <p>{{ casa.spec.hogar.levels.length }} {{ casa.spec.hogar.levels.length===1?'piso':'pisos' }} · {{ casa.spec.hogar.W.toFixed(1) }} × {{ casa.spec.hogar.D.toFixed(1) }} m · {{ Math.round(casa.spec.hogar.area) }} m²</p>
+   <div class="ficha-piso"><canvas ref="piso"></canvas></div>
+   <p class="nivel">{{ casaNivel===0?'Planta baja':'Piso '+casaNivel }}</p>
+   <ul class="cuartos uno"><li v-for="(q,i) in casaCuartos" :key="i"><span>{{ q.nombre }}</span><b>{{ q.medida }}</b></li></ul>
+  </aside>
  </div>
 </template>
 
@@ -168,6 +183,7 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
 .ficha dd{margin:0;font-weight:600;font-variant-numeric:tabular-nums;grid-row:2}
 .ficha dd.alerta{color:var(--ladron)}
 .cuartos{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:4px 14px}
+.cuartos.uno{grid-template-columns:1fr}
 .cuartos li{display:flex;justify-content:space-between;color:var(--tx2)}.cuartos b{color:var(--tx)}
 .cerrar{position:absolute;right:10px;top:10px;width:28px;height:28px;border-radius:8px;border:1px solid var(--borde);background:rgba(255,255,255,.08);color:var(--tx);cursor:pointer;font-size:16px;line-height:1}
 @media (max-width:820px){.plano{grid-template-columns:1fr}.ficha{position:absolute;right:0;top:0;bottom:0;width:min(360px,86vw);z-index:3}.pie .ayuda{display:none}}

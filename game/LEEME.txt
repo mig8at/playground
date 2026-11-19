@@ -23,6 +23,8 @@ EL JUEGO
              de afuera, que antes sólo se veía en el 3D).
              Al acercar, lo que se ve se vuelve a dibujar nítido a la escala de la pantalla (hasta 42 px por metro:
              drawIslaStage con region); los muebles van con su forma y su frente (drawItem).
+             Las casas del monte igual: sus muebles con símbolo, los nombres de sus cuartos y, con un clic, su ficha
+             (la familia que vive ahí, el plano de la casa y la medida de cada cuarto).
   /juego     La partida (?ciudad=1&jugadores=3&papel=policia). /demo es lo mismo (lo usan las pruebas de pantalla).
              Lo visual (2026-11-19): pantalla de carga con barra mientras se arma la ciudad; el HUD con el diseño de la
              entrada (vidrio, Bungee y Rubik); el día, el atardecer y la noche se mezclan de a poco (PAL y pasoLuz en
