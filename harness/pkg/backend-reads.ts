@@ -8,6 +8,7 @@
 //   clientState(doc)        el cliente activo de una cédula, sus bajas (-t<n>), solicitudes, centrales y quién decidió el nombre
 //   clientFields(...)       los campos guardados del cliente con su nombre (situación laboral 29, ingreso 87, reportes negativos 160…)
 //   requestTimeline(ureq)   los estados por los que pasó una solicitud, cuándo y quién la movió
+//   requestVerdict(ureq)    el DICTAMEN: cómo terminó, las centrales y con qué cuenta, la tabla logs y Loki, en frases
 //   experianCheck(hash)     si una sucursal va a consultar Experian y por qué (atajos, periodicidad, confirmación de cupo)
 //   settingsDiff(targets)   en qué difieren las settings entre ambientes (las credenciales sólo se comparan por huella)
 //   jobsFailed(hours)       los trabajos en cola que fallaron en una ventana, agrupados por clase y error
@@ -43,6 +44,13 @@ export function clientFields(target: Target, who: { document: string } | { ureq:
 /** La solicitud (comercio, entidad, flujo, estado de hoy) y su historial de estados en orden. */
 export function requestTimeline(target: Target, ureq: number): { request: Row; records: Row[] } {
     return pgJson(['request', 'timeline', '--target', target, '--ureq', String(ureq)]);
+}
+
+export interface RequestVerdict { request: Row; records: Row[]; centrals: Row[] | null; logs: Row[] | null;
+    loki: { skipped?: string; lines: number; byLevel: Record<string, number>; errors: string[] }; verdict: string[] }
+/** El dictamen de una solicitud (`pg request verdict`): `verdict` son las frases, listas para la consola. */
+export function requestVerdict(target: Target, ureq: number, opts: { loki?: boolean } = {}): RequestVerdict {
+    return pgJson<RequestVerdict>(['request', 'verdict', '--target', target, '--ureq', String(ureq), ...(opts.loki === false ? ['--no-loki'] : [])]);
 }
 
 export interface ExperianCheck { branch: Row; lenders: Row[]; verdict: string; why: string; caveats: string[]; frequency?: Row; count?: number }

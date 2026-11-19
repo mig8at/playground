@@ -22,6 +22,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { addRecordings, type Recording } from '../pkg/recordings.ts';
 import { readRuns, runCase, CHANNELS, type NamedRun } from '../pkg/runs.ts';
+import { requestVerdict, type Target } from '../pkg/backend-reads.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
@@ -172,6 +173,14 @@ function runGroup(group: string[]): Promise<{ group: string[]; status: number; v
                 videos.push(to);
             }
             fs.rmSync(dir, { recursive: true, force: true });
+        }
+        // EL DICTAMEN de cada solicitud (`pg request verdict`): cómo terminó, las centrales y con qué cuenta, `logs` y
+        // Loki. Se imprime al final y queda con su grabación, para leerlo al lado del video.
+        for (const rec of recordings) {
+            if (!rec.ureq) continue;
+            try { rec.verdict = requestVerdict(rec.target as Target, rec.ureq).verdict; } catch { /* sin dictamen: el video igual */ }
+        }
+        if (video) {
             addRecordings(recordings);
         }
         resolve({ group, status: code ?? 1, videos, recordings });
@@ -183,6 +192,11 @@ console.log('');
 for (const r of results) {
     console.log(`  ${r.status === 0 ? '✓' : '✗'} ${r.group.join(' + ')} · ${r.status === 0 ? 'cerró' : `salió ${r.status}`}`);
     for (const v of r.videos) console.log(`    🎬 ${v}`);
+    for (const rec of r.recordings) {
+        if (!rec.verdict?.length) continue;
+        console.log(`    ◆ dictamen de ${rec.ureq}:`);
+        for (const line of rec.verdict) console.log(`      · ${line}`);
+    }
 }
 if (video && fs.existsSync(videoRoot) && fs.readdirSync(videoRoot).length === 0) fs.rmSync(videoRoot, { recursive: true, force: true });
 console.log('');

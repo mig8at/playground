@@ -136,6 +136,7 @@
     .recording-view[hidden] { display: none }
     .recording-head { display: flex; flex-direction: column; gap: 2px; flex: none; min-width: 0 }
     .recording-meta { color: var(--fg-3); font-size: var(--text-xs, 12px); white-space: normal }
+    .recording-verdict { margin: 2px 0 0; padding-left: 14px; color: var(--fg-2); font-size: var(--text-xs, 12px); line-height: 1.45 }
     /* EL REPRODUCTOR, MINIMALISTA (2026-11-19): sin los controles del navegador (en Cockpit eran los de Safari, con volumen,
        pantalla completa y tiempos encima del video). El cuadro mide lo que mide el video —ni barras negras ni recorte—:
        el ancho y el alto salen de la proporción del video (`--ar`) contra el lugar que hay (`cq*`). Clic: reproducir o
@@ -1089,7 +1090,7 @@
         <!-- LA GRABACIÓN ELEGIDA, a todo el alto: el video de la corrida (un celular de 420×900) y lo que dejó. No es un
              fieldset: se puede mirar mientras corre otra cosa. -->
         <div class="region-body recording-view" id="viewRecording" role="tabpanel" aria-labelledby="tabRecording" hidden>
-          <div class="recording-head"><strong id="recordingTitle"></strong><span class="recording-meta" id="recordingMeta"></span></div>
+          <div class="recording-head"><strong id="recordingTitle"></strong><span class="recording-meta" id="recordingMeta"></span><ul class="recording-verdict" id="recordingVerdict" hidden></ul></div>
           <div class="recording-stage"><div class="rec-frame paused" id="recordingFrame" title="Clic para reproducir o pausar">
             <video id="recordingVideo" playsinline muted preload="auto"></video>
             <span class="rec-play" aria-hidden="true"><span class="ui-icon" data-icon="play"></span></span>
@@ -2320,6 +2321,10 @@
       try { localStorage.setItem(RECORDING_KEY, id); } catch { /* sin storage: vale esta visita */ }
       $('recordingTitle').textContent = `${r.name} · ${recordingWhen(r.at)}`;
       $('recordingMeta').textContent = recordingSummary(r) || r.description || '';
+      // El dictamen de la solicitud (`pg request verdict`), si la corrida lo dejó: las centrales y con qué cuenta, `logs`.
+      const ul = $('recordingVerdict');
+      ul.replaceChildren(...(r.verdict || []).slice(1).map((line) => { const li = document.createElement('li'); li.textContent = line; return li; }));
+      ul.hidden = !(r.verdict || []).length;
       const v = $('recordingVideo');
       // `#t=0.1`: Safari (el motor de Cockpit) no pinta el primer cuadro de un video en pausa sin esto.
       const src = `/api/recordings/${encodeURIComponent(id)}/video#t=0.1`;

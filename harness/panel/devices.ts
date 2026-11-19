@@ -62,6 +62,11 @@ const open = new Map<DeviceId, Device>();
 type DeviceLogger = (id: DeviceId, line: string) => void;
 let deviceLogger: DeviceLogger = () => { };
 export function setDeviceLogger(fn: DeviceLogger): void { deviceLogger = fn; }
+/** Cuando un celular llega a una pantalla FINAL (aprobada, cancelada, rechazada) con su solicitud: el panel la dictamina. */
+type TerminalHook = (id: DeviceId, ureq: number, screen: string) => void;
+let terminalHook: TerminalHook = () => { };
+export function setTerminalHook(fn: TerminalHook): void { terminalHook = fn; }
+const TERMINAL = /\/(\d{5,9})\/(loan-approved|request-canceled|request-rejected|rejected|denied)(?:[/?]|$)/;
 
 /* ── EL RUIDO DE LA CONSOLA ────────────────────────────────────────────────────────────────────────────────────
  * Avisos que salen en CADA corrida local y no dicen nada del caso: tapaban lo que sí importaba (el 422 de la firma
@@ -97,6 +102,7 @@ function narrate(id: DeviceId, d: Omit<Device, 'openedAt'>, isCurrent: () => boo
         const u = frame.url();
         if (u === lastUrl || u === 'about:blank') return;
         lastUrl = u;
+        { const t = TERMINAL.exec((() => { try { return new URL(u).pathname; } catch { return ''; } })()); if (t && isCurrent()) terminalHook(id, Number(t[1]), t[2]); }
         if (isCurrent()) touchDevice(id);
         emit(`→ ${u.replace(/^https?:\/\/[^/]+/, '')}`);
     });

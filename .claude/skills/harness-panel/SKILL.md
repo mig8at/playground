@@ -1389,3 +1389,21 @@ Verificado el 2026-11-19 en `dynamic-form/25` de Finandina (local): en la págin
 económica: sin elegir», y después de tocar Continuar los «… es requerido» del formulario; en el celular del panel, la
 ruta nueva dio esos cuatro al entrar y ninguno a los 3 s (el autorrelleno los llenó). El aviso tras un toque a mano no se
 probó con un toque real en el lienzo.
+
+## El dictamen de la solicitud al llegar al final (2026-11-19)
+
+`bin/pg request verdict --target T --ureq N` (`cmd/pg/request_verdict.go`; en TS `requestVerdict` de
+`pkg/backend-reads.ts`) junta en frases: cómo terminó (y el comentario de la cancelación con su código), qué centrales se
+consultaron PARA esa solicitud (las del cliente entre 10 min antes de crearla y 5 después de su último cambio) y con qué
+cuenta (`credential_id` de lo que se mandó → su dueño: entidad, comercio o sucursal; sin él, la de CreditOp), lo que dejó
+en la tabla `logs` y lo que dice Loki de ella (líneas que la nombran por nivel y las primeras 3 de error; ventana ±6 h
+porque qa guarda la hora de Colombia y la base local UTC; en local sólo si su Loki es local; en prod no).
+
+- **En el panel**: cuando un celular entra a una pantalla final (`loan-approved`, `request-canceled`, rechazada) —a mano o
+  con «Hasta el final»—, `setTerminalHook` → la consola de su carril escribe «◆ dictamen de la solicitud N», una vez por
+  solicitud.
+- **En `make harness-run`**: al final de cada corrida, y queda en su grabación (`verdict`), que el panel muestra debajo
+  del video.
+- Verificado el 2026-11-19: qa 505175 (Experian con la de Banco Finandina, credencial 15; Loki 96 líneas, 1 error),
+  local 468444 (cancelada, código 5001), el panel con 468453 y `harness-run` con 468451 (en local consultó Experian
+  dos veces: Acierta+Quanto con la de CreditOp y Acierta con la de Finandina).

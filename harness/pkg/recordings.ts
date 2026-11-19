@@ -24,6 +24,7 @@ export interface Recording {
     closed?: boolean;        // ¿llegó al desenlace?
     screens?: number;
     seconds?: number;        // lo que duró la corrida
+    verdict?: string[];      // el dictamen de la solicitud al terminar (`pg request verdict`)
     at: string;              // cuándo terminó (ISO)
     video: string;           // relativo a la raíz del harness
 }

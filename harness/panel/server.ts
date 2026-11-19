@@ -21,9 +21,10 @@ import { envData, type AutofillData } from '../pkg/autofill.ts';
 import { identityWithoutProviderNotice } from '../pkg/config.ts';
 import { adminSession, ensureLocalAdmin, ADMIN_APP } from '../pkg/admin-access.ts';
 import { laneOf, roleOf, inLane, laneIndex, isDeviceId, LANES, type Lane, type Role } from './devices.ts';
-import { devicePage, deviceBlockers, deviceFillOtp, deviceChooseEntity, openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, watchRequests, deviceGoto, deviceReload, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, deviceTap, deviceAdvance, deviceStream, deviceBusyWatch, deviceStorage, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
+import { devicePage, deviceBlockers, setTerminalHook, deviceFillOtp, deviceChooseEntity, openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, watchRequests, deviceGoto, deviceReload, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, deviceTap, deviceAdvance, deviceStream, deviceBusyWatch, deviceStorage, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
 import { vpnDev, type VpnStatus } from '../pkg/vpn.ts';
 import { readRuns } from '../pkg/runs.ts';
+import { requestVerdict, type Target } from '../pkg/backend-reads.ts';
 import { prodCatalog, prodMerchant, prodBranches } from '../pkg/prod-catalog.ts';
 import { waitForOtp } from '../pkg/otp-service.ts';
 import { readFlows, writeFlows, branchFor } from '../pkg/flows.ts';
@@ -863,6 +864,27 @@ async function screenError(id: DeviceId): Promise<string> {
     const txt = await deviceText(id).catch(() => '');
     return txt.split('\n').map((l) => l.trim()).find((l) => l.length < 160 && /error|no se pudo|no pudimos|fall[oó]|intenta(lo)? de nuevo|inténtalo|no encontramos una opci[oó]n/i.test(l)) ?? '';
 }
+/* EL DICTAMEN AL LLEGAR AL FINAL (2026-11-19): cuando un celular entra a una pantalla final (aprobada, cancelada,
+ * rechazada) —tocando a mano o con «Hasta el final»—, la consola de su carril dice cómo terminó la solicitud y qué lo
+ * sostiene: las centrales y con qué cuenta, lo que dejó en `logs` y lo que dice Loki (`pg request verdict`). Una vez por
+ * solicitud. Antes eso eran tres consultas a mano. */
+const verdictDone = new Set<string>();
+setTerminalHook((id, ureq, screen) => {
+    const t = (deviceTarget.get(id) || 'local') as Target;
+    const key = `${t}:${ureq}`;
+    if (verdictDone.has(key) || t === 'prod') return;
+    verdictDone.add(key);
+    // Un instante: la última transición de la base llega un poco después que la pantalla.
+    setTimeout(() => {
+        try {
+            const v = requestVerdict(t, ureq);
+            deviceLog(id, `◆ dictamen de la solicitud ${ureq} (${screen}):`);
+            for (const line of v.verdict) deviceLog(id, `   · ${line}`);
+            for (const e of v.loki.errors ?? []) deviceLog(id, `   ✗ Loki: ${e.slice(0, 180)}`);
+        } catch (e) { deviceLog(id, `⚠ dictamen de ${ureq}: ${(e as Error).message.split('\n')[0]}`); }
+    }, 2_500);
+});
+
 async function advanceAll(id: DeviceId, until: string | null, opts: { lender?: string; follow?: boolean } = {}): Promise<void> {
     if (advancing.has(id)) return;
     const run = { stop: false };
