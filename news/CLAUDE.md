@@ -32,6 +32,28 @@ licencia, si corre en la Mac, qué hace, por qué es interesante, ideas y, si lo
 - Para sumar uno: agregarlo al archivo con su `group` (`tried`, `voice`, `music`, `odd`, `tiny`, `detect`, `create`,
   `specialist`, `gpu`); la interfaz lo toma al recargar.
 
+## La investigación: cómo mejoran los modelos (`#/research`)
+
+Para entender cómo se calibran y se mejoran los modelos, cómo trabaja la comunidad y con qué máquinas (Miguel,
+2026-11-19: «si se necesitan grandes data centers o si hay personas que lo han logrado con una Mac»). En el sidebar,
+bajo «Investigación», junto a Papers:
+
+- **Cómo mejoran** (`#/research`): cada idea que mejoró modelos (LoRA, destilación, cuantización, RLHF, DPO, mezcla de
+  expertos…) es una tarjeta con el problema que resolvió, la idea, **la evidencia** (la cifra del paper, antes y
+  después) y **la máquina que hizo falta** (`hardware`: `mac` · `gpu` · `server` · `datacenter` · `unknown`), agrupadas
+  por etapa (datos, arquitectura, entrenamiento, calibrar y alinear, achicar y acelerar, al usarlo) y filtrables por
+  máquina. Su ficha suma cómo se hace en esta Mac (`mac`), quién lo logró con poco (`cheap`), **lo que medimos acá**
+  (`ours`, de nuestras pruebas) y los favoritos que la usan (`models`).
+- **Evolución** (`#/research/lineages`): familias de modelos paso a paso (LLaMA y la comunidad, DeepSeek, GPT-3 a
+  ChatGPT, Whisper), con la idea que entró en cada salto; tocar una idea abre su ficha.
+- **Hecho con poco** (`#/research/cheap`): lo que se hace en esta Mac, lo que se entrenó en grande y acá sólo se usa, y
+  quién lo logró con una GPU o unos cientos de dólares.
+
+Vive en `news/research.json`, en git, escrito a mano por Claude: **cada cifra sale del resumen de su paper o de la ficha
+del modelo, con el enlace**; lo que la fuente no dice no se escribe (si la máquina no se publicó, `unknown`). `GET
+/api/research` lo sirve y `TestResearchFileIsValid` falla con una idea sin problema, idea, evidencia o paper, con una
+etapa o máquina desconocida, con un favorito que no existe o con un linaje que cita una idea que no existe.
+
 ## Los instalados
 
 En el sidebar, «Instalados» lista lo que hay en la Mac de los modelos que probamos, con su tamaño y una papelera (el
@@ -79,5 +101,6 @@ nombre y lo dice antes de borrar: sale del registro `models/registry.json`, el m
 | traer la semana de Hugging Face | `server/hf.go` |
 | los textos con el modelo de fondo | `server/write.go` |
 | los favoritos: el archivo y su ruta | `favorites.json` · `server/favorites.go` |
+| la investigación: las ideas, los linajes y su ruta | `research.json` · `server/research.go` |
 | los instalados: la API, sobre `lib/models` y el registro | `server/installed.go` (las pruebas, en `lib/models`) |
 | la interfaz | `src/App.vue` · `src/style.css`, con la base de `tools/ui` (`make style-sync`); los colores de cada tema son propios (`--t-*`) |

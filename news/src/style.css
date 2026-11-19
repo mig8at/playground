@@ -181,3 +181,36 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 .installed-name:disabled { cursor: default }
 .installed-name:not(:disabled):hover { text-decoration: underline }
 .doc-installed { margin: 0; width: 100%; padding-left: 0 }
+
+/* LA INVESTIGACIÓN: cada idea es una tarjeta como un favorito, con la máquina que hizo falta en un color (la Mac en el
+   del audio, el data center en el de la imagen) y la cifra de su paper debajo; los linajes son una línea de pasos. */
+.chips { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3) }
+.chip { font: inherit; font-size: var(--text-xs); padding: 2px 9px; border-radius: 999px; border: 1px solid var(--border); background: none;
+  color: var(--fg-2); cursor: pointer; white-space: nowrap }
+.chip span { color: var(--fg-3); font-variant-numeric: tabular-nums }
+.chip:hover { border-color: var(--fg-3) }
+.chip.on { border-color: var(--primary); color: var(--primary) }
+.hw { flex: none; font-size: var(--text-xs); padding: 1px 6px; border-radius: var(--radius-sm); border: 1px solid var(--border); color: var(--fg-3); white-space: nowrap }
+.hw.mac { color: var(--t-audio); border-color: var(--t-audio) }
+.hw.gpu { color: var(--t-text); border-color: var(--t-text) }
+.hw.server { color: var(--t-multimodal); border-color: var(--t-multimodal) }
+.hw.datacenter { color: var(--t-image); border-color: var(--t-image) }
+.chip.mac.on { color: var(--t-audio); border-color: var(--t-audio) }
+.chip.datacenter.on { color: var(--t-image); border-color: var(--t-image) }
+.fav.idea .model-name { white-space: normal }
+.idea-evidence { margin-top: 4px; padding-top: 6px; border-top: 1px solid var(--border); color: var(--foreground); font-size: var(--text-xs); line-height: 1.5 }
+.lineage { list-style: none; margin: 0; padding: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(190px, 1fr); gap: var(--space-2);
+  overflow-x: auto; padding-bottom: var(--space-2) }
+.step { position: relative; display: flex; flex-direction: column; gap: 4px; padding: var(--space-3); background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius-md) }
+.step + .step::before { content: '→'; position: absolute; left: calc(-1 * var(--space-2) - 2px); top: 50%; transform: translate(-50%, -50%);
+  color: var(--fg-3); font-size: 12px }
+.step-date { color: var(--fg-3); font-size: var(--text-xs) }
+.step-model { font-weight: 600 }
+.step-change { color: var(--fg-2); font-size: 13px; line-height: 1.5 }
+.step-ideas .chip { white-space: normal; text-align: left }
+.step-ideas { display: flex; flex-wrap: wrap; gap: var(--space-1, 4px); margin-top: 4px }
+.rows .row.cheap-row { grid-template-columns: 96px minmax(140px, 240px) minmax(0, 1fr); align-items: start }
+.cheap-row b { white-space: normal; min-width: 0 }
+.cheap-row .hw { justify-self: start }
+.cheap-text { color: var(--fg-2); font-size: 13px; line-height: 1.45; white-space: normal; min-width: 0 }

@@ -22,6 +22,8 @@ async function api(path, opts) {
   return body
 }
 const routeKey = () => decodeURIComponent(location.hash.replace(/^#\/?/, ''))
+// La vista de investigación que pide la ruta, si pide una.
+const routeView = () => ({ research: 'ideas', 'research/lineages': 'lineages', 'research/cheap': 'cheap' })[routeKey()] || ''
 const favorites = ref([])
 // Los modelos instalados en la Mac (caché de Hugging Face, GGUF de llama-server y entornos), con su tamaño.
 const installed = ref([])
@@ -46,8 +48,11 @@ async function removeInstalled(it) {
 async function load() {
   try {
     api('/api/favorites').then((r) => { favorites.value = r.favorites }).catch(() => {})
+    api('/api/research').then((r) => { research.value = r }).catch(() => {})
     loadInstalled()
     if (routeKey() === 'favorites') view.value = 'favorites'
+    const rv = routeView()
+    if (rv) view.value = rv
     const list = await api('/api/weeks')
     weeks.value = list.weeks
     refreshing.value = list.refreshing
@@ -80,7 +85,7 @@ const VIDEO_TASKS = ['image-to-video', 'text-to-video', 'video']
 const taskIcon = (task) => (VIDEO_TASKS.includes(task) ? 'video' : TOPIC_ICON[topicOf(task)])
 const topic = ref('all')
 const search = ref('')
-const view = ref('cover') // cover · papers · favorites
+const view = ref('cover') // cover · papers · favorites · ideas · lineages · cheap
 
 // ── los favoritos ──
 const FAV_GROUPS = [
@@ -118,6 +123,59 @@ const favOrg = (f) => f.id.split('/')[0]
 const openFavorites = (g) => { favGroup.value = g; view.value = 'favorites'; if (location.hash !== '#/favorites') history.replaceState(null, '', '#/favorites') }
 const selectedFavId = ref('')
 const selectedFav = computed(() => (view.value === 'favorites' ? favorites.value.find((f) => f.id === selectedFavId.value) : null))
+
+// ── la investigación: cómo mejoran los modelos ──
+// Las ideas que mejoraron modelos (con su evidencia y la máquina que hizo falta) y los linajes: familias de modelos con
+// la idea que entró en cada salto. Las escribe Claude en news/research.json. Rutas: #/research, #/research/lineages y
+// #/research/cheap.
+const research = ref({ ideas: [], lineages: [] })
+const RESEARCH_VIEWS = { ideas: 'research', lineages: 'research/lineages', cheap: 'research/cheap' }
+const isResearch = (v) => v in RESEARCH_VIEWS
+const STAGES = [
+  { id: 'data', name: 'Datos' },
+  { id: 'architecture', name: 'Arquitectura' },
+  { id: 'training', name: 'Entrenamiento' },
+  { id: 'alignment', name: 'Calibrar y alinear' },
+  { id: 'efficiency', name: 'Achicar y acelerar' },
+  { id: 'use', name: 'Al usarlo' },
+]
+const stageName = (id) => STAGES.find((s) => s.id === id)?.name || id
+const HARDWARE = [
+  { id: 'mac', name: 'Una Mac' },
+  { id: 'gpu', name: 'Una GPU' },
+  { id: 'server', name: 'Un servidor' },
+  { id: 'datacenter', name: 'Data center' },
+  { id: 'unknown', name: 'Sin dato' },
+]
+const hwName = (id) => HARDWARE.find((h) => h.id === id)?.name || id
+const stage = ref('all')
+const hardware = ref('all')
+const ideaMatches = (d) => (stage.value === 'all' || d.stage === stage.value) && (hardware.value === 'all' || d.hardware === hardware.value)
+  && (!q.value || `${d.name} ${d.who} ${d.problem} ${d.idea}`.toLowerCase().includes(q.value))
+// Por etapa, y dentro de cada una de la más vieja a la más nueva: se lee como una historia.
+const ideaSections = computed(() => STAGES.map((s) => ({ ...s, items: research.value.ideas.filter((d) => d.stage === s.id && ideaMatches(d)).sort((a, b) => a.year - b.year) })).filter((s) => s.items.length))
+const stageCount = (id) => research.value.ideas.filter((d) => d.stage === id).length
+const hwCount = (id) => research.value.ideas.filter((d) => (stage.value === 'all' || d.stage === stage.value) && (id === 'all' || d.hardware === id)).length
+const onAMac = computed(() => research.value.ideas.filter((d) => d.hardware === 'mac' || d.mac).filter((d) => !q.value || `${d.name} ${d.mac}`.toLowerCase().includes(q.value)))
+const cheapIdeas = computed(() => research.value.ideas.filter((d) => d.cheap))
+// Lo que se HACE en la Mac (ajustar, cuantizar, mezclar) va aparte de lo que se entrenó en grande y en la Mac sólo se usa.
+const macGroups = computed(() => [
+  { id: 'make', name: 'Se hace en esta Mac', desc: 'mejorar o adaptar un modelo sin salir de la Mac', items: onAMac.value.filter((d) => d.hardware === 'mac') },
+  { id: 'use', name: 'Se entrena en grande, se usa en la Mac', desc: 'lo que hizo un data center y acá corre', items: onAMac.value.filter((d) => d.hardware !== 'mac') },
+].filter((g) => g.items.length))
+const ideasById = computed(() => Object.fromEntries(research.value.ideas.map((d) => [d.id, d])))
+const selectedIdeaId = ref('')
+const selectedIdea = computed(() => (isResearch(view.value) ? ideasById.value[selectedIdeaId.value] : null))
+const lineagesOf = (id) => research.value.lineages.filter((l) => l.steps.some((s) => s.ideas.includes(id)))
+const favById = (id) => favorites.value.find((f) => f.id === id)
+const openResearch = (v, opts = {}) => {
+  view.value = v
+  if (opts.stage) stage.value = opts.stage
+  const hash = `#/${RESEARCH_VIEWS[v]}`
+  if (location.hash !== hash) history.replaceState(null, '', hash)
+}
+const pickIdea = (id) => { selectedIdeaId.value = id; if (!shown.value.aux) toggle('aux', auxOpen) }
+const openFav = (id) => { const f = favById(id); if (f) { openFavorites('all'); pickFav(f) } }
 
 const models = computed(() => (data.value?.models || []).map((m) => ({ ...m, topic: topicOf(m.task) })))
 const q = computed(() => search.value.trim().toLowerCase())
@@ -189,7 +247,9 @@ let timer = null
 function schedule() { clearTimeout(timer); timer = setTimeout(async () => { if (!document.hidden) await load(); schedule() }, refreshing.value ? 5000 : 60000) }
 const onHash = () => {
   if (routeKey() === 'favorites') { view.value = 'favorites'; return }
-  if (view.value === 'favorites') view.value = 'cover'
+  const rv = routeView()
+  if (rv) { view.value = rv; return }
+  if (view.value === 'favorites' || isResearch(view.value)) view.value = 'cover'
   data.value = null; load()
 }
 onMounted(() => {
@@ -228,7 +288,7 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); wi
         <div v-if="removeError" class="confirm-row error">{{ removeError }}</div>
         <div v-if="!installed.length" class="nav-row muted"><span class="ui-icon" data-icon="box" aria-hidden="true"></span><span class="nav-name">Ningún modelo en la Mac</span></div>
         <div class="group-label">Semanas</div>
-        <a v-for="w in weeks" :key="w.key" class="nav-row" :class="{ on: data?.key === w.key && view !== 'favorites' }" :href="`#/${w.key}`" @click="view === 'favorites' && (view = 'cover')">
+        <a v-for="w in weeks" :key="w.key" class="nav-row" :class="{ on: data?.key === w.key && view !== 'favorites' && !isResearch(view) }" :href="`#/${w.key}`" @click="(view === 'favorites' || isResearch(view)) && (view = 'cover')">
           <span class="ui-icon" data-icon="clock" aria-hidden="true"></span><span class="nav-name">Semana {{ w.number }}</span><span class="count">{{ day(w.from) }} al {{ day(w.to) }}</span>
         </a>
         <div v-if="!weeks.length" class="nav-row muted"><span class="ui-icon" data-icon="clock" aria-hidden="true"></span><span class="nav-name">{{ refreshing ? 'Juntando la primera semana…' : 'Todavía no hay semanas' }}</span></div>
@@ -243,17 +303,87 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); wi
         <button type="button" class="nav-row" :class="{ on: view === 'papers' }" @click="view = 'papers'">
           <span class="ui-icon" data-icon="paper" aria-hidden="true"></span><span class="nav-name">Papers</span><span class="count">{{ data?.papersTotal ?? '' }}</span>
         </button>
+        <button type="button" class="nav-row" :class="{ on: view === 'ideas' && stage === 'all' }" @click="openResearch('ideas', { stage: 'all' })">
+          <span class="ui-icon" data-icon="start" aria-hidden="true"></span><span class="nav-name">Cómo mejoran</span><span class="count">{{ research.ideas.length || '' }}</span>
+        </button>
+        <button v-for="s in STAGES.filter((x) => stageCount(x.id))" :key="s.id" type="button" class="nav-row sub" :class="{ on: view === 'ideas' && stage === s.id }" @click="openResearch('ideas', { stage: s.id })">
+          <span class="nav-name">{{ s.name }}</span><span class="count">{{ stageCount(s.id) }}</span>
+        </button>
+        <button type="button" class="nav-row" :class="{ on: view === 'lineages' }" @click="openResearch('lineages')">
+          <span class="ui-icon" data-icon="popular" aria-hidden="true"></span><span class="nav-name">Evolución</span><span class="count">{{ research.lineages.length || '' }}</span>
+        </button>
+        <button type="button" class="nav-row" :class="{ on: view === 'cheap' }" @click="openResearch('cheap')">
+          <span class="ui-icon" data-icon="local" aria-hidden="true"></span><span class="nav-name">Hecho con poco</span><span class="count">{{ onAMac.length + cheapIdeas.length || '' }}</span>
+        </button>
       </div>
     </aside>
 
     <main class="editor">
       <div class="region-head">
-        <span>{{ view === 'favorites' ? 'Favoritos' : view === 'papers' ? 'Papers de la semana' : data ? `Semana ${data.number} · ${weekLabel}` : 'News' }}</span>
-        <input v-model="search" class="search" type="search" placeholder="Buscar un modelo o una tarea" aria-label="Buscar">
+        <span>{{ view === 'favorites' ? 'Favoritos' : view === 'papers' ? 'Papers de la semana' : view === 'ideas' ? 'Cómo mejoran los modelos' : view === 'lineages' ? 'Evolución' : view === 'cheap' ? 'Hecho con poco' : data ? `Semana ${data.number} · ${weekLabel}` : 'News' }}</span>
+        <input v-model="search" class="search" type="search" :placeholder="isResearch(view) ? 'Buscar una idea' : 'Buscar un modelo o una tarea'" aria-label="Buscar">
       </div>
       <div class="region-body">
+        <!-- la investigación: las ideas -->
+        <div v-if="view === 'ideas'" class="cover">
+          <p class="fav-intro">Cada idea: qué problema resolvió, cuánto mejoró según su paper y con qué máquina se logró.</p>
+          <div class="chips" role="group" aria-label="Con qué máquina">
+            <button type="button" class="chip" :class="{ on: hardware === 'all' }" @click="hardware = 'all'">Todas <span>{{ hwCount('all') }}</span></button>
+            <button v-for="h in HARDWARE.filter((x) => hwCount(x.id))" :key="h.id" type="button" class="chip" :class="[h.id, { on: hardware === h.id }]" @click="hardware = h.id">{{ h.name }} <span>{{ hwCount(h.id) }}</span></button>
+          </div>
+          <section v-for="s in ideaSections" :key="s.id">
+            <h2 class="section-title">{{ s.name }} <span>{{ s.items.length }}</span></h2>
+            <div class="favs">
+              <button v-for="d in s.items" :key="d.id" type="button" class="fav idea" :class="{ on: selectedIdeaId === d.id }" @click="pickIdea(d.id)">
+                <span class="model-top"><span class="model-name">{{ d.name }}</span><span class="hw" :class="d.hardware">{{ hwName(d.hardware) }}</span></span>
+                <span class="model-org">{{ d.year }} · {{ d.who }}</span>
+                <span class="fav-what">{{ d.idea }}</span>
+                <span class="idea-evidence">{{ d.evidence }}</span>
+                <span v-if="d.ours || d.models.length" class="fav-tags"><span v-if="d.ours" class="in-use">medido acá</span><span v-if="d.models.length" class="tag">{{ d.models.length }} en favoritos</span></span>
+              </button>
+            </div>
+          </section>
+          <p v-if="!ideaSections.length" class="empty-line">{{ research.ideas.length ? 'Ninguna idea coincide.' : 'Todavía no hay ideas (news/research.json).' }}</p>
+        </div>
+
+        <!-- la investigación: los linajes -->
+        <div v-else-if="view === 'lineages'" class="cover">
+          <p class="fav-intro">Familias de modelos paso a paso, con la idea que entró en cada salto. Tocá una idea para ver su ficha.</p>
+          <section v-for="l in research.lineages" :key="l.id">
+            <h2 class="section-title">{{ l.name }} <span>{{ l.why }}</span></h2>
+            <ol class="lineage">
+              <li v-for="st in l.steps" :key="st.model" class="step">
+                <span class="step-date">{{ st.date }} · {{ st.who }}</span>
+                <b class="step-model">{{ st.model }}</b>
+                <span class="step-change">{{ st.change }}</span>
+                <span v-if="st.ideas.length" class="step-ideas"><button v-for="id in st.ideas" :key="id" type="button" class="chip" :class="{ on: selectedIdeaId === id }" @click="pickIdea(id)">{{ ideasById[id]?.name || id }}</button></span>
+              </li>
+            </ol>
+          </section>
+        </div>
+
+        <!-- la investigación: hecho con poco -->
+        <div v-else-if="view === 'cheap'" class="cover">
+          <section v-for="g in macGroups" :key="g.id">
+            <h2 class="section-title">{{ g.name }} <span>{{ g.desc }}</span></h2>
+            <div class="rows">
+              <button v-for="d in g.items" :key="d.id" type="button" class="row cheap-row" :class="{ on: selectedIdeaId === d.id }" @click="pickIdea(d.id)">
+                <span class="hw" :class="d.hardware">{{ hwName(d.hardware) }}</span><b>{{ d.name }}</b><span class="cheap-text">{{ d.mac || d.machine }}</span>
+              </button>
+            </div>
+          </section>
+          <section v-if="cheapIdeas.length">
+            <h2 class="section-title">Con poco <span>quién lo logró con una GPU o unos cientos de dólares</span></h2>
+            <div class="rows">
+              <button v-for="d in cheapIdeas" :key="d.id" type="button" class="row cheap-row" :class="{ on: selectedIdeaId === d.id }" @click="pickIdea(d.id)">
+                <span class="hw" :class="d.hardware">{{ hwName(d.hardware) }}</span><b>{{ d.name }}</b><span class="cheap-text">{{ d.cheap }}</span>
+              </button>
+            </div>
+          </section>
+        </div>
+
         <!-- los favoritos -->
-        <div v-if="view === 'favorites'" class="cover">
+        <div v-else-if="view === 'favorites'" class="cover">
           <div class="fav-stats">
             <span><b>{{ favStats.saved }}</b> guardados</span><span><b>{{ favStats.tried }}</b> probados</span>
             <span class="keep"><b>{{ favStats.keep }}</b> valen la pena</span><span class="dropped"><b>{{ favStats.dropped }}</b> {{ favStats.dropped === 1 ? 'descartado' : 'descartados' }}</span>
@@ -355,8 +485,46 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); wi
 
     <aside v-show="shown.aux" class="auxiliarybar" aria-label="La ficha del modelo">
       <div class="rsz rsz-edge-left" v-resize="auxResize"></div>
-      <div class="region-head"><span>Ficha</span><a v-if="selectedFav || (selected && view !== 'favorites')" class="region-action" :href="hf(selectedFav?.id || selected.id)" target="_blank" rel="noopener" title="Abrir en Hugging Face" aria-label="Abrir en Hugging Face"><span class="ui-icon" data-icon="external" aria-hidden="true"></span></a></div>
-      <div v-if="selectedFav" class="region-body doc">
+      <div class="region-head"><span>Ficha</span><a v-if="selectedIdea" class="region-action" :href="selectedIdea.paper.url" target="_blank" rel="noopener" title="Abrir el paper" aria-label="Abrir el paper"><span class="ui-icon" data-icon="external" aria-hidden="true"></span></a><a v-else-if="selectedFav || (selected && view !== 'favorites' && !isResearch(view))" class="region-action" :href="hf(selectedFav?.id || selected.id)" target="_blank" rel="noopener" title="Abrir en Hugging Face" aria-label="Abrir en Hugging Face"><span class="ui-icon" data-icon="external" aria-hidden="true"></span></a></div>
+      <div v-if="selectedIdea" class="region-body doc">
+        <div class="doc-name">{{ selectedIdea.name }}</div>
+        <div class="doc-org">{{ selectedIdea.who }} · {{ selectedIdea.year }}</div>
+        <dl>
+          <dt>Etapa</dt><dd>{{ stageName(selectedIdea.stage) }}</dd>
+          <dt>Máquina</dt><dd><span class="hw" :class="selectedIdea.hardware">{{ hwName(selectedIdea.hardware) }}</span></dd>
+          <dt>Paper</dt><dd><a :href="selectedIdea.paper.url" target="_blank" rel="noopener">{{ selectedIdea.paper.title }}</a></dd>
+        </dl>
+        <div class="doc-section">El problema</div>
+        <p class="doc-text">{{ selectedIdea.problem }}</p>
+        <div class="doc-section">La idea</div>
+        <p class="doc-text">{{ selectedIdea.idea }}</p>
+        <div class="doc-section">La evidencia</div>
+        <p class="doc-text">{{ selectedIdea.evidence }}</p>
+        <div class="doc-section">Con qué máquina</div>
+        <p class="doc-text">{{ selectedIdea.machine || 'No se publicó.' }}</p>
+        <template v-if="selectedIdea.mac">
+          <div class="doc-section">En esta Mac</div>
+          <p class="doc-text">{{ selectedIdea.mac }}</p>
+        </template>
+        <template v-if="selectedIdea.cheap">
+          <div class="doc-section">Con poco</div>
+          <p class="doc-text">{{ selectedIdea.cheap }}</p>
+        </template>
+        <div v-if="selectedIdea.ours" class="verdict-box keep">
+          <span class="verdict keep">Lo que medimos acá</span>
+          <p>{{ selectedIdea.ours }}</p>
+        </div>
+        <template v-if="selectedIdea.models.length">
+          <div class="doc-section">En tus favoritos</div>
+          <div class="step-ideas"><button v-for="id in selectedIdea.models" :key="id" type="button" class="chip" @click="openFav(id)">{{ id.split('/')[1] }}</button></div>
+        </template>
+        <template v-if="lineagesOf(selectedIdea.id).length">
+          <div class="doc-section">Aparece en</div>
+          <div class="step-ideas"><button v-for="l in lineagesOf(selectedIdea.id)" :key="l.id" type="button" class="chip" @click="openResearch('lineages')">{{ l.name }}</button></div>
+        </template>
+      </div>
+      <div v-else-if="isResearch(view)" class="region-body"><p class="empty-line pad">Elegí una idea para ver su ficha.</p></div>
+      <div v-else-if="selectedFav" class="region-body doc">
         <div class="doc-name">{{ favName(selectedFav) }}</div>
         <div class="doc-org">{{ favOrg(selectedFav) }}</div>
         <div v-if="selectedFav.verdict" class="verdict-box" :class="selectedFav.verdict">

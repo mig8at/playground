@@ -58,3 +58,21 @@ func TestFavoritesFileIsValid(t *testing.T) {
 		t.Fatal("favorites.json vacío")
 	}
 }
+
+// La investigación cita favoritos e ideas por id: un error de tipeo en el archivo tiene que fallar acá, no en la UI.
+func TestResearchFileIsValid(t *testing.T) {
+	favs, err := loadFavorites("../favorites.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := loadResearch("../research.json", favs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(r.Ideas) == 0 || len(r.Lineages) == 0 {
+		t.Fatal("research.json sin ideas o sin linajes")
+	}
+	if _, err := loadResearch("../research.json", favs[:1]); err == nil {
+		t.Fatal("una idea que cita un favorito que no existe tenía que fallar")
+	}
+}
