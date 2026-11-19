@@ -36,6 +36,18 @@ escribe y cada ⚠ es un aviso. Un `.ts` sin línea de uso es un **módulo de ap
 y no sale como receta. El camino se deduce del código: la llave (`api`), `graphqlInPage` (tu sesión) o `openChrome`
 / `bin/jarvis` (la pantalla).
 
+## Backoffice nuevo (backoffice.dev.creditop.com)
+
+Van por la API del backoffice con **tu sesión**: abren una pestaña del backoffice en tu Chrome y hacen cada pedido desde
+adentro de la página, como la pantalla (`backoffice/api.ts`). No hay llave: el servidor del backoffice adjunta el token
+de staff de tu sesión. Cómo está armado (proxies, legacy-backend y merchant-api, el gateway): `knowledge/backoffice-merchants`.
+En dev, lo de legacy-backend lo atiende el despliegue de la rama `lab`, sobre la base de dev, qa y staging.
+
+| receta | qué deja | parámetros |
+|---|---|---|
+| `merchant` | **sólo lectura · ¿cómo está este comercio?** Salud, puntos de venta con su hash, entidades con el alcance de sus reglas, qué entidad está prendida en qué punto de venta y por qué no se puede prender, ecommerce y productos. ~5 s | `<id \| nombre \| hash>` · `--json` |
+| `merchant-logo` | el logo del comercio: por defecto uno de letra (círculo de color con la primera letra), o `--file`. ⚠ Mientras los triggers de auditoría de `allieds` nombren columnas borradas por CORE-562, el guardado falla con 422 («Unknown column 'show_products' in 'OLD'»): la receta lo dice y sale 1 | `<id \| nombre \| hash>` · `--file logo.png` · `--json` |
+
 ## VTEX (cuenta de pruebas `creditop`)
 
 Credenciales: `connectors/.env` (`VTEX_ACCOUNT`, `VTEX_APP_KEY`, `VTEX_APP_TOKEN`), con el lector del harness (`credential`). Cliente: `vtex/api.ts`. Las recetas que sólo usan la API corren en cualquier máquina que tenga ese archivo, también en la nube; las de pantalla y las que usan la sesión (sinónimos) necesitan tu Chrome con Jarvis.
