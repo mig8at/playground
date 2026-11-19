@@ -41,6 +41,14 @@ para 2 a 4; en legacy-application, la UTM para 0 y 1 y, para 2 y 3, la continuac
 es de autogestión. legacy-backend deja además una fila en `logs` con la descripción
 «Credencial de lender ausente - no se consumió la integración»; legacy-application no deja rastro.
 
+En legacy-backend, para 2 a 4 sin credencial la selección marca además `standBy = true` y guarda esa URL de
+confirmación aparte (`$inPlatformContinueUrl`), porque otras ramas pisan `$url` más abajo. Esa URL sólo se entrega
+como `continueUrl` (el front lleva al cliente directo a la confirmación) si
+`LenderTabBehaviorResolver::continuesInPlace` dice que el que está frente a la pantalla es el cliente
+(`OnboardingOrigin::isCustomerPresent()`: autogestión o tienda, no asesor) y no se mostró un modal; en ese caso tampoco
+sale el WhatsApp de autogestión de la entidad. Con asesor sale el aviso de siempre y no hay `continueUrl`. Así una entidad del riel 4 sin credencial —el caso de una
+entidad que no habla con la suya por credencial propia— llega a la confirmación en plataforma sin fallar.
+
 ## Credencial de central: la entidad primero, sólo en legacy-backend
 
 `RiskCentralCredential::findForUserRequest(central, solicitud, lender_id)` difiere entre los monolitos.
