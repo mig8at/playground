@@ -300,11 +300,14 @@ function drawExterior(g,bp,{level=0,px=1,capas=CAPAS}){
    g.globalAlpha=.6;g.strokeStyle=a.color&&a.color!==a.follaje?a.color:'#3f6a2c';g.lineWidth=Math.min(.22,a.r*.08);g.stroke();
    if(px>=3){g.fillStyle='#5a4028';g.beginPath();g.arc(a.x,a.z,.22,0,7);g.fill();}}
   g.globalAlpha=1;}
- // Los nombres de las vías, a lo largo de cada una y repetidos cada tanto.
- if(capas.nombres&&px>=1.2){const fs=Math.max(9/px,Math.min(2.2,14/px));// (de lejos, legible; de cerca, no más de 14 px)g.font=`600 ${fs}px system-ui,sans-serif`;g.textAlign='center';g.textBaseline='middle';g.fillStyle='rgba(60,66,72,.6)';
-  const paso=Math.max(96,420/px);
-  for(const v of [...(bp.vias?.h||[]),...(bp.vias?.v||[])]){const t=px>=4?v.largo:v.corto,a=v.desde??0,b=v.hasta??(v.eje==='h'?bp.map.W:bp.map.H)*CELL;if(!t||b-a<fs*4)continue;
-   for(let d=a+paso/2;d<b;d+=paso){if(v.eje==='h')g.fillText(t,d,v.coord);else girado(v.coord,d,-Math.PI/2,()=>g.fillText(t,0,0));}}}
+ // Los nombres de las vías, a lo largo de cada una y repetidos cada tanto. La letra se dibuja en PÍXELES (se deshace la
+ // escala del plano alrededor de cada texto): pedida en metros salía de 2 px y el navegador la subía a su mínimo (~10 px),
+ // que con la escala encima daba nombres de 9 m de alto.
+ if(capas.nombres&&px>=1.2){const alto=Math.max(9,Math.min(14,px*2.2)),paso=Math.max(96,420/px);
+  const texto=(t,x,z,ang)=>{g.save();g.translate(x,z);g.rotate(ang);g.scale(1/px,1/px);g.fillText(t,0,0);g.restore();};
+  g.font=`600 ${alto}px system-ui,sans-serif`;g.textAlign='center';g.textBaseline='middle';g.fillStyle='rgba(60,66,72,.6)';
+  for(const v of [...(bp.vias?.h||[]),...(bp.vias?.v||[])]){const t=px>=4?v.largo:v.corto,a=v.desde??0,b=v.hasta??(v.eje==='h'?bp.map.W:bp.map.H)*CELL;if(!t||b-a<alto/px*4)continue;
+   for(let d=a+paso/2;d<b;d+=paso){if(v.eje==='h')texto(t,d,v.coord,0);else texto(t,v.coord,d,-Math.PI/2);}}}
 }
 
 // ---------- Las casas desde la familia (engine/hogar.js, 2026-10-12) ----------
