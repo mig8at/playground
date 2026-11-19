@@ -22,7 +22,7 @@ const vista=reactive({x:0,y:0,k:1});// (la posición y el zoom del lienzo dentro
 const NOMBRE_CAPA={pintura:'Pintura de vías',equipo:'Mobiliario',arboles:'Árboles',nombres:'Nombres de vías',botines:'Botines'};
 const TIPO={vivienda:'Vivienda',oficinas:'Oficinas',comercio:'Comercio',hotel:'Hotel',casa:'Casa',local:'Local',colegio:'Colegio',comisaria:'Comisaría',biblioteca:'Biblioteca',hospital:'Hospital',objetivo:'Objetivo',residencial:'Residencial'};
 
-const maxPisos=computed(()=>plano?Math.max(...plano.lots.map(L=>L.floors)):0);
+const maxPisos=ref(0),grande=ref(false);// (maxPisos: el plano no es reactivo —es enorme—, así que se anota al cargar)
 const resumen=ref(null);
 
 function dibujar(){
@@ -59,13 +59,13 @@ async function cargar(){
  router.replace({query:{ciudad:seed.value,jugadores:team.value}});
  const t0=performance.now(),r=await planoDe({seed:seed.value,team:team.value,parks:true});
  if(!r.plano){estado.value='No se pudo armar el plano de esta ciudad.';return;}
- plano=r.plano;const V=plano.vegetacion||{};
+ plano=r.plano;maxPisos.value=Math.max(...plano.lots.map(L=>L.floors));const V=plano.vegetacion||{};
  resumen.value={edificios:plano.lots.length,casas:plano.isla.casas?.length||0,arboles:(V.arboles?.length||0)+(V.palmeras?.length||0),mobiliario:plano.equipamiento?.length||0,
   muebles:plano.lots.reduce((a,L)=>a+L.levels.slice(0,L.floors).reduce((b,lv)=>b+lv.furniture.length,0),0),ms:Math.round(performance.now()-t0),guardado:r.guardado};
  nivel.value=0;estado.value='';await nextTick();dibujar();ajustar();
 }
 watch([nivel,capas],()=>{dibujar();dibujarPiso();});
-watch(elegido,dibujarPiso);
+watch([elegido,grande],dibujarPiso);
 let obs;
 onMounted(()=>{cargar();window.addEventListener('keydown',tecla);obs=new ResizeObserver(()=>{if(!plano||arrastre)return;if(!tocado)ajustar();dibujarPiso();});obs.observe(host.value);});
 onBeforeUnmount(()=>{window.removeEventListener('keydown',tecla);obs?.disconnect();});
@@ -99,8 +99,9 @@ onBeforeUnmount(()=>{window.removeEventListener('keydown',tecla);obs?.disconnect
    </div>
   </div>
 
-  <aside v-if="elegido" class="ficha">
+  <aside v-if="elegido" class="ficha" :class="{grande}">
    <button class="cerrar" @click="elegido=null" aria-label="Cerrar">×</button>
+   <button class="ampliar" @click="grande=!grande" :title="grande?'Volver al tamaño de ficha':'Ver el piso en grande: hasta 42 píxeles por metro'">{{ grande?'Achicar':'Ampliar' }}</button>
    <small>{{ TIPO[elegido.type]||TYPES[elegido.type]?.label||elegido.kind||elegido.type }} · lote {{ elegido.id }}</small>
    <b>{{ elegido.shopName||elegido.name||'Edificio' }}</b>
    <p>{{ elegido.floors }} {{ elegido.floors===1?'piso':'pisos' }} · {{ elegido.rect.w }} × {{ elegido.rect.h }} m · frente al {{ {N:'norte',S:'sur',E:'este',W:'oeste'}[elegido.front]||'—' }}</p>
@@ -140,6 +141,8 @@ onBeforeUnmount(()=>{window.removeEventListener('keydown',tecla);obs?.disconnect
 .pie span{background:var(--panel);border:1px solid var(--borde);border-radius:8px;padding:3px 9px;font-variant-numeric:tabular-nums}
 .pie .ayuda{margin-left:auto;color:var(--tx3)}
 .ficha{width:min(400px,38vw);overflow:auto;padding:16px;background:var(--panel);border-left:1px solid var(--borde);position:relative}
+.ficha.grande{width:min(1100px,74vw)}
+.ampliar{position:absolute;right:46px;top:10px;height:28px;border-radius:8px;border:1px solid var(--borde);background:rgba(255,255,255,.08);color:var(--tx);cursor:pointer;font:inherit;padding:0 10px}
 .ficha small{color:var(--tx3);text-transform:uppercase;letter-spacing:.8px;font-size:11px}
 .ficha>b{display:block;font:400 18px var(--t);margin:2px 0 4px}
 .ficha p{margin:0 0 10px;color:var(--tx2)}

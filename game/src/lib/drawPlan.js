@@ -98,11 +98,8 @@ function drawLevel(g,lv,{m,stage,small=false,ox=0,oy=0,labels=false}){
     g.strokeStyle=d.street?'#c0392b':'#7d7972';g.lineWidth=1.2;g.beginPath();g.moveTo(X(d.x0),Y(d.y0));g.lineTo(X(d.x0+nx*len),Y(d.y0+ny*len));
     const a0=Math.atan2(ny,nx),a1=Math.atan2(uy,ux);let da=a1-a0;da=Math.atan2(Math.sin(da),Math.cos(da));g.arc(X(d.x0),Y(d.y0),len*m,a0,a0+da,da<0);g.stroke();}}}
   g.strokeStyle='#5aa9d6';g.lineWidth=small?1.2:3.5;for(const w of lv.windows){g.beginPath();g.moveTo(X(w.x0),Y(w.y0));g.lineTo(X(w.x1),Y(w.y1));g.stroke();}}
- // Muebles (8).
- if(stage>=8)for(const f of lv.furniture){g.fillStyle=ITEM_COLOR[f.kind]||'#999';R(f,(a,b,w,h)=>g.fillRect(a,b,w,h));
-  if(!small){g.strokeStyle='rgba(0,0,0,.35)';g.lineWidth=.8;R(f,(a,b,w,h)=>g.strokeRect(a,b,w,h));
-   if(f.kind==='caja'){g.beginPath();R(f,(a,b,w,h)=>{g.moveTo(a,b);g.lineTo(a+w,b+h);g.moveTo(a+w,b);g.lineTo(a,b+h);});g.stroke();}}
-  if(f.pc){g.fillStyle='#2f7fc0';const s=Math.min(f.w,f.h)*.6;g.fillRect(X(f.x+f.w/2)-s*m/2,Y(f.y+f.h/2)-s*m/4,s*m,s*m/2);}}
+ // Muebles (8): cada uno con su forma y mirando hacia donde mira (drawItem); muy de lejos, su caja de color.
+ if(stage>=8)for(const f of lv.furniture){if(m>=4)drawItem(g,f,X,Y,m);else{g.fillStyle=ITEM_COLOR[f.kind]||'#999';R(f,(a,b,w,h)=>g.fillRect(a,b,w,h));}}
  if(labels&&stage>=6){g.font='600 11px system-ui,sans-serif';g.textAlign='center';g.textBaseline='middle';
   for(const q of lv.rooms){if(q.w*m<34)continue;const t=ROOM_LABEL[q.type]||q.type;g.fillStyle='rgba(40,44,48,.8)';g.fillText(t,X(q.x+q.w/2),Y(q.y+q.h/2)-(stage>=8?q.h*m/2-9:0));}
   // El número de cada departamento, sobre su sala (o su estudio).
@@ -220,6 +217,49 @@ export function drawIslaStage(canvas,bp,{cell,stage=9,level=0,selected=-1,fronts
   if(I.globo){const {x,y}=I.globo;g.fillStyle='#e0503a';g.beginPath();g.arc(x,y-2.2,2.4,0,7);g.fill();g.strokeStyle='#5a4632';g.lineWidth=.3;g.beginPath();g.moveTo(x-1.5,y-.8);g.lineTo(x-.7,y+.6);g.moveTo(x+1.5,y-.8);g.lineTo(x+.7,y+.6);g.stroke();g.fillStyle='#8a6a4c';g.fillRect(x-.8,y+.6,1.6,1.2);g.fillStyle='#3b4446';g.fillText('globo',x,y+7);}
   if(I.parapente){const {x,y}=I.parapente;g.fillStyle='#4f7fa8';g.beginPath();g.ellipse(x,y-1.6,3.2,1.3,0,Math.PI,0);g.fill();g.strokeStyle='#3b4446';g.lineWidth=.2;g.beginPath();g.moveTo(x-3,y-1.6);g.lineTo(x,y+.8);g.lineTo(x+3,y-1.6);g.stroke();g.fillStyle='#3b4446';g.fillText('parapente',x,y+6);}}
  g.setTransform(1,0,0,1,0,0);return {x0:B.x0,y0:B.y0};}
+
+// ---------- Un mueble, con su forma y su frente (2026-11-19) ----------
+// Antes cada mueble era una caja de color: no se distinguía una cama de un armario ni de qué lado se usa una silla. El
+// plano guarda hacia dónde mira cada uno (`ry`: el frente del modelo, +z, girado alrededor de la vertical), así que se
+// dibuja en su propio marco —el frente hacia +y, el respaldo o la pared hacia −y— y se gira. Son símbolos de plano de
+// arquitectura, no retratos: la cama con sus almohadas contra la cabecera, el sofá con respaldo y brazos, el inodoro con su
+// tanque, la estufa con sus hornillas. W es el ancho (de lado a lado) y D el fondo (de la pared al frente), en píxeles.
+const CAMAS=new Set(['cama','cama_s','cama_h','catre','camilla','litera']),GUARDA=new Set(['armario','comoda','archivador','estante','casillero','repisa','estanteria_ropa','vitrina','buzones','cajon','perchero']),
+ MESAS=new Set(['mesa','mesa_centro','mesa_reunion','mesa_lectura']),BARRAS=new Set(['meson','mostrador','plancha','horno','lavadora']);
+function drawItem(g,f,X,Y,m){
+ const ry=f.ry||0,sx=Math.sin(ry),alX=Math.abs(sx)>.5,W=(alX?f.h:f.w)*m,D=(alX?f.w:f.h)*m,k=f.kind,col=ITEM_COLOR[k]||'#999',lw=Math.max(.6,Math.min(1.4,m*.035));
+ const box=(x,y,w,h,r=0)=>{g.beginPath();if(r>0&&g.roundRect)g.roundRect(x,y,w,h,Math.min(r,w/2,h/2));else g.rect(x,y,w,h);},pinta=(c=col)=>{g.fillStyle=c;g.fill();g.stroke();},
+  circ=(x,y,r)=>{g.beginPath();g.arc(x,y,Math.max(.5,r),0,7);},oscuro='rgba(0,0,0,.42)',claro='rgba(255,255,255,.55)';
+ g.save();g.translate(X(f.x+f.w/2),Y(f.y+f.h/2));g.rotate(-ry);g.strokeStyle=oscuro;g.lineWidth=lw;g.lineJoin='round';
+ const x0=-W/2,y0=-D/2,r=Math.min(W,D)*.12;
+ if(CAMAS.has(k)){box(x0,y0,W,D,r);pinta('#f4f1ea');// (el colchón claro, la cobija del color de la cama y las almohadas contra la cabecera)
+  box(x0,y0+D*.3,W,D*.7,r);pinta();const n=W>D*.62?2:1,aw=W/n*.7,ah=D*.16;for(let i=0;i<n;i++){box(x0+W/n*(i+.5)-aw/2,y0+D*.07,aw,ah,ah*.4);pinta('#ffffff');}
+  if(k==='litera'){g.beginPath();g.moveTo(x0,y0+D*.3);g.lineTo(x0+W,y0+D);g.stroke();}}
+ else if(k==='sofa'||k==='sillon'){box(x0,y0,W,D,r);pinta();const b=D*.28,a=Math.min(W*.14,D*.3);// respaldo atrás y un brazo a cada lado
+  g.fillStyle='rgba(0,0,0,.16)';g.fillRect(x0,y0,W,b);g.fillRect(x0,y0,a,D);g.fillRect(x0+W-a,y0,a,D);
+  const n=k==='sofa'?Math.max(2,Math.round((W-2*a)/(D*.9))):1;g.beginPath();for(let i=1;i<n;i++){const x=x0+a+(W-2*a)*i/n;g.moveTo(x,y0+b);g.lineTo(x,y0+D);}g.stroke();}
+ else if(k==='silla'){box(x0,y0+D*.12,W,D*.88,r*2);pinta();g.lineWidth=Math.max(1.2,D*.16);g.lineCap='round';g.beginPath();g.moveTo(x0+W*.12,y0+D*.1);g.lineTo(x0+W*.88,y0+D*.1);g.stroke();}
+ else if(k==='inodoro'){box(x0,y0,W,D*.3,r);pinta('#ffffff');g.beginPath();g.ellipse(0,y0+D*.64,W*.42,D*.36,0,0,7);pinta('#ffffff');g.beginPath();g.ellipse(0,y0+D*.66,W*.24,D*.2,0,0,7);g.stroke();}
+ else if(k==='lavamanos'){box(x0,y0,W,D,r);pinta('#ffffff');g.beginPath();g.ellipse(0,D*.06,W*.32,D*.3,0,0,7);g.stroke();circ(0,y0+D*.16,Math.min(W,D)*.06);g.fillStyle=oscuro;g.fill();}
+ else if(k==='ducha'){box(x0,y0,W,D);pinta();g.beginPath();g.moveTo(x0,y0);g.lineTo(x0+W,y0+D);g.moveTo(x0+W,y0);g.lineTo(x0,y0+D);g.stroke();circ(0,0,Math.min(W,D)*.07);g.fillStyle='#ffffff';g.fill();g.stroke();}
+ else if(k==='tina'){box(x0,y0,W,D,r);pinta('#ffffff');box(x0+W*.12,y0+D*.08,W*.76,D*.84,W*.3);pinta();circ(0,y0+D*.16,W*.07);g.fillStyle=oscuro;g.fill();}
+ else if(k==='estufa'){box(x0,y0,W,D,r*.5);pinta();g.strokeStyle=claro;for(const [a,b] of [[-.22,-.2],[.22,-.2],[-.22,.22],[.22,.22]]){circ(W*a,D*b,Math.min(W,D)*.14);g.stroke();}}
+ else if(k==='nevera'){box(x0,y0,W,D,r*.5);pinta();g.beginPath();g.moveTo(x0,y0+D*.82);g.lineTo(x0+W,y0+D*.82);g.moveTo(x0+W*.8,y0+D*.82);g.lineTo(x0+W*.8,y0+D);g.stroke();}
+ else if(k==='tv'){box(x0,y0+D*.25,W,D*.5,1);pinta();box(-W*.14,y0,W*.28,D*.3);pinta('#565b60');}
+ else if(k==='planta'){circ(0,0,Math.min(W,D)*.5);pinta();g.strokeStyle='rgba(30,70,30,.6)';g.beginPath();for(let i=0;i<5;i++){const a=i*1.2566;g.moveTo(0,0);g.lineTo(Math.cos(a)*W*.42,Math.sin(a)*D*.42);}g.stroke();}
+ else if(k==='lampara'||k==='maniqui'){circ(0,0,Math.min(W,D)*.5);pinta();circ(0,0,Math.min(W,D)*.2);g.stroke();}
+ else if(k==='caja'||k==='caja_fuerte'){box(x0,y0,W,D);pinta();if(k==='caja'){g.beginPath();g.moveTo(x0,y0);g.lineTo(x0+W,y0+D);g.moveTo(x0+W,y0);g.lineTo(x0,y0+D);g.stroke();}else{circ(0,0,Math.min(W,D)*.24);g.strokeStyle=claro;g.stroke();}}
+ else if(MESAS.has(k)){box(x0,y0,W,D,Math.min(W,D)*(k==='mesa'&&Math.abs(W-D)<m*.15?.5:.14));pinta();}
+ else if(k==='escritorio'||k==='pupitre'){box(x0,y0,W,D,r*.5);pinta();// (el computador, del lado de la pared: quien lo usa se sienta al frente)
+  if(f.pc){box(-W*.2,y0+D*.12,W*.4,D*.14);pinta('#2f7fc0');box(-W*.16,y0+D*.5,W*.32,D*.2,1);pinta('#e9ecef');}}
+ else if(GUARDA.has(k)){box(x0,y0,W,D);pinta();// las puertas o cajones, del lado del frente
+  g.beginPath();g.moveTo(x0,y0+D*.78);g.lineTo(x0+W,y0+D*.78);const n=Math.max(1,Math.round(W/Math.max(D,m*.5)));for(let i=1;i<n;i++){const x=x0+W*i/n;g.moveTo(x,y0+D*.78);g.lineTo(x,y0+D);}g.stroke();}
+ else if(BARRAS.has(k)){box(x0,y0,W,D,r*.4);pinta();g.strokeStyle=claro;g.beginPath();g.moveTo(x0+W*.06,y0+D*.2);g.lineTo(x0+W*.94,y0+D*.2);g.stroke();
+  if(k==='horno'){circ(0,D*.1,Math.min(W,D)*.26);g.stroke();}if(k==='lavadora'){circ(0,0,Math.min(W,D)*.3);g.stroke();}}
+ else if(k==='caminadora'||k==='bicicleta'||k==='banco'){box(x0,y0,W,D,r*2);pinta();g.strokeStyle=claro;g.beginPath();g.moveTo(x0+W*.15,y0+D*.2);g.lineTo(x0+W*.85,y0+D*.2);g.stroke();}
+ else{box(x0,y0,W,D,k==='colchoneta'||k==='probador'?r:0);pinta();}
+ g.restore();
+}
 
 // ---------- LO DE AFUERA Y LAS AZOTEAS (2026-11-19) ----------
 // El plano ya traía todo esto medido —1.838 árboles, 482 piezas de mobiliario, 1.259 marcas de pintura, los nombres de
