@@ -584,5 +584,76 @@
     "ideas": [
       "Probar FastFrames-S en la Mac y medir cuántos cuadros por segundo da"
     ]
+  },
+  {
+    "id": "prism-ml/bonsai-image-binary-4B-mlx-1bit",
+    "group": "create",
+    "task": "text-to-image",
+    "params": null,
+    "license": "apache-2.0",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Un generador de imágenes desde texto (un transformer de difusión de 4 B) con todos sus pesos en 1 bit, en MLX para Apple Silicon.",
+    "why": "Lo mismo que Bonsai hizo con el texto, pero para imágenes: un modelo de imagen que entra en muy poca memoria y corre nativo en la Mac.",
+    "ideas": [
+      "Generar ilustraciones para Office sin GPU ni red",
+      "Comparar qué se pierde contra un modelo de imagen normal"
+    ]
+  },
+  {
+    "id": "ASLP-lab/MeanVC2",
+    "group": "voice",
+    "task": "audio-to-audio",
+    "params": null,
+    "license": "apache-2.0",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Convierte tu voz en la de otra persona mientras hablás, con una muestra corta de la voz destino y sin reentrenar.",
+    "why": "110 ms de latencia y menos de un núcleo de CPU: corre en vivo en cualquier lado, en un solo paso de generación. ⚠ Convertir a la voz de alguien pide su permiso.",
+    "ideas": [
+      "Cambiar la voz de un personaje de Office en vivo"
+    ]
+  },
+  {
+    "id": "google/tabfm-1.0.0-pytorch",
+    "group": "specialist",
+    "task": "tabular-classification",
+    "params": null,
+    "license": "no comercial (TabFM)",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "El modelo base para tablas de Google Research: clasifica y estima números sobre una tabla con columnas numéricas y categóricas, pasándole los ejemplos como contexto, sin entrenar.",
+    "why": "La respuesta de Google a TabPFN: lo mismo, sin ajustar nada ni buscar hiperparámetros. ⚠ Licencia no comercial: sirve para evaluar, no para producción.",
+    "ideas": [
+      "Ponerlo contra TabPFN en la misma tabla"
+    ]
+  },
+  {
+    "id": "robbyant/lingbot-map",
+    "group": "create",
+    "task": "image-to-3d",
+    "params": null,
+    "license": "no la declara",
+    "mac": "unknown",
+    "added": "2026-11-19",
+    "what": "Reconstruye en 3D un lugar a medida que le llega un video: un modelo base que arma el mapa en streaming, sin optimizar escena por escena.",
+    "why": "Caminar con el teléfono y que el lugar se vaya armando en 3D en el momento.",
+    "ideas": [
+      "Reconstruir la oficina con un video del celular"
+    ]
+  },
+  {
+    "id": "mistralai/Leanstral-1.5-119B-A6B",
+    "group": "gpu",
+    "task": "text-generation",
+    "params": null,
+    "license": "apache-2.0",
+    "mac": "no",
+    "added": "2026-11-19",
+    "what": "Un agente que escribe demostraciones matemáticas en Lean 4, un asistente de pruebas donde cada paso se verifica: lo que demuestra, está demostrado.",
+    "why": "Matemática verificada por máquina, abierta y de Mistral. 119 B de parámetros (6 B activos): no entra en la Mac.",
+    "ideas": [
+      "Ver cómo demuestra un teorema chico en su demo"
+    ]
   }
 ]
