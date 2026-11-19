@@ -7,12 +7,14 @@ package main
 // terminar una corrida y `make harness-run`. Sólo lectura (también prod, salvo Loki, que en prod no se consulta desde acá).
 
 import (
+	"encoding/json"
 	"flag"
 
 	"creditop/my-tools/connectors/logs"
 
 	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -124,7 +126,7 @@ func runRequestVerdict(args []string) int {
 				lk.Lines++
 				lk.ByLevel[lvl]++
 				if (lvl == "error" || lvl == "critical" || lvl == "emergency") && len(lk.Errors) < 3 {
-					lk.Errors = append(lk.Errors, trimTo(strings.Join(strings.Fields(v[1]), " "), 200))
+					lk.Errors = append(lk.Errors, trimTo(logMessage(v[1]), 200))
 				}
 			}
 		}
@@ -167,7 +169,8 @@ func runRequestVerdict(args []string) int {
 		}
 	}
 	if lk.Skipped == "" && lk.ByLevel["error"]+lk.ByLevel["critical"] > 0 {
-		verdict = append(verdict, fmt.Sprintf("Loki: %d errores que la nombran", lk.ByLevel["error"]+lk.ByLevel["critical"]))
+		n := lk.ByLevel["error"] + lk.ByLevel["critical"]
+		verdict = append(verdict, fmt.Sprintf("Loki: %d %s que la nombra%s", n, map[bool]string{true: "error", false: "errores"}[n == 1], map[bool]string{true: "", false: "n"}[n == 1]))
 	}
 
 	if *asJSON {
@@ -192,7 +195,7 @@ func runRequestVerdict(args []string) int {
 	if lk.Skipped != "" {
 		fmt.Printf("\n  Loki: no se consultó (%s)\n", lk.Skipped)
 	} else {
-		fmt.Printf("\n  Loki: %d líneas la nombran %v\n", lk.Lines, lk.ByLevel)
+		fmt.Printf("\n  Loki: %d líneas la nombran (%s)\n", lk.Lines, levelsLine(lk.ByLevel))
 		for _, e := range lk.Errors {
 			fmt.Println("    ✗ " + e)
 		}
@@ -233,3 +236,36 @@ func trimTo(s string, n int) string {
 }
 
 func firstLine(s string) string { return strings.SplitN(s, "\n", 2)[0] }
+
+// logMessage: de una línea JSON de Laravel, su `message` (y la excepción del contexto, si la hay); si no es JSON, la línea.
+func logMessage(line string) string {
+	var j struct {
+		Message string         `json:"message"`
+		Context map[string]any `json:"context"`
+	}
+	if json.Unmarshal([]byte(line), &j) == nil && j.Message != "" {
+		if ex, ok := j.Context["exception"].(string); ok && ex != "" {
+			return j.Message + " · " + ex
+		}
+		return j.Message
+	}
+	return strings.Join(strings.Fields(line), " ")
+}
+
+// levelsLine: «61 info · 34 debug · 1 error», de más a menos.
+func levelsLine(by map[string]int) string {
+	type kv struct {
+		k string
+		v int
+	}
+	all := []kv{}
+	for k, v := range by {
+		all = append(all, kv{nonEmpty(k, "sin nivel"), v})
+	}
+	sort.Slice(all, func(a, b int) bool { return all[a].v > all[b].v })
+	parts := []string{}
+	for _, x := range all {
+		parts = append(parts, fmt.Sprintf("%d %s", x.v, x.k))
+	}
+	return strings.Join(parts, " · ")
+}
