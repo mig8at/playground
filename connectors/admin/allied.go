@@ -2,7 +2,6 @@ package admin
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/url"
@@ -16,8 +15,6 @@ import (
 // angostos) reconoce sólo eso: por eso el alta lo exige.
 const AutoPrefix = "PRUEBA AUTO"
 
-// onePixelPNG es un PNG válido de 1×1: el admin exige una imagen y no importa cuál.
-var onePixelPNG, _ = base64.StdEncoding.DecodeString("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==")
 
 // AutoName es `PRUEBA AUTO 1002-130512`: único por segundo, legible y con el prefijo.
 func AutoName(now time.Time) string {
@@ -203,7 +200,7 @@ func (c *Client) CreateAllied(ctx context.Context, p *AlliedPlan) (*Created, err
 		{"country_id", strconv.Itoa(p.CountryID)},
 		{"price", strconv.Itoa(p.Price)},
 	}
-	r, err := c.PostMultipart(ctx, "/aliados", "/aliados/crear", fields, []File{{Field: "image", Name: "prueba.png", ContentType: "image/png", Data: onePixelPNG}})
+	r, err := c.PostMultipart(ctx, "/aliados", "/aliados/crear", fields, []File{{Field: "image", Name: "logo.png", ContentType: "image/png", Data: LetterAvatar(p.Name)}})
 	if err != nil {
 		return nil, err
 	}

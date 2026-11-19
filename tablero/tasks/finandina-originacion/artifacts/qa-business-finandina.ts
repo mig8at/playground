@@ -28,14 +28,26 @@ async function columns(table: string, skip: string[]): Promise<string[]> {
 }
 const q = (c: string) => `\`${c}\``;
 
+// El logo: un círculo de color con la primera letra, como el de `connectors/admin/avatar.go` (misma paleta y mismo
+// hash FNV-1a del nombre), en SVG dentro de `allieds.image` (varchar 255) porque esto no pasa por el bucket del admin.
+// Así el comercio no hereda el logo del que se copia.
+function letterAvatar(name: string): string {
+    const palette = ['#1A73E8', '#D93025', '#188038', '#E37400', '#9334E6', '#007B83', '#C5221F', '#3949AB'];
+    let h = 0x811c9dc5;
+    for (const b of Buffer.from(name)) h = Math.imul(h ^ b, 0x01000193) >>> 0;
+    const letter = (name.toUpperCase().match(/[A-Z0-9]/) ?? ['?'])[0];
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='32' fill='${palette[h % palette.length]}'/><text x='32' y='43' font-size='30' font-family='Arial' text-anchor='middle' fill='white'>${letter}</text></svg>`;
+    return 'data:image/svg+xml,' + svg.replace(/</g, '%3C').replace(/>/g, '%3E').replace(/#/g, '%23');
+}
+
 const created = await withConnection(async (c) => {
     await c.beginTransaction();
     try {
         // 1 · el comercio
-        const ac = await columns('allieds', ['id', 'name', 'slug', 'created_at', 'updated_at', 'deleted_at']);
+        const ac = await columns('allieds', ['id', 'name', 'slug', 'image', 'created_at', 'updated_at', 'deleted_at']);
         const [ra]: any = await c.query(
-            `INSERT INTO allieds (name, slug, ${ac.map(q).join(', ')}, created_at, updated_at) SELECT ?, ?, ${ac.map(q).join(', ')}, NOW(), NOW() FROM allieds WHERE id = ?`,
-            [NAME, SLUG, SOURCE_ALLIED],
+            `INSERT INTO allieds (name, slug, image, ${ac.map(q).join(', ')}, created_at, updated_at) SELECT ?, ?, ?, ${ac.map(q).join(', ')}, NOW(), NOW() FROM allieds WHERE id = ?`,
+            [NAME, SLUG, letterAvatar(NAME), SOURCE_ALLIED],
         );
         const allied = ra.insertId as number;
 
