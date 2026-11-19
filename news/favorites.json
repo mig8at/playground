@@ -268,16 +268,16 @@
   },
   {
     "id": "speridlabs/idol",
-    "group": "gpu",
+    "group": "create",
     "task": "image-to-3d",
     "params": null,
     "license": "apache-2.0",
-    "mac": "no",
+    "mac": "yes",
     "added": "2026-11-19",
     "what": "Convierte UNA foto de un objeto en un modelo 3D (Gaussian splat, un .ply estándar), inventando los lados que la foto no muestra.",
-    "why": "Menos de 2 s y 7,2 GB de memoria de video; 2.496 likes en tres semanas. Pide una GPU NVIDIA con CUDA: en la Mac no corre.",
+    "why": "Menos de 2 s y 7,2 GB de memoria de video en una GPU NVIDIA. Desde el 9/11 hay una versión LiteRT (litert-community/Idol) que corre en la GPU de la Mac (Metal) y hasta en un teléfono: en un Galaxy S26, 158 s por foto.",
     "ideas": [
-      "Probarlo en una máquina con GPU NVIDIA alquilada"
+      "Probar la versión LiteRT en la Mac con una foto de un producto"
     ]
   },
   {
@@ -987,14 +987,14 @@
   },
   {
     "id": "microsoft/TRELLIS.2-4B",
-    "group": "gpu",
+    "group": "create",
     "task": "image-to-3d",
     "params": 4000000000,
     "license": "mit",
-    "mac": "no",
+    "mac": "unknown",
     "added": "2026-11-19",
     "what": "Convierte una imagen en un modelo 3D de alta fidelidad con una estructura nueva de vóxeles dispersos (O-Voxel) y un transformer de 4 B.",
-    "why": "El generador de 3D abierto de Microsoft, con licencia MIT; su demo es de lo más visitado de la semana. Pide GPU NVIDIA.",
+    "why": "El generador de 3D abierto de Microsoft, con licencia MIT. Oficialmente pide GPU NVIDIA, pero desde el 14/11 hay versiones GGUF (oxide-lab/TRELLIS.2-4B-GGUF, con Lux3D) que cargan por etapas en ~8 GB y también corren en CPU, lento.",
     "ideas": [
       "Probarlo en su demo con una foto de un producto"
     ]
@@ -1672,6 +1672,114 @@
     "added": "2026-11-19",
     "what": "Un R1 destilado de 8 B llevado a 4 bits por un sistema de AGENTES que diseña la cuantización: prueba, mide y corrige en ciclo cerrado. 5,7 GB contra 16,1 GB y conserva el 96,2 % de la precisión.",
     "why": "Une dos ideas de la investigación: cuantizar y dejar que agentes hagan la investigación. Le gana en promedio a otras cuantizaciones de 4 bits del mismo modelo en su tabla.",
+    "ideas": []
+  },
+  {
+    "id": "Tongyi-MAI/Z-Image-Turbo",
+    "group": "create",
+    "task": "text-to-image",
+    "params": 6154908736,
+    "license": "apache-2.0",
+    "mac": "unknown",
+    "added": "2026-11-19",
+    "what": "Genera imágenes fotorrealistas con 6 B de parámetros en sólo 8 pasos, y escribe texto legible dentro de la imagen en inglés y en chino.",
+    "why": "De los generadores abiertos buenos, de los más livianos: según la ficha entra en 16 GB de memoria de video, y la licencia permite uso comercial. Sin confirmar en la Mac, pero por tamaño entraría en 24 GB.",
+    "ideas": [
+      "Generar imágenes de producto para la tienda de pruebas"
+    ]
+  },
+  {
+    "id": "Abiray/MiniMax-H3-Image-GGUF",
+    "group": "create",
+    "task": "text-to-image",
+    "params": 33100000000,
+    "license": "propia de MiniMax",
+    "mac": "unknown",
+    "added": "2026-11-19",
+    "what": "El generador de imágenes MiniMax-H3 (33 B, lo más en tendencia de la semana), podado y cuantizado a GGUF: de 6,9 GB en 2 bits a 11,6 GB en 4 bits.",
+    "why": "El original pesa 204 GB y se sirve con 4 GPU; esta versión lo baja a un tamaño de laptop, para usar con ComfyUI.",
+    "ideas": [
+      "Comparar su Q4 contra Z-Image-Turbo con el mismo prompt"
+    ]
+  },
+  {
+    "id": "PrunaAI/P-Q-Image-2.1-Remove-Object",
+    "group": "create",
+    "task": "image-to-image",
+    "params": null,
+    "license": "propia",
+    "mac": "unknown",
+    "added": "2026-11-19",
+    "what": "Adaptadores LoRA (0,5 GB) para Qwen-Image-2.1 que BORRAN el objeto que señalás —con una máscara aproximada o con una frase como «la segunda taza desde la izquierda»— y no cambian nada más, ni siquiera la sombra o el reflejo que quedan.",
+    "why": "El problema de editar con estos modelos es que retocan toda la imagen; éstos están entrenados para tocar sólo lo pedido. Pero el modelo base es grande.",
+    "ideas": []
+  },
+  {
+    "id": "apple/Sharp",
+    "group": "create",
+    "task": "image-to-3d",
+    "params": null,
+    "license": "apple-amlr (investigación)",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "De UNA foto saca una escena 3D (Gaussian splats) en menos de un segundo, en una sola pasada, para moverse un poco alrededor de lo fotografiado.",
+    "why": "De Apple y corre en la GPU de la Mac (MPS) según la ficha; sólo el render a video pide CUDA. 2,8 GB.",
+    "ideas": [
+      "Volver 3D una foto tuya y verla en un visor de splats"
+    ]
+  },
+  {
+    "id": "tencent/HY-Motion-1.0",
+    "group": "create",
+    "task": "text-to-3d",
+    "params": null,
+    "license": "propia de Tencent",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Escribís una acción («alguien salta y aterriza agachado») y genera el movimiento 3D de un cuerpo humano, listo para animar un personaje.",
+    "why": "La ficha dice que corre en macOS; la versión Lite pide unos 24 GB con frases de menos de 30 palabras y movimientos de menos de 5 segundos: justo para la Mac.",
+    "ideas": [
+      "Animar los personajes de Office con movimientos escritos en texto"
+    ]
+  },
+  {
+    "id": "kulits/BrickFlow",
+    "group": "create",
+    "task": "image-to-3d",
+    "params": null,
+    "license": "mit",
+    "mac": "unknown",
+    "added": "2026-11-13",
+    "what": "De una imagen arma un modelo de LEGO que se puede construir: piezas reales que encajan entre sí (formato LDraw), no una figura con forma de ladrillos.",
+    "why": "Lo difícil es que las piezas queden conectadas y la construcción se sostenga: el modelo se guía por la conectividad. NeurIPS 2026; el modelo chico pesa 206 MB.",
+    "ideas": [
+      "Pasar una foto a instrucciones de LEGO"
+    ]
+  },
+  {
+    "id": "xiangjuntang/JoVox-64",
+    "group": "create",
+    "task": "image-to-3d",
+    "params": 1541135360,
+    "license": "apache-2.0",
+    "mac": "unknown",
+    "added": "2026-11-19",
+    "what": "De una imagen genera su forma en vóxeles (cubitos) de 64×64×64, por niveles: primero 4³, después 16³ y al final 64³, con un solo modelo.",
+    "why": "3D liviano y por bloques, como Minecraft: un camino distinto a los splats y las mallas de TRELLIS.",
+    "ideas": [
+      "Volver vóxeles un objeto para un juego"
+    ]
+  },
+  {
+    "id": "yyfz233/Pi4",
+    "group": "specialist",
+    "task": "image-to-3d",
+    "params": 498903595,
+    "license": "cc-by-nc-4.0 (no comercial)",
+    "mac": "unknown",
+    "added": "2026-11-19",
+    "what": "De fotos sueltas o un video, sin calibrar la cámara, reconstruye la geometría 3D de la escena Y cómo se mueve (4D), en una pasada, con 0,5 B.",
+    "why": "Reconstrucción y movimiento en un solo modelo chico; antes eran herramientas separadas.",
     "ideas": []
   }
 ]
