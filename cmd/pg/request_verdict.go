@@ -150,7 +150,7 @@ func runRequestVerdict(args []string) int {
 				if isErr {
 					if why := knownNoise(v[1]); why != "" {
 						lk.Known[why]++
-						lk.ByLevel["conocido"]++
+						lk.ByLevel["known"]++
 						continue
 					}
 				}
@@ -298,7 +298,8 @@ func levelsLine(by map[string]int) string {
 	}
 	all := []kv{}
 	for k, v := range by {
-		all = append(all, kv{nonEmpty(k, "sin nivel"), v})
+		label := map[string]string{"known": "conocido", "": "sin nivel"}[k]
+		all = append(all, kv{nonEmpty(label, k), v})
 	}
 	sort.Slice(all, func(a, b int) bool { return all[a].v > all[b].v })
 	parts := []string{}
