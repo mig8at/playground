@@ -614,7 +614,7 @@ consola de la corrida (para copiarla), sin mezclarse con el estado de las corrid
 - Lo que crea en prod y por qué para antes del listado: `harness/CLAUDE.md`, fila de `dev/prod-run.ts`.
 
 
-## El plan de corrida: una corrida armada que espera su play (2026-10-20)
+## El plan de corrida: una corrida armada que espera su play (2026-10-20) — ⛔ REEMPLAZADO el 2026-11-19 por las corridas con nombre (abajo)
 
 ⚠ **Desde el 2026-10-21 el plan NO está en la interfaz** (pedido de Miguel): se quitaron la franja `#planBar`, «Paso a
 paso» y su lógica de `index.html`. Siguen `pkg/run-plan.ts`, `bin/plan.ts` (`make harness-plan`) y `/api/plan` en el
@@ -1346,3 +1346,25 @@ no es la de por defecto (`?vista=buros`, `?consola=mocks`, `?inicio=entidades`).
   (arrastrando o con las flechas). `#t=0.1` en el `src` para que Safari pinte el primer cuadro en pausa.
 - **Los videos ya no empiezan en blanco**: al pasar a .mp4, `blankLead` (`pkg/wizard-browser.ts`) mira un cuadro cada
   medio segundo y corta hasta el primero con contenido (~1,7 s en local, ~7,7 s contra qa).
+
+## Las CORRIDAS CON NOMBRE: el paso a paso armado (2026-11-19)
+
+Reemplazan al plan de corrida (`pkg/run-plan.ts`, `bin/plan.ts`, `/api/plan`, `.runs/plan.json`: borrados; `make
+harness-plan` sólo dice adónde se fue). **`harness/runs.json`, en git** (`pkg/runs.ts` lo valida): cada corrida es un
+comercio de `harness.json` (`merchant`), un canal (`asesor` · `autogestion` · `ecommerce`), la entidad (`lender`, el id;
+`lenderName`, como sale en el listado), el caso (`case`: los ids de los campos del panel) y dónde corre (`targets`, el
+primero manda por defecto). Sirve para las dos cosas:
+
+- **En el panel, la vista «Corridas»** (fija, entre Admin y Grabaciones): elegir una navega a
+  `/<ambiente>/<comercio>/<canal>?corrida=<clave>` (el de ahora si es uno de sus `targets`; si no, el primero) y
+  `applyRoute` le carga el caso (`applyNamedRun`: cada campo con `input`/`change`). La pestaña recuerda `run` y
+  `runLender`, y los dos celulares muestran «elegí <entidad>» (`syncRunLender`). Se le da ▶ y se avanza tocando Continuar
+  en el celular: el autorrelleno llena cada pantalla. En el listado la entidad la toca la persona.
+- **Por consola**: `make harness-run RUN=finandina [TARGET=…]` la corre sola con video; con `PANEL=1` no la corre: la deja
+  armada en el panel (`bin/cockpit open harness <ruta>`).
+- **El autorrelleno del celular contesta «No» en las declaraciones del formulario adicional** (sólo en `dynamic-form/<n>`
+  y `additional-info/<n>`; son `ToggleGroup` de Radix: `role=group` con botones `role=radio`). Fuera de ahí los radios
+  de Radix siguen sin tocarse (F-214, «Confirmación de cupo»).
+- Verificado el 2026-11-19 con Jarvis en el Chrome de Miguel: Finandina en qa, armada por `PANEL=1`, monto 5.000.000 y
+  «elegí Banco Finandina»; ▶ y un Continuar por pantalla → 505175 en 11. Pullman (tienda, local) queda armada con «elegí
+  CrediPullman»; no se avanzó.

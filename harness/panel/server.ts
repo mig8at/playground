@@ -23,7 +23,7 @@ import { adminSession, ensureLocalAdmin, ADMIN_APP } from '../pkg/admin-access.t
 import { laneOf, roleOf, inLane, laneIndex, isDeviceId, LANES, type Lane, type Role } from './devices.ts';
 import { devicePage, deviceFillOtp, deviceChooseEntity, openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, watchRequests, deviceGoto, deviceReload, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, deviceTap, deviceAdvance, deviceStream, deviceBusyWatch, deviceStorage, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
 import { vpnDev, type VpnStatus } from '../pkg/vpn.ts';
-import { validatePlan, readPlan, writePlan, clearPlan } from '../pkg/run-plan.ts';
+import { readRuns } from '../pkg/runs.ts';
 import { prodCatalog, prodMerchant, prodBranches } from '../pkg/prod-catalog.ts';
 import { waitForOtp } from '../pkg/otp-service.ts';
 import { readFlows, writeFlows, branchFor } from '../pkg/flows.ts';
@@ -1819,8 +1819,6 @@ const server = createServer(async (req, res) => {
         return json(res, 200, data);
     }
 
-    // EL PLAN DE CORRIDA (`pkg/run-plan.ts`): una corrida armada de antemano —por un agente con `bin/plan.ts`, o por acá—
-    // que el panel muestra arriba de los celulares para darle play. Uno por máquina, en `.runs/plan.json`.
     if (path === '/api/autorun') return json(res, 200, { autoRun: autoRuns[laneParam(url.searchParams.get('lane'))] });
     // LOS CARRILES de este panel (`HARNESS_LANES`) y cuáles tienen algún celular abierto: la interfaz los pide en UNA
     // consulta en vez de preguntar celular por celular.
@@ -1846,15 +1844,11 @@ const server = createServer(async (req, res) => {
         const lastUsedOf = (l: Lane) => Math.max(0, ...[inLane('client', l), inLane('advisor', l)].map((d) => deviceState(d).lastUsed ?? 0));
         return json(res, 200, { lanes: LANES, open: perLane((l) => opened.some((d) => d !== 'admin' && laneOf(d) === l)), requests: perLane(requestOf), lastUsed: perLane(lastUsedOf) });
     }
-    if (path === '/api/plan') {
-        if (req.method === 'GET') return json(res, 200, { plan: readPlan() });
-        if (req.method === 'DELETE') { clearPlan(); return json(res, 200, { ok: true }); }
-        if (req.method === 'POST') {
-            const r = validatePlan(await readBody(req));
-            if (!r.ok || !r.plan) return json(res, 400, { ok: false, errors: r.errors });
-            writePlan(r.plan);
-            return json(res, 200, { ok: true, plan: r.plan });
-        }
+    // LAS CORRIDAS CON NOMBRE (`runs.json`, `pkg/runs.ts`): la vista «Corridas» las lista y abre la elegida armada. Se leen
+    // en cada pedido: lo que se agrega al archivo se ve al recargar. Reemplazan al plan de corrida (`/api/plan`).
+    if (path === '/api/runs') {
+        const { errors, runs } = readRuns();
+        return json(res, 200, { errors, runs: Object.entries(runs).map(([key, r]) => ({ key, ...r })) });
     }
 
     // Permiso del asesor al comercio — lo dispara la SELECCIÓN de comercio en el panel (funnel), no el

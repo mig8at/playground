@@ -1,28 +1,28 @@
 {
-  "$comment": "Corridas con nombre: lo que se pide como «corré Finandina». Cada una es un caso del caminador con su ambiente y sus perillas; `make harness-run RUN=<nombre>` la corre en una ventana de celular y deja el video. Una corrida nueva entra acá cuando ya cerró al menos una vez con esas mismas perillas (`measured`).",
+  "$comment": "Corridas con nombre (pkg/runs.ts): un comercio de harness.json, su canal, la entidad y el caso. `make harness-run RUN=<clave> [TARGET=…]` la corre sola con video; en el panel, la vista «Corridas» la deja armada y se avanza tocando Continuar. Una entra acá cuando ya cerró con esas perillas (`measured`).",
   "runs": {
     "finandina": {
       "name": "Finandina",
-      "description": "Banco Finandina (riel 4, sin credencial) por autogestión en BUSINESS_FINANDINA, hasta «Autorizada»",
-      "target": "qa",
-      "cases": "#c0fca632:149",
-      "flow": "self-service",
-      "amount": 5000000,
-      "lambda": true,
+      "description": "Banco Finandina (riel 4, sin credencial) por autogestión, hasta «Autorizada»: formulario adicional de dos páginas, firma con OTP",
+      "merchant": "finandina",
+      "channel": "autogestion",
+      "lender": 149,
+      "lenderName": "Banco Finandina",
+      "case": { "amount": 5000000 },
+      "targets": ["qa", "local"],
       "close": true,
-      "manual": true,
-      "measured": "2026-11-19: 505165 a 505169 en 11, 12 pantallas"
+      "measured": "2026-11-19: qa 505165–505169 y 505172, local 468445 y 468446, todas en 11 (12 pantallas). Mínimo de la entidad: $3.000.000"
     },
     "pullman": {
       "name": "Pullman",
       "description": "CrediPullman (CreditopX) entrando por la tienda de Amoblando Pullman, hasta «Autorizada»",
-      "target": "local",
-      "cases": "#13874eb6:77",
-      "flow": "ecommerce",
-      "lambda": true,
+      "merchant": "pullman",
+      "channel": "ecommerce",
+      "lender": 77,
+      "lenderName": "CrediPullman",
+      "targets": ["local"],
       "close": true,
-      "manual": true,
-      "measured": "2026-11-19: 468438 en 11, 11 pantallas, a la vez que Finandina"
+      "measured": "2026-11-19: 468438 y 468439 en 11, 11 pantallas"
     }
   }
 }

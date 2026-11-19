@@ -155,7 +155,9 @@
     .rec-track { position: relative; width: 100%; height: 3px; background: color-mix(in srgb, #fff 30%, transparent); transition: height .12s }
     .rec-bar:hover .rec-track, .rec-bar.dragging .rec-track { height: 5px }
     .rec-fill { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--primary) }
-    .row.recording .row-meta { white-space: nowrap }
+    .row.recording .row-meta, .row.named-run .row-meta { white-space: nowrap }
+    .row.named-run.elsewhere { opacity: .55 }
+    .device-otp.run-lender { color: var(--fg-2) }
     .row.recording.failed .row-meta { color: var(--warn) }
     .sidebar .region-body, .auxiliarybar .region-body { overflow-x: hidden; padding-block: var(--space-1) }
 
@@ -734,6 +736,13 @@
             </div>
             </div>
           </section>
+          <!-- LAS CORRIDAS CON NOMBRE (`harness/runs.json`, `pkg/runs.ts`): elegir una abre su comercio con su canal y le carga el
+               caso. Se le da ▶ y se avanza tocando Continuar en el celular; la entidad a elegir sale en su rótulo. Se agregan en
+               el archivo, no acá. -->
+          <section class="view runs-tree" id="runsSide" aria-label="Corridas">
+            <div class="region-head"><button type="button" class="view-tog" id="runsViewTog" aria-expanded="false"><span class="ui-icon" data-icon="chevron" aria-hidden="true"></span><span>Corridas</span></button><span class="count" id="runsCount"></span></div>
+            <div class="region-body tree" id="runsBody" role="group" hidden><p class="list-note">Todavía no hay corridas.</p></div>
+          </section>
           <!-- LAS GRABACIONES: los videos de `make harness-run`, la más nueva arriba. Las agrega el agente al correr; acá sólo
                se miran (elegir una la muestra en el sidebar derecho, a todo el alto). -->
           <section class="view recordings-tree" id="recordingsSide" aria-label="Grabaciones">
@@ -872,6 +881,7 @@
             <figure class="device" id="deviceAdvisor">
               <figcaption class="device-label"><span class="ui-icon" data-icon="server" aria-hidden="true"></span>Asesor
                 <span class="device-otp warn" id="advisorNote" hidden>identidad a mano</span>
+                <span class="device-otp run-lender" id="advisorRunLender" hidden></span>
                 <span class="device-otp warn" id="advisorProd" hidden title="En prod el panel no completa, no avanza y no aprueba nada: entrás y manejás vos">prod</span></figcaption>
               <div class="device-frame"><div class="device-notch"></div>
                 <div class="device-screen" id="screenAdvisor">
@@ -900,6 +910,7 @@
               <figcaption class="device-label"><span class="ui-icon" data-icon="channel" aria-hidden="true"></span>Cliente
                 <button type="button" class="device-otp" id="clientOtp" hidden></button>
                 <span class="device-otp warn" id="clientNote" hidden>identidad a mano</span>
+                <span class="device-otp run-lender" id="clientRunLender" hidden></span>
                 <span class="device-otp warn" id="clientProd" hidden title="En prod el panel no completa, no avanza y no aprueba nada: te registrás con tu celular y el OTP llega por SMS">prod</span>
                 <button type="button" class="region-action" id="clientClose" hidden title="Cerrar el navegador del cliente" aria-label="Cerrar el navegador del cliente"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button></figcaption>
               <div class="device-frame"><div class="device-notch"></div>
@@ -1742,13 +1753,16 @@
     function renderMerchants() {
       wireAdminView();
       wireRecordingsView();
+      wireRunsView();
       const g = $('results');
       // El Admin es una vista FIJA (su fila tiene sus manejadores): se saca antes de limpiar y vuelve al final.
       // ⚠ `adminSide`, no `adminView`: ése es la pantalla del admin en el editor. Con los dos con el mismo id, la pestaña
       // Admin prendía la vista de la barra y el editor quedaba en blanco.
       const adminView = $('adminSide');
       adminView?.remove();
-      const recordingsView = $('recordingsSide');   // también fija: va después del Admin
+      const runsView = $('runsSide');               // también fija: después del Admin
+      runsView?.remove();
+      const recordingsView = $('recordingsSide');   // también fija: va al final
       recordingsView?.remove();
       g.innerHTML = '';
 
@@ -1839,6 +1853,7 @@
         g.appendChild(p);
       }
       if (adminView) g.appendChild(adminView);
+      if (runsView) { g.appendChild(runsView); renderRuns(); }   // atenuadas las que no corren en ESTE ambiente
       if (recordingsView) g.appendChild(recordingsView);
       if ($('merchantCount')) $('merchantCount').textContent = String(entries.length);
       // En prod la barra es `#prodList`, que se arma con estos MISMOS datos (las entradas, sus países, el catálogo que dice
@@ -2152,6 +2167,100 @@
      * (Finandina, Pullman…). Las agrega el AGENTE al correr; acá no se agregan ni se borran. Elegir una la muestra en el
      * sidebar derecho, a todo el alto. La lista se vuelve a pedir cada 20 s y al volver a la ventana: una corrida que
      * termina aparece sola. */
+    /* ── LAS CORRIDAS CON NOMBRE (2026-11-19) ─────────────────────────────────────────────────────────────────────────
+     * `harness/runs.json` (`pkg/runs.ts`, `/api/runs`): «Finandina», «Pullman»… Elegir una la deja ARMADA: la pestaña de su
+     * comercio con su canal, en su ambiente (el de ahora si es uno de los suyos), y el caso cargado en los campos. Se le da
+     * ▶ y se avanza tocando Continuar en el celular: el autorrelleno llena cada pantalla. La entidad a elegir sale en el
+     * rótulo del celular. Por consola, lo mismo: `make harness-run RUN=<clave> PANEL=1` (la ruta con `?corrida=`).
+     * Reemplaza al plan de corrida (`.runs/plan.json`), que era uno por máquina y salió de acá el 2026-10-21. */
+    let namedRuns = [];
+    function wireRunsView() {
+      const sec = $('runsSide'), tog = $('runsViewTog'), body = $('runsBody');
+      if (!sec || sec.dataset.wired) return;
+      sec.dataset.wired = '1';
+      const apply = (open) => { sec.classList.toggle('open', open); tog.setAttribute('aria-expanded', String(open)); body.hidden = !open; };
+      const pref = sideViewPrefs().runs;
+      apply(pref === undefined ? true : !!pref);
+      tog.onclick = () => {
+        const now = !sec.classList.contains('open'); apply(now);
+        const all = sideViewPrefs(); all.runs = now;
+        try { localStorage.setItem(SIDE_VIEWS_KEY, JSON.stringify(all)); } catch { /* sin storage: vale esta visita */ }
+      };
+    }
+    const runTargetFor = (r) => (r.targets.includes(target) ? target : r.targets[0]);
+    function renderRuns() {
+      const body = $('runsBody');
+      if (!body) return;
+      $('runsCount').textContent = namedRuns.length ? String(namedRuns.length) : '';
+      body.innerHTML = '';
+      if (!namedRuns.length) {
+        const p = document.createElement('p'); p.className = 'list-note';
+        p.textContent = 'Todavía no hay corridas.'; p.title = 'Se agregan en harness/runs.json';
+        body.appendChild(p); return;
+      }
+      for (const r of namedRuns) {
+        const here = r.targets.includes(target);
+        const row = document.createElement('div');
+        row.className = 'row named-run' + (here ? '' : ' elsewhere');
+        row.setAttribute('role', 'treeitem'); row.tabIndex = 0; row.dataset.run = r.key;
+        row.title = `${r.description}\n${CHANNEL_LONG[r.channel] || r.channel} · elegir ${r.lenderName || `la entidad ${r.lender}`}`
+          + (r.case && Object.keys(r.case).length ? ` · ${Object.entries(r.case).map(([k, v]) => `${k} ${v}`).join(' · ')}` : '')
+          + (here ? '' : `\nNo corre en ${target}: abrirla cambia a ${r.targets[0]}.`) + (r.measured ? `\nCerró: ${r.measured}` : '');
+        row.innerHTML = '<span class="ui-icon" data-icon="start" aria-hidden="true"></span><span class="row-name"></span><span class="row-meta"></span>';
+        row.querySelector('.row-name').textContent = r.name;
+        row.querySelector('.row-meta').textContent = r.targets.join(' · ');
+        row.onclick = () => openRun(r.key);
+        row.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openRun(r.key); } };
+        body.appendChild(row);
+      }
+    }
+    async function loadRuns() {
+      try {
+        const r = await (await fetch('/api/runs', { cache: 'no-store' })).json();
+        namedRuns = r.runs || [];
+        if (r.errors?.length) console.warn('runs.json:', r.errors);
+      } catch { return; }
+      renderRuns();
+    }
+    /** Abre la corrida por la URL (`/<ambiente>/<comercio>/<canal>?corrida=<clave>`): el mismo camino que un enlace o el CLI. */
+    function openRun(key) {
+      const r = namedRuns.find((x) => x.key === key);
+      if (!r || runRunning) return;
+      history.pushState(null, '', `/${runTargetFor(r)}/${encodeURIComponent(r.merchant)}/${r.channel}?corrida=${encodeURIComponent(key)}`);
+      dispatchEvent(new PopStateEvent('popstate'));
+    }
+    /** Carga el caso de la corrida en los campos (como si se tipeara: `input` y `change`) y anota en la pestaña qué entidad elegir. */
+    async function applyNamedRun(key) {
+      if (!namedRuns.length) await loadRuns();
+      const r = namedRuns.find((x) => x.key === key);
+      const t = currentTab();
+      if (!r || !t || t.kind) return;
+      for (const [k, v] of Object.entries(r.case || {})) {
+        const f = $(k);
+        if (!f) continue;
+        f.value = /^(amount|income)$/.test(k) ? Number(v).toLocaleString('es-CO') : String(v);
+        f.dispatchEvent(new Event('input', { bubbles: true }));
+        f.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      t.run = key; t.runLender = r.lenderName || `la entidad ${r.lender}`;
+      if (typeof snapshotTab === 'function') snapshotTab(t);
+      saveTabs(); renderStage();
+    }
+    /** El rótulo del celular con la entidad a elegir en el listado, si la pestaña es de una corrida con nombre. */
+    function syncRunLender() {
+      let t = null;
+      try { t = currentTab(); } catch { return; }
+      for (const id of ['advisorRunLender', 'clientRunLender']) {
+        const el = $(id);
+        if (!el) continue;
+        el.hidden = !t?.runLender;
+        el.textContent = t?.runLender ? `elegí ${t.runLender}` : '';
+        el.title = t?.runLender ? `Corrida «${t.run}» (harness/runs.json): en el listado, ${t.runLender}` : '';
+      }
+    }
+    loadRuns();
+    window.addEventListener('focus', loadRuns);
+
     const RECORDING_KEY = 'harness.recording';
     let recordings = [];
     let recordingId = (() => { try { return localStorage.getItem(RECORDING_KEY) || ''; } catch { return ''; } })();
@@ -4413,6 +4522,7 @@
 
     /** El centro según la pestaña: la pregunta del canal, el aviso de «los celulares son de otra», o los celulares. */
     function renderStage() {
+      syncRunLender();
       const t = currentTab(), orig = inOrigination();
       const showSheet = prodMode && orig && t?.kind === 'prod';
       // En prod sólo el celular del asesor: no hay traspaso al cliente ni tienda (ver «El celular en prod, a mano»).
@@ -7469,6 +7579,9 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
               if (own) await activateTab(own.id); else await openTab(entry, c);
             }
           }
+          if (seq !== routeSeq) return;
+          // UNA CORRIDA CON NOMBRE (`?corrida=finandina`): con su pestaña ya abierta, se le carga el caso (`applyNamedRun`).
+          if (params.get('corrida') && slug && !prodMode) await applyNamedRun(params.get('corrida'));
           if (seq !== routeSeq) return;
           // Un botón apagado no cambia nada al clickearlo: un arranque que el canal no admite se queda en Inicio.
           const wantedStart = ROUTE_TO_START[params.get('inicio')] || 'monto';

@@ -3,7 +3,10 @@
 //   make harness-run                          la lista de corridas
 //   make harness-run RUN=finandina            la corre sin ventana: sólo deja el video
 //   make harness-run RUN=finandina,pullman    las dos a la vez, un video cada una
+//   make harness-run RUN=finandina TARGET=local   en otro de sus ambientes (sin TARGET, el primero de `targets`)
 //   make harness-run RUN=finandina HEADED=1 SLOW=1200 VIDEO=0
+//
+// El catálogo y qué es una corrida válida: `pkg/runs.ts` (el mismo que la vista «Corridas» del panel).
 //
 // Es el caminador con el motor de navegador (`dev/walk-wizard.ts --engine browser`), sobre el Chromium propio del
 // harness: el de Jarvis maneja el Chrome de la persona, y Playwright no graba un contexto que no creó. Cada video queda
@@ -15,23 +18,30 @@
 // ⚠ ESCRIBE en el ambiente de cada corrida, como el caminador: una solicitud nueva por corrida.
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { addRecordings, type Recording } from '../pkg/recordings.ts';
+import { readRuns, runCase, CHANNELS, type NamedRun } from '../pkg/runs.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
 
-interface Run {
-    name?: string; description: string; target: string; cases: string; flow?: string; amount?: number;
-    lambda?: boolean; close?: boolean; manual?: boolean; measured?: string;
+const { errors: runErrors, runs } = readRuns();
+if (runErrors.length) {
+    console.error(`  ✗ runs.json no es válido:\n    ${runErrors.join('\n    ')}`);
+    process.exit(2);
 }
-const { runs } = JSON.parse(fs.readFileSync(path.join(ROOT, 'runs.json'), 'utf8')) as { runs: Record<string, Run> };
+type Run = NamedRun & { target: string; cases: string };
+/** Los campos del caso que el caminador toma, con su argumento (los demás los genera él). */
+const CASE_ARGS: Partial<Record<string, string>> = { amount: 'amount', income: 'income', score: 'score', occupation: 'occupation',
+    document: 'doc', name: 'name', expedition: 'expedition', dob: 'birth' };
+const wantTarget = (process.env.TARGET || '').trim();
 
 const names = (process.argv[2] ?? '').split(',').map((s) => s.trim()).filter(Boolean);
 if (names.length === 0) {
-    console.log('\n  CORRIDAS · make harness-run RUN=<nombre>[,<otra>…] [SLOW=600] [HEADED=1] [VIDEO=0] [BLOCK=<tarea>]\n');
-    for (const [k, r] of Object.entries(runs)) console.log(`  ${k.padEnd(12)} ${r.target.padEnd(6)} ${r.description}${r.measured ? `\n  ${''.padEnd(19)}cerró: ${r.measured}` : ''}`);
+    console.log('\n  CORRIDAS · make harness-run RUN=<nombre>[,<otra>…] [TARGET=…] [SLOW=600] [HEADED=1] [VIDEO=0] [BLOCK=<tarea>]\n');
+    for (const [k, r] of Object.entries(runs)) console.log(`  ${k.padEnd(12)} ${r.targets.join(',').padEnd(10)} ${r.description}${r.measured ? `\n  ${''.padEnd(23)}cerró: ${r.measured}` : ''}`);
+    console.log('\n  En el panel: la vista «Corridas» de la barra izquierda.\n');
     console.log('');
     process.exit(0);
 }
@@ -39,6 +49,35 @@ const unknown = names.filter((n) => !runs[n]);
 if (unknown.length) {
     console.error(`  ✗ no hay corrida «${unknown.join('», «')}» (hay: ${Object.keys(runs).join(', ')})`);
     process.exit(2);
+}
+
+// Cada corrida en su ambiente (TARGET= si es uno de los suyos; si no, el primero) y su caso del caminador.
+const resolved: Record<string, Run> = {};
+for (const n of names) {
+    const r = runs[n];
+    if (wantTarget && !r.targets.includes(wantTarget)) {
+        console.error(`  ✗ «${n}» no corre en ${wantTarget} (corre en ${r.targets.join(', ')}): agregalo a sus \`targets\` cuando cierre ahí`);
+        process.exit(2);
+    }
+    const target = wantTarget || r.targets[0];
+    const cases = runCase(r, target);
+    if (!cases) { console.error(`  ✗ «${n}»: su comercio «${r.merchant}» no tiene sucursal en ${target} (make harness-merchants A='associate …')`); process.exit(2); }
+    resolved[n] = { ...r, target, cases };
+}
+
+// PANEL=1: no la corre, la deja ARMADA en el panel (Cockpit → Harness): su pestaña con el canal y el caso, lista para
+// darle ▶ y avanzar tocando Continuar. Es la misma ruta que abre la vista «Corridas».
+if (process.env.PANEL === '1') {
+    if (names.length !== 1) { console.error('  ✗ PANEL=1 abre UNA corrida'); process.exit(2); }
+    const r = resolved[names[0]];
+    const route = `/${r.target}/${encodeURIComponent(r.merchant)}/${r.channel}?corrida=${encodeURIComponent(names[0])}`;
+    const cockpit = path.resolve(ROOT, '..', 'bin', 'cockpit');
+    const o = spawnSync(cockpit, ['open', 'harness', route], { encoding: 'utf8' });
+    console.log(`\n  ▶ ${r.name} armada en el panel (${r.target}): http://localhost:5195${route}`);
+    console.log(`    ▶ en el celular y Continuar en cada pantalla; en el listado elegí ${r.lenderName ?? `la entidad ${r.lender}`}.`);
+    if (o.status !== 0) console.log(`    (Cockpit no la abrió: ${String(o.stderr || o.stdout).trim().split('\n')[0]}. Abrí la URL de arriba.)`);
+    console.log('');
+    process.exit(0);
 }
 
 const on = (v: string | undefined, def: boolean) => (v === undefined || v === '' ? def : v !== '0');
@@ -49,12 +88,12 @@ const stamp = new Date().toISOString().slice(0, 19).replace(/[-:]/g, '').replace
 const videoRoot = path.join(ROOT, '.runs', 'videos', stamp);
 
 // Las que comparten ambiente y perillas, juntas: un proceso, sus casos en paralelo.
-const knobs = (r: Run) => JSON.stringify([r.target, r.flow ?? 'self-service', r.amount ?? null, !!r.lambda, !!r.close, !!r.manual]);
+const knobs = (r: Run) => JSON.stringify([r.target, r.channel, r.case ?? {}, !!r.close]);
 const groups = new Map<string, string[]>();
-for (const n of names) groups.set(knobs(runs[n]), [...(groups.get(knobs(runs[n])) ?? []), n]);
+for (const n of names) groups.set(knobs(resolved[n]), [...(groups.get(knobs(resolved[n])) ?? []), n]);
 
 console.log(`\n  ▶ ${names.join(' + ')} · ${headed ? 'con ventana' : 'sin ventana'} · ${slow} ms por acción${video ? ` · videos en ${path.relative(ROOT, videoRoot)}/` : ''}`);
-for (const n of names) console.log(`    ${n.padEnd(12)} ${runs[n].target.padEnd(6)} ${runs[n].description}`);
+for (const n of names) console.log(`    ${n.padEnd(12)} ${resolved[n].target.padEnd(6)} ${resolved[n].description}`);
 console.log('');
 
 /** Lo que el caminador dice de cada caso: la línea del caso (`✓ #c0fca632:149 · uReq 505169 · … · 12 pantallas · 230.2s`)
@@ -63,15 +102,14 @@ console.log('');
 interface CaseOut { mark: string; ureq?: number; screens?: number; seconds?: number; lender?: string; video?: string }
 
 function runGroup(group: string[]): Promise<{ group: string[]; status: number; videos: string[]; recordings: Recording[] }> {
-    const first = runs[group[0]];
+    const first = resolved[group[0]];
     const label = group.join('+');
     const dir = path.join(videoRoot, label);
-    const args = ['dev/walk-wizard.ts', '--engine', 'browser', '--cases', group.map((n) => runs[n].cases).join(';'), '--flow', first.flow ?? 'self-service'];
+    const args = ['dev/walk-wizard.ts', '--engine', 'browser', '--cases', group.map((n) => resolved[n].cases).join(';'), '--flow', CHANNELS[first.channel]];
     if (group.length > 1) args.push('--parallel');
-    if (first.amount) args.push('--amount', String(first.amount));
-    if (first.lambda) args.push('--lambda');
-    if (first.close) args.push('--close');
-    if (first.manual) args.push('--manual');
+    for (const [k, v] of Object.entries(first.case ?? {})) if (CASE_ARGS[k]) args.push(`--${CASE_ARGS[k]}`, String(v));
+    // Hasta el desenlace: el buró se le dicta a la cédula, y la identidad se aprueba a mano (el celular no hace la selfie).
+    if (first.close) args.push('--close', '--manual', '--lambda');
     if (headed) args.push('--headed');
     if (video) fs.mkdirSync(dir, { recursive: true });
     const child = spawn('node', args, {
@@ -119,7 +157,7 @@ function runGroup(group: string[]): Promise<{ group: string[]; status: number; v
                 const to = path.join(videoRoot, `${id}${path.extname(c.video)}`);
                 fs.renameSync(c.video, to);
                 videos.push(to);
-                const r = runs[run];
+                const r = resolved[run];
                 recordings.push({
                     id, run, name: r.name ?? run, description: r.description, target: r.target, ureq: c.ureq,
                     lender: c.ureq ? lenders.get(c.ureq) : undefined, closed: c.mark === '✓', screens: c.screens, seconds: c.seconds,
