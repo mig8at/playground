@@ -68,6 +68,7 @@
     "video": "clapperboard",
     "audio": "audio-lines",
     "box": "box",
-    "paper": "file-text"
+    "paper": "file-text",
+    "popular": "flame"
   }
 }

@@ -60,7 +60,13 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 .lead { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card); padding: var(--space-4) var(--space-6); cursor: pointer }
 .lead:hover, .lead.on { border-color: var(--primary) }
 .kicker { font-size: var(--text-xs); color: var(--primary); display: flex; align-items: center; gap: 6px; text-transform: uppercase; letter-spacing: .04em }
-.lead h1 { margin: 6px 0 4px; font-size: 26px; font-weight: 600; letter-spacing: -.01em }
+/* Las dos notas de arriba, lado a lado (una debajo de otra si no entran); si son el mismo modelo, una sola. */
+.leads { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: var(--space-3) }
+.leads.single { grid-template-columns: 1fr }
+.kickers { display: flex; flex-wrap: wrap; gap: 6px 10px }
+.kicker.hot { color: var(--t-image) }
+.lead.hot:hover, .lead.hot.on { border-color: var(--t-image) }
+.lead h1 { margin: 6px 0 4px; font-size: 24px; font-weight: 600; letter-spacing: -.01em }
 .byline { color: var(--fg-2); font-size: 13px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px }
 .why { color: var(--fg-2); line-height: 1.6; margin: 10px 0; max-width: 72ch }
 .why.muted { color: var(--fg-3); font-style: italic }

@@ -63,6 +63,11 @@ const fresh = computed(() => models.value.filter((m) => m.new && matches(m)))
 const rising = computed(() => models.value.filter((m) => !m.new && matches(m)).slice(0, 8))
 // Lo más innovador lo elige el modelo de fondo; sin su texto todavía, el primero en tendencia de los nuevos.
 const lead = computed(() => fresh.value.find((m) => m.id === data.value?.lead) || fresh.value[0] || null)
+// Lo más popular: el nuevo de la semana que va más alto en tendencia (la lista ya viene en ese orden). Puede ser el
+// mismo que el más innovador: entonces queda una sola nota con las dos etiquetas.
+const popular = computed(() => fresh.value[0] || null)
+const both = computed(() => !!lead.value && lead.value === popular.value)
+const popularWhy = computed(() => popular.value ? [`Es el nuevo de la semana que va más alto en tendencia: #${popular.value.rank} de todo Hugging Face.`, popular.value.what].filter(Boolean).join(' ') : '')
 const countFor = (id) => models.value.filter((m) => m.new && (id === 'all' || m.topic === id)).length
 const otherCount = computed(() => models.value.filter((m) => m.new && m.topic === 'other').length)
 
@@ -161,19 +166,28 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); wi
           <div class="empty-desc">{{ apiError || 'Junta los modelos y los papers de Hugging Face y le pide al modelo de fondo los textos: tarda un minuto.' }}</div>
         </div></div>
         <div v-else-if="view === 'cover'" class="cover">
+          <div class="leads" :class="{ single: both }">
           <article v-if="lead" class="lead" :class="{ on: selectedId === lead.id }" @click="pick(lead)">
-            <div class="kicker"><span class="ui-icon" data-icon="claude" aria-hidden="true"></span> Lo más innovador de la semana</div>
+            <div class="kickers"><span class="kicker"><span class="ui-icon" data-icon="claude" aria-hidden="true"></span> Lo más innovador</span><span v-if="both" class="kicker hot"><span class="ui-icon" data-icon="popular" aria-hidden="true"></span> y lo más popular</span></div>
             <h1><span class="model-icon big" :class="`t-${lead.topic}`"><span class="ui-icon" :data-icon="taskIcon(lead.task)" aria-hidden="true"></span></span>{{ lead.name }}</h1>
             <div class="byline">{{ lead.org }} · <span class="task" :class="`t-${lead.topic}`"><span class="ui-icon" :data-icon="taskIcon(lead.task)" aria-hidden="true"></span>{{ lead.task }}</span> · {{ params(lead.params) }} · salió el {{ day(lead.created) }}</div>
             <p v-if="lead.id === data.lead && data.why" class="why">{{ data.why }}</p>
             <p v-else class="why muted">{{ refreshing ? 'El modelo de fondo está escribiendo por qué importa…' : 'Todavía sin el texto de por qué importa.' }}</p>
             <div class="stats"><span>♥ {{ num(lead.likes) }}</span><span>↓ {{ num(lead.downloads) }}</span><span>tendencia {{ lead.trending }} · #{{ lead.rank }}</span></div>
           </article>
+          <article v-if="popular && !both" class="lead hot" :class="{ on: selectedId === popular.id }" @click="pick(popular)">
+            <div class="kickers"><span class="kicker hot"><span class="ui-icon" data-icon="popular" aria-hidden="true"></span> Lo más popular</span></div>
+            <h1><span class="model-icon big" :class="`t-${popular.topic}`"><span class="ui-icon" :data-icon="taskIcon(popular.task)" aria-hidden="true"></span></span>{{ popular.name }}</h1>
+            <div class="byline">{{ popular.org }} · <span class="task" :class="`t-${popular.topic}`"><span class="ui-icon" :data-icon="taskIcon(popular.task)" aria-hidden="true"></span>{{ popular.task }}</span> · salió el {{ day(popular.created) }}</div>
+            <p class="why">{{ popularWhy }}</p>
+            <div class="stats"><span>♥ {{ num(popular.likes) }}</span><span>↓ {{ num(popular.downloads) }}</span><span>tendencia {{ popular.trending }} · #{{ popular.rank }}</span></div>
+          </article>
+          </div>
 
           <section>
             <h2 class="section-title">Nuevos esta semana <span>{{ fresh.length }} modelos creados del {{ weekLabel }} que entraron en tendencia</span></h2>
             <div class="cards">
-              <button v-for="m in fresh.filter((x) => x !== lead)" :key="m.id" type="button" class="model" :class="{ on: selectedId === m.id }" @click="pick(m)">
+              <button v-for="m in fresh.filter((x) => x !== lead && x !== popular)" :key="m.id" type="button" class="model" :class="{ on: selectedId === m.id }" @click="pick(m)">
                 <span class="model-top"><span class="model-icon" :class="`t-${m.topic}`"><span class="ui-icon" :data-icon="taskIcon(m.task)" aria-hidden="true"></span></span><span class="model-name">{{ m.name }}</span></span>
                 <span class="model-org">{{ m.org }} · {{ day(m.created) }}</span>
                 <span class="model-foot"><span class="task" :class="`t-${m.topic}`"><span class="ui-icon" :data-icon="taskIcon(m.task)" aria-hidden="true"></span>{{ m.task }}</span><span class="model-num">♥ {{ short(m.likes) }}</span></span>
