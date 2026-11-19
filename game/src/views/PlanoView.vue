@@ -138,7 +138,7 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
     <div class="lados" role="group" aria-label="Lado de la fachada"><button v-for="l in ladosAbiertos" :key="l" :class="{on:l===ladoAlzado}" @click="ladoAlzado=l">{{ LADO[l] }}<small v-if="l===elegido.front"> · frente</small></button></div></div>
    <div class="ficha-piso"><canvas ref="alzado"></canvas></div>
    <p v-if="medidoAlzado" class="alzado-med">
-    <template v-if="medidoAlzado.ventanas">Ventanas sobre la de abajo: <b :class="{alerta:medidoAlzado.alineadas<medidoAlzado.ventanas}">{{ medidoAlzado.alineadas }} de {{ medidoAlzado.ventanas }}</b><template v-if="medidoAlzado.alineadas<medidoAlzado.ventanas"> (las que no, con borde naranja)</template> · </template>
+    <template v-if="medidoAlzado.ventanas">{{ medidoAlzado.ventanas }} ventanas arriba de la planta baja: <b :class="{alerta:medidoAlzado.corridas}">{{ medidoAlzado.corridas }} corridas</b><template v-if="medidoAlzado.corridas"> (con borde naranja)</template><template v-if="medidoAlzado.sobreMuro">, {{ medidoAlzado.sobreMuro }} sobre muro</template> · </template>
     vidrio por piso: <span v-for="(v,i) in medidoAlzado.vano" :key="i">{{ i===0?'PB':i }} {{ v }} %<template v-if="i<medidoAlzado.vano.length-1">, </template></span> · alto {{ medidoAlzado.alto }} m</p>
   </aside>
   <aside v-else-if="casa" class="ficha" :class="{grande}">

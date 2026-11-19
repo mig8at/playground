@@ -334,7 +334,10 @@ function drawExterior(g,bp,{level=0,px=1,capas=CAPAS}){
 // tres colores de la regla 60-30-10 (muro, moldura y acento), el zócalo, la banda entre pisos, la cornisa, los toldos, los
 // balcones y el techo—, pero sólo se podía mirar armando el 3D. Esto lo dibuja de frente, a escala, para revisar la
 // composición: que las ventanas caigan una sobre otra, cuánto del frente es vidrio y cómo quedan los colores juntos.
-// `lado`: N, S, E u O del lote (por defecto, su frente). Devuelve lo medido: {ancho, alto, ventanas, alineadas, vano}.
+// `lado`: N, S, E u O del lote (por defecto, su frente). Devuelve lo medido: {ancho, alto, ventanas, corridas, sobreMuro, vano}.
+// Una ventana está CORRIDA si pisa a una de abajo sin compartir su eje: eso desordena la fachada y se marca en naranja.
+// Una que cae SOBRE MURO (abajo no hay vano en ese tramo) es normal —el piso que ya pasa al vecino abre ventanas donde
+// abajo hay medianera— y sólo se cuenta. Medido en la ciudad 1: 3.334 ventanas de pisos altos, 0 corridas, 244 sobre muro.
 const VANO={comun:[.9,2.2],ventanal:[.9,2.7],vidriera:[.35,2.6],puerta:[0,2.2]};// (antepecho y dintel, en metros sobre el piso)
 export function drawElevation(canvas,L,{width=560,lado=null}={}){
  const f=lado||L.front,r=L.rect,H=ALTURA.piso,horiz=f==='N'||f==='S',ancho=horiz?r.w:r.h,sube=L.fachada?.escalinata?RAISE:0,manz=L.fachada?.techo==='mansarda';
@@ -353,7 +356,7 @@ export function drawElevation(canvas,L,{width=560,lado=null}={}){
  g.fillStyle=zoc;g.fillRect(X(0),Y(sube+.55),ancho*m,(sube+.55)*m);
  // las esquinas de piedra
  if(F.esquinas&&F.esquinas!=='no'){g.fillStyle=mold;let k=0;for(let y=sube+.55;y<alto-.45;y+=.6,k++){const w=k%2?.36:.26;g.fillRect(X(0),Y(y+.48),w*m,.42*m);g.fillRect(X(ancho-w),Y(y+.48),w*m,.42*m);}}
- const medido={ancho,alto:+alto.toFixed(1),ventanas:0,alineadas:0,vano:[]};let abajo=null;
+ const medido={ancho,alto:+alto.toFixed(1),ventanas:0,corridas:0,sobreMuro:0,vano:[]};let abajo=null;
  for(let i=0;i<L.floors;i++){const lv=L.levels[i],base=sube+i*H,vs=lv.windows.filter(enLado).map(w=>({...w,t:tramo(w)})),ps=i===0?lv.doors.filter(d=>d.street&&enLado(d)).map(d=>({...d,t:tramo(d)})):[];
   // la banda entre pisos
   if(i>0&&F.banda){g.fillStyle=mold;g.fillRect(X(0),Y(base+.12),ancho*m,.2*m);}
@@ -368,11 +371,14 @@ export function drawElevation(canvas,L,{width=560,lado=null}={}){
    if(F.balcones&&i>0&&!w.shop){g.strokeStyle=acento;g.lineWidth=Math.max(1,m*.04);const yb=Y(base+.05),yt=Y(base+1);g.strokeRect(X(a)-m*.2,yt,(b-a)*m+m*.4,yb-yt);g.beginPath();for(let u=a-.1;u<=b+.11;u+=.2){g.moveTo(X(u),yt);g.lineTo(X(u),yb);}g.stroke();}
    if(w.shop&&AWNINGS[F.toldos]){g.fillStyle=AWNINGS[F.toldos];g.beginPath();g.moveTo(X(a)-m*.1,Y(base+q+.25));g.lineTo(X(b)+m*.1,Y(base+q+.25));g.lineTo(X(b)+m*.25,Y(base+q-.35));g.lineTo(X(a)-m*.25,Y(base+q-.35));g.closePath();g.fill();}
    vidrio+=(b-a)*(q-p);
-   if(i>1){medido.ventanas++;if(abajo.some(v=>Math.abs((v.t[0]+v.t[1])/2-(a+b)/2)<.16))medido.alineadas++;else{g.strokeStyle='#e0672f';g.lineWidth=2;g.setLineDash([4,3]);g.strokeRect(X(a)-4,Y(base+q)-4,(b-a)*m+8,(q-p)*m+8);g.setLineDash([]);}}}
+   if(i>0){medido.ventanas++;const pisa=abajo.filter(v=>Math.min(b,v.t[1])-Math.max(a,v.t[0])>.05),c=(a+b)/2;
+    if(!pisa.length)medido.sobreMuro++;
+    // (sobre la planta baja alcanza con caer dentro de una vidriera o de la puerta: son más anchas que una ventana)
+    else if(!pisa.some(v=>Math.abs((v.t[0]+v.t[1])/2-c)<.16||(i===1&&c>v.t[0]&&c<v.t[1]))){medido.corridas++;g.strokeStyle='#e0672f';g.lineWidth=2;g.setLineDash([4,3]);g.strokeRect(X(a)-4,Y(base+q)-4,(b-a)*m+8,(q-p)*m+8);g.setLineDash([]);}}}
   for(const d of ps){const [a,b]=d.t,q=VANO.puerta[1],mk=Math.max(2,m*.1);g.fillStyle=mold;g.fillRect(X(a)-mk,Y(sube+q)-mk,(b-a)*m+2*mk,q*m+mk);g.fillStyle=acento;g.fillRect(X(a),Y(sube+q),(b-a)*m,q*m);
    g.fillStyle='rgba(255,255,255,.28)';g.fillRect(X(a)+(b-a)*m*.18,Y(sube+q-.25),(b-a)*m*.64,q*m*.4);
    if(sube){g.fillStyle='#bdb7aa';for(let k=0;k<3;k++)g.fillRect(X(a)-m*(.15+k*.18),Y(sube-k*sube/3),(b-a)*m+m*(.3+k*.36),sube/3*m+1);}}
-  medido.vano.push(+(vidrio/(ancho*H)*100).toFixed(0));abajo=vs;}
+  medido.vano.push(+(vidrio/(ancho*H)*100).toFixed(0));abajo=[...vs,...ps];}
  // el remate: la cornisa y el techo
  g.fillStyle=mold;g.fillRect(X(0)-m*.15,Y(alto+.05),ancho*m+m*.3,.32*m);
  if(manz){g.fillStyle=C.techo||'#4b5560';g.beginPath();g.moveTo(X(0),Y(alto+.3));g.lineTo(X(ancho),Y(alto+.3));g.lineTo(X(ancho)-m*.7,Y(alto+techo));g.lineTo(X(0)+m*.7,Y(alto+techo));g.closePath();g.fill();
