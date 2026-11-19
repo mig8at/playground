@@ -13,6 +13,7 @@ jira_title: ""
 
 - [x] ~~Comparar modelos que señalan dónde tocar, con capturas cuya respuesta sale del DOM~~ — 2026-11-18: cuatro modelos, 42 preguntas.
 - [x] ~~El comando con el elegido (Qwen3-VL-4B), que levante y apague solo su servidor~~ — 2026-11-18: `bin/point`, 37 de 42.
+- [x] ~~Ver cómo selecciona: el recuadro además del punto, y una galería con lo que dio~~ — 2026-11-19: `--box`, `--mark`, `eval/gallery.py`; con el recuadro sube a 39 de 42.
 - [ ] Usarlo desde Jarvis cuando una pantalla no tiene localizador: la captura de `bin/jarvis shot` y el punto de `bin/point`.
   Termina cuando una meta de Jarvis toca un botón por su punto y lo verifica con `look`.
 - [x] ~~Decidir si se borra UI-Venus-2-9B de la caché~~ — 2026-11-18: borrado (Miguel); el comando usa Qwen3-VL-4B.

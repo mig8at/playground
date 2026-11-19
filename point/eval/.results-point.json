@@ -1,0 +1,863 @@
+[
+ {
+  "img": "wizard",
+  "q": "¿Dónde le doy para continuar?",
+  "box": [
+   464,
+   553,
+   352,
+   32
+  ],
+  "round": "easy",
+  "answer": {
+   "found": true,
+   "x": 639,
+   "y": 566,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 499, 708}",
+   "seconds": 0.51
+  },
+  "hit": true
+ },
+ {
+  "img": "wizard",
+  "q": "¿Dónde escribo la contraseña?",
+  "box": [
+   464,
+   457,
+   352,
+   32
+  ],
+  "round": "easy",
+  "answer": {
+   "found": true,
+   "x": 639,
+   "y": 472,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 499, 590}",
+   "seconds": 0.29
+  },
+  "hit": true
+ },
+ {
+  "img": "wizard",
+  "q": "No tengo cuenta, ¿dónde me registro?",
+  "box": [
+   639,
+   594,
+   113,
+   19
+  ],
+  "round": "easy",
+  "answer": {
+   "found": true,
+   "x": 691,
+   "y": 602,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 540, 753}",
+   "seconds": 0.29
+  },
+  "hit": true
+ },
+ {
+  "img": "wizard",
+  "q": "Olvidé mi clave, ¿qué toco?",
+  "box": [
+   640,
+   493,
+   103,
+   39
+  ],
+  "round": "easy",
+  "answer": {
+   "found": true,
+   "x": 689,
+   "y": 504,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 538, 630}",
+   "seconds": 0.3
+  },
+  "hit": true
+ },
+ {
+  "img": "payments",
+  "q": "¿Dónde activo el pago contra entrega?",
+  "box": [
+   1014,
+   290,
+   73,
+   37
+  ],
+  "round": "easy",
+  "answer": {
+   "found": true,
+   "x": 1004,
+   "y": 306,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 784, 383}",
+   "seconds": 0.46
+  },
+  "hit": false
+ },
+ {
+  "img": "payments",
+  "q": "¿Dónde configuro PasarelaX?",
+  "box": [
+   886,
+   191,
+   97,
+   37
+  ],
+  "round": "easy",
+  "answer": {
+   "found": true,
+   "x": 934,
+   "y": 208,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 730, \"y\": 260}",
+   "seconds": 0.32
+  },
+  "hit": true
+ },
+ {
+  "img": "payments",
+  "q": "Quiero sumar otro medio de pago",
+  "box": [
+   254,
+   360,
+   179,
+   37
+  ],
+  "round": "easy",
+  "answer": {
+   "found": true,
+   "x": 342,
+   "y": 376,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 267, 470}",
+   "seconds": 0.27
+  },
+  "hit": true
+ },
+ {
+  "img": "payments",
+  "q": "¿Cómo apago la pasarela de tarjetas?",
+  "box": [
+   990,
+   191,
+   97,
+   37
+  ],
+  "round": "easy",
+  "answer": {
+   "found": true,
+   "x": 1001,
+   "y": 208,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 782, \"y\": 260}",
+   "seconds": 0.35
+  },
+  "hit": true
+ },
+ {
+  "img": "shipping",
+  "q": "Quiero ofrecer envío gratis, ¿qué marco?",
+  "box": [
+   270,
+   207,
+   165,
+   27
+  ],
+  "round": "easy",
+  "answer": {
+   "found": true,
+   "x": 282,
+   "y": 218,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 220, \"y\": 273}",
+   "seconds": 0.48
+  },
+  "hit": true
+ },
+ {
+  "img": "shipping",
+  "q": "¿Dónde cambio la tarifa de Bogotá?",
+  "box": [
+   560,
+   471,
+   140,
+   39
+  ],
+  "round": "easy",
+  "answer": {
+   "found": true,
+   "x": 632,
+   "y": 490,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 494, 612}",
+   "seconds": 0.31
+  },
+  "hit": true
+ },
+ {
+  "img": "shipping",
+  "q": "Ver las transportadoras",
+  "box": [
+   329,
+   125,
+   135,
+   39
+  ],
+  "round": "easy",
+  "answer": {
+   "found": true,
+   "x": 396,
+   "y": 142,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 309, \"y\": 178}",
+   "seconds": 0.31
+  },
+  "hit": true
+ },
+ {
+  "img": "tasks",
+  "q": "¿Dónde edito la tarea Revisar inventario?",
+  "box": [
+   823,
+   176,
+   68,
+   37
+  ],
+  "round": "easy",
+  "answer": {
+   "found": true,
+   "x": 855,
+   "y": 194,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 668, \"y\": 242}",
+   "seconds": 0.51
+  },
+  "hit": true
+ },
+ {
+  "img": "tasks",
+  "q": "Borrar la tarea Llamar al proveedor",
+  "box": [
+   903,
+   100,
+   82,
+   37
+  ],
+  "round": "easy",
+  "answer": {
+   "found": true,
+   "x": 942,
+   "y": 117,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 736, \"y\": 146}",
+   "seconds": 0.32
+  },
+  "hit": true
+ },
+ {
+  "img": "tasks",
+  "q": "Crear una tarea",
+  "box": [
+   469,
+   12,
+   114,
+   37
+  ],
+  "round": "easy",
+  "answer": {
+   "found": true,
+   "x": 525,
+   "y": 30,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 410, 38]",
+   "seconds": 0.24
+  },
+  "hit": true
+ },
+ {
+  "img": "tasks",
+  "q": "Marcar como hecha la tarea Revisar inventario",
+  "box": [
+   293,
+   182,
+   25,
+   25
+  ],
+  "round": "easy",
+  "answer": {
+   "found": false,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": -1, \"y\": -1}",
+   "seconds": 0.28
+  },
+  "hit": false
+ },
+ {
+  "img": "users",
+  "q": "Invitar a alguien al panel",
+  "box": [
+   254,
+   239,
+   119,
+   37
+  ],
+  "round": "easy",
+  "answer": {
+   "found": true,
+   "x": 312,
+   "y": 256,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 244, 320}",
+   "seconds": 3.11
+  },
+  "hit": true
+ },
+ {
+  "img": "general",
+  "q": "¿Dónde cambio la moneda de la tienda?",
+  "box": [
+   273,
+   333,
+   814,
+   37
+  ],
+  "round": "easy",
+  "answer": {
+   "found": true,
+   "x": 676,
+   "y": 347,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 528, 434}",
+   "seconds": 3.08
+  },
+  "hit": true
+ },
+ {
+  "img": "andino",
+  "q": "¿Dónde busco una opción del panel?",
+  "box": [
+   139,
+   9,
+   460,
+   39
+  ],
+  "round": "easy",
+  "answer": {
+   "found": true,
+   "x": 365,
+   "y": 27,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 285, 34}",
+   "seconds": 3.08
+  },
+  "hit": true
+ },
+ {
+  "img": "andino",
+  "q": "Ir a los pedidos",
+  "box": [
+   8,
+   103,
+   213,
+   35
+  ],
+  "round": "easy",
+  "answer": {
+   "found": true,
+   "x": 115,
+   "y": 120,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 90, 150}",
+   "seconds": 0.24
+  },
+  "hit": true
+ },
+ {
+  "img": "hf",
+  "q": "¿Dónde veo los archivos del modelo para descargarlo?",
+  "box": [
+   142,
+   225,
+   216,
+   48
+  ],
+  "round": "easy",
+  "answer": {
+   "found": true,
+   "x": 228,
+   "y": 246,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 178, 308}",
+   "seconds": 0.48
+  },
+  "hit": true
+ },
+ {
+  "img": "hf",
+  "q": "¿Dónde le doy me gusta?",
+  "box": [
+   257,
+   104,
+   54,
+   22
+  ],
+  "round": "easy",
+  "answer": {
+   "found": true,
+   "x": 282,
+   "y": 113,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 220, 141}",
+   "seconds": 0.28
+  },
+  "hit": true
+ },
+ {
+  "img": "hf",
+  "q": "Señalá dónde dice la licencia",
+  "box": [
+   431,
+   175,
+   156,
+   28
+  ],
+  "round": "easy",
+  "answer": {
+   "found": true,
+   "x": 509,
+   "y": 187,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 398, 234}",
+   "seconds": 0.28
+  },
+  "hit": true
+ },
+ {
+  "img": "hf",
+  "q": "¿Dónde inicio sesión?",
+  "box": [
+   1126,
+   18,
+   56,
+   28
+  ],
+  "round": "easy",
+  "answer": {
+   "found": true,
+   "x": 1149,
+   "y": 33,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 898, 41}",
+   "seconds": 0.26
+  },
+  "hit": true
+ },
+ {
+  "img": "hf",
+  "q": "¿Qué botón uso para usar este modelo en mi código?",
+  "box": [
+   1117,
+   234,
+   147,
+   30
+  ],
+  "round": "easy",
+  "answer": {
+   "found": true,
+   "x": 1190,
+   "y": 247,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 930, \"y\": 309}",
+   "seconds": 0.35
+  },
+  "hit": true
+ },
+ {
+  "img": "github",
+  "q": "¿Dónde le doy estrella al repositorio?",
+  "box": [
+   1142,
+   188,
+   106,
+   28
+  ],
+  "round": "hard",
+  "answer": {
+   "found": true,
+   "x": 1190,
+   "y": 200,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 930, \"y\": 250}",
+   "seconds": 0.56
+  },
+  "hit": true
+ },
+ {
+  "img": "github",
+  "q": "¿Dónde busco un archivo del repositorio?",
+  "box": [
+   648,
+   262,
+   154,
+   30
+  ],
+  "round": "hard",
+  "answer": {
+   "found": true,
+   "x": 714,
+   "y": 274,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 558, 343}",
+   "seconds": 0.28
+  },
+  "hit": true
+ },
+ {
+  "img": "github",
+  "q": "¿Dónde saco la URL para clonar el repositorio?",
+  "box": [
+   827,
+   261,
+   109,
+   32
+  ],
+  "round": "hard",
+  "answer": {
+   "found": true,
+   "x": 881,
+   "y": 274,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 688, 342}",
+   "seconds": 0.31
+  },
+  "hit": true
+ },
+ {
+  "img": "github",
+  "q": "Abrir la carpeta de notebooks",
+  "box": [
+   75,
+   457,
+   68,
+   17
+  ],
+  "round": "hard",
+  "answer": {
+   "found": true,
+   "x": 109,
+   "y": 464,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 85, \"y\": 580}",
+   "seconds": 0.3
+  },
+  "hit": true
+ },
+ {
+  "img": "github",
+  "q": "Ver las ramas",
+  "box": [
+   146,
+   261,
+   109,
+   32
+  ],
+  "round": "hard",
+  "answer": {
+   "found": true,
+   "x": 202,
+   "y": 276,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 158, 345}",
+   "seconds": 0.26
+  },
+  "hit": true
+ },
+ {
+  "img": "github",
+  "q": "Abrir el PR 515",
+  "box": [
+   617,
+   457,
+   32,
+   17
+  ],
+  "round": "hard",
+  "answer": {
+   "found": true,
+   "x": 612,
+   "y": 464,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 478, 580}",
+   "seconds": 0.27
+  },
+  "hit": false
+ },
+ {
+  "img": "github",
+  "q": "¿Dónde veo los pull requests?",
+  "box": [
+   228,
+   128,
+   164,
+   32
+  ],
+  "round": "hard",
+  "answer": {
+   "found": true,
+   "x": 297,
+   "y": 142,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 232, 178}",
+   "seconds": 0.27
+  },
+  "hit": true
+ },
+ {
+  "img": "github",
+  "q": "Abrir el archivo con la cita del proyecto",
+  "box": [
+   75,
+   703,
+   84,
+   17
+  ],
+  "round": "hard",
+  "answer": {
+   "found": true,
+   "x": 106,
+   "y": 707,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 83, 884}",
+   "seconds": 0.26
+  },
+  "hit": true
+ },
+ {
+  "img": "github",
+  "q": "Ver el historial de commits",
+  "box": [
+   810,
+   322,
+   113,
+   28
+  ],
+  "round": "hard",
+  "answer": {
+   "found": true,
+   "x": 868,
+   "y": 333,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 678, 416}",
+   "seconds": 0.27
+  },
+  "hit": true
+ },
+ {
+  "img": "hf",
+  "q": "Copiar el nombre del modelo",
+  "box": [
+   222,
+   104,
+   22,
+   22
+  ],
+  "round": "hard",
+  "answer": {
+   "found": true,
+   "x": 1039,
+   "y": 246,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 812, 307}",
+   "seconds": 0.29
+  },
+  "hit": false
+ },
+ {
+  "img": "hf",
+  "q": "Abrir el menú de más opciones",
+  "box": [
+   838,
+   235,
+   27,
+   28
+  ],
+  "round": "hard",
+  "answer": {
+   "found": true,
+   "x": 850,
+   "y": 246,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 664, 308}",
+   "seconds": 0.27
+  },
+  "hit": true
+ },
+ {
+  "img": "hf",
+  "q": "¿Dónde despliego el modelo?",
+  "box": [
+   874,
+   235,
+   99,
+   29
+  ],
+  "round": "hard",
+  "answer": {
+   "found": true,
+   "x": 920,
+   "y": 246,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 719, \"y\": 308}",
+   "seconds": 0.32
+  },
+  "hit": true
+ },
+ {
+  "img": "wizard-mobile",
+  "q": "¿Dónde le doy para continuar?",
+  "box": [
+   24,
+   390,
+   342,
+   32
+  ],
+  "round": "hard",
+  "answer": {
+   "found": true,
+   "x": 195,
+   "y": 403,
+   "width": 390,
+   "height": 844,
+   "raw": "{\"x\": 499, 478}",
+   "seconds": 1.12
+  },
+  "hit": true
+ },
+ {
+  "img": "wizard-mobile",
+  "q": "Mostrar la contraseña que escribí",
+  "box": [
+   20,
+   326,
+   140,
+   28
+  ],
+  "round": "hard",
+  "answer": {
+   "found": true,
+   "x": 31,
+   "y": 338,
+   "width": 390,
+   "height": 844,
+   "raw": "{\"x\": 80, \"y\": 400}",
+   "seconds": 0.27
+  },
+  "hit": true
+ },
+ {
+  "img": "wizard-mobile",
+  "q": "Crear una cuenta nueva",
+  "box": [
+   194,
+   431,
+   113,
+   19
+  ],
+  "round": "hard",
+  "answer": {
+   "found": true,
+   "x": 257,
+   "y": 441,
+   "width": 390,
+   "height": 844,
+   "raw": "{\"x\": 658, 522}",
+   "seconds": 0.23
+  },
+  "hit": true
+ },
+ {
+  "img": "payments",
+  "q": "¿Dónde pago con PSE?",
+  "box": null,
+  "round": "hard",
+  "answer": {
+   "found": true,
+   "x": 342,
+   "y": 374,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": 267, 468}",
+   "seconds": 0.34
+  },
+  "hit": false
+ },
+ {
+  "img": "tasks",
+  "q": "Exportar las tareas a Excel",
+  "box": null,
+  "round": "hard",
+  "answer": {
+   "found": false,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": -1, \"y\": -1}",
+   "seconds": 0.31
+  },
+  "hit": true
+ },
+ {
+  "img": "github",
+  "q": "¿Dónde descargo el instalador para Windows?",
+  "box": null,
+  "round": "hard",
+  "answer": {
+   "found": false,
+   "width": 1280,
+   "height": 800,
+   "raw": "{\"x\": -1, \"y\": -1}",
+   "seconds": 0.3
+  },
+  "hit": true
+ }
+]

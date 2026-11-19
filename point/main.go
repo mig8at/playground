@@ -1,10 +1,13 @@
 // point — le pasás una captura y una pregunta («¿dónde le doy para continuar?») y devuelve el punto donde tocar, en
 // píxeles de la imagen. Corre en la Mac con Qwen3-VL-4B (Apache 2.0) en llama-server; el servidor se levanta solo la
-// primera vez y se apaga solo después de 15 minutos sin uso. Medido el 2026-11-18: 39 de 42 preguntas, 2–3 s por
-// captura nueva y ~0,3 s por otra pregunta sobre la misma (point/CLAUDE.md).
+// primera vez y se apaga solo después de 15 minutos sin uso. Medido el 2026-11-19: 39 de 42 preguntas, 2–3 s por
+// captura nueva y ~0,5 s por otra pregunta sobre la misma (point/CLAUDE.md).
 //
-//	bin/point <imagen> '<pregunta>' [--json]
+//	bin/point <imagen> '<pregunta>' [--box] [--mark marcada.png] [--json]
 //	bin/point status · bin/point stop
+//
+// El punto es el centro del recuadro del control; --box también lo imprime (con --json va siempre). --mark guarda una
+// copia de la imagen con el recuadro y el punto dibujados, para verlo.
 package main
 
 import (
@@ -36,13 +39,13 @@ const (
 	modelURL = "https://huggingface.co/Qwen/Qwen3-VL-4B-Instruct-GGUF/resolve/main/"
 )
 
-// El prompt de localización del recetario de Holo2 (la familia Qwen3-VL usa coordenadas de 0 a 1000), con la salida
-// para lo que no está: sin ella el modelo inventa un lugar.
-const prompt = `Localize an element on the GUI image according to the provided target and output a click position.
- * You must output a valid JSON following the format: {"x": int 0-1000 (normalized), "y": int 0-1000 (normalized)}
- * If the target is not on the screen, output {"x": -1, "y": -1}
-Your target is:
-`
+// Se pide el recuadro del control que hay que tocar (bbox_2d, de 0 a 1000, el formato de Qwen3-VL) y el punto es su
+// centro: medido el 2026-11-19, 39 de 42 contra 37 pidiendo el punto directo. Pedir «el control a tocar» y
+// «ajustado» importa: con «el elemento» devolvía la tarjeta entera que lo contiene. La salida «no está» evita que
+// invente un lugar.
+const boxPrompt = `Locate the single clickable UI element (button, link, input, checkbox) that the user should interact with for the request below, and output its tight bounding box as JSON {"bbox_2d": [x1, y1, x2, y2]}, coordinates normalized 0-1000.
+If the target is not on the screen, output {"bbox_2d": []}
+Request: `
 
 var base = fmt.Sprintf("http://127.0.0.1:%d", port)
 
@@ -64,12 +67,18 @@ func modelPath(f string) string {
 
 func main() {
 	args := os.Args[1:]
-	asJSON := false
+	var o options
 	var rest []string
-	for _, a := range args {
-		if a == "--json" {
-			asJSON = true
-		} else {
+	for i := 0; i < len(args); i++ {
+		switch a := args[i]; {
+		case a == "--json":
+			o.json = true
+		case a == "--box":
+			o.box = true
+		case a == "--mark" && i+1 < len(args):
+			i++
+			o.mark = args[i]
+		default:
 			rest = append(rest, a)
 		}
 	}
@@ -81,17 +90,24 @@ func main() {
 	case len(rest) == 1 && rest[0] == "stop":
 		stop()
 	case len(rest) == 2:
-		os.Exit(locate(rest[0], rest[1], asJSON))
+		os.Exit(locate(rest[0], rest[1], o))
 	default:
-		fmt.Fprintln(os.Stderr, "uso: bin/point <imagen> '<pregunta>' [--json]   ·   bin/point status   ·   bin/point stop")
+		fmt.Fprintln(os.Stderr, "uso: bin/point <imagen> '<pregunta>' [--box] [--mark marcada.png] [--json]   ·   bin/point status   ·   bin/point stop")
 		os.Exit(2)
 	}
+}
+
+type options struct {
+	json, box bool
+	mark      string
 }
 
 type answer struct {
 	Found   bool    `json:"found"`
 	X       int     `json:"x,omitempty"`
 	Y       int     `json:"y,omitempty"`
+	Box     []int   `json:"box,omitempty"` // x1, y1, x2, y2 en píxeles
+	Mark    string  `json:"mark,omitempty"`
 	Width   int     `json:"width"`
 	Height  int     `json:"height"`
 	Raw     string  `json:"raw"`
@@ -99,7 +115,7 @@ type answer struct {
 }
 
 // locate: 0 si encontró el punto, 3 si el modelo dice que no está, 1 si falló.
-func locate(img, question string, asJSON bool) int {
+func locate(img, question string, o options) int {
 	data, err := os.ReadFile(img)
 	if err != nil {
 		return fail(err)
@@ -116,7 +132,7 @@ func locate(img, question string, asJSON bool) int {
 	body, _ := json.Marshal(map[string]any{
 		"messages": []any{map[string]any{"role": "user", "content": []any{
 			map[string]any{"type": "image_url", "image_url": map[string]string{"url": "data:image/" + format + ";base64," + base64.StdEncoding.EncodeToString(data)}},
-			map[string]any{"type": "text", "text": prompt + question},
+			map[string]any{"type": "text", "text": boxPrompt + question},
 		}}},
 		"temperature": 0, "max_tokens": 64,
 		"chat_template_kwargs": map[string]bool{"enable_thinking": false},
@@ -141,16 +157,25 @@ func locate(img, question string, asJSON bool) int {
 		return fail(fmt.Errorf("respuesta sin contenido: %s", raw))
 	}
 	a := answer{Width: cfg.Width, Height: cfg.Height, Raw: strings.TrimSpace(r.Choices[0].Message.Content), Seconds: time.Since(began).Round(10 * time.Millisecond).Seconds()}
-	x, y, ok := parse(a.Raw)
+	b, ok := parseBox(a.Raw)
 	if !ok {
 		return fail(fmt.Errorf("no entendí la respuesta del modelo: %q", a.Raw))
 	}
-	if x >= 0 && y >= 0 {
+	if b != nil {
 		a.Found = true
-		a.X, a.Y = toPixels(x, cfg.Width), toPixels(y, cfg.Height)
+		a.Box = []int{toPixels(b[0], cfg.Width), toPixels(b[1], cfg.Height), toPixels(b[2], cfg.Width), toPixels(b[3], cfg.Height)}
+		a.X, a.Y = (a.Box[0]+a.Box[2])/2, (a.Box[1]+a.Box[3])/2
 	}
-	if asJSON {
+	if o.mark != "" && a.Found {
+		if err := mark(data, o.mark, a); err != nil {
+			return fail(err)
+		}
+		a.Mark = o.mark
+	}
+	if o.json {
 		json.NewEncoder(os.Stdout).Encode(a)
+	} else if a.Found && o.box {
+		fmt.Printf("%d %d  (recuadro %d,%d–%d,%d)\n", a.X, a.Y, a.Box[0], a.Box[1], a.Box[2], a.Box[3])
 	} else if a.Found {
 		fmt.Printf("%d %d\n", a.X, a.Y)
 	} else {
@@ -163,23 +188,30 @@ func locate(img, question string, asJSON bool) int {
 }
 
 var (
-	pairRe  = regexp.MustCompile(`"x"\s*:\s*"?(-?\d+(?:\.\d+)?)"?\D+?"y"\s*:\s*"?(-?\d+(?:\.\d+)?)`)
-	looseRe = regexp.MustCompile(`(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)`)
+	boxRe   = regexp.MustCompile(`\[\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\]`)
+	emptyRe = regexp.MustCompile(`\[\s*\]`)
 )
 
-// parse: las coordenadas que dio el modelo, en su escala de 0 a 1000 (negativas: «no está»). Acepta el número entre
-// comillas, que Qwen3-VL a veces devuelve.
-func parse(text string) (float64, float64, bool) {
-	m := pairRe.FindStringSubmatch(text)
+// parseBox: el recuadro x1, y1, x2, y2 (de 0 a 1000), ordenado; nil y ok si el modelo dice que no está.
+func parseBox(text string) ([]float64, bool) {
+	m := boxRe.FindStringSubmatch(text)
 	if m == nil {
-		m = looseRe.FindStringSubmatch(text)
+		return nil, emptyRe.MatchString(text)
 	}
-	if m == nil {
-		return 0, 0, false
+	b := make([]float64, 4)
+	for i := range b {
+		b[i], _ = strconv.ParseFloat(m[i+1], 64)
 	}
-	x, _ := strconv.ParseFloat(m[1], 64)
-	y, _ := strconv.ParseFloat(m[2], 64)
-	return x, y, true
+	if b[0] < 0 || b[1] < 0 {
+		return nil, true
+	}
+	if b[2] < b[0] {
+		b[0], b[2] = b[2], b[0]
+	}
+	if b[3] < b[1] {
+		b[1], b[3] = b[3], b[1]
+	}
+	return b, true
 }
 
 func toPixels(v float64, size int) int {
