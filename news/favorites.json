@@ -1726,6 +1726,11 @@
     "why": "De Apple y corre en la GPU de la Mac (MPS) según la ficha; sólo el render a video pide CUDA. 2,8 GB.",
     "ideas": [
       "Volver 3D una foto tuya y verla en un visor de splats"
+    ],
+    "tried": "2026-11-19, con la foto de la taza de su propio paper (538×362), en la GPU de la Mac (MPS): 6,4 s de inferencia y 23 s en total contando cargar el modelo de 2,6 GB; salen 1.179.648 gaussianas en un .ply de 63 MB. El render fotorrealista (gsplat) pide CUDA, así que se dibujó con puntos desde varios ángulos: girando 15° la taza queda delante de los corchos y la mesa en perspectiva, con huecos donde la foto no muestra nada. La foto no traía distancia focal y Sharp asumió 30 mm.",
+    "triedOn": "2026-11-19",
+    "installed": [
+      "env:sharp"
     ]
   },
   {
