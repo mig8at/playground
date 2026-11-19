@@ -1368,3 +1368,24 @@ primero manda por defecto). Sirve para las dos cosas:
 - Verificado el 2026-11-19 con Jarvis en el Chrome de Miguel: Finandina en qa, armada por `PANEL=1`, monto 5.000.000 y
   «elegí Banco Finandina»; ▶ y un Continuar por pantalla → 505175 en 11. Pullman (tienda, local) queda armada con «elegí
   CrediPullman»; no se avanzó.
+
+## «Por qué no avanza», dicho por la pantalla (2026-11-19)
+
+`deviceBlockers(id)` (`panel/devices.ts`, `BLOCKERS_JS`, va como TEXTO por la trampa de `__name`) lee lo que la pantalla
+del celular pide: los mensajes de validación a la vista (`.text-destructive`, `role=alert`, los `-form-item-message`; ⚠
+nunca un `<label>`, que trae variantes `aria-invalid:text-destructive` y con `[class*=]` salían los rótulos), los campos
+`aria-invalid`, los obligatorios (rótulo con `*`, `required`, `aria-required`) vacíos o sin elegir —inputs, `Select` de
+Radix con `data-placeholder`, grupos de opciones— y las casillas obligatorias sin marcar. Hasta 6, sin repetir el campo
+que ya nombra su mensaje. Se usa en:
+
+- **un toque tuyo en el celular** (`deviceInput` → `watchAfterTap`): a los 1,5 s, si sigue en la misma ruta y la pantalla
+  pide algo nuevo, la consola de su carril dice «⚠ no avanzó: la pantalla pide: …» (no repite lo mismo en la misma pantalla);
+- **«Avanzar» y su botón deshabilitado** (`deviceAdvance`): en vez de «falta algo que el panel no sabe llenar»;
+- **«Hasta el final» cuando se traba** (`advanceAll`): «toca y no sale de … : la pantalla pide …»;
+- **`GET /api/device/<id>/blockers`**, para un agente.
+
+Verificado el 2026-11-19 en `dynamic-form/25` de Finandina (local): en la página sin autorrelleno, antes de tocar
+«Departamento de residencia: sin elegir · Ciudad de residencia: sin elegir · Dirección de residencia: vacío · Actividad
+económica: sin elegir», y después de tocar Continuar los «… es requerido» del formulario; en el celular del panel, la
+ruta nueva dio esos cuatro al entrar y ninguno a los 3 s (el autorrelleno los llenó). El aviso tras un toque a mano no se
+probó con un toque real en el lienzo.

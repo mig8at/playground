@@ -21,7 +21,7 @@ import { envData, type AutofillData } from '../pkg/autofill.ts';
 import { identityWithoutProviderNotice } from '../pkg/config.ts';
 import { adminSession, ensureLocalAdmin, ADMIN_APP } from '../pkg/admin-access.ts';
 import { laneOf, roleOf, inLane, laneIndex, isDeviceId, LANES, type Lane, type Role } from './devices.ts';
-import { devicePage, deviceFillOtp, deviceChooseEntity, openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, watchRequests, deviceGoto, deviceReload, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, deviceTap, deviceAdvance, deviceStream, deviceBusyWatch, deviceStorage, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
+import { devicePage, deviceBlockers, deviceFillOtp, deviceChooseEntity, openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, watchRequests, deviceGoto, deviceReload, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, deviceTap, deviceAdvance, deviceStream, deviceBusyWatch, deviceStorage, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
 import { vpnDev, type VpnStatus } from '../pkg/vpn.ts';
 import { readRuns } from '../pkg/runs.ts';
 import { prodCatalog, prodMerchant, prodBranches } from '../pkg/prod-catalog.ts';
@@ -962,7 +962,11 @@ async function advanceAll(id: DeviceId, until: string | null, opts: { lender?: s
                 const facts = page ? await autofillByClicks(page, [], { hidratar: false, t: 3_000, preferirRadio: /^no$/i }).catch(() => [] as string[]) : [];
                 if (facts.length) { deviceLog(id, `▸ rellenó con clics lo que faltaba: ${facts.join(' · ')}`); stuck = 0; }
             }
-            if (stuck >= 3) { const shown = await screenError(id); why = `toca y no sale de ${pathOf(r.url)}: ${shown ? `la pantalla dice «${shown}»` : 'algo que el panel no sabe llenar'}`; break; }
+            if (stuck >= 3) {
+                const shown = await screenError(id), asks = await deviceBlockers(id);
+                why = `toca y no sale de ${pathOf(r.url)}: ${asks.length ? `la pantalla pide ${asks.join(' · ')}` : shown ? `la pantalla dice «${shown}»` : 'algo que el panel no sabe llenar'}`;
+                break;
+            }
             await sleep(remote ? 2_000 : 800);
         }
     } catch (e) {
@@ -2638,7 +2642,7 @@ connect();
     // la corrida (`dbops ecommerce-url`)— y abre el checkout en el contexto del cliente. Por ahora sólo
     // navega: el bypass del OTP y la siembra del buró vienen después.
     // El celular: `admin`, o un rol con su carril (`advisor`, `client-c`…). Uno de un carril que este panel no tiene, 404.
-    const deviceRoute = /^\/api\/device\/((?:client|advisor)(?:-[b-h])?|admin)(?:\/(open|state|shot|stream|close|input|reload|tab|tap|advance|advance-all|advance-stop|saved|resume|menu|goto))?$/.exec(path);
+    const deviceRoute = /^\/api\/device\/((?:client|advisor)(?:-[b-h])?|admin)(?:\/(open|state|shot|stream|close|input|reload|tab|tap|advance|advance-all|advance-stop|saved|resume|menu|goto|blockers))?$/.exec(path);
     if (deviceRoute && isDeviceId(deviceRoute[1])) {
         const id = deviceRoute[1] as DeviceId, action = deviceRoute[2] || 'state';
         if (action === 'open' && req.method === 'POST' && id !== 'admin') {
@@ -2762,6 +2766,8 @@ connect();
             return json(res, 200, { ok: true, advancing: !!run });
         }
         // Tocar por lo que DICE la pantalla, no por coordenadas: `tap` un texto, `advance` el botón principal.
+        // ¿QUÉ PIDE ESTA PANTALLA? Lo mismo que la consola dice cuando no avanza (`deviceBlockers`), para un agente.
+        if (action === 'blockers' && req.method === 'GET') return json(res, 200, { blockers: await deviceBlockers(id), url: deviceState(id).url ?? null });
         if ((action === 'tap' || action === 'advance') && req.method === 'POST') {
             const b = action === 'tap' ? await readBody(req) : {};
             const text = String(b?.text ?? '').trim();
