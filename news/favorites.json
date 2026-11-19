@@ -803,5 +803,89 @@
     "ideas": [
       "Ver qué preguntas sabe contestar de un punto"
     ]
+  },
+  {
+    "id": "mistralai/Timestral-5M",
+    "group": "tiny",
+    "task": "time-series-forecasting",
+    "params": 5000000,
+    "license": "propia de Mistral (other)",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Pronóstico de series de tiempo sin entrenar, como Chronos, en 5 MILLONES de parámetros. Es el más chico de la familia Timestral de Mistral (5 M, 28 M, 123 M y 209 M).",
+    "why": "Chronos-2 tiene 120 M; éste, 24 veces menos. Si pronostica parecido, se podría correr en cada pasada de Sentinel sin notarlo. Mistral lo evalúa en GIFT-Eval.",
+    "ideas": [
+      "Ponerlo contra Chronos-2 en la misma comparación de Sentinel (-chronos)"
+    ]
+  },
+  {
+    "id": "google/timesfm-3.0-pytorch",
+    "group": "specialist",
+    "task": "time-series-forecasting",
+    "params": 330000000,
+    "license": "no comercial (TimesFM)",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "El modelo base de series de tiempo de Google Research, versión 3.0: pronostica sin entrenar.",
+    "why": "El otro gran pronosticador abierto, para comparar con Chronos-2. ⚠ Licencia no comercial.",
+    "ideas": [
+      "Tercer competidor en la comparación de Sentinel"
+    ]
+  },
+  {
+    "id": "jinaai/jina-reranker-v3.5",
+    "group": "specialist",
+    "task": "text-ranking",
+    "params": 600000000,
+    "license": "cc-by-nc-4.0 (no comercial)",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Reordena resultados de búsqueda: le das una pregunta y muchos candidatos y los ordena por lo bien que la contestan, todos en una sola pasada. Multilingüe.",
+    "why": "El segundo paso de una buena búsqueda: los embeddings traen candidatos rápido, el reranker elige el mejor. Tiene versión GGUF y MLX para la Mac.",
+    "ideas": [
+      "Sumarlo a la búsqueda por significado de knowledge/ (Qwen3-Embedding trae 20, éste elige 3)"
+    ]
+  },
+  {
+    "id": "nvidia/Nemotron-3.5-Embed-1B-BF16",
+    "group": "specialist",
+    "task": "visual-document-retrieval",
+    "params": 1550000000,
+    "license": "openmdw-1.1",
+    "mac": "unknown",
+    "added": "2026-11-19",
+    "what": "Busca en documentos mirando las PÁGINAS: convierte una página (imagen, texto o las dos) en un vector, y una pregunta en texto encuentra la página que la contesta, aunque sea un gráfico o una tabla.",
+    "why": "Buscar en PDFs sin pasarlos a texto primero: lo que está en un gráfico o un escaneo también se encuentra. Multilingüe.",
+    "ideas": [
+      "Buscar en los PDFs de una entidad (políticas, contratos) por pregunta"
+    ]
+  },
+  {
+    "id": "Contrastive-LM/CLM-v0.1-8B",
+    "group": "odd",
+    "task": "text-ranking",
+    "params": null,
+    "license": "apache-2.0",
+    "mac": "unknown",
+    "added": "2026-11-19",
+    "what": "Un «Sistema 1» para agentes: en vez de escribir la acción, compara la situación actual con una lista de acciones posibles y elige la más parecida. Dos cabezas chicas sobre Qwen3-8B congelado.",
+    "why": "Sus autores dicen que iguala a Jev eligiendo acciones de computadora, juegos y herramientas, hasta 9 veces más rápido, y que como verificador es lo mejor en DeepSWE (81,6 %). Las acciones se codifican una vez y se reutilizan.",
+    "ideas": [
+      "Que Jarvis elija el próximo paso entre sus recetas sin preguntarle a un modelo grande"
+    ]
+  },
+  {
+    "id": "OpenMOSS-Team/MOSS-VL-Realtime",
+    "group": "specialist",
+    "task": "video-text-to-text",
+    "params": 11340000000,
+    "license": "apache-2.0",
+    "mac": "unknown",
+    "added": "2026-11-19",
+    "what": "Entiende video en vivo: mira un stream y conversa sobre lo que está pasando, mientras pasa. Es la versión en tiempo real de la familia MOSS-VL.",
+    "why": "La mayoría de los modelos de video miran un archivo entero; éste mira en streaming. 11 B: en la Mac está al límite.",
+    "ideas": [
+      "Que mire la pantalla mientras trabajás y avise cuando aparece un error"
+    ]
   }
 ]
