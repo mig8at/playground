@@ -45,9 +45,9 @@ Cockpit). Sale de tres lugares, siempre los mismos (`server/installed.go`):
 - los modelos de whisper.cpp de `~/.cache/whisper` (el dictado del chat usa `ggml-large-v3-turbo-q5_0.bin`).
 
 `DELETE /api/installed?key=…` sólo borra una clave que salió de esa misma lista, sólo dentro de esas carpetas, y pide el
-encabezado `X-News: 1` (una página de otro origen no puede mandarlo sin preguntar). Lo que usa otra herramienta se marca «en uso» y
-lo dice antes de borrar (`usedBy` en `installed.go`, verificado en el código: Qwen3-VL-4B es de `bin/point`, el Whisper
-de whisper.cpp del dictado del chat, Chronos de Sentinel). Borrar no se deshace: se vuelve a bajar.
+encabezado `X-News: 1` (una página de otro origen no puede mandarlo sin preguntar). Lo que usa otra herramienta se marca con su
+nombre y lo dice antes de borrar: sale del registro `models/registry.json`, el mismo que lee `bin/models`
+([`models/CLAUDE.md`](../models/CLAUDE.md)). La búsqueda y el borrado son de `lib/models`, compartidos con ese CLI. Borrar no se deshace: se vuelve a bajar.
 
 ## Cómo lo arma
 
@@ -79,5 +79,5 @@ de whisper.cpp del dictado del chat, Chronos de Sentinel). Borrar no se deshace:
 | traer la semana de Hugging Face | `server/hf.go` |
 | los textos con el modelo de fondo | `server/write.go` |
 | los favoritos: el archivo y su ruta | `favorites.json` · `server/favorites.go` |
-| los instalados: buscarlos, medirlos y borrarlos | `server/installed.go` (prueba con carpetas falsas en `main_test.go`) |
+| los instalados: la API, sobre `lib/models` y el registro | `server/installed.go` (las pruebas, en `lib/models`) |
 | la interfaz | `src/App.vue` · `src/style.css`, con la base de `tools/ui` (`make style-sync`); los colores de cada tema son propios (`--t-*`) |

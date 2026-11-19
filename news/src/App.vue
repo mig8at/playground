@@ -217,11 +217,11 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); wi
         <div class="group-label">Instalados<span v-if="installed.length" class="group-count">{{ bytes(installedBytes) }}</span></div>
         <template v-for="it in installed" :key="it.key">
           <div class="nav-row installed" :class="{ muted: removing === it.key, asking: confirming === it.key }" :title="`${it.name} · ${it.where}${it.usedBy ? ` · lo usa ${it.usedBy}` : ''}`">
-            <span class="ui-icon" :data-icon="KIND_ICON[it.kind]" aria-hidden="true"></span><button type="button" class="nav-name installed-name" :disabled="!favOfInstalled(it)" @click="pickInstalled(it)">{{ it.name.split('/').pop() }}</button><span v-if="it.usedBy" class="in-use" :title="`Lo usa ${it.usedBy}`">en uso</span><span class="count">{{ removing === it.key ? 'borrando…' : bytes(it.bytes) }}</span>
+            <span class="ui-icon" :data-icon="KIND_ICON[it.kind]" aria-hidden="true"></span><button type="button" class="nav-name installed-name" :disabled="!favOfInstalled(it)" @click="pickInstalled(it)">{{ it.name.split('/').pop() }}</button><span v-if="it.tools?.length" class="in-use" :title="`Lo usa ${it.usedBy}`">{{ it.tools.join(', ') }}</span><span class="count">{{ removing === it.key ? 'borrando…' : bytes(it.bytes) }}</span>
             <button type="button" class="region-action trash" :disabled="removing === it.key" :title="`Borrar ${it.name}`" :aria-label="`Borrar ${it.name}`" @click="removeInstalled(it)"><span class="ui-icon" data-icon="trash" aria-hidden="true"></span></button>
           </div>
           <div v-if="confirming === it.key" class="confirm-row">
-            <span>¿Borrar {{ it.name }}? Libera {{ bytes(it.bytes) }}. {{ it.usedBy ? `Lo usa ${it.usedBy}: deja de andar hasta volver a bajarlo.` : 'Se puede volver a bajar.' }}</span>
+            <span>¿Borrar {{ it.name }}? Libera {{ bytes(it.bytes) }}. {{ it.tools?.length ? `Lo usa ${it.tools.join(', ')} (${it.usedBy}): deja de andar hasta volver a bajarlo.` : 'Ninguna herramienta lo usa: se puede volver a bajar.' }}</span>
             <span class="confirm-actions"><button type="button" class="danger" @click="removeInstalled(it)">Borrar</button><button type="button" @click="confirming = ''">Cancelar</button></span>
           </div>
         </template>
@@ -391,7 +391,7 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onWindowResize); wi
               <button type="button" class="region-action trash" :disabled="removing === it.key" :aria-label="`Borrar ${it.name}`" @click="removeInstalled(it)"><span class="ui-icon" data-icon="trash" aria-hidden="true"></span></button>
             </div>
             <div v-if="confirming === it.key" class="confirm-row">
-              <span>¿Borrar {{ it.name }}? Libera {{ bytes(it.bytes) }}. {{ it.usedBy ? `Lo usa ${it.usedBy}: deja de andar hasta volver a bajarlo.` : 'Se puede volver a bajar.' }}</span>
+              <span>¿Borrar {{ it.name }}? Libera {{ bytes(it.bytes) }}. {{ it.tools?.length ? `Lo usa ${it.tools.join(', ')} (${it.usedBy}): deja de andar hasta volver a bajarlo.` : 'Ninguna herramienta lo usa: se puede volver a bajar.' }}</span>
               <span class="confirm-actions"><button type="button" class="danger" @click="removeInstalled(it)">Borrar</button><button type="button" @click="confirming = ''">Cancelar</button></span>
             </div>
           </template>

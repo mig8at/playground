@@ -9,6 +9,7 @@ package main
 
 import (
 	"context"
+	"creditop/my-tools/lib/models"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -80,7 +81,7 @@ const refreshEvery = 6 * time.Hour
 
 type server struct {
 	root, dir string
-	roots     roots // dónde se buscan los modelos instalados
+	roots     models.Roots // dónde se buscan los modelos instalados (lib/models)
 	mu        sync.Mutex
 	busy      bool
 	lastErr   string
@@ -96,7 +97,7 @@ func main() {
 		wd, _ := os.Getwd()
 		root = wd
 	}
-	s := &server{root: root, dir: filepath.Join(root, "news", ".data", "weeks"), roots: defaultRoots()}
+	s := &server{root: root, dir: filepath.Join(root, "news", ".data", "weeks"), roots: models.DefaultRoots()}
 	if *once {
 		w, err := s.refresh(context.Background())
 		if err != nil {

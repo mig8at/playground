@@ -1,0 +1,21 @@
+#!/bin/sh
+# models — los modelos de IA instalados en la Mac y qué herramienta usa cada uno (cmd/models, lib/models; el registro en
+# models/registry.json). Lo compila la primera vez y cada vez que cambia su código, a ~/.cache/my-tools/models-bin.
+#
+#   bin/models list                      bin/models unused
+#   bin/models path point                (las rutas que abre una herramienta, una por línea)
+#   bin/models rm hub:autor/modelo       bin/models replace --tool sentinel --old A --new B --files hub:B,env:b
+root=$(cd "$(dirname "$0")/.." && pwd -P) || exit 1
+bin="${XDG_CACHE_HOME:-$HOME/.cache}/my-tools/models-bin"
+stale=$(find "$root/cmd/models" "$root/lib/models" -name '*.go' -newer "$bin" 2>/dev/null | head -n 1)
+if [ ! -x "$bin" ] || [ -n "$stale" ] || [ "$root/go.mod" -nt "$bin" ]; then
+  mkdir -p "$(dirname "$bin")" || exit 1
+  tmp="$bin.$$"
+  if ! (cd "$root" && go build -o "$tmp" ./cmd/models) >&2; then
+    rm -f "$tmp"
+    echo "models: no compila cmd/models" >&2
+    exit 1
+  fi
+  mv -f "$tmp" "$bin"
+fi
+MY_TOOLS_ROOT="$root" exec "$bin" "$@"
