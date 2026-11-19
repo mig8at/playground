@@ -545,6 +545,30 @@ async fn model_state() -> Result<serde_json::Value, String> {
     .map_err(|e| e.to_string())?
 }
 
+// LA SESIÓN DEL PLAYGROUND, para la carcasa: el modal cuando venció y la píldora cuando está por vencer
+// (`bin/cockpit session status --json`, cmd/cockpit/session.go). Login corre `playground login` de fondo (abre el
+// navegador; Miguel toca «Continuar con Google») y la carcasa pregunta el estado hasta que vuelve.
+#[tauri::command]
+async fn session_state() -> Result<serde_json::Value, String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let root = std::fs::canonicalize(ROOT).map_err(|e| format!("la raíz de my-tools ({ROOT}): {e}"))?;
+        let out = Command::new(root.join("bin").join("cockpit"))
+            .args(["session", "status", "--json"])
+            .current_dir(&root)
+            .env("PATH", user_path())
+            .output()
+            .map_err(|e| format!("bin/cockpit: {e}"))?;
+        serde_json::from_slice(&out.stdout).map_err(|e| format!("bin/cockpit session status: {e}"))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+fn session_login() {
+    run_cockpit_cli(&["session", "login"]);
+}
+
 #[tauri::command]
 async fn set_model(model: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || run_pg(&["model", "set", &model]).map(|_| ()))
@@ -868,7 +892,7 @@ fn main() {
         .manage(running)
         .manage(Current::default())
         .manage(Stopped::default())
-        .invoke_handler(tauri::generate_handler![apps, ensure_app, set_current, set_stopped, apps_state, restart_app, model_state, set_model])
+        .invoke_handler(tauri::generate_handler![apps, ensure_app, set_current, set_stopped, apps_state, restart_app, model_state, set_model, session_state, session_login])
         .setup(|app| {
             // El puerto de control, con una llave nueva en cada arranque.
             let token = new_token();

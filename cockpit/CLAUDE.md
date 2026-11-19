@@ -184,6 +184,20 @@ propósito. **No se renueva sola**: la página del playground pide tocar «Conti
 no se hace. ⚠ El aviso abre el enlace sólo si sale por el avisador del chat («Chat de my-tools» con permiso de avisos en
 Configuración del Sistema); por `osascript` se ve, pero tocarlo no hace nada.
 
+**Y adentro de Cockpit, imposible de no ver** (2026-11-19, Miguel: «cuando esté caducada debería aparecerme como una
+alerta en el centro de la pantalla, con un botoncito de login»; ese día el aviso de macOS pasó de largo y el modelo de
+fondo quedó sin sesión media mañana). La carcasa pregunta `bin/cockpit session status --json` cada minuto y al volver a
+la ventana (Rust: `session_state`):
+
+- **Vencida o sin sesión:** un modal en el centro con el fondo oscurecido (un `<dialog>` como la configuración): cuándo
+  venció, qué se detiene sin ella y **«Iniciar sesión»** (Rust: `session_login`, que corre `playground login` y abre el
+  navegador). Mientras tanto dice «Esperando que termines en el navegador…» y pregunta cada 3 s; al entrar muestra
+  «Listo» con el nuevo vencimiento y se cierra solo. «Más tarde» (o Escape) lo deja una hora.
+- **Por vencer (menos de 60 min):** una franja arriba del panel, «vence en N min · Renovar», que no bloquea; la ✕ la
+  oculta hasta que venza.
+- **Para probarlo sin esperar:** `bin/cockpit session fake expired|soon` hace que la CARCASA la vea así (la sesión real
+  y lo que la usa no cambian); `bin/cockpit session fake off` vuelve a la real. No lo dejes puesto.
+
 **El modelo de segundo plano** (engranaje → «Modelo», 2026-11-18; Miguel: «para tareas en segundo plano que se
 ejecutan a ciertas horas»): el modelo que usa lo que corre solo, agendado o sin nadie mirando. Claude por defecto
 (Sonnet 5.5 en el Bedrock de CreditOp, por el puente de canon) o Gemini por su API. La carcasa no lo implementa:

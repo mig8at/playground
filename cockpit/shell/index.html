@@ -203,11 +203,42 @@
     background: var(--panel-surface); color: var(--foreground); font: inherit; font-size: var(--text-xs); cursor: pointer }
   .stopbar button:hover { background: var(--hover) }
   .act.stop { color: var(--fg-2); font-weight: 600 }
+  /* LA SESIÓN DEL PLAYGROUND (2026-11-19, Miguel: «cuando esté caducada debería aparecerme como una alerta en el centro
+     de la pantalla, con un botoncito de login»). Vencida: un modal con el fondo oscurecido, como la configuración. Por
+     vencer: una franja arriba del panel, que no bloquea. */
+  .login-dialog { position: fixed; inset: 0; margin: auto; width: min(400px, calc(100vw - 32px)); height: fit-content; padding: 22px 24px;
+    border: 1px solid var(--panel-border, var(--border)); border-radius: calc(var(--radius) + 10px); background: var(--panel-surface, var(--background));
+    color: var(--foreground); box-shadow: var(--settings-shadow) }
+  .login-dialog::backdrop { background: var(--settings-backdrop); backdrop-filter: blur(4px) }
+  .login-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px }
+  .login-icon { flex: none; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
+    background: color-mix(in oklab, var(--cockpit-stop) 14%, transparent); color: var(--cockpit-stop) }
+  .login-icon.ok { background: color-mix(in oklab, var(--cockpit-ok) 14%, transparent); color: var(--cockpit-ok) }
+  .login-title { margin: 0; font-size: 16px; font-weight: 600 }
+  .login-when { margin: 2px 0 0; font-size: 12px; color: var(--fg-2) }
+  .login-what { margin: 0 0 6px; color: var(--fg-2) }
+  .login-list { margin: 0 0 18px; padding-left: 18px; color: var(--foreground); line-height: 1.7 }
+  .login-actions { display: flex; justify-content: flex-end; gap: 8px }
+  .login-foot { margin: 12px 0 0; font-size: 12px; color: var(--fg-3) }
+  .login-wait { display: flex; align-items: center; gap: 8px; color: var(--fg-2) }
+  .login-error { margin: 10px 0 0; font-size: 12px; color: var(--cockpit-stop) }
+  .session-soon { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 5; display: flex; align-items: center; gap: 10px;
+    padding: 6px 8px 6px 14px; border-radius: 999px; border: 1px solid color-mix(in oklab, var(--cockpit-stop) 40%, var(--border));
+    background: var(--panel-surface, var(--background)); color: var(--foreground); box-shadow: var(--settings-shadow); font-size: 12px }
+  .session-soon[hidden] { display: none }
+  .session-soon .btn { padding: 2px 10px }
 </style>
 </head>
 <body>
 <nav id="bar" aria-label="Aplicaciones"></nav>
-<main id="panels"></main>
+<main id="panels"><div class="session-soon" id="sessionSoon" role="status" hidden><span id="sessionSoonText"></span>
+  <button type="button" class="btn btn-sm" id="sessionSoonLogin">Renovar</button>
+  <button type="button" class="region-action" id="sessionSoonClose" title="Ocultar hasta que venza" aria-label="Ocultar el aviso"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button></div></main>
+<dialog class="login-dialog" id="loginDialog" aria-labelledby="loginTitle">
+  <div class="login-head"><div class="login-icon" id="loginIcon"><span class="ui-icon" data-icon="lock" aria-hidden="true"></span></div>
+    <div><h2 class="login-title" id="loginTitle"></h2><p class="login-when" id="loginWhen"></p></div></div>
+  <div id="loginBody"></div>
+</dialog>
 <dialog class="settings" id="settings" aria-label="Configuración de Cockpit">
   <div class="settings-frame">
     <!-- No es un <nav>: el estilo de la barra de Cockpit (nav, 48 px) lo aplastaba. -->
@@ -874,6 +905,85 @@ invoke('apps').then((list) => {
   // El chat se carga siempre, aunque mires otra app: su numerito tiene que estar.
   if (apps.some((a) => a.id === 'chat')) load('chat')
 })
+
+/* LA SESIÓN DEL PLAYGROUND: casi todo lo de fondo la necesita (el modelo de segundo plano, Knowledge, canon, el chat).
+   Vencida (o sin sesión): un modal en el centro con un botón que corre `playground login` (abre el navegador; Miguel
+   toca «Continuar con Google»); la carcasa pregunta cada 3 s hasta que vuelve y avisa «listo». Por vencer: una franja
+   arriba, que no bloquea. «Más tarde» lo deja una hora. El estado sale de `bin/cockpit session status --json`. */
+const loginDialog = document.getElementById('loginDialog')
+const soon = document.getElementById('sessionSoon')
+let session = null
+let loginWaiting = false
+let loginSnoozeUntil = 0
+let soonHiddenFor = ''
+const hhmm = (iso) => new Date(iso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false })
+const whenText = (iso) => {
+  if (!iso) return ''
+  const d = new Date(iso), today = new Date()
+  const day = d.toDateString() === today.toDateString() ? 'hoy' : d.toDateString() === new Date(today.getTime() + 864e5).toDateString() ? 'mañana' : d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })
+  return `${day} a las ${hhmm(iso)}`
+}
+const NEEDS = ['El modelo de segundo plano: Knowledge, la daily, News y Sentinel', 'Canon y el chat del equipo', 'Las herramientas del playground compartido']
+function renderLogin() {
+  const icon = document.getElementById('loginIcon')
+  const body = document.getElementById('loginBody')
+  const ok = session?.state === 'ok' || session?.state === 'soon'
+  icon.classList.toggle('ok', ok && !loginWaiting)
+  icon.querySelector('.ui-icon').dataset.icon = ok ? 'check' : 'lock'
+  if (ok) {
+    document.getElementById('loginTitle').textContent = 'Listo, entraste al playground'
+    document.getElementById('loginWhen').textContent = `la sesión vence ${whenText(session.expiresAt)}`
+    body.innerHTML = ''
+    return
+  }
+  document.getElementById('loginTitle').textContent = session?.state === 'none' ? 'No hay sesión del playground' : 'Tu sesión del playground venció'
+  document.getElementById('loginWhen').textContent = session?.expiresAt ? `venció ${whenText(session.expiresAt)}` : (session?.detail || '')
+  body.innerHTML = loginWaiting
+    ? `<p class="login-wait"><span class="spinner" aria-hidden="true"></span>Esperando que termines en el navegador…</p>
+       <p class="login-foot">Tocá «Continuar con Google» en la página que se abrió. Esto se cierra solo cuando entres.</p>
+       <div class="login-actions" style="margin-top: 14px"><button type="button" class="btn btn-outline btn-sm" data-login="retry">Abrir de nuevo</button><button type="button" class="btn btn-outline btn-sm" data-login="later">Más tarde</button></div>`
+    : `<p class="login-what">Sin ella se detiene esto:</p>
+       <ul class="login-list">${NEEDS.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>
+       <div class="login-actions"><button type="button" class="btn btn-outline btn-sm" data-login="later">Más tarde</button><button type="button" class="btn btn-sm" data-login="go">Iniciar sesión</button></div>
+       <p class="login-foot">Abre el navegador: tocás «Continuar con Google» y vuelve solo.</p>`
+}
+function renderSoon() {
+  const show = session?.state === 'soon' && soonHiddenFor !== session.expiresAt
+  soon.hidden = !show
+  if (show) document.getElementById('sessionSoonText').textContent = `La sesión del playground vence en ${Math.max(1, session.minutesLeft)} min (a las ${hhmm(session.expiresAt)})`
+}
+async function checkSession() {
+  try { session = await invoke('session_state') } catch { return }
+  renderSoon()
+  const down = session.state === 'expired' || session.state === 'none'
+  if (down && !loginDialog.open && Date.now() > loginSnoozeUntil) { loginWaiting = false; renderLogin(); loginDialog.showModal() }
+  if (down && loginDialog.open) renderLogin()
+  if (!down && loginDialog.open) {
+    loginWaiting = false
+    renderLogin()
+    setTimeout(() => loginDialog.open && loginDialog.close(), 2500)
+  }
+}
+function startLogin() {
+  invoke('session_login').catch(() => {})
+  loginWaiting = true
+  if (!loginDialog.open) loginDialog.showModal()
+  renderLogin()
+}
+loginDialog.addEventListener('click', (e) => {
+  const act = e.target.closest('[data-login]')?.dataset.login
+  if (act === 'go' || act === 'retry') startLogin()
+  if (act === 'later') { loginSnoozeUntil = Date.now() + 60 * 60 * 1000; loginWaiting = false; loginDialog.close() }
+})
+// Escape es «más tarde», no un cierre que vuelve a abrirse en el siguiente chequeo.
+loginDialog.addEventListener('cancel', () => { loginSnoozeUntil = Date.now() + 60 * 60 * 1000; loginWaiting = false })
+document.getElementById('sessionSoonLogin').addEventListener('click', startLogin)
+document.getElementById('sessionSoonClose').addEventListener('click', () => { soonHiddenFor = session?.expiresAt || ''; renderSoon() })
+// Cada minuto, cada 3 s mientras espera el navegador, y al volver a la ventana.
+setInterval(() => { if (!loginWaiting) checkSession() }, 60 * 1000)
+setInterval(() => { if (loginWaiting) checkSession() }, 3000)
+window.addEventListener('focus', checkSession)
+setTimeout(checkSession, 1500)
 </script>
 </body>
 </html>

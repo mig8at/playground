@@ -40,6 +40,9 @@ func session(args []string) int {
 	}
 	switch args[0] {
 	case "status":
+		if len(args) > 1 && args[1] == "--json" {
+			return sessionJSON()
+		}
 		exp, email, err := sessionExpiry()
 		if err != nil {
 			fmt.Println("playground:", err)
@@ -53,6 +56,20 @@ func session(args []string) int {
 		return 1
 	case "check":
 		return sessionCheck(len(args) > 1 && args[1] == "--force")
+	case "fake":
+		if len(args) < 2 || (args[1] != "expired" && args[1] != "soon" && args[1] != "off") {
+			fmt.Fprintln(os.Stderr, "uso: bin/cockpit session fake expired|soon|off")
+			return 2
+		}
+		if args[1] == "off" {
+			_ = os.Remove(sessionFakePath())
+			fmt.Println("la carcasa vuelve a ver la sesión real")
+			return 0
+		}
+		_ = os.MkdirAll(filepath.Dir(sessionFakePath()), 0o700)
+		_ = os.WriteFile(sessionFakePath(), []byte(args[1]), 0o600)
+		fmt.Printf("la carcasa ve la sesión como %q (sólo la carcasa; `fake off` para volver)\n", args[1])
+		return 0
 	case "login":
 		cmd := exec.Command("playground", "login")
 		cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
@@ -62,8 +79,53 @@ func session(args []string) int {
 		}
 		return 0
 	}
-	fmt.Fprintln(os.Stderr, "uso: bin/cockpit session [status | check [--force] | login]")
+	fmt.Fprintln(os.Stderr, "uso: bin/cockpit session [status [--json] | check [--force] | login | fake expired|soon|off]")
 	return 2
+}
+
+// sessionJSON: el estado para la carcasa de Cockpit (el modal y la píldora, shell/index.html): `ok` · `soon` (vence en
+// menos de warnBefore) · `expired` · `none` (no hay sesión o no se puede leer). Sale 0 siempre: es una respuesta.
+func sessionJSON() int {
+	out := map[string]any{"state": "ok", "warnMinutes": int(warnBefore.Minutes())}
+	exp, email, err := sessionExpiry()
+	// Para probar el modal y la franja sin esperar a que venza: `bin/cockpit session fake expired|soon|off`.
+	if fake := sessionFake(); fake != "" && err == nil {
+		exp = map[string]time.Time{"expired": time.Now().Add(-10 * time.Minute), "soon": time.Now().Add(42 * time.Minute)}[fake]
+		out["fake"] = fake
+	}
+	switch left := time.Until(exp); {
+	case err != nil:
+		out["state"], out["detail"] = "none", err.Error()
+	case left <= 0:
+		out["state"] = "expired"
+	case left <= warnBefore:
+		out["state"] = "soon"
+	}
+	if err == nil {
+		out["expiresAt"], out["email"] = exp.Format(time.RFC3339), email
+		out["minutesLeft"] = int(time.Until(exp).Minutes())
+	}
+	raw, _ := json.Marshal(out)
+	fmt.Println(string(raw))
+	return 0
+}
+
+func sessionFakePath() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".config", "creditop-cockpit", "session-fake")
+}
+
+// sessionFake: el estado simulado para probar la carcasa (expired · soon), si hay uno. Sólo cambia lo que ve Cockpit:
+// la sesión real y lo que la usa siguen igual.
+func sessionFake() string {
+	raw, err := os.ReadFile(sessionFakePath())
+	if err != nil {
+		return ""
+	}
+	if v := strings.TrimSpace(string(raw)); v == "expired" || v == "soon" {
+		return v
+	}
+	return ""
 }
 
 // sessionExpiry lee el vencimiento del token guardado (el `exp` del JWT, sin verificar la firma: sólo para saber cuándo).
