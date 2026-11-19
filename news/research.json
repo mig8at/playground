@@ -214,8 +214,7 @@
         "bigai/GS1-2B",
         "convaiinnovations/laya",
         "thaitea/laya-vision",
-        "LiquidAI/d1-2B",
-        "charcot-ai/marimba"
+        "LiquidAI/d1-2B"
       ],
       "ours": "2026-11-19, en el triaje de 23 alertas de Sentinel: GS1 atrapó 8 de 9 urgentes pero dio por ruido una caída real con 0,89; Laya, 2 de 9. Sin ajustarlos con datos propios, «calibrado» no significó acertar en nuestro dominio."
     },
