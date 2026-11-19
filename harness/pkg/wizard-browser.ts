@@ -311,10 +311,28 @@ export async function closeContext(ctx: BrowserContext, saveTo: string | null): 
     }
 }
 
+/** CUÁNTO DEL PRINCIPIO ES BLANCO: la página vacía mientras carga el wizard (medido el 2026-11-19: ~1 s en local, ~7 s
+ *  contra qa). Se mira un cuadro cada medio segundo de los primeros 30, en gris y chiquito, y el primero que no es casi
+ *  todo blanco es donde empieza el video. Sin ffmpeg o sin contenido en ese tramo, 0: no se corta nada. */
+export function blankLead(file: string): number {
+    const W = 24, H = 52, STEP = 0.5;
+    const r = spawnSync('ffmpeg', ['-loglevel', 'error', '-t', '30', '-i', file, '-vf', `fps=${1 / STEP},scale=${W}:${H}`, '-f', 'rawvideo', '-pix_fmt', 'gray', '-'], { maxBuffer: 64 * 1024 * 1024 });
+    const buf: Buffer | undefined = r.stdout as any;
+    if (r.status !== 0 || !buf?.length) return 0;
+    const frame = W * H;
+    for (let i = 0; i * frame < buf.length; i += 1) {
+        let sum = 0;
+        for (let j = i * frame; j < Math.min((i + 1) * frame, buf.length); j += 1) sum += buf[j];
+        if (sum / frame < 250) return Math.max(0, i * STEP - 0.3);
+    }
+    return 0;
+}
+
 /** El .webm de Playwright a .mp4 (H.264, que abre cualquier teléfono). Sin ffmpeg queda el .webm y se dice. */
-function toMp4(webm: string): string {
+export function toMp4(webm: string): string {
     const mp4 = webm.replace(/\.webm$/, '.mp4');
-    const r = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', webm, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', mp4]);
+    const lead = blankLead(webm);
+    const r = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', ...(lead > 0 ? ['-ss', lead.toFixed(1)] : []), '-i', webm, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', mp4]);
     if (r.status !== 0) return `${webm} (sin pasar a mp4: ${r.error ? 'falta ffmpeg' : String(r.stderr).trim().slice(0, 120)})`;
     fs.rmSync(webm, { force: true });
     return mp4;

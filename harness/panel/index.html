@@ -136,7 +136,25 @@
     .recording-view[hidden] { display: none }
     .recording-head { display: flex; flex-direction: column; gap: 2px; flex: none; min-width: 0 }
     .recording-meta { color: var(--fg-3); font-size: var(--text-xs, 12px); white-space: normal }
-    .recording-view video { flex: 1 1 0; min-height: 0; width: 100%; object-fit: contain; background: #000; border-radius: var(--radius-md, 8px) }
+    /* EL REPRODUCTOR, MINIMALISTA (2026-11-19): sin los controles del navegador (en Cockpit eran los de Safari, con volumen,
+       pantalla completa y tiempos encima del video). El cuadro mide lo que mide el video —ni barras negras ni recorte—:
+       el ancho y el alto salen de la proporción del video (`--ar`) contra el lugar que hay (`cq*`). Clic: reproducir o
+       pausar. Al pasar el mouse, una barra delgada abajo para adelantar o volver, y nada más. */
+    .recording-stage { flex: 1 1 0; min-height: 0; container-type: size; display: grid; place-items: start center }
+    .rec-frame { --ar: 0.4667; position: relative; width: min(100cqw, 100cqh * var(--ar)); height: min(100cqh, 100cqw / var(--ar));
+      border-radius: var(--radius-md, 8px); overflow: hidden; background: var(--muted, #222); cursor: pointer;
+      box-shadow: 0 0 0 1px var(--border) }
+    .rec-frame video { display: block; width: 100%; height: 100%; object-fit: cover }
+    .rec-play { position: absolute; inset: 0; margin: auto; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center;
+      background: color-mix(in srgb, #000 45%, transparent); color: #fff; pointer-events: none; transition: opacity .15s }
+    .rec-play .ui-icon { width: 18px; height: 18px; margin-left: 2px }
+    .rec-frame:not(.paused) .rec-play { opacity: 0 }
+    .rec-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 14px; display: flex; align-items: flex-end; opacity: 0;
+      transition: opacity .15s; cursor: pointer; touch-action: none }
+    .rec-frame:hover .rec-bar, .rec-frame.paused .rec-bar, .rec-bar.dragging { opacity: 1 }
+    .rec-track { position: relative; width: 100%; height: 3px; background: color-mix(in srgb, #fff 30%, transparent); transition: height .12s }
+    .rec-bar:hover .rec-track, .rec-bar.dragging .rec-track { height: 5px }
+    .rec-fill { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--primary) }
     .row.recording .row-meta { white-space: nowrap }
     .row.recording.failed .row-meta { color: var(--warn) }
     .sidebar .region-body, .auxiliarybar .region-body { overflow-x: hidden; padding-block: var(--space-1) }
@@ -1061,7 +1079,11 @@
              fieldset: se puede mirar mientras corre otra cosa. -->
         <div class="region-body recording-view" id="viewRecording" role="tabpanel" aria-labelledby="tabRecording" hidden>
           <div class="recording-head"><strong id="recordingTitle"></strong><span class="recording-meta" id="recordingMeta"></span></div>
-          <video id="recordingVideo" controls playsinline preload="metadata"></video>
+          <div class="recording-stage"><div class="rec-frame paused" id="recordingFrame" title="Clic para reproducir o pausar">
+            <video id="recordingVideo" playsinline muted preload="auto"></video>
+            <span class="rec-play" aria-hidden="true"><span class="ui-icon" data-icon="play"></span></span>
+            <div class="rec-bar" id="recordingBar" role="slider" aria-label="Posición del video" tabindex="0"><div class="rec-track"><div class="rec-fill" id="recordingFill"></div></div></div>
+          </div></div>
         </div>
         <fieldset class="cfg region-body props" id="viewClient" role="tabpanel" aria-labelledby="tabClient"><legend class="sr-only">El cliente de la próxima corrida</legend>
           <section class="alert view-note" id="noteClient" role="note" hidden></section>
@@ -2190,11 +2212,44 @@
       $('recordingTitle').textContent = `${r.name} · ${recordingWhen(r.at)}`;
       $('recordingMeta').textContent = recordingSummary(r) || r.description || '';
       const v = $('recordingVideo');
-      const src = `/api/recordings/${encodeURIComponent(id)}/video`;
+      // `#t=0.1`: Safari (el motor de Cockpit) no pinta el primer cuadro de un video en pausa sin esto.
+      const src = `/api/recordings/${encodeURIComponent(id)}/video#t=0.1`;
       if (v.getAttribute('src') !== src) v.setAttribute('src', src);
       $('tabRecording').hidden = false;
       for (const row of document.querySelectorAll('#recordingsBody .row')) row.setAttribute('aria-selected', String(row.dataset.id === id));
       if (show) showAuxView('recording');
+    }
+
+    // El reproductor: clic para reproducir o pausar, la barra para ir a otro momento (arrastrando o con las flechas).
+    {
+      const v = $('recordingVideo'), frame = $('recordingFrame'), bar = $('recordingBar'), fill = $('recordingFill');
+      const paint = () => {
+        const p = v.duration ? v.currentTime / v.duration : 0;
+        fill.style.width = `${(p * 100).toFixed(2)}%`;
+        bar.setAttribute('aria-valuenow', String(Math.round(p * 100)));
+      };
+      const sync = () => frame.classList.toggle('paused', v.paused);
+      v.addEventListener('timeupdate', paint);
+      v.addEventListener('loadedmetadata', () => {
+        if (v.videoWidth && v.videoHeight) frame.style.setProperty('--ar', String(v.videoWidth / v.videoHeight));
+        paint();
+      });
+      for (const ev of ['play', 'pause', 'ended', 'emptied']) v.addEventListener(ev, sync);
+      v.addEventListener('emptied', paint);
+      frame.addEventListener('click', (e) => { if (bar.contains(e.target)) return; if (v.paused) v.play().catch(() => {}); else v.pause(); });
+      const seekTo = (x) => {
+        const r = bar.getBoundingClientRect();
+        if (!v.duration || !r.width) return;
+        v.currentTime = Math.min(1, Math.max(0, (x - r.left) / r.width)) * v.duration; paint();
+      };
+      bar.addEventListener('pointerdown', (e) => { e.preventDefault(); bar.setPointerCapture(e.pointerId); bar.classList.add('dragging'); seekTo(e.clientX); });
+      bar.addEventListener('pointermove', (e) => { if (bar.classList.contains('dragging')) seekTo(e.clientX); });
+      for (const ev of ['pointerup', 'pointercancel']) bar.addEventListener(ev, () => bar.classList.remove('dragging'));
+      bar.addEventListener('keydown', (e) => {
+        if (!v.duration) return;
+        if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); v.currentTime = Math.max(0, Math.min(v.duration, v.currentTime + (e.key === 'ArrowRight' ? 5 : -5))); paint(); }
+        if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); if (v.paused) v.play().catch(() => {}); else v.pause(); }
+      });
     }
 
     async function loadRecordings() {

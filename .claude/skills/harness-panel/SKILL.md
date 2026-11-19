@@ -1339,3 +1339,10 @@ no es la de por defecto (`?vista=buros`, `?consola=mocks`, `?inicio=entidades`).
 - **El autorrelleno del celular prefiere Bogotá** en los desplegables sin valor pedido, como el caminador: con la primera
   opción (Amazonas, fuera de las zonas de Finandina) el front cancelaba después del formulario (código 5001).
 - Verificado en local desde el panel: ▶ → «Hasta el final» con Banco Finandina, 468445 en 11 en ~1 min 30 s.
+
+- **El reproductor es propio y minimalista** (2026-11-19): sin `controls` (en Cockpit eran los de Safari, con volumen y
+  pantalla completa encima). El cuadro mide lo que el video, por su proporción contra el lugar (`container-type: size`,
+  `--ar`): sin barras negras. Clic reproduce o pausa; al pasar el mouse, una barra de 3 px abajo para adelantar
+  (arrastrando o con las flechas). `#t=0.1` en el `src` para que Safari pinte el primer cuadro en pausa.
+- **Los videos ya no empiezan en blanco**: al pasar a .mp4, `blankLead` (`pkg/wizard-browser.ts`) mira un cuadro cada
+  medio segundo y corta hasta el primero con contenido (~1,7 s en local, ~7,7 s contra qa).
