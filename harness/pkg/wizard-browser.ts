@@ -86,8 +86,12 @@ const JARVIS_CHROME = process.env.JARVIS_CHROME === '1';
 const JARVIS_CDP = process.env.JARVIS_CDP || 'ws://127.0.0.1:5203/api/chrome/cdp';
 const jarvisPages = new WeakMap<BrowserContext, Page[]>();
 
+/* JARVIS_SLOW=<ms>: una pausa antes de cada acción en el Chrome de la persona, para que se vea cada campo y cada clic
+ * (`make jarvis-walk SLOW=1200`). Sólo con JARVIS_CHROME: sin ventana no hay a quién mostrarle. */
+const JARVIS_SLOW = Number(process.env.JARVIS_SLOW || 0);
+
 export async function openBrowser(opts: { headed?: boolean } = {}): Promise<Browser> {
-    if (JARVIS_CHROME) return chromium.connectOverCDP(JARVIS_CDP);
+    if (JARVIS_CHROME) return chromium.connectOverCDP(JARVIS_CDP, JARVIS_SLOW > 0 ? { slowMo: JARVIS_SLOW } : {});
     return chromium.launch({ headless: !opts.headed });
 }
 
