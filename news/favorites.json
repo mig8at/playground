@@ -1123,7 +1123,7 @@
   },
   {
     "id": "prism-ml/Ternary-Bonsai-2-27B-gguf",
-    "group": "tiny",
+    "group": "tried",
     "task": "image-text-to-text",
     "params": 27000000000,
     "license": "apache-2.0",
@@ -1134,7 +1134,12 @@
     "ideas": [
       "Un modelo de fondo local, sin red, para cuando el Bedrock no contesta",
       "Compararlo contra el modelo de fondo en el dictamen de Sentinel"
-    ]
+    ],
+    "triedOn": "2026-11-19",
+    "verdict": "dropped",
+    "installed": [],
+    "verdictWhy": "En esta Mac va a 13–18 palabras por segundo; razonando tarda minutos por respuesta y sin razonar se equivoca en cuentas y fechas. No sirve de modelo de fondo. Borrado (7,6 GB).",
+    "tried": "2026-11-19, la versión Q2_0 (7,6 GB, la que corre en el llama-server de Homebrew sin el fork de sus autores) con Metal. Velocidad: 13 palabras por segundo razonando y 16–18 sin razonar (sus autores miden 47 en una M5 Max). Razonando ignoró el modo «medium» y pasó 10 minutos y ~8.000 palabras en la primera pregunta sin contestar. Sin razonar, 2 de 4 verificables: extrajo bien un JSON de un mensaje en español y escribió una función de Luhn que pasa las pruebas, pero calculó mal una cuota (231.093 contra 232.564: 1,018^24 da 1,5344, no 1,5397) y dijo que el 1/1/2027 es sábado (es viernes). El resumen en español salió bien escrito pero perdió un matiz."
   },
   {
     "id": "MuyaoYuan/LoCo-7B",
