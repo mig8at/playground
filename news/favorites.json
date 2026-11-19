@@ -1506,5 +1506,88 @@
     "ideas": [
       "Ponerlo a jugar uno de los juegos de my-tools"
     ]
+  },
+  {
+    "id": "inworld/sava",
+    "group": "voice",
+    "task": "voice-activity-detection",
+    "params": 25500000,
+    "license": "apache-2.0",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Escucha audio en vivo y da dos probabilidades cada 40 ms: si hay voz y si la persona TERMINÓ de hablar. Distingue la voz de una tos, una risa, música o el teclado.",
+    "why": "25 M de parámetros y licencia libre. Saber cuándo alguien terminó su turno, y no sólo cuándo se calló, es lo que hace que una conversación por voz no corte ni se quede esperando.",
+    "ideas": [
+      "Que el dictado del chat se corte solo cuando Miguel termina la frase, sin soltar la tecla",
+      "Detectar los turnos en la videollamada del chat"
+    ]
+  },
+  {
+    "id": "Reson8/Rumble-2-Flash",
+    "group": "voice",
+    "task": "automatic-speech-recognition",
+    "params": 508631552,
+    "license": "apache-2.0",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Transcripción de voz en 45 idiomas con 0,5 B de parámetros. En español, 3,7 % de palabras erradas en promedio en la tabla pública; ya hay versiones para llama.cpp y para el chip neuronal de Apple.",
+    "why": "Del tamaño de Parakeet, con licencia libre y más idiomas. Otro rival chico para Whisper.",
+    "ideas": [
+      "Pasarlo por los mismos 10 audios en español donde Whisper dio 0 errores, sólo si algún día Whisper se queda corto"
+    ]
+  },
+  {
+    "id": "LiquidAI/Liquid-Codec",
+    "group": "odd",
+    "task": "feature-extraction",
+    "params": 73559090,
+    "license": "propia de Liquid AI",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Un códec de audio: convierte la voz en fichas discretas (como palabras de un vocabulario) y las vuelve a convertir en audio. Es el «oído y la boca» de los modelos de voz LFM3 de Liquid.",
+    "why": "Codifica a ~361 veces el tiempo real en UN hilo de CPU de una M4. Es la pieza que hace que un modelo de lenguaje pueda hablar y escuchar.",
+    "ideas": [
+      "Ver cuánto se puede comprimir un audio de voz sin que se note"
+    ]
+  },
+  {
+    "id": "owensong/Inflect-Mini-v3",
+    "group": "tiny",
+    "task": "text-to-speech",
+    "params": 34310790,
+    "license": "apache-2.0",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Texto a voz en inglés con 34 M de parámetros (138 MB), seis voces, sonidos que no son palabras y perfiles de voz a partir de una grabación. Corre en CPU.",
+    "why": "De los mejores de la tabla pública de voz en inglés con un modelo diminuto. Hay versiones aún más chicas: 12 M y 157 mil parámetros.",
+    "ideas": [
+      "Sólo inglés: para jugar, no para el chat"
+    ]
+  },
+  {
+    "id": "baidu/Unlimited-OCR-2",
+    "group": "specialist",
+    "task": "image-text-to-text",
+    "params": 3343978497,
+    "license": "mit",
+    "mac": "unknown",
+    "added": "2026-11-19",
+    "what": "OCR de documentos sin límite de largo: lee un documento de muchas páginas de corrido y une lo que sigue de una página a la otra (una tabla partida, un párrafo cortado).",
+    "why": "3,3 B con licencia MIT. Indra lee una página a la vez; éste promete el documento entero. Las instrucciones son para GPU NVIDIA.",
+    "ideas": [
+      "Contra Indra en un contrato o un extracto de varias páginas, si alguna vez hace falta leer documentos largos"
+    ]
+  },
+  {
+    "id": "apple/FastFrames-S",
+    "group": "gpu",
+    "task": "text-to-video",
+    "params": 1300000000,
+    "license": "apple-amlr (investigación)",
+    "mac": "no",
+    "added": "2026-11-19",
+    "what": "Video que se genera mientras lo mirás: un modelo de difusión de dos pasos que produce video de 480p con latencia interactiva. De Apple; hay una versión de 14 B.",
+    "why": "Video generado en tiempo real, casi como un videojuego. Pero pide Linux con GPU NVIDIA.",
+    "ideas": []
   }
 ]
