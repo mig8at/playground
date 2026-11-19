@@ -1,5 +1,27 @@
 [
   {
+    "id": "nvidia/parakeet-tdt-0.6b-v3",
+    "group": "tried",
+    "task": "automatic-speech-recognition",
+    "params": 600000000,
+    "license": "cc-by-4.0",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "El transcriptor Parakeet-TDT-0.6B-v3 de NVIDIA, en 25 idiomas europeos (español incluido), con puntuación y mayúsculas; detecta el idioma solo. Corrido con parakeet-mlx en la GPU de la Mac (mlx-community/parakeet-tdt-0.6b-v3, 2,5 GB).",
+    "why": "La versión original de Parakeet-Redux, sin la telemetría del motor de Moondream: parakeet-mlx sólo baja el modelo de Hugging Face.",
+    "ideas": [
+      "Reemplazar al Whisper del dictado del chat"
+    ],
+    "triedOn": "2026-11-19",
+    "verdict": "keep",
+    "installed": [
+      "hub:mlx-community/parakeet-tdt-0.6b-v3",
+      "env:parakeet-mlx"
+    ],
+    "verdictWhy": "Empata con el Whisper del chat en precisión (0 errores) y es más rápido (0,53 s contra 0,88 s por dictado); pesa 2,5 GB contra 574 MB. Falta decidir si reemplaza al del chat.",
+    "tried": "2026-11-19, contra el Whisper del dictado del chat con los mismos 10 audios en español de texto conocido: 0 errores en 141 palabras los dos. Con el modelo cargado: 0,13 s por audio contra 0,65 s del Whisper sin contar su carga. Una llamada completa, como la hace el chat (arrancar, cargar y transcribir): 0,53 s contra 0,88 s. Carga desde la caché: 0,37 s. Escribe «4500» sin punto y «12» en cifras, igual que Whisper. Se probó el original porque Parakeet-Redux sólo corre con el motor Photon de Moondream, que manda telemetría (el nombre de la Mac y conteos de uso) a moondream.ai cada minuto sin opción de apagarla; ese paquete se borró sin correrlo."
+  },
+  {
     "id": "openai/whisper-large-v3-turbo",
     "group": "tried",
     "task": "automatic-speech-recognition",
@@ -1192,7 +1214,7 @@
     "mac": "yes",
     "added": "2026-11-19",
     "what": "El transcriptor Parakeet-TDT-0.6B de NVIDIA con todos los pesos del codificador en −1, 0 o +1: 178 MB, 25 idiomas (español incluido).",
-    "why": "Sus autores miden 113 veces el tiempo real en 8 núcleos de CPU y dicen que queda a 0,3 puntos del original en inglés y le gana en los 25 idiomas de FLEURS y en audios largos. Un candidato serio contra el Whisper del chat (574 MB).",
+    "why": "Sus autores miden 113 veces el tiempo real en 8 núcleos de CPU y dicen que queda a 0,3 puntos del original en inglés y le gana en los 25 idiomas de FLEURS y en audios largos. Un candidato serio contra el Whisper del chat (574 MB). ⚠ Su motor (Photon, del paquete moondream) manda telemetría a moondream.ai cada minuto con el nombre de la Mac y conteos de uso, y no se puede apagar: por eso se probó el original.",
     "ideas": [
       "Ponerlo contra el Whisper del dictado con los mismos 10 audios en español"
     ]
