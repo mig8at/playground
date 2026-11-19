@@ -60,7 +60,8 @@
     "ideas": [
       "Poner dos copias a conversar y escucharlas",
       "Ver cómo aprende a tomar turnos en una conversación"
-    ]
+    ],
+    "tried": "2026-11-19, 30 s de dos copias conversando desde el silencio, en la Mac (lo corrió Miguel). Whisper large-v3-turbo, en local, transcribe inglés real en las dos voces —«yeah», «I don't know why I would want at the time, but», «you know like i feel like i should have to»— pero las frases no tienen sentido, como dice su autor. Por energía, en ventanas de 80 ms: A habla el 28 % del tiempo, B el 50 %, las dos a la vez el 4 % y hay silencio el 26 %. Suena a conversación; no dice nada."
   },
   {
     "id": "higurashi-ai/Haru-4B",
