@@ -1716,7 +1716,7 @@
   },
   {
     "id": "apple/Sharp",
-    "group": "create",
+    "group": "tried",
     "task": "image-to-3d",
     "params": null,
     "license": "apple-amlr (investigación)",
@@ -1729,9 +1729,8 @@
     ],
     "tried": "2026-11-19, con la foto de la taza de su propio paper (538×362), en la GPU de la Mac (MPS): 6,4 s de inferencia y 23 s en total contando cargar el modelo de 2,6 GB; salen 1.179.648 gaussianas en un .ply de 63 MB. El render fotorrealista (gsplat) pide CUDA, así que se dibujó con puntos desde varios ángulos: girando 15° la taza queda delante de los corchos y la mesa en perspectiva, con huecos donde la foto no muestra nada. La foto no traía distancia focal y Sharp asumió 30 mm.",
     "triedOn": "2026-11-19",
-    "installed": [
-      "env:sharp"
-    ]
+    "verdict": "dropped",
+    "verdictWhy": "Anda en la GPU de la Mac y la escena sale de verdad en 3D, pero el render fotorrealista pide CUDA y no tiene un uso en el día a día. Se borró (Miguel, 2026-11-19)."
   },
   {
     "id": "tencent/HY-Motion-1.0",
