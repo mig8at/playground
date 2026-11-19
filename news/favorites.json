@@ -98,13 +98,14 @@
       "Buscar en knowledge/ con preguntas escritas como se preguntan",
       "Encontrar tareas parecidas en el tablero"
     ],
-    "tried": "2026-11-18: encontró el tema correcto de knowledge en 19 de 20 preguntas reales; la búsqueda de hoy, en 4. Sin integrar todavía.",
+    "tried": "2026-11-18: encontró el tema correcto de knowledge en 19 de 20 preguntas reales; la búsqueda de hoy, en 4. Sin integrar todavía. El 2026-11-19 entró en knowledge-search: en 37 títulos de tareas reales acertó 24 (palabras 16) y en 30 identificadores exactos 12 (palabras 30), así que las preguntas van por significado y lo que parece código mezcla las dos. ~0,34 s por búsqueda.",
     "triedOn": "2026-11-18",
     "verdict": "keep",
-    "verdictWhy": "Búsqueda por significado: 19 de 20 contra 4 de 20. Sin integrar todavía.",
+    "verdictWhy": "Está en uso: la búsqueda por significado de knowledge-search desde el 2026-11-19.",
     "installed": [
       "gguf:Qwen3-Embedding-0.6B"
-    ]
+    ],
+    "usedBy": "knowledge-search"
   },
   {
     "id": "naklecha/caramel-1",

@@ -23,6 +23,9 @@ func run(args []string) int {
 	}
 	fs := flag.NewFlagSet("knowledge", flag.ContinueOnError)
 	asJSON := fs.Bool("json", false, "salida JSON")
+	wordsOnly := fs.Bool("words", false, "search: sólo por palabras, sin el modelo de significado")
+	meaningOnly := fs.Bool("meaning", false, "search: sólo por significado (para comparar)")
+	verbose := fs.Bool("v", false, "search: decir cómo buscó y cuánto tardó")
 	root := fs.String("root", ".", "raíz de my-tools")
 	if err := fs.Parse(args[1:]); err != nil {
 		return 2
@@ -49,7 +52,10 @@ func run(args []string) int {
 			fmt.Fprintln(os.Stderr, "falta la consulta")
 			return 2
 		}
-		hits := l.Search(q)
+		hits, how := search(l, *root, q, *wordsOnly, *meaningOnly)
+		if *verbose {
+			fmt.Fprintln(os.Stderr, how)
+		}
 		if *asJSON {
 			printJSON(hits)
 			return 0

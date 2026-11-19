@@ -28,6 +28,7 @@ con `bin/models path <herramienta>` (cualquier otra cosa). Cambiar el modelo de 
 |---|---|---|
 | point | el GGUF de Qwen3-VL-4B y su proyector | `point/main.go` (`modelFiles`; `bin/point` le pasa `MY_TOOLS_ROOT`) |
 | chat | el Whisper del dictado (`CHAT_WHISPER_MODEL` lo pisa; si el registro no contesta, el de siempre) | `chat/server/dictation.go` (`whisperModel`, con su prueba) |
+| knowledge | Qwen3-Embedding-0.6B, para la búsqueda por significado (en su llama-server de :5250, `lib/llamaserve`) | `cmd/knowledge/semantic.go` |
 | sentinel | el venv de Timestral-5M (un pronosticador sin registro, como Chronos-2, usa su lugar de antes) | `sentinel/server/forecast.go` (`forecasterPython`) |
 
 `FindRoot` encuentra el registro por `MY_TOOLS_ROOT` o subiendo desde la carpeta actual y desde el ejecutable: un binario

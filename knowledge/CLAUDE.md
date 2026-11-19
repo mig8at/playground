@@ -55,6 +55,25 @@ son fuentes opcionales: citá cuál usaste y qué no verificaste. No conviertas 
 en hecho técnico sin contrastarla. Si hace falta guardar ese contexto, distinguí su fuente documental
 del mecanismo respaldado por código; el lector actual exige fuentes Git para los temas técnicos.
 
+## La búsqueda: por significado y por palabras (`make knowledge-search Q='…'`)
+
+Desde el 2026-11-19 `knowledge search` busca por **significado**: cada sección se convierte en un vector con
+Qwen3-Embedding-0.6B (en la Mac, en un llama-server propio en :5250 que se levanta con la primera búsqueda y se apaga
+solo a los 15 minutos sin uso, `lib/llamaserve`) y la pregunta se compara contra todas. El índice vive en
+`~/.cache/my-tools/knowledge-embed/index.json` y sólo recalcula las secciones que cambiaron. El modelo sale del registro
+(`models/registry.json`, el uso de «knowledge»).
+
+- **Una pregunta en lenguaje natural manda el significado; una que trae algo que parece código** (un nombre con guion
+  bajo o camelCase, una ruta, `F-53`, algo entre comillas invertidas) **mezcla palabras y significado a la par**
+  (`looksLikeCode`, `cmd/knowledge/semantic.go`). Medido el 2026-11-19 (los aciertos son el tema esperado entre los 3
+  primeros): en 37 títulos de tareas que declaran `knowledge:`, por palabras 16, por significado 24 y así 23; en 20
+  preguntas escritas a mano, 4, 19 y 19; en 30 identificadores exactos, 30, 12 y 30. Mezclar a la par siempre empeoraba
+  las preguntas: las palabras comunes («cliente», «ecommerce») suben temas genéricos.
+- **Cuánto tarda:** ~0,34 s por búsqueda con el servidor arriba; la primera de todas, ~30 s (levanta el servidor y arma
+  el índice de ~340 secciones). Si el modelo no está o no contesta, busca sólo por palabras y lo dice en stderr.
+- `--words` busca sólo por palabras; `--meaning`, sólo por significado; `-v` dice cómo buscó y cuánto tardó.
+- El silencio sigue sin probar nada: el significado acerca el tema, no verifica el mecanismo.
+
 ## Uso y cierre
 
 `make resume` y `make agent` sugieren solos las secciones que respaldan los archivos de las ramas de

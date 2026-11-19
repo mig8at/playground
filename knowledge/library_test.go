@@ -109,3 +109,40 @@ func TestKnowledgeRejectsLinkedTopicsAndFiles(t *testing.T) {
 		})
 	}
 }
+
+// La búsqueda por significado: el índice recalcula sólo lo que cambió, y la mezcla con la búsqueda por palabras sube
+// lo que está arriba en cualquiera de las dos.
+func TestSemanticIndexAndBlend(t *testing.T) {
+	l := Library{Topics: []Topic{{ID: "a", Metadata: Metadata{Title: "A"}, Sections: []Section{{ID: "a#uno", Title: "Uno", Text: "cuota inicial"}, {ID: "a#dos", Title: "Dos", Text: "pagaré"}}}}}
+	calls := 0
+	// un «modelo» de juguete: el vector dice si el texto habla de cuota o de pagaré
+	embed := func(texts []string) ([][]float32, error) {
+		calls += len(texts)
+		out := make([][]float32, len(texts))
+		for i, s := range texts {
+			out[i] = []float32{float32(strings.Count(s, "cuota")), float32(strings.Count(s, "pagar") + strings.Count(s, "pagaré")), 0.01}
+		}
+		return out, nil
+	}
+	path := filepath.Join(t.TempDir(), "index.json")
+	hits, stats, err := l.SemanticSearch("¿cuánto es la cuota?", path, "m", embed)
+	if err != nil || stats.Embedded != 2 || hits[0].ID != "a#uno" {
+		t.Fatalf("%v %+v %v", hits, stats, err)
+	}
+	calls = 0
+	_, stats, _ = l.SemanticSearch("firmar el pagaré", path, "m", embed)
+	if stats.Embedded != 0 || calls != 1 {
+		t.Fatalf("con el índice guardado sólo se calcula la pregunta: embebió %d, llamó %d", stats.Embedded, calls)
+	}
+	l.Topics[0].Sections[1].Text = "pagaré firmado"
+	_, stats, _ = l.SemanticSearch("x", path, "m", embed)
+	if stats.Embedded != 1 {
+		t.Fatalf("una sección que cambió se recalcula sola: %+v", stats)
+	}
+	words := []Hit{{Section: Section{ID: "a#dos"}, Topic: "a", Score: 5}}
+	meaning := []SemanticHit{{Hit: Hit{Section: Section{ID: "a#uno"}, Topic: "a"}, Similarity: 0.9}, {Hit: Hit{Section: Section{ID: "a#dos"}, Topic: "a"}, Similarity: 0.5}}
+	got := Blend(words, meaning, 10, 1)
+	if got[0].ID != "a#dos" || len(got) != 2 {
+		t.Fatalf("la que está en las dos listas va primero: %+v", got)
+	}
+}

@@ -898,7 +898,7 @@ confluence: ## @har el POR QUÉ del negocio, que el código no tiene (sólo lect
 
 knowledge-map: ## @dia los temas de conocimiento LOCAL, editable y versionado en knowledge/. Sin red [JSON=1]
 	@go run ./cmd/knowledge map $(if $(JSON),--json)
-knowledge-search: ## @dia buscar en el conocimiento LOCAL. Q='monto listado' [JSON=1]
+knowledge-search: ## @dia buscar en el conocimiento LOCAL, por significado (las preguntas) y por palabras (lo que parece código). Q='monto listado' [JSON=1]
 	@test -n "$(Q)" || { echo "falta Q='<consulta>'"; exit 2; }
 	@go run ./cmd/knowledge search $(if $(JSON),--json) '$(Q)'
 knowledge-read: ## @dia leer un tema o sección local. ID='lender-listing[#ancla]' [JSON=1]

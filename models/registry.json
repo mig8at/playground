@@ -3,7 +3,9 @@
     {
       "tool": "point",
       "model": "Qwen/Qwen3-VL-4B-Instruct",
-      "files": ["gguf:Qwen3VL-4B-Instruct"],
+      "files": [
+        "gguf:Qwen3VL-4B-Instruct"
+      ],
       "what": "bin/point: dónde tocar en una captura",
       "source": "point/main.go",
       "since": "2026-11-18"
@@ -11,7 +13,9 @@
     {
       "tool": "chat",
       "model": "openai/whisper-large-v3-turbo",
-      "files": ["whisper:ggml-large-v3-turbo-q5_0"],
+      "files": [
+        "whisper:ggml-large-v3-turbo-q5_0"
+      ],
       "what": "el dictado del chat (whisper-cli)",
       "source": "chat/server/dictation.go",
       "since": "2026-11-11"
@@ -19,9 +23,22 @@
     {
       "tool": "sentinel",
       "model": "mistralai/Timestral-5M",
-      "files": ["hub:mistralai/Timestral-5M", "env:timestral"],
+      "files": [
+        "hub:mistralai/Timestral-5M",
+        "env:timestral"
+      ],
       "what": "Sentinel: el pronóstico en sombra (-chronos)",
       "source": "sentinel/server/forecast.go",
+      "since": "2026-11-19"
+    },
+    {
+      "tool": "knowledge",
+      "model": "Qwen/Qwen3-Embedding-0.6B",
+      "files": [
+        "gguf:Qwen3-Embedding-0.6B"
+      ],
+      "what": "knowledge-search: la búsqueda por significado",
+      "source": "cmd/knowledge/semantic.go",
       "since": "2026-11-19"
     }
   ]
