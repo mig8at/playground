@@ -673,7 +673,7 @@
   },
   {
     "id": "Edge0/Audio8-TTS-Realistic-Air",
-    "group": "voice",
+    "group": "tried",
     "task": "text-to-speech",
     "params": 600000000,
     "license": "apache-2.0",
@@ -684,7 +684,8 @@
     "ideas": [
       "Una voz en español para leer el dictamen de Sentinel",
       "Voces de los personajes de Office"
-    ]
+    ],
+    "tried": "2026-11-19, en la Mac (GPU, con Transformers; el camino de llama.cpp pide compilar un parche), cuatro frases en español con la voz por defecto, sin clonar: un saludo, un monto en palabras, una pregunta y una hora. Whisper large-v3-turbo oyó las cuatro exactas (sólo escribe en cifras «4.500» y «237.000»). Tarda un poco más que el audio: 5,1 a 10,9 s para frases de 4,2 a 8,9 s. Baja 2,6 GB (modelo y códec)."
   },
   {
     "id": "Edge0/Audio8-ASR-Infinite",
