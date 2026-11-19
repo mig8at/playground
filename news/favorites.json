@@ -13,7 +13,7 @@
       "El dictado del chat",
       "Validar que una voz generada dice lo que tenía que decir"
     ],
-    "tried": "Lo usa el dictado del chat desde el 2026-11-11 (whisper-cli con ggml-large-v3-turbo-q5_0, 574 MB). El 2026-11-19 sirvió de vara para caramel-1 y Audio8: oyó inglés real en caramel y las cuatro frases de Audio8 exactas.",
+    "tried": "Lo usa el dictado del chat desde el 2026-11-11 (whisper-cli con ggml-large-v3-turbo-q5_0, 574 MB). El 2026-11-19 sirvió de vara para caramel-1 y Audio8: oyó inglés real en caramel y las cuatro frases de Audio8 exactas. El 2026-11-19 le ganó a Whistle (17 MB) en 10 audios en español: 0 errores contra 12 de 141 palabras; Whistle fue 18 veces más rápido (0,05 s contra 0,92 s por audio) y se borró.",
     "triedOn": "2026-11-11",
     "verdict": "keep",
     "verdictWhy": "Está en uso en el chat.",
@@ -1076,7 +1076,7 @@
   },
   {
     "id": "Cactus-Compute/whistle",
-    "group": "tiny",
+    "group": "tried",
     "task": "automatic-speech-recognition",
     "params": null,
     "license": "apache-2.0",
@@ -1086,7 +1086,12 @@
     "why": "Whisper large-v3-turbo del chat pesa 574 MB; éste, 34 veces menos. Tiene demo en el navegador.",
     "ideas": [
       "Ponerlo contra el Whisper del dictado del chat con audios en español"
-    ]
+    ],
+    "triedOn": "2026-11-19",
+    "verdict": "dropped",
+    "installed": [],
+    "verdictWhy": "18 veces más rápido que el Whisper del chat, pero con 8,5 % de errores contra 0 % en español; para un dictado pesa acertar. Borrado.",
+    "tried": "2026-11-19, contra el Whisper del dictado del chat (whisper.cpp, large-v3-turbo q5, 574 MB) con 10 audios en español de texto conocido (4 de Audio8 y 6 con voces de macOS: montos, Credifamilia, Medellín, horas). Whistle: 12 errores en 141 palabras (8,5 %), 0,05 s por audio (más 7,6 s la primera vez, al bajar y cargar el motor). Whisper: 0 errores, 0,92 s por audio contando cargar el modelo en cada llamada, como lo usa el chat. Los errores de Whistle: tildes perdidas («pagare», «cedula»), «Credit Familia», «Imagínate» por «Mañana», «que es obvacío» por «quedó vacío», «vendido» por «vendió». La telemetría de cactus-compute se apagó con CACTUS_TELEMETRY=0 y DO_NOT_TRACK=1."
   },
   {
     "id": "nvidia/Nemotron-3.5-Parse",
