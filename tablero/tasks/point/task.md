@@ -15,8 +15,7 @@ jira_title: ""
 - [x] ~~El comando con el elegido (Qwen3-VL-4B), que levante y apague solo su servidor~~ — 2026-11-18: `bin/point`, 37 de 42.
 - [ ] Usarlo desde Jarvis cuando una pantalla no tiene localizador: la captura de `bin/jarvis shot` y el punto de `bin/point`.
   Termina cuando una meta de Jarvis toca un botón por su punto y lo verifica con `look`.
-- [ ] Decidir si se borra UI-Venus-2-9B de la caché (6,8 GB): fue el más preciso (40 de 42) pero tarda 6–9 s y el comando no lo usa.
-  Depende de: Miguel.
+- [x] ~~Decidir si se borra UI-Venus-2-9B de la caché~~ — 2026-11-18: borrado (Miguel); el comando usa Qwen3-VL-4B.
 
 ## Objetivo
 

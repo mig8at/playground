@@ -36,7 +36,7 @@ corre contra `bin/point`.
 | GUI-Owl-1.5-2B (especialista, mPLUG) | 18/24 | 8/18 | más rápido |
 
 Los cuatro con el mismo prompt (el del recetario de Holo2; todos son de la familia Qwen3-VL). Se quedó Qwen3-VL-4B: casi
-lo de UI-Venus, de 3 a 30 veces más rápido. Holo2 y GUI-Owl se borraron. UI-Venus sigue en la caché (6,8 GB), sin uso.
+lo de UI-Venus, de 3 a 30 veces más rápido. Los otros tres se borraron de la caché.
 
 **Con el comando tal como quedó: 37 de 42** (22 fáciles, 15 difíciles). Pedirle que diga «no está» le costó dos de las
 fáciles: un clic que erró por 10 px y una casilla chica que dijo que no estaba. Se dejó así a propósito: un punto
