@@ -66,8 +66,8 @@ function tecla(e){if(e.target.tagName==='INPUT')return;if(e.key==='+'||e.key==='
 
 const fichaNivel=computed(()=>elegido.value?Math.min(nivel.value,elegido.value.floors-1):0);
 const cuartos=computed(()=>{const L=elegido.value;if(!L)return [];const lv=L.levels[fichaNivel.value],n={};for(const q of lv.rooms){const t=ROOM_LABEL[q.type]||q.type;n[t]=(n[t]||0)+1;}return Object.entries(n).sort((a,b)=>b[1]-a[1]);});
-const medidas=computed(()=>{const L=elegido.value;if(!L)return null;const lv=L.levels[fichaNivel.value],area=L.parts.reduce((a,P)=>a+P.w*P.h,0),pas=lv.corridor.reduce((a,q)=>a+q.w*q.h,0);
- return {area:Math.round(area),pasillo:Math.round(pas/area*100),muebles:lv.furniture.length,puertas:lv.doors.length,ventanas:lv.windows.length};});
+const medidas=computed(()=>{const L=elegido.value;if(!L)return null;const lv=L.levels[fichaNivel.value],area=L.parts.reduce((a,P)=>a+P.w*P.h,0),pas=lv.corridor.filter(q=>!q.ensanche).reduce((a,q)=>a+q.w*q.h,0),ens=lv.corridor.filter(q=>q.ensanche).reduce((a,q)=>a+q.w*q.h,0);
+ return {area:Math.round(area),pasillo:Math.round(pas/area*100),ensanche:Math.round(ens/area*100),muebles:lv.furniture.length,puertas:lv.doors.length,ventanas:lv.windows.length};});
 const casaNivel=computed(()=>casa.value?Math.min(nivel.value,casa.value.spec.hogar.levels.length-1):0);
 const casaCuartos=computed(()=>{const c=casa.value;if(!c)return [];return c.spec.hogar.levels[casaNivel.value].rooms.filter(q=>q.type!=='hall').map(q=>({nombre:q.label||ROOM_LABEL[q.type]||q.type,medida:`${(q.u1-q.u0).toFixed(1)} × ${(q.v1-q.v0).toFixed(1)} m`}));});
 async function dibujarPiso(){await nextTick();if(casa.value&&piso.value){drawHogar(piso.value,casa.value.spec.hogar,{level:casaNivel.value,width:piso.value.parentElement.clientWidth});return;}
@@ -132,7 +132,7 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
    <p>{{ elegido.floors }} {{ elegido.floors===1?'piso':'pisos' }} · {{ elegido.rect.w }} × {{ elegido.rect.h }} m · frente al {{ {N:'norte',S:'sur',E:'este',W:'oeste'}[elegido.front]||'—' }}</p>
    <div class="ficha-piso"><canvas ref="piso"></canvas></div>
    <p class="nivel">{{ fichaNivel===0?'Planta baja':'Piso '+fichaNivel }}<template v-if="nivel>=elegido.floors"> (el último: el visor está en la azotea)</template></p>
-   <dl v-if="medidas"><dt>Área</dt><dd>{{ medidas.area }} m²</dd><dt>Pasillo</dt><dd :class="{alerta:medidas.pasillo>30}">{{ medidas.pasillo }} %</dd><dt>Muebles</dt><dd>{{ medidas.muebles }}</dd><dt>Puertas</dt><dd>{{ medidas.puertas }}</dd><dt>Ventanas</dt><dd>{{ medidas.ventanas }}</dd></dl>
+   <dl v-if="medidas"><dt>Área</dt><dd>{{ medidas.area }} m²</dd><dt>Pasillo</dt><dd :class="{alerta:medidas.pasillo>30}">{{ medidas.pasillo }} %</dd><template v-if="medidas.ensanche"><dt>Ensanche</dt><dd :class="{alerta:medidas.ensanche>25}" title="El tramo sin luz de un piso de departamentos: es más pasillo, decorado, y no cuartos">{{ medidas.ensanche }} %</dd></template><dt>Muebles</dt><dd>{{ medidas.muebles }}</dd><dt>Puertas</dt><dd>{{ medidas.puertas }}</dd><dt>Ventanas</dt><dd>{{ medidas.ventanas }}</dd></dl>
    <ul class="cuartos"><li v-for="[t,n] in cuartos" :key="t"><span>{{ t }}</span><b>{{ n }}</b></li></ul>
    <div class="alzado-cab"><b>La fachada</b>
     <div class="lados" role="group" aria-label="Lado de la fachada"><button v-for="l in ladosAbiertos" :key="l" :class="{on:l===ladoAlzado}" @click="ladoAlzado=l">{{ LADO[l] }}<small v-if="l===elegido.front"> · frente</small></button></div></div>
@@ -191,7 +191,7 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
 .ficha p{margin:0 0 10px;color:var(--tx2)}
 .ficha-piso{background:#fbfaf6;border-radius:10px;overflow:hidden}.ficha-piso canvas{display:block;width:100%}
 .nivel{margin-top:8px!important;font-weight:600;color:var(--tx)!important}
-.ficha dl{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:0 0 12px}
+.ficha dl{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px;margin:0 0 12px}
 .ficha dt{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--tx3);grid-row:1}
 .ficha dd{margin:0;font-weight:600;font-variant-numeric:tabular-nums;grid-row:2}
 .ficha dd.alerta{color:var(--ladron)}

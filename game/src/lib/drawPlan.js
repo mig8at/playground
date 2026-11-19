@@ -77,7 +77,11 @@ export function drawCityStage(canvas,bp,{cell,stage,level=0,selected=-1,fronts=t
 function drawLevel(g,lv,{m,stage,small=false,ox=0,oy=0,labels=false}){
  const X=v=>(v-ox)*m,Y=v=>(v-oy)*m,R=(q,f)=>f(X(q.x),Y(q.y),q.w*m,q.h*m);
  // Núcleo (5) y pasillo.
- g.fillStyle='#f4f2ec';for(const c of lv.corridor)R(c,(a,b,w,h)=>g.fillRect(a,b,w,h));
+ // (el ensanche: el tramo ciego de un piso de departamentos, que por decisión de diseño es más pasillo y no cuartos —el 3D
+ // lo decora con cuadros y floreros—; va en otro tono y con su nombre, para que no se lea como un pasillo que sobra)
+ for(const c of lv.corridor){g.fillStyle=c.ensanche?'#ebe4d3':'#f4f2ec';R(c,(a,b,w,h)=>g.fillRect(a,b,w,h));
+  if(c.ensanche&&!small){g.save();g.strokeStyle='rgba(120,100,70,.35)';g.lineWidth=1;g.setLineDash([5,4]);R(c,(a,b,w,h)=>g.strokeRect(a+3,b+3,w-6,h-6));g.restore();
+   if(labels&&c.w*m>=70){g.font='600 11px system-ui,sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillStyle='rgba(90,76,52,.85)';g.fillText('Ensanche del pasillo',X(c.x+c.w/2),Y(c.y+c.h/2));}}}
  // (un piso puede no tener núcleo —un local de una planta sin escalera—: se dibuja sin él; antes el plano entero se caía)
  const core=lv.core;if(core){g.fillStyle='#d7d4cc';R(core,(a,b,w,h)=>g.fillRect(a,b,w,h));}
  if(!small){g.strokeStyle='#8b877f';g.lineWidth=1;// escalera en U: dos carriles con sus peldaños, el descanso al fondo y la pared al medio; ascensor: una X
