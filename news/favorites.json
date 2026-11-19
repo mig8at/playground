@@ -655,5 +655,91 @@
     "ideas": [
       "Ver cómo demuestra un teorema chico en su demo"
     ]
+  },
+  {
+    "id": "adventists-ai/Sophon-Realtime-4B-Flash",
+    "group": "voice",
+    "task": "any-to-any",
+    "params": null,
+    "license": "apache-2.0",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Conversa por voz en dúplex completo y oye CÓMO decís las cosas: duda, énfasis, sarcasmo, risa, suspiros. Contesta con tono propio: se ríe, suspira y carraspea cuando la conversación lo pide. Escucha todo el tiempo, toma el turno apenas callás y se calla si lo interrumpís.",
+    "why": "Lo que los asistentes de voz no tienen: oír el tono, no sólo las palabras. Hay una versión MLX para Macs con 16 GB o más.",
+    "ideas": [
+      "Una charla en voz con Sophon y ver si nota la ironía",
+      "Compararlo con Haru-4B"
+    ]
+  },
+  {
+    "id": "Edge0/Audio8-TTS-Realistic-Air",
+    "group": "voice",
+    "task": "text-to-speech",
+    "params": 600000000,
+    "license": "apache-2.0",
+    "mac": "yes",
+    "added": "2026-11-19",
+    "what": "Texto a voz realista en 23 idiomas (español incluido) con clonación de voz desde una muestra, en 0,6 B. Trae su códec de audio a 44,1 kHz.",
+    "why": "Desde el 16/11 corre nativo en llama.cpp (GGUF), con clonación y streaming: el mismo llama-server que ya tenemos. ⚠ Clonar una voz pide el permiso de esa persona.",
+    "ideas": [
+      "Una voz en español para leer el dictamen de Sentinel",
+      "Voces de los personajes de Office"
+    ]
+  },
+  {
+    "id": "Edge0/Audio8-ASR-Infinite",
+    "group": "specialist",
+    "task": "automatic-speech-recognition",
+    "params": 4090000000,
+    "license": "apache-2.0",
+    "mac": "unknown",
+    "added": "2026-11-19",
+    "what": "Transcribe en streaming, con 240 a 560 ms de demora, y está hecho para transcribir audio sin fin, 24/7, sin que se desvíe con el tiempo.",
+    "why": "La mayoría de los transcriptores cortan el audio en pedazos; éste es nativo en streaming. Sus autores lo sirven con un vLLM adaptado.",
+    "ideas": [
+      "Transcribir una reunión en vivo"
+    ]
+  },
+  {
+    "id": "tencent/Hy-SimulMT-30B-A3B",
+    "group": "specialist",
+    "task": "translation",
+    "params": null,
+    "license": "apache-2.0",
+    "mac": "unknown",
+    "added": "2026-11-19",
+    "what": "Traducción simultánea de voz a voz entre chino e inglés: traduce mientras la persona habla, con texto y voz, como un intérprete.",
+    "why": "Sus autores miden ~3 s de demora en audios largos, la menor de su comparación, y mejor calidad que varias APIs comerciales. El GGUF en Q4 pesa 19,7 GB: al límite de los 24 GB de la Mac. Sólo chino e inglés.",
+    "ideas": [
+      "Ver un video en chino traducido en vivo"
+    ]
+  },
+  {
+    "id": "tencent/Hy-Memory-30B-A3B",
+    "group": "specialist",
+    "task": "text-generation",
+    "params": null,
+    "license": "apache-2.0",
+    "mac": "unknown",
+    "added": "2026-11-19",
+    "what": "Un modelo que sólo escribe la memoria a largo plazo de un agente: decide qué recordar de una conversación y cómo guardarlo, y reemplaza al modelo general dentro de Mem0, MemOS y Hy-Memory.",
+    "why": "Separa «recordar» de «contestar»: un especialista chico (~3 B activos) para la parte de la memoria de un agente.",
+    "ideas": [
+      "Pensar la memoria de Wally como un modelo aparte"
+    ]
+  },
+  {
+    "id": "nvidia/NVIDIA-NemotronLabs-AI-for-Media-Sports-Tennis",
+    "group": "odd",
+    "task": "any-to-any",
+    "params": null,
+    "license": "openmdw-1.1",
+    "mac": "no",
+    "added": "2026-11-19",
+    "what": "Un modelo que mira video de partidos de tenis y contesta preguntas sobre cada punto: afinado desde Nemotron 3 Nano Omni con clips etiquetados a mano por NVIDIA.",
+    "why": "Un modelo grande dedicado a UN deporte: muestra hasta dónde se puede especializar una IA que ve video. 33 B: no entra en la Mac.",
+    "ideas": [
+      "Ver qué preguntas sabe contestar de un punto"
+    ]
   }
 ]
