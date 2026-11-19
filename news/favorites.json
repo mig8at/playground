@@ -528,7 +528,7 @@
   },
   {
     "id": "datalab-to/indra-ocr",
-    "group": "tiny",
+    "group": "tried",
     "task": "image-to-text",
     "params": 1250566,
     "license": "openrail",
@@ -539,7 +539,8 @@
     "ideas": [
       "Pasar a texto un documento escaneado sin GPU ni red",
       "Compararlo contra Unlimited-OCR (3,3 B) en la misma página"
-    ]
+    ],
+    "tried": "2026-11-19, en la Mac y sin red, con cinco páginas en español de texto conocido: prosa con tildes, ñ y ¿?, una tabla de entidades con montos y fechas, letra cursiva (una fuente, no manuscrita de verdad), la prosa torcida 6° y la prosa borrosa. Error por carácter: 0 % en la tabla y en la cursiva, 0,2 % en las otras tres; su único error fue leer la «¡» invertida como «i». 70 a 100 ms por página. En capturas reales de Hugging Face y GitHub lee bien el texto en ~250 ms, pero convierte los íconos en caracteres sueltos («4 Hugging Face», «OLike») y confundió «Public» con «Publie»."
   },
   {
     "id": "Zyphra/ZONOS3-Mini",
