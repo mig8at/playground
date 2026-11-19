@@ -11,6 +11,26 @@ sean de la semana y los papers más votados; a la derecha la **ficha** del model
 licencia, formatos, librería, idiomas, base, tendencia, y qué hace y qué trae de nuevo. Rutas: `#/<semana>` (p. ej.
 `#/2026-W47`). Por consola: `make news ONCE=1` actualiza la semana de hoy y dice qué eligió.
 
+## Cómo está armada la pantalla (el taller, 2026-11-19)
+
+Usa las regiones de `tools/ui` y nada propio para dividir la pantalla:
+
+- **El sidebar son cuatro vistas** (`sidebar en-bloques` y `.view`, como el del chat): **Semana** (las semanas y, con
+  su encabezado de grupo, los temas), **Favoritos**, **Instalados** e **Investigación**. Cada una se pliega con su
+  encabezado y scrollea sola; las abiertas se reparten el alto, salvo Instalados, que mide lo que tiene (hasta un
+  tercio). Lo abierto queda en `news.sidebar-views`. Los encabezados llevan el dato que resume la vista (la semana, el
+  conteo, lo que ocupan los instalados o qué máquina es) y su acción frecuente (actualizar la semana, volver a medir).
+- **La consola** (la región `panel`, abajo del editor; arranca cerrada y se abre con su botón del pie o tocando el
+  contador de avisos). Tres pestañas:
+  - **Actividad**: la bitácora del servidor (`server/activity.go`, `GET /api/activity`): cada actualización paso a
+    paso, lo medido en Hugging Face, lo borrado. Vive en memoria, los últimos 200 renglones desde que arrancó.
+  - **Esta Mac / Este PC** (`GET /api/machine`): procesador, memoria, GPU y con qué acelera; los motores para correr
+    modelos y si están; y en qué carpetas se buscan los instalados.
+  - **Avisos**: lo que pide atención ahora, con qué hacer (sin sesión del modelo de fondo, semana incompleta, una
+    sección que no cargó, un motor que falta y cuántos favoritos lo piden). Sale de lo que la interfaz ya sabe.
+- **El pie quedó corto**: de cuándo es lo de Hugging Face, el contador de avisos y «Actualizar». El detalle de un
+  error largo (el del modelo de fondo) ya no se corta ahí: está en Avisos.
+
 ## Dos máquinas: la Mac y el PC
 
 El repo es uno y News se abre en dos máquinas: la Mac (Apple Silicon, donde se probaron los modelos) y el PC con Linux

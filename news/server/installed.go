@@ -4,6 +4,7 @@ package main
 // registro de quién usa qué son de lib/models, el mismo código que el CLI `bin/models`: los dos dicen siempre lo mismo.
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -77,9 +78,11 @@ func (s *server) installedRoutes(mux *http.ServeMux) {
 		it, err := models.Remove(s.roots, key)
 		s.forgetScan()
 		if err != nil {
+			s.note("error", "no se pudo borrar "+key+": "+err.Error())
 			writeJSON(w, 400, map[string]string{"error": err.Error()})
 			return
 		}
+		s.note("ok", fmt.Sprintf("borrado %s: %s liberados", it.Name, diskGB(it.Bytes)))
 		writeJSON(w, 200, map[string]any{"removed": it.Key, "bytes": it.Bytes})
 	})
 }

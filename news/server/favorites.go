@@ -108,7 +108,9 @@ func (s *server) favoritesRoute(mux *http.ServeMux) {
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 			defer cancel()
-			s.facts.refresh(ctx, ids, fetchFacts)
+			if n := s.facts.refresh(ctx, ids, fetchFacts); n > 0 {
+				s.note("ok", fmt.Sprintf("medidos %d favoritos en Hugging Face (tamaño real y motor)", n))
+			}
 		}()
 		for i := range favs {
 			facts, known := s.facts.get(favs[i].ID)

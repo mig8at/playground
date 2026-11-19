@@ -8,8 +8,8 @@
  *
  * Los favoritos (`#/favorites`) son modelos curiosos que se guardan para no perderlos de vista, con qué hacen, por qué
  * son interesantes, si corren en la Mac y lo que dieron al probarlos: los escribe Claude en news/favorites.json. */
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle } from './workbench.js'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { vResize, readSize, saveSize, readPref, savePref, fitRegions, cssSize, bindThemeToggle, bindPanelMaximize } from './workbench.js'
 
 const weeks = ref([])
 const data = ref(null)
@@ -267,19 +267,70 @@ const hf = (id) => `https://huggingface.co/${id}`
 
 // ── las regiones, con el contrato de la base ──
 const viewportW = ref(window.innerWidth)
+const viewportH = ref(window.innerHeight)
+/* LAS VISTAS DEL SIDEBAR, como en el chat y VS Code: cada bloque se pliega con su encabezado, las abiertas se reparten
+   el alto y una cerrada ocupa una fila. Lo abierto se recuerda en este navegador (`news.sidebar-views`). */
+const sidebarViews = ref(readPref('news.sidebar-views', {}) || {})
+const isViewOpen = (id) => sidebarViews.value[id] ?? true
+function toggleView(id) { sidebarViews.value = { ...sidebarViews.value, [id]: !isViewOpen(id) }; savePref('news.sidebar-views', sidebarViews.value) }
+
+/* LA CONSOLA (la región `panel` del taller): lo que News hace sola, que antes era una frase en el pie que se pisaba.
+   Tres pestañas: Actividad (la bitácora del servidor: cada actualización, lo medido, lo borrado), Esta máquina (qué
+   es, qué motores tiene para correr modelos y dónde se buscan los instalados) y Avisos (lo que hoy pide atención, con
+   qué hacer). Arranca cerrada: se abre con su botón del pie o tocando el contador de avisos. */
+const consoleTab = ref(readPref('news.console-tab', 'activity'))
+const pickConsoleTab = (id) => { consoleTab.value = id; savePref('news.console-tab', id) }
+const activity = ref([])
+const machineInfo = ref(null)
+const loadActivity = () => api('/api/activity').then((r) => { activity.value = r.entries || [] }).catch(() => {})
+const loadMachine = () => api('/api/machine').then((r) => { machineInfo.value = r; setMachine(r.machine) }).catch(() => {})
+const hhmmss = (iso) => new Date(iso).toLocaleTimeString('es-CO', { hour12: false })
+const gbOf = (n) => (n ? `${Math.round(n / GB)} GB` : '—')
+// Avisos: lo que pide atención AHORA, cada uno con qué hacer. Sale de lo que ya se sabe; no es otra consulta.
+const notices = computed(() => {
+  const out = []
+  if (apiError.value) out.push({ kind: 'error', text: apiError.value, fix: 'Levantala con `make news`.' })
+  if (refreshError.value) out.push({ kind: 'error', text: refreshError.value })
+  if (data.value?.writeError) out.push({ kind: 'warn', text: `Los textos de la semana no se escribieron: ${data.value.writeError}`, fix: 'El modelo de fondo necesita sesión; sin él la portada muestra los datos de Hugging Face sin el «qué hace».' })
+  for (const w of data.value?.fetchWarnings || []) out.push({ kind: 'warn', text: `La semana quedó incompleta: ${w}`, fix: 'Tocá «Actualizar» para volver a leer.' })
+  for (const [k, e] of Object.entries(sectionError.value)) if (e) out.push({ kind: 'error', text: `No se pudo leer ${({ favorites: 'los favoritos', research: 'la investigación', installed: 'lo instalado' })[k]}: ${e}` })
+  // MLX fuera de Apple Silicon no es algo que falte instalar: no va como aviso (lo dice la ficha de cada modelo)
+  for (const e of machineInfo.value?.engines || []) if (e.id !== 'mlx' && e.ready === false && e.hint && favorites.value.some((f) => f.here?.engine?.name === e.name)) out.push({ kind: 'info', text: `Falta ${e.name} en ${machine.value.label}: ${favorites.value.filter((f) => f.here?.engine?.name === e.name).length} favoritos lo piden`, fix: e.hint })
+  const unknown = favorites.value.filter((f) => hereOf(f).status === 'unknown').length
+  if (unknown && !onMac.value) out.push({ kind: 'info', text: `${unknown} favoritos no declaran su tamaño: no se sabe si corren en ${machine.value.label}` })
+  return out
+})
+const noticeCount = computed(() => notices.value.filter((n) => n.kind !== 'info').length)
+
 const sidebarOpen = ref(readSize('news.sidebar-open', 1) !== 0)
 const sidebarW = ref(readSize('news.sidebar-w', 240))
 const auxOpen = ref(readSize('news.aux-open', 1) !== 0)
 const auxW = ref(readSize('news.aux-w', 320))
+const panelOpen = ref(readSize('news.panel-open', 0) !== 0)
+const panelH = ref(readSize('news.panel-h', 220))
 const shown = computed(() => {
   const min = cssSize('--sidebar-min', 220)
   const [aux, sidebar] = fitRegions(viewportW.value - cssSize('--editor-min', 420), [
     { size: auxOpen.value ? auxW.value : 0, min },
     { size: sidebarOpen.value ? sidebarW.value : 0, min },
   ])
-  return { sidebar, aux }
+  const [panel] = fitRegions(viewportH.value - 240, [{ size: panelOpen.value ? panelH.value : 0, min: cssSize('--panel-min', 124) }])
+  return { sidebar, aux, panel }
 })
-const layoutVars = computed(() => ({ '--sidebar-w': `${shown.value.sidebar}px`, '--auxiliarybar-w': `${shown.value.aux}px` }))
+const layoutVars = computed(() => ({ '--sidebar-w': `${shown.value.sidebar}px`, '--auxiliarybar-w': `${shown.value.aux}px`, '--panel-h': `${shown.value.panel}px` }))
+const panelResize = {
+  label: 'Alto de la consola', axis: 'y', sign: -1, defaultValue: 220,
+  min: () => cssSize('--panel-min', 124), max: () => viewportH.value - 240,
+  get: () => shown.value.panel,
+  set: (v) => { if (!v) panelOpen.value = false; else { panelOpen.value = true; panelH.value = v } },
+  reopen: () => panelH.value,
+  commit: (v) => { saveSize('news.panel-open', v ? 1 : 0); if (v) saveSize('news.panel-h', panelH.value) },
+}
+function togglePanel(open = !shown.value.panel) { panelOpen.value = open; saveSize('news.panel-open', open ? 1 : 0); if (open) { loadActivity(); loadMachine() } }
+const openNotices = () => { pickConsoleTab('notices'); togglePanel(true) }
+const maximize = ref(null)
+let maximizeBinding = null
+watch(() => [shown.value.panel > 0, maximize.value], ([open, el]) => { maximizeBinding?.destroy?.(); maximizeBinding = open && el ? bindPanelMaximize(el) : null }, { flush: 'post' })
 const resizeOf = (key, w, open, sign, other) => ({
   label: key === 'sidebar' ? 'Ancho de las semanas' : 'Ancho de la ficha', sign, defaultValue: key === 'sidebar' ? 240 : 320,
   min: () => cssSize('--sidebar-min', 220), max: () => viewportW.value - shown.value[other] - cssSize('--editor-min', 420),
@@ -295,14 +346,14 @@ const pick = (m) => { selectedId.value = m.id; if (!shown.value.aux) toggle('aux
 const pickFav = (f) => { selectedFavId.value = f.id; if (!shown.value.aux) toggle('aux', auxOpen) }
 // Tocar un instalado abre la ficha del favorito al que pertenece (si lo hay).
 const pickInstalled = (it) => { const f = favOfInstalled(it); if (f) { openFavorites('all'); pickFav(f) } }
-const onWindowResize = () => { viewportW.value = window.innerWidth }
+const onWindowResize = () => { viewportW.value = window.innerWidth; viewportH.value = window.innerHeight }
 const themeToggle = ref(null)
 let themeBinding = null
 // Mientras se actualiza, cada 5 s; si no, cada minuto (por si cambió de fondo).
 let timer = null
 // Sin API reintenta a los 2 s: al abrir, la interfaz está lista antes que el servidor (que compila al arrancar) y se
 // quedaba un minuto en «Sin API» con todo ya andando.
-function schedule() { clearTimeout(timer); timer = setTimeout(async () => { if (!document.hidden) await load(); schedule() }, apiError.value === NO_API ? 2000 : refreshing.value ? 5000 : 60000) }
+function schedule() { clearTimeout(timer); timer = setTimeout(async () => { if (!document.hidden) { await load(); if (shown.value.panel) loadActivity() } schedule() }, apiError.value === NO_API ? 2000 : refreshing.value ? 5000 : 60000) }
 const onVisible = () => { if (!document.hidden) { loadSections(); load() } }
 const onHash = () => {
   if (routeKey() === 'favorites') { view.value = 'favorites'; return }
@@ -316,26 +367,67 @@ onMounted(() => {
   window.addEventListener('hashchange', onHash)
   if (themeToggle.value) themeBinding = bindThemeToggle(themeToggle.value)
   loadSections()
+  loadMachine()
+  if (panelOpen.value) loadActivity()
   document.addEventListener('visibilitychange', onVisible)
   load().then(schedule)
 })
-onBeforeUnmount(() => { document.removeEventListener('visibilitychange', onVisible); clearTimeout(confirmTimer); window.removeEventListener('resize', onWindowResize); window.removeEventListener('hashchange', onHash); clearTimeout(timer); themeBinding?.destroy?.() })
+onBeforeUnmount(() => { maximizeBinding?.destroy?.(); document.removeEventListener('visibilitychange', onVisible); clearTimeout(confirmTimer); window.removeEventListener('resize', onWindowResize); window.removeEventListener('hashchange', onHash); clearTimeout(timer); themeBinding?.destroy?.() })
 </script>
 
 <template>
   <div class="workbench" :style="layoutVars">
-    <aside v-show="shown.sidebar" class="sidebar" aria-label="Semanas y temas">
+    <aside v-show="shown.sidebar" class="sidebar en-bloques" aria-label="Semana, favoritos, instalados e investigación">
+      <!-- CUATRO VISTAS (`en-bloques` y `.view` de la base, como el sidebar del chat): la semana, los favoritos, lo
+           instalado en esta máquina y la investigación. Cada una se pliega con su encabezado, las abiertas se reparten
+           el alto y scrollean por separado, y una cerrada ocupa una fila (no desaparece). Antes era una sola lista
+           larga: para llegar a Investigación había que pasar por todo lo demás. -->
       <div class="rsz rsz-edge-right" v-resize="sidebarResize"></div>
-      <div class="region-head"><span>News</span></div>
-      <div class="region-body">
-        <div class="group-label">Favoritos</div>
+      <section class="view wb-bloque" :class="{ open: isViewOpen('week') }">
+        <div class="region-head">
+          <button type="button" class="view-tog" :aria-expanded="isViewOpen('week')" @click="toggleView('week')">
+            <span class="ui-icon chev" data-icon="chevron" aria-hidden="true"></span><span>Semana</span>
+          </button>
+          <span v-if="data" class="count" :title="weekLabel">{{ data.number ? `W${data.number}` : '' }}</span><div class="region-actions"><button type="button" class="region-action" :disabled="refreshing" title="Actualizar la semana ahora (lo hace sola cada 6 horas)" aria-label="Actualizar la semana" @click="refreshNow"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span></button></div>
+        </div>
+        <div v-if="isViewOpen('week')" class="region-body">
+        <a v-for="w in weeks" :key="w.key" class="nav-row" :class="{ on: data?.key === w.key && view !== 'favorites' && !isResearch(view) }" :href="`#/${w.key}`" @click="(view === 'favorites' || isResearch(view)) && (view = 'cover')">
+          <span class="ui-icon" data-icon="clock" aria-hidden="true"></span><span class="nav-name">Semana {{ w.number }}</span><span class="count">{{ day(w.from) }} al {{ day(w.to) }}</span>
+        </a>
+        <div v-if="!weeks.length" class="nav-row muted"><span class="ui-icon" data-icon="clock" aria-hidden="true"></span><span class="nav-name">{{ refreshing ? 'Juntando la primera semana…' : 'Todavía no hay semanas' }}</span></div>
+        <div class="region-head group"><span>Temas</span></div>
+        <button v-for="t in TOPICS" :key="t.id" type="button" class="nav-row" :class="{ on: topic === t.id && view === 'cover' }" @click="topic = t.id; view = 'cover'">
+          <span class="ui-icon topic-icon" :class="`t-${t.id}`" :data-icon="TOPIC_ICON[t.id]" aria-hidden="true"></span><span class="nav-name">{{ t.name }}</span><span class="count">{{ countFor(t.id) }}</span>
+        </button>
+        <button v-if="otherCount" type="button" class="nav-row" :class="{ on: topic === 'other' && view === 'cover' }" @click="topic = 'other'; view = 'cover'">
+          <span class="ui-icon topic-icon t-other" data-icon="box" aria-hidden="true"></span><span class="nav-name">Otros</span><span class="count">{{ otherCount }}</span>
+        </button>
+        </div>
+      </section>
+      <section class="view wb-bloque" :class="{ open: isViewOpen('favorites') }">
+        <div class="region-head">
+          <button type="button" class="view-tog" :aria-expanded="isViewOpen('favorites')" @click="toggleView('favorites')">
+            <span class="ui-icon chev" data-icon="chevron" aria-hidden="true"></span><span>Favoritos</span>
+          </button>
+          <span class="count">{{ favCount('all') || '' }}</span>
+        </div>
+        <div v-if="isViewOpen('favorites')" class="region-body">
         <button type="button" class="nav-row" :class="{ on: view === 'favorites' && favGroup === 'all' }" @click="openFavorites('all')">
           <span class="ui-icon" data-icon="star" aria-hidden="true"></span><span class="nav-name">Todos</span><span class="count">{{ favCount('all') }}</span>
         </button>
         <button v-for="g in FAV_GROUPS.filter((x) => favCount(x.id))" :key="g.id" type="button" class="nav-row sub" :class="{ on: view === 'favorites' && favGroup === g.id }" @click="openFavorites(g.id)">
           <span class="ui-icon" :data-icon="g.icon" aria-hidden="true"></span><span class="nav-name">{{ g.name }}</span><span class="count">{{ favCount(g.id) }}</span>
         </button>
-        <div class="group-label" :title="`En ${machine.here}: ${machineSpec}`">Instalados<span v-if="installed.length" class="group-count">{{ bytes(installedBytes) }}</span></div>
+        </div>
+      </section>
+      <section class="view wb-bloque fit" :class="{ open: isViewOpen('installed') }">
+        <div class="region-head">
+          <button type="button" class="view-tog" :aria-expanded="isViewOpen('installed')" @click="toggleView('installed')">
+            <span class="ui-icon chev" data-icon="chevron" aria-hidden="true"></span><span>Instalados</span>
+          </button>
+          <span class="count" :title="`En ${machine.here}: ${machineSpec}`">{{ installed.length ? bytes(installedBytes) : machine.id === 'mac' ? 'Mac' : 'PC' }}</span><div class="region-actions"><button type="button" class="region-action" title="Volver a medir lo instalado" aria-label="Volver a medir lo instalado" @click="loadInstalled"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span></button></div>
+        </div>
+        <div v-if="isViewOpen('installed')" class="region-body">
         <template v-for="it in installed" :key="it.key">
           <div class="nav-row installed" :class="{ muted: removing === it.key, asking: confirming === it.key }" :title="`${it.name} · ${it.where}${it.usedBy ? ` · lo usa ${it.usedBy}` : ''}`">
             <span class="ui-icon" :data-icon="KIND_ICON[it.kind]" aria-hidden="true"></span><button type="button" class="nav-name installed-name" :disabled="!favOfInstalled(it)" @click="pickInstalled(it)">{{ it.name.split('/').pop() }}</button><span v-if="it.tools?.length" class="in-use" :title="`Lo usa ${it.usedBy}`">{{ it.tools.join(', ') }}</span><span class="count">{{ removing === it.key ? 'borrando…' : bytes(it.bytes) }}</span>
@@ -350,19 +442,16 @@ onBeforeUnmount(() => { document.removeEventListener('visibilitychange', onVisib
         <div v-if="sectionError.installed" class="confirm-row error">No se pudo medir lo instalado: {{ sectionError.installed }}</div>
         <div v-else-if="!sectionLoaded.installed" class="nav-row muted"><span class="ui-icon" data-icon="box" aria-hidden="true"></span><span class="nav-name">Midiendo lo instalado…</span></div>
         <div v-else-if="!installed.length" class="nav-row muted"><span class="ui-icon" data-icon="box" aria-hidden="true"></span><span class="nav-name">Ningún modelo en {{ machine.label }}</span></div>
-        <div class="group-label">Semanas</div>
-        <a v-for="w in weeks" :key="w.key" class="nav-row" :class="{ on: data?.key === w.key && view !== 'favorites' && !isResearch(view) }" :href="`#/${w.key}`" @click="(view === 'favorites' || isResearch(view)) && (view = 'cover')">
-          <span class="ui-icon" data-icon="clock" aria-hidden="true"></span><span class="nav-name">Semana {{ w.number }}</span><span class="count">{{ day(w.from) }} al {{ day(w.to) }}</span>
-        </a>
-        <div v-if="!weeks.length" class="nav-row muted"><span class="ui-icon" data-icon="clock" aria-hidden="true"></span><span class="nav-name">{{ refreshing ? 'Juntando la primera semana…' : 'Todavía no hay semanas' }}</span></div>
-        <div class="group-label">Temas</div>
-        <button v-for="t in TOPICS" :key="t.id" type="button" class="nav-row" :class="{ on: topic === t.id && view === 'cover' }" @click="topic = t.id; view = 'cover'">
-          <span class="ui-icon topic-icon" :class="`t-${t.id}`" :data-icon="TOPIC_ICON[t.id]" aria-hidden="true"></span><span class="nav-name">{{ t.name }}</span><span class="count">{{ countFor(t.id) }}</span>
-        </button>
-        <button v-if="otherCount" type="button" class="nav-row" :class="{ on: topic === 'other' && view === 'cover' }" @click="topic = 'other'; view = 'cover'">
-          <span class="ui-icon topic-icon t-other" data-icon="box" aria-hidden="true"></span><span class="nav-name">Otros</span><span class="count">{{ otherCount }}</span>
-        </button>
-        <div class="group-label">Investigación</div>
+        </div>
+      </section>
+      <section class="view wb-bloque" :class="{ open: isViewOpen('research') }">
+        <div class="region-head">
+          <button type="button" class="view-tog" :aria-expanded="isViewOpen('research')" @click="toggleView('research')">
+            <span class="ui-icon chev" data-icon="chevron" aria-hidden="true"></span><span>Investigación</span>
+          </button>
+          <span class="count">{{ research.ideas.length || '' }}</span>
+        </div>
+        <div v-if="isViewOpen('research')" class="region-body">
         <button type="button" class="nav-row" :class="{ on: view === 'papers' }" @click="view = 'papers'">
           <span class="ui-icon" data-icon="paper" aria-hidden="true"></span><span class="nav-name">Papers</span><span class="count">{{ data?.papersTotal ?? '' }}</span>
         </button>
@@ -378,7 +467,8 @@ onBeforeUnmount(() => { document.removeEventListener('visibilitychange', onVisib
         <button type="button" class="nav-row" :class="{ on: view === 'cheap' }" @click="openResearch('cheap')">
           <span class="ui-icon" data-icon="local" aria-hidden="true"></span><span class="nav-name">Hecho con poco</span><span class="count">{{ onAMac.length + cheapIdeas.length || '' }}</span>
         </button>
-      </div>
+        </div>
+      </section>
     </aside>
 
     <main class="editor">
@@ -553,6 +643,50 @@ onBeforeUnmount(() => { document.removeEventListener('visibilitychange', onVisib
       </div>
     </main>
 
+    <section v-if="shown.panel" class="panel" aria-label="Consola de News">
+      <div class="rsz rsz-edge-top" v-resize="panelResize"></div>
+      <nav class="tabs" role="tablist" aria-label="Consola">
+        <button type="button" role="tab" class="tab" :class="{ on: consoleTab === 'activity' }" :aria-selected="consoleTab === 'activity'" @click="pickConsoleTab('activity')">Actividad</button>
+        <button type="button" role="tab" class="tab" :class="{ on: consoleTab === 'machine' }" :aria-selected="consoleTab === 'machine'" @click="pickConsoleTab('machine')">{{ machine.id === 'mac' ? 'Esta Mac' : 'Este PC' }}</button>
+        <button type="button" role="tab" class="tab" :class="{ on: consoleTab === 'notices' }" :aria-selected="consoleTab === 'notices'" @click="pickConsoleTab('notices')">Avisos <span v-if="notices.length" class="count" :class="{ filtered: noticeCount }">{{ notices.length }}</span></button>
+        <div class="region-actions">
+          <button v-if="consoleTab === 'activity'" type="button" class="region-action" title="Volver a leer la actividad" aria-label="Volver a leer la actividad" @click="loadActivity"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span></button>
+          <button ref="maximize" type="button" class="region-action"></button>
+          <button type="button" class="region-action" title="Cerrar la consola" aria-label="Cerrar la consola" @click="togglePanel(false)"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
+        </div>
+      </nav>
+      <!-- la subbanda dice qué se está viendo: de cuándo es la semana y si se está actualizando -->
+      <div v-if="consoleTab === 'activity'" class="subband">
+        <span class="grow"><strong>{{ data ? `Semana ${data.number}` : 'Sin semana' }}</strong>{{ data ? ` · Hugging Face al ${clock(data.fetched)} · se actualiza cada 6 h` : '' }}</span>
+        <span v-if="refreshing" class="count filtered">actualizando…</span>
+      </div>
+      <div v-else-if="consoleTab === 'machine'" class="subband"><span class="grow"><strong>{{ machine.id === 'mac' ? 'La Mac' : 'El PC' }}</strong> · {{ machineSpec }}</span></div>
+      <div class="region-body console-body">
+        <template v-if="consoleTab === 'activity'">
+          <div v-for="(e, i) in activity" :key="i" class="log-line" :data-kind="e.kind"><span class="log-time">{{ hhmmss(e.at) }}</span><span class="log-text">{{ e.text }}</span></div>
+          <p v-if="!activity.length" class="console-empty">Todavía no pasó nada en esta sesión del servidor: acá queda cada actualización, lo que se mide y lo que se borra.</p>
+        </template>
+        <template v-else-if="consoleTab === 'machine'">
+          <template v-if="machineInfo">
+            <div class="log-line"><span class="log-key">Procesador</span><span class="log-text">{{ machineInfo.machine.cpu || '—' }}</span></div>
+            <div class="log-line"><span class="log-key">Memoria</span><span class="log-text">{{ gbOf(machineInfo.machine.ram) }} de RAM{{ machineInfo.machine.accel === 'mps' ? ', compartida con la GPU (memoria unificada)' : '' }}</span></div>
+            <div class="log-line"><span class="log-key">GPU</span><span class="log-text">{{ machineInfo.machine.gpu ? `${machineInfo.machine.gpu}${machineInfo.machine.accel === 'mps' ? '' : ` · ${gbOf(machineInfo.machine.vram)}`} · acelera con ${({ mps: 'Metal (MPS)', cuda: 'CUDA', cpu: 'CPU' })[machineInfo.machine.accel]}` : 'sin GPU para modelos: todo corre en la CPU' }}</span></div>
+            <div class="region-head group"><span>Motores para correr modelos</span></div>
+            <div v-for="e in machineInfo.engines" :key="e.id" class="log-line" :data-kind="e.ready === true ? 'ok' : e.ready === false ? 'warn' : 'info'">
+              <span class="log-key">{{ e.name }}</span><span class="log-text">{{ e.ready === true ? 'instalado' : e.ready === false ? 'falta' : 'no se puede saber desde acá' }}{{ e.hint ? ` · ${e.hint}` : '' }}</span>
+            </div>
+            <div class="region-head group"><span>Dónde se buscan los instalados</span></div>
+            <div v-for="r in machineInfo.roots" :key="r.path" class="log-line"><span class="log-key">{{ r.name }}</span><span class="log-text">{{ r.path }}</span></div>
+          </template>
+          <p v-else class="console-empty">Leyendo la máquina…</p>
+        </template>
+        <template v-else>
+          <div v-for="(n, i) in notices" :key="i" class="log-line notice" :data-kind="n.kind"><span class="log-key">{{ ({ error: 'error', warn: 'aviso', info: 'dato' })[n.kind] }}</span><span class="log-text">{{ n.text }}<span v-if="n.fix" class="log-fix">{{ n.fix }}</span></span></div>
+          <p v-if="!notices.length" class="console-empty">Nada pide atención: la semana está completa y con sus textos.</p>
+        </template>
+      </div>
+    </section>
+
     <aside v-show="shown.aux" class="auxiliarybar" aria-label="La ficha del modelo">
       <div class="rsz rsz-edge-left" v-resize="auxResize"></div>
       <div class="region-head"><span>Ficha</span><a v-if="selectedIdea" class="region-action" :href="selectedIdea.paper.url" target="_blank" rel="noopener" title="Abrir el paper" aria-label="Abrir el paper"><span class="ui-icon" data-icon="external" aria-hidden="true"></span></a><a v-else-if="selectedFav || (selected && view !== 'favorites' && !isResearch(view))" class="region-action" :href="hf(selectedFav?.id || selected.id)" target="_blank" rel="noopener" title="Abrir en Hugging Face" aria-label="Abrir en Hugging Face"><span class="ui-icon" data-icon="external" aria-hidden="true"></span></a></div>
@@ -670,14 +804,17 @@ onBeforeUnmount(() => { document.removeEventListener('visibilitychange', onVisib
     </aside>
 
     <footer class="statusbar">
+      <!-- el detalle (el error del modelo de fondo, lo que faltó de la semana) vive en la consola: acá va lo corto -->
       <span v-if="apiError">{{ apiError }}</span>
       <span v-else-if="refreshError">{{ refreshError }}</span>
-      <span v-else-if="refreshing">actualizando la semana: leyendo Hugging Face y escribiendo los textos (cerca de un minuto)…</span>
-      <span v-else-if="data">Hugging Face al {{ clock(data.fetched) }} · se actualiza cada 6 h{{ data.writtenBy ? ` · textos de ${data.writtenBy === 'claude' ? 'Claude' : 'Gemini'}` : '' }}{{ data.writeError ? ` · ⚠ ${data.writeError}` : '' }}{{ data.fetchWarnings?.length ? ` · ⚠ incompleta: ${data.fetchWarnings.join(', ')}` : '' }}</span>
-      <button type="button" class="statusbar-item" :disabled="refreshing" title="Actualizar la semana ahora (lo hace solo cada 6 horas)" @click="refreshNow">Actualizar</button>
+      <span v-else-if="refreshing">actualizando la semana…</span>
+      <span v-else-if="data">Hugging Face al {{ clock(data.fetched) }}{{ data.writtenBy ? ` · textos de ${data.writtenBy === 'claude' ? 'Claude' : 'Gemini'}` : '' }}</span>
+      <button v-if="notices.length" type="button" class="statusbar-item" :class="{ warn: noticeCount }" title="Ver los avisos en la consola" @click="openNotices">{{ notices.length }} {{ notices.length === 1 ? 'aviso' : 'avisos' }}</button>
+      <button type="button" class="statusbar-item" :disabled="refreshing" title="Actualizar la semana ahora (lo hace sola cada 6 horas)" @click="refreshNow">Actualizar</button>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
         <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
         <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Mostrar u ocultar las semanas" aria-label="Mostrar u ocultar las semanas" @click="toggle('sidebar', sidebarOpen)"><span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span></button>
+        <button type="button" class="region-action" :aria-pressed="!!shown.panel" title="Mostrar u ocultar la consola" aria-label="Mostrar u ocultar la consola" @click="togglePanel()"><span class="ui-icon" data-icon="console" aria-hidden="true"></span></button>
         <button type="button" class="region-action" :aria-pressed="!!shown.aux" title="Mostrar u ocultar la ficha" aria-label="Mostrar u ocultar la ficha" @click="toggle('aux', auxOpen)"><span class="ui-icon" data-icon="detail" aria-hidden="true"></span></button>
       </div>
     </footer>

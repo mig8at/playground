@@ -9,6 +9,7 @@ package main
 
 import (
 	"context"
+	"creditop/my-tools/lib/machine"
 	"creditop/my-tools/lib/models"
 	"encoding/json"
 	"errors"
@@ -89,6 +90,7 @@ type server struct {
 	scanMu    sync.Mutex
 	scan      []models.Installed // la última medida de lo instalado (installed.go)
 	scanAt    time.Time
+	activity  activity // lo que hizo el servidor, para la consola (activity.go)
 	mu        sync.Mutex
 	busy      bool
 	lastErr   string
@@ -125,6 +127,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	s.note("info", fmt.Sprintf("News arrancó en %s", machine.Detect().Here))
 	go s.loop()
 	log.Printf("news: API en http://%s", *serve)
 	log.Fatal(http.Serve(ln, s.routes()))
@@ -177,12 +180,14 @@ func (s *server) refresh(ctx context.Context) (*Week, error) {
 
 	now := time.Now()
 	key, number, from, to := weekOf(now)
+	s.note("info", "actualizando la semana "+key+": leyendo Hugging Face")
 	upTo := to
 	if now.Before(to) {
 		upTo = now // los papers de un día que todavía no llegó no existen
 	}
 	models, papers, total, warnings, err := fetchWeek(ctx, from, upTo)
 	if err != nil {
+		s.note("error", "no se pudo leer Hugging Face: "+firstLine(err.Error()))
 		s.setErr(err)
 		return nil, err
 	}
@@ -192,11 +197,14 @@ func (s *server) refresh(ctx context.Context) (*Week, error) {
 	print := fingerprint(w)
 	if prev != nil && prev.Wrote == print && prev.WriteError == "" {
 		carry(prev, w) // los mismos modelos y papers: los textos de antes siguen valiendo
+		s.note("info", "la lista no cambió: se conservan los textos")
 	} else {
+		s.note("info", "pidiendo los textos al modelo de fondo")
 		errM := writeModels(ctx, s.root, w)
 		errP := writePapers(ctx, s.root, w)
 		if err := errors.Join(errM, errP); err != nil {
 			w.WriteError = firstLine(err.Error())
+			s.note("warn", "sin textos nuevos: "+w.WriteError)
 			if prev != nil {
 				carry(prev, w) // mejor los textos de la vez anterior que ninguno
 			}
@@ -209,6 +217,16 @@ func (s *server) refresh(ctx context.Context) (*Week, error) {
 		return nil, err
 	}
 	s.setErr(nil)
+	fresh := 0
+	for _, m := range w.Models {
+		if m.New {
+			fresh++
+		}
+	}
+	for _, warning := range w.FetchWarnings {
+		s.note("warn", "semana incompleta: "+warning)
+	}
+	s.note("ok", fmt.Sprintf("semana %s lista: %d modelos en tendencia, %d nuevos, %d papers", w.Key, len(w.Models), fresh, w.PapersTotal))
 	return w, nil
 }
 
@@ -335,6 +353,7 @@ func (s *server) routes() *http.ServeMux {
 	s.favoritesRoute(mux)
 	s.researchRoute(mux)
 	s.installedRoutes(mux)
+	s.consoleRoutes(mux)
 	return mux
 }
 

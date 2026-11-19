@@ -16,6 +16,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
    Propios (como el semáforo de Sentinel): el tema no tiene una paleta por categoría. */
 :root {
   --t-text: #2563eb;
+  --news-warn: #b45309;
   --t-multimodal: #7c3aed;
   --t-image: #c2410c;
   --t-audio: #0f766e;
@@ -23,6 +24,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 }
 .dark {
   --t-text: #93c5fd;
+  --news-warn: #fbbf24;
   --t-multimodal: #c4b5fd;
   --t-image: #fdba74;
   --t-audio: #5eead4;
@@ -234,3 +236,28 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
   background: color-mix(in oklab, var(--destructive) 8%, transparent); font-size: 13px }
 .engine.ok { color: var(--t-audio) }
 .engine.missing { color: var(--t-image) }
+
+/* EL SIDEBAR EN VISTAS (`en-bloques` + `.view` de la base, como el chat): cada vista es un panel con su encabezado y su
+   propio scroll. Lo que queda adentro son las filas de siempre; el rótulo de grupo de antes ya no hace falta salvo en
+   «Temas», que usa el encabezado de grupo de la base (se pega arriba al recorrer). */
+.sidebar.en-bloques .region-body { padding-block: var(--space-1) }
+.sidebar.en-bloques .view > .region-head .count { margin-left: auto }
+/* «Instalados» suele ser corta (o estar vacía): mide lo que tiene, hasta un tercio, en vez de llevarse un cuarto del
+   alto con una sola fila; las otras tres se reparten el resto */
+.sidebar.en-bloques .view.open.fit { flex: 0 1 auto; max-height: 34% }
+.sidebar.en-bloques .view > .region-head .region-actions { margin-left: var(--space-1) }
+
+/* LA CONSOLA: renglones de log de la base. El color del renglón sale de su tipo (un tinte de tinta, no una caja); las
+   claves de «Esta máquina» y «Avisos» van en una columna de ancho fijo para que el texto quede alineado. */
+.console-body { padding-block: var(--space-2) }
+.console-body .log-line[data-kind="ok"] .log-text { color: var(--foreground) }
+.console-body .log-line[data-kind="warn"] .log-text, .console-body .log-line[data-kind="warn"] .log-key { color: var(--news-warn) }
+.console-body .log-line[data-kind="error"] .log-text, .console-body .log-line[data-kind="error"] .log-key { color: var(--destructive) }
+.console-body .log-line[data-kind="info"] .log-text { color: var(--fg-2) }
+.log-key { flex: none; width: 11rem; color: var(--fg-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.log-text { min-width: 0; overflow-wrap: anywhere }
+.log-line.notice { align-items: baseline; padding-block: 2px }
+.log-line.notice .log-key { width: 4rem }
+.log-fix { display: block; color: var(--fg-3) }
+.console-empty { margin: 0; padding: var(--space-2) var(--gutter); color: var(--fg-3); font-size: 13px }
+.statusbar-item.warn { color: var(--news-warn) }
