@@ -15,7 +15,6 @@ import (
 // angostos) reconoce sólo eso: por eso el alta lo exige.
 const AutoPrefix = "PRUEBA AUTO"
 
-
 // AutoName es `PRUEBA AUTO 1002-130512`: único por segundo, legible y con el prefijo.
 func AutoName(now time.Time) string {
 	return fmt.Sprintf("%s %02d%02d-%02d%02d%02d", AutoPrefix, int(now.Month()), now.Day(), now.Hour(), now.Minute(), now.Second())
