@@ -138,6 +138,7 @@ const STAGES = [
   { id: 'alignment', name: 'Calibrar y alinear' },
   { id: 'efficiency', name: 'Achicar y acelerar' },
   { id: 'use', name: 'Al usarlo' },
+  { id: 'interpretability', name: 'Entender por dentro' },
 ]
 const stageName = (id) => STAGES.find((s) => s.id === id)?.name || id
 const HARDWARE = [

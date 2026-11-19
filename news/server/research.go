@@ -22,7 +22,7 @@ type PaperRef struct {
 type Idea struct {
 	ID       string   `json:"id"`
 	Name     string   `json:"name"`
-	Stage    string   `json:"stage"` // data · architecture · training · alignment · efficiency · use
+	Stage    string   `json:"stage"` // data · architecture · training · alignment · efficiency · use · interpretability
 	Year     int      `json:"year"`
 	Who      string   `json:"who"`
 	Paper    PaperRef `json:"paper"`
@@ -58,7 +58,7 @@ type Research struct {
 }
 
 var (
-	researchStages   = map[string]bool{"data": true, "architecture": true, "training": true, "alignment": true, "efficiency": true, "use": true}
+	researchStages   = map[string]bool{"data": true, "architecture": true, "training": true, "alignment": true, "efficiency": true, "use": true, "interpretability": true}
 	researchHardware = map[string]bool{"mac": true, "gpu": true, "server": true, "datacenter": true, "unknown": true}
 )
 

@@ -6,7 +6,10 @@
       "stage": "data",
       "year": 2022,
       "who": "DeepMind",
-      "paper": { "title": "Training Compute-Optimal Large Language Models", "url": "https://arxiv.org/abs/2203.15556" },
+      "paper": {
+        "title": "Training Compute-Optimal Large Language Models",
+        "url": "https://arxiv.org/abs/2203.15556"
+      },
       "problem": "Se hacían modelos cada vez más grandes entrenados con relativamente pocos datos: se gastaba el cómputo en parámetros que no se aprovechaban.",
       "idea": "Con el mismo presupuesto de cómputo, conviene un modelo más chico entrenado con muchos más datos: parámetros y datos deben crecer a la par.",
       "evidence": "Chinchilla (70 B, 1,4 billones de tokens) le ganó a Gopher (280 B) y a GPT-3 (175 B) en la mayoría de las pruebas, con el mismo cómputo que Gopher.",
@@ -20,7 +23,10 @@
       "stage": "data",
       "year": 2023,
       "who": "Microsoft (phi-1)",
-      "paper": { "title": "Textbooks Are All You Need", "url": "https://arxiv.org/abs/2306.11644" },
+      "paper": {
+        "title": "Textbooks Are All You Need",
+        "url": "https://arxiv.org/abs/2306.11644"
+      },
       "problem": "Para programar bien parecía hacer falta un modelo enorme y montañas de código de internet, que trae mucho ruido.",
       "idea": "Entrenar con poco texto pero muy bueno: código filtrado por su valor didáctico más ejercicios generados por otro modelo, como un libro de texto.",
       "evidence": "phi-1 (1,3 B) resolvió el 50,6 % de HumanEval con unos 7.000 millones de tokens, contra modelos diez veces más grandes.",
@@ -34,7 +40,10 @@
       "stage": "data",
       "year": 2021,
       "who": "Google (FLAN)",
-      "paper": { "title": "Finetuned Language Models Are Zero-Shot Learners", "url": "https://arxiv.org/abs/2109.01652" },
+      "paper": {
+        "title": "Finetuned Language Models Are Zero-Shot Learners",
+        "url": "https://arxiv.org/abs/2109.01652"
+      },
       "problem": "Un modelo que sólo aprendió a completar texto no sabe qué hacer con una pregunta o una orden que nunca vio.",
       "idea": "Ajustarlo con muchas tareas escritas como instrucciones («traducí esto», «resumí esto»), para que aprenda a seguir instrucciones en general.",
       "evidence": "FLAN (137 B) superó a GPT-3 (175 B) sin ejemplos en 20 de 25 conjuntos de prueba.",
@@ -49,14 +58,20 @@
       "stage": "architecture",
       "year": 2017,
       "who": "Google (Shazeer y otros); popularizado por Mistral y DeepSeek",
-      "paper": { "title": "Mixtral of Experts", "url": "https://arxiv.org/abs/2401.04088" },
+      "paper": {
+        "title": "Mixtral of Experts",
+        "url": "https://arxiv.org/abs/2401.04088"
+      },
       "problem": "Un modelo más grande sabe más, pero cada palabra cuesta usar todos sus parámetros.",
       "idea": "Partir las capas en muchos «expertos» y que un enrutador elija sólo unos pocos por palabra: el modelo sabe como uno grande y cuesta como uno chico.",
       "evidence": "Mixtral 8x7B tiene 47 B parámetros pero usa 13 B por palabra, y le ganó o empató a Llama 2 70B en la mayoría de las pruebas.",
       "hardware": "datacenter",
       "machine": "Entrenarlo es de data center: DeepSeek-V3 (671 B, 37 B activos) costó 2,788 millones de horas de GPU H800.",
       "mac": "Correrlo sí: los que tienen pocos activos (por ejemplo 30B-A3B) andan rápidos en una Mac si entran en la memoria.",
-      "models": ["tencent/Hy-Memory-30B-A3B", "mistralai/Leanstral-1.5-119B-A6B"]
+      "models": [
+        "tencent/Hy-Memory-30B-A3B",
+        "mistralai/Leanstral-1.5-119B-A6B"
+      ]
     },
     {
       "id": "flash-attention",
@@ -64,7 +79,10 @@
       "stage": "efficiency",
       "year": 2022,
       "who": "Stanford (Tri Dao y otros)",
-      "paper": { "title": "FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness", "url": "https://arxiv.org/abs/2205.14135" },
+      "paper": {
+        "title": "FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness",
+        "url": "https://arxiv.org/abs/2205.14135"
+      },
       "problem": "La atención se volvía lenta con textos largos, no por las cuentas sino por mover datos entre la memoria grande y la rápida de la GPU.",
       "idea": "Hacer la misma cuenta exacta por bloques que entran en la memoria rápida, sin escribir la matriz entera de atención.",
       "evidence": "3 veces más rápido entrenando GPT-2 con secuencias de 1.000 tokens y 15 % más rápido de punta a punta en BERT-large, con el mismo resultado.",
@@ -79,7 +97,10 @@
       "stage": "architecture",
       "year": 2024,
       "who": "Meta (Gloeckle y otros); lo usa DeepSeek-V3",
-      "paper": { "title": "Better & Faster Large Language Models via Multi-token Prediction", "url": "https://arxiv.org/abs/2404.19737" },
+      "paper": {
+        "title": "Better & Faster Large Language Models via Multi-token Prediction",
+        "url": "https://arxiv.org/abs/2404.19737"
+      },
       "problem": "Aprender a predecir sólo la palabra siguiente es una señal miope y además genera de a una palabra por vez.",
       "idea": "Varias cabezas sobre el mismo tronco predicen las próximas 2, 3 o 4 palabras; al generar, sirven de borrador para ir más rápido.",
       "evidence": "Con 13 B resolvió 12 % más problemas de HumanEval y 17 % más de MBPP, y generó hasta 3 veces más rápido.",
@@ -93,7 +114,10 @@
       "stage": "training",
       "year": 2021,
       "who": "Microsoft (Hu y otros)",
-      "paper": { "title": "LoRA: Low-Rank Adaptation of Large Language Models", "url": "https://arxiv.org/abs/2106.09685" },
+      "paper": {
+        "title": "LoRA: Low-Rank Adaptation of Large Language Models",
+        "url": "https://arxiv.org/abs/2106.09685"
+      },
       "problem": "Ajustar un modelo entero a una tarea pedía casi las mismas GPU que entrenarlo, y guardar una copia completa por cada ajuste.",
       "idea": "Congelar el modelo y entrenar sólo dos matrices chicas al costado de cada capa; el ajuste es un archivo de pocos MB que se pone y se saca.",
       "evidence": "En GPT-3 175B redujo 10.000 veces los parámetros entrenados y 3 veces la memoria de GPU, con calidad igual o mejor que el ajuste completo.",
@@ -108,7 +132,10 @@
       "stage": "training",
       "year": 2023,
       "who": "Universidad de Washington (Dettmers y otros)",
-      "paper": { "title": "QLoRA: Efficient Finetuning of Quantized LLMs", "url": "https://arxiv.org/abs/2305.14314" },
+      "paper": {
+        "title": "QLoRA: Efficient Finetuning of Quantized LLMs",
+        "url": "https://arxiv.org/abs/2305.14314"
+      },
       "problem": "Aun con LoRA, el modelo base entero tenía que entrar en memoria en 16 bits: un 65 B no entraba en una GPU.",
       "idea": "Guardar el modelo base comprimido a 4 bits y entrenar el LoRA encima, sin perder calidad.",
       "evidence": "Ajustó un 65 B en UNA GPU de 48 GB; Guanaco llegó al 99,3 % del nivel de ChatGPT en la prueba de Vicuna con 24 horas de ajuste.",
@@ -123,7 +150,10 @@
       "stage": "alignment",
       "year": 2022,
       "who": "OpenAI (InstructGPT)",
-      "paper": { "title": "Training language models to follow instructions with human feedback", "url": "https://arxiv.org/abs/2203.02155" },
+      "paper": {
+        "title": "Training language models to follow instructions with human feedback",
+        "url": "https://arxiv.org/abs/2203.02155"
+      },
       "problem": "Un modelo grande completa texto, pero no necesariamente hace lo que le pedís ni de forma útil.",
       "idea": "Personas comparan respuestas, un modelo de premio aprende sus preferencias y el modelo se ajusta con aprendizaje por refuerzo para maximizar ese premio.",
       "evidence": "Las personas prefirieron las respuestas de InstructGPT de 1,3 B a las de GPT-3 de 175 B: más de 100 veces más chico.",
@@ -137,7 +167,10 @@
       "stage": "alignment",
       "year": 2023,
       "who": "Stanford (Rafailov y otros)",
-      "paper": { "title": "Direct Preference Optimization: Your Language Model is Secretly a Reward Model", "url": "https://arxiv.org/abs/2305.18290" },
+      "paper": {
+        "title": "Direct Preference Optimization: Your Language Model is Secretly a Reward Model",
+        "url": "https://arxiv.org/abs/2305.18290"
+      },
       "problem": "RLHF es inestable y caro: un modelo de premio aparte y un ciclo de aprendizaje por refuerzo delicado.",
       "idea": "Una sola pérdida directa sobre pares «esta respuesta sí, esta no»: el mismo costo que un ajuste normal.",
       "evidence": "Igualó o superó a RLHF con PPO en controlar el sentimiento, resumir y conversar, siendo mucho más simple.",
@@ -151,7 +184,10 @@
       "stage": "alignment",
       "year": 2025,
       "who": "DeepSeek (GRPO en DeepSeekMath, luego R1)",
-      "paper": { "title": "DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via Reinforcement Learning", "url": "https://arxiv.org/abs/2501.12948" },
+      "paper": {
+        "title": "DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via Reinforcement Learning",
+        "url": "https://arxiv.org/abs/2501.12948"
+      },
       "problem": "Para que un modelo razone se le mostraban razonamientos escritos por personas, que son caros y pocos.",
       "idea": "Dejarlo intentar y premiarlo sólo si la respuesta final es verificablemente correcta (un número, un test que pasa); GRPO compara varios intentos entre sí y no necesita un modelo crítico.",
       "evidence": "DeepSeek-R1-Zero pasó de 15,6 % a 71,0 % en AIME 2024 sólo con aprendizaje por refuerzo, sin ejemplos de razonamiento.",
@@ -165,13 +201,21 @@
       "stage": "alignment",
       "year": 2026,
       "who": "BIGAI (GS1) y Embedding Space (Laya)",
-      "paper": { "title": "From Laya to Vega: Open Non-Autoregressive Decision Models with Calibrated Probabilities", "url": "https://doi.org/10.20944/preprints202611.0781.v1" },
+      "paper": {
+        "title": "From Laya to Vega: Open Non-Autoregressive Decision Models with Calibrated Probabilities",
+        "url": "https://doi.org/10.20944/preprints202611.0781.v1"
+      },
       "problem": "Un modelo que dice «90 %» suele no tener razón el 90 % de las veces: sus probabilidades no son confiables para decidir.",
       "idea": "Entrenar con aprendizaje por refuerzo contra una regla de puntaje estrictamente propia (por ejemplo Brier): la única forma de sacar el máximo premio es decir la probabilidad real.",
       "evidence": "Según sus fichas: GS1-2B 62,22 en el Decision Index; Laya, ~33 ms por decisión. No hay una cifra pública de antes y después de la calibración.",
       "hardware": "gpu",
       "machine": "No publicado para el entrenamiento; ajustar Laya con datos propios: el notebook oficial corre en 2 T4 gratis de Kaggle.",
-      "models": ["bigai/GS1-2B", "convaiinnovations/laya", "thaitea/laya-vision", "LiquidAI/d1-2B"],
+      "models": [
+        "bigai/GS1-2B",
+        "convaiinnovations/laya",
+        "thaitea/laya-vision",
+        "LiquidAI/d1-2B"
+      ],
       "ours": "2026-11-19, en el triaje de 23 alertas de Sentinel: GS1 atrapó 8 de 9 urgentes pero dio por ruido una caída real con 0,89; Laya, 2 de 9. Sin ajustarlos con datos propios, «calibrado» no significó acertar en nuestro dominio."
     },
     {
@@ -180,7 +224,10 @@
       "stage": "efficiency",
       "year": 2015,
       "who": "Google (Hinton y otros)",
-      "paper": { "title": "Distilling the Knowledge in a Neural Network", "url": "https://arxiv.org/abs/1503.02531" },
+      "paper": {
+        "title": "Distilling the Knowledge in a Neural Network",
+        "url": "https://arxiv.org/abs/1503.02531"
+      },
       "problem": "El mejor modelo es grande y caro de usar; uno chico entrenado desde cero rinde bastante menos.",
       "idea": "El chico aprende copiando las respuestas (y las probabilidades) del grande, que traen más información que la etiqueta correcta sola.",
       "evidence": "DistilBERT es 40 % más chico y 60 % más rápido que BERT y conserva el 97 % de su comprensión del lenguaje.",
@@ -195,14 +242,20 @@
       "stage": "efficiency",
       "year": 2022,
       "who": "IST Austria (GPTQ); en la Mac, llama.cpp (GGUF)",
-      "paper": { "title": "GPTQ: Accurate Post-Training Quantization for Generative Pre-trained Transformers", "url": "https://arxiv.org/abs/2210.17323" },
+      "paper": {
+        "title": "GPTQ: Accurate Post-Training Quantization for Generative Pre-trained Transformers",
+        "url": "https://arxiv.org/abs/2210.17323"
+      },
       "problem": "Un modelo en 16 bits ocupa 2 bytes por parámetro: un 27 B no entra en una Mac de 24 GB.",
       "idea": "Guardar cada peso en 3 a 8 bits, corrigiendo el error de redondeo con un poco de datos de calibración.",
       "evidence": "GPTQ llevó un modelo de 175 B a 3 o 4 bits en unas 4 horas de GPU con una pérdida de precisión mínima.",
       "hardware": "mac",
       "machine": "Cuantizar a GGUF es cuestión de minutos en la Mac.",
       "mac": "llama-quantize (de llama.cpp) convierte un modelo a Q4_K_M, Q8_0, etc. Todo lo que corre en my-tools va así.",
-      "models": ["Qwen/Qwen3-VL-4B-Instruct", "Qwen/Qwen3-Embedding-0.6B"],
+      "models": [
+        "Qwen/Qwen3-VL-4B-Instruct",
+        "Qwen/Qwen3-Embedding-0.6B"
+      ],
       "ours": "Qwen3-VL-4B en Q4_K_M acierta 39 de 42 en bin/point; Qwen3-Embedding en Q8_0 sostiene knowledge-search a ~0,34 s por búsqueda."
     },
     {
@@ -211,14 +264,21 @@
       "stage": "efficiency",
       "year": 2024,
       "who": "Microsoft (BitNet b1.58)",
-      "paper": { "title": "The Era of 1-bit LLMs: All Large Language Models are in 1.58 Bits", "url": "https://arxiv.org/abs/2402.17764" },
+      "paper": {
+        "title": "The Era of 1-bit LLMs: All Large Language Models are in 1.58 Bits",
+        "url": "https://arxiv.org/abs/2402.17764"
+      },
       "problem": "Cuantizar después de entrenar pierde calidad por debajo de ~3 bits.",
       "idea": "Entrenar desde el principio con pesos que sólo valen -1, 0 o 1: las multiplicaciones pasan a ser sumas.",
       "evidence": "Desde 3 B igualó a un modelo de 16 bits del mismo tamaño y con los mismos datos en perplejidad y en tareas.",
       "hardware": "datacenter",
       "machine": "Hay que entrenarlo así desde cero: data center.",
       "mac": "Correrlo sí: llama.cpp ya lee los formatos ternarios.",
-      "models": ["prism-ml/Ternary-Bonsai-2-27B-gguf", "prism-ml/Bonsai-8B-mlx-1bit", "microsoft/VibeVoice-ASR-BitNet"],
+      "models": [
+        "prism-ml/Ternary-Bonsai-2-27B-gguf",
+        "prism-ml/Bonsai-8B-mlx-1bit",
+        "microsoft/VibeVoice-ASR-BitNet"
+      ],
       "ours": "2026-11-19, el Bonsai ternario de 27 B anduvo a 13–18 palabras por segundo en la Mac y acertó 2 de 4 tareas verificables sin razonar; se borró."
     },
     {
@@ -227,7 +287,10 @@
       "stage": "efficiency",
       "year": 2022,
       "who": "Google (Leviathan y otros)",
-      "paper": { "title": "Fast Inference from Transformers via Speculative Decoding", "url": "https://arxiv.org/abs/2211.17192" },
+      "paper": {
+        "title": "Fast Inference from Transformers via Speculative Decoding",
+        "url": "https://arxiv.org/abs/2211.17192"
+      },
       "problem": "Un modelo grande genera de a una palabra y cada una requiere pasar por el modelo entero.",
       "idea": "Un modelo chico propone varias palabras y el grande las revisa todas de una vez; se queda con las que habría dicho él. El resultado es idéntico.",
       "evidence": "2 a 3 veces más rápido en T5-XXL con exactamente las mismas salidas.",
@@ -242,13 +305,18 @@
       "stage": "efficiency",
       "year": 2024,
       "who": "OpenAI (Whisper large-v3-turbo)",
-      "paper": { "title": "openai/whisper-large-v3-turbo (ficha del modelo)", "url": "https://huggingface.co/openai/whisper-large-v3-turbo" },
+      "paper": {
+        "title": "openai/whisper-large-v3-turbo (ficha del modelo)",
+        "url": "https://huggingface.co/openai/whisper-large-v3-turbo"
+      },
       "problem": "Whisper large-v3 transcribe muy bien pero es lento: el decodificador hace el trabajo pesado palabra por palabra.",
       "idea": "Sacarle capas al decodificador y volver a ajustarlo para que recupere la calidad.",
       "evidence": "El decodificador pasó de 32 a 4 capas: mucho más rápido «a costa de una pérdida menor de calidad», según la ficha.",
       "hardware": "unknown",
       "machine": "OpenAI no publicó con qué lo reajustó.",
-      "models": ["openai/whisper-large-v3-turbo"],
+      "models": [
+        "openai/whisper-large-v3-turbo"
+      ],
       "ours": "Es el dictado del chat: 0 errores en 141 palabras en español, a 0,88 s por dictado; le ganó a Whistle y empató con Parakeet."
     },
     {
@@ -257,7 +325,10 @@
       "stage": "training",
       "year": 2022,
       "who": "Universidad de Washington y otros (model soups); en la comunidad, mergekit",
-      "paper": { "title": "Model soups: averaging weights of multiple fine-tuned models improves accuracy without increasing inference time", "url": "https://arxiv.org/abs/2203.05482" },
+      "paper": {
+        "title": "Model soups: averaging weights of multiple fine-tuned models improves accuracy without increasing inference time",
+        "url": "https://arxiv.org/abs/2203.05482"
+      },
       "problem": "Varios ajustes del mismo modelo base, cada uno bueno en lo suyo, y elegir uno tira lo que aprendieron los otros.",
       "idea": "Promediar sus pesos (o combinarlos con reglas más finas) en un solo modelo, sin entrenar nada.",
       "evidence": "Una sopa de ViT-G llegó a 90,94 % en ImageNet, el mejor resultado de su momento, sin costo extra al usarlo.",
@@ -272,14 +343,19 @@
       "stage": "training",
       "year": 2022,
       "who": "Universidad de Washington y Google (Kusupati y otros)",
-      "paper": { "title": "Matryoshka Representation Learning", "url": "https://arxiv.org/abs/2205.13147" },
+      "paper": {
+        "title": "Matryoshka Representation Learning",
+        "url": "https://arxiv.org/abs/2205.13147"
+      },
       "problem": "Un vector de embedding grande es preciso pero caro de guardar y comparar; uno chico necesitaba otro modelo.",
       "idea": "Entrenar para que los primeros números del vector ya sean un buen vector por sí solos, como muñecas rusas: se recorta al tamaño que convenga.",
       "evidence": "Hasta 14 veces más chico con la misma precisión en clasificación de ImageNet.",
       "hardware": "gpu",
       "machine": "Entrenarlo: GPU.",
       "mac": "Usarlo: basta con cortar el vector (y normalizarlo) en la Mac.",
-      "models": ["Qwen/Qwen3-Embedding-0.6B"]
+      "models": [
+        "Qwen/Qwen3-Embedding-0.6B"
+      ]
     },
     {
       "id": "chain-of-thought",
@@ -287,7 +363,10 @@
       "stage": "use",
       "year": 2022,
       "who": "Google (Wei y otros)",
-      "paper": { "title": "Chain-of-Thought Prompting Elicits Reasoning in Large Language Models", "url": "https://arxiv.org/abs/2201.11903" },
+      "paper": {
+        "title": "Chain-of-Thought Prompting Elicits Reasoning in Large Language Models",
+        "url": "https://arxiv.org/abs/2201.11903"
+      },
       "problem": "Los modelos fallaban problemas de varios pasos aunque supieran cada paso.",
       "idea": "Mostrarle en el prompt ejemplos que razonan paso a paso antes de responder: el modelo imita y escribe sus pasos.",
       "evidence": "PaLM 540B con sólo 8 ejemplos así llegó al mejor resultado de su momento en GSM8K (problemas de matemática escolar).",
@@ -302,14 +381,21 @@
       "stage": "data",
       "year": 2024,
       "who": "Amazon (Chronos); luego Google (TimesFM) y Mistral (Timestral)",
-      "paper": { "title": "Chronos: Learning the Language of Time Series", "url": "https://arxiv.org/abs/2403.07815" },
+      "paper": {
+        "title": "Chronos: Learning the Language of Time Series",
+        "url": "https://arxiv.org/abs/2403.07815"
+      },
       "problem": "Para pronosticar cada serie se entrenaba un modelo propio con su historia.",
       "idea": "Escalar y cuantizar los valores en un vocabulario fijo y entrenar un modelo de lenguaje con miles de series: pronostica series que nunca vio, con bandas de incertidumbre.",
       "evidence": "Chronos rindió en series nuevas, sin ajustarlo, parecido a modelos entrenados para cada una.",
       "hardware": "gpu",
       "machine": "Entrenarlo: GPU. Usarlo: CPU.",
       "mac": "Timestral (5 M) pronostica en la CPU de la Mac en milisegundos.",
-      "models": ["mistralai/Timestral-5M", "amazon/chronos-2", "google/timesfm-3.0-pytorch"],
+      "models": [
+        "mistralai/Timestral-5M",
+        "amazon/chronos-2",
+        "google/timesfm-3.0-pytorch"
+      ],
       "ours": "En Sentinel, Timestral calibró mejor que Chronos (81/90 % contra 72/85 % en sus bandas) y dio 49 avisos contra 68: quedó de default."
     },
     {
@@ -318,13 +404,239 @@
       "stage": "training",
       "year": 2026,
       "who": "La comunidad (MobileAIFactory, el bucle que encontró Laya-vision)",
-      "paper": { "title": "evanlyhf/MobileAIFactory (ficha del modelo)", "url": "https://huggingface.co/evanlyhf/MobileAIFactory-BC5CDR-NER-Qwen3.5-0.8B-Q4_K_M-GGUF" },
+      "paper": {
+        "title": "evanlyhf/MobileAIFactory (ficha del modelo)",
+        "url": "https://huggingface.co/evanlyhf/MobileAIFactory-BC5CDR-NER-Qwen3.5-0.8B-Q4_K_M-GGUF"
+      },
       "problem": "Hacer un modelo chico especializado pide probar muchas combinaciones de datos, ajustes y cuantización, a mano.",
       "idea": "Un sistema de agentes decide qué probar, entrena, mide, deshace lo que empeora y entrega el modelo listo para el dispositivo.",
       "evidence": "MobileAIFactory: F1 0,83 en extracción de entidades biomédicas, 0,125 más que su primer intento. Laya-vision salió de un bucle automático en 2 horas de entrenamiento.",
       "hardware": "unknown",
       "machine": "Las fichas no dicen con qué máquina.",
-      "models": ["evanlyhf/MobileAIFactory-BC5CDR-NER-Qwen3.5-0.8B-Q4_K_M-GGUF", "thaitea/laya-vision"]
+      "models": [
+        "evanlyhf/MobileAIFactory-BC5CDR-NER-Qwen3.5-0.8B-Q4_K_M-GGUF",
+        "thaitea/laya-vision"
+      ]
+    },
+    {
+      "id": "weak-supervision",
+      "name": "Datos imperfectos pero a escala",
+      "stage": "data",
+      "year": 2022,
+      "who": "OpenAI (Whisper)",
+      "paper": {
+        "title": "Robust Speech Recognition via Large-Scale Weak Supervision",
+        "url": "https://arxiv.org/abs/2212.04356"
+      },
+      "problem": "Los transcriptores se entrenaban con pocas horas de audio limpio y bien etiquetado, y fallaban fuera de ese tipo de audio.",
+      "idea": "Usar 680.000 horas de audio de internet con sus subtítulos tal como vienen, con errores y todo: la cantidad y la variedad pesan más que la limpieza.",
+      "evidence": "Whisper transcribió sin ajustarlo a cada conjunto de prueba y se acercó a la precisión y la robustez de una persona.",
+      "hardware": "datacenter",
+      "machine": "Data center de OpenAI.",
+      "models": [
+        "openai/whisper-large-v3-turbo"
+      ]
+    },
+    {
+      "id": "fineweb-edu",
+      "name": "Filtrar la web con un clasificador",
+      "stage": "data",
+      "year": 2024,
+      "who": "Hugging Face (FineWeb-Edu)",
+      "paper": {
+        "title": "The FineWeb Datasets: Decanting the Web for the Finest Text Data at Scale",
+        "url": "https://arxiv.org/abs/2406.17557"
+      },
+      "problem": "La web tiene billones de palabras, pero la mayoría enseña poco: más texto no siempre es mejor modelo.",
+      "idea": "Un modelo chico, entrenado con notas que puso un modelo grande, puntúa cada página por su valor educativo y sólo se quedan las buenas.",
+      "evidence": "Los modelos preentrenados con FineWeb-Edu (1,3 billones de tokens) rindieron muchísimo mejor en pruebas de conocimiento y razonamiento como MMLU y ARC.",
+      "hardware": "server",
+      "machine": "Filtrar la web entera pide un cluster; el clasificador en sí es chico.",
+      "cheap": "El conjunto filtrado es público: cualquiera entrena con él sin repetir el filtrado.",
+      "models": []
+    },
+    {
+      "id": "tinystories",
+      "name": "Historias simples para modelos diminutos",
+      "stage": "data",
+      "year": 2023,
+      "who": "Microsoft (Eldan y Li)",
+      "paper": {
+        "title": "TinyStories: How Small Can Language Models Be and Still Speak Coherent English?",
+        "url": "https://arxiv.org/abs/2305.07759"
+      },
+      "problem": "Los modelos de pocos millones de parámetros escribían texto sin sentido: parecía que la coherencia sólo aparecía con tamaño.",
+      "idea": "Entrenar con cuentos escritos por otro modelo usando sólo palabras que entiende un niño de 3 o 4 años.",
+      "evidence": "Modelos de menos de 10 millones de parámetros escribieron cuentos coherentes de varios párrafos, con gramática casi perfecta.",
+      "hardware": "unknown",
+      "machine": "El paper no lo destaca; los modelos son de menos de 10 M parámetros.",
+      "models": []
+    },
+    {
+      "id": "self-instruct",
+      "name": "Que el modelo escriba sus propias instrucciones",
+      "stage": "data",
+      "year": 2022,
+      "who": "Universidad de Washington (Wang y otros)",
+      "paper": {
+        "title": "Self-Instruct: Aligning Language Models with Self-Generated Instructions",
+        "url": "https://arxiv.org/abs/2212.10560"
+      },
+      "problem": "Ajustar con instrucciones pedía miles de ejemplos escritos por personas.",
+      "idea": "Partir de 175 instrucciones escritas a mano y pedirle al propio modelo que invente más, con sus respuestas; filtrar las malas y ajustar con el resto.",
+      "evidence": "GPT-3 mejoró 33 puntos absolutos en Super-NaturalInstructions y quedó a la par de InstructGPT-001.",
+      "hardware": "datacenter",
+      "machine": "Se hizo sobre GPT-3, por su API.",
+      "cheap": "Es la receta que usó Alpaca: 52.000 instrucciones generadas por menos de 500 dólares.",
+      "models": []
+    },
+    {
+      "id": "gqa",
+      "name": "Atención con cabezas compartidas (GQA)",
+      "stage": "architecture",
+      "year": 2023,
+      "who": "Google (Ainslie y otros)",
+      "paper": {
+        "title": "GQA: Training Generalized Multi-Query Transformer Models from Multi-Head Checkpoints",
+        "url": "https://arxiv.org/abs/2305.13245"
+      },
+      "problem": "Al generar, la memoria que guarda la atención (la caché KV) crece con cada cabeza y se vuelve el cuello de botella.",
+      "idea": "Que varias cabezas de consulta compartan la misma clave y valor: menos memoria, casi la misma calidad.",
+      "evidence": "Calidad cercana a la atención completa con velocidad parecida a la de una sola cabeza compartida, convirtiendo un modelo ya entrenado con el 5 % de su cómputo original.",
+      "hardware": "datacenter",
+      "machine": "Se aplica al preentrenar (o al reentrenar un poco).",
+      "mac": "Casi todos los modelos que corren en la Mac la traen: es parte de por qué la caché entra en 24 GB.",
+      "models": []
+    },
+    {
+      "id": "yarn",
+      "name": "Estirar el contexto sin reentrenar todo",
+      "stage": "architecture",
+      "year": 2023,
+      "who": "Nous Research y otros (YaRN)",
+      "paper": {
+        "title": "YaRN: Efficient Context Window Extension of Large Language Models",
+        "url": "https://arxiv.org/abs/2309.00071"
+      },
+      "problem": "Un modelo entrenado con 4.000 tokens de contexto se rompe si le das un texto más largo.",
+      "idea": "Reescalar la forma en que el modelo codifica la posición de cada palabra (RoPE) y ajustarlo un poco con textos largos.",
+      "evidence": "Extendió el contexto de modelos LLaMA mucho más allá de su entrenamiento (publicaron versiones de 64.000 y 128.000 tokens) con 10 veces menos tokens y 2,5 veces menos pasos de entrenamiento que los métodos anteriores.",
+      "hardware": "server",
+      "machine": "Un ajuste corto, no un preentrenamiento.",
+      "mac": "llama.cpp lo aplica al correr (--rope-scaling yarn).",
+      "models": []
+    },
+    {
+      "id": "mamba",
+      "name": "Modelos de estado en vez de atención (Mamba)",
+      "stage": "architecture",
+      "year": 2023,
+      "who": "CMU y Princeton (Gu y Dao)",
+      "paper": {
+        "title": "Mamba: Linear-Time Sequence Modeling with Selective State Spaces",
+        "url": "https://arxiv.org/abs/2312.00752"
+      },
+      "problem": "El costo de la atención crece con el cuadrado del largo del texto.",
+      "idea": "Una memoria de tamaño fijo que se actualiza palabra por palabra y decide qué guardar y qué olvidar según lo que lee: costo lineal.",
+      "evidence": "5 veces más rendimiento al generar que un Transformer; Mamba de 3 B superó a Transformers de su tamaño e igualó a los del doble.",
+      "hardware": "datacenter",
+      "machine": "Preentrenamiento: cluster de GPU.",
+      "mac": "Las arquitecturas híbridas que salieron de esta línea (capas lineales más algunas de atención, como la de Qwen3.5, sobre la que está hecho GS1) ya tienen versiones GGUF para la Mac.",
+      "models": []
+    },
+    {
+      "id": "clip",
+      "name": "Aprender imágenes desde su descripción (CLIP)",
+      "stage": "training",
+      "year": 2021,
+      "who": "OpenAI (CLIP)",
+      "paper": {
+        "title": "Learning Transferable Visual Models From Natural Language Supervision",
+        "url": "https://arxiv.org/abs/2103.00020"
+      },
+      "problem": "Un clasificador de imágenes sólo conoce las categorías con las que se entrenó, y etiquetarlas a mano es caro.",
+      "idea": "Entrenar juntos un codificador de imágenes y uno de texto para que cada imagen quede cerca de su descripción: después se clasifica escribiendo las categorías.",
+      "evidence": "Con 400 millones de pares imagen-texto de internet igualó, sin ver ninguno de sus ejemplos, la precisión de un ResNet-50 entrenado con 1,28 millones de imágenes etiquetadas de ImageNet.",
+      "hardware": "datacenter",
+      "machine": "Cluster de GPU de OpenAI.",
+      "mac": "Usarlo sí: un CLIP chico compara imágenes y textos en la CPU.",
+      "models": [
+        "tomaarsen/TinyCLIP-39M-PixelArt",
+        "jc-builds/CalorieCLIP",
+        "laion/clap2-large-audioxl-s1B"
+      ]
+    },
+    {
+      "id": "muon",
+      "name": "Un optimizador mejor (Muon)",
+      "stage": "training",
+      "year": 2025,
+      "who": "Keller Jordan y la comunidad; escalado por Moonshot AI",
+      "paper": {
+        "title": "Muon is Scalable for LLM Training",
+        "url": "https://arxiv.org/abs/2502.16982"
+      },
+      "problem": "AdamW, el optimizador de casi todos los modelos, no se había cambiado en años y deja cómputo sobre la mesa.",
+      "idea": "Ortogonalizar cada actualización de las matrices de pesos antes de aplicarla: todas las direcciones aprenden parejo.",
+      "evidence": "Moonshot midió ~2 veces la eficiencia de cómputo de AdamW al entrenar modelos de lenguaje con el cómputo óptimo.",
+      "hardware": "server",
+      "machine": "Nació en el speedrun de NanoGPT de la comunidad, en 8 GPU H100.",
+      "cheap": "El speedrun de NanoGPT es una carrera abierta: quien entrena GPT-2 (124 M) hasta la misma pérdida en menos tiempo, en 8 H100, gana el récord; Muon salió de ahí.",
+      "models": []
+    },
+    {
+      "id": "constitutional-ai",
+      "name": "Que una IA dé el feedback (IA constitucional)",
+      "stage": "alignment",
+      "year": 2022,
+      "who": "Anthropic",
+      "paper": {
+        "title": "Constitutional AI: Harmlessness from AI Feedback",
+        "url": "https://arxiv.org/abs/2212.08073"
+      },
+      "problem": "RLHF necesita muchas personas etiquetando qué respuesta es dañina, y el modelo aprende a esquivar en vez de explicar.",
+      "idea": "Una lista de principios escrita por personas; el modelo critica y corrige sus propias respuestas con ellos, y el feedback para el refuerzo lo da una IA.",
+      "evidence": "Un asistente inofensivo pero no evasivo, sin ninguna etiqueta humana de daño: sólo los principios.",
+      "hardware": "datacenter",
+      "machine": "Data center de Anthropic.",
+      "models": []
+    },
+    {
+      "id": "self-consistency",
+      "name": "Votar entre varios razonamientos",
+      "stage": "use",
+      "year": 2022,
+      "who": "Google (Wang y otros)",
+      "paper": {
+        "title": "Self-Consistency Improves Chain of Thought Reasoning in Language Models",
+        "url": "https://arxiv.org/abs/2203.11171"
+      },
+      "problem": "Un solo razonamiento puede equivocarse en un paso y arrastrar el error hasta la respuesta.",
+      "idea": "Pedir varios razonamientos distintos para la misma pregunta y quedarse con la respuesta que más se repite.",
+      "evidence": "+17,9 puntos en GSM8K sobre el razonamiento único, sin entrenar nada.",
+      "hardware": "mac",
+      "machine": "No entrena: cuesta N preguntas en vez de una.",
+      "mac": "Cualquier modelo local: correr la misma pregunta varias veces con temperatura y contar.",
+      "models": []
+    },
+    {
+      "id": "sparse-autoencoders",
+      "name": "Ver qué conceptos hay adentro (autoencoders dispersos)",
+      "stage": "interpretability",
+      "year": 2024,
+      "who": "Anthropic",
+      "paper": {
+        "title": "Scaling Monosemanticity: Extracting Interpretable Features from Claude 3 Sonnet",
+        "url": "https://transformer-circuits.pub/2024/scaling-monosemanticity/"
+      },
+      "problem": "Cada neurona de un modelo mezcla muchos conceptos a la vez: mirar adentro no decía nada.",
+      "idea": "Entrenar un autoencoder que descomponga la actividad del modelo en muchos más «rasgos», cada uno activo pocas veces y con un solo significado.",
+      "evidence": "Sacaron hasta 34 millones de rasgos de Claude 3 Sonnet; activar uno a mano (el del Golden Gate) cambiaba de qué hablaba el modelo.",
+      "hardware": "datacenter",
+      "machine": "Sobre un modelo de producción; para modelos chicos, la comunidad entrena estos autoencoders en una GPU.",
+      "models": [
+        "doctolib-lab/doctosae-bge-large-en-v1.5"
+      ]
     }
   ],
   "lineages": [
@@ -333,11 +645,53 @@
       "name": "LLaMA y la comunidad",
       "why": "Cómo un modelo abierto se volvió conversacional con poco dinero, antes de que su dueño hiciera lo mismo a escala.",
       "steps": [
-        { "model": "LLaMA", "date": "2023-02", "who": "Meta", "change": "Modelos chicos entrenados con muchos más datos de lo usual: el de 13 B le ganó a GPT-3 (175 B) en la mayoría de las pruebas.", "ideas": ["chinchilla"] },
-        { "model": "Alpaca 7B", "date": "2023-03", "who": "Stanford", "change": "LLaMA 7B ajustado con 52.000 instrucciones generadas por otro modelo, por menos de 600 dólares.", "ideas": ["instruction-tuning"] },
-        { "model": "Vicuna 13B", "date": "2023-03", "who": "LMSYS", "change": "Ajustado con ~70.000 conversaciones reales compartidas en ShareGPT, por unos 300 dólares.", "ideas": ["instruction-tuning"] },
-        { "model": "Guanaco 65B", "date": "2023-05", "who": "Universidad de Washington", "change": "El ajuste de un 65 B entró en una sola GPU con QLoRA.", "ideas": ["qlora", "lora"] },
-        { "model": "Llama 2-Chat", "date": "2023-07", "who": "Meta", "change": "La versión conversacional oficial, con aprendizaje por refuerzo sobre preferencias humanas.", "ideas": ["rlhf"] }
+        {
+          "model": "LLaMA",
+          "date": "2023-02",
+          "who": "Meta",
+          "change": "Modelos chicos entrenados con muchos más datos de lo usual: el de 13 B le ganó a GPT-3 (175 B) en la mayoría de las pruebas.",
+          "ideas": [
+            "chinchilla"
+          ]
+        },
+        {
+          "model": "Alpaca 7B",
+          "date": "2023-03",
+          "who": "Stanford",
+          "change": "LLaMA 7B ajustado con 52.000 instrucciones generadas por otro modelo, por menos de 600 dólares.",
+          "ideas": [
+            "instruction-tuning",
+            "self-instruct"
+          ]
+        },
+        {
+          "model": "Vicuna 13B",
+          "date": "2023-03",
+          "who": "LMSYS",
+          "change": "Ajustado con ~70.000 conversaciones reales compartidas en ShareGPT, por unos 300 dólares.",
+          "ideas": [
+            "instruction-tuning"
+          ]
+        },
+        {
+          "model": "Guanaco 65B",
+          "date": "2023-05",
+          "who": "Universidad de Washington",
+          "change": "El ajuste de un 65 B entró en una sola GPU con QLoRA.",
+          "ideas": [
+            "qlora",
+            "lora"
+          ]
+        },
+        {
+          "model": "Llama 2-Chat",
+          "date": "2023-07",
+          "who": "Meta",
+          "change": "La versión conversacional oficial, con aprendizaje por refuerzo sobre preferencias humanas.",
+          "ideas": [
+            "rlhf"
+          ]
+        }
       ]
     },
     {
@@ -345,10 +699,43 @@
       "name": "DeepSeek: del modelo base al razonamiento",
       "why": "El camino de un modelo que aprende a razonar sin ejemplos humanos, y cómo eso baja a modelos chicos.",
       "steps": [
-        { "model": "DeepSeek-V3", "date": "2024-12", "who": "DeepSeek", "change": "671 B con 37 B activos por palabra y predicción de varias palabras; 2,788 millones de horas de GPU H800.", "ideas": ["mixture-of-experts", "multi-token-prediction"] },
-        { "model": "DeepSeek-R1-Zero", "date": "2025-01", "who": "DeepSeek", "change": "Sólo aprendizaje por refuerzo con premios verificables: AIME 2024 de 15,6 % a 71,0 %.", "ideas": ["grpo-rlvr"] },
-        { "model": "DeepSeek-R1", "date": "2025-01", "who": "DeepSeek", "change": "Unos pocos ejemplos de razonamiento antes del refuerzo para que escriba legible.", "ideas": ["grpo-rlvr"] },
-        { "model": "R1-Distill-Qwen-7B", "date": "2025-01", "who": "DeepSeek", "change": "El razonamiento de R1 destilado en un 7 B: 55,5 % en AIME 2024, en una máquina común.", "ideas": ["distillation"] }
+        {
+          "model": "DeepSeek-V3",
+          "date": "2024-12",
+          "who": "DeepSeek",
+          "change": "671 B con 37 B activos por palabra y predicción de varias palabras; 2,788 millones de horas de GPU H800.",
+          "ideas": [
+            "mixture-of-experts",
+            "multi-token-prediction"
+          ]
+        },
+        {
+          "model": "DeepSeek-R1-Zero",
+          "date": "2025-01",
+          "who": "DeepSeek",
+          "change": "Sólo aprendizaje por refuerzo con premios verificables: AIME 2024 de 15,6 % a 71,0 %.",
+          "ideas": [
+            "grpo-rlvr"
+          ]
+        },
+        {
+          "model": "DeepSeek-R1",
+          "date": "2025-01",
+          "who": "DeepSeek",
+          "change": "Unos pocos ejemplos de razonamiento antes del refuerzo para que escriba legible.",
+          "ideas": [
+            "grpo-rlvr"
+          ]
+        },
+        {
+          "model": "R1-Distill-Qwen-7B",
+          "date": "2025-01",
+          "who": "DeepSeek",
+          "change": "El razonamiento de R1 destilado en un 7 B: 55,5 % en AIME 2024, en una máquina común.",
+          "ideas": [
+            "distillation"
+          ]
+        }
       ]
     },
     {
@@ -356,9 +743,31 @@
       "name": "GPT-3 a ChatGPT",
       "why": "El salto de un modelo que completa texto a uno que conversa: no fue tamaño, fue cómo se lo ajustó.",
       "steps": [
-        { "model": "GPT-3", "date": "2020-05", "who": "OpenAI", "change": "175 B que aprende tareas con ejemplos en el prompt, sin ajustarlo.", "ideas": [] },
-        { "model": "InstructGPT", "date": "2022-01", "who": "OpenAI", "change": "Ajustado con preferencias humanas: el de 1,3 B se prefirió al GPT-3 de 175 B.", "ideas": ["rlhf"] },
-        { "model": "ChatGPT", "date": "2022-11", "who": "OpenAI", "change": "El mismo método aplicado a la conversación.", "ideas": ["rlhf"] }
+        {
+          "model": "GPT-3",
+          "date": "2020-05",
+          "who": "OpenAI",
+          "change": "175 B que aprende tareas con ejemplos en el prompt, sin ajustarlo.",
+          "ideas": []
+        },
+        {
+          "model": "InstructGPT",
+          "date": "2022-01",
+          "who": "OpenAI",
+          "change": "Ajustado con preferencias humanas: el de 1,3 B se prefirió al GPT-3 de 175 B.",
+          "ideas": [
+            "rlhf"
+          ]
+        },
+        {
+          "model": "ChatGPT",
+          "date": "2022-11",
+          "who": "OpenAI",
+          "change": "El mismo método aplicado a la conversación.",
+          "ideas": [
+            "rlhf"
+          ]
+        }
       ]
     },
     {
@@ -366,10 +775,109 @@
       "name": "Whisper: más rápido sin perder",
       "why": "La familia del dictado del chat: cómo se achicó para correr en una Mac.",
       "steps": [
-        { "model": "Whisper large-v2", "date": "2022-12", "who": "OpenAI", "change": "Transcripción multilingüe entrenada con 680.000 horas de audio de internet.", "ideas": [] },
-        { "model": "Whisper large-v3", "date": "2023-11", "who": "OpenAI", "change": "Más datos de entrenamiento y mejor en más idiomas.", "ideas": [] },
-        { "model": "Whisper large-v3-turbo", "date": "2024-10", "who": "OpenAI", "change": "Decodificador de 32 a 4 capas, reajustado: mucho más rápido.", "ideas": ["pruning"] },
-        { "model": "ggml-large-v3-turbo-q5_0", "date": "2024-10", "who": "whisper.cpp", "change": "Cuantizado a 5 bits para correr en la CPU y la GPU de la Mac: el que usa el chat.", "ideas": ["quantization"] }
+        {
+          "model": "Whisper large-v2",
+          "date": "2022-12",
+          "who": "OpenAI",
+          "change": "Transcripción multilingüe entrenada con 680.000 horas de audio de internet.",
+          "ideas": [
+            "weak-supervision"
+          ]
+        },
+        {
+          "model": "Whisper large-v3",
+          "date": "2023-11",
+          "who": "OpenAI",
+          "change": "Más datos de entrenamiento y mejor en más idiomas.",
+          "ideas": []
+        },
+        {
+          "model": "Whisper large-v3-turbo",
+          "date": "2024-10",
+          "who": "OpenAI",
+          "change": "Decodificador de 32 a 4 capas, reajustado: mucho más rápido.",
+          "ideas": [
+            "pruning"
+          ]
+        },
+        {
+          "model": "ggml-large-v3-turbo-q5_0",
+          "date": "2024-10",
+          "who": "whisper.cpp",
+          "change": "Cuantizado a 5 bits para correr en la CPU y la GPU de la Mac: el que usa el chat.",
+          "ideas": [
+            "quantization"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phi",
+      "name": "Phi: datos antes que tamaño",
+      "why": "Microsoft apostó a modelos chicos con datos muy cuidados, muchos escritos por otro modelo.",
+      "steps": [
+        {
+          "model": "phi-1",
+          "date": "2023-06",
+          "who": "Microsoft",
+          "change": "1,3 B entrenado con código de calidad de libro de texto: 50,6 % en HumanEval.",
+          "ideas": [
+            "textbook-data"
+          ]
+        },
+        {
+          "model": "phi-1.5",
+          "date": "2023-09",
+          "who": "Microsoft",
+          "change": "La misma receta llevada a razonamiento de sentido común en lenguaje natural, con 1,3 B.",
+          "ideas": [
+            "textbook-data"
+          ]
+        },
+        {
+          "model": "phi-2",
+          "date": "2023-12",
+          "who": "Microsoft",
+          "change": "2,7 B que, según el anuncio de Microsoft, igualó o superó a modelos hasta 25 veces más grandes.",
+          "ideas": [
+            "textbook-data"
+          ]
+        },
+        {
+          "model": "phi-3-mini",
+          "date": "2024-04",
+          "who": "Microsoft",
+          "change": "3,8 B con 3,3 billones de tokens: 69 % en MMLU y lo bastante chico para correr en un teléfono.",
+          "ideas": [
+            "textbook-data",
+            "chinchilla"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mistral",
+      "name": "Mistral: chico y después muchos expertos",
+      "why": "Un laboratorio chico que compitió con los grandes cambiando la arquitectura, no el tamaño.",
+      "steps": [
+        {
+          "model": "Mistral 7B",
+          "date": "2023-09",
+          "who": "Mistral AI",
+          "change": "Atención con cabezas compartidas y ventana deslizante: superó a Llama 2 13B en todas las pruebas que midieron.",
+          "ideas": [
+            "gqa"
+          ]
+        },
+        {
+          "model": "Mixtral 8x7B",
+          "date": "2023-12",
+          "who": "Mistral AI",
+          "change": "Ocho expertos y dos por palabra: 47 B en total, 13 B activos, a la par o mejor que Llama 2 70B.",
+          "ideas": [
+            "mixture-of-experts"
+          ]
+        }
       ]
     }
   ]
