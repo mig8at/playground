@@ -326,6 +326,30 @@ comercio chico mira 3, 6 o 24 horas. Avisan las del wizard entero y las de los c
 - Todo se puede ajustar sin tocar código en `sentinel/rules.json` (opcional; lo que no dice queda por defecto), con
   `signals` para ignorar una señal o subirle el mínimo. Antes de cambiar algo, corré el `-backtest`.
 
+## Chronos-2, en modo sombra (`server/forecast.go`, `forecast/chronos.py`)
+
+Un modelo de pronóstico de series (`amazon/chronos-2`, Apache 2.0, 478 MB), probado porque hace algo en lo que los
+modelos de lenguaje no se especializan: dar el rango en que debería caer cada hora. **No decide nada**: `go run
+./sentinel/server -chronos 7` pronostica cada hora de los últimos 7 días desde las 4 semanas anteriores y cruza lo
+que habría marcado contra lo que marcó Sentinel (`-plain`, sin la covariable de fines de semana y festivos;
+`-signals`, como el backtest). Corre en la Mac (MPS) desde su venv, `~/.cache/my-tools/chronos/venv`
+(`chronos-forecasting` 2.3.2, ~1,1 GB con torch); el modelo queda en la caché de Hugging Face. Sólo señales de CONTEO
+(solicitudes, errores, líneas): las de tasa se evalúan como proporción. Con los mismos pisos de magnitud que las reglas.
+
+Medido el 2026-11-18, 22 señales con ≥ 200 por día, 4.114 horas, ~1 min (28 s de modelo):
+
+- **Calibra bien en las colas**: el 97 % de las horas cayó entre p2 y p98 (debería ~96 %); entre p10 y p90, 72 %
+  (debería ~80 %).
+- **No ve un servicio que se calla**: las 15 alertas de Sentinel de la semana (customer-profiling, kyc-gateway,
+  form-service en 0 líneas) Chronos no las marcó. Aprende el silencio en horas y su rango baja a menos de cero. La regla
+  `silence` de Sentinel es mejor para eso.
+- **Ve ráfagas de errores que el techo de Sentinel deja pasar**: preapprovals-service con 168 errores el 11/11 a las
+  18 h y 224 el 18/11 a las 17 h (lo normal a esa hora, 25 a 70; sólo el 3/11 llegó a 325, que es lo que sube el techo).
+- **No sabe de festivos aunque se le diga**: con la covariable, el lunes festivo 16/11 a las 8 h dio 12 solicitudes
+  contra 31 esperadas: alerta falsa, igual que un domingo. Sentinel, que compara con días comparables, no lo marcó.
+
+Lectura: no reemplaza las reglas; podría sumar las ráfagas de errores que el techo esconde. Sin integrar a las pasadas.
+
 ## Lo que ya costó
 
 - **Las horas.** En producción `created_at` está en hora de Bogotá y `NOW()` de la base en UTC (medido el 2026-11-11):

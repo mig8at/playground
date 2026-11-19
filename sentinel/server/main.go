@@ -4,6 +4,7 @@
 //
 //	go run ./sentinel/server -serve 127.0.0.1:5211     la API (`make sentinel` la levanta con la interfaz)
 //	go run ./sentinel/server -once                    carga lo que falte, una pasada, y el resumen
+//	go run ./sentinel/server -chronos 7               Chronos-2 en modo sombra contra las reglas, los últimos 7 días
 //	go run ./sentinel/server -backtest 7              cuántas veces habrían sonado las reglas en los últimos 7 días
 //	make sentinel-install                             la deja corriendo de fondo (LaunchAgent): mide aunque nada esté abierto
 //
@@ -989,6 +990,8 @@ func main() {
 	status := flag.Bool("status", false, "¿el LaunchAgent está cargado, y hasta dónde llegó lo guardado?")
 	backtest := flag.Int("backtest", 0, "cuántas veces habrían sonado las reglas en los últimos N días, y sale (lee lo guardado)")
 	fresh := flag.Bool("fresh", false, "con -backtest: antes, una pasada contra producción (lo de los últimos minutos; tarda y pide la VPN)")
+	chronos := flag.Int("chronos", 0, "Chronos-2 en modo sombra: su rango hora por hora contra lo que marcó Sentinel en los últimos N días, y sale (lee lo guardado)")
+	plain := flag.Bool("plain", false, "con -chronos: sin la covariable de fines de semana y festivos")
 	only := flag.String("signals", "", "con -backtest: sólo estas señales, separadas por coma; acepta * («service:*,logs:*,lender:24»)")
 	flag.Parse()
 	root, err := os.Getwd()
@@ -1029,6 +1032,11 @@ func main() {
 
 	// El backtest lee lo guardado, como la consola: antes hacía una pasada entera contra producción (Redash, Loki,
 	// PostHog y GitHub) y pasaba de 10 minutos. Con -fresh, la hace igual.
+	if *chronos > 0 {
+		s.loadLast()
+		printChronos(s, *chronos, splitPatterns(*only), *plain)
+		return
+	}
 	if *backtest > 0 && !*fresh {
 		s.loadLast() // los despliegues de la última pasada (la sensibilidad de después de un despliegue)
 		printBacktest(s, *backtest, splitPatterns(*only))
