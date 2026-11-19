@@ -2,6 +2,7 @@
   "$comment": "Corridas con nombre: lo que se pide como «corré Finandina». Cada una es un caso del caminador con su ambiente y sus perillas; `make harness-run RUN=<nombre>` la corre en una ventana de celular y deja el video. Una corrida nueva entra acá cuando ya cerró al menos una vez con esas mismas perillas (`measured`).",
   "runs": {
     "finandina": {
+      "name": "Finandina",
       "description": "Banco Finandina (riel 4, sin credencial) por autogestión en BUSINESS_FINANDINA, hasta «Autorizada»",
       "target": "qa",
       "cases": "#c0fca632:149",
@@ -13,6 +14,7 @@
       "measured": "2026-11-19: 505165 a 505169 en 11, 12 pantallas"
     },
     "pullman": {
+      "name": "Pullman",
       "description": "CrediPullman (CreditopX) entrando por la tienda de Amoblando Pullman, hasta «Autorizada»",
       "target": "local",
       "cases": "#13874eb6:77",

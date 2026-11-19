@@ -7,7 +7,8 @@
 //
 // Es el caminador con el motor de navegador (`dev/walk-wizard.ts --engine browser`), sobre el Chromium propio del
 // harness: el de Jarvis maneja el Chrome de la persona, y Playwright no graba un contexto que no creó. Cada video queda
-// en `.runs/videos/<fecha>/<corrida>.mp4` (fuera de git) y la ruta sale al final.
+// en `.runs/videos/<fecha>/<corrida>.mp4` (fuera de git), la ruta sale al final y la grabación se anota en
+// `.runs/recordings.json`, que el panel lista en «Grabaciones» (`pkg/recordings.ts`).
 // VARIAS A LA VEZ: las que comparten ambiente y perillas van en UN proceso con sus casos en paralelo (`--parallel`):
 // dos procesos contra qa se pisarían la lista de teléfonos del bypass de OTP, que cada uno escribe al arrancar. Las
 // que no, en procesos separados al mismo tiempo; su salida sale con el nombre de la corrida adelante.
@@ -16,12 +17,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { addRecordings, type Recording } from '../pkg/recordings.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
 
 interface Run {
-    description: string; target: string; cases: string; flow?: string; amount?: number;
+    name?: string; description: string; target: string; cases: string; flow?: string; amount?: number;
     lambda?: boolean; close?: boolean; manual?: boolean; measured?: string;
 }
 const { runs } = JSON.parse(fs.readFileSync(path.join(ROOT, 'runs.json'), 'utf8')) as { runs: Record<string, Run> };
@@ -55,7 +57,12 @@ console.log(`\n  ▶ ${names.join(' + ')} · ${headed ? 'con ventana' : 'sin ven
 for (const n of names) console.log(`    ${n.padEnd(12)} ${runs[n].target.padEnd(6)} ${runs[n].description}`);
 console.log('');
 
-function runGroup(group: string[]): Promise<{ group: string[]; status: number; videos: string[] }> {
+/** Lo que el caminador dice de cada caso: la línea del caso (`✓ #c0fca632:149 · uReq 505169 · … · 12 pantallas · 230.2s`)
+ *  y, antes, la del video que grabó (`🎬 video: …`). El video de un caso se escribe al cerrar su contexto, justo antes de
+ *  su línea: así se sabe de qué caso es cada video también con varios en paralelo. */
+interface CaseOut { mark: string; ureq?: number; screens?: number; seconds?: number; lender?: string; video?: string }
+
+function runGroup(group: string[]): Promise<{ group: string[]; status: number; videos: string[]; recordings: Recording[] }> {
     const first = runs[group[0]];
     const label = group.join('+');
     const dir = path.join(videoRoot, label);
@@ -71,6 +78,22 @@ function runGroup(group: string[]): Promise<{ group: string[]; status: number; v
         cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'],
         env: { ...process.env, E2E_TARGET: first.target, HARNESS_SLOW: slow, ...(video ? { HARNESS_VIDEO: dir } : {}) },
     });
+    const cases: CaseOut[] = [];
+    const pending: string[] = [];
+    const lenders = new Map<number, string>();
+    const read = (l: string) => {
+        const v = /🎬 video: (\S+\.(?:mp4|webm))/.exec(l);
+        if (v) { pending.push(v[1]); return; }
+        const c = /^\s*([✓✗⚠]) (#\S+)(?: · uReq (\d+))?/.exec(l);
+        if (c) {
+            const screens = /(\d+) pantallas/.exec(l), secs = / · ([\d.]+)s\s*$/.exec(l);
+            cases.push({ mark: c[1], ureq: c[3] ? Number(c[3]) : undefined, screens: screens ? Number(screens[1]) : undefined,
+                seconds: secs ? Math.round(Number(secs[1])) : undefined, video: pending.shift() });
+            return;
+        }
+        const ln = /uReq (\d+) · lender (.+?) · estado/.exec(l);
+        if (ln) lenders.set(Number(ln[1]), ln[2]);
+    };
     // Con una sola, la salida tal cual; con varias, cada línea con su corrida adelante para que no se mezclen.
     const prefix = groups.size > 1 ? `[${label}] ` : '';
     for (const s of [child.stdout, child.stderr]) {
@@ -78,25 +101,42 @@ function runGroup(group: string[]): Promise<{ group: string[]; status: number; v
         s.on('data', (d: Buffer) => {
             const lines = (rest + d.toString()).split('\n');
             rest = lines.pop() ?? '';
-            for (const l of lines) process.stdout.write(`${prefix}${l}\n`);
+            for (const l of lines) { read(l); process.stdout.write(`${prefix}${l}\n`); }
         });
-        s.on('end', () => { if (rest) process.stdout.write(`${prefix}${rest}\n`); });
+        s.on('end', () => { if (rest) { read(rest); process.stdout.write(`${prefix}${rest}\n`); } });
     }
     return new Promise((resolve) => child.on('close', (code) => {
-        let videos: string[] = [];
+        const videos: string[] = [];
+        const recordings: Recording[] = [];
         if (video) {
-            // Playwright los nombra por la página, no por el caso: en un grupo no se sabe cuál es cuál, así que van
-            // numerados en el orden en que se cerraron (y el nombre del grupo dice qué corridas hay adentro).
-            const files = fs.readdirSync(dir).filter((f) => /\.(mp4|webm)$/.test(f))
-                .map((f) => ({ f, t: fs.statSync(path.join(dir, f)).mtimeMs })).sort((a, b) => a.t - b.t);
-            videos = files.map(({ f }, i) => {
-                const to = path.join(videoRoot, `${files.length > 1 ? `${label}-${i + 1}` : label}-${stamp}${path.extname(f)}`);
-                fs.renameSync(path.join(dir, f), to);
-                return to;
+            // Cada caso, en el orden de `--cases`, es la corrida del mismo lugar del grupo.
+            const used = new Map<string, number>();
+            cases.forEach((c, i) => {
+                const run = group[i] ?? group[0];
+                if (!c.video || !fs.existsSync(c.video)) return;
+                const n = (used.get(run) ?? 0) + 1; used.set(run, n);
+                const id = `${run}-${stamp}${n > 1 ? `-${n}` : ''}`;
+                const to = path.join(videoRoot, `${id}${path.extname(c.video)}`);
+                fs.renameSync(c.video, to);
+                videos.push(to);
+                const r = runs[run];
+                recordings.push({
+                    id, run, name: r.name ?? run, description: r.description, target: r.target, ureq: c.ureq,
+                    lender: c.ureq ? lenders.get(c.ureq) : undefined, closed: c.mark === '✓', screens: c.screens, seconds: c.seconds,
+                    at: new Date().toISOString(), video: path.relative(ROOT, to),
+                });
             });
+            // Lo que quedó sin caso (una corrida que se cayó antes de su línea) se conserva con el nombre del grupo.
+            for (const f of fs.existsSync(dir) ? fs.readdirSync(dir) : []) {
+                if (!/\.(mp4|webm)$/.test(f)) continue;
+                const to = path.join(videoRoot, `${label}-${stamp}-orphan-${f}`);
+                fs.renameSync(path.join(dir, f), to);
+                videos.push(to);
+            }
             fs.rmSync(dir, { recursive: true, force: true });
+            addRecordings(recordings);
         }
-        resolve({ group, status: code ?? 1, videos });
+        resolve({ group, status: code ?? 1, videos, recordings });
     }));
 }
 

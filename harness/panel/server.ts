@@ -11,7 +11,7 @@
 import { createServer, get, IncomingMessage, ServerResponse } from 'node:http';
 import { accept as acceptSocket } from './ws.ts';
 import { spawn, execFile, execFileSync } from 'node:child_process';
-import { readFileSync, existsSync, writeFileSync, readdirSync, statSync, mkdirSync, rmSync } from 'node:fs';
+import { readFileSync, existsSync, writeFileSync, readdirSync, statSync, mkdirSync, rmSync, createReadStream } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 import { MockSupervisor, MOCKS as MOCK_REGISTRY } from './mocks.ts';
@@ -28,6 +28,7 @@ import { prodCatalog, prodMerchant, prodBranches } from '../pkg/prod-catalog.ts'
 import { waitForOtp } from '../pkg/otp-service.ts';
 import { readFlows, writeFlows, branchFor } from '../pkg/flows.ts';
 import { listRecipes, lastRuns } from '../dev/recipe.ts';
+import { listRecordings, recordingVideo } from '../pkg/recordings.ts';
 import { homedir } from 'node:os';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -2259,6 +2260,28 @@ const server = createServer(async (req, res) => {
     }
 
     // ── EL REGISTRO DE COMERCIOS (`harness.json`, ver `pkg/flows.ts`) ──────────────────────────────────────────────
+    // LAS GRABACIONES: los videos de `make harness-run` (`pkg/recordings.ts`). La lista se lee en cada pedido: la corrida
+    // que termina la agrega al índice y el panel la ve en su próxima consulta. Desde el panel no se agregan ni se borran.
+    if (path === '/api/recordings') return json(res, 200, listRecordings());
+    // El video, con `Range`: sin eso el reproductor no puede adelantar ni volver (Safari ni siquiera lo arranca).
+    const rec = /^\/api\/recordings\/([\w.+-]+)\/video$/.exec(path);
+    if (rec) {
+        const f = recordingVideo(rec[1]);
+        if (!f) return json(res, 404, { error: 'no hay esa grabación' });
+        const size = statSync(f).size;
+        const type = f.endsWith('.webm') ? 'video/webm' : 'video/mp4';
+        const range = /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range || ''));
+        if (range) {
+            const start = range[1] ? Number(range[1]) : Math.max(0, size - Number(range[2]));
+            const end = range[1] && range[2] ? Math.min(Number(range[2]), size - 1) : size - 1;
+            if (start >= size || start > end) { res.writeHead(416, { 'content-range': `bytes */${size}` }); return res.end(); }
+            res.writeHead(206, { 'content-type': type, 'accept-ranges': 'bytes', 'content-range': `bytes ${start}-${end}/${size}`, 'content-length': end - start + 1 });
+            return void createReadStream(f, { start, end }).pipe(res);
+        }
+        res.writeHead(200, { 'content-type': type, 'accept-ranges': 'bytes', 'content-length': size });
+        return void createReadStream(f).pipe(res);
+    }
+
     // La barra son sus entradas con `panel: true`, en el orden del archivo. Se lee en cada pedido: lo que agrega o asocia
     // `make harness-merchants` se ve al recargar. El panel NO agrega comercios (eso es el CLI); sólo renombra la fila y
     // la saca de la barra.

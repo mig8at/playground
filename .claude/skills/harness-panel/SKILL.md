@@ -1303,3 +1303,21 @@ no es la de por defecto (`?vista=buros`, `?consola=mocks`, `?inicio=entidades`).
   dejaba la tarjeta de la corrida en el centro aunque la pestaña fuera la de un comercio. `showStageView('prod')` cae en
   `orig`.
 
+
+## Los sidebars de arriba abajo, y las GRABACIONES (2026-11-19)
+
+- **La consola es del editor, no de la ventana**: el editor, la manija `#rszB` y `#bottomPanel` viven en `.center` (la
+  columna del medio de `.shell`), así que los dos sidebars ocupan el alto entero, como en las demás herramientas. Los `id`
+  no cambiaron. Maximizar la consola (`bindPanelMaximize` con `root: .center`) tapa el editor, no los sidebars. ⚠ La
+  consola ya no es hija del `.workbench`: su alto lo da la grilla de `.center` (`--panel-h`), no la regla de la base.
+- **«Grabaciones» es una vista fija de la barra izquierda** (`#recordingsSide`, después de Admin; `renderMerchants` la saca
+  y la vuelve a poner como al Admin). Lista los videos de `make harness-run` (`pkg/recordings.ts`: el índice
+  `.runs/recordings.json` más los videos sueltos de `.runs/videos/`), la más nueva arriba, con su nombre de `runs.json`
+  («Finandina», «Pullman»). **Las agrega el agente al correr**: el panel no agrega ni borra. Se vuelve a pedir cada 20 s y
+  al volver a la ventana.
+- **Elegir una la muestra en el sidebar derecho a todo el alto** (pestaña `#tabRecording`, oculta hasta que hay una
+  elegida; `?vista=grabacion`), con su ambiente, solicitud, entidad, si cerró, pantallas y duración. No es un fieldset: se
+  mira también con una corrida andando. El video sale de `/api/recordings/<id>/video` con `Range` (sin eso no se puede
+  adelantar). La elegida se recuerda (`harness.recording`).
+- Verificado el 2026-11-19 en el panel de :5195: las tres de la tarde con sus datos, y una corrida nueva de Pullman
+  (468439) apareció sola en el índice al terminar.
