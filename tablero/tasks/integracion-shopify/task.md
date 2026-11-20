@@ -13,29 +13,42 @@ correo: [shopify]
 
 ## Pendientes
 
-- [ ] Lograr que la app pública «Creditop» (447249776641) cobre con SU extensión de pago: en `creditop-dev-store`
-      muestra el nombre de la anterior (custom, 317076176897) y su pago llega al servidor de ésa. Según Shopify
-      (2026-11-16) el uid compartido `badac230…` NO es la causa: las dos versiones tienen registros de extensión
-      separados; se mantiene ese uid y `creditop-4` queda sin publicar. Termina con una compra en `creditop-dev-store`
-      que dice «Creditop» y llega al servidor de la pública. Depende de: Danny (Shopify Support) — ticket 72090155:
-      revisa el ruteo con los toml, los comandos y un pago que le mandamos (artifacts `ticket-72090155-tomls`).
-- [ ] Dejar la app anterior (custom) DESINSTALADA de `creditop-dev-store` y no borrar ninguna de las dos apps mientras
-      Shopify revisa (lo pidió Danny el 2026-11-16); mientras tanto no se prueba con ella (ni `credit-outcome`).
+- [ ] Enviarle a Danny (Shopify Support, ticket 72090155) la respuesta con la prueba de punta a punta y pedir la
+      revisión y publicación de la app pública: borrador listo en `artifacts/respuesta-danny-2026-11-20.md`. Termina con
+      el correo enviado en el hilo del ticket. Depende de: Miguel — enviarlo.
+- [ ] Mandar la app pública a revisión con lo que Danny indique (listado, instrucciones de prueba con la página del modo
+      de prueba, credenciales para los revisores); termina con la app en revisión y su estado de pagos visible
+      (`make jarvis-recipe APP=shopify RECIPE=payments-app-status`). Depende de: Danny (Shopify Support) — los pasos.
+- [ ] Preparar credenciales de prueba para los revisores de Shopify (una sucursal de prueba con su token; la conectada
+      hoy en `creditop-dev-store` es `e5614c42`) y decidir quién de Creditop las entrega; termina con la sucursal lista
+      y la persona definida. Depende de: Miguel / Producto — quién las entrega.
+- [ ] Dejar la app anterior (custom, 317076176897) DESINSTALADA de `creditop-dev-store` y no borrar ninguna de las dos
+      apps mientras Shopify revisa (lo pidió Danny el 2026-11-16 y el 2026-11-19); creditop-4 queda sin publicar.
       Reinstalarla después es con el enlace de su distribución personalizada en Partners y volver a cargarle sucursal y
-      token. Depende de: Danny (Shopify Support) — que termine la revisión.
-- [ ] Deshacer la prueba local de la pública cuando ya no sirva: `docker/llaves-app.sh --volver` (el contenedor de qa
-      volvió a las llaves de la anterior) y `npx shopify app dev clean --config shopify.app.production.toml` (saca la
-      vista previa de la tienda), en `shopify-produccion`. Termina con `docker/llaves-app.sh` diciendo client_id
-      `9bad40…`.
-- [ ] Cargar las llaves de la app pública (client_id `1b511175…`) en el secreto de producción `prod/shopify-app` y
-      reiniciar el servicio; termina con `payments-app-setup` marcando el paso 4. Depende de: Dani — infra, el lunes.
-- [ ] Mandar la app pública a revisión cuando cobre con su extensión y tenga las llaves en producción; termina con su
-      estado de pagos en Hidden (`make jarvis-recipe APP=shopify RECIPE=payments-app-status`).
-
-- [ ] Desplegar la app de pagos en producción (ECR, secreto, Postgres, servicio, ALB con dominio fijo y mTLS). En dev
-      ya está: shopify#23, #24 y #26 mergeados a `develop`, la app en `shopify-app.dev.creditop.com` y la versión
-      `creditop-11` publicada apuntando ahí (2026-11-09), con la compra de control #1032 pagada. Termina con la app en
-      su dominio de producción. Depende de: Dani — infra, en [CORE-932](jira:CORE-932)
+      token. Termina cuando Shopify cierre la revisión. Depende de: Danny (Shopify Support).
+- [ ] Revertir en `shopify-produccion` el mapa de uid de `scripts/app-url.mjs` (commit local fc5c234, sin push), que le
+      asigna a la pública el uid `8d19603e…`, ANTES de cualquier `npm run deploy:production`: la pública conserva
+      `badac230…` (creditop-3). Termina con ese commit revertido o el mapa apuntando la pública a `badac230…`.
+- [ ] Poner en `shopify` el `docker/README.md` al día: qué rutas tiene que reenviar el ALB del 443 (`/`, `/app*`,
+      `/assets/*`, `/auth/*`, `/webhooks/*`, `/payments/go/*`, `/payments/return/*`, `/payments/test/*`) y que al
+      cambiar las llaves de producción una tienda ya instalada necesita abrir la app en el admin (OAuth) antes de
+      resolver pagos. Termina con el README en un PR del repo `shopify`.
+- [ ] Decidir si development también necesita `/payments/test/*` en su ALB (en prod se agregó con infrastructure#299; el
+      repo pide un PR por ambiente y se hizo sólo prod). Termina con la decisión escrita acá o el PR de development.
+- [ ] Que el log diga la causa cuando falta la sesión offline de la tienda: hoy `paymentsAppsGraphql` registra
+      `creditop.payments_apps.unreachable { error: undefined }` porque lo que lanza `unauthenticated.admin` no trae
+      `message`. Termina con un log que nombra la causa, en un PR del repo `shopify`.
+- [ ] Probar un crédito REAL (sin modo de prueba) con la app pública en producción; termina con un pedido pagado por
+      una solicitud autorizada. Depende de: Oscar — el visto bueno para probar en prod (pidió parar el 2026-11-12).
+- [x] ~~Lograr que la app pública «Creditop» (447249776641) cobre con SU extensión de pago~~ — 2026-11-19: la causa era
+      la vista previa de `shopify app dev`; con `app dev clean` el checkout dice «Creditop» y el pago llega a la URL de
+      creditop-3. Prueba de punta a punta en producción el 2026-11-20 (aprobado → pedido X3RMQ3R82; rechazado → vuelve
+      al checkout).
+- [x] ~~Cargar las llaves de la app pública en `prod/shopify-app`~~ — 2026-11-19, Dani (Infra), con reinicio del servicio.
+- [x] ~~Desplegar la app de pagos en producción~~ — servicio, ECR, secreto, Postgres, ALB y mTLS de Dani (CORE-932);
+      `v0.0.2` (modo de prueba en producción) desplegada el 2026-11-19 con el tag; la ruta `/payments/test/*` en el ALB
+      con infrastructure#299 (mergeado y aplicado el 2026-11-20).
+- [x] ~~Deshacer la prueba local de la pública~~ — 2026-11-19: `docker/llaves-app.sh --volver` y `app dev clean`.
 - [x] ~~Fijar en `shopify` el uid publicado de la extensión de pago (`badac230…`)~~ — 2026-11-09:
       [shopify#27](https://github.com/Creditop-SAS/shopify/pull/27) mergeado a `develop` (056dc8a). Con otro uid,
       Shopify niega el deploy («Unpublishing payments app extensions … is not permitted»).
