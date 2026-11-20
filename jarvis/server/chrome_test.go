@@ -117,3 +117,17 @@ func TestClientsOnlyReachTheirOwnTabs(t *testing.T) {
 	}
 	b.mu.Unlock()
 }
+
+// Lo que avisa la extensión (`user.view`) dice qué pestaña tiene delante la persona: sólo cuenta si Chrome tiene el
+// foco. Si está en otra app, no está mirando ninguna.
+func TestUserView(t *testing.T) {
+	b := &ChromeBridge{}
+	b.setView([]byte(`{"tabId":7,"windowId":1,"focused":true}`))
+	if !b.looking(7) || b.looking(8) || b.looking(0) {
+		t.Fatal("con Chrome con foco, mira la 7 y sólo la 7")
+	}
+	b.setView([]byte(`{"tabId":7,"windowId":1,"focused":false}`))
+	if b.looking(7) {
+		t.Fatal("con Chrome sin foco (otra app delante), no está mirando ninguna pestaña")
+	}
+}

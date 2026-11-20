@@ -89,6 +89,8 @@ function connect() {
     }
     send({ method: 'extension.hello', params: [{ version: chrome.runtime.getManifest().version, userAgent: navigator.userAgent }] })
     notifyShared()
+    lastView = ''
+    notifyView()
     clearInterval(heartbeat)
     heartbeat = setInterval(() => send({ method: 'extension.ping', params: [] }), 20000)
     broadcastStatus()
@@ -195,6 +197,31 @@ async function handle(method, params) {
       else await chrome.tabs.create({ url, windowId: tab.windowId, pinned: true, index: 0, active: true })
       return { active: (await chrome.tabs.get(tabId)).active }
     }
+    case 'chrome.tabs.surface': {
+      // Que la pestaña de una sesión quede activa SIN robarte la vista: si estás mirando otra pestaña de esa misma
+      // ventana (y Chrome tiene el foco), la sesión se muda a la ventana aparte de Jarvis y se activa ahí; si no, se
+      // activa en su ventana como siempre. Devuelve si se mudó.
+      const [tabId] = params
+      guard(tabId)
+      const tab = await chrome.tabs.get(tabId)
+      const win = await chrome.windows.getLastFocused({ windowTypes: ['normal'] }).catch(() => null)
+      const { asideWindowId } = await chrome.storage.session.get('asideWindowId')
+      const inYourWay = !!win?.focused && win.id === tab.windowId && !tab.active && tab.windowId !== asideWindowId
+      if (!inYourWay) {
+        await chrome.tabs.update(tabId, { active: true })
+        return { moved: false }
+      }
+      let aside = null
+      if (asideWindowId) aside = await chrome.windows.get(asideWindowId).catch(() => null)
+      if (aside) {
+        await chrome.tabs.move(tabId, { windowId: aside.id, index: -1 })
+        await chrome.tabs.update(tabId, { active: true })
+      } else {
+        const w = await chrome.windows.create({ tabId, focused: false })
+        await chrome.storage.session.set({ asideWindowId: w.id })
+      }
+      return { moved: true }
+    }
     case 'chrome.tabs.setGroup': {
       // La sesión tiene un grupo propio (bin/jarvis start --group): su pestaña sale del «Jarvis» y va al de su tarea.
       const [tabId, title, color] = params
@@ -282,6 +309,24 @@ chrome.debugger.onEvent.addListener((source, method, params) => {
 chrome.debugger.onDetach.addListener((source, reason) => {
   send({ method: 'chrome.debugger.onDetach', params: [source, reason] })
 })
+
+// ── qué pestaña estás mirando: la activa de la ventana con foco, y si Chrome tiene el foco (si estás en otra app, no) ──
+// Se le avisa al servidor cada vez que cambia: así Jarvis no te cambia la pestaña que tenés delante (chrome.tabs.surface)
+// y marca la sesión que estás mirando.
+let lastView = ''
+async function notifyView() {
+  try {
+    const win = await chrome.windows.getLastFocused({ windowTypes: ['normal'] }).catch(() => null)
+    const [tab] = win ? await chrome.tabs.query({ active: true, windowId: win.id }) : []
+    const view = { tabId: tab?.id ?? 0, windowId: win?.id ?? 0, focused: !!win?.focused, title: tab?.title || '', url: tab?.url || '' }
+    const key = `${view.tabId}|${view.windowId}|${view.focused}`
+    if (key === lastView) return
+    lastView = key
+    send({ method: 'user.view', params: [view] })
+  } catch { /* sin ventanas */ }
+}
+chrome.tabs.onActivated.addListener(notifyView)
+chrome.windows.onFocusChanged.addListener(notifyView)
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   if (!isAllowed(tabId)) return

@@ -650,6 +650,7 @@ const status = computed(() => {
                 <span class="grid-id">sesión {{ t.id }}</span>
                 <span v-if="t.busy" class="tab-busy" aria-label="Claude trabajando"></span>
               </span>
+              <span v-if="t.viewing" class="grid-viewing">la estás mirando en Chrome</span>
               <span class="grid-shot">
                 <img v-if="thumbs[t.id]" :src="thumbs[t.id]" :alt="`La página de la sesión ${t.id}`" />
                 <span v-else class="muted small">esperando el primer cuadro…</span>
@@ -984,6 +985,7 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .grid-shot img { width: 100%; height: 100%; object-fit: contain; display: block }
 .grid-goal, .grid-step { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .grid-goal { font-size: var(--text-sm) }
+.grid-viewing { font-size: var(--text-xs); color: var(--primary-ink) }
 .follow-dot-btn { flex: none; display: grid; place-items: center; width: 22px; height: 22px; margin-left: var(--space-1); padding: 0; border: 0;
   border-radius: var(--radius-control); background: none; cursor: pointer }
 .follow-dot-btn:hover, .follow-dot-btn:focus-visible { background: var(--hover) }

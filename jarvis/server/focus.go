@@ -192,9 +192,27 @@ func (r *Runner) focusChrome(force bool) {
 	front := force || focusStore.WantsFront(focusHost(l.page.URL()))
 	l.mu.Lock()
 	l.background = !front
+	tab := l.chromeTab
 	l.mu.Unlock()
-	if front {
+	if !front {
+		return
+	}
+	if force || tab == 0 {
+		// Lo que necesita a la persona (el modo guía) se le trae aunque esté mirando otra: ahí le toca actuar.
 		_ = l.page.BringToFront()
+		return
+	}
+	// Un sitio «front»: activa, pero sin cambiarle la pestaña que tiene delante (view.go). Si se mudó a la ventana
+	// aparte, la sesión queda ahí (y su grupo se arma adentro).
+	moved, err := chromeBridge.surface(tab)
+	if err != nil {
+		_ = l.page.BringToFront()
+		return
+	}
+	if moved {
+		r.SetAside(true)
+		r.applyGroup(tab)
+		r.say("info", "estabas mirando otra pestaña de esa ventana: la sesión se mudó a la ventana aparte en vez de cambiártela")
 	}
 }
 

@@ -252,6 +252,8 @@ type TabInfo struct {
 	Color string `json:"color,omitempty"`
 	// Aside: su pestaña está en la ventana aparte de Jarvis (aside.go).
 	Aside bool `json:"aside,omitempty"`
+	// Viewing: la persona tiene esta pestaña delante ahora (view.go).
+	Viewing bool `json:"viewing,omitempty"`
 }
 
 func (t *Tabs) Info() []TabInfo {
@@ -272,7 +274,7 @@ func (t *Tabs) Info() []TabInfo {
 		as := tab.Asker.State(-1)
 		out = append(out, TabInfo{ID: tab.ID, Site: st.Site, Title: st.Title, URL: st.URL, Active: st.Active,
 			Goal: as.Goal, Busy: as.Running, Last: tab.ID == last, ByClaude: tab.ByClaude, IdleSec: idle[tab.ID],
-			Device: st.Device, ChromeTab: st.ChromeTab, Group: group[tab.ID][0], Color: group[tab.ID][1], Aside: tab.Runner.Aside()})
+			Device: st.Device, ChromeTab: st.ChromeTab, Group: group[tab.ID][0], Color: group[tab.ID][1], Aside: tab.Runner.Aside(), Viewing: chromeBridge.looking(st.ChromeTab)})
 	}
 	return out
 }

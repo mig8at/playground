@@ -1393,6 +1393,8 @@ type tabInfo struct {
 	Group string `json:"group"`
 	Color string `json:"color"`
 	Aside bool   `json:"aside"` // en la ventana aparte de Jarvis
+	// Viewing: la persona la tiene delante ahora.
+	Viewing bool `json:"viewing"`
 }
 
 func listTabs() ([]tabInfo, error) {
@@ -1467,6 +1469,9 @@ func tabsCmd(args []string) error {
 		if t.Aside {
 			who += " · ventana aparte"
 		}
+		if t.Viewing {
+			who += " · la estás mirando"
+		}
 		if t.Busy {
 			who += " · Claude: " + t.Goal
 		}
@@ -1487,6 +1492,13 @@ func chromeStatus() error {
 		Shared    []int          `json:"shared"`
 		Attached  []int          `json:"attached"`
 		Driving   bool           `json:"driving"`
+		Clients   int            `json:"clients"`
+		View      struct {
+			TabID   int    `json:"tabId"`
+			Focused bool   `json:"focused"`
+			Title   string `json:"title"`
+			URL     string `json:"url"`
+		} `json:"view"`
 	}
 	if err := call(http.MethodGet, "/api/chrome", nil, &st); err != nil {
 		return err
@@ -1497,7 +1509,15 @@ func chromeStatus() error {
 	}
 	fmt.Printf("Jarvis conectado (versión %v) · %d pestaña(s) que se pueden manejar · %d enganchada(s)\n", st.Extension["version"], len(st.Shared), len(st.Attached))
 	if st.Driving {
-		fmt.Println("hay una sesión en vivo corriendo en Chrome")
+		fmt.Printf("hay %d cliente(s) de Playwright manejando pestañas (sesiones de Jarvis, el harness)\n", st.Clients)
+	}
+	switch {
+	case st.View.TabID == 0:
+		fmt.Println("qué estás mirando: no se sabe (la extensión es anterior a la 0.2.13)")
+	case !st.View.Focused:
+		fmt.Println("qué estás mirando: nada de Chrome (estás en otra app)")
+	default:
+		fmt.Printf("estás mirando: %s · %s\n", st.View.Title, st.View.URL)
 	}
 	return nil
 }

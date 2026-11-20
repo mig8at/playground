@@ -105,6 +105,8 @@ type ChromeBridge struct {
 	// ANTES de devolver el id de la pestaña recién creada; sin esperar, el puente se la daba al cliente que pidió
 	// auto-attach (Jarvis) y el que la había pedido (el harness) ya no la podía tomar.
 	creating int
+	// view: qué pestaña está mirando la persona (view.go).
+	view UserView
 	// Las sesiones «de cliente» que Playwright pide además de la de cada pestaña (context.newCDPSession: la del
 	// screencast). chrome.debugger da una sola sesión por pestaña, así que son alias de esa: los comandos van a la
 	// pestaña y sus eventos se repiten a cada alias.
@@ -124,12 +126,13 @@ type ChromeStatus struct {
 	Attached  []int          `json:"attached"`
 	Driving   bool           `json:"driving"` // hay al menos un cliente de Playwright conectado
 	Clients   int            `json:"clients"` // cuántos: las sesiones de Jarvis y, en paralelo, el harness u otro
+	View      UserView       `json:"view"`    // qué pestaña está mirando la persona (view.go)
 }
 
 func (b *ChromeBridge) Status() ChromeStatus {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	st := ChromeStatus{Connected: b.ext != nil, Extension: b.extInfo, Shared: []int{}, Attached: []int{}, Driving: len(b.clients) > 0, Clients: len(b.clients)}
+	st := ChromeStatus{Connected: b.ext != nil, Extension: b.extInfo, Shared: []int{}, Attached: []int{}, Driving: len(b.clients) > 0, Clients: len(b.clients), View: b.view}
 	for id := range b.shared {
 		st.Shared = append(st.Shared, id)
 	}
@@ -311,6 +314,10 @@ func (b *ChromeBridge) onExtensionEvent(m extMessage) {
 		b.mu.Lock()
 		b.extInfo = info
 		b.mu.Unlock()
+	case "user.view":
+		if len(params) > 0 {
+			b.setView(params[0])
+		}
 	case "tabs.shared":
 		// La lista entera de pestañas compartidas, cada vez que cambia.
 		var ids []int
@@ -827,7 +834,14 @@ func (b *ChromeBridge) createTarget(c *pwClient, url string, newWindow, backgrou
 		b.creating--
 		b.mu.Unlock()
 	}
-	raw, err := b.call("chrome.tabs.create", map[string]any{"url": url, "active": true, "newWindow": newWindow, "background": background})
+	// Si la persona está usando Chrome, la pestaña nueva se abre DETRÁS: abrirla activa le cambiaba la que tenía
+	// delante. Detrás funciona igual (el screencast la mantiene viva: focus.go). Si Chrome no tiene el foco, o la
+	// extensión no avisa qué mira (anterior a la 0.2.13), se abre activa como siempre.
+	active := true
+	if v := b.View(); v.TabID != 0 && v.Focused {
+		active = false
+	}
+	raw, err := b.call("chrome.tabs.create", map[string]any{"url": url, "active": active, "newWindow": newWindow, "background": background})
 	if err != nil {
 		done()
 		return nil, err
