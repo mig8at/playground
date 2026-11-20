@@ -1,6 +1,6 @@
 // Verificación: el ingreso de práctica con dos pasos que necesitan a la persona. Cada correo tiene su código
 // (verify.code.<correo>), así varias sesiones de Jarvis pueden verificarse a la vez en pestañas distintas; el
-// «celular» (celular.html) los muestra todos.
+// «celular» (phone.html) los muestra todos.
 const P = 'verify.'
 const $ = (s) => document.querySelector(s)
 if (new URLSearchParams(location.search).has('reset')) {

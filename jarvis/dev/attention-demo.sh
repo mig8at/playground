@@ -17,7 +17,7 @@ for i in $(seq 1 $N); do
   id=$($J start --group 'Verificación' --color purple --url "$url" "Ingresar como s$i@ejemplo.test" 2>&1 | grep -o 'pestaña [0-9]*' | head -1 | awk '{print $2}')
   $J --session $id fill 'Correo' "s$i@ejemplo.test" >/dev/null 2>&1
   $J --session $id click 'Enviar código' >/dev/null 2>&1
-  $J --session $id attention "Necesito el código que te llegó al celular (s$i@ejemplo.test): está en http://localhost:5208/celular.html" >/dev/null
+  $J --session $id attention "Necesito el código que te llegó al celular (s$i@ejemplo.test): está en http://localhost:5208/phone.html" >/dev/null
   ids+=($id)
 done
 echo "sesiones ${ids[*]}: las $N te necesitan. Resolvelas en Chrome (🔔) o en Cockpit (borde rojo)."
@@ -28,7 +28,7 @@ while :; do
   for idx in "${!ids[@]}"; do
     id=${ids[$idx]}; n=$((idx+1)); s=$(step $id)
     case $s in
-      code) want="Necesito el código que te llegó al celular (s$n@ejemplo.test): está en http://localhost:5208/celular.html" ;;
+      code) want="Necesito el código que te llegó al celular (s$n@ejemplo.test): está en http://localhost:5208/phone.html" ;;
       hold) want="Mantené apretado el botón 2 segundos (s$n@ejemplo.test)" ;;
       done) want="" ;;
       *) want="Algo raro en la sesión $id: está en «$s»" ;;

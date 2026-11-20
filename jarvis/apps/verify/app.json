@@ -1,6 +1,6 @@
 {
   "name": "Verificación",
   "port": 5208,
-  "description": "Un ingreso con dos pasos que necesitan a la persona: un código de un solo uso que «llega al celular» (/celular.html) y un «mantené apretado para confirmar que sos humano». Para practicar el aviso de atención de Jarvis (bin/jarvis attention).",
+  "description": "Un ingreso con dos pasos que necesitan a la persona: un código de un solo uso que «llega al celular» (/phone.html) y un «mantené apretado para confirmar que sos humano». Para practicar el aviso de atención de Jarvis (bin/jarvis attention).",
   "start": "/?reset"
 }
