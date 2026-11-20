@@ -3,7 +3,9 @@
 // lambda de cada ambiente. Cada prueba es una persona nueva: no se da de baja ni se borra a nadie. Sin credenciales acá.
 const API = 'http://localhost:5195/api/ext';
 const $ = (id) => document.getElementById(id);
-const PERSON = ['doc', 'firstName', 'lastName', 'phone', 'email', 'amount'];
+const PERSON = ['doc', 'firstName', 'lastName', 'phone', 'email', 'amount', 'issueDate'];
+// La fecha de expedición por defecto: la del harness (`syntheticDates` en `pkg/date-trio.ts`), posterior a la mayoría de edad.
+const ISSUE_DATE = '2010-08-20';
 const PROFILE = ['occupation', 'income', 'months', 'score', 'negatives', 'consulted'];
 const PRESETS = {
   approves: { occupation: 'Empleado', income: '2500000', months: '13', score: '700', negatives: '0', consulted: '1', experian: 'ok' },
@@ -119,7 +121,7 @@ $('identityApprove').onclick = async () => {
 async function load() {
   const s = await chrome.storage.local.get(['person', 'profile', 'preset']);
   const p = s.person || {};
-  for (const k of PERSON) $(k).value = p[k] ?? (k === 'amount' ? '5000000' : '');
+  for (const k of PERSON) $(k).value = p[k] || (k === 'amount' ? '5000000' : k === 'issueDate' ? ISSUE_DATE : '');
   applyPreset(s.preset || 'approves', s.profile);
 }
 const save = () => chrome.storage.local.set({
@@ -205,7 +207,8 @@ $('fill').onclick = async () => {
   data.otp = digits($('otp').textContent);
   try {
     const r = await chrome.tabs.sendMessage(tabId, { type: 'fill', data });
-    say(r?.filled?.length ? `Rellené: ${r.filled.join(', ')}.` : 'En esta pantalla no había nada que rellenar.', r?.filled?.length ? 'ok' : '');
+    const warn = r?.warnings?.length ? ` ⚠ ${r.warnings.join(' · ')}` : '';
+    say((r?.filled?.length ? `Rellené: ${r.filled.join(', ')}.` : 'En esta pantalla no había nada que rellenar.') + warn, r?.warnings?.length ? 'warn' : r?.filled?.length ? 'ok' : '');
   } catch { say('La página no contesta: recargala (la extensión se carga al abrirla).', 'warn'); }
 };
 document.querySelectorAll('#presets button').forEach((b) => b.onclick = () => { applyPreset(b.dataset.p); save(); });

@@ -13,6 +13,9 @@ ambiente. La extensión no guarda credenciales. `make harness-extension` dice c�
   ni borra a nadie**: el cliente y la solicitud anteriores quedan en la base (decisión de Miguel, 2026-11-20; si un día
   hace falta, un script de limpieza aparte). **Rellenar**: escribe lo de arriba en la pantalla, y en la del OTP (el
   del ingreso, 4 dígitos, o el de la firma del pagaré, 6) el que lee en ese momento, sólo si su largo es el del campo.
+  En la pantalla de la fecha de expedición elige el día, el mes y el año del campo **Expedición** (por defecto
+  2010-08-20, la del harness): abre cada combo de Radix en orden, como lo haría la persona, y si ya muestra la fecha no
+  lo toca.
 - **Con una solicitud en curso** (la pestaña pasó de `…/solicitar`), los datos de la persona quedan bloqueados: son los de
   esa solicitud. El perfil de las centrales sigue editable.
 - **Antes de cada envío de datos personales** («Siguiente», «Continuar») la página espera un instante a que el panel
@@ -29,7 +32,6 @@ ambiente. La extensión no guarda credenciales. `make harness-extension` dice c�
 
 ⚠ Sólo qa y local aceptan dictado (F-149): en dev y staging el panel lo avisa y las centrales contestan lo de por
 defecto. Nunca prod. `sidepanel.html#tab=<id>` ata el panel a una pestaña (para abrirlo como página o probarlo).
-⚠ La fecha de expedición (día, mes y año, desplegables de Radix) todavía se elige a mano: «Rellenar» no la toca.
 
 Probado el 2026-11-20 en un Chromium con la extensión cargada contra qa: persona nueva, dictado, monto y celular
 rellenados, el OTP leído del servicio, datos personales rellenados y el envío frenado para volver a dictar (505190).

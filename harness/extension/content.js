@@ -65,11 +65,75 @@
     boxes.forEach((b, i) => setValue(b, code[i]));
     return true;
   };
+  /* LA FECHA DE EXPEDICIÓN: un trío día / mes / año de Radix (`button[role=combobox]` sin name ni id). No se le puede
+   * escribir: se abre cada combo y se toca la opción, EN ORDEN —el siguiente se habilita al elegir el anterior— y
+   * volviendo a buscar los combos en cada paso, porque Radix reemplaza el nodo al cambiar el valor. Es la mecánica del
+   * autorrelleno del harness (`pkg/autofill.ts`) con su regla (`pkg/date-trio.ts`): qué parte es cada combo sale de lo
+   * que muestra o de su placeholder, y sólo se toca si la pantalla habla de la expedición. */
+  const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\*/g, '').trim();
+  const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
+  const partOf = (el) => {
+    const t = norm(el.textContent);
+    if (MONTHS.includes(t)) return 'mes';
+    if (/^\d{4}$/.test(t)) return 'anio';
+    if (/^\d{1,2}$/.test(t)) return 'dia';
+    const e = `${t} ${norm(el.getAttribute('aria-label'))}`;
+    if (/\bmes\b|\bmonth\b/.test(e)) return 'mes';
+    if (/\bano\b|\banio\b|\byear\b/.test(e)) return 'anio';
+    if (/\bdia\b|\bday\b/.test(e)) return 'dia';
+    return null;
+  };
+  const wanted = (part, date) => {
+    const [aa, mm, dd] = date.split('-');
+    if (part === 'anio') return [aa];
+    if (part === 'mes') return [MONTHS[Number(mm) - 1], String(Number(mm)), mm];
+    return [String(Number(dd)), dd];
+  };
+  const combos = () => [...document.querySelectorAll('[role=combobox],[aria-haspopup=listbox]')].filter(visible);
+  const closePopover = async (trigger) => {
+    for (let i = 0; i < 2 && trigger.getAttribute('aria-expanded') === 'true'; i++) {
+      (document.activeElement || trigger).dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true }));
+      await wait(120);
+    }
+  };
+  const fillIssueDate = async (date, warnings) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) return false;
+    if (!/expedici|expedid/.test(norm(document.body.innerText.slice(0, 600)))) return false;
+    const parts = combos().map(partOf);
+    if (!['dia', 'mes', 'anio'].every((p) => parts.includes(p))) return false;
+    let touched = false;
+    for (const part of ['dia', 'mes', 'anio']) {
+      const trigger = combos().find((c) => partOf(c) === part);
+      if (!trigger) { warnings.push(`no encontré el combo del ${part}`); continue; }
+      const want = wanted(part, date);
+      if (want.some((w) => norm(w) === norm(trigger.textContent))) continue;   // ya está
+      if (trigger.disabled || trigger.getAttribute('aria-disabled') === 'true' || trigger.hasAttribute('data-disabled')) { warnings.push(`el ${part} está deshabilitado`); continue; }
+      trigger.click();
+      await wait(250);
+      const panel = document.getElementById(trigger.getAttribute('aria-controls') || '') || document;
+      const option = [...panel.querySelectorAll('[role=option]:not([aria-disabled=true])')].find((o) => want.some((w) => norm(o.textContent) === norm(w)));
+      if (!option) { await closePopover(trigger); warnings.push(`el ${part} no tiene «${want[0]}»`); continue; }
+      option.scrollIntoView({ block: 'nearest' });
+      option.click();
+      await wait(250);
+      await closePopover(trigger);
+      touched = true;
+    }
+    return touched;
+  };
   const docTyped = () => find('docnum-input', FIELDS[2][2])?.value?.replace(/\D/g, '') || '';
 
   chrome.runtime.onMessage.addListener((msg, _s, reply) => {
     if (msg?.type === 'page') { reply({ url: location.href, doc: docTyped() }); return false; }
-    if (msg?.type === 'fill') { reply({ filled: fill(msg.data || {}) }); return false; }
+    if (msg?.type === 'fill') {
+      const data = msg.data || {};
+      const filled = fill(data), warnings = [];
+      fillIssueDate(String(data.issueDate || ''), warnings)
+        .then((ok) => { if (ok) filled.push('expedición'); reply({ filled, warnings }); })
+        .catch((e) => reply({ filled, warnings: [...warnings, `la fecha: ${e.message}`] }));
+      return true;
+    }
     return false;
   });
 
