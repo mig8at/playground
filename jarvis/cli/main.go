@@ -155,6 +155,8 @@ func main() {
 		err = cleanupCmd(args)
 	case "attention":
 		err = attentionCmd(args)
+	case "batch":
+		err = batchCmd(args)
 	case "console":
 		err = consoleCmd(args)
 	case "network":
@@ -302,6 +304,9 @@ func help(w io.Writer) {
   start [--group G] [--color C] [--aside] [--url U] '<meta>'   (--aside: en una ventana aparte de Jarvis, sin foco: tu ventana queda limpia)   cada meta va a su sesión, en su grupo de pestañas de Chrome:
                         G si lo nombrás (si ya existe, se suma), si no uno con el nombre de la meta. Dos trabajos en
                         paralelo, cada uno con su --session (o su --group), no se pisan
+  batch <app>/<flujo> --data datos.csv [--parallel 3] [--group G] [--aside] [--start /ruta] [--mode auto|fill]
+                        un flujo repetido con cada fila del CSV (columnas = datos del flujo, por su nombre), en N
+                        sesiones a la vez; lo irreversible espera tu sí (🔔). Al final, un resumen por fila
   console [--errors] [--search t] [--all] · network [--failed] [--search t] [--all]   la consola y la red de la
                         sesión (documento, fetch y xhr; --all, todo), sin abrir DevTools. --run <id|last>: las
                         guardadas de una corrida terminada (quedan con ella al hacer finish o al cerrar la sesión)
@@ -323,7 +328,7 @@ func help(w io.Writer) {
 
 // commands son los comandos que entiende main (los de antes, en castellano, se traducen al entrar: legacy.go). Sólo
 // sirve para sugerir uno cuando se escribe mal: el switch de main es el que manda.
-var commands = []string{"start", "chrome", "docs", "recipe", "tabs", "groups", "focus", "cleanup", "attention", "console", "network", "think", "finish", "project", "ask", "open", "device", "ua", "look",
+var commands = []string{"start", "chrome", "docs", "recipe", "tabs", "groups", "focus", "cleanup", "attention", "console", "network", "batch", "think", "finish", "project", "ask", "open", "device", "ua", "look",
 	"click", "dblclick", "hover", "check", "uncheck", "fill", "select", "press", "upload", "drag", "point", "changes", "dialog",
 	"scroll", "goto", "back", "forward", "reload", "text", "wait", "value", "download", "read", "shot", "steps", "script", "report",
 	"reset", "close", "help"}

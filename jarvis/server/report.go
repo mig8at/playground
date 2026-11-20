@@ -57,7 +57,7 @@ func (r *Runner) LiveReport(info ReportInfo) (string, error) {
 		return "", errors.New("la corrida no tiene pasos ni páginas consultadas todavía")
 	}
 	if dir == "" { // una investigación que sólo leyó: igual tiene su carpeta
-		dir = filepath.Join(r.store.dir, "runs", time.Now().Format("2006-01-02_15-04-05"))
+		dir = r.newRunDir()
 		if err := os.MkdirAll(dir, 0o700); err != nil {
 			return "", err
 		}
@@ -137,4 +137,15 @@ func (s *Store) Run(id string) (map[string]any, error) {
 	}
 	script, _ := os.ReadFile(filepath.Join(dir, "script.spec.ts"))
 	return map[string]any{"run": meta, "steps": detail.Steps, "sources": detail.Sources, "script": string(script)}, nil
+}
+
+// newRunDir es la carpeta de una corrida nueva: la fecha y la hora, más la sesión. Sólo con la hora (al segundo), dos
+// sesiones que arrancaban a la vez —un lote en paralelo— escribían sus pasos, sus fotos y su consola en la MISMA
+// carpeta (medido el 2026-11-20: tres filas de un lote con la misma corrida). El nombre sigue ordenando por fecha.
+func (r *Runner) newRunDir() string {
+	name := time.Now().Format("2006-01-02_15-04-05")
+	if r.tab != "" {
+		name += "_s" + r.tab
+	}
+	return filepath.Join(r.store.dir, "runs", name)
 }

@@ -896,9 +896,10 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 			var in struct {
 				Mode   string         `json:"mode"`
 				Values map[int]string `json:"values"` // los datos que la persona cambió, por número de paso
+				Start  string         `json:"start"`  // otra página de entrada (un lote no puede arrancar en «?reset»)
 			}
 			_ = json.NewDecoder(r.Body).Decode(&in)
-			if err := runner.LiveReplayFlow(app, id, in.Mode, in.Values); err != nil {
+			if err := runner.LiveReplayFlow(app, id, in.Mode, in.Values, in.Start); err != nil {
 				writeErr(w, http.StatusConflict, err)
 				return
 			}

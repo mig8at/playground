@@ -93,7 +93,7 @@ func (r *Runner) shotBefore(l *live, loc playwright.Locator, s *Step) {
 	l.mu.Lock()
 	n := len(l.steps) + 1
 	if l.runDir == "" {
-		l.runDir = filepath.Join(r.store.dir, "runs", time.Now().Format("2006-01-02_15-04-05"))
+		l.runDir = r.newRunDir()
 	}
 	dir := l.runDir
 	l.mu.Unlock()
@@ -1041,7 +1041,7 @@ func (r *Runner) recordSteps(l *live, steps []Step, main int) {
 	l.mu.Lock()
 	n := len(l.steps) + 1 + main
 	if l.runDir == "" {
-		l.runDir = filepath.Join(r.store.dir, "runs", time.Now().Format("2006-01-02_15-04-05"))
+		l.runDir = r.newRunDir()
 	}
 	dir := l.runDir
 	l.mu.Unlock()

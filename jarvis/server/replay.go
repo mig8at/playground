@@ -155,13 +155,17 @@ func (r *Runner) LiveReplayStart(runID, mode string) error {
 	return r.startReplay(replaySource{goal: meta.Goal, start: meta.Start, device: meta.Device, run: runID}, steps, mode)
 }
 
-// LiveReplayFlow repite un flujo guardado (jarvis/flows).
-func (r *Runner) LiveReplayFlow(app, id, mode string, values map[int]string) error {
+// LiveReplayFlow repite un flujo guardado (jarvis/flows). Con `start`, entra por otra página: un lote que crea varias
+// cosas no puede arrancar cada fila en una entrada que borra lo anterior (la demo de tareas entra por «/?reset»).
+func (r *Runner) LiveReplayFlow(app, id, mode string, values map[int]string, start string) error {
 	fl, err := getFlow(app, id)
 	if err != nil {
 		return err
 	}
-	return r.startReplay(replaySource{goal: fl.Name, start: absURL(app, fl.Start), device: fl.Device, flowApp: app, flowID: id}, flowSteps(fl, values), mode)
+	if start == "" {
+		start = fl.Start
+	}
+	return r.startReplay(replaySource{goal: fl.Name, start: absURL(app, start), device: fl.Device, flowApp: app, flowID: id}, flowSteps(fl, values), mode)
 }
 
 type replaySource struct {

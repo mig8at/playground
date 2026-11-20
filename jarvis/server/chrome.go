@@ -950,10 +950,17 @@ func chromeContext(pw *playwright.Playwright) (playwright.BrowserContext, error)
 	}
 	chromePW.mu.Lock()
 	defer chromePW.mu.Unlock()
-	if chromePW.browser != nil && chromePW.browser.IsConnected() {
+	// Se reusa sólo si el puente todavía tiene la conexión del servidor: al terminar la última sesión el puente la corta
+	// (dropPlaywright), pero Playwright puede seguir creyéndola viva un rato. Reusarla así hacía fallar la ventana
+	// aparte («la conexión de Jarvis con Chrome no está lista»): esa pestaña se pide al puente por esta conexión.
+	if chromePW.browser != nil && chromePW.browser.IsConnected() && chromeBridge.selfClient() != nil {
 		if cs := chromePW.browser.Contexts(); len(cs) > 0 {
 			return cs[0], nil
 		}
+	}
+	if chromePW.browser != nil {
+		_ = chromePW.browser.Close() // la vieja, si quedó: el puente no reenvía Browser.close, así que no toca Chrome
+		chromePW.browser = nil
 	}
 	// ?client=jarvis: el puente sabe que es la conexión del propio servidor (dropPlaywright corta sólo ésa).
 	b, err := pw.Chromium.ConnectOverCDP("ws://" + apiAddr + "/api/chrome/cdp?client=jarvis")
