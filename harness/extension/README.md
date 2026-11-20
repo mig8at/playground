@@ -1,4 +1,6 @@
-# Cliente de prueba · extensión de Chrome
+# Probeta · extensión de Chrome
+
+El laboratorio de las pruebas a mano: mezclás persona, centrales y monto, y mirás qué sale.
 
 Un panel lateral junto al wizard (qa, dev, staging o local) para probar **a mano** con un cliente listo. Habla con el
 panel del harness (`localhost:5195`, rutas `/api/ext/*` en `panel/server.ts`), que es quien le dicta al lambda de cada

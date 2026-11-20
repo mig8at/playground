@@ -441,7 +441,7 @@ try {
             break;
         }
         case 'request-tables': { // las filas de UNA solicitud y su cliente, tabla por tabla → {ureq, user, tables:[{table, rows}]}
-            // Para la consola de la extensión «Cliente de prueba»: ver cómo va quedando la base mientras se avanza. SÓLO
+            // Para la consola de Probeta (la extensión): ver cómo va quedando la base mientras se avanza. SÓLO
             // LECTURA. A diferencia de `activity` no va por ventana de tiempo sino por la solicitud y su usuario, así que
             // en la base compartida no se cuela lo del equipo. No ve DELETEs. Los textos largos (los JSON de las
             // centrales) van completos hasta 40 KB y las credenciales del usuario no se leen.

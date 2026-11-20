@@ -1,4 +1,4 @@
-// El panel lateral «Cliente de prueba». Lo que se escribe queda en chrome.storage (una persona y un perfil por máquina);
+// El panel lateral de Probeta (la extensión de pruebas a mano del wizard). Lo que se escribe queda en chrome.storage (una persona y un perfil por máquina);
 // lo que cambia la base o el mock lo hace el panel del harness (`/api/ext/*` en localhost:5195), que sabe dictarle al
 // lambda de cada ambiente. Cada prueba es una persona nueva: no se da de baja ni se borra a nadie. Sin credenciales acá.
 const API = 'http://localhost:5195/api/ext';

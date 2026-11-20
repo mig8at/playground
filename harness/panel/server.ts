@@ -1870,7 +1870,7 @@ const server = createServer(async (req, res) => {
         const lastUsedOf = (l: Lane) => Math.max(0, ...[inLane('client', l), inLane('advisor', l)].map((d) => deviceState(d).lastUsed ?? 0));
         return json(res, 200, { lanes: LANES, open: perLane((l) => opened.some((d) => d !== 'admin' && laneOf(d) === l)), requests: perLane(requestOf), lastUsed: perLane(lastUsedOf) });
     }
-    /* ── LA EXTENSIÓN «CLIENTE DE PRUEBA» (`harness/extension`, 2026-11-20) ─────────────────────────────────────────────
+    /* ── LA EXTENSIÓN «PROBETA» (`harness/extension`, 2026-11-20) ──────────────────────────────────────────────────────
      * El panel lateral de Chrome que prepara al cliente de una prueba A MANO en el wizard: precarga una persona, le dicta
      * las centrales (lo mismo que la vista Burós), muestra el OTP y el dictamen, y aprueba la identidad a mano. Cada prueba
      * es una persona NUEVA: no se da de baja ni se borra a nadie (decisión de Miguel, 2026-11-20; la baja salió). Habla
@@ -1908,9 +1908,9 @@ const server = createServer(async (req, res) => {
                 // DOS apellidos colombianos comunes al azar. Datos personales tiene un solo campo «Nombres» y otro «Apellidos»
                 // (`personal-info-form.tsx`), así que van juntos. Sin tildes ni Ñ: el nombre completo se le dicta igual a las
                 // centrales y la validación de nombre del KYC lo compara letra por letra con lo que se escribe en el wizard.
-                const MEN = ['ANDRES', 'CARLOS', 'JUAN', 'SANTIAGO', 'SEBASTIAN', 'DANIEL', 'ALEJANDRO', 'DIEGO', 'FELIPE',
+                const MALE_NAMES = ['ANDRES', 'CARLOS', 'JUAN', 'SANTIAGO', 'SEBASTIAN', 'DANIEL', 'ALEJANDRO', 'DIEGO', 'FELIPE',
                     'JORGE', 'LUIS', 'MIGUEL', 'CAMILO', 'NICOLAS', 'DAVID', 'JULIAN', 'MATEO', 'OSCAR', 'RICARDO', 'FERNANDO'];
-                const WOMEN = ['MARIA', 'LAURA', 'ANDREA', 'CAROLINA', 'NATALIA', 'PAOLA', 'DANIELA', 'VALENTINA', 'CAMILA', 'JULIANA',
+                const FEMALE_NAMES = ['MARIA', 'LAURA', 'ANDREA', 'CAROLINA', 'NATALIA', 'PAOLA', 'DANIELA', 'VALENTINA', 'CAMILA', 'JULIANA',
                     'ALEJANDRA', 'CATALINA', 'DIANA', 'SANDRA', 'LILIANA', 'MONICA', 'ADRIANA', 'PAULA', 'SOFIA', 'MARCELA'];
                 const LAST = ['RODRIGUEZ', 'GOMEZ', 'GONZALEZ', 'MARTINEZ', 'GARCIA', 'LOPEZ', 'HERNANDEZ', 'SANCHEZ', 'RAMIREZ',
                     'PEREZ', 'DIAZ', 'TORRES', 'ROJAS', 'VARGAS', 'MORENO', 'GUTIERREZ', 'JIMENEZ', 'CASTRO', 'RUIZ', 'ALVAREZ',
@@ -1922,7 +1922,7 @@ const server = createServer(async (req, res) => {
                     const doc = '109' + String(Math.floor(Math.random() * 1e7)).padStart(7, '0');
                     const phone = '31' + String(Math.floor(Math.random() * 1e8)).padStart(8, '0');
                     const taken = sqlJson(`SELECT COUNT(*) n FROM users WHERE status = 1 AND (document_number = '${doc}' OR cell_phone = '${phone}')`)[0]?.n;
-                    if (Number(taken) === 0) return send(200, { doc, phone, firstName: two(Math.random() < 0.5 ? MEN : WOMEN), lastName: two(LAST), email: `ext.prueba+${doc}@creditop.com` });
+                    if (Number(taken) === 0) return send(200, { doc, phone, firstName: two(Math.random() < 0.5 ? MALE_NAMES : FEMALE_NAMES), lastName: two(LAST), email: `ext.prueba+${doc}@creditop.com` });
                 }
                 return send(500, { error: 'no encontré una cédula libre' });
             }

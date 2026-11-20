@@ -185,7 +185,7 @@
         font: 600 14px/1.2 system-ui, -apple-system, sans-serif; white-space: nowrap }
       button:hover { background: #2f2f2c }
       small { font-weight: 400; font-size: 11px; color: #b4b2a9 }
-    </style><button title="${link}">Continuar como el cliente →<small>Cliente de prueba · el link del WhatsApp</small></button>`;
+    </style><button title="${link}">Continuar como el cliente →<small>Probeta · el link del WhatsApp</small></button>`;
     root.querySelector('button').onclick = () => { location.href = link; };
     document.documentElement.appendChild(jump);
   };
