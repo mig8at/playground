@@ -63,58 +63,52 @@ async function syncTab() {
   lockPerson(!!target && inProgress(tab?.url));
   const u = tab?.url ? ureqOf(tab.url) : null;
   if (u !== lastUreq) { lastUreq = u; renderRequest(); }
-  renderHandoff(tab?.url);
-  renderIdentity(tab?.url);
+  renderStep(tab?.url);
 }
 
-// ── EL TRASPASO AL CLIENTE: el asesor terminó en `/merchant/<sucursal>/<solicitud>/continue` («Solicitud en validación de
-// usuario») y el cliente sigue desde el link del WhatsApp, que en las pruebas no le llega a nadie. Es
-// `/self-service/<sucursal>/<solicitud>/confirmation`, en el mismo front: lo mismo que hace el harness en el traspaso.
-let handoffUrl = null;
-function renderHandoff(url) {
-  let link = null;
+// ── EL PASO: un solo botón a todo el ancho, debajo de «Nueva solicitud» y «Rellenar», que aparece según la pantalla de
+// la pestaña y desaparece cuando se pasó. Cada paso es una pantalla que en las pruebas no se puede resolver como la persona:
+//   · `…/<solicitud>/continue` («Solicitud en validación de usuario»): el asesor terminó y el cliente seguiría desde el link
+//     del WhatsApp, que no le llega a nadie. «Continuar aquí» lleva la pestaña a `/self-service/<sucursal>/<solicitud>/
+//     confirmation`, como si lo hubiera abierto (lo mismo que el harness en el traspaso).
+//   · `…/<solicitud>/identity-validation` («Estamos validando tus datos»): la selfie de ADO no se puede hacer desde un
+//     Chrome de escritorio. «Aprobar identidad» la aprueba a mano como el admin (`/api/ext/identity` → `dbops
+//     identity-approve`, lo mismo que el panel con sus celulares) y vuelve a `…/confirmation`, que ya la saltea.
+function stepOf(url) {
   try {
     const u = new URL(url || '');
-    // El asesor termina en `/merchant/…/continue`; algunos flujos muestran la misma pantalla en `/self-service/…/continue`.
-    const m = /^\/(?:merchant|self-service)\/([0-9a-f]{8})\/(\d{5,9})\/continue/.exec(u.pathname);
-    if (m) link = `${u.origin}/self-service/${m[1]}/${m[2]}/confirmation`;
+    let m = /^\/(?:merchant|self-service)\/([0-9a-f]{8})\/(\d{5,9})\/continue/.exec(u.pathname);
+    if (m) return { kind: 'handoff', label: 'Continuar aquí', note: 'Como el cliente, con el link que le llegaría por WhatsApp.',
+      url: `${u.origin}/self-service/${m[1]}/${m[2]}/confirmation` };
+    m = /^(\/[^/]+\/[0-9a-f]{8}\/\d{5,9})\/(identity-validation|validar-persona)/.exec(u.pathname);
+    if (m) return { kind: 'identity', label: 'Aprobar identidad', note: 'A mano, como el admin: la selfie no se puede hacer desde acá. No prueba la validación real.',
+      url: `${u.origin}${m[1]}/confirmation` };
   } catch { /* sin URL */ }
-  handoffUrl = link;
-  $('handoff').hidden = !link;
-  if (link) $('handoffUrl').textContent = link;
+  return null;
 }
-$('handoffOpen').onclick = async () => {
-  if (!handoffUrl) return;
-  // En la MISMA pestaña: como si el cliente hubiera abierto el link. El panel la sigue sola.
-  await chrome.tabs.update(tabId, { url: handoffUrl });
-  say(`Seguís como el cliente en la solicitud ${lastUreq}.`, 'ok');
-};
-$('handoffCopy').onclick = () => { if (handoffUrl) { navigator.clipboard.writeText(handoffUrl); say('Link del cliente copiado.', 'ok'); } };
-
-// ── LA VALIDACIÓN DE IDENTIDAD: en `…/<solicitud>/identity-validation…` el front espera la selfie de ADO, que no se puede
-// hacer desde un Chrome de escritorio. Se aprueba a mano como el admin (`/api/ext/identity` → `dbops identity-approve`, lo
-// mismo que hace el panel con sus celulares) y la pestaña vuelve a `…/confirmation`, que ya la saltea.
-let identityBase = null;   // `{origen}/{flujo}/{sucursal}/{solicitud}`
-function renderIdentity(url) {
-  let base = null;
-  try {
-    const u = new URL(url || '');
-    const m = /^(\/[^/]+\/[0-9a-f]{8}\/\d{5,9})\/(identity-validation|validar-persona)/.exec(u.pathname);
-    if (m) base = u.origin + m[1];
-  } catch { /* sin URL */ }
-  identityBase = base;
-  $('identity').hidden = !base || !target;
+let step = null;
+function renderStep(url) {
+  step = target ? stepOf(url) : null;
+  $('step').hidden = !step;
+  if (!step) return;
+  $('stepBtn').textContent = step.label;
+  $('stepNote').textContent = step.note;
 }
-$('identityApprove').onclick = async () => {
-  if (!identityBase || !lastUreq) return;
-  const btn = $('identityApprove');
+$('stepBtn').onclick = async () => {
+  if (!step) return;
+  const btn = $('stepBtn'), current = step;
   btn.disabled = true;
   try {
-    const r = await api('/identity', { ureq: lastUreq, phone: $('phone').value });
-    if (!r.ok) return say(`No se aprobó: ${r.detail || r.error}`, 'bad');
-    say(`${r.detail}. Vuelvo a la confirmación.`, 'ok');
-    await chrome.tabs.update(tabId, { url: `${identityBase}/confirmation` });
-  } catch (e) { say(`No se aprobó: ${e.message}`, 'bad'); }
+    if (current.kind === 'identity') {
+      const r = await api('/identity', { ureq: lastUreq, phone: $('phone').value });
+      if (!r.ok) return say(`No se aprobó: ${r.detail || r.error}`, 'bad');
+      say(`${r.detail}. Vuelvo a la confirmación.`, 'ok');
+    } else {
+      say(`Seguís como el cliente en la solicitud ${lastUreq}.`, 'ok');
+    }
+    // En la MISMA pestaña; al cambiar la ruta el botón desaparece solo.
+    await chrome.tabs.update(tabId, { url: current.url });
+  } catch (e) { say(`No se pudo: ${e.message}`, 'bad'); }
   finally { btn.disabled = false; }
 };
 

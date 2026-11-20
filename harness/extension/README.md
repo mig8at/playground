@@ -22,15 +22,15 @@ ambiente. La extensión no guarda credenciales. `make harness-extension` dice c�
   vuelva a dictar: el lambda olvida lo dictado en minutos (F-139).
 - **OTP**: en local, los últimos 4 del celular; fuera, el último que generó el servicio de OTP (el de #qa-messages).
 - **La solicitud**: la de la URL de la pestaña, con su dictamen (`pg request verdict`).
-- **Validación de identidad**: en `…/<solicitud>/identity-validation` (la selfie de ADO, que no se puede hacer desde un
-  Chrome de escritorio) aparece **Aprobar identidad**: la aprueba a mano como el admin (`dbops identity-approve`, lo
-  mismo que el panel con sus celulares) y vuelve a `…/confirmation`. Sólo si la solicitud es del celular de arriba y su
-  cliente tiene correo de prueba; nunca prod. Es un rodeo: no prueba que la validación real funcione.
-- **Sigue el cliente**: cuando el asesor termina (`/merchant/…/continue`, o `/self-service/…/continue`, «Solicitud en validación
-  de usuario»), el panel arma el link del cliente —el del WhatsApp, que en las pruebas no llega—
-  `/self-service/<sucursal>/<solicitud>/confirmation`, arriba del todo: **Continuar como el cliente** cambia la URL de
-  la misma pestaña, como si hubiera abierto el link; también se puede copiar. En la página misma aparece el mismo
-  botón, flotante abajo.
+- **El botón del paso**, debajo de «Nueva solicitud» y «Rellenar», a todo el ancho: aparece en las pantallas que en las
+  pruebas no se pueden resolver como la persona y desaparece al pasarlas.
+  - `…/continue` («Solicitud en validación de usuario», el asesor terminó): **Continuar aquí** lleva la pestaña a
+    `/self-service/<sucursal>/<solicitud>/confirmation`, el link que le llegaría al cliente por WhatsApp. En la página
+    misma aparece el mismo botón, flotante abajo.
+  - `…/identity-validation` (la selfie de ADO, que no se puede hacer desde un Chrome de escritorio): **Aprobar
+    identidad** la aprueba a mano como el admin (`dbops identity-approve`, lo mismo que el panel con sus celulares) y
+    vuelve a `…/confirmation`. Sólo si la solicitud es del celular de arriba y su cliente tiene correo de prueba; nunca
+    prod. Es un rodeo: no prueba que la validación real funcione.
 
 ⚠ Sólo qa y local aceptan dictado (F-149): en dev y staging el panel lo avisa y las centrales contestan lo de por
 defecto. Nunca prod. `sidepanel.html#tab=<id>` ata el panel a una pestaña (para abrirlo como página o probarlo).

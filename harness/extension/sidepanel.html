@@ -14,16 +14,6 @@
   </header>
   <p class="note" id="envNote" hidden></p>
 
-  <section id="handoff" class="callout" hidden>
-    <strong>El asesor terminó: ahora sigue el cliente</strong>
-    <p class="note">En la vida real le llega este link por WhatsApp; en las pruebas no le llega a nadie.</p>
-    <p class="link" id="handoffUrl"></p>
-    <div class="actions">
-      <button class="primary" id="handoffOpen" title="Cambia la URL de esta pestaña por la del cliente, como si hubiera abierto el link">Continuar como el cliente</button>
-      <button id="handoffCopy" title="Copiar el link del cliente">Copiar el link</button>
-    </div>
-  </section>
-
   <h2>Quién</h2>
   <div class="grid">
     <label for="doc">Cédula</label><input id="doc" inputmode="numeric">
@@ -58,15 +48,11 @@
     <button class="primary" id="ready" title="Persona nueva, centrales dictadas y la pestaña al inicio del flujo, con el monto de arriba. No borra ni da de baja a nadie: lo anterior queda en la base">Nueva solicitud</button>
     <button id="fill" title="Escribe lo de arriba en la pantalla del wizard, y el OTP en la del código">Rellenar</button>
   </div>
+  <div id="step" hidden>
+    <button class="primary" id="stepBtn"></button>
+    <p class="note" id="stepNote"></p>
+  </div>
   <p class="log" id="log"></p>
-
-  <section id="identity" hidden>
-    <h2>Validación de identidad</h2>
-    <p class="note">La selfie de ADO no se puede hacer desde acá. Se aprueba a mano, como el admin, y la pestaña vuelve a la confirmación. Es un rodeo: no prueba que la validación real funcione.</p>
-    <div class="actions">
-      <button class="primary" id="identityApprove" title="Aprueba la identidad de esta solicitud (sólo si es del celular de arriba y el cliente es de prueba)">Aprobar identidad</button>
-    </div>
-  </section>
 
   <h2>OTP</h2>
   <p class="otp"><span id="otp">—</span><button class="icon" id="otpRefresh" title="Leer el último OTP de este celular" aria-label="Leer el OTP">↻</button><button class="icon" id="otpCopy" title="Copiar" aria-label="Copiar el OTP">⧉</button></p>
