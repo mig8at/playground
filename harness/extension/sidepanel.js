@@ -423,12 +423,12 @@ function renderDb() {
         if (chg && !chg.isNew && chg.cols.has(c)) td.classList.add('chg');
         if (v == null) { td.textContent = 'NULL'; td.classList.add('null'); continue; }
         // Un objeto se resume en la celda («{…} 12 claves») y se abre formateado abajo; un texto largo, igual.
-        const text = obj !== undefined ? (Array.isArray(obj) ? `[…] ${obj.length}` : `{…} ${Object.keys(obj || {}).length} claves`) : String(v);
-        td.textContent = text;
-        // Un número de catálogo (estado, entidad, central…): su nombre al pasar el mouse.
+        // Un número de catálogo (estado, entidad, central…) se muestra con su NOMBRE; el número queda al pasar el mouse.
         const label = (c !== 'status_id' || t.table === 'lender_transactions') ? db.labels?.[c]?.[String(v)] : undefined;
-        td.title = label ? `${v} · ${label}` : obj !== undefined ? 'Ver el objeto' : String(v);
-        if (label) td.classList.add('enum');
+        const text = label ?? (obj !== undefined ? (Array.isArray(obj) ? `[…] ${obj.length}` : `{…} ${Object.keys(obj || {}).length} claves`) : String(v));
+        td.textContent = text;
+        td.title = label ? `${c} = ${v} · ${label}` : obj !== undefined ? 'Ver el objeto' : String(v);
+        if (label) { td.classList.add('enum'); continue; }
         if (obj !== undefined || String(v).length > 40) {
           td.classList.add('open');
           if (dbDetail?.key === key && dbDetail.col === c) td.classList.add('sel');

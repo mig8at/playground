@@ -35,7 +35,7 @@ ambiente. La extensión no guarda credenciales. `make harness-extension` dice c�
   horizontal, sólo con las columnas que aportan (afuera lo repetido, lo cifrado y lo interno; «todas las columnas» las
   muestra). Un objeto
   JSON (`{…} 9 claves`) o un texto largo se toca y se abre entero y formateado debajo, con «Copiar». Los números de catálogo (estado, entidad, central, campo, estado de CreditopX, sucursal…)
-  van subrayados: al pasar el mouse dicen su nombre (`11` → «Autorizada»). Lo que cambió desde
+  se muestran con su nombre (`11` → «Autorizada»), en otro color; el número queda al pasar el mouse. Lo que cambió desde
   la lectura anterior queda resaltado 20 s (● en la pestaña). Sólo lectura (`dbops request-tables`), cada 5 s y sólo con
   una solicitud en la pestaña. No ve lo que se borra; cada celda va completa hasta 40 KB y las credenciales no se leen.
 - **El botón del paso**, debajo de «Nueva solicitud» y «Rellenar», a todo el ancho: aparece en las pantallas que en las

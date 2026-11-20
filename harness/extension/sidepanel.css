@@ -88,4 +88,4 @@ html { scrollbar-width: none } html::-webkit-scrollbar { display: none }
 .console .foot span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .console .foot .link { flex: none; white-space: nowrap }
 header .logo { width: 20px; height: 20px; border-radius: 5px; flex: none }
-.console td.enum { text-decoration: underline dotted #888780; text-underline-offset: 3px; cursor: help }
+.console td.enum { color: #c8b6f5; cursor: help }
