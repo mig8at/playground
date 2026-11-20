@@ -142,11 +142,11 @@ correo: [vtex]
       entregado. VTEX todavía cree que falta arreglar `https://v2.api.creditop.com/legacy-api` (da 404 en /manifest
       porque es el backend, no el conector; la Service URL da 200, medido 2026-11-17 11:28): hay que volver a
       aclararlo. Depende de: VTEX Payments — priorizar y validar; Creditop — el MPA (pendiente de abajo).
-- [ ] Llenar el formulario de Core Alliances de VTEX («Payment Provider Contract Review», para mapear el contrato del
-      partner): https://docs.google.com/forms/d/e/1FAIpQLSf7ZIC8PJF_1mvTYuzYyGNQfNtPh4PoGJpSJKh4WWyQq9UB3g/viewform
-      Es lo que VTEX pide en vez de contestar si el MPA de SI/Reseller (firmado 2025-04-30) sirve; Manuella Valença
-      Correia (VTEX) lo había pedido internamente ~4 días antes (Juan, 2026-11-17 20:21 GMT-3). Termina con el
-      formulario enviado y VTEX confirmándolo en #1484435. Depende de: Oscar Rincón — los datos del contrato.
+- [ ] Cerrar con VTEX el contrato para conectores ISV: el formulario de Core Alliances era interno y se mandó por
+      error (Juan, 2026-11-20 13:18 GMT-3). Juan está reuniendo él la información del «contract for ISV connectors»,
+      y si hace falta propone una llamada (puede ser en español). El MPA firmado es de SI/Reseller (2025-04-30): sigue
+      sin saberse si alcanza o si hay que firmar uno de ISV, ni desde cuándo corren los 30 días. Termina con VTEX
+      diciendo qué contrato vale y la fecha del SLA. Depende de: VTEX — Juan Alzate.
 - [ ] Decidir si se compra una cuenta VTEX adicional para probar como tienda externa: VTEX no da cuentas de prueba,
       es un pedido comercial con costo y no hace falta para homologar. Ojo: el MPA firmado (cláusula 1.4) dice que las cuentas
       adicionales cuestan USD 0.00 al Partner; la 1.3 da un entorno de pruebas por USD 250 al mes. Termina con la decisión escrita acá.
