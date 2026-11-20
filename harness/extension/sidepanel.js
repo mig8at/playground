@@ -201,6 +201,8 @@ $('fill').onclick = async () => {
   const data = Object.fromEntries(PERSON.map((k) => [k, $(k).value.trim()]));
   data.amount = digits(data.amount); data.phone = digits(data.phone); data.doc = digits(data.doc);
   data.firstName = data.firstName.toUpperCase(); data.lastName = data.lastName.toUpperCase();
+  await readOtp();   // el de ESTE momento: el de la firma se genera después del del ingreso
+  data.otp = digits($('otp').textContent);
   try {
     const r = await chrome.tabs.sendMessage(tabId, { type: 'fill', data });
     say(r?.filled?.length ? `Rellené: ${r.filled.join(', ')}.` : 'En esta pantalla no había nada que rellenar.', r?.filled?.length ? 'ok' : '');

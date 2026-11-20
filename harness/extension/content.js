@@ -43,7 +43,27 @@
       setValue(el, String(v));
       done.push(key);
     }
+    if (fillOtp(String(data.otp || ''))) done.push('otp');
     return done;
+  };
+  /* EL OTP: el mismo componente (`Otp` de shared-components) en el ingreso (4 dígitos) y en la firma del pagaré
+   * (`/otp-validation`, 6): el largo lo dice su `maxLength`. Sólo se escribe si el código que leyó el panel tiene ese
+   * largo, para no poner el del ingreso en la firma. Si viene partido en casillas de a uno, se reparte. La pantalla del
+   * código de la app (`/codigo`) no es un SMS: no se toca. */
+  const fillOtp = (code) => {
+    if (!code || /\/codigo\/?$/.test(location.pathname)) return false;
+    const inputs = [...document.querySelectorAll('input:not([type=hidden])')].filter(visible);
+    const one = document.querySelector('[data-testid="otp-input"]') || inputs.find((f) => f.name === 'otp' || f.autocomplete === 'one-time-code');
+    if (one && visible(one)) {
+      const max = Number(one.getAttribute('maxlength') || 0);
+      if (max > 1 && max !== code.length) return false;
+      if (one.value === code) return false;
+      setValue(one, code); return true;
+    }
+    const boxes = inputs.filter((f) => f.getAttribute('maxlength') === '1');
+    if (boxes.length !== code.length) return false;
+    boxes.forEach((b, i) => setValue(b, code[i]));
+    return true;
   };
   const docTyped = () => find('docnum-input', FIELDS[2][2])?.value?.replace(/\D/g, '') || '';
 

@@ -11,7 +11,8 @@ ambiente. La extensión no guarda credenciales. `make harness-extension` dice c�
 - **Nueva solicitud**: persona nueva (cédula, celular y correo sin cliente activo), centrales dictadas y la pestaña al
   inicio del flujo en el que está (`/<flujo>/<sucursal>/solicitar?amount=<monto>`, autogestión o asesor). **No da de baja
   ni borra a nadie**: el cliente y la solicitud anteriores quedan en la base (decisión de Miguel, 2026-11-20; si un día
-  hace falta, un script de limpieza aparte). **Rellenar**: escribe lo de arriba en la pantalla.
+  hace falta, un script de limpieza aparte). **Rellenar**: escribe lo de arriba en la pantalla, y en la del OTP (el
+  del ingreso, 4 dígitos, o el de la firma del pagaré, 6) el que lee en ese momento, sólo si su largo es el del campo.
 - **Con una solicitud en curso** (la pestaña pasó de `…/solicitar`), los datos de la persona quedan bloqueados: son los de
   esa solicitud. El perfil de las centrales sigue editable.
 - **Antes de cada envío de datos personales** («Siguiente», «Continuar») la página espera un instante a que el panel
