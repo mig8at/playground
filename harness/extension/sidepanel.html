@@ -24,6 +24,7 @@
     <label for="amount">Monto</label><input id="amount" inputmode="numeric">
   </div>
   <p class="state" id="state">Escribí o generá una cédula.</p>
+  <p class="note" id="lockNote" hidden>Hay una solicitud en curso en esta pestaña: los datos son los de ella. Para otra persona, «Nueva solicitud».</p>
 
   <h2>Cómo responden las centrales</h2>
   <div class="chips" id="presets">
@@ -43,7 +44,7 @@
   </div>
 
   <div class="actions">
-    <button class="primary" id="ready" title="Da de baja al cliente anterior de esta cédula (si es de prueba) y dicta las centrales">Dejar listo</button>
+    <button class="primary" id="ready" title="Persona nueva, centrales dictadas y la pestaña al inicio del flujo, con el monto de arriba. No borra ni da de baja a nadie: lo anterior queda en la base">Nueva solicitud</button>
     <button id="fill" title="Escribe lo de arriba en la pantalla del wizard">Rellenar</button>
   </div>
   <p class="log" id="log"></p>

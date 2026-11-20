@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Cliente de prueba · CreditOp",
   "version": "0.1.0",
-  "description": "Prepara al cliente de una prueba a mano en el wizard: lo precarga, le dicta las centrales, lo da de baja para empezar de cero y muestra el OTP y el dictamen. Habla con el panel del harness (localhost:5195).",
+  "description": "Prepara al cliente de una prueba a mano en el wizard: lo precarga, le dicta las centrales, arranca cada prueba con una persona nueva, muestra el OTP y el dictamen y aprueba la identidad a mano. Habla con el panel del harness (localhost:5195).",
   "permissions": ["sidePanel", "storage", "tabs"],
   "host_permissions": [
     "http://localhost:5195/*",

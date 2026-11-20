@@ -1872,10 +1872,11 @@ const server = createServer(async (req, res) => {
     }
     /* ── LA EXTENSIÓN «CLIENTE DE PRUEBA» (`harness/extension`, 2026-11-20) ─────────────────────────────────────────────
      * El panel lateral de Chrome que prepara al cliente de una prueba A MANO en el wizard: precarga una persona, le dicta
-     * las centrales (lo mismo que la vista Burós), lo da de baja para empezar de cero, muestra el OTP y el dictamen. Habla
+     * las centrales (lo mismo que la vista Burós), muestra el OTP y el dictamen, y aprueba la identidad a mano. Cada prueba
+     * es una persona NUEVA: no se da de baja ni se borra a nadie (decisión de Miguel, 2026-11-20; la baja salió). Habla
      * con este servidor porque es el que sabe dictarle al lambda de cada ambiente; la extensión no guarda credenciales.
      * ⚠ CORS sólo para extensiones de Chrome (el servidor escucha en la interfaz local): una página cualquiera no puede
-     * pedirle a esto que dé de baja a nadie. Nunca prod. */
+     * pedirle a esto que apruebe nada. Nunca prod. */
     if (path.startsWith('/api/ext/')) {
         const origin = String(req.headers.origin || '');
         const cors: Record<string, string> = origin.startsWith('chrome-extension://')
@@ -1925,23 +1926,6 @@ const server = createServer(async (req, res) => {
                     : COMPANY_LAMBDA[tgt] ? await dictateCompanyCase(order, tgt)
                     : { ok: false, detalle: `en ${tgt} el backend consulta un lambda que no acepta dictado (F-149): contestan los valores por defecto` };
                 return send(200, r);
-            }
-            if (path === '/api/ext/reset' && req.method === 'POST') {
-                const b = await readBody(req);
-                const doc = digits(b.doc);
-                const { clientState } = await import('../pkg/backend-reads.ts');
-                const active: any = clientState(tgt as any, doc).active;
-                if (!active) return send(200, { ok: true, detail: 'no había cliente activo con esa cédula' });
-                const mail = String(sqlJson(`SELECT email FROM users WHERE id = ${Number(active.id)}`)[0]?.email ?? '');
-                if (!TEST_MAIL.test(mail)) return send(409, { ok: false, detail: `el cliente activo de ${doc} no parece de prueba (correo «${mail || 'vacío'}»): no se da de baja desde acá` });
-                // qa no tiene admin propio: se da de baja por el de dev (la base es la misma).
-                const admin = tgt === 'qa' ? 'dev' : tgt;
-                const r = runPg(['admin', 'client-disable', '--target', admin, '--document', doc, '--apply'], { timeoutMs: 90_000 });
-                // Lo que importa está en stderr cuando falla (stdout trae la vista previa): se dice el error, no el preámbulo.
-                const err = String(r.stderr || '').trim();
-                return send(r.status === 0 ? 200 : 500, { ok: r.status === 0,
-                    detail: r.status === 0 ? String(r.stdout || '').trim().split('\n').filter((l) => /✔|✓|qued[oó]/.test(l)).slice(-1)[0]?.trim() || 'dado de baja'
-                        : (err.split('\n').filter(Boolean).slice(-2).join(' · ') || `salió ${r.status}`) });
             }
             if (path === '/api/ext/otp') {
                 const phone = digits(q.get('phone'));

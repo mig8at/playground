@@ -2,14 +2,18 @@
 
 Un panel lateral junto al wizard (qa, dev, staging o local) para probar **a mano** con un cliente listo. Habla con el
 panel del harness (`localhost:5195`, rutas `/api/ext/*` en `panel/server.ts`), que es quien le dicta al lambda de cada
-ambiente y da de baja por el conector. La extensión no guarda credenciales. `make harness-extension` dice cómo cargarla.
+ambiente. La extensión no guarda credenciales. `make harness-extension` dice cómo cargarla.
 
 - **Quién**: cédula, nombre, celular, correo y monto. ↻ arma una persona sin cliente activo en esa base. Al escribir la
   cédula en el wizard, el panel la toma y dice si ya existe.
 - **Cómo responden las centrales**: perfiles (Aprueba, Sin empleo, Score bajo, Experian sin info) y los valores, como la
   vista Burós del panel.
-- **Dejar listo**: da de baja al cliente activo de la cédula —sólo si su correo es de prueba (`qa…@gmail.com`,
-  `qa.harness…`, `synth-…`, `ext.prueba+…`)— y dicta las centrales. **Rellenar**: escribe lo de arriba en la pantalla.
+- **Nueva solicitud**: persona nueva (cédula, celular y correo sin cliente activo), centrales dictadas y la pestaña al
+  inicio del flujo en el que está (`/<flujo>/<sucursal>/solicitar?amount=<monto>`, autogestión o asesor). **No da de baja
+  ni borra a nadie**: el cliente y la solicitud anteriores quedan en la base (decisión de Miguel, 2026-11-20; si un día
+  hace falta, un script de limpieza aparte). **Rellenar**: escribe lo de arriba en la pantalla.
+- **Con una solicitud en curso** (la pestaña pasó de `…/solicitar`), los datos de la persona quedan bloqueados: son los de
+  esa solicitud. El perfil de las centrales sigue editable.
 - **Antes de cada envío de datos personales** («Siguiente», «Continuar») la página espera un instante a que el panel
   vuelva a dictar: el lambda olvida lo dictado en minutos (F-139).
 - **OTP**: en local, los últimos 4 del celular; fuera, el último que generó el servicio de OTP (el de #qa-messages).
@@ -28,4 +32,3 @@ defecto. Nunca prod. `sidepanel.html#tab=<id>` ata el panel a una pestaña (para
 
 Probado el 2026-11-20 en un Chromium con la extensión cargada contra qa: persona nueva, dictado, monto y celular
 rellenados, el OTP leído del servicio, datos personales rellenados y el envío frenado para volver a dictar (505190).
-La baja desde la extensión no se pudo comprobar entera: la llamada al conector falló sin decir por qué (ya lo dice).

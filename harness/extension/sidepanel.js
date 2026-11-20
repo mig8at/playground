@@ -1,6 +1,6 @@
 // El panel lateral «Cliente de prueba». Lo que se escribe queda en chrome.storage (una persona y un perfil por máquina);
 // lo que cambia la base o el mock lo hace el panel del harness (`/api/ext/*` en localhost:5195), que sabe dictarle al
-// lambda de cada ambiente y dar de baja por el conector. La extensión no guarda credenciales.
+// lambda de cada ambiente. Cada prueba es una persona nueva: no se da de baja ni se borra a nadie. Sin credenciales acá.
 const API = 'http://localhost:5195/api/ext';
 const $ = (id) => document.getElementById(id);
 const PERSON = ['doc', 'firstName', 'lastName', 'phone', 'email', 'amount'];
@@ -29,6 +29,19 @@ function targetOf(url) {
 }
 const ureqOf = (url) => { try { const m = /\/(\d{5,9})(?=\/|$)/.exec(new URL(url).pathname); return m ? Number(m[1]) : null; } catch { return null; } };
 
+// La entrada del flujo de la pestaña: `{origen}/{flujo}/{sucursal}` (autogestión o asesor), como arranca el caminador.
+let entryBase = null;
+const entryOf = (url) => { try { const u = new URL(url); const m = /^\/([a-z-]+)\/([0-9a-f]{8})(?=\/|$)/.exec(u.pathname); return m ? `${u.origin}/${m[1]}/${m[2]}` : null; } catch { return null; } };
+// EN CURSO: la pestaña ya pasó de la pantalla del monto (`…/solicitar`). Desde ahí la persona es la de esa solicitud: sus
+// datos se bloquean, para no rellenar ni leer el OTP de otra. El perfil de las centrales sigue editable: se vuelve a dictar
+// antes de enviar los datos personales. Para otra persona, «Nueva solicitud».
+const inProgress = (url) => { try { return /^\/[a-z-]+\/[0-9a-f]{8}\/(?!solicitar\/?$)[^/]/.test(new URL(url).pathname); } catch { return false; } };
+function lockPerson(locked) {
+  for (const k of PERSON) $(k).disabled = locked;
+  $('newPerson').disabled = locked || !target;
+  $('lockNote').hidden = !locked;
+}
+
 // `#tab=<id>`: el panel atado a UNA pestaña (abierto como página, o para probarlo) en vez de seguir a la activa.
 const pinnedTab = Number(new URLSearchParams(location.hash.slice(1)).get('tab')) || null;
 async function syncTab() {
@@ -42,8 +55,10 @@ async function syncTab() {
   note.hidden = !(target === 'dev' || target === 'staging' || !target);
   note.className = 'note warn';
   note.textContent = !target ? 'Abrí el wizard (qa, dev, staging o local) en esta pestaña.'
-    : `En ${target} el backend consulta un lambda que no acepta dictado: las centrales contestan lo de por defecto (F-149). La baja y el OTP sí funcionan.`;
-  for (const b of ['ready', 'fill', 'newPerson']) $(b).disabled = !target;
+    : `En ${target} el backend consulta un lambda que no acepta dictado: las centrales contestan lo de por defecto (F-149). La solicitud nueva y el OTP sí funcionan.`;
+  for (const b of ['ready', 'fill']) $(b).disabled = !target;
+  entryBase = tab?.url ? entryOf(tab.url) : null;
+  lockPerson(!!target && inProgress(tab?.url));
   const u = tab?.url ? ureqOf(tab.url) : null;
   if (u !== lastUreq) { lastUreq = u; renderRequest(); }
   renderHandoff(tab?.url);
@@ -140,7 +155,7 @@ async function refreshState() {
     if (!s.active) { st.textContent = 'Sin cliente activo: se registra de cero.'; st.className = 'state ok'; return; }
     const last = s.requests?.[0];
     st.textContent = `Ya existe: ${s.active.name}, ${s.requests?.length ?? 0} solicitud(es)${last ? `, la última ${last.id} en ${last.status}` : ''}.`
-      + (s.active.test ? '' : ' No parece de prueba: no se da de baja desde acá.');
+     ;
     st.className = 'state warn';
   } catch (e) { st.textContent = `No pude leer la cédula: ${e.message}`; st.className = 'state warn'; }
 }
@@ -157,23 +172,28 @@ async function dictate() {
 }
 
 // ── los botones ─────────────────────────────────────────────────────────────────────────────────────────────────
+async function freshPerson() {
+  const p = await api('/person');
+  $('doc').value = p.doc; $('phone').value = p.phone; $('firstName').value = p.firstName; $('lastName').value = p.lastName; $('email').value = p.email;
+  save(); refreshState(); $('otp').textContent = '—';
+}
 $('newPerson').onclick = async () => {
-  try {
-    const p = await api('/person');
-    $('doc').value = p.doc; $('phone').value = p.phone; $('firstName').value = p.firstName; $('lastName').value = p.lastName; $('email').value = p.email;
-    save(); refreshState(); say('Persona nueva, sin cliente activo en esta base.', 'ok');
-  } catch (e) { say(`No pude armar otra persona: ${e.message}`, 'bad'); }
+  try { await freshPerson(); say('Persona nueva, sin cliente activo en esta base.', 'ok'); }
+  catch (e) { say(`No pude armar otra persona: ${e.message}`, 'bad'); }
 };
+// NUEVA SOLICITUD: persona nueva (cédula, celular y correo sin cliente activo), centrales dictadas y la pestaña al inicio del
+// flujo con el monto. No da de baja ni borra a nadie: el cliente y la solicitud anteriores quedan en la base.
 $('ready').onclick = async () => {
-  const doc = digits($('doc').value);
-  if (doc.length < 6) { say('Falta la cédula.', 'bad'); return; }
-  $('ready').disabled = true; say('Dejando listo…');
+  if (!entryBase) { say('Abrí el wizard de una sucursal en esta pestaña (autogestión o asesor).', 'bad'); return; }
+  $('ready').disabled = true; say('Armando la solicitud nueva…');
   try {
-    const reset = await api('/reset', { doc });
+    await freshPerson();
     const d = await dictate();
-    say(`${reset.ok ? reset.detail : `No se dio de baja: ${reset.detail}`} · ${d.text}`, reset.ok && d.ok ? 'ok' : 'warn');
-    refreshState();
-  } catch (e) { say(`No quedó listo: ${e.message}`, 'bad'); }
+    const amount = digits($('amount').value) || '5000000';
+    lockPerson(false);
+    await chrome.tabs.update(tabId, { url: `${entryBase}/solicitar?amount=${amount}` });
+    say(`Persona nueva ${$('doc').value} · ${d.text}`, d.ok ? 'ok' : 'warn');
+  } catch (e) { say(`No se armó la solicitud nueva: ${e.message}`, 'bad'); }
   $('ready').disabled = false;
 };
 $('fill').onclick = async () => {
