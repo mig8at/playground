@@ -1,0 +1,113 @@
+:root { --bg: #fafaf9; --fg: #1c1c1a; --fg2: #5f5e5a; --fg3: #888780; --line: #e3e1d9; --field: #fff; --accent: #2f6fd1; --ok: #2f7d1f; --warn: #a3650a; --bad: #b3261e;
+  color-scheme: light dark; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #1f1f1d; --fg: #ecebe6; --fg2: #b4b2a9; --fg3: #888780; --line: #3a3a37; --field: #2a2a28; --accent: #78a9ef; --ok: #8fca6a; --warn: #e5b45c; --bad: #f08a83; }
+}
+* { box-sizing: border-box }
+body { margin: 0; padding: 12px 14px 20px; background: var(--bg); color: var(--fg); font: 13px/1.45 system-ui, -apple-system, sans-serif }
+header { display: flex; align-items: center; gap: 8px }
+header strong { font-size: 14px; font-weight: 600 }
+.chip { font-size: 11px; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--line); color: var(--fg2) }
+.chip.ok { color: var(--ok); border-color: currentColor }
+.chip.warn { color: var(--warn); border-color: currentColor }
+h2 { font-size: 11px; font-weight: 500; color: var(--fg3); margin: 16px 0 6px; text-transform: none }
+.grid { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 6px 10px; align-items: center }
+label { color: var(--fg2); font-size: 12px }
+input, select { height: 28px; width: 100%; padding: 0 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--field); color: var(--fg); font: inherit; font-size: 12px }
+input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px }
+button { height: 28px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--fg); font: inherit; font-size: 12px; cursor: pointer }
+button:hover { border-color: var(--fg3) }
+button.icon { width: 28px; padding: 0; margin-left: auto }
+button.primary { background: var(--fg); color: var(--bg); border-color: var(--fg) }
+button:disabled { opacity: .5; cursor: default }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px }
+.chips button.on { border: 1.5px solid var(--accent); color: var(--accent) }
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px }
+.actions button { height: 34px }
+.state, .log, .note { font-size: 11.5px; color: var(--fg2); margin: 6px 0 0 }
+.state.warn, .log.warn, .note.warn { color: var(--warn) }
+.state.ok, .log.ok { color: var(--ok) }
+.log.bad { color: var(--bad) }
+.otp { display: flex; align-items: center; gap: 6px; margin: 0 }
+.otp span { font: 600 18px/1 ui-monospace, monospace; letter-spacing: 2px }
+.otp button.icon { margin-left: 0 }
+.otp button.icon:first-of-type { margin-left: auto }
+.req { font-size: 12px; color: var(--fg2) }
+.req .row { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0 }
+.req ul { margin: 6px 0 0; padding-left: 16px }
+.req li { margin: 2px 0 }
+#step { margin-top: 8px }
+#step button { width: 100%; height: 38px; font-size: 13px; font-weight: 600 }
+.flow { margin: 2px 0 10px }
+.flow .st { display: flex; gap: 10px; align-items: stretch }
+.flow .rail { display: flex; flex-direction: column; align-items: center; width: 16px; flex: none }
+.flow .dot { width: 16px; height: 16px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; font-size: 10px; line-height: 1; box-sizing: border-box }
+.flow .dot.done { background: var(--ok); color: var(--bg) }
+.flow .dot.cur { border: 2px solid var(--accent); background: var(--bg) }
+.flow .dot.pend { border: 1.5px solid var(--fg3) }
+.flow .dot.bad { background: var(--bad); color: var(--bg) }
+.flow .line { flex: 1; width: 2px; min-height: 10px; background: var(--line) }
+.flow .line.done { background: var(--ok) }
+.flow .lbl { flex: 1; display: flex; justify-content: space-between; gap: 8px; padding-bottom: 8px; font-size: 12.5px; line-height: 16px }
+.flow .lbl.pend { color: var(--fg3) }
+.flow .lbl.cur b { font-weight: 600 }
+.flow .lbl .now { color: var(--accent); font-size: 11.5px }
+.flow .lbl.bad { color: var(--bad) }
+.flow .lbl time { color: var(--fg3); font-size: 11.5px; font-variant-numeric: tabular-nums }
+.req details { margin-top: 6px }
+.req summary { cursor: pointer; color: var(--fg2) }
+/* La consola: oscura en los dos temas, como una terminal. */
+.console { border-radius: 8px; overflow: hidden; background: #1c1c1a; color: #ecebe6; font: 11.5px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace }
+.console .tabs { display: flex; gap: 2px; overflow-x: auto; padding: 0 6px; border-bottom: 1px solid #3a3a37; scrollbar-width: none }
+.console .tab { all: unset; cursor: pointer; padding: 5px 8px; border-radius: 6px 6px 0 0; white-space: nowrap; color: #888780 }
+.console .tab.on { background: #2a2a28; color: #ecebe6 }
+.console .tab .n { color: #5f5e5a; margin-left: 4px } .console .tab .n.has { color: #8fca6a }
+.console .tab .hot { color: #78a9ef }
+.console .rows { padding: 0 }
+.console .empty { color: #888780; padding: 18px 0; text-align: center }
+.console .foot { display: flex; justify-content: space-between; gap: 8px; padding: 6px 10px; border-top: 1px solid #3a3a37; color: #888780; font-size: 11px }
+.console .grid { overflow: auto; max-height: 320px }
+.console table { border-collapse: collapse; white-space: nowrap }
+.console th { position: sticky; top: 0; background: #2a2a28; color: #b4b2a9; font-weight: 500; text-align: left; padding: 5px 10px; border-bottom: 1px solid #3a3a37 }
+.console td { padding: 4px 10px; border-bottom: 1px solid #2a2a28; max-width: 220px; overflow: hidden; text-overflow: ellipsis; color: #ecebe6 }
+.console tr.new td:first-child { box-shadow: inset 2px 0 #78a9ef }
+.console td.null { color: #5f5e5a }
+.console td.chg { background: rgba(120, 169, 239, .2); color: #9cc0f3 }
+.console td.open { color: #e5b45c; cursor: pointer; text-decoration: underline dotted }
+.console td.sel { background: rgba(229, 180, 92, .18) }
+.console .detail { border-top: 1px solid #3a3a37 }
+.console .detail .bar { display: flex; align-items: center; gap: 6px; padding: 5px 10px; color: #b4b2a9; background: #232321 }
+.console .detail .bar span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.console .detail button { all: unset; cursor: pointer; padding: 1px 6px; border: 1px solid #3a3a37; border-radius: 4px; color: #ecebe6 }
+.console .detail pre { margin: 0; padding: 8px 10px; max-height: 320px; overflow: auto; white-space: pre; color: #ecebe6 }
+.console .foot .link { all: unset; cursor: pointer; color: #78a9ef }
+/* Sin barras de desplazamiento: se desplaza igual con el trackpad o la rueda. */
+.console .tabs, .console .grid, .console pre { scrollbar-width: none }
+.console .tabs::-webkit-scrollbar, .console .grid::-webkit-scrollbar, .console pre::-webkit-scrollbar { display: none }
+html { scrollbar-width: none } html::-webkit-scrollbar { display: none }
+.console .foot span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.console .foot .link { flex: none; white-space: nowrap }
+header .logo { width: 20px; height: 20px; border-radius: 5px; flex: none }
+.console td.enum { cursor: default; text-decoration: underline dotted #5f5e5a; text-underline-offset: 3px }
+.console td.enum .name { display: none; color: #c8b6f5 }
+.console td.enum:hover .num { display: none }
+.console td.enum:hover .name { display: inline }
+.console td.cipher { color: #e5b45c }
+h2.split { display: flex; justify-content: space-between; gap: 8px }
+h2.split span { color: var(--fg2); font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+h2 .lock { color: var(--accent); font-weight: 400 }
+.log:empty, .state[hidden] { display: none }
+.tune summary { cursor: pointer; color: var(--fg3); font-size: 11.5px; margin: 2px 0 8px }
+/* Probeta-qa: el engranaje va pegado al ↻, y la vista de configuración. */
+header #gear { margin-left: 0 }
+h2 .opt { color: var(--fg3); font-weight: 400 }
+.checks { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 8px }
+.checks li { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 2px 8px; align-items: start }
+.checks .dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 4px; background: var(--fg3) }
+.checks .dot.ok { background: var(--ok) } .checks .dot.bad { background: var(--bad) } .checks .dot.warn { background: var(--warn) }
+.checks b { font-weight: 600; font-size: 12.5px }
+.checks .what, .checks .why { grid-column: 2; font-size: 11.5px; color: var(--fg2) }
+.checks .why.bad { color: var(--bad) } .checks .why.warn { color: var(--warn) }
+.checks .sub { grid-column: 2; margin: 2px 0 0; padding-left: 12px; font-size: 11.5px; color: var(--fg2) }
+#stepNote { margin-top: 6px }
+button.icon.on { border-color: var(--accent); color: var(--accent) }
