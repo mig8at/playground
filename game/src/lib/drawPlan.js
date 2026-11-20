@@ -319,7 +319,9 @@ function drawExterior(g,bp,{level=0,px=1,capas=CAPAS}){
  if(capas.arboles){const V=bp.vegetacion||{};
   for(const s of V.sombrillas||[]){if(px<2)break;g.fillStyle=s.tela;g.globalAlpha=.85;g.beginPath();g.arc(s.x,s.z,s.r,0,7);g.fill();}
   // (la copa translúcida —lo de abajo se sigue viendo— con su borde, y el tronco: es donde está plantado)
-  for(const a of [...(V.arboles||[]),...(V.palmeras||[])]){g.globalAlpha=.26;g.fillStyle=a.follaje||'#5c8f40';g.beginPath();g.arc(a.x,a.z,a.r,0,7);g.fill();
+  // (un árbol de calle junto a una fachada va PODADO en óvalo —vegetacion.js, V.poda—: `ra` hacia el edificio y `r` a lo largo
+  // de la calle, con el eje en `eje`. Dibujado como círculo de radio r parecía metido en el edificio, y no lo está.)
+  for(const a of [...(V.arboles||[]),...(V.palmeras||[])]){g.globalAlpha=.26;g.fillStyle=a.follaje||'#5c8f40';g.beginPath();if(a.ra!=null)g.ellipse(a.x,a.z,a.r,a.ra,a.eje||0,0,7);else g.arc(a.x,a.z,a.r,0,7);g.fill();
    g.globalAlpha=.6;g.strokeStyle=a.color&&a.color!==a.follaje?a.color:'#3f6a2c';g.lineWidth=Math.min(.22,a.r*.08);g.stroke();
    if(px>=3){g.fillStyle='#5a4028';g.beginPath();g.arc(a.x,a.z,.22,0,7);g.fill();}}
   g.globalAlpha=1;}
