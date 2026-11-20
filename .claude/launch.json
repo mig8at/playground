@@ -374,7 +374,7 @@
       "autoPort": false
     },
     {
-      "name": "jarvis-sidepanel",
+      "name": "jarvis-side-panel",
       "runtimeExecutable": "python3",
       "runtimeArgs": [
         "-m",

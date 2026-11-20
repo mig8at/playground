@@ -297,7 +297,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
   return true
 })
 
-// El ícono abre el panel lateral (sidepanel.html: los grupos abiertos y sus pestañas). La pestaña Jarvis ya no se abre
+// El ícono abre el panel lateral (side-panel.html: los grupos abiertos y sus pestañas). La pestaña Jarvis ya no se abre
 // sola (2026-11-20, decisión de Miguel: lo de ver está en Cockpit).
 chrome.sidePanel?.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {})
 
