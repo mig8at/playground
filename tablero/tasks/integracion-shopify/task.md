@@ -7,7 +7,7 @@ knowledge: [ecommerce-context]
 jira: [CORE-801, CORE-689, CORE-932, CORE-934]
 jira_title: "Integración Shopify: app de pagos con enlace de pago y pedidos atribuidos a la sucursal"
 chat: ['#shopify', duncan]
-ramas: shopify:core-801, core-689-shopify-platform
+ramas: shopify:core-801, core-689-shopify-platform, infrastructure:fix/CORE-801-shopify-test-page-route
 correo: [shopify]
 ---
 
