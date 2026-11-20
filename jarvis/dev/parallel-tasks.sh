@@ -30,9 +30,9 @@ echo "todas terminaron en $(python3 -c "import time; print(round(time.time()-$t0
 # Lo que quedó en el localStorage (lo comparten todas: mismo Chrome, mismo origen)
 first=${sessions[0]}
 for k in $(seq 0 $N); do
-  if [ "$(check $first "JSON.parse(localStorage.getItem('tareas.estado')||'[]').filter(t => t.titulo.startsWith('Tarea de la sesión')).length === $k")" = True ]; then echo "en el localStorage quedaron $k de $N tareas nuevas"; fi
+  if [ "$(check $first "Object.keys(localStorage).filter(k => k.startsWith('tareas.t.')).map(k => JSON.parse(localStorage.getItem(k))).filter(t => t.titulo.startsWith('Tarea de la sesión')).length === $k")" = True ]; then echo "en el localStorage quedaron $k de $N tareas nuevas"; fi
 done
-[ "$(check $first "new Set(JSON.parse(localStorage.getItem('tareas.estado')||'[]').map(t => t.id)).size === JSON.parse(localStorage.getItem('tareas.estado')||'[]').length")" = True ] && echo "ids: sin repetir" || echo "ids: HAY REPETIDOS"
+[ "$(check $first "new Set(Object.keys(localStorage).filter(k => k.startsWith('tareas.t.')).map(k => JSON.parse(localStorage.getItem(k))).map(t => t.id)).size === Object.keys(localStorage).filter(k => k.startsWith('tareas.t.')).map(k => JSON.parse(localStorage.getItem(k))).length")" = True ] && echo "ids: sin repetir" || echo "ids: HAY REPETIDOS"
 for id in "${sessions[@]}"; do
   for k in $(seq 0 $N); do
     [ "$(check $id "[...document.querySelectorAll('#lista strong')].filter(e => e.textContent.startsWith('Tarea de la sesión')).length === $k")" = True ] && echo "  la pantalla de la sesión $id muestra $k"

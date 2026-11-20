@@ -1,7 +1,7 @@
 // Panel Andino: un admin de tienda ficticio con lo que hace difícil a uno real. Rutas por hash, cada página de
 // configuración edita un BORRADOR (aparece la barra «Cambios sin guardar»; salir con cambios pregunta), activar un
 // medio de pago pide confirmación, y la app Crédito Ya vive en un iframe (ahí están sus credenciales de pruebas).
-const KEY = 'panel.estado'
+const KEY = 'panel.estado' // el formato de antes (todo junto): se migra al cargar
 const INITIAL = {
   general: { nombre: 'Tienda Andina', correo: 'hola@tiendaandina.test', moneda: 'COP', zona: 'America/Bogota' },
   pagos: [
@@ -23,10 +23,47 @@ const PROVIDERS = [
   { id: 'transferpay', nombre: 'TransferPay', desc: 'Transferencia bancaria inmediata.' },
   { id: 'billeteraz', nombre: 'BilleteraZ', desc: 'Pago con billetera móvil.' },
 ]
-if (new URLSearchParams(location.search).has('reset')) { localStorage.removeItem(KEY); history.replaceState(null, '', '/#/inicio') }
-const read = () => { try { return JSON.parse(localStorage.getItem(KEY)) || structuredClone(INITIAL) } catch { return structuredClone(INITIAL) } }
+// Cada sección vive en SU clave del localStorage (panel.<sección>) y cada invitación en la suya (panel.inv.<id>).
+// Varias pestañas del panel a la vez (varias sesiones de Jarvis en paralelo) lo comparten, y Chrome no hace atómico
+// «leer, cambiar, escribir» entre pestañas: cada una lee de su copia y lo que escribe otra le llega unos milisegundos
+// después. Con todo en una clave, la última en guardar borraba lo de las otras; y releer antes de escribir no alcanzó
+// (medido el 2026-11-20: dos invitaciones a la vez, quedó una). Ahora un guardado escribe sólo las secciones que
+// cambió, invitar agrega una clave nueva, y cada pestaña se pone al día cuando otra guarda (evento `storage`), salvo
+// que tenga cambios sin guardar: no se le pisa el formulario.
+const SECTIONS = ['general', 'pagos', 'envios', 'impuestos', 'usuarios', 'apps']
+const P = 'panel.'
+const INV = 'panel.inv.'
+const newId = () => Date.now() * 1000 + Math.floor(Math.random() * 1000)
+if (new URLSearchParams(location.search).has('reset')) {
+  Object.keys(localStorage).filter((k) => k.startsWith(P)).forEach((k) => localStorage.removeItem(k))
+  history.replaceState(null, '', '/#/inicio')
+}
+try { // migrar el formato de antes (todo en panel.estado)
+  const old = JSON.parse(localStorage.getItem(KEY))
+  if (old) {
+    for (const k of SECTIONS) if (old[k] !== undefined && localStorage.getItem(P + k) === null) localStorage.setItem(P + k, JSON.stringify(old[k]))
+    ;(old.invitaciones || []).forEach((inv) => localStorage.setItem(INV + newId(), JSON.stringify(inv)))
+  }
+} catch { /* nada que migrar */ }
+localStorage.removeItem(KEY)
+const parse = (k) => { try { return JSON.parse(localStorage.getItem(k)) } catch { return null } }
+function read() {
+  const s = {}
+  for (const k of SECTIONS) s[k] = parse(P + k) ?? structuredClone(INITIAL[k])
+  s.invitaciones = Object.keys(localStorage).filter((k) => k.startsWith(INV))
+    .sort((a, b) => Number(a.slice(INV.length)) - Number(b.slice(INV.length))).map(parse).filter(Boolean)
+  return s
+}
 let state = read()
-const persist = () => localStorage.setItem(KEY, JSON.stringify(state))
+// Escribe sólo las secciones que cambiaron respecto de lo guardado: las que esta pestaña no tocó no se reescriben.
+function persist() {
+  for (const k of SECTIONS) {
+    const v = JSON.stringify(state[k])
+    if (v !== (localStorage.getItem(P + k) ?? JSON.stringify(INITIAL[k]))) localStorage.setItem(P + k, v)
+  }
+}
+const fresh = () => { state = read() }
+window.addEventListener('storage', (e) => { if ((e.key === null || e.key.startsWith(P)) && !dirty) { fresh(); render() } })
 const $ = (s, r = document) => r.querySelector(s)
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
 const pesos = (n) => '$' + Number(n || 0).toLocaleString('es-CO')
@@ -39,6 +76,7 @@ function clean() { dirty = false; $('#guardar-barra').hidden = true; $('#guardar
 $('#descartar').onclick = () => { clean(); render() }
 $('#guardar').onclick = () => {
   $('#guardar-barra .err')?.remove()
+  fresh()
   const err = draft?.aplicar()
   if (err) { $('#guardar-barra').insertAdjacentHTML('beforeend', `<span class="err" role="alert">${esc(err)}</span>`); return }
   persist(); clean(); notice('Cambios guardados')
@@ -151,7 +189,9 @@ function paymentsPage() {
       m.querySelectorAll('[data-elegir]').forEach((b) => (b.onclick = () => { m.close(); location.hash = `#/config/pagos/nuevo/${b.dataset.elegir}` }))
     })
     document.querySelectorAll('[data-activar]').forEach((b) => (b.onclick = () => {
+      fresh()
       const p = state.pagos.find((x) => x.id === b.dataset.activar)
+      if (!p) { render(); return }
       const msg = p.activo ? `¿Desactivar ${p.nombre}? Deja de aparecer en el checkout.` : `¿Activar ${p.nombre}? Tus clientes lo van a ver en el checkout desde ya.`
       if (!confirm(msg)) return
       p.activo = !p.activo; persist(); notice(`${p.nombre} ${p.activo ? 'activado' : 'desactivado'}`); render()
@@ -178,6 +218,7 @@ function providerPage(id, isNew) {
     const b = $('#eliminar-pago')
     if (b) b.onclick = () => {
       if (!confirm(`¿Eliminar ${name}? Se borra su configuración y deja de aparecer en el checkout.`)) return
+      fresh()
       state.pagos = state.pagos.filter((p) => p.id !== id)
       persist(); clean(); notice(`${name} eliminado`); location.hash = '#/config/pagos'
     }
@@ -193,7 +234,9 @@ function providerPage(id, isNew) {
     if (min && max && min >= max) return 'El monto mínimo tiene que ser menor que el máximo'
     if (id === 'creditoya' && !cs.length) return 'Elegí al menos un plazo de cuotas'
     const config = { modo: mode, comercio: merchant, llave: apiKey ? '•••' : '', min, max, cuotas: cs, etiqueta: $('#p-etiqueta').value.trim() }
-    if (existing) existing.config = config
+    // Se busca en el estado recién leído: `existing` es del momento en que se dibujó la página.
+    const cur = state.pagos.find((p) => p.id === id)
+    if (cur) cur.config = config
     else state.pagos.push({ id, nombre: name, activo: false, config })
     irA = '#/config/pagos'
   } }
@@ -260,7 +303,8 @@ function usersPage() {
       <div class="fila"><button type="button" class="sec" data-cerrar>Cancelar</button><button type="submit">Enviar invitación</button></div></form>`, (m) => {
       $('#f-inv', m).onsubmit = (ev) => {
         ev.preventDefault()
-        state.invitaciones.push({ correo: $('#i-correo', m).value, rol: $('#i-rol', m).value }); persist(); m.close(); notice('Invitación enviada'); render()
+        localStorage.setItem(INV + newId(), JSON.stringify({ correo: $('#i-correo', m).value, rol: $('#i-rol', m).value }))
+        fresh(); m.close(); notice('Invitación enviada'); render()
       }
     })
   }

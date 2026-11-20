@@ -1,23 +1,38 @@
 // Demo · Tareas: crear, actualizar, completar y borrar tareas. Cada botón de una fila se llama con el título de su
 // tarea («Editar Llamar al proveedor»): así un flujo llega a ESA tarea aunque la lista cambie de orden.
-const KEY = 'tareas.estado'
+// Cada tarea vive en SU clave del localStorage (tareas.t.<id>). Varias pestañas de la app a la vez (varias sesiones de
+// Jarvis en paralelo) lo comparten, y Chrome no hace atómico «leer, cambiar, escribir» entre pestañas: cada una lee de
+// su copia y lo que escribe otra le llega unos milisegundos después. Con la lista entera en una sola clave, la última
+// pestaña en guardar borraba lo que habían creado las otras (medido el 2026-11-20: 4 sesiones a la vez, quedaba 1; y
+// releer antes de escribir no alcanzó). Con una clave por tarea, crear es agregar una clave nueva y nunca se pisan.
+const PREFIX = 'tareas.t.'
+const STARTED = 'tareas.iniciada' // ya se sembraron las de ejemplo (borrarlas todas deja la lista vacía, no la resiembra)
+const OLD = 'tareas.estado' // el formato de antes: la lista entera en una clave; se migra al cargar
 const SAMPLE = [
-  { id: 1, titulo: 'Llamar al proveedor', fecha: '2026-11-12', prioridad: 'media', notas: 'Confirmar el envío de la semana', hecha: false },
-  { id: 2, titulo: 'Revisar inventario', fecha: '2026-11-15', prioridad: 'baja', notas: '', hecha: false },
-  { id: 3, titulo: 'Pagar arriendo', fecha: '2026-11-30', prioridad: 'alta', notas: '', hecha: true },
+  { id: 1, pos: 1, titulo: 'Llamar al proveedor', fecha: '2026-11-12', prioridad: 'media', notas: 'Confirmar el envío de la semana', hecha: false },
+  { id: 2, pos: 2, titulo: 'Revisar inventario', fecha: '2026-11-15', prioridad: 'baja', notas: '', hecha: false },
+  { id: 3, pos: 3, titulo: 'Pagar arriendo', fecha: '2026-11-30', prioridad: 'alta', notas: '', hecha: true },
 ]
-if (new URLSearchParams(location.search).has('reset')) { localStorage.removeItem(KEY); history.replaceState(null, '', '/') }
-const read = () => { try { return JSON.parse(localStorage.getItem(KEY)) || structuredClone(SAMPLE) } catch { return structuredClone(SAMPLE) } }
-let tasks = read()
-const save = () => localStorage.setItem(KEY, JSON.stringify(tasks))
-// Varias pestañas de la app a la vez (varias sesiones de Jarvis en paralelo) comparten este localStorage. Antes cada
-// una trabajaba con la copia que leyó al cargar y guardaba la lista entera: la última en guardar borraba lo que habían
-// creado las otras (medido el 2026-11-20: 4 sesiones crearon una tarea cada una a la vez y quedó 1). Ahora cada cambio
-// relee lo guardado justo antes de cambiarlo, cada pestaña escucha lo que guardan las otras (evento `storage`) y el id
-// de una tarea nueva no sale de la copia de esta pestaña.
-function change(fn) { tasks = read(); fn(); save(); render() }
+const keys = () => Object.keys(localStorage).filter((k) => k.startsWith(PREFIX))
+const put = (t) => localStorage.setItem(PREFIX + t.id, JSON.stringify(t))
+const get = (id) => { try { return JSON.parse(localStorage.getItem(PREFIX + id)) } catch { return null } }
 const newId = () => Date.now() * 1000 + Math.floor(Math.random() * 1000)
-window.addEventListener('storage', (e) => { if (e.key === KEY || e.key === null) { tasks = read(); render() } })
+if (new URLSearchParams(location.search).has('reset')) {
+  Object.keys(localStorage).filter((k) => k.startsWith('tareas.')).forEach((k) => localStorage.removeItem(k))
+  history.replaceState(null, '', '/')
+}
+try { // migrar la lista vieja (una sola clave) a una clave por tarea
+  const old = JSON.parse(localStorage.getItem(OLD))
+  if (Array.isArray(old)) { old.forEach((t, i) => put({ pos: i, ...t })); localStorage.setItem(STARTED, '1') }
+} catch { /* nada que migrar */ }
+localStorage.removeItem(OLD)
+if (!localStorage.getItem(STARTED)) { SAMPLE.forEach(put); localStorage.setItem(STARTED, '1') }
+// Las nuevas arriba (pos negativa: la hora en que se crearon), después las de ejemplo en su orden.
+const read = () => keys().map((k) => { try { return JSON.parse(localStorage.getItem(k)) } catch { return null } }).filter(Boolean)
+  .sort((a, b) => (a.pos ?? 0) - (b.pos ?? 0))
+let tasks = read()
+const refresh = () => { tasks = read(); render() }
+window.addEventListener('storage', (e) => { if (e.key === null || e.key.startsWith('tareas.')) refresh() })
 const $ = (s) => document.querySelector(s)
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
 const formatDate = (f) => (f ? new Date(f + 'T12:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }) : 'sin fecha')
@@ -58,12 +73,10 @@ $('#form').onsubmit = (e) => {
   if (!title) { $('#f-error').textContent = 'El título no puede quedar vacío'; return }
   const fields = { titulo: title, fecha: $('#f-fecha').value, prioridad: $('#f-prioridad').value, notas: $('#f-notas').value.trim() }
   const id = editing
-  change(() => {
-    const cur = id && tasks.find((t) => t.id === id)
-    if (cur) Object.assign(cur, fields)
-    else tasks.unshift({ id: newId(), hecha: false, ...fields }) // si otra pestaña la borró mientras se editaba, vuelve como nueva
-  })
-  $('#editor').close(); notice(id ? 'Tarea actualizada' : 'Tarea creada')
+  const cur = id && get(id)
+  if (cur) put({ ...cur, ...fields })
+  else put({ id: newId(), pos: -Date.now(), hecha: false, ...fields }) // si otra pestaña la borró mientras se editaba, vuelve como nueva
+  refresh(); $('#editor').close(); notice(id ? 'Tarea actualizada' : 'Tarea creada')
 }
 $('#lista').onclick = (e) => {
   const ed = e.target.closest('[data-editar]'), el = e.target.closest('[data-eliminar]')
@@ -71,13 +84,14 @@ $('#lista').onclick = (e) => {
   if (el) {
     const t = tasks.find((x) => x.id === +el.dataset.eliminar)
     if (!confirm(`¿Eliminar «${t.titulo}»? No se puede deshacer.`)) return
-    change(() => { tasks = tasks.filter((x) => x.id !== t.id) }); notice('Tarea eliminada')
+    localStorage.removeItem(PREFIX + t.id); refresh(); notice('Tarea eliminada')
   }
 }
 $('#lista').onchange = (e) => {
   const c = e.target.closest('[data-hecha]')
   if (!c) return
-  const id = +c.dataset.hecha, done = c.checked
-  change(() => { const t = tasks.find((x) => x.id === id); if (t) t.hecha = done })
+  const t = get(+c.dataset.hecha)
+  if (t) put({ ...t, hecha: c.checked })
+  refresh()
 }
 render()
