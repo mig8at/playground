@@ -45,7 +45,10 @@ Es Go, en `server/` (módulo propio, sin depender de my-tools):
     cd probeta-qa/server
     go run .                     # o: go build -o probeta-server . && ./probeta-server
 
-Lee el `.env` de la carpeta (o el de al lado del ejecutable); `.env.example` dice qué lleva. Con la VPN de dev.
+Lee el `.env` de la carpeta (o el de al lado del ejecutable), con la VPN de dev. Lleva `PROBETA_DB_HOST`,
+`PROBETA_DB_PORT` (3306), `PROBETA_DB_NAME`, `PROBETA_DB_USER`, `PROBETA_DB_PASS`, `PROBETA_APP_KEY` (opcional, el
+`base64:…` del backend de qa) y `PROBETA_PORT` (opcional, 5230). Ni el `.env` ni `.env.example` van a git (el repo ignora
+`.env.*`): el `.env` se pasa junto con la carpeta.
 
 - **No arranca** si `PROBETA_DB_HOST` no es la base de desarrollo (la que comparten dev, qa y staging): un host de
   producción en el `.env` no sirve.
