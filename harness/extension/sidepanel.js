@@ -46,7 +46,31 @@ async function syncTab() {
   for (const b of ['ready', 'fill', 'newPerson']) $(b).disabled = !target;
   const u = tab?.url ? ureqOf(tab.url) : null;
   if (u !== lastUreq) { lastUreq = u; renderRequest(); }
+  renderHandoff(tab?.url);
 }
+
+// ── EL TRASPASO AL CLIENTE: el asesor terminó en `/merchant/<sucursal>/<solicitud>/continue` («Solicitud en validación de
+// usuario») y el cliente sigue desde el link del WhatsApp, que en las pruebas no le llega a nadie. Es
+// `/self-service/<sucursal>/<solicitud>/confirmation`, en el mismo front: lo mismo que hace el harness en el traspaso.
+let handoffUrl = null;
+function renderHandoff(url) {
+  let link = null;
+  try {
+    const u = new URL(url || '');
+    const m = /^\/merchant\/([0-9a-f]{8})\/(\d{5,9})\/continue/.exec(u.pathname);
+    if (m) link = `${u.origin}/self-service/${m[1]}/${m[2]}/confirmation`;
+  } catch { /* sin URL */ }
+  handoffUrl = link;
+  $('handoff').hidden = !link;
+  if (link) $('handoffUrl').textContent = link;
+}
+$('handoffOpen').onclick = async () => {
+  if (!handoffUrl) return;
+  const t = await chrome.tabs.create({ url: handoffUrl, active: true });
+  say(`Abrí el link del cliente (solicitud ${lastUreq}) en una pestaña nueva.`, 'ok');
+  void t;
+};
+$('handoffCopy').onclick = () => { if (handoffUrl) { navigator.clipboard.writeText(handoffUrl); say('Link del cliente copiado.', 'ok'); } };
 
 // ── lo guardado ─────────────────────────────────────────────────────────────────────────────────────────────────
 async function load() {

@@ -48,6 +48,16 @@
   </div>
   <p class="log" id="log"></p>
 
+  <section id="handoff" hidden>
+    <h2>Sigue el cliente</h2>
+    <p class="note">El asesor terminó: el cliente sigue desde el link que le llega por WhatsApp (en las pruebas no llega a nadie).</p>
+    <p class="link" id="handoffUrl"></p>
+    <div class="actions">
+      <button class="primary" id="handoffOpen" title="Abre el link del cliente en una pestaña nueva; el panel la sigue">Abrir como el cliente</button>
+      <button id="handoffCopy" title="Copiar el link">Copiar el link</button>
+    </div>
+  </section>
+
   <h2>OTP</h2>
   <p class="otp"><span id="otp">—</span><button class="icon" id="otpRefresh" title="Leer el último OTP de este celular" aria-label="Leer el OTP">↻</button><button class="icon" id="otpCopy" title="Copiar" aria-label="Copiar el OTP">⧉</button></p>
 

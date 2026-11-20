@@ -14,6 +14,9 @@ ambiente y da de baja por el conector. La extensión no guarda credenciales. `ma
   vuelva a dictar: el lambda olvida lo dictado en minutos (F-139).
 - **OTP**: en local, los últimos 4 del celular; fuera, el último que generó el servicio de OTP (el de #qa-messages).
 - **La solicitud**: la de la URL de la pestaña, con su dictamen (`pg request verdict`).
+- **Sigue el cliente**: cuando el asesor termina (`/merchant/<sucursal>/<solicitud>/continue`, «Solicitud en validación
+  de usuario»), el panel arma el link del cliente —el del WhatsApp, que en las pruebas no llega—
+  `/self-service/<sucursal>/<solicitud>/confirmation`, y lo abre en una pestaña nueva o lo copia.
 
 ⚠ Sólo qa y local aceptan dictado (F-149): en dev y staging el panel lo avisa y las centrales contestan lo de por
 defecto. Nunca prod. `sidepanel.html#tab=<id>` ata el panel a una pestaña (para abrirlo como página o probarlo).
