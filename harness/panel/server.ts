@@ -1870,6 +1870,102 @@ const server = createServer(async (req, res) => {
         const lastUsedOf = (l: Lane) => Math.max(0, ...[inLane('client', l), inLane('advisor', l)].map((d) => deviceState(d).lastUsed ?? 0));
         return json(res, 200, { lanes: LANES, open: perLane((l) => opened.some((d) => d !== 'admin' && laneOf(d) === l)), requests: perLane(requestOf), lastUsed: perLane(lastUsedOf) });
     }
+    /* ── LA EXTENSIÓN «CLIENTE DE PRUEBA» (`harness/extension`, 2026-11-20) ─────────────────────────────────────────────
+     * El panel lateral de Chrome que prepara al cliente de una prueba A MANO en el wizard: precarga una persona, le dicta
+     * las centrales (lo mismo que la vista Burós), lo da de baja para empezar de cero, muestra el OTP y el dictamen. Habla
+     * con este servidor porque es el que sabe dictarle al lambda de cada ambiente; la extensión no guarda credenciales.
+     * ⚠ CORS sólo para extensiones de Chrome (el servidor escucha en la interfaz local): una página cualquiera no puede
+     * pedirle a esto que dé de baja a nadie. Nunca prod. */
+    if (path.startsWith('/api/ext/')) {
+        const origin = String(req.headers.origin || '');
+        const cors: Record<string, string> = origin.startsWith('chrome-extension://')
+            ? { 'access-control-allow-origin': origin, 'access-control-allow-headers': 'content-type', 'access-control-allow-methods': 'GET, POST, OPTIONS' } : {};
+        if (origin && !origin.startsWith('chrome-extension://')) { res.writeHead(403); return res.end(); }
+        if (req.method === 'OPTIONS') { res.writeHead(204, cors); return res.end(); }
+        const send = (code: number, body: unknown) => { res.writeHead(code, { 'content-type': 'application/json', 'cache-control': 'no-store', ...cors }); res.end(JSON.stringify(body)); };
+        const q = url.searchParams;
+        const tgt = String(q.get('target') || '').toLowerCase();
+        if (!['local', 'dev', 'qa', 'staging'].includes(tgt)) return send(400, { error: `ambiente «${tgt}» no admitido (local, dev, qa, staging; nunca prod)` });
+        const digits = (v: unknown) => String(v ?? '').replace(/\D/g, '');
+        const { runPg } = await import('../pkg/pg.ts');
+        const sqlJson = (query: string) => { const r = runPg(['sql', '--target', tgt, '--json', '--query', query]); try { const j = JSON.parse(r.stdout); return (j.rows ?? j) as any[]; } catch { return []; } };
+        // ¿Es un cliente de PRUEBA? Por su correo: los que arman el harness, la extensión y el autorrelleno.
+        const TEST_MAIL = /^(qa[\w.+-]*@gmail\.com|qa\.harness[\w.+-]*@creditop\.com|synth-[\w.+-]*@creditop\.com|miguel-test@creditop\.com|ext\.prueba[\w.+-]*@creditop\.com)$/i;
+        try {
+            if (path === '/api/ext/state') {
+                const doc = digits(q.get('doc'));
+                if (doc.length < 6) return send(400, { error: 'falta la cédula' });
+                const { clientState } = await import('../pkg/backend-reads.ts');
+                const st = clientState(tgt as any, doc);
+                const active: any = st.active;
+                const mail = active?.id ? String(sqlJson(`SELECT email FROM users WHERE id = ${Number(active.id)}`)[0]?.email ?? '') : '';
+                return send(200, { doc, active: active ? { id: active.id, name: `${active.first_name ?? ''} ${active.surname ?? ''}`.trim(), since: active.created_at, email: mail, test: TEST_MAIL.test(mail) } : null,
+                    requests: (st.requests ?? []).slice(0, 5).map((r: any) => ({ id: r.id, status: r.user_request_status_id, at: r.created_at })) });
+            }
+            if (path === '/api/ext/person') {
+                // Una persona NUEVA: cédula y celular que no tengan cliente activo en esa base.
+                for (let i = 0; i < 8; i++) {
+                    const doc = '109' + String(Math.floor(Math.random() * 1e7)).padStart(7, '0');
+                    const phone = '31' + String(Math.floor(Math.random() * 1e8)).padStart(8, '0');
+                    const taken = sqlJson(`SELECT COUNT(*) n FROM users WHERE status = 1 AND (document_number = '${doc}' OR cell_phone = '${phone}')`)[0]?.n;
+                    if (Number(taken) === 0) return send(200, { doc, phone, firstName: 'CARLOS', lastName: 'RUIZ', email: `ext.prueba+${doc}@creditop.com` });
+                }
+                return send(500, { error: 'no encontré una cédula libre' });
+            }
+            if (path === '/api/ext/dictate' && req.method === 'POST') {
+                const b = await readBody(req);
+                const doc = digits(b.doc);
+                if (doc.length < 6) return send(400, { error: 'falta la cédula' });
+                const order = { doc, firstName: b.firstName, lastName: b.lastName,
+                    bureaus: { agildata: 'ok', mareigua: 'ok', tusdatos: 'ok', experian: b.experian === 'empty' ? 'empty' : 'ok' },
+                    bureauData: { agildata: { income: b.income, occupation: b.occupation, months: b.months }, mareigua: { income: b.income, months: b.months } },
+                    experian: { score: b.score, negatives: b.negatives, consulted: b.consulted, delinquencies: b.delinquencies } };
+                const { COMPANY_LAMBDA } = await import('../pkg/risk-lambda.ts');
+                const r = tgt === 'local' ? await applyBureauModes(order, tgt)
+                    : COMPANY_LAMBDA[tgt] ? await dictateCompanyCase(order, tgt)
+                    : { ok: false, detalle: `en ${tgt} el backend consulta un lambda que no acepta dictado (F-149): contestan los valores por defecto` };
+                return send(200, r);
+            }
+            if (path === '/api/ext/reset' && req.method === 'POST') {
+                const b = await readBody(req);
+                const doc = digits(b.doc);
+                const { clientState } = await import('../pkg/backend-reads.ts');
+                const active: any = clientState(tgt as any, doc).active;
+                if (!active) return send(200, { ok: true, detail: 'no había cliente activo con esa cédula' });
+                const mail = String(sqlJson(`SELECT email FROM users WHERE id = ${Number(active.id)}`)[0]?.email ?? '');
+                if (!TEST_MAIL.test(mail)) return send(409, { ok: false, detail: `el cliente activo de ${doc} no parece de prueba (correo «${mail || 'vacío'}»): no se da de baja desde acá` });
+                // qa no tiene admin propio: se da de baja por el de dev (la base es la misma).
+                const admin = tgt === 'qa' ? 'dev' : tgt;
+                const r = runPg(['admin', 'client-disable', '--target', admin, '--document', doc, '--apply'], { timeoutMs: 90_000 });
+                // Lo que importa está en stderr cuando falla (stdout trae la vista previa): se dice el error, no el preámbulo.
+                const err = String(r.stderr || '').trim();
+                return send(r.status === 0 ? 200 : 500, { ok: r.status === 0,
+                    detail: r.status === 0 ? String(r.stdout || '').trim().split('\n').filter((l) => /✔|✓|qued[oó]/.test(l)).slice(-1)[0]?.trim() || 'dado de baja'
+                        : (err.split('\n').filter(Boolean).slice(-2).join(' · ') || `salió ${r.status}`) });
+            }
+            if (path === '/api/ext/otp') {
+                const phone = digits(q.get('phone'));
+                if (phone.length < 10) return send(400, { error: 'falta el celular' });
+                // En local el OTP es el de prueba: los últimos 4 del celular. Fuera, el que generó el servicio de OTP.
+                if (tgt === 'local') return send(200, { code: phone.slice(-4), source: 'local' });
+                const { latestOtp, revealOtp } = await import('../pkg/otp-service.ts');
+                const rec = await latestOtp(phone).catch(() => null);
+                if (!rec) return send(200, { code: null, source: 'servicio de OTP' });
+                return send(200, { code: await revealOtp(phone, rec.createdAt).catch(() => null), at: rec.createdAt, template: rec.template, source: 'servicio de OTP' });
+            }
+            if (path === '/api/ext/verdict') {
+                const ureq = Number(digits(q.get('ureq')));
+                if (!ureq) return send(400, { error: 'falta la solicitud' });
+                const { requestVerdict } = await import('../pkg/backend-reads.ts');
+                const v = requestVerdict(tgt as any, ureq, { loki: false });
+                return send(200, { ureq, status: v.request?.user_request_status_id, statusName: v.request?.status, lender: v.request?.lender, verdict: v.verdict });
+            }
+        } catch (e) {
+            return send(500, { error: (e as Error).message.split('\n')[0] });
+        }
+        return send(404, { error: 'no hay esa ruta' });
+    }
+
     // LAS CORRIDAS CON NOMBRE (`runs.json`, `pkg/runs.ts`): la vista «Corridas» las lista y abre la elegida armada. Se leen
     // en cada pedido: lo que se agrega al archivo se ve al recargar. Reemplazan al plan de corrida (`/api/plan`).
     if (path === '/api/runs') {
