@@ -374,7 +374,7 @@ async function refreshDb() {
       }
       dbPrev.set(key, row);
     }
-    db = { ureq: lastUreq, tables: r.tables || [], at: new Date().toLocaleTimeString('es-CO', { hour12: false }) };
+    db = { ureq: lastUreq, tables: r.tables || [], labels: r.labels || {}, at: new Date().toLocaleTimeString('es-CO', { hour12: false }) };
   } catch (e) { db = { ...db, error: e.message }; }
   dbBusy = false;
   renderDb();
@@ -425,7 +425,10 @@ function renderDb() {
         // Un objeto se resume en la celda («{…} 12 claves») y se abre formateado abajo; un texto largo, igual.
         const text = obj !== undefined ? (Array.isArray(obj) ? `[…] ${obj.length}` : `{…} ${Object.keys(obj || {}).length} claves`) : String(v);
         td.textContent = text;
-        td.title = obj !== undefined ? 'Ver el objeto' : String(v);
+        // Un número de catálogo (estado, entidad, central…): su nombre al pasar el mouse.
+        const label = (c !== 'status_id' || t.table === 'lender_transactions') ? db.labels?.[c]?.[String(v)] : undefined;
+        td.title = label ? `${v} · ${label}` : obj !== undefined ? 'Ver el objeto' : String(v);
+        if (label) td.classList.add('enum');
         if (obj !== undefined || String(v).length > 40) {
           td.classList.add('open');
           if (dbDetail?.key === key && dbDetail.col === c) td.classList.add('sel');

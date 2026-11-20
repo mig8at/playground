@@ -478,7 +478,31 @@ try {
                         .filter(([k]) => !SECRET.test(k)).map(([k, v]) => [k, clip(v)]))) };
                 } catch (e) { return { table: d.t, rows: [], error: (e as Error).message.split('\n')[0].slice(0, 120) }; }
             }));
-            r = { ureq, user: uid, tables };
+            // LOS NOMBRES DE LOS NÚMEROS: para cada columna que apunta a un catálogo, el nombre de cada valor que aparece
+            // (la consola lo muestra al pasar el mouse: `11` → «Autorizada»). Una consulta por catálogo, sólo con los
+            // valores presentes; un catálogo que falte en este ambiente se omite.
+            const LOOKUP: Record<string, { from: string; label: string; only?: string }> = {
+                user_request_status_id: { from: 'user_request_statuses', label: 'name' },
+                lender_id: { from: 'lenders', label: 'name' },
+                risk_central_id: { from: 'risk_centrals', label: 'name' },
+                creditop_x_user_requests_process_statuses_id: { from: 'creditop_x_user_requests_process_statuses', label: "CONCAT(name, COALESCE(CONCAT(' · ', description), ''))" },
+                status_id: { from: 'lender_transaction_statuses', label: 'name', only: 'lender_transactions' },
+                field_id: { from: 'fields', label: "CONCAT(name, COALESCE(CONCAT(' · ', description), ''))" },
+                allied_branch_id: { from: 'allied_branches', label: 'name' },
+                credit_line_id: { from: 'credit_lines', label: 'name' },
+                user_profile_id: { from: 'user_profiles', label: 'name' },
+            };
+            const labels: Record<string, Record<string, string>> = {};
+            await Promise.all(Object.entries(LOOKUP).map(async ([col, l]) => {
+                const values = [...new Set(tables.filter((t) => !l.only || t.table === l.only)
+                    .flatMap((t) => t.rows.map((row: any) => row[col])).filter((v) => v != null && /^\d+$/.test(String(v))))];
+                if (!values.length) return;
+                try {
+                    const found = await query(`SELECT id, ${l.label} AS label FROM \`${l.from}\` WHERE id IN (?)`, [values]);
+                    labels[col] = Object.fromEntries(found.map((f: any) => [String(f.id), String(f.label ?? '').slice(0, 160)]));
+                } catch { /* catálogo ausente en este ambiente */ }
+            }));
+            r = { ureq, user: uid, tables, labels };
             break;
         }
         case 'orphans': { // solicitudes que apuntan a un usuario INEXISTENTE. `--fix` las borra.
