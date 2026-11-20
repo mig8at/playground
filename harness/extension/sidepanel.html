@@ -15,7 +15,7 @@
   </header>
   <p class="note" id="envNote" hidden></p>
 
-  <h2>Quién</h2>
+  <h2>Persona <span class="lock" id="lockNote" hidden>· en curso</span></h2>
   <div class="grid">
     <label for="doc">Cédula</label><input id="doc" inputmode="numeric">
     <label for="firstName">Nombre</label><input id="firstName">
@@ -25,16 +25,17 @@
     <label for="amount">Monto</label><input id="amount" inputmode="numeric">
     <label for="issueDate">Expedición</label><input id="issueDate" type="date">
   </div>
-  <p class="state" id="state">Escribí o generá una cédula.</p>
-  <p class="note" id="lockNote" hidden>Hay una solicitud en curso en esta pestaña: los datos son los de ella. Para otra persona, «Nueva solicitud».</p>
+  <p class="state" id="state" hidden></p>
 
-  <h2>Cómo responden las centrales</h2>
+  <h2>Centrales</h2>
   <div class="chips" id="presets">
     <button data-p="approves" class="on">Aprueba</button>
     <button data-p="unemployed">Sin empleo</button>
     <button data-p="lowScore">Score bajo</button>
     <button data-p="noExperian">Experian sin info</button>
   </div>
+  <details class="tune">
+  <summary>Ajustar valores</summary>
   <div class="grid">
     <label for="occupation">Ocupación</label>
     <select id="occupation"><option>Empleado</option><option>Independiente</option><option>Pensionado</option><option>Sin empleo</option></select>
@@ -44,6 +45,7 @@
     <label for="negatives">Moras 12 m</label><input id="negatives" inputmode="numeric">
     <label for="consulted">Consultas 6 m</label><input id="consulted" inputmode="numeric">
   </div>
+  </details>
 
   <div class="actions">
     <button class="primary" id="ready" title="Persona nueva, centrales dictadas y la pestaña al inicio del flujo, con el monto de arriba. No borra ni da de baja a nadie: lo anterior queda en la base">Nueva solicitud</button>
@@ -51,18 +53,16 @@
   </div>
   <div id="step" hidden>
     <button class="primary" id="stepBtn"></button>
-    <p class="note" id="stepNote"></p>
   </div>
   <p class="log" id="log"></p>
 
   <h2>OTP</h2>
   <p class="otp"><span id="otp">—</span><button class="icon" id="otpRefresh" title="Leer el último OTP de este celular" aria-label="Leer el OTP">↻</button><button class="icon" id="otpCopy" title="Copiar" aria-label="Copiar el OTP">⧉</button></p>
 
-  <h2>La solicitud</h2>
+  <h2 class="split">Recorrido <span id="reqLine"></span></h2>
   <div id="flow" class="flow"></div>
-  <div id="req" class="req">Todavía no hay solicitud en esta pestaña.</div>
 
-  <h2>La base de la solicitud</h2>
+  <h2 id="dbTitle">Base</h2>
   <section id="dbConsole" class="console">
     <div class="tabs" id="dbTabs"></div>
     <div class="rows" id="dbRows"></div>

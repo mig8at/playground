@@ -6,10 +6,10 @@ Un panel lateral junto al wizard (qa, dev, staging o local) para probar **a mano
 panel del harness (`localhost:5195`, rutas `/api/ext/*` en `panel/server.ts`), que es quien le dicta al lambda de cada
 ambiente. La extensión no guarda credenciales. `make harness-extension` dice cómo cargarla.
 
-- **Quién**: cédula, nombre, celular, correo y monto. ↻ arma una persona sin cliente activo en esa base. Al escribir la
+- **Persona**: cédula, nombre, celular, correo y monto. ↻ arma una persona sin cliente activo en esa base. Al escribir la
   cédula en el wizard, el panel la toma y dice si ya existe.
-- **Cómo responden las centrales**: perfiles (Aprueba, Sin empleo, Score bajo, Experian sin info) y los valores, como la
-  vista Burós del panel.
+- **Centrales**: perfiles (Aprueba, Sin empleo, Score bajo, Experian sin info); los valores, plegados en «Ajustar
+  valores», como la vista Burós del panel.
 - **Nueva solicitud**: persona nueva (cédula, celular y correo sin cliente activo), centrales dictadas y la pestaña al
   inicio del flujo en el que está (`/<flujo>/<sucursal>/solicitar?amount=<monto>`, autogestión o asesor). **No da de baja
   ni borra a nadie**: el cliente y la solicitud anteriores quedan en la base (decisión de Miguel, 2026-11-20; si un día
@@ -23,12 +23,10 @@ ambiente. La extensión no guarda credenciales. `make harness-extension` dice c�
 - **Antes de cada envío de datos personales** («Siguiente», «Continuar») la página espera un instante a que el panel
   vuelva a dictar: el lambda olvida lo dictado en minutos (F-139).
 - **OTP**: en local, los últimos 4 del celular; fuera, el último que generó el servicio de OTP (el de #qa-messages).
-- **La solicitud**: el recorrido como línea de tiempo —bolitas que se llenan con las pantallas por las que pasa la
-  pestaña, con su hora—, la solicitud de la URL con su estado y entidad, y el dictamen (`pg request verdict`) plegado.
-  Los pasos fijos (monto, celular, código, datos personales, empleo, entidades, confirmación, identidad, fecha de pago,
-  firma) salen siempre; los opcionales (validando datos, Ábaco, formulario adicional, traspaso, cuota inicial,
-  documentos) sólo si se pasó por ahí. Lo anterior a la pantalla actual se da por hecho aunque el panel no lo haya visto
-  (sin hora). El último punto, «Autorizada (11)», lo dice la base; una cancelación o un rechazo lo pinta en rojo.
+- **Recorrido**: la línea de tiempo —bolitas que se llenan con las pantallas por las que pasa la pestaña, con su hora—
+  y, al lado del título, la solicitud y la entidad. Los pasos fijos (monto, celular, código, datos personales, empleo,
+  entidades, confirmación, identidad, fecha de pago, firma) salen siempre; los opcionales sólo si se pasó por ahí. El
+  último punto, «Autorizada (11)», lo dice la base; una cancelación o un rechazo lo pinta en rojo.
 - **La base de la solicitud** (al final, siempre a la vista, sin barras de desplazamiento): una pestaña por tabla que toca la solicitud (`user_requests`,
   `users`, sus registros, las centrales, summaries, field values, CreditopX, la transacción con la entidad, `logs`), con
   sus filas —las de esa solicitud y su cliente, no por ventana de tiempo: la base de qa es compartida— en una tabla

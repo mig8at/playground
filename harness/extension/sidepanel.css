@@ -93,3 +93,8 @@ header .logo { width: 20px; height: 20px; border-radius: 5px; flex: none }
 .console td.enum:hover .num { display: none }
 .console td.enum:hover .name { display: inline }
 .console td.cipher { color: #e5b45c }
+h2.split { display: flex; justify-content: space-between; gap: 8px }
+h2.split span { color: var(--fg2); font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+h2 .lock { color: var(--accent); font-weight: 400 }
+.log:empty, .state[hidden] { display: none }
+.tune summary { cursor: pointer; color: var(--fg3); font-size: 11.5px; margin: 2px 0 8px }

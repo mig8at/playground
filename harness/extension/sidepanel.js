@@ -54,15 +54,14 @@ async function syncTab() {
   env.textContent = target ?? 'no es el wizard';
   env.className = 'chip ' + (target === 'qa' || target === 'local' ? 'ok' : target ? 'warn' : '');
   const note = $('envNote');
-  note.hidden = !(target === 'dev' || target === 'staging' || !target);
+  note.hidden = !(target === 'dev' || target === 'staging');
   note.className = 'note warn';
-  note.textContent = !target ? 'Abrí el wizard (qa, dev, staging o local) en esta pestaña.'
-    : `En ${target} el backend consulta un lambda que no acepta dictado: las centrales contestan lo de por defecto (F-149). La solicitud nueva y el OTP sí funcionan.`;
+  note.textContent = `En ${target} las centrales no se dictan (F-149).`;
   for (const b of ['ready', 'fill']) $(b).disabled = !target;
   entryBase = tab?.url ? entryOf(tab.url) : null;
   lockPerson(!!target && inProgress(tab?.url));
   const u = tab?.url ? ureqOf(tab.url) : null;
-  if (u !== lastUreq) { lastUreq = u; lastStatus = null; renderRequest(); refreshDb(); }
+  if (u !== lastUreq) { lastUreq = u; lastStatus = null; $('reqLine').textContent = u ? String(u) : ''; refreshDb(); }
   renderStep(tab?.url);
   await trackScreen(tab?.url);
   renderFlow();
@@ -94,7 +93,6 @@ function renderStep(url) {
   $('step').hidden = !step;
   if (!step) return;
   $('stepBtn').textContent = step.label;
-  $('stepNote').textContent = step.note;
 }
 $('stepBtn').onclick = async () => {
   if (!step) return;
@@ -104,9 +102,9 @@ $('stepBtn').onclick = async () => {
     if (current.kind === 'identity') {
       const r = await api('/identity', { ureq: lastUreq, phone: $('phone').value });
       if (!r.ok) return say(`No se aprobó: ${r.detail || r.error}`, 'bad');
-      say(`${r.detail}. Vuelvo a la confirmación.`, 'ok');
+      say('');
     } else {
-      say(`Seguís como el cliente en la solicitud ${lastUreq}.`, 'ok');
+      say('');
     }
     // En la MISMA pestaña; al cambiar la ruta el botón desaparece solo.
     await chrome.tabs.update(tabId, { url: current.url });
@@ -148,15 +146,16 @@ const digits = (s) => String(s || '').replace(/\D/g, '');
 async function refreshState() {
   const doc = digits($('doc').value);
   const st = $('state');
-  if (!target || doc.length < 6) { st.textContent = 'Escribí o generá una cédula.'; st.className = 'state'; return; }
+  st.hidden = true;
+  if (!target || doc.length < 6 || $('doc').disabled) return;
   try {
     const s = await api(`/state?doc=${doc}`);
-    if (!s.active) { st.textContent = 'Sin cliente activo: se registra de cero.'; st.className = 'state ok'; return; }
+    if (!s.active) return;
+    st.hidden = false;
     const last = s.requests?.[0];
-    st.textContent = `Ya existe: ${s.active.name}, ${s.requests?.length ?? 0} solicitud(es)${last ? `, la última ${last.id} en ${last.status}` : ''}.`
-     ;
+    st.textContent = `Ya tiene cliente: ${s.active.name}${last ? ` · última ${last.id}` : ''}`;
     st.className = 'state warn';
-  } catch (e) { st.textContent = `No pude leer la cédula: ${e.message}`; st.className = 'state warn'; }
+  } catch { /* sin red: no se dice nada */ }
 }
 
 const profileBody = () => ({
@@ -167,7 +166,7 @@ const profileBody = () => ({
 });
 async function dictate() {
   const r = await api('/dictate', profileBody());
-  return { ok: !!r.ok, text: r.ok ? `Centrales dictadas: ${(r.burós || []).map((l) => l.split(' · ').slice(0, 3).join(' · ')).join(' | ')}` : (r.detalle || 'no se dictó') };
+  return { ok: !!r.ok, text: r.ok ? 'centrales dictadas' : (r.detalle || 'no se dictó') };
 }
 
 // ── los botones ─────────────────────────────────────────────────────────────────────────────────────────────────
@@ -177,21 +176,21 @@ async function freshPerson() {
   save(); refreshState(); $('otp').textContent = '—';
 }
 $('newPerson').onclick = async () => {
-  try { await freshPerson(); say('Persona nueva, sin cliente activo en esta base.', 'ok'); }
+  try { await freshPerson(); say(''); }
   catch (e) { say(`No pude armar otra persona: ${e.message}`, 'bad'); }
 };
 // NUEVA SOLICITUD: persona nueva (cédula, celular y correo sin cliente activo), centrales dictadas y la pestaña al inicio del
 // flujo con el monto. No da de baja ni borra a nadie: el cliente y la solicitud anteriores quedan en la base.
 $('ready').onclick = async () => {
   if (!entryBase) { say('Abrí el wizard de una sucursal en esta pestaña (autogestión o asesor).', 'bad'); return; }
-  $('ready').disabled = true; say('Armando la solicitud nueva…');
+  $('ready').disabled = true; say('…');
   try {
     await freshPerson();
     const d = await dictate();
     const amount = digits($('amount').value) || '5000000';
     lockPerson(false);
     await chrome.tabs.update(tabId, { url: `${entryBase}/solicitar?amount=${amount}` });
-    say(`Persona nueva ${$('doc').value} · ${d.text}`, d.ok ? 'ok' : 'warn');
+    say(d.ok ? '' : d.text, d.ok ? '' : 'warn');
   } catch (e) { say(`No se armó la solicitud nueva: ${e.message}`, 'bad'); }
   $('ready').disabled = false;
 };
@@ -205,7 +204,7 @@ $('fill').onclick = async () => {
   try {
     const r = await chrome.tabs.sendMessage(tabId, { type: 'fill', data });
     const warn = r?.warnings?.length ? ` ⚠ ${r.warnings.join(' · ')}` : '';
-    say((r?.filled?.length ? `Rellené: ${r.filled.join(', ')}.` : 'En esta pantalla no había nada que rellenar.') + warn, r?.warnings?.length ? 'warn' : r?.filled?.length ? 'ok' : '');
+    say(r?.warnings?.length ? warn.trim() : r?.filled?.length ? '' : 'Nada que rellenar acá.', r?.warnings?.length ? 'warn' : '');
   } catch { say('La página no contesta: recargala (la extensión se carga al abrirla).', 'warn'); }
 };
 document.querySelectorAll('#presets button').forEach((b) => b.onclick = () => { applyPreset(b.dataset.p); save(); });
@@ -305,33 +304,6 @@ function renderFlow() {
   });
 }
 
-// ── la solicitud de la pestaña y su dictamen ────────────────────────────────────────────────────────────────────
-let openVerdict = false;   // el dictamen abierto o plegado, entre refrescos
-async function renderRequest() {
-  const box = $('req');
-  if (!lastUreq || !target) { box.textContent = 'Todavía no hay solicitud en esta pestaña.'; return; }
-  try {
-    const v = await api(`/verdict?ureq=${lastUreq}`);
-    box.innerHTML = '';
-    const row = (a, b) => { const d = document.createElement('div'); d.className = 'row'; d.append(Object.assign(document.createElement('span'), { textContent: a }), Object.assign(document.createElement('span'), { textContent: b })); box.appendChild(d); };
-    lastStatus = { status: v.status, statusName: v.statusName };
-    renderFlow();
-    row('Solicitud', `${v.ureq} · ${v.status} «${v.statusName || ''}»`);
-    if (v.lender) row('Entidad', v.lender);
-    // El dictamen (centrales y avisos), plegado: el recorrido ya dice dónde va.
-    const lines = (v.verdict || []).slice(1);
-    if (lines.length) {
-      const det = document.createElement('details');
-      det.open = openVerdict;
-      det.ontoggle = () => { openVerdict = det.open; };
-      det.appendChild(Object.assign(document.createElement('summary'), { textContent: `Dictamen (${lines.length})` }));
-      const ul = document.createElement('ul');
-      for (const line of lines) ul.appendChild(Object.assign(document.createElement('li'), { textContent: line }));
-      det.appendChild(ul); box.appendChild(det);
-    }
-  } catch (e) { box.textContent = `No pude leer la solicitud ${lastUreq}: ${e.message}`; }
-}
-
 // ── LA CONSOLA: las tablas que toca la solicitud, una pestaña por tabla, con sus filas (las de esta solicitud y su cliente,
 // no «lo último que se escribió»: la base de qa es compartida), en una tabla horizontal: primero las columnas que importan
 // de esa tabla, después las demás. Un objeto JSON o un texto largo se toca y se abre entero, formateado, debajo. Lo que cambió desde la lectura anterior queda resaltado unos segundos. Sólo
@@ -375,6 +347,15 @@ async function refreshDb() {
       dbPrev.set(key, row);
     }
     db = { ureq: lastUreq, tables: r.tables || [], labels: r.labels || {}, at: new Date().toLocaleTimeString('es-CO', { hour12: false }) };
+    // El estado y la entidad de la solicitud salen de aquí mismo (antes, de un dictamen aparte): el final del recorrido y
+    // la línea de arriba.
+    const ur = db.tables.find((x) => x.table === 'user_requests')?.rows?.[0];
+    if (ur) {
+      lastStatus = { status: ur.user_request_status_id, statusName: db.labels.user_request_status_id?.[String(ur.user_request_status_id)] || '' };
+      const lender = db.labels.lender_id?.[String(ur.lender_id)];
+      $('reqLine').textContent = `${lastUreq}${lender ? ` · ${lender}` : ''}`;
+      renderFlow();
+    }
   } catch (e) { db = { ...db, error: e.message }; }
   dbBusy = false;
   renderDb();
@@ -399,7 +380,8 @@ async function decryptRow(row) {
 }
 function renderDb() {
   const tabs = $('dbTabs'), rows = $('dbRows'), foot = $('dbFoot');
-  if (!lastUreq || !target) { tabs.innerHTML = ''; rows.innerHTML = '<div class="empty">Sin solicitud en esta pestaña.</div>'; foot.textContent = ''; return; }
+  $('dbConsole').hidden = $('dbTitle').hidden = !lastUreq || !target;
+  if (!lastUreq || !target) return;
   if (db.ureq !== lastUreq) { tabs.innerHTML = ''; rows.innerHTML = '<div class="empty">Leyendo…</div>'; foot.textContent = ''; return; }
   const now = Date.now(), hot = (key) => { const c = dbChanged.get(key); return c && now - c.at < HOT_MS ? c : null; };
   tabs.innerHTML = '';
@@ -488,7 +470,7 @@ function renderDb() {
   foot.innerHTML = '';
   const all = Object.assign(document.createElement('button'), { className: 'link', textContent: dbAllCols ? 'menos columnas' : `todas las columnas (+${hidden})`, hidden: !hidden && !dbAllCols });
   all.onclick = () => { dbAllCols = !dbAllCols; renderDb(); };
-  foot.append(Object.assign(document.createElement('span'), { textContent: `${db.ureq} · ${target} · leído ${db.at}${db.error ? ' · ⚠ ' + db.error : ''}${recentCount ? ` · ● ${recentCount} cambio(s)` : ''}` }), all);
+  foot.append(Object.assign(document.createElement('span'), { textContent: `${db.at}${db.error ? ' · ⚠ ' + db.error : ''}${recentCount ? ` · ● ${recentCount} cambio(s)` : ''}` }), all);
 }
 
 // ── lo que avisa la página ──────────────────────────────────────────────────────────────────────────────────────
@@ -498,7 +480,7 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   // Antes del «Siguiente» de datos personales: se vuelve a dictar (el lambda lo olvida en minutos) y se suelta el envío.
   if (msg?.type === 'beforeSubmit') {
     if (!target || digits($('doc').value).length < 6) { reply({ ok: false }); return false; }
-    dictate().then((d) => { say(`Antes de enviar · ${d.text}`, d.ok ? 'ok' : 'warn'); reply(d); }).catch((e) => { say(`No se volvió a dictar: ${e.message}`, 'warn'); reply({ ok: false }); });
+    dictate().then((d) => { if (!d.ok) say(d.text, 'warn'); reply(d); }).catch((e) => { say(`No se volvió a dictar: ${e.message}`, 'warn'); reply({ ok: false }); });
     return true;
   }
   return false;
@@ -506,5 +488,5 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
 
 chrome.tabs.onActivated.addListener(syncTab);
 chrome.tabs.onUpdated.addListener((id, info) => { if (id === tabId && info.url) syncTab(); });
-setInterval(() => { syncTab(); if (lastUreq) renderRequest(); readOtp(); refreshDb(); }, 5000);
+setInterval(() => { syncTab(); readOtp(); refreshDb(); }, 5000);
 load().then(syncTab).then(() => { refreshState(); readOtp(); });
