@@ -246,7 +246,7 @@ const FLOW = [
   ['approved', 'Aprobado', (s) => /^(loan-approved|approved)$/.test(s), true],
 ];
 const ORDER = Object.fromEntries(FLOW.map(([k], i) => [k, i]));
-let lastStatus = null;            // { status, statusName } de la solicitud, del último dictamen
+let lastStatus = null;            // { status, statusName } de la solicitud, de la última lectura de la base
 let visits = {};                  // { clave: 'HH:MM' } de esta pestaña
 let current = null;               // la clave de la pantalla actual, o `{ unknown: segmento }`
 function screenOf(url) {
