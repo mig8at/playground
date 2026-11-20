@@ -75,7 +75,8 @@ function renderHandoff(url) {
   let link = null;
   try {
     const u = new URL(url || '');
-    const m = /^\/merchant\/([0-9a-f]{8})\/(\d{5,9})\/continue/.exec(u.pathname);
+    // El asesor termina en `/merchant/…/continue`; algunos flujos muestran la misma pantalla en `/self-service/…/continue`.
+    const m = /^\/(?:merchant|self-service)\/([0-9a-f]{8})\/(\d{5,9})\/continue/.exec(u.pathname);
     if (m) link = `${u.origin}/self-service/${m[1]}/${m[2]}/confirmation`;
   } catch { /* sin URL */ }
   handoffUrl = link;
@@ -84,9 +85,9 @@ function renderHandoff(url) {
 }
 $('handoffOpen').onclick = async () => {
   if (!handoffUrl) return;
-  const t = await chrome.tabs.create({ url: handoffUrl, active: true });
-  say(`Abrí el link del cliente (solicitud ${lastUreq}) en una pestaña nueva.`, 'ok');
-  void t;
+  // En la MISMA pestaña: como si el cliente hubiera abierto el link. El panel la sigue sola.
+  await chrome.tabs.update(tabId, { url: handoffUrl });
+  say(`Seguís como el cliente en la solicitud ${lastUreq}.`, 'ok');
 };
 $('handoffCopy').onclick = () => { if (handoffUrl) { navigator.clipboard.writeText(handoffUrl); say('Link del cliente copiado.', 'ok'); } };
 

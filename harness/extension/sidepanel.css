@@ -39,3 +39,5 @@ button:disabled { opacity: .5; cursor: default }
 .link { font: 11.5px/1.4 ui-monospace, monospace; word-break: break-all; color: var(--fg); margin: 6px 0 0 }
 #handoff .actions, #identity .actions { margin-top: 8px }
 #identity .actions { grid-template-columns: 1fr }
+.callout { margin-top: 12px; padding: 10px 12px; border: 1.5px solid var(--accent); border-radius: 8px }
+.callout strong { font-size: 13px; font-weight: 600 }

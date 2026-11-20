@@ -26,9 +26,10 @@ ambiente. La extensión no guarda credenciales. `make harness-extension` dice c�
   Chrome de escritorio) aparece **Aprobar identidad**: la aprueba a mano como el admin (`dbops identity-approve`, lo
   mismo que el panel con sus celulares) y vuelve a `…/confirmation`. Sólo si la solicitud es del celular de arriba y su
   cliente tiene correo de prueba; nunca prod. Es un rodeo: no prueba que la validación real funcione.
-- **Sigue el cliente**: cuando el asesor termina (`/merchant/<sucursal>/<solicitud>/continue`, «Solicitud en validación
+- **Sigue el cliente**: cuando el asesor termina (`/merchant/…/continue`, o `/self-service/…/continue`, «Solicitud en validación
   de usuario»), el panel arma el link del cliente —el del WhatsApp, que en las pruebas no llega—
-  `/self-service/<sucursal>/<solicitud>/confirmation`, y lo abre en una pestaña nueva o lo copia.
+  `/self-service/<sucursal>/<solicitud>/confirmation`, arriba del todo: **Continuar como el cliente** cambia la URL de
+  la misma pestaña, como si hubiera abierto el link; también se puede copiar.
 
 ⚠ Sólo qa y local aceptan dictado (F-149): en dev y staging el panel lo avisa y las centrales contestan lo de por
 defecto. Nunca prod. `sidepanel.html#tab=<id>` ata el panel a una pestaña (para abrirlo como página o probarlo).
