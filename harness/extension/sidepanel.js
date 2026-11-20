@@ -423,12 +423,18 @@ function renderDb() {
         if (chg && !chg.isNew && chg.cols.has(c)) td.classList.add('chg');
         if (v == null) { td.textContent = 'NULL'; td.classList.add('null'); continue; }
         // Un objeto se resume en la celda («{…} 12 claves») y se abre formateado abajo; un texto largo, igual.
-        // Un número de catálogo (estado, entidad, central…) se muestra con su NOMBRE; el número queda al pasar el mouse.
+        // Un número de catálogo (estado, entidad, central…): se ve el número y, al pasar el mouse, la misma celda dice su
+        // NOMBRE en su lugar (sin tooltip). Las dos van en la celda; el CSS muestra una u otra.
         const label = (c !== 'status_id' || t.table === 'lender_transactions') ? db.labels?.[c]?.[String(v)] : undefined;
-        const text = label ?? (obj !== undefined ? (Array.isArray(obj) ? `[…] ${obj.length}` : `{…} ${Object.keys(obj || {}).length} claves`) : String(v));
+        if (label) {
+          td.classList.add('enum');
+          td.append(Object.assign(document.createElement('span'), { className: 'num', textContent: String(v) }),
+            Object.assign(document.createElement('span'), { className: 'name', textContent: label }));
+          continue;
+        }
+        const text = obj !== undefined ? (Array.isArray(obj) ? `[…] ${obj.length}` : `{…} ${Object.keys(obj || {}).length} claves`) : String(v);
         td.textContent = text;
-        td.title = label ? `${c} = ${v} · ${label}` : obj !== undefined ? 'Ver el objeto' : String(v);
-        if (label) { td.classList.add('enum'); continue; }
+        td.title = obj !== undefined ? 'Ver el objeto' : String(v);
         if (obj !== undefined || String(v).length > 40) {
           td.classList.add('open');
           if (dbDetail?.key === key && dbDetail.col === c) td.classList.add('sel');
