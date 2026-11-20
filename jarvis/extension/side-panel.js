@@ -29,8 +29,44 @@ const host = (url) => {
   try { return new URL(url).host.replace(/^www\./, '') } catch { return '' }
 }
 
+// El botón de cerrar un grupo: el primer clic pide confirmar («Cerrar N»), el segundo cierra. Si no se confirma en
+// 4 s, vuelve a ser la cruz. Cerrar un grupo cierra sus pestañas (Chrome las deja en «Recientes» por si acaso).
+function closeButton(g, onClose) {
+  const btn = el('button', 'btn btn-xs btn-ghost btn-icon sp-close')
+  btn.type = 'button'
+  const n = g.tabs.length
+  const idle = () => {
+    btn.replaceChildren(el('span', 'ui-icon'))
+    btn.firstChild.dataset.icon = 'close'
+    btn.firstChild.setAttribute('aria-hidden', 'true')
+    btn.classList.remove('armed', 'btn-icon')
+    btn.classList.add('btn-icon')
+    btn.title = `Cerrar el grupo «${g.title || 'Sin nombre'}» y ${n === 1 ? 'su pestaña' : `sus ${n} pestañas`}`
+    btn.setAttribute('aria-label', btn.title)
+    delete btn.dataset.armed
+  }
+  let timer
+  btn.addEventListener('click', (ev) => {
+    ev.stopPropagation()
+    if (!btn.dataset.armed) {
+      btn.dataset.armed = '1'
+      btn.classList.remove('btn-icon')
+      btn.classList.add('armed')
+      btn.textContent = n === 1 ? 'Cerrar 1 pestaña' : `Cerrar ${n} pestañas`
+      btn.setAttribute('aria-label', `Confirmar: ${btn.textContent}`)
+      clearTimeout(timer)
+      timer = setTimeout(idle, 4000)
+      return
+    }
+    clearTimeout(timer)
+    onClose(g)
+  })
+  idle()
+  return btn
+}
+
 // groups: [{ id, title, color, tabs: [{ id, title, url, active }] }]
-function render(groups, onPick) {
+function render(groups, onPick, onClose) {
   const tabs = groups.reduce((n, g) => n + g.tabs.length, 0)
   $('summary').textContent = `${groups.length} grupo(s) · ${tabs} pestaña(s)`
   if (!groups.length) {
@@ -42,7 +78,7 @@ function render(groups, onPick) {
     const head = el('div', 'sp-group-head')
     const sw = el('span', 'sp-swatch')
     sw.style.setProperty('--group-color', GROUP_COLORS[g.color] || GROUP_COLORS.grey)
-    head.append(sw, el('span', 'name', g.title || 'Sin nombre'), el('span', 'count', String(g.tabs.length)))
+    head.append(sw, el('span', 'name', g.title || 'Sin nombre'), el('span', 'count', String(g.tabs.length)), closeButton(g, onClose))
     box.append(head)
     for (const t of g.tabs) {
       const row = el('button', 'row' + (t.active ? ' on' : ''))
@@ -65,7 +101,7 @@ async function load() {
   const out = groups.map((g) => ({ id: g.id, title: g.title, color: g.color, tabs: tabs.filter((t) => t.groupId === g.id) }))
     .filter((g) => g.tabs.length)
     .sort((a, b) => a.tabs[0].index - b.tabs[0].index)
-  render(out, (t) => chrome.tabs.update(t.id, { active: true }))
+  render(out, (t) => chrome.tabs.update(t.id, { active: true }), (g) => chrome.tabs.remove(g.tabs.map((t) => t.id)).catch(() => {}))
 }
 
 const inExtension = typeof chrome !== 'undefined' && chrome.runtime?.id && chrome.tabGroups
@@ -90,5 +126,6 @@ if (inExtension) {
       { title: 'Evento · Entrenamiento', url: 'https://calendar.google.com/calendar/u/0/r/eventedit' },
       { title: 'Recibidos (1.935) · Gmail', url: 'https://mail.google.com/mail/u/0/#inbox' } ] },
   ]
-  render(demo, () => {})
+  const show = () => render(demo, () => {}, (g) => { demo.splice(demo.indexOf(g), 1); show() })
+  show()
 }

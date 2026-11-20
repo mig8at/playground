@@ -24,3 +24,7 @@ body { margin: 0; font-family: var(--font-sans); font-size: var(--text-base); co
 .sp-group .row > span:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .sp-group .row .row-meta { flex: none; font-size: var(--text-xs); color: var(--fg-3) }
 .sp-empty { margin: var(--space-3) var(--gutter); font-size: var(--text-sm); color: var(--fg-3) }
+
+/* Cerrar un grupo: una cruz que, al primer clic, pide confirmar con el texto en la tinta del error. */
+.sp-close { flex: none; margin-left: var(--space-1) }
+.sp-close.armed { width: auto; padding: 0 var(--space-2); color: var(--destructive-ink); border: 1px solid var(--destructive-ink) }
