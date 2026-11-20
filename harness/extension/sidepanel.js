@@ -335,25 +335,31 @@ async function renderRequest() {
 // ── LA CONSOLA: las tablas que toca la solicitud, una pestaña por tabla, con sus filas (las de esta solicitud y su cliente,
 // no «lo último que se escribió»: la base de qa es compartida), en una tabla horizontal: primero las columnas que importan
 // de esa tabla, después las demás. Un objeto JSON o un texto largo se toca y se abre entero, formateado, debajo. Lo que cambió desde la lectura anterior queda resaltado unos segundos. Sólo
-// lectura (`/api/ext/tables` → `dbops request-tables`), y se lee sólo con la consola abierta: no carga la base de balde.
-const KEY_COLS = {
-  user_requests: ['user_request_status_id', 'lender_id', 'original_amount', 'amount', 'flow_id', 'disbursed_at', 'updated_at'],
-  users: ['first_name', 'surname', 'document_number', 'cell_phone', 'email', 'expedition_date', 'status', 'updated_at'],
-  user_request_records: ['user_request_status_id', 'comment', 'created_at'],
-  risk_central_user_data: ['risk_central_id', 'score', 'created_at'],
-  user_request_risk_central_user_data: ['risk_central_user_data_id', 'created_at'],
-  user_summaries: ['agildata', 'datacredito', 'tusdatos', 'updated_at'],
-  user_field_values: ['field_id', 'form_id', 'value'],
+// lectura (`/api/ext/tables` → `dbops request-tables`), cada 5 s y sólo con una solicitud en la pestaña.
+// LAS COLUMNAS QUE APORTAN, por tabla y en este orden. Afuera lo repetido (el usuario o la solicitud en tablas que ya son
+// de ella), lo cifrado (`data` de las centrales) y lo interno. «Todas las columnas», abajo, muestra el resto.
+const SHOW = {
+  user_requests: ['id', 'user_request_status_id', 'lender_id', 'amount', 'final_amount', 'initial_fee', 'fee_number', 'fee_value', 'rate',
+    'selected_payment_date', 'disbursed_at', 'self_management', 'updated_at'],
+  users: ['id', 'first_name', 'surname', 'document_type', 'document_number', 'expedition_date', 'date_of_birth', 'cell_phone', 'email',
+    'onboarding_channel', 'validated', 'manual_validation', 'status', 'updated_at'],
+  user_request_records: ['user_request_status_id', 'comment', 'update_by', 'created_at'],
+  risk_central_user_data: ['id', 'risk_central_id', 'score', 'request', 'additional_info', 'created_at'],
+  user_request_risk_central_user_data: ['id', 'risk_central_user_data_id', 'created_at'],
+  user_summaries: ['agildata', 'mareigua', 'tusdatos', 'datacredito', 'quanto', 'abaco', 'updated_at'],
+  user_field_values: ['field_id', 'form_id', 'value', 'file_name', 'created_at'],
   creditop_x_user_requests_records: ['creditop_x_user_requests_process_statuses_id', 'status', 'updated_at'],
-  lender_transactions: ['status_id', 'created_at'],
-  logs: ['name', 'description', 'created_at'],
+  logs: ['method', 'description', 'request', 'response', 'created_at'],
 };
+// Para una tabla sin lista (p. ej. `lender_transactions`): todo menos esto.
+const NOISE = /^(user_id|user_request_id|allied_id|allied_branch_id|uuid|deleted_at|new_id|is_test|mobile_created|manual_register|headers)$/;
+let dbAllCols = false;
 const SHORT = { user_request_records: 'ur_records', risk_central_user_data: 'centrales', user_request_risk_central_user_data: 'ur_centrales',
   user_summaries: 'summaries', user_field_values: 'field_values', creditop_x_user_requests_records: 'creditop_x', lender_transactions: 'lender_tx' };
 const HOT_MS = 20000;
 let db = { ureq: null, tables: [], at: '' }, dbTab = 'user_requests', dbPrev = new Map(), dbChanged = new Map(), dbBusy = false;
 async function refreshDb() {
-  if (!$('dbConsole').open || !target || !lastUreq || dbBusy) { renderDb(); return; }
+  if (!target || !lastUreq || dbBusy) { renderDb(); return; }
   dbBusy = true;
   try {
     const r = await api(`/tables?ureq=${lastUreq}`);
@@ -391,6 +397,7 @@ function renderDb() {
     tabs.appendChild(b);
   }
   const t = db.tables.find((x) => x.table === dbTab) || db.tables[0];
+  let hidden = 0;
   const keep = rows.querySelector('.grid')?.scrollLeft || 0, keepPre = rows.querySelector('.detail pre')?.scrollTop || 0;
   rows.innerHTML = '';
   if (!t || !t.rows.length) rows.innerHTML = `<div class="empty">${t?.error ? `No se pudo leer: ${t.error}` : 'Sin filas para esta solicitud todavía.'}</div>`;
@@ -398,8 +405,9 @@ function renderDb() {
     // LAS COLUMNAS: primero las que importan de esa tabla, después las demás; afuera las que están vacías en todas las filas.
     const all = [...new Set(t.rows.flatMap((r) => Object.keys(r)))];
     const filled = all.filter((c) => t.rows.some((r) => r[c] != null && r[c] !== ''));
-    const first = ['id', ...(KEY_COLS[t.table] || [])].filter((c) => filled.includes(c));
-    const cols = [...first, ...filled.filter((c) => !first.includes(c))];
+    const curated = SHOW[t.table] ? SHOW[t.table].filter((c) => filled.includes(c)) : filled.filter((c) => !NOISE.test(c));
+    const cols = dbAllCols ? [...curated, ...filled.filter((c) => !curated.includes(c))] : curated;
+    hidden = filled.length - curated.length;
     const wrap = Object.assign(document.createElement('div'), { className: 'grid' });
     const table = document.createElement('table');
     const head = table.createTHead().insertRow();
@@ -445,10 +453,10 @@ function renderDb() {
   }
   const recentCount = [...dbChanged.values()].filter((c) => now - c.at < HOT_MS).length;
   foot.innerHTML = '';
-  foot.append(Object.assign(document.createElement('span'), { textContent: `${db.ureq} · ${target} · leído ${db.at}${db.error ? ' · ⚠ ' + db.error : ''}` }),
-    Object.assign(document.createElement('span'), { textContent: recentCount ? `● ${recentCount} cambio(s)` : 'sin cambios' }));
+  const all = Object.assign(document.createElement('button'), { className: 'link', textContent: dbAllCols ? 'menos columnas' : `todas las columnas (+${hidden})`, hidden: !hidden && !dbAllCols });
+  all.onclick = () => { dbAllCols = !dbAllCols; renderDb(); };
+  foot.append(Object.assign(document.createElement('span'), { textContent: `${db.ureq} · ${target} · leído ${db.at}${db.error ? ' · ⚠ ' + db.error : ''}${recentCount ? ` · ● ${recentCount} cambio(s)` : ''}` }), all);
 }
-$('dbConsole').addEventListener('toggle', refreshDb);
 
 // ── lo que avisa la página ──────────────────────────────────────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((msg, sender, reply) => {

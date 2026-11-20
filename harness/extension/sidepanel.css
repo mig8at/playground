@@ -57,9 +57,7 @@ button:disabled { opacity: .5; cursor: default }
 .req details { margin-top: 6px }
 .req summary { cursor: pointer; color: var(--fg2) }
 /* La consola: oscura en los dos temas, como una terminal. */
-.console { margin-top: 18px; border-radius: 8px; overflow: hidden; background: #1c1c1a; color: #ecebe6; font: 11.5px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace }
-.console summary { cursor: pointer; padding: 8px 10px; color: #b4b2a9; font: 500 11.5px system-ui, -apple-system, sans-serif; list-style: none }
-.console summary::before { content: '▸ '; } .console[open] summary::before { content: '▾ '; }
+.console { border-radius: 8px; overflow: hidden; background: #1c1c1a; color: #ecebe6; font: 11.5px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace }
 .console .tabs { display: flex; gap: 2px; overflow-x: auto; padding: 0 6px; border-bottom: 1px solid #3a3a37; scrollbar-width: none }
 .console .tab { all: unset; cursor: pointer; padding: 5px 8px; border-radius: 6px 6px 0 0; white-space: nowrap; color: #888780 }
 .console .tab.on { background: #2a2a28; color: #ecebe6 }
@@ -82,3 +80,10 @@ button:disabled { opacity: .5; cursor: default }
 .console .detail .bar span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .console .detail button { all: unset; cursor: pointer; padding: 1px 6px; border: 1px solid #3a3a37; border-radius: 4px; color: #ecebe6 }
 .console .detail pre { margin: 0; padding: 8px 10px; max-height: 320px; overflow: auto; white-space: pre; color: #ecebe6 }
+.console .foot .link { all: unset; cursor: pointer; color: #78a9ef }
+/* Sin barras de desplazamiento: se desplaza igual con el trackpad o la rueda. */
+.console .tabs, .console .grid, .console pre { scrollbar-width: none }
+.console .tabs::-webkit-scrollbar, .console .grid::-webkit-scrollbar, .console pre::-webkit-scrollbar { display: none }
+html { scrollbar-width: none } html::-webkit-scrollbar { display: none }
+.console .foot span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.console .foot .link { flex: none; white-space: nowrap }

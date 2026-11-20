@@ -27,13 +27,14 @@ ambiente. La extensión no guarda credenciales. `make harness-extension` dice c�
   firma) salen siempre; los opcionales (validando datos, Ábaco, formulario adicional, traspaso, cuota inicial,
   documentos) sólo si se pasó por ahí. Lo anterior a la pantalla actual se da por hecho aunque el panel no lo haya visto
   (sin hora). El último punto, «Autorizada (11)», lo dice la base; una cancelación o un rechazo lo pinta en rojo.
-- **Consola · la base de la solicitud** (al final, plegada): una pestaña por tabla que toca la solicitud (`user_requests`,
+- **La base de la solicitud** (al final, siempre a la vista, sin barras de desplazamiento): una pestaña por tabla que toca la solicitud (`user_requests`,
   `users`, sus registros, las centrales, summaries, field values, CreditopX, la transacción con la entidad, `logs`), con
   sus filas —las de esa solicitud y su cliente, no por ventana de tiempo: la base de qa es compartida— en una tabla
-  horizontal: primero las columnas que importan, después las demás (afuera las vacías en todas las filas). Un objeto
+  horizontal, sólo con las columnas que aportan (afuera lo repetido, lo cifrado y lo interno; «todas las columnas» las
+  muestra). Un objeto
   JSON (`{…} 9 claves`) o un texto largo se toca y se abre entero y formateado debajo, con «Copiar». Lo que cambió desde
   la lectura anterior queda resaltado 20 s (● en la pestaña). Sólo lectura (`dbops request-tables`), cada 5 s y sólo con
-  la consola abierta. No ve lo que se borra; cada celda va completa hasta 40 KB y las credenciales no se leen.
+  una solicitud en la pestaña. No ve lo que se borra; cada celda va completa hasta 40 KB y las credenciales no se leen.
 - **El botón del paso**, debajo de «Nueva solicitud» y «Rellenar», a todo el ancho: aparece en las pantallas que en las
   pruebas no se pueden resolver como la persona y desaparece al pasarlas.
   - `…/continue` («Solicitud en validación de usuario», el asesor terminó): **Continuar aquí** lleva la pestaña a
