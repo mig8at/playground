@@ -85,6 +85,15 @@ perfiles de Chromium que quedaron de antes del 2026-11-07 ya no se usan).
 
 ## Trampas que ya costaron tiempo
 
+- **Varias sesiones en la misma app comparten su `localStorage`** (es el Chrome de la persona, mismo origen), y una app
+  que lee al cargar y guarda la lista entera pierde lo que hicieron las otras: medido el 2026-11-20 con
+  `jarvis/dev/parallel-tasks.sh 4` en la demo de tareas, 4 sesiones crearon una tarea cada una a la vez (4,8 s) y
+  quedó **1 de 4**; cada pantalla mostraba sólo la suya. La demo se corrigió (`apps/tasks/app.js`: cada cambio relee
+  antes de escribir, escucha el evento `storage`, ids que no salen de la copia de la pestaña) y dio **4 de 4**, con
+  las 4 pantallas mostrando las 4, en dos corridas (12,3 s y 6,1 s: variación). Sus flujos grabados siguen andando
+  («Crear una tarea» y «Actualizar una tarea»: 5 pasos de la herramienta, 0 a mano). Al probar una app real en
+  paralelo con Jarvis, esto es lo primero que hay que mirar: el paralelismo es de verdad.
+
 - **`Runner.State().Busy` es true en TODA sesión con página** (2026-11-20): la sesión en vivo corre como un trabajo
   (`kind` «live»), así que no dice si hay algo en curso. El barrido lo usaba como «hay una reproducción» y por eso nunca
   cerró una sesión con página —sólo las vacías—: las pestañas de Claude se juntaban hasta que alguien las cerraba a

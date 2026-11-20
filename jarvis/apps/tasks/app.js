@@ -10,6 +10,14 @@ if (new URLSearchParams(location.search).has('reset')) { localStorage.removeItem
 const read = () => { try { return JSON.parse(localStorage.getItem(KEY)) || structuredClone(SAMPLE) } catch { return structuredClone(SAMPLE) } }
 let tasks = read()
 const save = () => localStorage.setItem(KEY, JSON.stringify(tasks))
+// Varias pestañas de la app a la vez (varias sesiones de Jarvis en paralelo) comparten este localStorage. Antes cada
+// una trabajaba con la copia que leyó al cargar y guardaba la lista entera: la última en guardar borraba lo que habían
+// creado las otras (medido el 2026-11-20: 4 sesiones crearon una tarea cada una a la vez y quedó 1). Ahora cada cambio
+// relee lo guardado justo antes de cambiarlo, cada pestaña escucha lo que guardan las otras (evento `storage`) y el id
+// de una tarea nueva no sale de la copia de esta pestaña.
+function change(fn) { tasks = read(); fn(); save(); render() }
+const newId = () => Date.now() * 1000 + Math.floor(Math.random() * 1000)
+window.addEventListener('storage', (e) => { if (e.key === KEY || e.key === null) { tasks = read(); render() } })
 const $ = (s) => document.querySelector(s)
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
 const formatDate = (f) => (f ? new Date(f + 'T12:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }) : 'sin fecha')
@@ -49,9 +57,13 @@ $('#form').onsubmit = (e) => {
   const title = $('#f-titulo').value.trim()
   if (!title) { $('#f-error').textContent = 'El título no puede quedar vacío'; return }
   const fields = { titulo: title, fecha: $('#f-fecha').value, prioridad: $('#f-prioridad').value, notas: $('#f-notas').value.trim() }
-  if (editing) Object.assign(tasks.find((t) => t.id === editing), fields)
-  else tasks.unshift({ id: Math.max(0, ...tasks.map((t) => t.id)) + 1, hecha: false, ...fields })
-  save(); $('#editor').close(); render(); notice(editing ? 'Tarea actualizada' : 'Tarea creada')
+  const id = editing
+  change(() => {
+    const cur = id && tasks.find((t) => t.id === id)
+    if (cur) Object.assign(cur, fields)
+    else tasks.unshift({ id: newId(), hecha: false, ...fields }) // si otra pestaña la borró mientras se editaba, vuelve como nueva
+  })
+  $('#editor').close(); notice(id ? 'Tarea actualizada' : 'Tarea creada')
 }
 $('#lista').onclick = (e) => {
   const ed = e.target.closest('[data-editar]'), el = e.target.closest('[data-eliminar]')
@@ -59,12 +71,13 @@ $('#lista').onclick = (e) => {
   if (el) {
     const t = tasks.find((x) => x.id === +el.dataset.eliminar)
     if (!confirm(`¿Eliminar «${t.titulo}»? No se puede deshacer.`)) return
-    tasks = tasks.filter((x) => x.id !== t.id); save(); render(); notice('Tarea eliminada')
+    change(() => { tasks = tasks.filter((x) => x.id !== t.id) }); notice('Tarea eliminada')
   }
 }
 $('#lista').onchange = (e) => {
   const c = e.target.closest('[data-hecha]')
   if (!c) return
-  tasks.find((t) => t.id === +c.dataset.hecha).hecha = c.checked; save(); render()
+  const id = +c.dataset.hecha, done = c.checked
+  change(() => { const t = tasks.find((x) => x.id === id); if (t) t.hecha = done })
 }
 render()
