@@ -433,6 +433,7 @@ export const corridorAt=Lv=>Lv<=14?Lv-(FRANJA.fachada+FRANJA.interior):Math.min(
 // FRANJA.maxLuz (2026-10-15: con lotes de 18 m las franjas de 8 y 8,5 m no se podían iluminar; ahora 7,5 + 3 + 7,5).
 export const pasilloDe=Lv=>Lv<=14?PASILLO.ancho:Math.max(PASILLO.ancho,Lv-2*corridorAt(Lv));
 const ALARGA_MAX=2;// (m de tramo ciego —un módulo; con 4, 13 de 346 edificios con un cuarto sin ventana— que un departamento se alarga para no dejar cuartos sueltos al pasillo: layoutFloor)
+const ENSANCHE_MAX=4,TRASTEROS=[['ropas',2,2],['deposito',2,2],['deposito',2,2],['deposito',2,2]];// (m de tramo ciego que todavía es ensanche del pasillo; más largo, zona de ropas y trasteros: layoutFloor)
 function layoutFloor(L,F,level,r,opt={}){
  // Núcleo: la escalera (STAIR_W m: dos tramos de ~1,9 m, medidas reales y cómoda para jugar, 2026-10-15; antes 2 m,
  // tramos de 0,88 m) y, desde 4 pisos, el ascensor de 2 m al lado. Donde no cabe —un lote de 6 m de frente y una sola
@@ -523,7 +524,13 @@ function layoutFloor(L,F,level,r,opt={}){
   gaps.length=0;const dark=new Set();for(const [a,b,l] of runs){gaps.push([a,b]);if(!l)dark.add(a+'|'+b);}
   // (2026-10-18, Miguel: «en vez de los cuartos, mejor más pasillo, con floreros y cuadros»): en los pisos de departamentos
   // el tramo ciego es un ensanche del pasillo —el 3D lo decora: town3d—; antes, la cocina y el baño del programa, sueltos
-  let i=0,nurse=suite==='habitacion_h';for(const [a,b] of gaps)if(b-a>=2&&dark.has(a+'|'+b)&&homes)corr.push({u0:a,v0:c0+P,u1:b,v1:Lv,ensanche:true});
+  // (2026-11-20, Miguel, viendo en el plano los edificios chicos con dos o tres medianeras: «trasteros y ropas»): cuando el
+  // tramo ciego es LARGO (más de ENSANCHE_MAX) el ensanche se comía del 22 al 28 % del piso para un solo departamento
+  // —medido en la ciudad 1: nueve edificios de 12 × 12 y 18 × 12 m—. Ahí va lo que un edificio de verdad pone en un fondo
+  // sin luz: la zona de ropas del piso y un trastero por módulo, cada uno con su puerta al pasillo. No son habitables: no
+  // piden ventana. El tramo corto sigue siendo ensanche.
+  let i=0,nurse=suite==='habitacion_h';for(const [a,b] of gaps)if(b-a>ENSANCHE_MAX&&dark.has(a+'|'+b)&&homes)fill(a,b,TRASTEROS,r,0,Lv-c0-P).forEach(q=>rooms.push({...q,v0:c0+P,v1:Lv,band:'back'}));
+  else if(b-a>=2&&dark.has(a+'|'+b)&&homes)corr.push({u0:a,v0:c0+P,u1:b,v1:Lv,ensanche:true});
   else if(b-a>=2&&dark.has(a+'|'+b))fill(a,b,SERV,r,i++,Lv-c0-P).forEach(q=>rooms.push({...q,v0:c0+P,v1:Lv,band:'back'}));
   else if(b-a>=2){if(homes)rooms.push(...apartments(a,b,c0+P,Lv,'v0',r,'back',units,gmax));
    else if(suite){let a2=a;if(nurse&&b-a>=6){rooms.push({type:'enfermeria',u0:a,u1:a+4,v0:c0+P,v1:Lv,band:'back'});a2=a+4;nurse=false;}if(b-a2>=2)rooms.push(...suites(a2,b,c0+P,Lv,'v0',r,'back',suite));}else fill(a,b,prog.back,r,i++,Lv-c0-P).forEach(q=>rooms.push({...q,v0:c0+P,v1:Lv,band:'back'}));}

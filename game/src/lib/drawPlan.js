@@ -77,7 +77,7 @@ export function drawCityStage(canvas,bp,{cell,stage,level=0,selected=-1,fronts=t
 function drawLevel(g,lv,{m,stage,small=false,ox=0,oy=0,labels=false}){
  const X=v=>(v-ox)*m,Y=v=>(v-oy)*m,R=(q,f)=>f(X(q.x),Y(q.y),q.w*m,q.h*m);
  // Núcleo (5) y pasillo.
- // (el ensanche: el tramo ciego de un piso de departamentos, que por decisión de diseño es más pasillo y no cuartos —el 3D
+ // (el ensanche: el tramo ciego CORTO de un piso de departamentos —el largo lleva ropas y trasteros desde el 2026-11-20—, que por decisión de diseño es más pasillo y no cuartos —el 3D
  // lo decora con cuadros y floreros—; va en otro tono y con su nombre, para que no se lea como un pasillo que sobra)
  for(const c of lv.corridor){g.fillStyle=c.ensanche?'#ebe4d3':'#f4f2ec';R(c,(a,b,w,h)=>g.fillRect(a,b,w,h));
   if(c.ensanche&&!small){g.save();g.strokeStyle='rgba(120,100,70,.35)';g.lineWidth=1;g.setLineDash([5,4]);R(c,(a,b,w,h)=>g.strokeRect(a+3,b+3,w-6,h-6));g.restore();
