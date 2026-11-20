@@ -279,15 +279,30 @@ async function keepAlive(tabId) {
 // pestaña nueva va activa DENTRO de esa ventana: Chrome frena las pestañas de fondo.
 async function createInAsideWindow(url, minimized) {
   const { asideWindowId } = await chrome.storage.session.get('asideWindowId')
+  const size = await homeSize(asideWindowId)
   if (asideWindowId) {
     try {
-      await chrome.windows.get(asideWindowId)
+      const w = await chrome.windows.get(asideWindowId)
+      // Del tamaño de la ventana de la persona: así las páginas se arman igual que si las abriera ella, y no más grandes
+      // (con el tamaño por defecto, 1920 px, la demo de 6 sesiones tardaba el doble: cada cuadro y cada foto pesan más).
+      if (size && w.state === 'normal' && (w.width !== size.width || w.height !== size.height)) {
+        await chrome.windows.update(asideWindowId, size).catch(() => {})
+      }
       return await chrome.tabs.create({ windowId: asideWindowId, url, active: true })
     } catch { /* la cerraron: se abre otra */ }
   }
-  const win = await chrome.windows.create(minimized ? { url, state: 'minimized' } : { url, focused: false })
+  const win = await chrome.windows.create(minimized ? { url, state: 'minimized' } : { url, focused: false, ...(size || {}) })
   await chrome.storage.session.set({ asideWindowId: win.id })
   return win.tabs[0]
+}
+
+// homeSize: el tamaño de la ventana de la persona (la última normal con foco que no es la aparte), o null.
+async function homeSize(asideWindowId) {
+  const wins = await chrome.windows.getAll({ windowTypes: ['normal'] }).catch(() => [])
+  const last = await chrome.windows.getLastFocused({ windowTypes: ['normal'] }).catch(() => null)
+  const ok = (w) => w && w.id !== asideWindowId && w.state !== 'minimized'
+  const home = ok(last) ? last : wins.find(ok)
+  return home?.width && home?.height ? { width: home.width, height: home.height } : null
 }
 
 // ── los grupos: las pestañas que abre Claude, juntas y de un color, para no confundirlas con las tuyas ──
