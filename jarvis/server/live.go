@@ -161,7 +161,9 @@ type live struct {
 	// aprende que va al frente.
 	background bool
 	// dev: la consola y la red de la página, mientras dure la sesión (devlog.go).
-	dev       *devlog
+	dev *devlog
+	// devFrom: desde qué número de orden la consola y la red son de la corrida actual (devlog.go).
+	devFrom   int
 	subs      map[chan []byte]struct{}
 	lastFrame []byte
 	current   *Page
@@ -476,6 +478,10 @@ func (r *Runner) runLive(ctx context.Context, site Site, start string, ready cha
 	r.live = l
 	r.mu.Unlock()
 	defer func() {
+		// La consola y la red de la corrida quedan con ella aunque nadie haya llamado a finish (devlog.go).
+		if err := l.saveDevlog(); err != nil {
+			r.say("warn", "no se guardó la consola y la red de la corrida: %v", err)
+		}
 		r.mu.Lock()
 		r.live = nil
 		r.mu.Unlock()
@@ -1111,6 +1117,9 @@ func (r *Runner) LiveClearSteps() {
 		l.steps = nil
 		l.recentDialogs = nil
 		l.runDir = "" // la próxima acción abre una corrida nueva
+		if l.dev != nil {
+			l.devFrom = l.dev.mark() // la consola y la red de la corrida nueva empiezan acá
+		}
 		l.sources = nil
 		l.mu.Unlock()
 	}

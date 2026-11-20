@@ -3,11 +3,13 @@ package main
 /* La consola y la red de la sesión (server/devlog.go), para depurar sin abrir DevTools:
  *
  *	bin/jarvis console [--errors] [--search texto] [--all]   lo que dijo la página en su consola (los últimos 40)
- *	bin/jarvis network [--failed] [--search texto] [--all]   los pedidos de red: documento, fetch y xhr (--all, todos) */
+ *	bin/jarvis network [--failed] [--search texto] [--all]   los pedidos de red: documento, fetch y xhr (--all, todos)
+ *	… --run <id|last>                                          los guardados de una corrida terminada (el historial) */
 
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -31,9 +33,18 @@ type devLog struct {
 	} `json:"network"`
 }
 
+// devRun: con --run <id|last>, la consola y la red guardadas de esa corrida (no las de la sesión en vivo).
+var devRun string
+
 func devFlags(args []string) (flag string, search string, all bool) {
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
+		case "--run":
+			if i+1 >= len(args) {
+				usage()
+			}
+			devRun = args[i+1]
+			i++
 		case "--errors", "--failed":
 			flag = args[i]
 		case "--all":
@@ -50,14 +61,34 @@ func devFlags(args []string) (flag string, search string, all bool) {
 	return
 }
 
-func consoleCmd(args []string) error {
-	flag, search, all := devFlags(args)
+// loadDevLog trae la consola y la red: de la sesión en vivo o, con --run, las guardadas de una corrida.
+func loadDevLog() (devLog, error) {
 	var d devLog
+	if devRun != "" {
+		var r struct {
+			Run string `json:"run"`
+			devLog
+		}
+		if err := call(http.MethodGet, "/api/runs/"+url.PathEscape(devRun)+"/devlog", nil, &r); err != nil {
+			return d, err
+		}
+		fmt.Printf("(corrida %s)\n", r.Run)
+		return r.devLog, nil
+	}
 	if err := call(http.MethodGet, "/api/live/devlog", nil, &d); err != nil {
-		return err
+		return d, err
 	}
 	if !d.Active {
-		return fmt.Errorf("no hay sesión en vivo en esta pestaña")
+		return d, fmt.Errorf("no hay sesión en vivo en esta pestaña (lo de una corrida terminada: --run <id|last>)")
+	}
+	return d, nil
+}
+
+func consoleCmd(args []string) error {
+	flag, search, all := devFlags(args)
+	d, err := loadDevLog()
+	if err != nil {
+		return err
 	}
 	var lines []string
 	for _, e := range d.Console {
@@ -79,12 +110,9 @@ func consoleCmd(args []string) error {
 
 func networkCmd(args []string) error {
 	flag, search, all := devFlags(args)
-	var d devLog
-	if err := call(http.MethodGet, "/api/live/devlog", nil, &d); err != nil {
+	d, err := loadDevLog()
+	if err != nil {
 		return err
-	}
-	if !d.Active {
-		return fmt.Errorf("no hay sesión en vivo en esta pestaña")
 	}
 	var lines []string
 	for _, e := range d.Network {

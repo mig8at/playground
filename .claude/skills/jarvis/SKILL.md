@@ -32,7 +32,8 @@ con LISTO / NO PUDE / NECESITO / CONFIRMAR.
 - **Trabajo de fondo que Miguel no necesita ver: `start --aside`.** La sesión va a la ventana aparte de Jarvis y su
   ventana queda limpia; la sigue en la vista «Todas» de la interfaz.
 - **Si una página se porta raro, mirá su consola y su red antes de suponer:** `bin/jarvis console --errors` y
-  `bin/jarvis network --failed` (por sesión, sin DevTools).
+  `bin/jarvis network --failed` (por sesión, sin DevTools). Lo de una corrida terminada, también después de un
+  reinicio: `--run last` o `--run <id>` (el id lo imprime `finish`).
 - **Pestañas: reutilizar y cerrar.** Pasale siempre `--url` a `start`: si ya hay una sesión libre en ese sitio, usa su
   pestaña. Terminá cada meta con `finish` (la libera para la próxima y se cierra sola a los 3 min). Antes de abrir
   varias cosas, `bin/jarvis cleanup` dice qué quedó abierto de más; `--apply` lo cierra. `--group G` sirve igual si sos el único

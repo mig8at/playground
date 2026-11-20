@@ -961,6 +961,16 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 		writeJSON(w, http.StatusOK, store.Runs())
 	})
 	mux.HandleFunc("/api/runs/", func(w http.ResponseWriter, r *http.Request) {
+		// GET /api/runs/<id|last>/devlog — la consola y la red guardadas de la corrida (devlog.go).
+		if id, ok := strings.CutSuffix(strings.TrimPrefix(r.URL.Path, "/api/runs/"), "/devlog"); ok {
+			d, real, err := store.RunDevLog(id)
+			if err != nil {
+				writeErr(w, http.StatusNotFound, err)
+				return
+			}
+			writeJSON(w, http.StatusOK, map[string]any{"run": real, "console": d.Console, "network": d.Network, "active": true})
+			return
+		}
 		run, err := store.Run(strings.TrimPrefix(r.URL.Path, "/api/runs/"))
 		if err != nil {
 			writeErr(w, http.StatusNotFound, err)

@@ -93,6 +93,7 @@ func (r *Runner) LiveReport(info ReportInfo) (string, error) {
 	if err := writeJSONFile(filepath.Join(dir, "steps.json"), map[string]any{"steps": steps, "sources": sources}); err != nil {
 		return "", err
 	}
+	_ = l.saveDevlog() // la consola y la red de esta corrida, al lado de sus pasos (devlog.go)
 	hub.Publish("runs", r.store.Runs())
 	return dir, nil
 }

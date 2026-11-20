@@ -29,6 +29,10 @@ como un FLUJO que después se repite sin vos o se le enseña a otra persona: por
 - `{{NAV}} wait '<texto>' [segundos]` — espera a que un texto se vea y queda como aserción.
 - `{{NAV}} text ["<buscar>"]` · `goto <url>` · `back` · `reload` · `dialog accept|dismiss` (cómo contestar los
   próximos confirm(); por defecto, aceptar) · `download <n|url>` (un export, un reporte).
+- `{{NAV}} console [--errors]` y `{{NAV}} network [--failed]` — lo que la página dijo en su consola y los pedidos de
+  red que hizo (documento, fetch, xhr: método, estado, cuánto tardó, por qué falló). Si algo no responde, un botón
+  no hace nada o la página queda a medias, MIRÁ ACÁ antes de suponer: un 500, un 404 o un error de JavaScript dicen
+  qué pasó. Es de la sesión actual; queda guardado con la corrida al terminar.
 - `{{NAV}} shot <archivo.png>` y después Read de ese archivo — para MIRAR cuando el texto no alcanza. `shot --full`
   saca la página entera en páginas numeradas (`archivo-01.png`, `-02`…), bajando el scroll (también el de un panel
   interno, como el de un correo en Gmail). Guardalo en

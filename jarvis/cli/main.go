@@ -303,7 +303,8 @@ func help(w io.Writer) {
                         G si lo nombrás (si ya existe, se suma), si no uno con el nombre de la meta. Dos trabajos en
                         paralelo, cada uno con su --session (o su --group), no se pisan
   console [--errors] [--search t] [--all] · network [--failed] [--search t] [--all]   la consola y la red de la
-                        sesión (documento, fetch y xhr; --all, todo), sin abrir DevTools
+                        sesión (documento, fetch y xhr; --all, todo), sin abrir DevTools. --run <id|last>: las
+                        guardadas de una corrida terminada (quedan con ella al hacer finish o al cerrar la sesión)
   attention '<motivo>' | attention --clear   la sesión necesita a la persona (un código, una llave, un login): 🔔 en
                         su pestaña, su grupo en rojo, un número en el ícono de Jarvis y la tarjeta marcada en Cockpit.
                         Se borra con --clear, al terminar la meta (finish) o al cerrar la sesión
@@ -1375,6 +1376,9 @@ func finish(args []string) error {
 	}
 	_ = panelEvent("report", url)
 	fmt.Printf("la corrida, como video: %s\n", url)
+	if lastRunID != "" {
+		fmt.Printf("su consola y su red: bin/jarvis console --run %s · bin/jarvis network --run %s\n", lastRunID, lastRunID)
+	}
 	if keyword(result) == "LISTO" && lastRunID != "" && goal != "" {
 		var fl struct{ App, ID, Path string }
 		if err := call(http.MethodPost, "/api/flows", map[string]string{"run": lastRunID, "name": goal}, &fl); err != nil {

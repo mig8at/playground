@@ -9,6 +9,12 @@ package main
  * estado). Pedir algo más desde adentro (req.Response(), el cuerpo) traba al driver. */
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -174,4 +180,73 @@ func (r *Runner) LiveDevLog(since int) DevLog {
 		n = []NetEntry{}
 	}
 	return DevLog{Console: c, Network: n, Last: last, Active: true}
+}
+
+// ── el historial: la consola y la red quedan con la corrida ──
+//
+// Al escribir el reporte de una corrida (finish) y al cerrarse la sesión, lo anotado DESDE QUE EMPEZÓ LA CORRIDA va a
+// .data/runs/<id>/devlog.json, al lado de sus pasos y sus fotos. Sin esto se perdía al cerrar la sesión o reiniciar el
+// servidor, y un Claude que retomaba la tarea no podía preguntar qué falló en la red de la corrida de ayer.
+// `bin/jarvis console --run <id|last>` y `network --run …` lo leen.
+
+const devlogFile = "devlog.json"
+
+// mark devuelve el número de orden actual: lo anotado después es de la corrida que empieza.
+func (d *devlog) mark() int {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.seq
+}
+
+// saveDevlog escribe en la carpeta de la corrida lo anotado desde su comienzo. Sin carpeta o sin nada, no escribe.
+func (l *live) saveDevlog() error {
+	l.mu.Lock()
+	dir, from, dev := l.runDir, l.devFrom, l.dev
+	l.mu.Unlock()
+	if dir == "" || dev == nil {
+		return nil
+	}
+	c, n, last := dev.since(from)
+	if len(c) == 0 && len(n) == 0 {
+		return nil
+	}
+	if c == nil {
+		c = []ConsoleEntry{}
+	}
+	if n == nil {
+		n = []NetEntry{}
+	}
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+	return writeJSONFile(filepath.Join(dir, devlogFile), DevLog{Console: c, Network: n, Last: last})
+}
+
+// RunDevLog lee la consola y la red guardadas de una corrida. "last" es la más nueva que las tiene.
+func (s *Store) RunDevLog(id string) (DevLog, string, error) {
+	if id == "last" {
+		// La más nueva que tenga consola y red, tenga reporte (finish) o no: una sesión que se cerró sin finish también
+		// deja su devlog.json. Las carpetas se llaman por fecha y hora, así que el orden es el nombre.
+		files, _ := filepath.Glob(filepath.Join(s.dir, "runs", "*", devlogFile))
+		sort.Strings(files)
+		if len(files) > 0 {
+			id = filepath.Base(filepath.Dir(files[len(files)-1]))
+		}
+		if id == "last" {
+			return DevLog{}, "", errors.New("ninguna corrida guardada tiene consola y red todavía")
+		}
+	}
+	if strings.ContainsAny(id, "/\\") || strings.HasPrefix(id, ".") {
+		return DevLog{}, "", errors.New("corrida inválida")
+	}
+	b, err := os.ReadFile(filepath.Join(s.dir, "runs", id, devlogFile))
+	if err != nil {
+		return DevLog{}, id, fmt.Errorf("la corrida %s no tiene consola ni red guardadas (son de las corridas desde el 2026-11-20)", id)
+	}
+	var d DevLog
+	if err := json.Unmarshal(b, &d); err != nil {
+		return DevLog{}, id, err
+	}
+	d.Active = true
+	return d, id, nil
 }
