@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -159,9 +160,10 @@ func (t *Tabs) pick(w http.ResponseWriter, r *http.Request) *Tab {
 	if fromCLI(r) || r.Method != http.MethodGet {
 		t.Touch(tab)
 	}
-	// «Siguiendo a Claude» en Chrome: la pestaña donde actúa pasa al frente (en su ventana).
+	// La pestaña va al frente sólo si hace falta (focus.go): lo que necesita a la persona (el modo guía), «seguir a
+	// Claude» prendido o un sitio que no anda de fondo. Si no, Claude trabaja detrás y no te mueve la vista.
 	if fromCLI(r) {
-		tab.Runner.focusChrome()
+		tab.Runner.focusChrome(strings.HasPrefix(r.URL.Path, "/api/live/guide"))
 	}
 	return tab
 }

@@ -156,14 +156,17 @@ type live struct {
 	// chromeTab: con el motor «chrome», el id de la pestaña de Chrome donde corre (0 si no se supo).
 	chromeTab int
 
-	mu        sync.Mutex
-	subs      map[chan []byte]struct{}
-	lastFrame []byte
-	current   *Page
-	version   int
-	signature string // qué hay para tocar en el último análisis: la versión sube sólo si cambia
-	analyzing bool
-	steps     []Step
+	mu sync.Mutex
+	// background: el último comando de Claude corrió con la pestaña detrás (focus.go); si vence por tiempo, el sitio
+	// aprende que va al frente.
+	background bool
+	subs       map[chan []byte]struct{}
+	lastFrame  []byte
+	current    *Page
+	version    int
+	signature  string // qué hay para tocar en el último análisis: la versión sube sólo si cambia
+	analyzing  bool
+	steps      []Step
 
 	analyzeMu sync.Mutex
 	dirty     chan struct{}
@@ -1565,16 +1568,6 @@ func withScheme(u string) string {
 		return "http://" + u
 	}
 	return "https://" + u
-}
-
-// focusChrome trae al frente, en Chrome, la pestaña de la sesión (sólo con el motor «chrome»). Además de seguir a
-// Claude, evita trabajar en una pestaña de fondo, donde Chrome frena el pintado y una captura puede no llegar.
-func (r *Runner) focusChrome() {
-	l := r.liveSession()
-	if l == nil || l.device != deviceChrome {
-		return
-	}
-	_ = l.page.BringToFront()
 }
 
 // iPhoneUA es el agente de celular con que el wizard de Creditop deja validar identidad y ver el crédito aprobado

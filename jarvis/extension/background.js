@@ -158,6 +158,21 @@ async function handle(method, params) {
       await chrome.tabs.update(tabId, { active: true })
       return {}
     }
+    case 'chrome.tabs.sendBehind': {
+      // Deja la pestaña detrás de verdad, para medir si el sitio anda de fondo (bin/jarvis focus check): al frente
+      // de su ventana va la pestaña Jarvis de esa ventana; si no hay, otra cualquiera de la ventana; si es la única,
+      // se abre la pestaña Jarvis ahí. No se toca el contenido de ninguna.
+      const [tabId] = params
+      guard(tabId)
+      const tab = await chrome.tabs.get(tabId)
+      const url = chrome.runtime.getURL('control.html')
+      const [control] = await chrome.tabs.query({ url, windowId: tab.windowId })
+      const others = (await chrome.tabs.query({ windowId: tab.windowId })).filter((t) => t.id !== tabId)
+      const target = control || others[0]
+      if (target) await chrome.tabs.update(target.id, { active: true })
+      else await chrome.tabs.create({ url, windowId: tab.windowId, pinned: true, index: 0, active: true })
+      return { active: (await chrome.tabs.get(tabId)).active }
+    }
     case 'chrome.tabs.setGroup': {
       // La sesión tiene un grupo propio (bin/jarvis start --group): su pestaña sale del «Jarvis» y va al de su tarea.
       const [tabId, title, color] = params

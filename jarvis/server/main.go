@@ -395,7 +395,9 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 			writeErr(w, http.StatusBadRequest, err)
 			return
 		}
-		if err := runner.LiveNav(in.Action, in.URL); err != nil {
+		err := runner.LiveNav(in.Action, in.URL)
+		runner.noteFocusResult(err)
+		if err != nil {
 			var note *NavNote
 			if errors.As(err, &note) {
 				writeJSON(w, http.StatusOK, map[string]any{"ok": true, "note": note.Note})
@@ -419,6 +421,7 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 			return
 		}
 		step, err := runner.LiveAct(in)
+		runner.noteFocusResult(err)
 		if err != nil {
 			writeJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": err.Error(), "step": step})
 			return
@@ -713,6 +716,48 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]bool{"ok": ok})
+	})
+	// GET /api/focus — qué sitios van al frente (focus.go) · PUT {host, mode} — lo pone a mano (mode "" lo borra) ·
+	// PUT {follow} — «seguir a Claude»: cada comando trae su pestaña.
+	mux.HandleFunc("/api/focus", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPut {
+			var in struct {
+				Host   string
+				Mode   string
+				Follow *bool
+			}
+			if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+				writeErr(w, http.StatusBadRequest, err)
+				return
+			}
+			var err error
+			switch {
+			case in.Follow != nil:
+				err = focusStore.SetFollow(*in.Follow)
+			case in.Mode == "":
+				err = focusStore.Set(focusHost("https://"+in.Host), nil)
+			default:
+				err = focusStore.Set(focusHost("https://"+in.Host), &FocusProfile{Mode: in.Mode, Source: "manual"})
+			}
+			if err != nil {
+				writeErr(w, http.StatusBadRequest, err)
+				return
+			}
+		}
+		writeJSON(w, http.StatusOK, focusStore.View())
+	})
+	// POST /api/live/focus-check — mide si el sitio de la sesión anda con la pestaña detrás y lo guarda.
+	mux.HandleFunc("/api/live/focus-check", func(w http.ResponseWriter, r *http.Request) {
+		tab := tabs.pick(w, r)
+		if tab == nil {
+			return
+		}
+		res, err := tab.Runner.FocusCheck()
+		if err != nil {
+			writeErr(w, http.StatusConflict, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, res)
 	})
 	// GET /api/flows — los flujos (jarvis/flows). POST /api/flows {run, name} — guarda una corrida como flujo.
 	// GET|DELETE /api/flows/<app>/<id> · POST /api/flows/<app>/<id>/replay {mode: auto|teach}

@@ -145,6 +145,8 @@ func main() {
 		err = tabsCmd(args)
 	case "groups":
 		err = groupsCmd(args)
+	case "focus":
+		err = focusCmd(args)
 	case "think":
 		if len(args) == 0 {
 			usage()
@@ -288,6 +290,9 @@ func help(w io.Writer) {
   start [--group G] [--color C] [--url U] '<meta>'   cada meta va a su sesión, en su grupo de pestañas de Chrome:
                         G si lo nombrás (si ya existe, se suma), si no uno con el nombre de la meta. Dos trabajos en
                         paralelo, cada uno con su --session (o su --group), no se pisan
+  focus [check | set <sitio> front|background|auto | follow on|off]   Claude trabaja de fondo (no te trae la pestaña)
+                        salvo en los sitios «al frente» y en el modo guía; check mide el de la sesión con la
+                        pestaña detrás; follow on vuelve a traerla en cada comando
   groups [close G [--force] | move N G | color G C]   los grupos y sus sesiones; cerrar uno entero, pasar una
                         sesión a otro (G = - la devuelve a «Jarvis»), cambiarle el color (`+strings.Join(groupColors, ", ")+`)
   project <id> '<nombre>' <url>   un proyecto con nombre propio para un sitio real (sus flujos van a jarvis/flows/<id>)
@@ -297,7 +302,7 @@ func help(w io.Writer) {
 
 // commands son los comandos que entiende main (los de antes, en castellano, se traducen al entrar: legacy.go). Sólo
 // sirve para sugerir uno cuando se escribe mal: el switch de main es el que manda.
-var commands = []string{"start", "chrome", "docs", "recipe", "tabs", "groups", "think", "finish", "project", "ask", "open", "device", "ua", "look",
+var commands = []string{"start", "chrome", "docs", "recipe", "tabs", "groups", "focus", "think", "finish", "project", "ask", "open", "device", "ua", "look",
 	"click", "dblclick", "hover", "check", "uncheck", "fill", "select", "press", "upload", "drag", "point", "changes", "dialog",
 	"scroll", "goto", "back", "forward", "reload", "text", "wait", "value", "download", "read", "shot", "steps", "script", "report",
 	"reset", "close", "help"}
