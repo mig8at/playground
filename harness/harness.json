@@ -89,8 +89,8 @@
     },
     "finandina": {
       "name": "Finandina",
-      "country": "Colombia",
       "panel": true,
+      "country": "Colombia",
       "note": "Banco Finandina (riel 4, sin credencial) por autogestión: formulario adicional, firma y «Autorizada». En la compartida es BUSINESS_FINANDINA (368).",
       "amount": 5000000,
       "allied_name": "Finandina Pruebas",
@@ -105,7 +105,8 @@
           "branch": "c0fca632",
           "branch_id": 2247,
           "allied_id": 368,
-          "allied_slug": "business-finandina"
+          "allied_slug": "business-finandina",
+          "advisor": "ca1110f50-fake@creditop.com"
         }
       }
     },

@@ -51,6 +51,36 @@
         "Entra por la tienda: la solicitud queda atada al pedido y los datos personales llegan bloqueados desde él"
       ],
       "measured": "2026-11-19: 468438 y 468439 en 11, 11 pantallas"
+    },
+    "finandina-asesor": {
+      "name": "Finandina por asesor",
+      "description": "Banco Finandina (riel 4, sin credencial) por el canal del asesor: el asesor arma la solicitud y el cliente la termina en su celular, hasta «Autorizada»",
+      "merchant": "finandina",
+      "channel": "asesor",
+      "journey": [
+        "advisor",
+        "riel-4",
+        "credit",
+        "+dynamic-form"
+      ],
+      "lender": 149,
+      "lenderName": "Banco Finandina",
+      "case": {
+        "amount": 5000000
+      },
+      "targets": [
+        "qa"
+      ],
+      "branch": {
+        "qa": "a1110f50"
+      },
+      "close": true,
+      "notes": [
+        "Por asesor: el asesor de prueba ca1110f50-fake@creditop.com en su sucursal pa1110f50-fake (creados el 2026-11-20); Finandina se prendió ahí por la matriz de activaciones",
+        "El asesor hace monto, OTP, datos personales y listado; desde la confirmación sigue el cliente en su celular",
+        "Lo demás, como Finandina por autogestión: política en el motor de Creditop, mínimo $3.000.000, sin formalización"
+      ],
+      "measured": "2026-11-20: qa 505183 (caminador por HTTP) y 505186 (desde el catálogo, con navegador) en 11, 12 pantallas"
     }
   }
 }

@@ -49,6 +49,9 @@ export interface NamedRun {
     journey: string[];
     /** Lo propio de esta corrida que el recorrido no dice (por qué decide quien decide, un mínimo, un hueco conocido). */
     notes?: string[];
+    /** La sucursal por ambiente cuando NO es la del registro: por asesor se corre en la del asesor de prueba
+     *  (`b<hash>-fake`), que es otra (Finandina por asesor en qa, 2026-11-20). */
+    branch?: Record<string, string>;
 }
 
 const JOURNEYS = JSON.parse(readFileSync(join(ROOT, 'journeys.json'), 'utf8'));
@@ -101,6 +104,10 @@ export function validateRuns(raw: unknown, merchants: string[]): { errors: strin
             if (!JOURNEYS.products[j[2]]) err(`\`journey\`: el producto «${j[2]}» no está en journeys.json (${Object.keys(JOURNEYS.products).join(', ')})`);
             for (const v of j.slice(3)) if (!v.startsWith('+') || !JOURNEYS.variations[v.slice(1)]) err(`\`journey\`: «${v}» no es una variación (+${Object.keys(JOURNEYS.variations).join(', +')})`);
         }
+        for (const [t, h] of Object.entries<any>(r?.branch ?? {})) {
+            if (!(r?.targets ?? []).includes(t)) err(`\`branch.${t}\`: no es uno de sus \`targets\``);
+            if (!/^[0-9a-f]{8}$/.test(String(h))) err(`\`branch.${t}\`: «${h}» no es un hash de sucursal (8 hex)`);
+        }
         for (const [k, v] of Object.entries<any>(r?.case ?? {})) {
             if (!(CASE_KEYS as readonly string[]).includes(k)) err(`\`case.${k}\` no es un campo del panel (${CASE_KEYS.join(', ')})`);
             else if (typeof v !== 'string' && typeof v !== 'number') err(`\`case.${k}\` es texto o número`);
@@ -118,6 +125,6 @@ export function readRuns(file = RUNS_FILE): { errors: string[]; runs: Record<str
 
 /** El caso del caminador para ESTE ambiente: `#<sucursal>:<entidad>`. Null si el comercio no tiene sucursal ahí. */
 export function runCase(run: NamedRun, target: string): string | null {
-    const branch = branchFor(run.merchant, target);
+    const branch = run.branch?.[target] || branchFor(run.merchant, target);
     return branch ? `#${branch}:${run.lender}` : null;
 }
