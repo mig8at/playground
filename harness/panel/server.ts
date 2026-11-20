@@ -1973,6 +1973,17 @@ const server = createServer(async (req, res) => {
                 const r = await dbopsJson(['request-tables', String(ureq)], tgt);
                 return r ? send(200, r) : send(500, { error: `no pude leer las tablas de ${ureq} en ${tgt}` });
             }
+            if (path === '/api/ext/decrypt') {
+                // La respuesta de una central, descifrada (`dbops decrypt-central`): sólo de un cliente de PRUEBA fuera de local.
+                const ureq = Number(digits(q.get('ureq'))), id = Number(digits(q.get('id')));
+                if (!ureq || !id) return send(400, { ok: false, detail: 'falta la solicitud o la fila' });
+                if (tgt !== 'local') {
+                    const mail = String(sqlJson(`SELECT u.email FROM user_requests ur JOIN users u ON u.id = ur.user_id WHERE ur.id = ${ureq}`)[0]?.email ?? '');
+                    if (!TEST_MAIL.test(mail)) return send(409, { ok: false, detail: `el cliente de ${ureq} no parece de prueba (correo «${mail || 'vacío'}»): no se descifra desde acá` });
+                }
+                const r = await dbopsJson(['decrypt-central', String(ureq), String(id)], tgt);
+                return send(r?.ok ? 200 : 409, r ? { ok: !!r.ok, central: r.central, plain: r.plain, detail: r.motivo } : { ok: false, detail: 'sin respuesta' });
+            }
             if (path === '/api/ext/verdict') {
                 const ureq = Number(digits(q.get('ureq')));
                 if (!ureq) return send(400, { error: 'falta la solicitud' });

@@ -92,3 +92,4 @@ header .logo { width: 20px; height: 20px; border-radius: 5px; flex: none }
 .console td.enum .name { display: none; color: #c8b6f5 }
 .console td.enum:hover .num { display: none }
 .console td.enum:hover .name { display: inline }
+.console td.cipher { color: #e5b45c }

@@ -344,7 +344,7 @@ const SHOW = {
   users: ['id', 'first_name', 'surname', 'document_type', 'document_number', 'expedition_date', 'date_of_birth', 'cell_phone', 'email',
     'onboarding_channel', 'validated', 'manual_validation', 'status', 'updated_at'],
   user_request_records: ['user_request_status_id', 'comment', 'update_by', 'created_at'],
-  risk_central_user_data: ['id', 'risk_central_id', 'score', 'request', 'additional_info', 'created_at'],
+  risk_central_user_data: ['id', 'risk_central_id', 'score', 'data', 'request', 'additional_info', 'created_at'],
   user_request_risk_central_user_data: ['id', 'risk_central_user_data_id', 'created_at'],
   user_summaries: ['agildata', 'mareigua', 'tusdatos', 'datacredito', 'quanto', 'abaco', 'updated_at'],
   user_field_values: ['field_id', 'form_id', 'value', 'file_name', 'created_at'],
@@ -382,6 +382,21 @@ async function refreshDb() {
 /** ¿Es un objeto o una lista en JSON? Devuelve el valor ya parseado, o `undefined`. */
 const jsonOf = (v) => { if (typeof v !== 'string' || !/^[\[{]/.test(v)) return undefined; try { return JSON.parse(v); } catch { return undefined; } };
 let dbDetail = null;   // { key, col }: la celda abierta abajo de la tabla
+// LO CIFRADO: `risk_central_user_data.data` (la respuesta de la central) va cifrado con el APP_KEY del backend. La celda dice
+// «🔒 cifrado» y, al tocarla, el panel la descifra (`/api/ext/decrypt`, sólo clientes de prueba) y se abre debajo. Una vez
+// por fila: queda guardado mientras no cambie.
+const dbPlain = new Map();   // `${id}:${valor cifrado}` → { plain } | { error } | { loading: true }
+const isCipher = (table, col) => table === 'risk_central_user_data' && col === 'data';
+async function decryptRow(row) {
+  const k = `${row.id}:${row.data}`;
+  if (dbPlain.has(k)) return;
+  dbPlain.set(k, { loading: true }); renderDb();
+  try {
+    const r = await api(`/decrypt?ureq=${lastUreq}&id=${row.id}`);
+    dbPlain.set(k, r.ok ? { plain: r.plain ?? '' } : { error: r.detail || 'no se pudo' });
+  } catch (e) { dbPlain.set(k, { error: e.message }); }
+  renderDb();
+}
 function renderDb() {
   const tabs = $('dbTabs'), rows = $('dbRows'), foot = $('dbFoot');
   if (!lastUreq || !target) { tabs.innerHTML = ''; rows.innerHTML = '<div class="empty">Sin solicitud en esta pestaña.</div>'; foot.textContent = ''; return; }
@@ -432,6 +447,13 @@ function renderDb() {
             Object.assign(document.createElement('span'), { className: 'name', textContent: label }));
           continue;
         }
+        if (isCipher(t.table, c)) {
+          td.textContent = '🔒 cifrado';
+          td.classList.add('open', 'cipher');
+          if (dbDetail?.key === key && dbDetail.col === c) td.classList.add('sel');
+          td.onclick = () => { const same = dbDetail?.key === key && dbDetail.col === c; dbDetail = same ? null : { key, col: c }; if (!same) decryptRow(row); renderDb(); };
+          continue;
+        }
         const text = obj !== undefined ? (Array.isArray(obj) ? `[…] ${obj.length}` : `{…} ${Object.keys(obj || {}).length} claves`) : String(v);
         td.textContent = text;
         td.title = obj !== undefined ? 'Ver el objeto' : String(v);
@@ -447,14 +469,16 @@ function renderDb() {
     // EL DETALLE: la celda elegida, entera, con el JSON formateado.
     const row = dbDetail && t.rows.find((r) => `${t.table}:${r.id}` === dbDetail.key);
     if (row && dbDetail.col in row) {
-      const v = row[dbDetail.col], obj = jsonOf(v);
+      const cipher = isCipher(t.table, dbDetail.col), dec = cipher ? dbPlain.get(`${row.id}:${row[dbDetail.col]}`) : null;
+      const v = cipher ? (dec?.loading ? 'Descifrando…' : dec?.error ? `No se pudo descifrar: ${dec.error}` : dec?.plain ?? '') : row[dbDetail.col];
+      const obj = jsonOf(v);
       const det = Object.assign(document.createElement('div'), { className: 'detail' });
       const bar = Object.assign(document.createElement('div'), { className: 'bar' });
       const copy = Object.assign(document.createElement('button'), { textContent: 'Copiar' });
       copy.onclick = () => navigator.clipboard.writeText(obj !== undefined ? JSON.stringify(obj, null, 2) : String(v));
       const close = Object.assign(document.createElement('button'), { textContent: '✕' });
       close.onclick = () => { dbDetail = null; renderDb(); };
-      bar.append(Object.assign(document.createElement('span'), { textContent: `${SHORT[t.table] || t.table} · id ${row.id} · ${dbDetail.col}` }), copy, close);
+      bar.append(Object.assign(document.createElement('span'), { textContent: `${SHORT[t.table] || t.table} · id ${row.id} · ${dbDetail.col}${cipher ? ' · descifrado' : ''}` }), copy, close);
       det.append(bar, Object.assign(document.createElement('pre'), { textContent: obj !== undefined ? JSON.stringify(obj, null, 2) : String(v) }));
       rows.appendChild(det);
       det.querySelector('pre').scrollTop = keepPre;

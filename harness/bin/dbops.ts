@@ -505,6 +505,30 @@ try {
             r = { ureq, user: uid, tables, labels };
             break;
         }
+        case 'decrypt-central': { // `<solicitud> <id de risk_central_user_data>` → {ok, central, plain} la respuesta de una central, DESCIFRADA
+            // Para la consola de Probeta: la columna `data` va cifrada con el APP_KEY del backend (formato de Laravel). Sólo
+            // lectura, nunca prod, y sólo una fila que sea del cliente de esa solicitud. La guarda de «cliente de prueba» la
+            // pone el panel (`/api/ext/decrypt`).
+            if (TARGET === 'prod') throw new Error('decrypt-central nunca corre en prod');
+            const ureq = num(a[0]), rid = num(a[1]);
+            const row = await one<{ data: string | null; central: string | null }>(
+                `SELECT d.data, rc.name AS central FROM risk_central_user_data d
+                   JOIN user_requests ur ON ur.user_id = d.user_id AND ur.id = ?
+                   LEFT JOIN risk_centrals rc ON rc.id = d.risk_central_id
+                  WHERE d.id = ? LIMIT 1`, [ureq, rid]);
+            if (!row) { r = { ok: false, motivo: `la fila ${rid} no es del cliente de la solicitud ${ureq}` }; break; }
+            if (!row.data) { r = { ok: true, central: row.central, plain: null }; break; }
+            const { decryptLaravelString } = await import('../pkg/laravel-crypt.ts');
+            const { appKey } = await import('../pkg/db.ts');
+            try {
+                let plain = decryptLaravelString(String(row.data), appKey());
+                // `encrypt()` de Laravel serializa en PHP (`s:123:"…";`): se saca la envoltura si la trae.
+                const ser = /^s:\d+:"([\s\S]*)";$/.exec(plain);
+                if (ser) plain = ser[1];
+                r = { ok: true, central: row.central, plain };
+            } catch (e) { r = { ok: false, motivo: `no se pudo descifrar: ${(e as Error).message}` }; }
+            break;
+        }
         case 'orphans': { // solicitudes que apuntan a un usuario INEXISTENTE. `--fix` las borra.
             // Las produce mezclar ambientes: un `user_id` de una base insertado en otra (F-65). Quedan
             // como minas en la base COMPARTIDA — el siguiente que abra esa solicitud se come un 500
