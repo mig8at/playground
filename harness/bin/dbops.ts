@@ -440,6 +440,44 @@ try {
             r = { user: uid, ventanaSeg: seg, tablas: tables };
             break;
         }
+        case 'request-tables': { // las filas de UNA solicitud y su cliente, tabla por tabla → {ureq, user, tables:[{table, rows}]}
+            // Para la consola de la extensión «Cliente de prueba»: ver cómo va quedando la base mientras se avanza. SÓLO
+            // LECTURA. A diferencia de `activity` no va por ventana de tiempo sino por la solicitud y su usuario, así que
+            // en la base compartida no se cuela lo del equipo. No ve DELETEs. Los textos largos (los JSON de las
+            // centrales) se recortan y las credenciales del usuario no se leen.
+            const ureq = num(a[0]);
+            const uid = await scalar<number>('SELECT user_id FROM user_requests WHERE id = ?', [ureq]);
+            if (!uid) { r = { ureq, user: null, tables: [] }; break; }
+            const T: Array<{ t: string; where: string; p: number; limit?: number }> = [
+                { t: 'user_requests', where: 'id = ?', p: ureq },
+                { t: 'users', where: 'id = ?', p: uid },
+                { t: 'user_request_records', where: 'user_id = ?', p: uid },
+                { t: 'risk_central_user_data', where: 'user_id = ?', p: uid },
+                { t: 'user_request_risk_central_user_data', where: 'user_request_id = ?', p: ureq },
+                { t: 'user_summaries', where: 'user_id = ?', p: uid },
+                { t: 'user_field_values', where: 'user_id = ?', p: uid },
+                { t: 'creditop_x_user_requests_records', where: 'user_id = ?', p: uid },
+                { t: 'lender_transactions', where: 'user_request_id = ?', p: ureq },
+                { t: 'logs', where: 'user_id = ?', p: uid, limit: 40 },
+            ];
+            const SECRET = /password|remember_token|secret|token$/i;
+            const clip = (v: unknown) => {
+                if (v == null) return null;
+                if (v instanceof Date) return v.toISOString().replace('T', ' ').slice(0, 19);
+                if (Buffer.isBuffer(v)) return `(${v.length} bytes)`;
+                const t = String(v);
+                return t.length > 240 ? `${t.slice(0, 240)}… (${t.length})` : t;
+            };
+            const tables = await Promise.all(T.map(async (d) => {
+                try {
+                    const rowList = await query(`SELECT * FROM \`${d.t}\` WHERE ${d.where} ORDER BY id DESC LIMIT ${d.limit ?? 30}`, [d.p]);
+                    return { table: d.t, rows: rowList.map((row: any) => Object.fromEntries(Object.entries(row)
+                        .filter(([k]) => !SECRET.test(k)).map(([k, v]) => [k, clip(v)]))) };
+                } catch (e) { return { table: d.t, rows: [], error: (e as Error).message.split('\n')[0].slice(0, 120) }; }
+            }));
+            r = { ureq, user: uid, tables };
+            break;
+        }
         case 'orphans': { // solicitudes que apuntan a un usuario INEXISTENTE. `--fix` las borra.
             // Las produce mezclar ambientes: un `user_id` de una base insertado en otra (F-65). Quedan
             // como minas en la base COMPARTIDA — el siguiente que abra esa solicitud se come un 500

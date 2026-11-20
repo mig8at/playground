@@ -62,7 +62,7 @@ async function syncTab() {
   entryBase = tab?.url ? entryOf(tab.url) : null;
   lockPerson(!!target && inProgress(tab?.url));
   const u = tab?.url ? ureqOf(tab.url) : null;
-  if (u !== lastUreq) { lastUreq = u; lastStatus = null; renderRequest(); }
+  if (u !== lastUreq) { lastUreq = u; lastStatus = null; renderRequest(); refreshDb(); }
   renderStep(tab?.url);
   await trackScreen(tab?.url);
   renderFlow();
@@ -332,6 +332,85 @@ async function renderRequest() {
   } catch (e) { box.textContent = `No pude leer la solicitud ${lastUreq}: ${e.message}`; }
 }
 
+// ── LA CONSOLA: las tablas que toca la solicitud, una pestaña por tabla, con sus filas (las de esta solicitud y su cliente,
+// no «lo último que se escribió»: la base de qa es compartida). Cada fila muestra las columnas que importan de esa tabla;
+// al tocarla, todas las que no están vacías. Lo que cambió desde la lectura anterior queda resaltado unos segundos. Sólo
+// lectura (`/api/ext/tables` → `dbops request-tables`), y se lee sólo con la consola abierta: no carga la base de balde.
+const KEY_COLS = {
+  user_requests: ['user_request_status_id', 'lender_id', 'original_amount', 'amount', 'flow_id', 'disbursed_at', 'updated_at'],
+  users: ['first_name', 'surname', 'document_number', 'cell_phone', 'email', 'expedition_date', 'status', 'updated_at'],
+  user_request_records: ['user_request_status_id', 'comment', 'created_at'],
+  risk_central_user_data: ['risk_central_id', 'score', 'created_at'],
+  user_request_risk_central_user_data: ['risk_central_user_data_id', 'created_at'],
+  user_summaries: ['agildata', 'datacredito', 'tusdatos', 'updated_at'],
+  user_field_values: ['field_id', 'form_id', 'value'],
+  creditop_x_user_requests_records: ['creditop_x_user_requests_process_statuses_id', 'status', 'updated_at'],
+  lender_transactions: ['status_id', 'created_at'],
+  logs: ['name', 'description', 'created_at'],
+};
+const SHORT = { user_request_records: 'ur_records', risk_central_user_data: 'centrales', user_request_risk_central_user_data: 'ur_centrales',
+  user_summaries: 'summaries', user_field_values: 'field_values', creditop_x_user_requests_records: 'creditop_x', lender_transactions: 'lender_tx' };
+const HOT_MS = 20000;
+let db = { ureq: null, tables: [], at: '' }, dbTab = 'user_requests', dbPrev = new Map(), dbChanged = new Map(), dbOpen = new Set(), dbBusy = false;
+async function refreshDb() {
+  if (!$('dbConsole').open || !target || !lastUreq || dbBusy) { renderDb(); return; }
+  dbBusy = true;
+  try {
+    const r = await api(`/tables?ureq=${lastUreq}`);
+    if (db.ureq !== lastUreq) { dbPrev = new Map(); dbChanged = new Map(); dbOpen = new Set(); }
+    const now = Date.now(), first = dbPrev.size === 0;
+    for (const t of r.tables || []) for (const row of t.rows) {
+      const key = `${t.table}:${row.id}`, before = dbPrev.get(key);
+      if (!first && !before) dbChanged.set(key, { at: now, cols: new Set(Object.keys(row)), isNew: true });
+      else if (before) {
+        const cols = Object.keys(row).filter((c) => before[c] !== row[c]);
+        if (cols.length) dbChanged.set(key, { at: now, cols: new Set(cols), isNew: false });
+      }
+      dbPrev.set(key, row);
+    }
+    db = { ureq: lastUreq, tables: r.tables || [], at: new Date().toLocaleTimeString('es-CO', { hour12: false }) };
+  } catch (e) { db = { ...db, error: e.message }; }
+  dbBusy = false;
+  renderDb();
+}
+function renderDb() {
+  const tabs = $('dbTabs'), rows = $('dbRows'), foot = $('dbFoot');
+  if (!lastUreq || !target) { tabs.innerHTML = ''; rows.innerHTML = '<div class="empty">Sin solicitud en esta pestaña.</div>'; foot.textContent = ''; return; }
+  if (db.ureq !== lastUreq) { tabs.innerHTML = ''; rows.innerHTML = '<div class="empty">Leyendo…</div>'; foot.textContent = ''; return; }
+  const now = Date.now(), hot = (key) => { const c = dbChanged.get(key); return c && now - c.at < HOT_MS ? c : null; };
+  tabs.innerHTML = '';
+  for (const t of db.tables) {
+    const b = Object.assign(document.createElement('button'), { className: `tab${t.table === dbTab ? ' on' : ''}`, title: t.error || t.table });
+    const recent = t.rows.some((row) => hot(`${t.table}:${row.id}`));
+    b.append(SHORT[t.table] || t.table, Object.assign(document.createElement('span'), { className: `n${t.rows.length ? ' has' : ''}`, textContent: t.error ? '!' : t.rows.length }));
+    if (recent) b.append(Object.assign(document.createElement('span'), { className: 'hot', textContent: ' ●' }));
+    b.onclick = () => { dbTab = t.table; renderDb(); };
+    tabs.appendChild(b);
+  }
+  const t = db.tables.find((x) => x.table === dbTab) || db.tables[0];
+  rows.innerHTML = '';
+  if (!t || !t.rows.length) rows.innerHTML = `<div class="empty">${t?.error ? `No se pudo leer: ${t.error}` : 'Sin filas para esta solicitud todavía.'}</div>`;
+  for (const row of t?.rows || []) {
+    const key = `${t.table}:${row.id}`, chg = hot(key), open = dbOpen.has(key);
+    const div = Object.assign(document.createElement('div'), { className: `row${chg?.isNew ? ' new' : ''}` });
+    const want = open ? Object.keys(row).filter((c) => row[c] != null && row[c] !== '') : ['id', ...(KEY_COLS[t.table] || Object.keys(row).slice(1, 5)).filter((c) => c in row)];
+    for (const c of want) {
+      const kv = Object.assign(document.createElement('div'), { className: `kv${chg && !chg.isNew && chg.cols.has(c) ? ' chg' : ''}` });
+      kv.append(Object.assign(document.createElement('span'), { className: 'k', textContent: c }),
+        Object.assign(document.createElement('span'), { className: `v${row[c] == null ? ' null' : ''}`, textContent: row[c] == null ? 'NULL' : row[c] }));
+      div.appendChild(kv);
+    }
+    if (!open) div.appendChild(Object.assign(document.createElement('div'), { className: 'more', textContent: '+ todas las columnas' }));
+    div.onclick = () => { open ? dbOpen.delete(key) : dbOpen.add(key); renderDb(); };
+    rows.appendChild(div);
+  }
+  const recentCount = [...dbChanged.values()].filter((c) => now - c.at < HOT_MS).length;
+  foot.innerHTML = '';
+  foot.append(Object.assign(document.createElement('span'), { textContent: `${db.ureq} · ${target} · leído ${db.at}${db.error ? ' · ⚠ ' + db.error : ''}` }),
+    Object.assign(document.createElement('span'), { textContent: recentCount ? `● ${recentCount} cambio(s)` : 'sin cambios' }));
+}
+$('dbConsole').addEventListener('toggle', refreshDb);
+
 // ── lo que avisa la página ──────────────────────────────────────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   if (sender.tab?.id !== tabId) return false;
@@ -347,5 +426,5 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
 
 chrome.tabs.onActivated.addListener(syncTab);
 chrome.tabs.onUpdated.addListener((id, info) => { if (id === tabId && info.url) syncTab(); });
-setInterval(() => { syncTab(); if (lastUreq) renderRequest(); readOtp(); }, 5000);
+setInterval(() => { syncTab(); if (lastUreq) renderRequest(); readOtp(); refreshDb(); }, 5000);
 load().then(syncTab).then(() => { refreshState(); readOtp(); });

@@ -56,3 +56,22 @@ button:disabled { opacity: .5; cursor: default }
 .flow .lbl time { color: var(--fg3); font-size: 11.5px; font-variant-numeric: tabular-nums }
 .req details { margin-top: 6px }
 .req summary { cursor: pointer; color: var(--fg2) }
+/* La consola: oscura en los dos temas, como una terminal. */
+.console { margin-top: 18px; border-radius: 8px; overflow: hidden; background: #1c1c1a; color: #ecebe6; font: 11.5px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace }
+.console summary { cursor: pointer; padding: 8px 10px; color: #b4b2a9; font: 500 11.5px system-ui, -apple-system, sans-serif; list-style: none }
+.console summary::before { content: '▸ '; } .console[open] summary::before { content: '▾ '; }
+.console .tabs { display: flex; gap: 2px; overflow-x: auto; padding: 0 6px; border-bottom: 1px solid #3a3a37; scrollbar-width: none }
+.console .tab { all: unset; cursor: pointer; padding: 5px 8px; border-radius: 6px 6px 0 0; white-space: nowrap; color: #888780 }
+.console .tab.on { background: #2a2a28; color: #ecebe6 }
+.console .tab .n { color: #5f5e5a; margin-left: 4px } .console .tab .n.has { color: #8fca6a }
+.console .tab .hot { color: #78a9ef }
+.console .rows { padding: 6px 10px; max-height: 360px; overflow: auto }
+.console .row { border-bottom: 1px dashed #3a3a37; padding: 4px 0; cursor: pointer }
+.console .row.new { box-shadow: inset 2px 0 #78a9ef; padding-left: 6px }
+.console .kv { display: flex; justify-content: space-between; gap: 10px }
+.console .kv .k { color: #b4b2a9; flex: none } .console .kv .v { text-align: right; word-break: break-all; color: #ecebe6 }
+.console .kv .v.null { color: #5f5e5a }
+.console .kv.chg { background: rgba(120, 169, 239, .18); border-radius: 3px } .console .kv.chg .v { color: #9cc0f3 }
+.console .more { color: #5f5e5a; font-size: 11px }
+.console .empty { color: #888780; padding: 18px 0; text-align: center }
+.console .foot { display: flex; justify-content: space-between; gap: 8px; padding: 6px 10px; border-top: 1px solid #3a3a37; color: #888780; font-size: 11px }

@@ -1966,6 +1966,13 @@ const server = createServer(async (req, res) => {
                 const r = await dbopsJson(['identity-approve', String(ureq), ...(phone ? [phone] : [])], tgt);
                 return send(r?.ok ? 200 : 409, { ok: !!r?.ok, detail: r?.ok ? `identidad de ${ureq} aprobada a mano` : (r?.motivo ?? 'sin respuesta') });
             }
+            if (path === '/api/ext/tables') {
+                // Las tablas de la solicitud, para la consola de la extensión. Sólo lectura (`dbops request-tables`).
+                const ureq = Number(digits(q.get('ureq')));
+                if (!ureq) return send(400, { error: 'falta la solicitud' });
+                const r = await dbopsJson(['request-tables', String(ureq)], tgt);
+                return r ? send(200, r) : send(500, { error: `no pude leer las tablas de ${ureq} en ${tgt}` });
+            }
             if (path === '/api/ext/verdict') {
                 const ureq = Number(digits(q.get('ureq')));
                 if (!ureq) return send(400, { error: 'falta la solicitud' });
