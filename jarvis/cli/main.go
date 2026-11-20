@@ -147,6 +147,8 @@ func main() {
 		err = groupsCmd(args)
 	case "focus":
 		err = focusCmd(args)
+	case "cleanup":
+		err = cleanupCmd(args)
 	case "think":
 		if len(args) == 0 {
 			usage()
@@ -290,6 +292,9 @@ func help(w io.Writer) {
   start [--group G] [--color C] [--url U] '<meta>'   cada meta va a su sesión, en su grupo de pestañas de Chrome:
                         G si lo nombrás (si ya existe, se suma), si no uno con el nombre de la meta. Dos trabajos en
                         paralelo, cada uno con su --session (o su --group), no se pisan
+  cleanup [--apply]     qué se puede cerrar y por qué: sesiones de Claude terminadas u olvidadas y pestañas huérfanas
+                        (las que quedaron sin sesión tras un reinicio). Sin --apply sólo muestra; el barrido de
+                        fondo cierra lo mismo solo (las terminadas a los 3 min, las olvidadas a los 10)
   focus [check | set <sitio> front|background|auto | follow on|off]   Claude trabaja de fondo (no te trae la pestaña)
                         salvo en los sitios «al frente» y en el modo guía; check mide el de la sesión con la
                         pestaña detrás; follow on vuelve a traerla en cada comando
@@ -302,7 +307,7 @@ func help(w io.Writer) {
 
 // commands son los comandos que entiende main (los de antes, en castellano, se traducen al entrar: legacy.go). Sólo
 // sirve para sugerir uno cuando se escribe mal: el switch de main es el que manda.
-var commands = []string{"start", "chrome", "docs", "recipe", "tabs", "groups", "focus", "think", "finish", "project", "ask", "open", "device", "ua", "look",
+var commands = []string{"start", "chrome", "docs", "recipe", "tabs", "groups", "focus", "cleanup", "think", "finish", "project", "ask", "open", "device", "ua", "look",
 	"click", "dblclick", "hover", "check", "uncheck", "fill", "select", "press", "upload", "drag", "point", "changes", "dialog",
 	"scroll", "goto", "back", "forward", "reload", "text", "wait", "value", "download", "read", "shot", "steps", "script", "report",
 	"reset", "close", "help"}
@@ -1299,7 +1304,7 @@ func begin(args []string) error {
 	}
 	// Cada meta va en su GRUPO de pestañas de Chrome (--group G; sin él, uno con el nombre de la meta) y en una sesión
 	// propia: así dos trabajos corren en paralelo sin pisarse. Con --session N se usa esa, ocupada o no.
-	note, err := placeInGroup(goal)
+	note, err := placeInGroup(goal, start)
 	if err != nil {
 		return err
 	}

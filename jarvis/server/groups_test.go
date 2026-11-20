@@ -89,7 +89,7 @@ func TestClaimInParallelNeverSharesASession(t *testing.T) {
 	got := make(chan *Tab, 8)
 	for i := 0; i < 8; i++ {
 		go func(i int) {
-			tab, err := tabs.Claim(true, []string{"A", "B"}[i%2], "")
+			tab, _, err := tabs.Claim(true, []string{"A", "B"}[i%2], "", "", false)
 			if err != nil {
 				t.Error(err)
 			}
@@ -112,7 +112,17 @@ func TestClaimInParallelNeverSharesASession(t *testing.T) {
 	tabs.mu.Lock()
 	a.claimed = a.claimed.Add(-2 * claimHold)
 	tabs.mu.Unlock()
-	if again, _ := tabs.Claim(true, "a", ""); again != a {
+	if again, how, _ := tabs.Claim(true, "a", "", "", false); again != a || how != "group" {
 		t.Fatalf("una sesión libre del grupo tendría que reusarse")
+	}
+}
+
+// Una meta que empieza y termina rápido no deja su sesión reservada: la próxima la puede tomar.
+func TestReleaseAfterGoalEnds(t *testing.T) {
+	tabs := NewTabs(nil)
+	a, _, _ := tabs.Claim(true, "VTEX", "", "", false)
+	tabs.Release(a)
+	if again, how, _ := tabs.Claim(true, "vtex", "", "", false); again != a || how != "group" {
+		t.Fatalf("soltada la reserva, la misma sesión del grupo tendría que reutilizarse (fue %s, %s)", again.ID, how)
 	}
 }

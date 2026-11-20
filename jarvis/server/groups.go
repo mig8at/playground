@@ -146,53 +146,84 @@ func (t *Tabs) NewIn(byClaude bool, name, color string) (*Tab, error) {
 // claimHold: cuánto queda reservada una sesión que tomó un `start` mientras abre su página y arranca su Claude.
 const claimHold = 90 * time.Second
 
-// Claim elige, de una sola vez, la sesión para una meta nueva del grupo `name` y la deja reservada:
-//   - una del grupo sin Claude trabajando ni reservada;
-//   - si no, la última vacía y sin grupo (siempre queda una) — la pasa al grupo;
-//   - si no, una nueva en el grupo.
+// Claim elige, de una sola vez, la sesión para una meta nueva y la deja reservada. En este orden:
+//   - una LIBRE (sin Claude en una meta, sin reproducción, sin reservar) que ya está en el sitio de `url`: se reutiliza
+//     su pestaña en vez de abrir otra. Si la meta no nombró grupo (`auto`), queda en el que ya tenía;
+//   - una libre del grupo `name`;
+//   - la última vacía y sin grupo (siempre queda una);
+//   - una nueva.
 //
-// Va en fila (claimMu): antes el CLI listaba y elegía por su cuenta, y dos `start` a la vez tomaban la misma sesión
-// vacía (el segundo chocaba con «ya hay un live corriendo»).
-func (t *Tabs) Claim(byClaude bool, name, color string) (*Tab, error) {
+// Va en fila (claimMu): antes el CLI elegía por su cuenta y dos `start` a la vez tomaban la misma sesión vacía. Y
+// antes no miraba el sitio: cada meta abría su pestaña aunque hubiera una ociosa en el mismo admin.
+func (t *Tabs) Claim(byClaude bool, name, color, url string, auto bool) (*Tab, string, error) {
 	t.claimMu.Lock()
 	defer t.claimMu.Unlock()
 	key := groupKey(name)
+	host := focusHost(withScheme(url))
 	now := time.Now()
 	t.mu.Lock()
 	last := t.last
 	t.mu.Unlock()
-	var free, empty *Tab
+	var bySite, free, empty *Tab
 	for _, tab := range t.All() {
 		t.mu.Lock()
 		group, held := tab.Group, now.Sub(tab.claimed) < claimHold
 		t.mu.Unlock()
-		if held || tab.Asker.State(-1).Running || tab.Runner.State(0).Busy {
+		st := tab.Runner.LiveState(false)
+		// Ocupada = su Claude en una meta o algo en curso (cleanup.go: inFlight). Runner.State().Busy no sirve: una
+		// sesión con página lo está siempre.
+		if held || tab.Asker.State(-1).Running || inFlight(tab, st) {
 			continue
 		}
 		switch {
+		case host != "" && st.Active && focusHost(st.URL) == host:
+			bySite = tab
 		case key != "" && group != "" && groupKey(group) == key:
 			free = tab
-		case group == "" && tab.ID == last && !tab.Runner.LiveState(false).Active:
+		case group == "" && tab.ID == last && !st.Active:
 			empty = tab
 		}
 	}
-	tab := free
-	if tab == nil {
-		tab = empty
-	}
-	if tab == nil {
+	how := "new"
+	var tab *Tab
+	switch {
+	case bySite != nil:
+		tab, how = bySite, "site"
+	case free != nil:
+		tab, how = free, "group"
+	case empty != nil:
+		tab, how = empty, "empty"
+	default:
 		tab = t.NewBy(byClaude)
 	}
-	if name != "" && (tab != free || color != "") {
+	t.mu.Lock()
+	current := tab.Group
+	t.mu.Unlock()
+	// El grupo: el nombrado manda; uno automático no le cambia el grupo a una sesión que ya tenía uno.
+	keep := (auto && current != "") || (current != "" && groupKey(current) == key && color == "")
+	if name != "" && !keep {
 		if _, _, err := t.SetGroup(tab, name, color); err != nil {
-			return nil, err
+			return nil, "", err
 		}
 	}
 	t.mu.Lock()
 	tab.claimed = now
 	tab.lastUsed = now
+	// La vacía inicial nace «de la persona»; si la toma una meta de Claude, pasa a ser de Claude (y se cierra sola
+	// cuando ya no hace falta). Antes quedaba de la persona y su pestaña no se cerraba nunca.
+	if byClaude && how == "empty" {
+		tab.ByClaude = true
+	}
 	t.mu.Unlock()
-	return tab, nil
+	return tab, how, nil
+}
+
+// Release suelta la reserva de Claim: la meta ya empezó (la protege su estado «trabajando») o terminó (la puede tomar
+// la próxima). Sin esto, una meta que empezaba y terminaba en menos de claimHold dejaba su sesión sin reutilizar.
+func (t *Tabs) Release(tab *Tab) {
+	t.mu.Lock()
+	tab.claimed = time.Time{}
+	t.mu.Unlock()
 }
 
 // setGroup anota el grupo de la sesión y, si ya tiene su pestaña de Chrome, la mueve ahí.

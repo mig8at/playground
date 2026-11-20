@@ -71,6 +71,11 @@ func main() {
 	}
 	tabs := NewTabs(store)
 	defer tabs.CloseAll()
+	if v := os.Getenv("JARVIS_TAB_DONE_IDLE"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil && d >= 0 {
+			tabs.doneIdle = d
+		}
+	}
 	go sweepTabs(tabs, IdleLimit(os.Getenv("JARVIS_TAB_IDLE")))
 	for _, a := range listApps() {
 		go serveDir(a.Addr(), filepath.Join("apps", a.ID), a.Name)
@@ -80,15 +85,16 @@ func main() {
 	}
 }
 
-// sweepTabs cierra cada medio minuto las pestañas de Claude que quedaron sin uso (Tabs.Sweep).
+// sweepTabs cierra cada medio minuto lo que ya no hace falta (cleanup.go): las sesiones de Claude sin uso y las
+// pestañas huérfanas que dejó un reinicio.
 func sweepTabs(tabs *Tabs, idle time.Duration) {
 	if idle <= 0 {
 		return
 	}
-	log.Printf("jarvis: las pestañas de Claude sin uso se cierran a los %s (JARVIS_TAB_IDLE)", idle)
+	log.Printf("jarvis: se cierran solas las sesiones de Claude terminadas a los %s y las olvidadas a los %s (JARVIS_TAB_DONE_IDLE, JARVIS_TAB_IDLE), y las pestañas huérfanas", tabs.doneIdle, idle)
 	for range time.Tick(30 * time.Second) {
-		if closed := tabs.Sweep(time.Now(), idle); len(closed) > 0 {
-			log.Printf("jarvis: cerré las pestañas %s: Claude las dejó sin uso más de %s", strings.Join(closed, ", "), idle)
+		for _, it := range tabs.Cleanup(time.Now(), idle, false, true) {
+			log.Printf("jarvis: cerré %s %s%d (%s): %s", it.Kind, it.Session, it.ChromeTab, it.URL, it.Reason)
 		}
 	}
 }
@@ -182,15 +188,24 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 			writeErr(w, http.StatusMethodNotAllowed, fmt.Errorf("POST"))
 			return
 		}
-		var body struct{ Group, Color string }
+		var body struct {
+			Group, Color, URL string
+			Auto              bool
+		}
 		_ = json.NewDecoder(r.Body).Decode(&body)
-		tab, err := tabs.Claim(fromCLI(r), body.Group, body.Color)
+		tab, how, err := tabs.Claim(fromCLI(r), body.Group, body.Color, body.URL, body.Auto)
 		if err != nil {
 			writeErr(w, http.StatusBadRequest, err)
 			return
 		}
-		t := tabs.Get(tab.ID)
-		writeJSON(w, http.StatusOK, map[string]string{"id": t.ID, "group": t.Group, "color": t.Color})
+		t := tabs.Info()
+		out := map[string]string{"id": tab.ID, "reused": how}
+		for _, i := range t {
+			if i.ID == tab.ID {
+				out["group"], out["color"], out["url"] = i.Group, i.Color, i.URL
+			}
+		}
+		writeJSON(w, http.StatusOK, out)
 	})
 	// PUT /api/tabs/<id> {group, color} — la pasa a otro grupo (vacío: al «Jarvis» de siempre) y mueve su pestaña.
 	mux.HandleFunc("/api/tabs/", func(w http.ResponseWriter, r *http.Request) {
@@ -717,6 +732,15 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 		}
 		writeJSON(w, http.StatusOK, map[string]bool{"ok": ok})
 	})
+	// GET /api/cleanup — qué se puede cerrar ahora y por qué (sesiones de Claude terminadas u olvidadas, pestañas
+	// huérfanas) · POST — lo cierra. cleanup.go.
+	mux.HandleFunc("/api/cleanup", func(w http.ResponseWriter, r *http.Request) {
+		items := tabs.Cleanup(time.Now(), IdleLimit(os.Getenv("JARVIS_TAB_IDLE")), true, r.Method == http.MethodPost)
+		if items == nil {
+			items = []CleanupItem{}
+		}
+		writeJSON(w, http.StatusOK, items)
+	})
 	// GET /api/focus — qué sitios van al frente (focus.go) · PUT {host, mode} — lo pone a mano (mode "" lo borra) ·
 	// PUT {follow} — «seguir a Claude»: cada comando trae su pestaña.
 	mux.HandleFunc("/api/focus", func(w http.ResponseWriter, r *http.Request) {
@@ -983,8 +1007,10 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 				writeErr(w, http.StatusConflict, err)
 				return
 			}
+			tabs.Release(tab) // ya la protege su meta: la reserva de Claim sobra
 		case "end":
 			asker.End()
+			tabs.Release(tab) // terminada, la puede tomar la próxima meta (en el mismo sitio, con su pestaña)
 		default:
 			if in.Kind == "think" {
 				runner.LiveNarrate(in.Text) // también es el subtítulo del próximo paso

@@ -17,13 +17,19 @@ let heartbeat = null
 
 // ── las pestañas permitidas ──
 // En memoria, para mirarlas SIN esperar: los eventos de depuración tienen que salir en el orden en que llegan, y una
-// lectura asíncrona por evento los podría desordenar. Se guardan también en storage.session, que sobrevive a que el
-// service worker se duerma (y se borra al cerrar Chrome).
+// lectura asíncrona por evento los podría desordenar. Se guardan también en storage.LOCAL, que sobrevive a que el
+// service worker se duerma y a RECARGAR la extensión (con storage.session, que se borra al recargar, las pestañas que
+// Jarvis había abierto pasaban a parecer de la persona y nadie las cerraba). Al arrancar Chrome los ids de pestaña
+// empiezan de nuevo: ahí se vacían (onStartup), y al cargar se descartan los que ya no existen.
+// groupTitles: los nombres de grupo que puso Jarvis. Una huérfana tiene que estar en uno de ésos: así un id viejo
+// nunca apunta a una pestaña de un grupo tuyo.
 
-const lists = { shared: [], opened: [] }
-const loaded = chrome.storage.session.get(['shared', 'opened']).then((s) => {
-  lists.shared = s.shared || []
-  lists.opened = s.opened || []
+const lists = { shared: [], opened: [], groupTitles: [] }
+const loaded = chrome.storage.local.get(['shared', 'opened', 'groupTitles']).then(async (s) => {
+  const alive = new Set((await chrome.tabs.query({})).map((t) => t.id))
+  lists.shared = (s.shared || []).filter((id) => alive.has(id))
+  lists.opened = (s.opened || []).filter((id) => alive.has(id))
+  lists.groupTitles = s.groupTitles || []
 })
 
 function allowedIds() {
@@ -36,7 +42,7 @@ function isAllowed(tabId) {
 
 async function setLists(next) {
   Object.assign(lists, next)
-  await chrome.storage.session.set({ shared: lists.shared, opened: lists.opened })
+  await chrome.storage.local.set({ shared: lists.shared, opened: lists.opened, groupTitles: lists.groupTitles })
   notifyShared()
   broadcastStatus()
 }
@@ -157,6 +163,21 @@ async function handle(method, params) {
       await chrome.tabs.update(tabId, { active: true })
       return {}
     }
+    case 'chrome.tabs.listOpened': {
+      // Las pestañas que abrió Jarvis y siguen en un grupo suyo: el servidor decide cuáles quedaron huérfanas.
+      await loaded
+      const out = []
+      for (const id of lists.opened) {
+        let tab
+        try { tab = await chrome.tabs.get(id) } catch { continue }
+        if (tab.groupId === -1) continue
+        let title = ''
+        try { title = (await chrome.tabGroups.get(tab.groupId)).title || '' } catch { continue }
+        if (!lists.groupTitles.includes(title)) continue
+        out.push({ id, groupId: tab.groupId, group: title, title: tab.title || '', url: tab.url || '' })
+      }
+      return out
+    }
     case 'chrome.tabs.sendBehind': {
       // Deja la pestaña detrás de verdad, para medir si el sitio anda de fondo (bin/jarvis focus check): al frente
       // de su ventana va la pestaña Jarvis de esa ventana; si no hay, otra cualquiera de la ventana; si es la única,
@@ -214,9 +235,18 @@ async function createInAsideWindow(url, minimized) {
 
 async function addToGroup(tab, title = 'Jarvis', color = 'purple') {
   try {
-    // El grupo se busca por su nombre en la ventana, no por un id guardado: un id se pierde al recargar la extensión
-    // (o al reiniciar Chrome) y se terminaba con dos grupos con el mismo nombre en la misma ventana.
-    const [group] = await chrome.tabGroups.query({ title, windowId: tab.windowId })
+    if (!lists.groupTitles.includes(title)) await setLists({ groupTitles: [...lists.groupTitles, title] })
+    // El grupo se busca por su nombre, no por un id guardado: un id se pierde al recargar la extensión (o al reiniciar
+    // Chrome). Primero en la ventana de la pestaña; si está en OTRA ventana, la pestaña se muda a ésa: antes se
+    // armaba un segundo grupo con el mismo nombre.
+    let [group] = await chrome.tabGroups.query({ title, windowId: tab.windowId })
+    if (!group) {
+      const [elsewhere] = await chrome.tabGroups.query({ title })
+      if (elsewhere) {
+        await chrome.tabs.move(tab.id, { windowId: elsewhere.windowId, index: -1 })
+        group = elsewhere
+      }
+    }
     if (group && tab.groupId === group.id) {
       if (color && group.color !== color) await chrome.tabGroups.update(group.id, { color })
       return
@@ -273,6 +303,11 @@ chrome.sidePanel?.setPanelBehavior({ openPanelOnActionClick: true }).catch(() =>
 
 chrome.alarms.create('navegador-keepalive', { periodInMinutes: 1 })
 chrome.alarms.onAlarm.addListener((a) => { if (a.name === 'navegador-keepalive') connect() })
-chrome.runtime.onStartup.addListener(connect)
+// Chrome arrancó: los ids de pestaña empiezan de nuevo, así que las listas de antes ya no nombran nada nuestro.
+chrome.runtime.onStartup.addListener(async () => {
+  await loaded
+  await setLists({ shared: [], opened: [] })
+  connect()
+})
 chrome.runtime.onInstalled.addListener(connect)
 connect()

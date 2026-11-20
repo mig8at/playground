@@ -83,8 +83,9 @@ type ChromeBridge struct {
 	inline      map[int]func(extReply)
 	lastID      int
 	pw          *websocket.Conn
-	shared      map[int]bool // las pestañas que la persona compartió o que abrió el navegador: las únicas que se tocan
-	opened      map[int]bool // de ésas, las que abrió el navegador (createTarget): no se reusan como «compartidas»
+	shared      map[int]bool      // las pestañas que la persona compartió o que abrió el navegador: las únicas que se tocan
+	opened      map[int]bool      // de ésas, las que abrió el navegador (createTarget): no se reusan como «compartidas»
+	openedAt    map[int]time.Time // cuándo se abrió cada una: una recién abierta no es huérfana (cleanup.go)
 	attached    map[int]*chromeTab
 	autoAttach  bool
 	nextSession int
@@ -97,7 +98,7 @@ type ChromeBridge struct {
 // browserSession es la sesión «del navegador entero» que Playwright abre con Target.attachToBrowserTarget.
 const browserSession = "navegador-browser"
 
-var chromeBridge = &ChromeBridge{pending: map[int]chan extReply{}, inline: map[int]func(extReply){}, shared: map[int]bool{}, opened: map[int]bool{}, attached: map[int]*chromeTab{}, aliases: map[string]int{}}
+var chromeBridge = &ChromeBridge{pending: map[int]chan extReply{}, inline: map[int]func(extReply){}, shared: map[int]bool{}, opened: map[int]bool{}, openedAt: map[int]time.Time{}, attached: map[int]*chromeTab{}, aliases: map[string]int{}}
 
 // ChromeStatus es lo que muestran la interfaz y `bin/jarvis chrome`.
 type ChromeStatus struct {
@@ -737,6 +738,7 @@ func (b *ChromeBridge) createTarget(url string, newWindow, background bool) (map
 	b.mu.Lock()
 	b.shared[tab.ID] = true
 	b.opened[tab.ID] = true
+	b.openedAt[tab.ID] = time.Now()
 	b.mu.Unlock()
 	t, err := b.attachTab(tab.ID)
 	if err != nil {

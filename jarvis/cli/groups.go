@@ -101,7 +101,7 @@ func uniqueAutoGroup(name string, tabs []tabInfo) string {
 //   - con --group G (o sin él, el nombre de la meta): la que elige y reserva el servidor (Tabs.Claim).
 //
 // Devuelve un aviso para la persona, si hace falta.
-func placeInGroup(goal string) (string, error) {
+func placeInGroup(goal, start string) (string, error) {
 	tabs, err := listTabs()
 	if err != nil {
 		return "", err
@@ -132,11 +132,20 @@ func placeInGroup(goal string) (string, error) {
 	}
 	// La elección es del servidor, de una vez (Tabs.Claim): elegir acá, con la lista de recién, dejaba que dos
 	// `start` a la vez tomaran la misma sesión vacía.
-	var nt struct{ ID, Group string }
-	if err := call(http.MethodPost, "/api/tabs/claim", map[string]string{"group": groupName, "color": groupColor}, &nt); err != nil {
+	// Con el sitio, el servidor reutiliza una sesión libre que ya está ahí (su pestaña) en vez de abrir otra.
+	var nt struct{ ID, Group, Reused, URL string }
+	body := map[string]any{"group": groupName, "color": groupColor, "url": start, "auto": !explicit}
+	if err := call(http.MethodPost, "/api/tabs/claim", body, &nt); err != nil {
 		return "", err
 	}
 	tabID, groupName = nt.ID, nt.Group
+	if nt.Reused == "site" {
+		reuse := fmt.Sprintf("reutilizo la sesión %s, que ya estaba en %s (sin abrir otra pestaña)", nt.ID, nt.URL)
+		if note != "" {
+			return note + "\n" + reuse, nil
+		}
+		return reuse, nil
+	}
 	return note, nil
 }
 

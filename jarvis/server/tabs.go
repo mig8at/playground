@@ -31,6 +31,10 @@ const clientHeader = "X-Jarvis-Client"
 // "0" apaga el cierre).
 const tabIdleDefault = 10 * time.Minute
 
+// tabDoneIdleDefault: cuánto queda la pestaña de una meta terminada (o de una sesión que nunca tuvo meta) antes de
+// cerrarse sola. Corto: si la próxima meta es en el mismo sitio, la reutiliza antes (Claim).
+const tabDoneIdleDefault = 3 * time.Minute
+
 type Tab struct {
 	ID      string
 	Runner  *Runner
@@ -57,10 +61,13 @@ type Tabs struct {
 	seq     int
 	tabs    map[string]*Tab
 	last    string // la última que se abrió: el default de un pedido sin pestaña
+	// doneIdle: cuánto queda abierta la pestaña de una sesión cuya meta terminó (JARVIS_TAB_DONE_IDLE; 0 = el mismo
+	// tope que las que trabajan). cleanup.go.
+	doneIdle time.Duration
 }
 
 func NewTabs(store *Store) *Tabs {
-	t := &Tabs{store: store, tabs: map[string]*Tab{}}
+	t := &Tabs{store: store, tabs: map[string]*Tab{}, doneIdle: tabDoneIdleDefault}
 	t.New()
 	return t
 }
@@ -207,39 +214,21 @@ func IdleLimit(env string) time.Duration {
 	return tabIdleDefault
 }
 
-// Sweep cierra las pestañas que abrió Claude y que llevan más de idle sin uso, y devuelve cuáles cerró. Nunca cierra:
-// - las que abrió la persona;
-// - la última que se abrió (es adonde cae un comando sin --session: cerrarla mandaría el próximo a otra página);
-// - una que alguien está mirando en la interfaz;
-// - una con un Claude corriendo (`ask`) o una reproducción en marcha;
-// - la única que queda.
-// Una sesión de Claude desde la conversación (`empezar`) sin `terminar` sí se cierra si quedó sin uso: es la pestaña
-// que se olvidó.
+// Sweep cierra las sesiones que abrió Claude y ya no hacen falta (Plan con manual=false) y devuelve cuáles cerró o
+// dejó sin página. idle es el tope de una con su Claude todavía en una meta; las demás (terminó o nunca empezó) usan
+// t.doneIdle, más corto: una meta terminada no tiene por qué dejar su pestaña 10 minutos. 0 apaga el cierre.
 func (t *Tabs) Sweep(now time.Time, idle time.Duration) []string {
 	if idle <= 0 {
 		return nil
 	}
-	t.mu.Lock()
-	var candidates []*Tab
-	if len(t.tabs) > 1 {
-		for _, tab := range t.tabs {
-			if tab.ByClaude && tab.ID != t.last && tab.watchers == 0 && now.Sub(tab.lastUsed) > idle {
-				candidates = append(candidates, tab)
-			}
+	var out []string
+	for _, it := range t.Plan(now, idle, false) {
+		if t.applySession(it) {
+			out = append(out, it.Session)
 		}
 	}
-	t.mu.Unlock()
-	var closed []string
-	for _, tab := range candidates {
-		if tab.Asker.Process() || tab.Runner.State(0).Busy {
-			continue
-		}
-		if err := t.Close(tab.ID); err == nil {
-			closed = append(closed, tab.ID)
-		}
-	}
-	sort.Strings(closed)
-	return closed
+	sort.Strings(out)
+	return out
 }
 
 // TabInfo es lo que la interfaz y el CLI ven de cada pestaña.
