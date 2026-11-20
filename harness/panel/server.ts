@@ -1904,23 +1904,25 @@ const server = createServer(async (req, res) => {
                     requests: (st.requests ?? []).slice(0, 5).map((r: any) => ({ id: r.id, status: r.user_request_status_id, at: r.created_at })) });
             }
             if (path === '/api/ext/person') {
-                // Una persona NUEVA: cédula y celular que no tengan cliente activo en esa base, con un nombre y un apellido
-                // colombianos comunes al azar (antes siempre CARLOS RUIZ). Sin tildes ni Ñ: el nombre se le dicta igual a las
+                // Una persona NUEVA: cédula y celular que no tengan cliente activo en esa base, con DOS nombres (del mismo género) y
+                // DOS apellidos colombianos comunes al azar. Datos personales tiene un solo campo «Nombres» y otro «Apellidos»
+                // (`personal-info-form.tsx`), así que van juntos. Sin tildes ni Ñ: el nombre completo se le dicta igual a las
                 // centrales y la validación de nombre del KYC lo compara letra por letra con lo que se escribe en el wizard.
-                const FIRST = ['ANDRES', 'CARLOS', 'JUAN', 'SANTIAGO', 'SEBASTIAN', 'DANIEL', 'ALEJANDRO', 'DIEGO', 'FELIPE',
-                    'JORGE', 'LUIS', 'MIGUEL', 'CAMILO', 'NICOLAS', 'DAVID', 'JULIAN', 'MATEO', 'OSCAR', 'RICARDO', 'FERNANDO',
-                    'MARIA', 'LAURA', 'ANDREA', 'CAROLINA', 'NATALIA', 'PAOLA', 'DANIELA', 'VALENTINA', 'CAMILA', 'JULIANA',
+                const MEN = ['ANDRES', 'CARLOS', 'JUAN', 'SANTIAGO', 'SEBASTIAN', 'DANIEL', 'ALEJANDRO', 'DIEGO', 'FELIPE',
+                    'JORGE', 'LUIS', 'MIGUEL', 'CAMILO', 'NICOLAS', 'DAVID', 'JULIAN', 'MATEO', 'OSCAR', 'RICARDO', 'FERNANDO'];
+                const WOMEN = ['MARIA', 'LAURA', 'ANDREA', 'CAROLINA', 'NATALIA', 'PAOLA', 'DANIELA', 'VALENTINA', 'CAMILA', 'JULIANA',
                     'ALEJANDRA', 'CATALINA', 'DIANA', 'SANDRA', 'LILIANA', 'MONICA', 'ADRIANA', 'PAULA', 'SOFIA', 'MARCELA'];
                 const LAST = ['RODRIGUEZ', 'GOMEZ', 'GONZALEZ', 'MARTINEZ', 'GARCIA', 'LOPEZ', 'HERNANDEZ', 'SANCHEZ', 'RAMIREZ',
                     'PEREZ', 'DIAZ', 'TORRES', 'ROJAS', 'VARGAS', 'MORENO', 'GUTIERREZ', 'JIMENEZ', 'CASTRO', 'RUIZ', 'ALVAREZ',
                     'ROMERO', 'SUAREZ', 'MEJIA', 'RESTREPO', 'OSORIO', 'CARDENAS', 'OSPINA', 'ARIAS', 'CASTILLO', 'RIVERA',
                     'SALAZAR', 'CORTES', 'HERRERA', 'MEDINA', 'AGUDELO', 'GIRALDO', 'VELASQUEZ', 'QUINTERO', 'BETANCUR', 'ZAPATA'];
-                const pick = (xs: string[]) => xs[Math.floor(Math.random() * xs.length)];
+                /** Dos distintos de la lista, en orden de sorteo. */
+                const two = (xs: string[]) => { const a = Math.floor(Math.random() * xs.length); let b = Math.floor(Math.random() * (xs.length - 1)); if (b >= a) b++; return `${xs[a]} ${xs[b]}`; };
                 for (let i = 0; i < 8; i++) {
                     const doc = '109' + String(Math.floor(Math.random() * 1e7)).padStart(7, '0');
                     const phone = '31' + String(Math.floor(Math.random() * 1e8)).padStart(8, '0');
                     const taken = sqlJson(`SELECT COUNT(*) n FROM users WHERE status = 1 AND (document_number = '${doc}' OR cell_phone = '${phone}')`)[0]?.n;
-                    if (Number(taken) === 0) return send(200, { doc, phone, firstName: pick(FIRST), lastName: pick(LAST), email: `ext.prueba+${doc}@creditop.com` });
+                    if (Number(taken) === 0) return send(200, { doc, phone, firstName: two(Math.random() < 0.5 ? MEN : WOMEN), lastName: two(LAST), email: `ext.prueba+${doc}@creditop.com` });
                 }
                 return send(500, { error: 'no encontré una cédula libre' });
             }
