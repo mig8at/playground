@@ -1953,6 +1953,22 @@ const server = createServer(async (req, res) => {
                 if (!rec) return send(200, { code: null, source: 'servicio de OTP' });
                 return send(200, { code: await revealOtp(phone, rec.createdAt).catch(() => null), at: rec.createdAt, template: rec.template, source: 'servicio de OTP' });
             }
+            if (path === '/api/ext/identity' && req.method === 'POST') {
+                // LA IDENTIDAD APROBADA A MANO, como el admin y como hace el panel con sus celulares (`rescueIdentity`): la
+                // selfie de ADO no se puede hacer desde un Chrome de escritorio con dispositivo emulado. Sólo si la solicitud
+                // es del celular de la prueba (lo exige `dbops identity-approve` fuera de local) y su cliente es de prueba.
+                // Es un rodeo: no prueba que la validación real funcione.
+                const b = await readBody(req);
+                const ureq = Number(digits(b.ureq)), phone = digits(b.phone);
+                if (!ureq) return send(400, { ok: false, detail: 'falta la solicitud' });
+                if (tgt !== 'local' && phone.length < 10) return send(400, { ok: false, detail: 'falta el celular de la prueba' });
+                const row = sqlJson(`SELECT u.email FROM user_requests ur JOIN users u ON u.id = ur.user_id WHERE ur.id = ${ureq}`)[0];
+                if (!row) return send(409, { ok: false, detail: `no pude leer la solicitud ${ureq} en ${tgt} (¿no existe, o la VPN está caída?)` });
+                const mail = String(row.email ?? '');
+                if (tgt !== 'local' && !TEST_MAIL.test(mail)) return send(409, { ok: false, detail: `el cliente de ${ureq} no parece de prueba (correo «${mail || 'vacío'}»): no se aprueba desde acá` });
+                const r = await dbopsJson(['identity-approve', String(ureq), ...(phone ? [phone] : [])], tgt);
+                return send(r?.ok ? 200 : 409, { ok: !!r?.ok, detail: r?.ok ? `identidad de ${ureq} aprobada a mano` : (r?.motivo ?? 'sin respuesta') });
+            }
             if (path === '/api/ext/verdict') {
                 const ureq = Number(digits(q.get('ureq')));
                 if (!ureq) return send(400, { error: 'falta la solicitud' });

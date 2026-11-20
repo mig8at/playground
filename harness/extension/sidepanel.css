@@ -37,4 +37,5 @@ button:disabled { opacity: .5; cursor: default }
 .req ul { margin: 6px 0 0; padding-left: 16px }
 .req li { margin: 2px 0 }
 .link { font: 11.5px/1.4 ui-monospace, monospace; word-break: break-all; color: var(--fg); margin: 6px 0 0 }
-#handoff .actions { margin-top: 8px }
+#handoff .actions, #identity .actions { margin-top: 8px }
+#identity .actions { grid-template-columns: 1fr }

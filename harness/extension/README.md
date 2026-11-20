@@ -14,6 +14,10 @@ ambiente y da de baja por el conector. La extensión no guarda credenciales. `ma
   vuelva a dictar: el lambda olvida lo dictado en minutos (F-139).
 - **OTP**: en local, los últimos 4 del celular; fuera, el último que generó el servicio de OTP (el de #qa-messages).
 - **La solicitud**: la de la URL de la pestaña, con su dictamen (`pg request verdict`).
+- **Validación de identidad**: en `…/<solicitud>/identity-validation` (la selfie de ADO, que no se puede hacer desde un
+  Chrome de escritorio) aparece **Aprobar identidad**: la aprueba a mano como el admin (`dbops identity-approve`, lo
+  mismo que el panel con sus celulares) y vuelve a `…/confirmation`. Sólo si la solicitud es del celular de arriba y su
+  cliente tiene correo de prueba; nunca prod. Es un rodeo: no prueba que la validación real funcione.
 - **Sigue el cliente**: cuando el asesor termina (`/merchant/<sucursal>/<solicitud>/continue`, «Solicitud en validación
   de usuario»), el panel arma el link del cliente —el del WhatsApp, que en las pruebas no llega—
   `/self-service/<sucursal>/<solicitud>/confirmation`, y lo abre en una pestaña nueva o lo copia.

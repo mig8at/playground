@@ -47,6 +47,7 @@ async function syncTab() {
   const u = tab?.url ? ureqOf(tab.url) : null;
   if (u !== lastUreq) { lastUreq = u; renderRequest(); }
   renderHandoff(tab?.url);
+  renderIdentity(tab?.url);
 }
 
 // ── EL TRASPASO AL CLIENTE: el asesor terminó en `/merchant/<sucursal>/<solicitud>/continue` («Solicitud en validación de
@@ -71,6 +72,33 @@ $('handoffOpen').onclick = async () => {
   void t;
 };
 $('handoffCopy').onclick = () => { if (handoffUrl) { navigator.clipboard.writeText(handoffUrl); say('Link del cliente copiado.', 'ok'); } };
+
+// ── LA VALIDACIÓN DE IDENTIDAD: en `…/<solicitud>/identity-validation…` el front espera la selfie de ADO, que no se puede
+// hacer desde un Chrome de escritorio. Se aprueba a mano como el admin (`/api/ext/identity` → `dbops identity-approve`, lo
+// mismo que hace el panel con sus celulares) y la pestaña vuelve a `…/confirmation`, que ya la saltea.
+let identityBase = null;   // `{origen}/{flujo}/{sucursal}/{solicitud}`
+function renderIdentity(url) {
+  let base = null;
+  try {
+    const u = new URL(url || '');
+    const m = /^(\/[^/]+\/[0-9a-f]{8}\/\d{5,9})\/(identity-validation|validar-persona)/.exec(u.pathname);
+    if (m) base = u.origin + m[1];
+  } catch { /* sin URL */ }
+  identityBase = base;
+  $('identity').hidden = !base || !target;
+}
+$('identityApprove').onclick = async () => {
+  if (!identityBase || !lastUreq) return;
+  const btn = $('identityApprove');
+  btn.disabled = true;
+  try {
+    const r = await api('/identity', { ureq: lastUreq, phone: $('phone').value });
+    if (!r.ok) return say(`No se aprobó: ${r.detail || r.error}`, 'bad');
+    say(`${r.detail}. Vuelvo a la confirmación.`, 'ok');
+    await chrome.tabs.update(tabId, { url: `${identityBase}/confirmation` });
+  } catch (e) { say(`No se aprobó: ${e.message}`, 'bad'); }
+  finally { btn.disabled = false; }
+};
 
 // ── lo guardado ─────────────────────────────────────────────────────────────────────────────────────────────────
 async function load() {
