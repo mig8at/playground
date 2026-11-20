@@ -154,6 +154,25 @@ async function handle(method, params) {
         await keepAlive(tab.id)
         return { id: tab.id }
       }
+      if (props.active === false) {
+        // DETRÁS de la pestaña de la persona, pero bien armada: una pestaña que se abre de fondo y nunca se mostró
+        // quedaba a veces con un tamaño que no es el de la ventana (381 px de ancho: la página se armaba como en un
+        // celular) y su primer cuadro oscuro. Nace ACTIVA en la ventana aparte (que la persona no mira), así se arma y
+        // empieza a dibujar, y después se muda —inactiva— a la ventana de la persona, a su grupo.
+        const home = await chrome.windows.getLastFocused({ windowTypes: ['normal'] }).catch(() => null)
+        const born = await createInAsideWindow(props.url || 'about:blank', false)
+        await setLists({ opened: [...lists.opened, born.id] })
+        await keepAlive(born.id)
+        await new Promise((r) => setTimeout(r, 300)) // que se arme y dibuje una vez
+        const { asideWindowId } = await chrome.storage.session.get('asideWindowId')
+        if (home && home.id !== asideWindowId) {
+          try {
+            await chrome.tabs.move(born.id, { windowId: home.id, index: -1 })
+            await addToGroup(await chrome.tabs.get(born.id))
+          } catch { /* se queda en la ventana aparte */ }
+        }
+        return { id: born.id }
+      }
       const tab = await chrome.tabs.create({ url: props.url || 'about:blank', active: props.active !== false })
       await setLists({ opened: [...lists.opened, tab.id] })
       await keepAlive(tab.id)

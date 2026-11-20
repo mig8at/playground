@@ -85,6 +85,14 @@ perfiles de Chromium que quedaron de antes del 2026-11-07 ya no se usan).
 
 ## Trampas que ya costaron tiempo
 
+- **Una pestaña que se abre detrás y nunca tuvo foco no se termina de armar** (2026-11-20): quedaba con un tamaño que no
+  es el de la ventana (381 px de ancho: la página se armaba como en un celular) y su miniatura en la grilla salía negra
+  hasta que Miguel entraba a ella. Desde la 0.2.15 una pestaña nueva nace ACTIVA en la ventana aparte (recibe ahí su
+  primer foco, se arma y dibuja) y después se muda inactiva al grupo de la ventana de la persona. Medido: las 6
+  sesiones de la demo con cuadros de 1920 × 873 y la pestaña activa de Miguel sin cambiar. La demo tardó 76,6 s contra
+  ~35 s (sola, una acción sigue en 0,5-0,7 s): lo más probable es el tamaño (páginas de 1920 px, no aislado); la
+  ventana aparte toma el tamaño por defecto de Chrome.
+
 - **La interfaz de Cockpit mostraba sesiones viejas** (2026-11-20): durante la demo de paralelismo tenía 6 sesiones en
   2 grupos y la grilla mostraba una sola, vacía, de antes de empezar. Su stream de eventos (`/api/events`) había quedado
   colgado —«abierto» por el proxy, sin traer nada— desde un reinicio del servidor; las miniaturas andaban porque su
