@@ -1,0 +1,139 @@
+{
+  "name": "Crear y publicar un producto en el inventario",
+  "meta": "Crear y publicar un producto en el inventario",
+  "start": "http://localhost:5220/",
+  "device": "chrome",
+  "created": "2026-11-20T17:58:31.142899-05:00",
+  "verified": "0001-01-01T00:00:00Z",
+  "run": "2026-11-20_17-58-21_s1",
+  "steps": [
+    {
+      "action": "goto",
+      "target": "http://localhost:5220/",
+      "value": "http://localhost:5220/",
+      "instruction": "Abrí http://localhost:5220/",
+      "code": "page.goto('http://localhost:5220/')"
+    },
+    {
+      "action": "click",
+      "target": "Nuevo producto",
+      "instruction": "Hacé clic en «Nuevo producto»",
+      "why": "Abro el formulario de producto nuevo",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Nuevo producto",
+          "visible": true,
+          "code": "page.getByText('Nuevo producto', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "code": "page.getByText('Nuevo producto', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "action": "fill",
+      "target": "Nombre",
+      "value": "Bicicleta urbana",
+      "instruction": "Escribí «Bicicleta urbana» en «Nombre»",
+      "param": "Nombre",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Nombre",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Nombre', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('textbox', { name: 'Nombre', exact: true }).fill('Bicicleta urbana')"
+    },
+    {
+      "action": "fill",
+      "target": "Precio",
+      "value": "1250000",
+      "instruction": "Escribí «1250000» en «Precio»",
+      "param": "Precio",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "spinbutton",
+          "value": "Precio",
+          "exact": true,
+          "code": "page.getByRole('spinbutton', { name: 'Precio', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('spinbutton', { name: 'Precio', exact: true }).fill('1250000')"
+    },
+    {
+      "action": "fill",
+      "target": "Stock",
+      "value": "7",
+      "instruction": "Escribí «7» en «Stock»",
+      "param": "Stock",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "spinbutton",
+          "value": "Stock",
+          "exact": true,
+          "code": "page.getByRole('spinbutton', { name: 'Stock', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('spinbutton', { name: 'Stock', exact: true }).fill('7')"
+    },
+    {
+      "action": "click",
+      "target": "Guardar",
+      "instruction": "Hacé clic en «Guardar»",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Guardar",
+          "visible": true,
+          "code": "page.getByText('Guardar', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "code": "page.getByText('Guardar', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "action": "expect",
+      "target": "Producto creado",
+      "value": "Producto creado",
+      "instruction": "Comprobá que se vea «Producto creado»",
+      "code": "expect(page.getByText('Producto creado').filter({ visible: true }).first()).toBeVisible()"
+    },
+    {
+      "action": "click",
+      "target": "Publicar Bicicleta urbana",
+      "instruction": "Hacé clic en «Publicar Bicicleta urbana»",
+      "why": "Lo publico desde su fila",
+      "ref": {
+        "loc": {
+          "kind": "label",
+          "value": "Publicar Bicicleta urbana",
+          "visible": true,
+          "code": "page.getByLabel('Publicar Bicicleta urbana', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "code": "page.getByLabel('Publicar Bicicleta urbana', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "action": "expect",
+      "target": "Producto publicado",
+      "value": "Producto publicado",
+      "instruction": "Comprobá que se vea «Producto publicado»",
+      "code": "expect(page.getByText('Producto publicado').filter({ visible: true }).first()).toBeVisible()"
+    }
+  ]
+}

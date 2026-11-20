@@ -336,6 +336,7 @@ func (r *Runner) runLive(ctx context.Context, site Site, start string, ready cha
 	l.tap.attach(page)
 	l.dev = newDevlog()
 	l.dev.attach(page)
+	l.dev.watchResponses(page)
 	page.OnDialog(func(d playwright.Dialog) {
 		l.mu.Lock()
 		dismiss := l.dismissDialogs

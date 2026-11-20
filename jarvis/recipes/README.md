@@ -43,7 +43,19 @@ el nombre del campo de la API (`--name`, `--price`): así queda en inglés y dic
 `?query`) y hace cada pedido desde ahí (`fetch` con `credentials: 'include'`), y falla si uno devuelve ≥ 400. Lo que
 no repite lo dice: lo escrito al cargar la página de entrada, antes del primer paso (el `?reset` de una app de
 práctica) y avisa con ⚠ un dato tapado, un id dentro de la URL (es el de ese día) o un dato del flujo que no apareció
-en ningún pedido. Necesita una corrida con red: un flujo grabado antes del 2026-11-20 no la tiene y se niega. Medido
+en ningún pedido. **Encadena y se prueba sola** (2026-11-20): la red guarda también lo que DEVOLVIÓ cada pedido que
+escribe, y un id que devolvió uno y usa otro después —en su URL o en su cuerpo, entero o dentro de un texto como
+`SKU-3`— sale de la respuesta de esa corrida (`pick(r, 0, "id")`), no queda fijo. Sólo se encadenan campos con nombre de
+id (`id`, `productId`, `product_id`, `uuid`, `sku`…), y si dos respuestas traen el mismo valor (el producto 1 y su SKU 1)
+gana la de la misma ruta (`POST /api/products` → `PUT /api/products/1`) o la que nombra el campo (`productId` →
+products). Cada corrida comprueba que cada respuesta siga trayendo los campos que traía en la grabación y, si no, lo
+avisa y sale con 3. `VERIFY=1` la corre una vez al generarla (ESCRIBE, con los datos del flujo) y anota en la cabecera
+«Verificada …» o «⚠ La verificación falló …». Medido con «Crear y publicar un producto» (`inventory/create-and-publish-product`,
+3 pedidos: el POST del producto, el del SKU con su id y el PUT que lo publica por su id): la grabación usó el id 3, la
+verificación creó y publicó el 5 con `SKU-5`, y con `--name "Patineta eléctrica"` el 7 con `SKU-7`. Lo que destapó: pedirle
+el cuerpo de la respuesta a Playwright (`Response.Body`) quedaba colgado para siempre en el segundo pedido —por el puente
+de la extensión no llega el «terminó de cargar»—, así que la respuesta se lee desde la página (`respJS` en
+`server/devlog.go` envuelve `fetch` y `XMLHttpRequest` y sólo mira lo que escribe). Necesita una corrida con red: un flujo grabado antes del 2026-11-20 no la tiene y se niega. Medido
 con el Inventario (`apps/inventory`, :5220, la única app de práctica con API: `"api": true` en su `app.json` y un
 almacén en memoria, `server/practiceapi.go`): «Crear un producto» → `inventory/create-product`, un POST, y
 `--name "Guantes de cuero" --price 89000 --stock 15` creó ese producto (también con `--nombre`/`--precio`).

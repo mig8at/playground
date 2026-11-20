@@ -3,7 +3,18 @@
 // credenciales tapadas). Esto junta las dos cosas: a cada paso le asigna los pedidos que disparó y escribe una receta
 // que repite ESOS pedidos con tu sesión, sin clics, con los datos del flujo como parámetros.
 //
-//   make jarvis-recipe-api FLOW=jarvis/flows/<sitio>/<id>.json APP=<herramienta> NAME=<receta> [FORCE=1]
+//   make jarvis-recipe-api FLOW=jarvis/flows/<sitio>/<id>.json APP=<herramienta> NAME=<receta> [FORCE=1] [VERIFY=1]
+//
+// ENCADENA los pedidos (2026-11-20): un id que devolvió un pedido y que otro usa después (en su URL o en su cuerpo:
+// crear un producto → crearle el SKU con su id → publicarlo por su id) no queda fijo con el valor de aquel día: la
+// receta lo toma de la respuesta de ESTA corrida. Para eso la red guarda también lo que devolvió cada pedido que
+// escribe (devlog.go). Se encadenan sólo los campos con nombre de id (id, productId, product_id, uuid, sku…): un número
+// suelto igual por casualidad (un stock de 4 y un id 4) no se toma por id. Cada corrida de la receta comprueba además
+// que cada respuesta siga trayendo los campos que traía (su forma) y lo avisa si cambió.
+//
+// VERIFY=1 la corre una vez al generarla (ESCRIBE en la herramienta: un producto de prueba, con los datos del flujo) y
+// la da por buena sólo si cada pedido dio lo mismo que en la grabación (2xx o error) con la misma forma; lo anota en la
+// cabecera («Verificada …» o «⚠ La verificación falló …»).
 //
 // La receta abre una pestaña en el sitio (para tener tu sesión: sus cookies) y hace cada pedido desde ahí, con fetch.
 // Un valor del cuerpo igual al dato de un paso del flujo pasa a ser `--<dato>` (con el del flujo por defecto). Lo que
@@ -13,6 +24,7 @@
 // Cuándo sirve: cuando la herramienta hace lo que importa por su API (un admin moderno). Si el flujo no hizo pedidos
 // que escriben (todo vivía en el navegador, como la demo de tareas), lo dice y no escribe nada: ahí va la receta por
 // pantalla (make jarvis-recipe-from).
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -25,6 +37,7 @@ const flowPath = flag('flow');
 const app = flag('app');
 const name = flag('name');
 const force = argv.includes('--force');
+const verify = argv.includes('--verify');
 if (!flowPath || !app || !name || !/^[a-z0-9-]+$/.test(name) || !/^[a-z0-9-]+$/.test(app)) {
     console.error('  uso: api-from-flow --flow jarvis/flows/<sitio>/<id>.json --app <herramienta> --name <receta-en-kebab> [--force]');
     process.exit(2);
@@ -33,7 +46,7 @@ if (!flowPath || !app || !name || !/^[a-z0-9-]+$/.test(name) || !/^[a-z0-9-]+$/.
 type FlowStep = { action: string; target?: string; value?: string; param?: string; code?: string };
 type Flow = { name: string; meta?: string; start?: string; run?: string; steps: FlowStep[] };
 type RunStep = { at: string; target?: string; code?: string; before?: string };
-type Net = { at: string; method: string; url: string; type: string; status?: number; failed?: string; body?: string; contentType?: string };
+type Net = { at: string; method: string; url: string; type: string; status?: number; failed?: string; body?: string; contentType?: string; response?: string; responseType?: string };
 
 const flowFile = path.resolve(ROOT, flowPath);
 const flow = JSON.parse(fs.readFileSync(flowFile, 'utf8')) as Flow;
@@ -119,6 +132,18 @@ function literal(v: unknown, at: string): string {
         warnings.push(`el campo «${at}» iba tapado (una credencial): la receta no lo tiene y el pedido puede fallar sin él`);
         return JSON.stringify(v);
     }
+    const key = at.split('.').pop()!.replace(/\[\d+\]$/, '');
+    if ((typeof v === 'number' || typeof v === 'string') && ID_KEY.test(key)) {
+        const s = sourceFor(v, currentCall, key);
+        if (s) {
+            chained.push(`el campo «${at}» del pedido ${currentCall + 1} es «${s.path}» de lo que devolvió el pedido ${s.call + 1}`);
+            return typeof v === 'string' ? `String(${refCode(s)})` : refCode(s);
+        }
+    }
+    if (typeof v === 'string' && !paramFor(v)) {
+        const t = inString(v, currentCall);
+        if (t) { chained.push(`el campo «${at}» del pedido ${currentCall + 1} («${v}») lleva adentro un id devuelto antes`); return t; }
+    }
     const p = paramFor(v);
     if (p) {
         p.used = true;
@@ -130,12 +155,78 @@ function literal(v: unknown, at: string): string {
     return JSON.stringify(v);
 }
 
+// ── encadenar: lo que devolvió un pedido y usa otro después ──
+// Los campos con nombre de id de cada respuesta (con su camino: «id», «data.productId»), del pedido más nuevo al más
+// viejo: un valor que aparece en un pedido posterior sale de ahí.
+const ID_KEY = /^(id|uuid|guid|sku|slug|key)$|(^|[a-z0-9])(Id|ID|Uuid|Key|Sku)$|_(id|uuid|key|sku)$/;
+type Src = { call: number; path: string; value: string | number };
+const sources: Src[] = [];
+const parsedResponse = (n: Net) => { try { return n.response ? JSON.parse(n.response) : undefined; } catch { return undefined; } };
+function collectIds(v: unknown, at: string, call: number) {
+    if (Array.isArray(v)) { v.slice(0, 1).forEach((x, i) => collectIds(x, `${at}.${i}`, call)); return; } // de una lista, el primero
+    if (!v || typeof v !== 'object') return;
+    for (const [k, x] of Object.entries(v)) {
+        const p = at ? `${at}.${k}` : k;
+        if ((typeof x === 'string' && x.length > 0 && x !== '•••') || typeof x === 'number') { if (ID_KEY.test(k)) sources.push({ call, path: p, value: x }); }
+        else collectIds(x, p, call);
+    }
+}
+// El origen del valor en un pedido anterior al número `before`. Dos respuestas pueden traer el mismo id (el producto 1
+// y su SKU 1: cada colección cuenta desde 1), así que gana la que más se parece a dónde se usa: un pedido cuya ruta
+// contiene a la del pedido actual (POST /api/products → PUT /api/products/1), o cuya ruta nombra al campo (productId →
+// /api/products). A igual parecido, el más reciente.
+const pathOf = (call: number) => new URL(writes[call].url).pathname.replace(/\/+$/, '');
+const sourceFor = (v: unknown, before: number, key = '') => {
+    const here = new URL(writes[before].url).pathname;
+    const stem = key.replace(/(Id|ID|Uuid|Key|Sku)$|_(id|uuid|key|sku)$/, '').toLowerCase();
+    let best: Src | undefined;
+    let bestScore = -1;
+    for (const s of sources) {
+        if (s.call >= before || !(s.value === v || (typeof v === 'string' && String(s.value) === v))) continue;
+        const p = pathOf(s.call);
+        const score = (here.startsWith(p + '/') ? 2 : 0) + (stem && stem !== 'id' && p.toLowerCase().includes(stem) ? 1 : 0);
+        if (score >= bestScore) { best = s; bestScore = score; }
+    }
+    return best;
+};
+const refCode = (s: Src) => `pick(r, ${s.call}, ${JSON.stringify(s.path)})`;
+const chained: string[] = [];
+let currentCall = 0;
+// Un string con el id adentro («SKU-4»): se arma con el id de esta corrida, si el id es largo o va pegado a un separador.
+function inString(v: string, before: number): string | undefined {
+    for (let i = sources.length - 1; i >= 0; i--) {
+        const s = sources[i];
+        const id = String(s.value);
+        if (s.call >= before || v === id) continue;
+        const m = new RegExp(`(^|[^0-9A-Za-z])${id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^0-9A-Za-z])`).exec(v);
+        if (!m || (id.length < 3 && !/[-_#/:]$/.test(v.slice(0, m.index + m[1].length)))) continue;
+        const k = v.indexOf(id, m.index);
+        const esc = (t: string) => t.replace(/[`\\$]/g, (c) => '\\' + c);
+        return '`' + esc(v.slice(0, k)) + '${' + refCode(s) + '}' + esc(v.slice(k + id.length)) + '`';
+    }
+    return undefined;
+}
+
 const calls: string[] = [];
 const writesDesc: string[] = [];
-for (const n of writes) {
+writes.forEach((n, idx) => {
+    currentCall = idx;
     const u = new URL(n.url);
     const where = u.origin === ORIGIN ? u.pathname + u.search : n.url;
-    if (/\/\d+(\/|$|\?)/.test(u.pathname)) warnings.push(`${n.method} ${where} lleva un id de aquella corrida en la URL: revisalo antes de correrla`);
+    // La URL: cada tramo que es un id devuelto antes se arma con el de esta corrida.
+    let urlCode = JSON.stringify(where);
+    let fixedId = false;
+    const segs = where.split(/(\/|\?|&|=)/);
+    if (segs.some((seg) => /^\d+$|^[0-9a-f-]{8,}$/i.test(seg))) {
+        const parts = segs.map((seg) => {
+            const s = /^\d+$|^[0-9a-f-]{8,}$/i.test(seg) ? sourceFor(/^\d+$/.test(seg) ? Number(seg) : seg, idx) : undefined;
+            if (s) { chained.push(`${n.method} ${where}: el ${seg} de la URL es «${s.path}» de lo que devolvió el pedido ${s.call + 1}`); return '${' + refCode(s) + '}'; }
+            if (/^\d+$/.test(seg) || /^[0-9a-f-]{8,}$/i.test(seg)) fixedId = true;
+            return seg.replace(/[`\\$]/g, (c) => '\\' + c);
+        });
+        if (parts.some((x) => x.startsWith('${'))) urlCode = '`' + parts.join('') + '`';
+    }
+    if (fixedId) warnings.push(`${n.method} ${where} lleva un id en la URL que no devolvió ningún pedido anterior (es el de aquella corrida): revisalo antes de correrla`);
     let body = 'undefined';
     if (n.body) {
         let parsed: unknown;
@@ -144,8 +235,11 @@ for (const n of writes) {
     }
     const label = stepLabel(stepOf(n));
     writesDesc.push(`${n.method} ${where} (paso «${label}»)`);
-    calls.push(`    { step: ${JSON.stringify(label)}, method: ${JSON.stringify(n.method)}, url: ${JSON.stringify(where)}, contentType: ${JSON.stringify(n.contentType || '')}, body: ${body}, recorded: ${n.failed ? JSON.stringify('falló: ' + n.failed) : n.status ?? 0} },`);
-}
+    const resp = parsedResponse(n);
+    const shape = resp && typeof resp === 'object' && !Array.isArray(resp) ? Object.keys(resp) : [];
+    calls.push(`    { step: ${JSON.stringify(label)}, method: ${JSON.stringify(n.method)}, url: (r: any[]) => ${urlCode}, contentType: ${JSON.stringify(n.contentType || '')}, body: (r: any[]) => ${body}, recorded: ${n.failed ? JSON.stringify('falló: ' + n.failed) : n.status ?? 0}, shape: ${JSON.stringify(shape)} },`);
+    collectIds(resp, '', idx); // lo que devolvió queda disponible para los pedidos siguientes
+});
 const used = params.filter((p) => p.used);
 const unused = params.filter((p) => !p.used);
 if (unused.length) warnings.push(`datos del flujo que no aparecen en ningún pedido (quedan fuera de la receta): ${unused.map((p) => p.label).join(', ')}`);
@@ -164,6 +258,7 @@ const header = [
     used.length ? `// Parámetros: ${used.map((p) => `--${p.flag} (${p.label}; por defecto ${JSON.stringify(p.def)})`).join(' · ')} · --json` : '// Parámetros: --json',
     `// Necesita: Jarvis conectado en Chrome y la sesión de ${ORIGIN} abierta en Chrome (los pedidos van con sus cookies).`,
     `// ESCRIBE: ${writesDesc.join(' · ')}`,
+    ...chained.map((w) => `// Encadena: ${w}`),
     ...warnings.map((w) => `// ⚠ ${w}`),
     ...skipped.map((w) => `// No se repite: ${w}`),
 ].join('\n');
@@ -178,27 +273,49 @@ const say = (s: string) => { if (!JSON_OUT) console.log(\`  \${s}\`); };
 const DEFAULTS: Record<string, string> = ${JSON.stringify(Object.fromEntries(used.map((p) => [p.flag, p.def])), null, 4)};
 const arg = (n: string) => { const i = argv.indexOf(\`--\${n}\`); return i >= 0 ? argv[i + 1] : DEFAULTS[n]; };
 
-// Los pedidos, en el orden en que los hizo la página (recorded: el estado que dieron aquella vez).
+// Los pedidos, en el orden en que los hizo la página. url y body reciben r, lo que devolvió cada pedido anterior
+// (encadenados: pick). recorded: el estado que dieron aquella vez; shape: los campos que traía su respuesta.
 const CALLS = [
 ${calls.join('\n')}
 ];
 
+// pick(r, n, 'data.id'): un campo de lo que devolvió el pedido n de esta corrida; si no está, la receta no puede seguir.
+function pick(r: any[], n: number, at: string) {
+    let v = r[n];
+    for (const k of at.split('.')) v = v == null ? undefined : v[k];
+    if (v === undefined || v === null) throw new Error(\`el pedido \${n + 1} no devolvió «\${at}»: no se puede encadenar el siguiente (¿cambió su respuesta?)\`);
+    return v;
+}
+
 const { page, close } = await openChrome();
-const results: { step: string; method: string; url: string; status: number; response: string }[] = [];
+const r: any[] = [];
+const changed: string[] = [];
+const results: { step: string; method: string; url: string; status: number; recorded: number | string; keys: string[] }[] = [];
 try {
     say(${JSON.stringify(`Abro ${startURL} para usar tu sesión`)});
     await page.goto(${JSON.stringify(startURL)}, { waitUntil: 'domcontentloaded', timeout: 90_000 });
     for (const c of CALLS) {
-        const r = await page.evaluate(async ({ url, method, contentType, body }) => {
+        const url = c.url(r);
+        const res = await page.evaluate(async ({ url, method, contentType, body }) => {
             const res = await fetch(url, { method, credentials: 'include', headers: contentType ? { 'content-type': contentType } : {}, body });
-            return { status: res.status, response: (await res.text()).slice(0, 500) };
-        }, c);
-        results.push({ step: c.step, method: c.method, url: c.url, ...r });
-        say(\`\${r.status < 400 ? '✓' : '✗'} \${c.method} \${c.url} → \${r.status} (paso «\${c.step}»)\`);
-        if (r.status >= 400) throw new Error(\`\${c.method} \${c.url} dio \${r.status}: \${r.response}\`);
+            return { status: res.status, text: await res.text() };
+        }, { url, method: c.method, contentType: c.contentType, body: c.body(r) });
+        let json: any;
+        try { json = JSON.parse(res.text); } catch { /* no es JSON */ }
+        r.push(json);
+        const keys = json && typeof json === 'object' && !Array.isArray(json) ? Object.keys(json) : [];
+        results.push({ step: c.step, method: c.method, url, status: res.status, recorded: c.recorded, keys });
+        say(\`\${res.status < 400 ? '✓' : '✗'} \${c.method} \${url} → \${res.status} (paso «\${c.step}»)\`);
+        if (res.status >= 400) throw new Error(\`\${c.method} \${url} dio \${res.status}: \${res.text.slice(0, 500)}\`);
+        // ¿Devolvió lo mismo que en la grabación? Un campo que ya no viene es lo primero que rompe un encadenado.
+        const missing = c.shape.filter((k) => !keys.includes(k));
+        if (typeof c.recorded === 'number' && c.recorded >= 400) changed.push(\`\${c.method} \${url} dio \${res.status}; en la grabación, \${c.recorded}\`);
+        if (missing.length) changed.push(\`\${c.method} \${url} ya no devuelve: \${missing.join(', ')}\`);
     }
-    if (JSON_OUT) console.log(JSON.stringify({ recipe: ${JSON.stringify(`${app}/${name}`)}, results }));
+    for (const w of changed) say(\`⚠ distinto de la grabación: \${w}\`);
+    if (JSON_OUT) console.log(JSON.stringify({ recipe: ${JSON.stringify(`${app}/${name}`)}, results, changed }));
     else say('listo');
+    if (changed.length) process.exitCode = 3;
 } finally {
     await close();
 }
@@ -209,7 +326,32 @@ console.log(`  ✓ ${path.relative(ROOT, out)} (${writes.length} pedido(s), ${us
 for (const w of writesDesc) console.log(`    ESCRIBE ${w}`);
 for (const w of warnings) console.log(`    ⚠ ${w}`);
 for (const w of skipped) console.log(`    no se repite: ${w}`);
-console.log(`  probala: ${usage}`);
+for (const w of chained) console.log(`    encadena: ${w}`);
+if (!verify) console.log(`  probala: ${usage}   (o VERIFY=1 al generarla: la corre una vez y la compara con la grabación)`);
+else verifyRecipe();
+
+// verifyRecipe corre la receta recién escrita con los datos del flujo y la da por buena si cada pedido dio lo mismo
+// que en la grabación (2xx, con los mismos campos en su respuesta). El resultado queda en su cabecera.
+function verifyRecipe() {
+    console.log(`  verifico: la corro una vez (ESCRIBE en ${ORIGIN}, con los datos del flujo)…`);
+    const run = spawnSync('node', [out, '--json'], { cwd: ROOT, encoding: 'utf8', timeout: 180_000 });
+    const lines = (run.stdout || '').trim().split('\n');
+    let res: { results?: { method: string; url: string; status: number }[]; changed?: string[] } = {};
+    try { res = JSON.parse(lines[lines.length - 1]); } catch { /* falló antes de terminar */ }
+    const day = new Date().toISOString().slice(0, 10);
+    let note: string;
+    if (run.status === 0 && res.results?.length === writes.length) {
+        note = `// Verificada: ${day} contra ${ORIGIN}: ${res.results.map((x) => `${x.method} ${x.url} → ${x.status}`).join(' · ')}; mismos estados y campos que la grabación.`;
+        console.log(`  ✓ verificada: ${res.results.length} pedido(s) como en la grabación`);
+    } else {
+        const why = res.changed?.length ? res.changed.join('; ') : ((run.stderr || '').trim().split('\n').filter(Boolean).pop() || `salió con ${run.status}`);
+        note = `// ⚠ La verificación falló (${day}): ${why.replace(/\s+/g, ' ').slice(0, 300)}`;
+        console.log(`  ✗ la verificación falló: ${why}`);
+        process.exitCode = 1;
+    }
+    const src = fs.readFileSync(out, 'utf8');
+    fs.writeFileSync(out, src.replace("\nimport '../args.ts';", `\n${note}\nimport '../args.ts';`));
+}
 
 function fail(msg: string): never {
     console.error(`  ✗ ${msg}`);

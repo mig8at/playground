@@ -48,6 +48,10 @@ type NetEntry struct {
 	// credencial tapado (redactBody). Es lo que permite convertir un flujo en receta por API (recipes/api-from-flow.ts).
 	Body        string `json:"body,omitempty"`
 	ContentType string `json:"contentType,omitempty"`
+	// Response y ResponseType: lo que DEVOLVIÓ ese pedido que escribe (tapado igual). De ahí sale el id que el pedido
+	// siguiente usa (crear un producto → publicarlo con su id): la receta los encadena en vez de dejar fijo el de ese día.
+	Response     string `json:"response,omitempty"`
+	ResponseType string `json:"responseType,omitempty"`
 }
 
 type devlog struct {
@@ -56,6 +60,7 @@ type devlog struct {
 	console []ConsoleEntry
 	net     []NetEntry
 	started map[playwright.Request]time.Time
+	pending []NetEntry // respuestas que llegaron por la página antes que su evento de red (takeResponse)
 }
 
 func newDevlog() *devlog { return &devlog{started: map[playwright.Request]time.Time{}} }
@@ -71,7 +76,7 @@ func (d *devlog) addConsole(e ConsoleEntry) {
 	}
 }
 
-func (d *devlog) addNet(e NetEntry) {
+func (d *devlog) addNet(e NetEntry) int {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.seq++
@@ -79,15 +84,90 @@ func (d *devlog) addNet(e NetEntry) {
 	if e.At.IsZero() {
 		e.At = time.Now()
 	}
+	for i, p := range d.pending {
+		if p.Method == e.Method && p.URL == e.URL {
+			e.Response, e.ResponseType = p.Response, p.ResponseType
+			d.pending = append(d.pending[:i], d.pending[i+1:]...)
+			break
+		}
+	}
 	d.net = append(d.net, e)
 	if len(d.net) > devlogMax {
 		d.net = d.net[len(d.net)-devlogMax:]
+	}
+	return e.Seq
+}
+
+// ── lo que devuelven los pedidos que escriben ──
+//
+// Se lee DESDE LA PÁGINA (respJS envuelve fetch y XMLHttpRequest y, para un pedido que no es GET, manda por la consola
+// su respuesta con la marca respMark, que no se anota como consola). Pedírselo a Playwright (Response.Body) no sirve:
+// por el puente de la extensión a veces no llega el «terminó de cargar» y la llamada queda colgada para siempre
+// (medido el 2026-11-20: el POST de un producto devolvió su cuerpo y el del SKU, enseguida después, nunca).
+const respMark = "\u2063jarvis-response "
+
+const respJS = `(() => {
+	if (window.__jarvisResp) return
+	window.__jarvisResp = true
+	const MARK = '\u2063jarvis-response ', MAX = 65536
+	const send = (method, url, status, type, text) => {
+		try { console.debug(MARK + JSON.stringify({ method, url: new URL(url, location.href).href, status, type: type || '', text: String(text || '').slice(0, MAX) })) } catch {}
+	}
+	const writes = (m) => !/^(GET|HEAD|OPTIONS)$/i.test(m || 'GET')
+	const f = window.fetch
+	window.fetch = async function (input, init) {
+		const res = await f.apply(this, arguments)
+		try {
+			const method = (init && init.method) || (input && input.method) || 'GET'
+			if (writes(method)) res.clone().text().then((t) => send(method.toUpperCase(), res.url || (input && input.url) || String(input), res.status, res.headers.get('content-type'), t), () => {})
+		} catch {}
+		return res
+	}
+	const open = XMLHttpRequest.prototype.open
+	XMLHttpRequest.prototype.open = function (method, url) { this.__jarvis = { method: String(method).toUpperCase(), url }; return open.apply(this, arguments) }
+	const sendX = XMLHttpRequest.prototype.send
+	XMLHttpRequest.prototype.send = function () {
+		const x = this
+		if (x.__jarvis && writes(x.__jarvis.method)) x.addEventListener('loadend', () => {
+			try { send(x.__jarvis.method, x.responseURL || x.__jarvis.url, x.status, x.getResponseHeader('content-type'), x.responseType === '' || x.responseType === 'text' ? x.responseText : '') } catch {}
+		})
+		return sendX.apply(this, arguments)
+	}
+})()`
+
+// takeResponse anota lo que devolvió un pedido (el JSON que manda respJS) en el último pedido igual que no tiene.
+func (d *devlog) takeResponse(raw string) {
+	var in struct {
+		Method, URL, Type, Text string
+		Status                  int
+	}
+	if json.Unmarshal([]byte(raw), &in) != nil || in.Text == "" {
+		return
+	}
+	body := redactBody(in.Text, in.Type)
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	for i := len(d.net) - 1; i >= 0; i-- {
+		n := &d.net[i]
+		if n.Method == in.Method && n.URL == in.URL && n.Response == "" {
+			n.Response, n.ResponseType = body, in.Type
+			return
+		}
+	}
+	// Llegó antes que el evento de red: queda pendiente y se le pega cuando aparezca.
+	d.pending = append(d.pending, NetEntry{Method: in.Method, URL: in.URL, Response: body, ResponseType: in.Type})
+	if len(d.pending) > 50 {
+		d.pending = d.pending[1:]
 	}
 }
 
 // attach escucha la página. Sólo lee lo que trae cada evento (ver arriba).
 func (d *devlog) attach(p playwright.Page) {
 	p.OnConsole(func(m playwright.ConsoleMessage) {
+		if t := m.Text(); strings.HasPrefix(t, respMark) { // lo que devolvió un pedido que escribe (respJS), no es consola
+			d.takeResponse(t[len(respMark):])
+			return
+		}
 		where := ""
 		if loc := m.Location(); loc.URL != "" {
 			where = loc.URL
@@ -145,6 +225,12 @@ func (d *devlog) attach(p playwright.Page) {
 		}
 		d.addNet(e)
 	})
+}
+
+// watchResponses pone respJS en la página: en las que cargue de acá en más y en la que ya está.
+func (d *devlog) watchResponses(p playwright.Page) {
+	_ = p.AddInitScript(playwright.Script{Content: playwright.String(respJS)})
+	_, _ = p.Evaluate(respJS)
 }
 
 // since devuelve lo anotado después de `since` (número de orden) y el último número, para pedir sólo lo nuevo.
@@ -263,8 +349,13 @@ const bodyMax = 64 << 10
 
 // withBody guarda el cuerpo de un pedido que escribe. Sólo lo que el evento ya trae (PostData, los encabezados de la
 // solicitud): pedir más desde el manejador traba el driver.
+// writes: el método escribe (no es GET, HEAD ni OPTIONS).
+func writes(method string) bool {
+	return method != "GET" && method != "HEAD" && method != "OPTIONS"
+}
+
 func withBody(e *NetEntry, req playwright.Request) {
-	if e.Method == "GET" || e.Method == "HEAD" || e.Method == "OPTIONS" {
+	if !writes(e.Method) {
 		return
 	}
 	if h := req.Headers(); h != nil {
