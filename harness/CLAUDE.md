@@ -52,6 +52,8 @@ que escribe cada una, fila por fila: [`HISTORY.md`](HISTORY.md) §«Las herramie
 | ¿qué entidades le salen al comercio? · ¿qué pasa si el cliente es así? | `make harness-listing MERCHANT=…` · `make harness-case CASES='…'` (`CLOSE=1`, `LAMBDA=1`, `JSON=1`) |
 | ¿qué devuelve ESTE código del backend? (una clase, un servicio privado, una consulta, en local) | `make harness-recipe` (la lista) · `NAME=<receta> ARGS='--param valor'` · `CODE='return …;'` (PHP suelto) · `REPO=legacy-application` · `JSON=1` · `BLOCK=`. Abajo, «Las recetas de código» |
 | ¿el FRONT encadena las pantallas? | `make harness-walk-wizard` (`ENGINE=browser`; skill `harness-caminador`) · `make harness-screens` |
+| probar A MANO en el wizard (qa o local) con un cliente listo: precargarlo, dictarle las centrales, empezar de cero, ver el OTP y el dictamen | la extensión **Probeta** (`make harness-extension` dice cómo cargarla; `harness/extension/README.md`): un panel lateral de Chrome que habla con el panel (`/api/ext/*`). Sólo qa y local dictan (F-149) |
+| «corré Finandina» y quiero el VIDEO para compartir · dejarla ARMADA en el panel para avanzarla yo | `make harness-run RUN=finandina` (`PANEL=1`: no la corre, la deja armada en el panel; también la vista «Corridas» de la barra) (o `RUN=finandina,pullman`, a la vez): corridas con nombre de `runs.json`, sin ventana, en un celular de 420×900 (agente de iPhone), 600 ms por acción, y un `.mp4` por corrida en `.runs/videos/<fecha>/` (`SLOW=`, `HEADED=1`, `VIDEO=0`, `BLOCK=`). Sin `RUN`, la lista. Las que comparten ambiente y perillas van en UN proceso con `--parallel` (dos procesos contra qa se pisarían el bypass de OTP). Graba el Chromium del harness, no el Chrome de Jarvis: Playwright no graba un contexto que no creó. Una corrida entra a `runs.json` cuando ya cerró con esas perillas. Cada video se anota en `.runs/recordings.json` y se ve en el panel, en «Grabaciones» (skill `harness-panel`). Medido el 2026-11-19, las dos a la vez: Finandina en qa (505169, 3 min 46 s de video) y CrediPullman en local (468438, 1 min 9 s), las dos en 11 |
 | ¿mi cambio rompió OTRO flujo? · ¿la regla de `knowledge/` sigue en pie? | `make harness-regression TARGET=local` · `make harness-suite` · `make harness-knowledge TARGET=local` |
 | ¿local está listo para decir la verdad? | `make harness-doctor TARGET=local` · `make harness-environment TARGET=local LIVE=1` · `make harness-wizard` (:5174) |
 | ¿el ambiente remoto está al día con su rama? | `make harness-env-drift TARGET=qa` |
@@ -206,6 +208,13 @@ Se diferencian en **qué recorren**, y eso decide qué pueden encontrar (la tabl
 | **2 · navegador sin ventana** | `make harness-walk-wizard ENGINE=browser` | el wizard en Chromium: el JavaScript de la página | ~3 min por caso |
 | **3a · el wizard por HTTP** | `make harness-walk-wizard` | loaders, actions y zod de cada pantalla, sin navegador | ~20 s por caso |
 | **3b · el backend directo** | `make harness-case` | la API del backend, sin front | segundos |
+
+**Las corridas con nombre (`runs.json`, 2026-11-19) son la puerta de todo lo de arriba para los casos que ya cierran.**
+Cada una dice su recorrido (`journey`: canal, riel, producto, variaciones de `journeys.json`) y lo que la hace distinta
+(`notes`); `make harness-run` sin `RUN` las compara una al lado de la otra y con `CHECK=1` verifica el riel contra la
+base de cada ambiente. Con la misma corrida: `make harness-run RUN=x` es el camino 2 con video y dictamen; `PANEL=1` (o
+la vista «Corridas») la deja armada en el panel, el camino 1, para avanzarla tocando Continuar. Un caso nuevo o una
+pregunta puntual siguen por `harness-walk-wizard` o `harness-case`; cuando cierra, se suma a `runs.json`.
 
 **Cuál usar:**
 - **¿Esta regla excluye de verdad?** o **¿qué pasa si el cliente es así?** → **3b**.

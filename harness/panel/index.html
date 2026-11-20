@@ -47,6 +47,9 @@
       --ok: #15803d;
       --warn: #b45309;
       --danger: #b91c1c;
+      --video-scrim: rgb(0 0 0 / 45%);       /* lo que va ENCIMA de un video: igual en los dos temas */
+      --video-ink: #fff;
+      --video-track: rgb(255 255 255 / 30%);
       --rt0: #475569;      /* sin integración: sale a la entidad */
       --rt1: #1d4ed8;      /* agregador: decide la entidad por API */
       --rt2: var(--ok);    /* in-platform (CreditopX) */
@@ -108,17 +111,21 @@
        de abajo se corría un renglón — se veía como «la consola desapareció». */
     .workbench {
       grid-template-columns: 1fr;
-      grid-template-areas: "shell" "rszpanel" "panel" "statusbar";
-      grid-template-rows: minmax(0, 1fr) var(--rsz) var(--panel-h) var(--statusbar-h);
+      grid-template-areas: "shell" "statusbar";
+      grid-template-rows: minmax(0, 1fr) var(--statusbar-h);
     }
     .workbench > .shell { grid-area: shell }
-    .workbench > .rsz-b { grid-area: rszpanel }
-    /* La consola maximizada (`bindPanelMaximize`). ⚠ DESVIACIÓN DECLARADA: la base oculta el editor y
-       ubica la consola en `editor-start / panel-end`, que son líneas de SU grilla; acá el editor vive
-       dentro de la cáscara y la consola ya cruza las tres columnas, así que maximizar es taparle la cáscara. */
-    .workbench.panel-max { grid-template-rows: 0 0 minmax(0, 1fr) var(--statusbar-h) }
-    .workbench.panel-max > .shell { display: none }
-    .workbench.panel-max > .panel { grid-row: panel }
+    /* EL CENTRO (2026-11-19): el editor arriba y la consola abajo, con su manija en el medio. Los sidebars ocupan el alto
+       entero, como en las demás herramientas: hasta acá la consola cruzaba las tres columnas y les comía el alto.
+       ⚠ La consola ya no es hija del `.workbench`, así que la base no le da su alto: lo da esta grilla. */
+    .center { display: grid; min-height: 0; min-width: 0;
+      grid-template-rows: minmax(0, 1fr) var(--rsz) var(--panel-h) }
+    .center > .panel { height: auto; min-height: 0 }
+    /* La consola maximizada (`bindPanelMaximize`, con la columna del centro como raíz): tapa el editor, no los
+       sidebars. */
+    .center.panel-max { grid-template-rows: 0 0 minmax(0, 1fr) }
+    .center.panel-max > .editorbox, .center.panel-max > .rsz-b { display: none }
+    .center.panel-max > .panel { grid-row: 3 }
     /* ⚠ La columna del medio tiene piso y la cáscara scrollea de costado: sin eso, al angostar la
        ventana el `1fr` baja a 0 y el recorrido desaparece entre los dos sidebars. */
     .shell {
@@ -127,6 +134,41 @@
     }
     /* Plegada a 0, una región no puede dejar escapar nada (el `.sr-only` de su fieldset es absoluto). */
     .sidebar, .auxiliarybar { overflow: hidden }
+    /* LA GRABACIÓN en el sidebar derecho: el video toma todo el alto que deja su cabecera, sin recortarse. */
+    .recording-view { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) var(--space-3) var(--space-3); overflow: hidden }
+    .recording-view[hidden] { display: none }
+    .recording-head { display: flex; flex-direction: column; gap: 2px; flex: none; min-width: 0 }
+    .recording-meta { color: var(--fg-3); font-size: var(--text-xs, 12px); white-space: normal }
+    .recording-verdict { margin: 2px 0 0; padding-left: 14px; color: var(--fg-2); font-size: var(--text-xs, 12px); line-height: 1.45 }
+    /* EL REPRODUCTOR, MINIMALISTA (2026-11-19): sin los controles del navegador (en Cockpit eran los de Safari, con volumen,
+       pantalla completa y tiempos encima del video). El cuadro mide lo que mide el video —ni barras negras ni recorte—:
+       el ancho y el alto salen de la proporción del video (`--ar`) contra el lugar que hay (`cq*`). Clic: reproducir o
+       pausar. Al pasar el mouse, una barra delgada abajo para adelantar o volver, y nada más. */
+    .recording-stage { flex: 1 1 0; min-height: 0; container-type: size; display: grid; place-items: start center }
+    .rec-frame { --ar: 0.4667; position: relative; width: min(100cqw, 100cqh * var(--ar)); height: min(100cqh, 100cqw / var(--ar));
+      border-radius: var(--radius-md, 8px); overflow: hidden; background: var(--muted); cursor: pointer;
+      box-shadow: 0 0 0 1px var(--border) }
+    .rec-frame video { display: block; width: 100%; height: 100%; object-fit: cover }
+    .rec-play { position: absolute; inset: 0; margin: auto; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center;
+      background: var(--video-scrim); color: var(--video-ink); pointer-events: none; transition: opacity .15s }
+    .rec-play .ui-icon { width: 18px; height: 18px; margin-left: 2px }
+    .rec-frame:not(.paused) .rec-play { opacity: 0 }
+    .rec-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 14px; display: flex; align-items: flex-end; opacity: 0;
+      transition: opacity .15s; cursor: pointer; touch-action: none }
+    .rec-frame:hover .rec-bar, .rec-frame.paused .rec-bar, .rec-bar.dragging { opacity: 1 }
+    .rec-track { position: relative; width: 100%; height: 3px; background: var(--video-track); transition: height .12s }
+    .rec-bar:hover .rec-track, .rec-bar.dragging .rec-track { height: 5px }
+    .rec-fill { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--primary) }
+    .row.recording .row-meta, .row.named-run .row-meta { white-space: nowrap }
+    .row.named-run.elsewhere { opacity: .55 }
+    .device-otp.run-lender { color: var(--fg-2) }
+    .run-card { margin: 0 var(--space-3) var(--space-2); padding: var(--space-2) var(--space-3); border: 1px solid var(--border);
+      border-radius: var(--radius-md, 8px); font-size: var(--text-xs, 12px); color: var(--fg-2); line-height: 1.45 }
+    .run-card strong { color: var(--fg-1, inherit); font-size: var(--text-sm, 13px) }
+    .run-card .run-journey { margin: 2px 0 4px }
+    .run-card ul { margin: 0; padding-left: 14px }
+    .run-card li + li { margin-top: 2px }
+    .row.recording.failed .row-meta { color: var(--warn) }
     .sidebar .region-body, .auxiliarybar .region-body { overflow-x: hidden; padding-block: var(--space-1) }
 
     /* Las manijas: el aspecto es el de la base —`::before` es la LÍNEA, que se pinta en --ring al pasar,
@@ -152,7 +194,7 @@
     :root[data-style="panels"] .editorbox {
       margin: calc(var(--panels-gap) / 2); border-radius: var(--panels-radius); border: 1px solid var(--panel-border);
       background: var(--panel-surface); --region-bg: var(--panel-surface); overflow: hidden }
-    :root[data-style="panels"] .shell > .editorbox > .editor { margin: 0; border: 0; border-radius: 0; background: none }
+    :root[data-style="panels"] .center > .editorbox > .editor { margin: 0; border: 0; border-radius: 0; background: none }
     /* ⚠ Las perillas y los botones de correr van JUNTOS: son los parámetros de la próxima corrida y
        el botón que la dispara. Y la banda ENVUELVE, no desborda: dentro de una región el ancho depende
        de los sidebars de al lado, y desbordando «Preparar + Lanzar» quedaba debajo del vecino. */
@@ -704,12 +746,28 @@
             </div>
             </div>
           </section>
+          <!-- LAS CORRIDAS CON NOMBRE (`harness/runs.json`, `pkg/runs.ts`): elegir una abre su comercio con su canal y le carga el
+               caso. Se le da ▶ y se avanza tocando Continuar en el celular; la entidad a elegir sale en su rótulo. Se agregan en
+               el archivo, no acá. -->
+          <section class="view runs-tree" id="runsSide" aria-label="Corridas">
+            <div class="region-head"><button type="button" class="view-tog" id="runsViewTog" aria-expanded="false"><span class="ui-icon" data-icon="chevron" aria-hidden="true"></span><span>Corridas</span></button><span class="count" id="runsCount"></span></div>
+            <div class="region-body tree" id="runsBody" role="group" hidden><p class="list-note">Todavía no hay corridas.</p></div>
+          </section>
+          <!-- LAS GRABACIONES: los videos de `make harness-run`, la más nueva arriba. Las agrega el agente al correr; acá sólo
+               se miran (elegir una la muestra en el sidebar derecho, a todo el alto). -->
+          <section class="view recordings-tree" id="recordingsSide" aria-label="Grabaciones">
+            <div class="region-head"><button type="button" class="view-tog" id="recordingsViewTog" aria-expanded="false"><span class="ui-icon" data-icon="chevron" aria-hidden="true"></span><span>Grabaciones</span></button><span class="count" id="recordingsCount"></span></div>
+            <div class="region-body tree" id="recordingsBody" role="group" hidden><p class="list-note">Todavía no hay grabaciones.</p></div>
+          </section>
         </fieldset>
       </aside>
       <div class="rsz rsz-l" id="rszL"></div>
 
       <!-- EL RECORRIDO ES UNA REGIÓN, y su banda lleva lo que antes era la barra de título: las cuatro
            perillas de la corrida y los botones de correrla. Se la cobra la columna que sí la usa. -->
+      <!-- EL CENTRO: el editor y, debajo, la consola. Los sidebars van de arriba abajo, como en las demás
+           herramientas (2026-11-19): la consola es del editor, no de la ventana. -->
+      <div class="center">
       <section class="editorbox">
         <!-- ⛔ SIN BANDA (2026-10-06): el centro es de los CELULARES y el mapa vive en su pestaña de la consola, así
              que «Recorrido» ya no rotulaba nada. Lo que llevaba se repartió por lo que es: el AMBIENTE y la
@@ -833,6 +891,7 @@
             <figure class="device" id="deviceAdvisor">
               <figcaption class="device-label"><span class="ui-icon" data-icon="server" aria-hidden="true"></span>Asesor
                 <span class="device-otp warn" id="advisorNote" hidden>identidad a mano</span>
+                <span class="device-otp run-lender" id="advisorRunLender" hidden></span>
                 <span class="device-otp warn" id="advisorProd" hidden title="En prod el panel no completa, no avanza y no aprueba nada: entrás y manejás vos">prod</span></figcaption>
               <div class="device-frame"><div class="device-notch"></div>
                 <div class="device-screen" id="screenAdvisor">
@@ -861,6 +920,7 @@
               <figcaption class="device-label"><span class="ui-icon" data-icon="channel" aria-hidden="true"></span>Cliente
                 <button type="button" class="device-otp" id="clientOtp" hidden></button>
                 <span class="device-otp warn" id="clientNote" hidden>identidad a mano</span>
+                <span class="device-otp run-lender" id="clientRunLender" hidden></span>
                 <span class="device-otp warn" id="clientProd" hidden title="En prod el panel no completa, no avanza y no aprueba nada: te registrás con tu celular y el OTP llega por SMS">prod</span>
                 <button type="button" class="region-action" id="clientClose" hidden title="Cerrar el navegador del cliente" aria-label="Cerrar el navegador del cliente"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button></figcaption>
               <div class="device-frame"><div class="device-notch"></div>
@@ -948,6 +1008,73 @@
           <section class="alert alert-warn" id="webhookZone" style="display:none" role="status"></section>
         </main>
       </section>
+      <div class="rsz rsz-b" id="rszB" data-rsz="panel"></div>
+      <section class="panel" id="bottomPanel">
+        <!-- ⚠ Las pestañas SON la banda: las acciones van al borde derecho de la misma barra. Y `copiar`
+             copia LAS DOS consolas, no la que estés mirando — las llamadas salientes del SSR son justo lo
+             que explica un 500 o un timeout, y no están en el log de la corrida. -->
+        <nav class="tabs" role="tablist" aria-label="Consolas">
+          <button type="button" class="tab on" id="tabRun" role="tab" aria-selected="true" title="Lo que imprime el launcher de la corrida">Corrida</button>
+          <button type="button" class="tab" id="tabConsoleAdvisor" role="tab" aria-selected="false" title="Lo que pasó en el celular del ASESOR (más lo que hizo el panel): la misma consola, filtrada">Asesor</button>
+          <button type="button" class="tab" id="tabConsoleClient" role="tab" aria-selected="false" title="Lo que pasó en el celular del CLIENTE (más lo que hizo el panel): la misma consola, filtrada">Cliente</button>
+          <button type="button" class="tab" id="tabSsr" role="tab" aria-selected="false" title="El stdout del wizard (SSR): sus llamadas salientes y sus errores">SSR</button>
+          <button type="button" class="tab" id="tabMocks" role="tab" aria-selected="false" title="Los mocks locales que vigila el panel: si responden, quién los levantó y su salida">Mocks</button>
+          <button type="button" class="tab" id="tabRecipes" role="tab" aria-selected="false" title="Las recetas de código: qué pregunta contesta cada una, contra qué repo corre y la última vez que corrió">Recetas</button>
+          <button type="button" class="tab" id="tabMap" role="tab" aria-selected="false" title="El mapa del recorrido del comercio: sus carriles y dónde va la corrida">Mapa</button>
+          <div class="region-actions" role="group" aria-label="Acciones de consola">
+            <span id="consoleTabNote" class="count" hidden></span>
+            <span id="consoleFilterState" class="count filtered" hidden>Filtrada</span>
+            <button type="button" class="region-action" id="copyLog" title="Copiar ambas consolas completas" aria-label="Copiar ambas consolas completas"><span class="ui-icon" data-icon="copy" aria-hidden="true"></span></button>
+            <button type="button" class="region-action" id="consoleMenu" title="Opciones de consola" aria-label="Opciones de consola"><span class="ui-icon" data-icon="more" aria-hidden="true"></span></button>
+            <button type="button" class="region-action" id="maximizeConsole"><span class="ui-icon" aria-hidden="true"></span></button>
+            <button type="button" class="region-action" id="closeConsole" title="Ocultar consola" aria-label="Ocultar consola"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
+          </div>
+        </nav>
+        <div class="console-body" id="consoleBody">
+          <!-- Cada salida es su propio cuerpo con scroll (`#logScroll`) y adentro sus líneas (`#log`). -->
+          <div id="logScroll" class="region-body console-log">
+            <div id="log" class="log-lines" role="log" data-vacio="Sin corrida todavía. Acá sale, línea por línea, lo que imprime el launcher."></div>
+          </div>
+          <div id="logSsrScroll" class="region-body console-log" style="display:none">
+            <div id="logSsr" class="log-lines" role="log" data-vacio="El stdout del wizard (SSR): sus llamadas salientes y sus errores. Es la ÚNICA vista de eso."></div>
+          </div>
+          <!-- Los mocks: el panel es su DUEÑO (`panel/mocks.ts`). Levanta al arrancar los que falten, adopta
+               los que ya estaban, y reinicia el que se cae o cuyo código cambió. Arriba la tabla; al elegir
+               una fila, su salida abajo. -->
+          <div id="mocksScroll" class="region-body mocks-view" style="display:none">
+            <table class="table mocks-table">
+              <thead><tr><th>Mock</th><th class="num">Puerto</th><th>Lo levantó</th><th>Última línea</th><th><span class="sr-only">Acciones</span></th></tr></thead>
+              <tbody id="mockRows"></tbody>
+            </table>
+            <div id="mockLog" class="log-lines mock-log" role="log" hidden></div>
+          </div>
+          <!-- Las recetas de código (`dev/recipe.ts`, archivos en `recipes/`): sólo la lista, para ver qué hay. Las corre
+               el agente por consola; acá se ve qué contesta cada una y cómo le fue la última vez. -->
+          <div id="recipesScroll" class="region-body mocks-view" style="display:none">
+            <table class="table mocks-table recipes-table">
+              <thead><tr><th>Receta</th><th>Qué contesta</th><th>Corre en</th><th>Pide</th><th>La última vez</th></tr></thead>
+              <tbody id="recipeRows"></tbody>
+            </table>
+          </div>
+          <!-- El mapa del recorrido (antes ocupaba el centro). Se encuadra solo al mostrarse. -->
+          <div id="mapScroll" class="region-body map-view" style="display:none">
+              <details class="route-map" id="routeMap" open hidden>
+                <summary><span id="routeMapWarn"></span></summary>
+                <div id="routeMapCanvas">
+                  <svg id="routeMapSvg" aria-label="Mapa del recorrido"><g id="routeMapCamera"></g></svg>
+                </div>
+              </details>
+              <div class="empty" id="stageEmpty">
+                <div class="empty-head">
+                  <div class="empty-media"><span class="ui-icon" data-icon="channel" aria-hidden="true"></span></div>
+                  <div class="empty-title">El recorrido aparece acá</div>
+                  <div class="empty-desc">Elegí un comercio en la columna de la izquierda y el mapa dibuja sus carriles.</div>
+                </div>
+              </div>
+          </div>
+        </div>
+      </section>
+      </div>
 
       <div class="rsz rsz-r" id="rszR"></div>
       <aside class="auxiliarybar" id="sideRight">
@@ -958,6 +1085,7 @@
           <button type="button" class="tab on" id="tabClient" role="tab" aria-selected="true" aria-controls="viewClient" title="El caso y la persona que pide el crédito">Cliente</button>
           <button type="button" class="tab" id="tabMerchant" role="tab" aria-selected="false" aria-controls="viewMerchant" title="Las entidades y la configuración del comercio elegido">Comercio</button>
           <button type="button" class="tab" id="tabBureaus" role="tab" aria-selected="false" aria-controls="viewBureaus" title="Las centrales de riesgo que consulta el backend: qué contesta cada una para la cédula del caso">Burós</button>
+          <button type="button" class="tab" id="tabRecording" role="tab" aria-selected="false" aria-controls="viewRecording" title="La grabación elegida en «Grabaciones», a la izquierda" hidden>Grabación</button>
           <div class="region-actions"><button type="button" class="region-action" id="configMenu" title="Opciones de configuración" aria-label="Opciones de configuración"><span class="ui-icon" data-icon="more" aria-hidden="true"></span></button></div>
         </nav>
         <!-- EN PROD, EL SIDEBAR DERECHO ES LA FICHA del comercio de la pestaña: sólo para mirar (asesor de prueba, cómo entrar,
@@ -968,8 +1096,21 @@
           <div id="prodFichaBody" class="prod-ficha-body"><p class="list-note">Elegí un comercio a la izquierda.</p></div>
           <p class="prod-hint" id="prodFichaHint"></p>
         </div>
+        <!-- LA GRABACIÓN ELEGIDA, a todo el alto: el video de la corrida (un celular de 420×900) y lo que dejó. No es un
+             fieldset: se puede mirar mientras corre otra cosa. -->
+        <div class="region-body recording-view" id="viewRecording" role="tabpanel" aria-labelledby="tabRecording" hidden>
+          <div class="recording-head"><strong id="recordingTitle"></strong><span class="recording-meta" id="recordingMeta"></span><ul class="recording-verdict" id="recordingVerdict" hidden></ul></div>
+          <div class="recording-stage"><div class="rec-frame paused" id="recordingFrame" title="Clic para reproducir o pausar">
+            <video id="recordingVideo" playsinline muted preload="auto"></video>
+            <span class="rec-play" aria-hidden="true"><span class="ui-icon" data-icon="play"></span></span>
+            <div class="rec-bar" id="recordingBar" role="slider" aria-label="Posición del video" tabindex="0"><div class="rec-track"><div class="rec-fill" id="recordingFill"></div></div></div>
+          </div></div>
+        </div>
         <fieldset class="cfg region-body props" id="viewClient" role="tabpanel" aria-labelledby="tabClient"><legend class="sr-only">El cliente de la próxima corrida</legend>
           <section class="alert view-note" id="noteClient" role="note" hidden></section>
+          <!-- LA FICHA DE LA CORRIDA CON NOMBRE de esta pestaña (`runs.json`): su recorrido en palabras y lo que la hace distinta
+               de las otras. Sólo con una corrida abierta desde «Corridas» (o `?corrida=`). -->
+          <section class="run-card" id="runCard" hidden></section>
           <!-- UN SOLO PANEL, con cuatro grupos a la vista: Caso · Identidad · Ingreso y empleo · Buró. Con
                las filas de 28 entra todo sin plegables. «Arranque», «Canal» y la demora son de la CORRIDA
                y viven en el pie; sus controles reales quedan acá abajo, ocultos. -->
@@ -1211,73 +1352,6 @@
         </fieldset>
       </aside>
     </div>
-
-    <div class="rsz rsz-b" id="rszB" data-rsz="panel"></div>
-    <section class="panel" id="bottomPanel">
-      <!-- ⚠ Las pestañas SON la banda: las acciones van al borde derecho de la misma barra. Y `copiar`
-           copia LAS DOS consolas, no la que estés mirando — las llamadas salientes del SSR son justo lo
-           que explica un 500 o un timeout, y no están en el log de la corrida. -->
-      <nav class="tabs" role="tablist" aria-label="Consolas">
-        <button type="button" class="tab on" id="tabRun" role="tab" aria-selected="true" title="Lo que imprime el launcher de la corrida">Corrida</button>
-        <button type="button" class="tab" id="tabConsoleAdvisor" role="tab" aria-selected="false" title="Lo que pasó en el celular del ASESOR (más lo que hizo el panel): la misma consola, filtrada">Asesor</button>
-        <button type="button" class="tab" id="tabConsoleClient" role="tab" aria-selected="false" title="Lo que pasó en el celular del CLIENTE (más lo que hizo el panel): la misma consola, filtrada">Cliente</button>
-        <button type="button" class="tab" id="tabSsr" role="tab" aria-selected="false" title="El stdout del wizard (SSR): sus llamadas salientes y sus errores">SSR</button>
-        <button type="button" class="tab" id="tabMocks" role="tab" aria-selected="false" title="Los mocks locales que vigila el panel: si responden, quién los levantó y su salida">Mocks</button>
-        <button type="button" class="tab" id="tabRecipes" role="tab" aria-selected="false" title="Las recetas de código: qué pregunta contesta cada una, contra qué repo corre y la última vez que corrió">Recetas</button>
-        <button type="button" class="tab" id="tabMap" role="tab" aria-selected="false" title="El mapa del recorrido del comercio: sus carriles y dónde va la corrida">Mapa</button>
-        <div class="region-actions" role="group" aria-label="Acciones de consola">
-          <span id="consoleTabNote" class="count" hidden></span>
-          <span id="consoleFilterState" class="count filtered" hidden>Filtrada</span>
-          <button type="button" class="region-action" id="copyLog" title="Copiar ambas consolas completas" aria-label="Copiar ambas consolas completas"><span class="ui-icon" data-icon="copy" aria-hidden="true"></span></button>
-          <button type="button" class="region-action" id="consoleMenu" title="Opciones de consola" aria-label="Opciones de consola"><span class="ui-icon" data-icon="more" aria-hidden="true"></span></button>
-          <button type="button" class="region-action" id="maximizeConsole"><span class="ui-icon" aria-hidden="true"></span></button>
-          <button type="button" class="region-action" id="closeConsole" title="Ocultar consola" aria-label="Ocultar consola"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
-        </div>
-      </nav>
-      <div class="console-body" id="consoleBody">
-        <!-- Cada salida es su propio cuerpo con scroll (`#logScroll`) y adentro sus líneas (`#log`). -->
-        <div id="logScroll" class="region-body console-log">
-          <div id="log" class="log-lines" role="log" data-vacio="Sin corrida todavía. Acá sale, línea por línea, lo que imprime el launcher."></div>
-        </div>
-        <div id="logSsrScroll" class="region-body console-log" style="display:none">
-          <div id="logSsr" class="log-lines" role="log" data-vacio="El stdout del wizard (SSR): sus llamadas salientes y sus errores. Es la ÚNICA vista de eso."></div>
-        </div>
-        <!-- Los mocks: el panel es su DUEÑO (`panel/mocks.ts`). Levanta al arrancar los que falten, adopta
-             los que ya estaban, y reinicia el que se cae o cuyo código cambió. Arriba la tabla; al elegir
-             una fila, su salida abajo. -->
-        <div id="mocksScroll" class="region-body mocks-view" style="display:none">
-          <table class="table mocks-table">
-            <thead><tr><th>Mock</th><th class="num">Puerto</th><th>Lo levantó</th><th>Última línea</th><th><span class="sr-only">Acciones</span></th></tr></thead>
-            <tbody id="mockRows"></tbody>
-          </table>
-          <div id="mockLog" class="log-lines mock-log" role="log" hidden></div>
-        </div>
-        <!-- Las recetas de código (`dev/recipe.ts`, archivos en `recipes/`): sólo la lista, para ver qué hay. Las corre
-             el agente por consola; acá se ve qué contesta cada una y cómo le fue la última vez. -->
-        <div id="recipesScroll" class="region-body mocks-view" style="display:none">
-          <table class="table mocks-table recipes-table">
-            <thead><tr><th>Receta</th><th>Qué contesta</th><th>Corre en</th><th>Pide</th><th>La última vez</th></tr></thead>
-            <tbody id="recipeRows"></tbody>
-          </table>
-        </div>
-        <!-- El mapa del recorrido (antes ocupaba el centro). Se encuadra solo al mostrarse. -->
-        <div id="mapScroll" class="region-body map-view" style="display:none">
-            <details class="route-map" id="routeMap" open hidden>
-              <summary><span id="routeMapWarn"></span></summary>
-              <div id="routeMapCanvas">
-                <svg id="routeMapSvg" aria-label="Mapa del recorrido"><g id="routeMapCamera"></g></svg>
-              </div>
-            </details>
-            <div class="empty" id="stageEmpty">
-              <div class="empty-head">
-                <div class="empty-media"><span class="ui-icon" data-icon="channel" aria-hidden="true"></span></div>
-                <div class="empty-title">El recorrido aparece acá</div>
-                <div class="empty-desc">Elegí un comercio en la columna de la izquierda y el mapa dibuja sus carriles.</div>
-              </div>
-            </div>
-        </div>
-      </div>
-    </section>
 
     <footer class="statusbar">
       <!-- El AMBIENTE primero: es lo global (contra qué base y qué servicios corre todo), como el indicador
@@ -1691,12 +1765,18 @@
 
     function renderMerchants() {
       wireAdminView();
+      wireRecordingsView();
+      wireRunsView();
       const g = $('results');
       // El Admin es una vista FIJA (su fila tiene sus manejadores): se saca antes de limpiar y vuelve al final.
       // ⚠ `adminSide`, no `adminView`: ése es la pantalla del admin en el editor. Con los dos con el mismo id, la pestaña
       // Admin prendía la vista de la barra y el editor quedaba en blanco.
       const adminView = $('adminSide');
       adminView?.remove();
+      const runsView = $('runsSide');               // también fija: después del Admin
+      runsView?.remove();
+      const recordingsView = $('recordingsSide');   // también fija: va al final
+      recordingsView?.remove();
       g.innerHTML = '';
 
       const entries = spaceEntries();
@@ -1786,6 +1866,8 @@
         g.appendChild(p);
       }
       if (adminView) g.appendChild(adminView);
+      if (runsView) { g.appendChild(runsView); renderRuns(); }   // atenuadas las que no corren en ESTE ambiente
+      if (recordingsView) g.appendChild(recordingsView);
       if ($('merchantCount')) $('merchantCount').textContent = String(entries.length);
       // En prod la barra es `#prodList`, que se arma con estos MISMOS datos (las entradas, sus países, el catálogo que dice
       // cómo se llama cada una en prod): se vuelve a dibujar con ellos. Si no, abrir `/prod` dejaba la de antes de que
@@ -1933,8 +2015,10 @@
     // ── Las dos vistas del sidebar derecho: Cliente y Comercio ──────────────────────────────────────
     const AUX_VIEW_KEY = 'harness.auxView';
     function showAuxView(name) {
-      const views = { client: ['tabClient', 'viewClient'], merchant: ['tabMerchant', 'viewMerchant'], bureaus: ['tabBureaus', 'viewBureaus'] };
+      const views = { client: ['tabClient', 'viewClient'], merchant: ['tabMerchant', 'viewMerchant'], bureaus: ['tabBureaus', 'viewBureaus'], recording: ['tabRecording', 'viewRecording'] };
       if (!views[name]) name = 'client';
+      // La grabación sólo existe con una elegida: sin ella, su pestaña está oculta y se va a Cliente.
+      if (name === 'recording' && $('tabRecording').hidden) name = 'client';
       // Una apagada en este ambiente (`renderViewNotes`) no se elige: se va a la primera que sí.
       if ($(views[name][0]).getAttribute('aria-disabled') === 'true') {
         name = ['merchant', 'client', 'bureaus'].find((k) => $(views[k][0]).getAttribute('aria-disabled') !== 'true') || 'merchant';
@@ -2089,6 +2173,253 @@
     $('tabClient').onclick = () => { if ($('tabClient').getAttribute('aria-disabled') !== 'true') showAuxView('client'); };
     $('tabMerchant').onclick = () => { if ($('tabMerchant').getAttribute('aria-disabled') !== 'true') showAuxView('merchant'); };
     $('tabBureaus').onclick = () => { if ($('tabBureaus').getAttribute('aria-disabled') !== 'true') showAuxView('bureaus'); };
+    $('tabRecording').onclick = () => showAuxView('recording');
+
+    /* ── LAS GRABACIONES (2026-11-19) ──────────────────────────────────────────────────────────────────────────────────
+     * Los videos de `make harness-run` (`pkg/recordings.ts`): una fila por corrida, la más nueva arriba, con su nombre
+     * (Finandina, Pullman…). Las agrega el AGENTE al correr; acá no se agregan ni se borran. Elegir una la muestra en el
+     * sidebar derecho, a todo el alto. La lista se vuelve a pedir cada 20 s y al volver a la ventana: una corrida que
+     * termina aparece sola. */
+    /* ── LAS CORRIDAS CON NOMBRE (2026-11-19) ─────────────────────────────────────────────────────────────────────────
+     * `harness/runs.json` (`pkg/runs.ts`, `/api/runs`): «Finandina», «Pullman»… Elegir una la deja ARMADA: la pestaña de su
+     * comercio con su canal, en su ambiente (el de ahora si es uno de los suyos), y el caso cargado en los campos. Se le da
+     * ▶ y se avanza tocando Continuar en el celular: el autorrelleno llena cada pantalla. La entidad a elegir sale en el
+     * rótulo del celular. Por consola, lo mismo: `make harness-run RUN=<clave> PANEL=1` (la ruta con `?corrida=`).
+     * Reemplaza al plan de corrida (`.runs/plan.json`), que era uno por máquina y salió de acá el 2026-10-21. */
+    let namedRuns = [];
+    function wireRunsView() {
+      const sec = $('runsSide'), tog = $('runsViewTog'), body = $('runsBody');
+      if (!sec || sec.dataset.wired) return;
+      sec.dataset.wired = '1';
+      const apply = (open) => { sec.classList.toggle('open', open); tog.setAttribute('aria-expanded', String(open)); body.hidden = !open; };
+      const pref = sideViewPrefs().runs;
+      apply(pref === undefined ? true : !!pref);
+      tog.onclick = () => {
+        const now = !sec.classList.contains('open'); apply(now);
+        const all = sideViewPrefs(); all.runs = now;
+        try { localStorage.setItem(SIDE_VIEWS_KEY, JSON.stringify(all)); } catch { /* sin storage: vale esta visita */ }
+      };
+    }
+    const runTargetFor = (r) => (r.targets.includes(target) ? target : r.targets[0]);
+    function renderRuns() {
+      const body = $('runsBody');
+      if (!body) return;
+      $('runsCount').textContent = namedRuns.length ? String(namedRuns.length) : '';
+      body.innerHTML = '';
+      if (!namedRuns.length) {
+        const p = document.createElement('p'); p.className = 'list-note';
+        p.textContent = 'Todavía no hay corridas.'; p.title = 'Se agregan en harness/runs.json';
+        body.appendChild(p); return;
+      }
+      for (const r of namedRuns) {
+        const here = r.targets.includes(target);
+        const row = document.createElement('div');
+        row.className = 'row named-run' + (here ? '' : ' elsewhere');
+        row.setAttribute('role', 'treeitem'); row.tabIndex = 0; row.dataset.run = r.key;
+        const jt = r.journeyText || {};
+        row.title = `${r.description}\n${[jt.channel, jt.rail && `${jt.rail.name} (${jt.rail.id})`, jt.product, ...(jt.variations || [])].filter(Boolean).join(' · ')} · elegir ${r.lenderName || `la entidad ${r.lender}`}`
+          + (r.case && Object.keys(r.case).length ? ` · ${Object.entries(r.case).map(([k, v]) => `${k} ${v}`).join(' · ')}` : '')
+          + (here ? '' : `\nNo corre en ${target}: abrirla cambia a ${r.targets[0]}.`) + (r.measured ? `\nCerró: ${r.measured}` : '');
+        row.innerHTML = '<span class="ui-icon" data-icon="start" aria-hidden="true"></span><span class="row-name"></span><span class="row-meta"></span>';
+        row.querySelector('.row-name').textContent = r.name;
+        row.querySelector('.row-meta').textContent = `${(r.journey || [])[1] || ''} · ${r.targets.join(' · ')}`;
+        row.onclick = () => openRun(r.key);
+        row.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openRun(r.key); } };
+        body.appendChild(row);
+      }
+    }
+    async function loadRuns() {
+      try {
+        const r = await (await fetch('/api/runs', { cache: 'no-store' })).json();
+        namedRuns = r.runs || [];
+        if (r.errors?.length) console.warn('runs.json:', r.errors);
+      } catch { return; }
+      renderRuns();
+    }
+    /** Abre la corrida por la URL (`/<ambiente>/<comercio>/<canal>?corrida=<clave>`): el mismo camino que un enlace o el CLI. */
+    function openRun(key) {
+      const r = namedRuns.find((x) => x.key === key);
+      if (!r || runRunning) return;
+      history.pushState(null, '', `/${runTargetFor(r)}/${encodeURIComponent(r.merchant)}/${r.channel}?corrida=${encodeURIComponent(key)}`);
+      dispatchEvent(new PopStateEvent('popstate'));
+    }
+    /** Carga el caso de la corrida en los campos (como si se tipeara: `input` y `change`) y anota en la pestaña qué entidad elegir. */
+    async function applyNamedRun(key) {
+      if (!namedRuns.length) await loadRuns();
+      const r = namedRuns.find((x) => x.key === key);
+      const t = currentTab();
+      if (!r || !t || t.kind) return;
+      for (const [k, v] of Object.entries(r.case || {})) {
+        const f = $(k);
+        if (!f) continue;
+        f.value = /^(amount|income)$/.test(k) ? Number(v).toLocaleString('es-CO') : String(v);
+        f.dispatchEvent(new Event('input', { bubbles: true }));
+        f.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      t.run = key; t.runLender = r.lenderName || `la entidad ${r.lender}`;
+      if (typeof snapshotTab === 'function') snapshotTab(t);
+      saveTabs(); renderStage();
+    }
+    /** La ficha de la corrida de esta pestaña, arriba de la vista Cliente: su recorrido en palabras y sus notas. */
+    function renderRunCard(t) {
+      const box = $('runCard');
+      if (!box) return;
+      const r = t?.run ? namedRuns.find((x) => x.key === t.run) : null;
+      box.hidden = !r;
+      if (!r) return;
+      const j = r.journeyText || {};
+      const rail = j.rail || {};
+      box.replaceChildren();
+      const head = document.createElement('div'); head.innerHTML = '<strong></strong>'; head.firstChild.textContent = `Corrida «${r.name}»`;
+      const line = (txt) => { const d = document.createElement('div'); d.className = 'run-journey'; d.textContent = txt; return d; };
+      box.append(head,
+        line([j.channel, `${rail.name} (${rail.id})`, j.product, ...(j.variations || [])].filter(Boolean).join(' · ')),
+        line(`Política: ${rail.policyOwner} · se origina ${rail.origination} · termina en: ${rail.outcome}`),
+        line(`En el listado: ${r.lenderName || `la entidad ${r.lender}`}`));
+      if (r.notes?.length) {
+        const ul = document.createElement('ul');
+        for (const n of r.notes) { const li = document.createElement('li'); li.textContent = n; ul.appendChild(li); }
+        box.appendChild(ul);
+      }
+    }
+    /** El rótulo del celular con la entidad a elegir en el listado, si la pestaña es de una corrida con nombre. */
+    function syncRunLender() {
+      let t = null;
+      try { t = currentTab(); } catch { return; }
+      renderRunCard(t);
+      for (const id of ['advisorRunLender', 'clientRunLender']) {
+        const el = $(id);
+        if (!el) continue;
+        el.hidden = !t?.runLender;
+        el.textContent = t?.runLender ? `elegí ${t.runLender}` : '';
+        el.title = t?.runLender ? `Corrida «${t.run}» (harness/runs.json): en el listado, ${t.runLender}` : '';
+      }
+    }
+    loadRuns();
+    window.addEventListener('focus', loadRuns);
+
+    const RECORDING_KEY = 'harness.recording';
+    let recordings = [];
+    let recordingId = (() => { try { return localStorage.getItem(RECORDING_KEY) || ''; } catch { return ''; } })();
+
+    function wireRecordingsView() {
+      const sec = $('recordingsSide'), tog = $('recordingsViewTog'), body = $('recordingsBody');
+      if (!sec || sec.dataset.wired) return;
+      sec.dataset.wired = '1';
+      const apply = (open) => { sec.classList.toggle('open', open); tog.setAttribute('aria-expanded', String(open)); body.hidden = !open; };
+      const pref = sideViewPrefs().recordings;
+      apply(pref === undefined ? true : !!pref);
+      tog.onclick = () => {
+        const now = !sec.classList.contains('open'); apply(now);
+        const all = sideViewPrefs(); all.recordings = now;
+        try { localStorage.setItem(SIDE_VIEWS_KEY, JSON.stringify(all)); } catch { /* sin storage: vale esta visita */ }
+      };
+    }
+
+    const recordingWhen = (iso) => {
+      const d = new Date(iso);
+      if (isNaN(d)) return '';
+      const today = new Date().toDateString() === d.toDateString();
+      return d.toLocaleString('es-CO', today ? { hour: 'numeric', minute: '2-digit' } : { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+    };
+    const recordingSummary = (r) => [r.target, r.ureq ? `solicitud ${r.ureq}` : '', r.lender, r.closed === false ? 'no cerró' : r.closed ? 'cerró' : '',
+      r.screens ? `${r.screens} pantallas` : '', r.seconds ? `${Math.floor(r.seconds / 60)} min ${r.seconds % 60} s` : ''].filter(Boolean).join(' · ');
+
+    function renderRecordings() {
+      const body = $('recordingsBody');
+      if (!body) return;
+      $('recordingsCount').textContent = recordings.length ? String(recordings.length) : '';
+      body.innerHTML = '';
+      if (!recordings.length) {
+        const p = document.createElement('p'); p.className = 'list-note';
+        p.textContent = 'Todavía no hay grabaciones.'; p.title = 'Las deja el agente al correr: make harness-run RUN=<corrida>';
+        body.appendChild(p); return;
+      }
+      for (const r of recordings) {
+        const row = document.createElement('div');
+        row.className = 'row recording' + (r.closed === false ? ' failed' : '');
+        row.setAttribute('role', 'treeitem'); row.tabIndex = 0; row.dataset.id = r.id;
+        row.setAttribute('aria-selected', String(r.id === recordingId));
+        row.title = [r.description, recordingSummary(r)].filter(Boolean).join('\n');
+        row.innerHTML = '<span class="ui-icon" data-icon="play" aria-hidden="true"></span><span class="row-name"></span><span class="row-meta"></span>';
+        row.querySelector('.row-name').textContent = r.name;
+        row.querySelector('.row-meta').textContent = [r.target, recordingWhen(r.at)].filter(Boolean).join(' · ');
+        row.onclick = () => openRecording(r.id);
+        row.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openRecording(r.id); } };
+        body.appendChild(row);
+      }
+    }
+
+    function openRecording(id, { show = true } = {}) {
+      const r = recordings.find((x) => x.id === id);
+      if (!r) return;
+      recordingId = id;
+      try { localStorage.setItem(RECORDING_KEY, id); } catch { /* sin storage: vale esta visita */ }
+      $('recordingTitle').textContent = `${r.name} · ${recordingWhen(r.at)}`;
+      $('recordingMeta').textContent = recordingSummary(r) || r.description || '';
+      // El dictamen de la solicitud (`pg request verdict`), si la corrida lo dejó: las centrales y con qué cuenta, `logs`.
+      const ul = $('recordingVerdict');
+      ul.replaceChildren(...(r.verdict || []).slice(1).map((line) => { const li = document.createElement('li'); li.textContent = line; return li; }));
+      ul.hidden = !(r.verdict || []).length;
+      const v = $('recordingVideo');
+      // `#t=0.1`: Safari (el motor de Cockpit) no pinta el primer cuadro de un video en pausa sin esto.
+      const src = `/api/recordings/${encodeURIComponent(id)}/video#t=0.1`;
+      if (v.getAttribute('src') !== src) v.setAttribute('src', src);
+      $('tabRecording').hidden = false;
+      for (const row of document.querySelectorAll('#recordingsBody .row')) row.setAttribute('aria-selected', String(row.dataset.id === id));
+      if (show) showAuxView('recording');
+    }
+
+    // El reproductor: clic para reproducir o pausar, la barra para ir a otro momento (arrastrando o con las flechas).
+    {
+      const v = $('recordingVideo'), frame = $('recordingFrame'), bar = $('recordingBar'), fill = $('recordingFill');
+      const paint = () => {
+        const p = v.duration ? v.currentTime / v.duration : 0;
+        fill.style.width = `${(p * 100).toFixed(2)}%`;
+        bar.setAttribute('aria-valuenow', String(Math.round(p * 100)));
+      };
+      const sync = () => frame.classList.toggle('paused', v.paused);
+      v.addEventListener('timeupdate', paint);
+      v.addEventListener('loadedmetadata', () => {
+        if (v.videoWidth && v.videoHeight) frame.style.setProperty('--ar', String(v.videoWidth / v.videoHeight));
+        paint();
+      });
+      for (const ev of ['play', 'pause', 'ended', 'emptied']) v.addEventListener(ev, sync);
+      v.addEventListener('emptied', paint);
+      frame.addEventListener('click', (e) => { if (bar.contains(e.target)) return; if (v.paused) v.play().catch(() => {}); else v.pause(); });
+      const seekTo = (x) => {
+        const r = bar.getBoundingClientRect();
+        if (!v.duration || !r.width) return;
+        v.currentTime = Math.min(1, Math.max(0, (x - r.left) / r.width)) * v.duration; paint();
+      };
+      bar.addEventListener('pointerdown', (e) => { e.preventDefault(); bar.setPointerCapture(e.pointerId); bar.classList.add('dragging'); seekTo(e.clientX); });
+      bar.addEventListener('pointermove', (e) => { if (bar.classList.contains('dragging')) seekTo(e.clientX); });
+      for (const ev of ['pointerup', 'pointercancel']) bar.addEventListener(ev, () => bar.classList.remove('dragging'));
+      bar.addEventListener('keydown', (e) => {
+        if (!v.duration) return;
+        if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); v.currentTime = Math.max(0, Math.min(v.duration, v.currentTime + (e.key === 'ArrowRight' ? 5 : -5))); paint(); }
+        if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); if (v.paused) v.play().catch(() => {}); else v.pause(); }
+      });
+    }
+
+    async function loadRecordings() {
+      try {
+        const res = await fetch('/api/recordings', { cache: 'no-store' });
+        if (!res.ok) return;
+        recordings = await res.json();
+      } catch { return; }
+      renderRecordings();
+      // La elegida la última vez vuelve a quedar lista (sin cambiar de vista): si ya no existe, se esconde su pestaña.
+      if (recordings.some((r) => r.id === recordingId)) openRecording(recordingId, { show: false });
+      else if (!$('tabRecording').hidden && !recordings.some((r) => r.id === recordingId)) {
+        $('tabRecording').hidden = true; $('recordingVideo').removeAttribute('src');
+        if ($('tabRecording').classList.contains('on')) showAuxView('client');
+      }
+    }
+    loadRecordings();
+    setInterval(loadRecordings, 20000);
+    window.addEventListener('focus', loadRecordings);
+
 
     // ── LOS BURÓS DEL CASO: responde · sin información · falla, por central ─────────────────────────────
     // El estado vive acá (y en el navegador, para que sobreviva a recargar) y viaja con el caso
@@ -4033,13 +4364,17 @@
       'score', 'negatives', 'consulted', 'delinquencies'];
     /** La configuración POR DEFECTO de una pestaña nueva: la del HTML (los `value` del marcado, no lo que se tipeó) y
      *  los burós respondiendo con sus valores por defecto. La identidad queda vacía: se genera en cada corrida. */
-    function defaultTabConfig() {
+    function defaultTabConfig(slug) {
       const testCase = {};
       for (const id of TAB_CASE_FIELDS) {
         const f = $(id);
         if (!f) continue;
         testCase[id] = f.tagName === 'SELECT' ? ([...f.options].find((o) => o.defaultSelected) || f.options[0])?.value ?? '' : f.defaultValue;
       }
+      // El monto del comercio, si el registro lo trae (`amount`): una entidad con mínimo (Finandina, $3.000.000) no se
+      // puede elegir con el de siempre.
+      const own = MERCHANTS.find((m) => m.slug === slug)?.amount;
+      if (own) testCase.amount = Number(own).toLocaleString('es-CO');
       return { caso: testCase, doctype: 'CC', gender: 'M', step: 'monto', inject: true, quota: false,
         bureauModes: { agildata: 'ok', mareigua: 'ok', tusdatos: 'ok', experian: 'ok' }, bureauData: { agildata: {}, mareigua: {}, experian: {} } };
     }
@@ -4228,6 +4563,7 @@
 
     /** El centro según la pestaña: la pregunta del canal, el aviso de «los celulares son de otra», o los celulares. */
     function renderStage() {
+      syncRunLender();
       const t = currentTab(), orig = inOrigination();
       const showSheet = prodMode && orig && t?.kind === 'prod';
       // En prod sólo el celular del asesor: no hay traspaso al cliente ni tienda (ver «El celular en prod, a mano»).
@@ -4290,11 +4626,23 @@
         renderChannelChoice.retry = setTimeout(() => { if (!$('tabStart').hidden) renderStage(); }, 500);
         return;
       }
-      // SIN ASESOR DE PRUEBA EN ESTE AMBIENTE, PRIMERO SE CREA: los canales no se muestran hasta que exista. Se ofrece
-      // crearlo acá mismo y, creado y medido de nuevo el ambiente, la pregunta vuelve con los canales.
+      // SIN ASESOR DE PRUEBA EN ESTE AMBIENTE, SÓLO EL CANAL ASESOR LO NECESITA (2026-11-19). Antes la pregunta no mostraba
+      // NINGÚN canal hasta crearlo, y Finandina en qa —que corre por autogestión, sin asesor— no se podía abrir. Ahora los
+      // canales salen como siempre; «Asesor» apagado con el motivo, y al lado se ofrece crearlo.
       const e = entryOf(t.slug);
       const noAdvisor = e?.readiness && !e.readiness.advisor && target !== 'local' && e.allied_id;
-      $('tabStartDesc').textContent = noAdvisor ? `No tiene asesor de prueba en ${target}. Creálo para elegir el canal.` : '¿Por qué canal entra esta corrida?';
+      $('tabStartDesc').textContent = noAdvisor ? `¿Por qué canal entra esta corrida? Sin asesor de prueba en ${target}, el canal Asesor espera a que lo crees.` : '¿Por qué canal entra esta corrida?';
+      for (const c of CHANNEL_ORDER) {
+        const real = document.querySelector(`#channelOptions button[data-c="${c}"]`);
+        if (!real || real.hidden) continue;
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'btn btn-outline btn-sm'; b.textContent = CHANNEL_LONG[c] || c;
+        const needsAdvisor = noAdvisor && c === 'asesor';
+        b.disabled = real.disabled || needsAdvisor;
+        b.title = needsAdvisor ? `No tiene asesor de prueba en ${target}: crealo con el botón de al lado.` : (real.title || '');
+        b.onclick = () => pickChannel(t, c);
+        box.appendChild(b);
+      }
       if (noAdvisor) {
         const mk = document.createElement('button');
         mk.type = 'button'; mk.className = 'btn btn-sm'; mk.textContent = 'Crear asesor de prueba';
@@ -4306,16 +4654,6 @@
           renderStage();
         };
         box.appendChild(mk);
-        return;
-      }
-      for (const c of CHANNEL_ORDER) {
-        const real = document.querySelector(`#channelOptions button[data-c="${c}"]`);
-        if (!real || real.hidden) continue;
-        const b = document.createElement('button');
-        b.type = 'button'; b.className = 'btn btn-outline btn-sm'; b.textContent = CHANNEL_LONG[c] || c;
-        b.disabled = real.disabled; b.title = real.title || '';
-        b.onclick = () => pickChannel(t, c);
-        box.appendChild(b);
       }
     }
 
@@ -4378,10 +4716,10 @@
         const preview = runTabs.find((x) => x.preview && !isOwner(x));
         if (preview) {
           if (preview.id === activeTab) snapshotTab(preview);
-          Object.assign(preview, { slug: e.slug, canal: pathChannel, preview: !pathChannel, config: defaultTabConfig() });
+          Object.assign(preview, { slug: e.slug, canal: pathChannel, preview: !pathChannel, config: defaultTabConfig(e.slug) });
           t = preview;
         } else {
-          t = { id: newTabId(), slug: e.slug, canal: pathChannel, preview: !pathChannel, config: defaultTabConfig() };
+          t = { id: newTabId(), slug: e.slug, canal: pathChannel, preview: !pathChannel, config: defaultTabConfig(e.slug) };
           runTabs.splice(cur ? runTabs.indexOf(cur) + 1 : runTabs.length, 0, t);
         }
       }
@@ -4866,7 +5204,7 @@
       const adhoc = !!sel.adhoc;
       let m = adhoc ? runTabs.find((x) => x.slug === slug && !x.canal) : runTabs.find((x) => x.slug === slug && x.canal === channel);
       if (!m) {
-        m = { id: newTabId(), slug, canal: adhoc ? null : channel, preview: adhoc, config: adhoc ? defaultTabConfig() : null, ...(adhoc ? { name: sel.name } : {}) };
+        m = { id: newTabId(), slug, canal: adhoc ? null : channel, preview: adhoc, config: adhoc ? defaultTabConfig(slug) : null, ...(adhoc ? { name: sel.name } : {}) };
         const old = adhoc ? runTabs.find((x) => x.preview && !isOwner(x)) : null;
         if (old) runTabs.splice(runTabs.indexOf(old), 1, m); else runTabs.push(m);
       }
@@ -4915,6 +5253,9 @@
     }
 
     function applyChannel() {
+      // El permiso del asesor es del canal Asesor: con otro canal no aplica, y un «✗ permiso del asesor» del canal anterior
+      // no puede quedar en el pie (se veía al abrir Finandina por autogestión en qa, que no tiene asesor de prueba).
+      if (channel !== 'asesor' && permState !== 'na') { permState = 'na'; permDetail = ''; permSeq++; queueMicrotask(updateGo); }
       queueMicrotask(renderMerchants);   // lo que falta para probar depende del canal
       queueMicrotask(() => { renderTrain(); followRunOnMap(); });   // y la entrada del mapa también
       // El celular de la tienda sólo existe en los canales que entran por ella.
@@ -7042,7 +7383,7 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
     // Maximizar la consola es de la base (`bindPanelMaximize`): temporal, no se guarda, se deshace con
     // el mismo botón o con Escape desde la consola. Ocultarla la restaura antes: una consola plegada y
     // maximizada dejaría la ventana vacía.
-    const maximize = bindPanelMaximize(document.getElementById('maximizeConsole'));
+    const maximize = bindPanelMaximize(document.getElementById('maximizeConsole'), { root: document.querySelector('.center') });
     // El tema lo elige la persona: la primera vez sigue al sistema y lo elegido se guarda (`ui.theme`).
     // El mapa no necesita escuchar el cambio: sus colores son tokens de la hoja.
     bindThemeToggle(document.getElementById('themeToggle'));
@@ -7176,8 +7517,8 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
     // arranques, el resumen del caso, el permiso del asesor—. Escribir `channel` o `step` a mano los salta.
     {
       const CHANNELS = ['asesor', 'autogestion', 'ecommerce', 'auto', 'qr'];
-      const VIEW_TO_ROUTE = { client: 'cliente', merchant: 'comercio', bureaus: 'buros' };
-      const ROUTE_TO_VIEW = { cliente: 'client', comercio: 'merchant', buros: 'bureaus' };
+      const VIEW_TO_ROUTE = { client: 'cliente', merchant: 'comercio', bureaus: 'buros', recording: 'grabacion' };
+      const ROUTE_TO_VIEW = { cliente: 'client', comercio: 'merchant', buros: 'bureaus', grabacion: 'recording' };
       const START_TO_ROUTE = { monto: 'monto', lenders: 'entidades' };
       const ROUTE_TO_START = { monto: 'monto', entidades: 'lenders', lenders: 'lenders' };
       const ROUTE_DEFAULTS = { inicio: 'monto', vista: 'cliente', consola: 'corrida' };
@@ -7207,7 +7548,7 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
         }
       }
 
-      const currentView = () => byId('tabMerchant').classList.contains('on') ? 'merchant' : byId('tabBureaus').classList.contains('on') ? 'bureaus' : 'client';
+      const currentView = () => byId('tabRecording').classList.contains('on') ? 'recording' : byId('tabMerchant').classList.contains('on') ? 'merchant' : byId('tabBureaus').classList.contains('on') ? 'bureaus' : 'client';
       const currentConsole = () => consoleTab();
       const findEntry = (slug) => spaceEntries().find((e) => e.slug === slug || (e.hash && e.hash === slug));
       const readPath = () => location.pathname.split('/').filter(Boolean).map((x) => { try { return decodeURIComponent(x); } catch { return ''; } });
@@ -7282,6 +7623,9 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
               if (own) await activateTab(own.id); else await openTab(entry, c);
             }
           }
+          if (seq !== routeSeq) return;
+          // UNA CORRIDA CON NOMBRE (`?corrida=finandina`): con su pestaña ya abierta, se le carga el caso (`applyNamedRun`).
+          if (params.get('corrida') && slug && !prodMode) await applyNamedRun(params.get('corrida'));
           if (seq !== routeSeq) return;
           // Un botón apagado no cambia nada al clickearlo: un arranque que el canal no admite se queda en Inicio.
           const wantedStart = ROUTE_TO_START[params.get('inicio')] || 'monto';

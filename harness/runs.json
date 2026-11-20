@@ -1,0 +1,86 @@
+{
+  "$comment": "Corridas con nombre (pkg/runs.ts): un comercio de harness.json, su canal, la entidad y el caso. `make harness-run RUN=<clave> [TARGET=…]` la corre sola con video; en el panel, la vista «Corridas» la deja armada y se avanza tocando Continuar. Una entra acá cuando ya cerró con esas perillas (`measured`).",
+  "runs": {
+    "finandina": {
+      "name": "Finandina",
+      "description": "Banco Finandina (riel 4, sin credencial) por autogestión, hasta «Autorizada»: formulario adicional de dos páginas, firma con OTP",
+      "merchant": "finandina",
+      "channel": "autogestion",
+      "journey": [
+        "self-service",
+        "riel-4",
+        "credit",
+        "+dynamic-form"
+      ],
+      "lender": 149,
+      "lenderName": "Banco Finandina",
+      "case": {
+        "amount": 5000000
+      },
+      "targets": [
+        "qa",
+        "local"
+      ],
+      "close": true,
+      "notes": [
+        "Riel 4 porque el crédito y la cartera son de Finandina; como no tiene API de preaprobación, la responde el motor de Creditop con la política de Finandina (alias banco-finandina → creditop_x en pre-approvals, sólo en develop: dev, qa y staging)",
+        "Sin credencial de integración (requires_credential = 0): no hay API de Finandina que llamar. Experian y Mareigua consultan con las cuentas de Finandina",
+        "Monto mínimo $3.000.000; tope de 2 créditos por cliente al mes (con la misma cédula sale «Sin cupo disponible»)",
+        "Sin formalización configurada: al autorizar no se le entrega el crédito a Finandina"
+      ],
+      "measured": "2026-11-19: qa 505165–505169 y 505172, local 468445 y 468446, todas en 11 (12 pantallas). Mínimo de la entidad: $3.000.000"
+    },
+    "pullman": {
+      "name": "Pullman",
+      "description": "CrediPullman (CreditopX) entrando por la tienda de Amoblando Pullman, hasta «Autorizada»",
+      "merchant": "pullman",
+      "channel": "ecommerce",
+      "journey": [
+        "store",
+        "riel-2",
+        "credit"
+      ],
+      "lender": 77,
+      "lenderName": "CrediPullman",
+      "targets": [
+        "local"
+      ],
+      "close": true,
+      "notes": [
+        "Riel 2 (CreditopX): el comercio pone el capital y Creditop decide con su política y maneja la cartera",
+        "Entra por la tienda: la solicitud queda atada al pedido y los datos personales llegan bloqueados desde él"
+      ],
+      "measured": "2026-11-19: 468438 y 468439 en 11, 11 pantallas"
+    },
+    "finandina-asesor": {
+      "name": "Finandina por asesor",
+      "description": "Banco Finandina (riel 4, sin credencial) por el canal del asesor: el asesor arma la solicitud y el cliente la termina en su celular, hasta «Autorizada»",
+      "merchant": "finandina",
+      "channel": "asesor",
+      "journey": [
+        "advisor",
+        "riel-4",
+        "credit",
+        "+dynamic-form"
+      ],
+      "lender": 149,
+      "lenderName": "Banco Finandina",
+      "case": {
+        "amount": 5000000
+      },
+      "targets": [
+        "qa"
+      ],
+      "branch": {
+        "qa": "a1110f50"
+      },
+      "close": true,
+      "notes": [
+        "Por asesor: el asesor de prueba ca1110f50-fake@creditop.com en su sucursal pa1110f50-fake (creados el 2026-11-20); Finandina se prendió ahí por la matriz de activaciones",
+        "El asesor hace monto, OTP, datos personales y listado; desde la confirmación sigue el cliente en su celular",
+        "Lo demás, como Finandina por autogestión: política en el motor de Creditop, mínimo $3.000.000, sin formalización"
+      ],
+      "measured": "2026-11-20: qa 505183 (caminador por HTTP) y 505186 (desde el catálogo, con navegador) en 11, 12 pantallas"
+    }
+  }
+}

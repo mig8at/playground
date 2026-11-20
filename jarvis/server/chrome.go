@@ -70,9 +70,21 @@ type chromeTab struct {
 	sessionID  string
 	targetInfo map[string]any
 	children   map[string]bool // las sesiones hijas (iframes de otro origen, workers) de esta pestaña
+	owner      *pwClient       // el cliente de Playwright que la maneja: sus eventos van sólo a él
 }
 
-// ChromeBridge une la extensión (una) con Playwright (uno a la vez).
+// pwClient es una conexión de Playwright al puente. Puede haber VARIAS a la vez (2026-11-20): las sesiones de Jarvis
+// (la conexión del propio servidor, `self`) y, en paralelo, el motor del harness (jarvis-walk, la compra de VTEX) u
+// otro cliente. Cada una ve y maneja sólo SUS pestañas. Antes había una sola (`pw`) y la segunda se rechazaba con «ya
+// hay otra conexión de Playwright»: un caminador del harness y una sesión de Jarvis no podían correr juntos.
+type pwClient struct {
+	id         int
+	conn       *websocket.Conn
+	self       bool // la del propio servidor (chromeContext): es la que se corta al terminar la última sesión
+	autoAttach bool // pidió Target.setAutoAttach: le tocan las pestañas compartidas que nadie maneja
+}
+
+// ChromeBridge une la extensión (una) con los clientes de Playwright (uno o varios).
 type ChromeBridge struct {
 	mu      sync.Mutex
 	ext     *websocket.Conn
@@ -82,12 +94,17 @@ type ChromeBridge struct {
 	// eventos (sendThen). Las de los comandos que Playwright reenvía van por acá: ver handleCommand.
 	inline      map[int]func(extReply)
 	lastID      int
-	pw          *websocket.Conn
-	shared      map[int]bool // las pestañas que la persona compartió o que abrió el navegador: las únicas que se tocan
-	opened      map[int]bool // de ésas, las que abrió el navegador (createTarget): no se reusan como «compartidas»
+	clients     map[int]*pwClient
+	nextClient  int
+	shared      map[int]bool      // las pestañas que la persona compartió o que abrió el navegador: las únicas que se tocan
+	opened      map[int]bool      // de ésas, las que abrió el navegador (createTarget): no se reusan como «compartidas»
+	openedAt    map[int]time.Time // cuándo se abrió cada una: una recién abierta no es huérfana (cleanup.go)
 	attached    map[int]*chromeTab
-	autoAttach  bool
 	nextSession int
+	// creating: cuántas pestañas se están abriendo ahora (createTarget). La extensión avisa «hay una compartida nueva»
+	// ANTES de devolver el id de la pestaña recién creada; sin esperar, el puente se la daba al cliente que pidió
+	// auto-attach (Jarvis) y el que la había pedido (el harness) ya no la podía tomar.
+	creating int
 	// Las sesiones «de cliente» que Playwright pide además de la de cada pestaña (context.newCDPSession: la del
 	// screencast). chrome.debugger da una sola sesión por pestaña, así que son alias de esa: los comandos van a la
 	// pestaña y sus eventos se repiten a cada alias.
@@ -97,7 +114,7 @@ type ChromeBridge struct {
 // browserSession es la sesión «del navegador entero» que Playwright abre con Target.attachToBrowserTarget.
 const browserSession = "navegador-browser"
 
-var chromeBridge = &ChromeBridge{pending: map[int]chan extReply{}, inline: map[int]func(extReply){}, shared: map[int]bool{}, opened: map[int]bool{}, attached: map[int]*chromeTab{}, aliases: map[string]int{}}
+var chromeBridge = &ChromeBridge{clients: map[int]*pwClient{}, pending: map[int]chan extReply{}, inline: map[int]func(extReply){}, shared: map[int]bool{}, opened: map[int]bool{}, openedAt: map[int]time.Time{}, attached: map[int]*chromeTab{}, aliases: map[string]int{}}
 
 // ChromeStatus es lo que muestran la interfaz y `bin/jarvis chrome`.
 type ChromeStatus struct {
@@ -105,13 +122,14 @@ type ChromeStatus struct {
 	Extension map[string]any `json:"extension,omitempty"`
 	Shared    []int          `json:"shared"`
 	Attached  []int          `json:"attached"`
-	Driving   bool           `json:"driving"` // Playwright está conectado (hay una sesión en vivo en Chrome)
+	Driving   bool           `json:"driving"` // hay al menos un cliente de Playwright conectado
+	Clients   int            `json:"clients"` // cuántos: las sesiones de Jarvis y, en paralelo, el harness u otro
 }
 
 func (b *ChromeBridge) Status() ChromeStatus {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	st := ChromeStatus{Connected: b.ext != nil, Extension: b.extInfo, Shared: []int{}, Attached: []int{}, Driving: b.pw != nil}
+	st := ChromeStatus{Connected: b.ext != nil, Extension: b.extInfo, Shared: []int{}, Attached: []int{}, Driving: len(b.clients) > 0, Clients: len(b.clients)}
 	for id := range b.shared {
 		st.Shared = append(st.Shared, id)
 	}
@@ -203,13 +221,16 @@ func (b *ChromeBridge) serveExtension(w http.ResponseWriter, r *http.Request) {
 	orphans := b.inline
 	b.inline = map[int]func(extReply){}
 	b.shared = map[int]bool{}
-	pw := b.pw
+	clients := make([]*pwClient, 0, len(b.clients))
+	for _, c := range b.clients {
+		clients = append(clients, c)
+	}
 	b.mu.Unlock()
 	for _, then := range orphans {
 		then(extReply{err: errors.New("la extensión se desconectó")})
 	}
-	if pw != nil {
-		_ = pw.Close(websocket.StatusGoingAway, "la extensión se desconectó")
+	for _, c := range clients {
+		_ = c.conn.Close(websocket.StatusGoingAway, "la extensión se desconectó")
 	}
 	logf("chrome: la extensión se desconectó")
 }
@@ -308,11 +329,11 @@ func (b *ChromeBridge) onExtensionEvent(m extMessage) {
 			}
 		}
 		b.shared = next
-		auto := b.autoAttach
+		auto := b.autoAttachClient()
 		b.mu.Unlock()
-		if auto {
+		if auto != nil {
 			for _, id := range added {
-				go func(id int) { _, _ = b.attachTab(id) }(id)
+				go b.autoAttachLater(id, auto)
 			}
 		}
 	case "chrome.tabs.onRemoved":
@@ -371,26 +392,65 @@ func (b *ChromeBridge) onExtensionEvent(m extMessage) {
 				}
 			}
 		}
+		owner := t.owner
 		b.mu.Unlock()
 		cdpTrace(src.TabID, src.SessionID, method, params[2])
-		b.toPlaywright(cdpMessage{SessionID: session, Method: method, Params: params[2]})
+		b.toClient(owner, cdpMessage{SessionID: session, Method: method, Params: params[2]})
 		for _, a := range aliases {
-			b.toPlaywright(cdpMessage{SessionID: a, Method: method, Params: params[2]})
+			b.toClient(owner, cdpMessage{SessionID: a, Method: method, Params: params[2]})
 		}
 	}
 }
 
 // ── Playwright ──
 
-func (b *ChromeBridge) toPlaywright(m cdpMessage) {
-	b.mu.Lock()
-	pw := b.pw
-	b.mu.Unlock()
-	if pw == nil {
+// toClient le manda un mensaje a un cliente de Playwright (nil: a nadie, la pestaña no tiene dueño).
+func (b *ChromeBridge) toClient(c *pwClient, m cdpMessage) {
+	if c == nil {
 		return
 	}
 	data, _ := json.Marshal(m)
-	_ = pw.Write(context.Background(), websocket.MessageText, data)
+	_ = c.conn.Write(context.Background(), websocket.MessageText, data)
+}
+
+// autoAttachLater le engancha al cliente una pestaña compartida nueva, pero después de que termine de abrirse cualquier
+// pestaña en curso: si resulta que la abrió un cliente (createTarget), es de ése y no se reparte.
+func (b *ChromeBridge) autoAttachLater(id int, c *pwClient) {
+	for i := 0; i < 100; i++ { // hasta 5 s
+		b.mu.Lock()
+		busy := b.creating > 0
+		b.mu.Unlock()
+		if !busy {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	b.mu.Lock()
+	opened := b.opened[id]
+	_, taken := b.attached[id]
+	b.mu.Unlock()
+	if opened || taken {
+		return
+	}
+	_, _ = b.attachTab(id, c)
+}
+
+// autoAttachClient (con mu tomado): a quién le toca una pestaña compartida nueva. El propio servidor primero (las
+// sesiones de Jarvis toman las pestañas que comparte la persona); si no está, el primer cliente que pidió auto-attach.
+func (b *ChromeBridge) autoAttachClient() *pwClient {
+	var first *pwClient
+	for _, c := range b.clients {
+		if !c.autoAttach {
+			continue
+		}
+		if c.self {
+			return c
+		}
+		if first == nil || c.id < first.id {
+			first = c
+		}
+	}
+	return first
 }
 
 func (b *ChromeBridge) servePlaywright(w http.ResponseWriter, r *http.Request) {
@@ -399,27 +459,27 @@ func (b *ChromeBridge) servePlaywright(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "este extremo es para Playwright, no para una página", http.StatusForbidden)
 		return
 	}
-	c, err := websocket.Accept(w, r, nil)
+	conn, err := websocket.Accept(w, r, nil)
 	if err != nil {
 		return
 	}
-	c.SetReadLimit(64 << 20)
+	conn.SetReadLimit(64 << 20)
 	b.mu.Lock()
-	if b.ext == nil || b.pw != nil {
-		why := "la extensión no está conectada"
-		if b.pw != nil {
-			why = "ya hay otra conexión de Playwright"
-		}
+	if b.ext == nil {
 		b.mu.Unlock()
-		_ = c.Close(websocket.StatusPolicyViolation, why)
+		_ = conn.Close(websocket.StatusPolicyViolation, "la extensión no está conectada")
 		return
 	}
-	b.pw = c
+	b.nextClient++
+	c := &pwClient{id: b.nextClient, conn: conn, self: r.URL.Query().Get("client") == "jarvis"}
+	b.clients[c.id] = c
+	n := len(b.clients)
 	b.mu.Unlock()
+	logf("chrome: se conectó el cliente de Playwright %d (self=%v, %d conectados)", c.id, c.self, n)
 
 	ctx := r.Context()
 	for {
-		_, data, err := c.Read(ctx)
+		_, data, err := conn.Read(ctx)
 		if err != nil {
 			break
 		}
@@ -427,28 +487,34 @@ func (b *ChromeBridge) servePlaywright(w http.ResponseWriter, r *http.Request) {
 		if json.Unmarshal(data, &m) != nil {
 			continue
 		}
-		b.handleCommand(m)
+		b.handleCommand(c, m)
 	}
 
-	// Playwright se fue: se sueltan las pestañas (se va la barra amarilla) y se olvida el auto-attach.
+	// El cliente se fue: se sueltan SUS pestañas (las de los otros siguen enganchadas) y se olvida su auto-attach.
 	b.mu.Lock()
-	b.pw = nil
-	b.autoAttach = false
-	ids := make([]int, 0, len(b.attached))
-	for id := range b.attached {
-		ids = append(ids, id)
+	delete(b.clients, c.id)
+	var ids []int
+	for id, t := range b.attached {
+		if t.owner == c {
+			ids = append(ids, id)
+			delete(b.attached, id)
+		}
 	}
-	b.attached = map[int]*chromeTab{}
-	b.aliases = map[string]int{}
+	for a, id := range b.aliases {
+		if b.attached[id] == nil {
+			delete(b.aliases, a)
+		}
+	}
 	b.mu.Unlock()
 	for _, id := range ids {
 		_, _ = b.send("chrome.debugger.detach", map[string]int{"tabId": id})
 	}
+	logf("chrome: se fue el cliente de Playwright %d (soltó %d pestaña(s))", c.id, len(ids))
 }
 
 // handleCommand contesta lo que es del navegador entero y reenvía lo demás. El reenvío sale EN ORDEN (antes de
 // leer el próximo comando); la espera de la respuesta va aparte.
-func (b *ChromeBridge) handleCommand(m cdpMessage) {
+func (b *ChromeBridge) handleCommand(c *pwClient, m cdpMessage) {
 	cdpTraceLine("→ id=%d session=%q %s", m.ID, m.SessionID, m.Method)
 	reply := func(result any, err error) {
 		cdpTraceLine("← id=%d session=%q %s err=%v", m.ID, m.SessionID, m.Method, err)
@@ -462,7 +528,7 @@ func (b *ChromeBridge) handleCommand(m cdpMessage) {
 			}
 			out.Result = raw
 		}
-		b.toPlaywright(out)
+		b.toClient(c, out)
 	}
 	// Lo que llega por la sesión del navegador entero es como si no tuviera sesión (la respuesta sí la lleva).
 	session := m.SessionID
@@ -483,7 +549,7 @@ func (b *ChromeBridge) handleCommand(m cdpMessage) {
 				TargetID string `json:"targetId"`
 			}
 			_ = json.Unmarshal(m.Params, &p)
-			reply(b.aliasFor(p.TargetID))
+			reply(b.aliasFor(p.TargetID, c))
 			return
 		}
 	case "Target.detachFromTarget":
@@ -510,7 +576,7 @@ func (b *ChromeBridge) handleCommand(m cdpMessage) {
 		return
 	case "Page.bringToFront":
 		// En Chrome: activar la pestaña en su ventana (chrome.tabs), sin robarle el foco a la ventana de la persona.
-		if t, err := b.debuggerTarget(m.Method, session); err == nil {
+		if t, err := b.debuggerTarget(m.Method, session, c); err == nil {
 			go func() {
 				_, err := b.call("chrome.tabs.activate", t["tabId"])
 				reply(map[string]any{}, err)
@@ -522,7 +588,7 @@ func (b *ChromeBridge) handleCommand(m cdpMessage) {
 		return
 	case "Target.setAutoAttach":
 		if session == "" {
-			go func() { reply(map[string]any{}, b.enableAutoAttach()) }()
+			go func() { reply(map[string]any{}, b.enableAutoAttach(c)) }()
 			return
 		}
 	case "Target.createTarget":
@@ -532,14 +598,14 @@ func (b *ChromeBridge) handleCommand(m cdpMessage) {
 			Background bool   `json:"background"`
 		}
 		_ = json.Unmarshal(m.Params, &p)
-		go func() { reply(b.createTarget(p.URL, p.NewWindow, p.Background)) }()
+		go func() { reply(b.createTarget(c, p.URL, p.NewWindow, p.Background)) }()
 		return
 	case "Target.closeTarget":
 		var p struct {
 			TargetID string `json:"targetId"`
 		}
 		_ = json.Unmarshal(m.Params, &p)
-		go func() { reply(b.closeTarget(p.TargetID)) }()
+		go func() { reply(b.closeTarget(p.TargetID, c)) }()
 		return
 	case "Target.getTargetInfo":
 		if session == "" {
@@ -551,7 +617,7 @@ func (b *ChromeBridge) handleCommand(m cdpMessage) {
 			b.mu.Lock()
 			var info map[string]any
 			for _, t := range b.attached {
-				if t.sessionID == m.SessionID {
+				if t.sessionID == m.SessionID && t.owner == c {
 					info = t.targetInfo
 				}
 			}
@@ -563,7 +629,7 @@ func (b *ChromeBridge) handleCommand(m cdpMessage) {
 		}
 	}
 
-	target, err := b.debuggerTarget(m.Method, session)
+	target, err := b.debuggerTarget(m.Method, session, c)
 	if err != nil {
 		reply(nil, err)
 		return
@@ -586,29 +652,36 @@ func (b *ChromeBridge) handleCommand(m cdpMessage) {
 		if len(out.Result) == 0 || string(out.Result) == "null" {
 			out.Result = []byte("{}")
 		}
-		b.toPlaywright(out)
+		b.toClient(c, out)
 	}, "chrome.debugger.sendCommand", target, m.Method, params)
 	if err != nil {
 		reply(nil, err)
 	}
 }
 
-// debuggerTarget dice a qué pestaña de chrome.debugger va un comando: sin sesión, a cualquiera enganchada (son
-// comandos del navegador entero); con la sesión de una pestaña, a ella; con una sesión hija, a su pestaña con esa
-// sesión.
-func (b *ChromeBridge) debuggerTarget(method, session string) (map[string]any, error) {
+// debuggerTarget dice a qué pestaña de chrome.debugger va un comando del cliente c: sin sesión, a cualquiera SUYA
+// (son comandos del navegador entero); con la sesión de una pestaña suya, a ella; con una sesión hija, a su pestaña
+// con esa sesión. Una pestaña de otro cliente no se toca: es como si no existiera.
+func (b *ChromeBridge) debuggerTarget(method, session string, c *pwClient) (map[string]any, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if session == "" {
-		for id := range b.attached {
-			return map[string]any{"tabId": id}, nil
+		for id, t := range b.attached {
+			if t.owner == c {
+				return map[string]any{"tabId": id}, nil
+			}
 		}
 		return nil, fmt.Errorf("no hay ninguna pestaña enganchada para %s", method)
 	}
 	if id, ok := b.aliases[session]; ok {
-		return map[string]any{"tabId": id}, nil
+		if t := b.attached[id]; t != nil && t.owner == c {
+			return map[string]any{"tabId": id}, nil
+		}
 	}
 	for id, t := range b.attached {
+		if t.owner != c {
+			continue
+		}
 		if t.sessionID == session {
 			return map[string]any{"tabId": id}, nil
 		}
@@ -619,26 +692,45 @@ func (b *ChromeBridge) debuggerTarget(method, session string) (map[string]any, e
 	return nil, fmt.Errorf("ninguna pestaña tiene la sesión %s", session)
 }
 
-func (b *ChromeBridge) enableAutoAttach() error {
+// enableAutoAttach: el cliente pidió ver las pestañas que hay. Se le enganchan las compartidas que no maneja otro.
+// No las que abrió Jarvis para una sesión (la extensión las lista): si nadie las maneja, son huérfanas de un reinicio y
+// van a la limpieza (cleanup.go). Antes se las adoptaba el primer cliente y, enganchadas, ya no contaban como
+// huérfanas: no se cerraban nunca.
+func (b *ChromeBridge) enableAutoAttach(c *pwClient) error {
+	var opened []struct {
+		ID int `json:"id"`
+	}
+	if raw, err := b.call("chrome.tabs.listOpened"); err == nil {
+		_ = json.Unmarshal(raw, &opened)
+	}
 	b.mu.Lock()
-	b.autoAttach = true
+	for _, o := range opened {
+		b.opened[o.ID] = true
+	}
+	c.autoAttach = true
 	ids := make([]int, 0, len(b.shared))
 	for id := range b.shared {
-		ids = append(ids, id)
+		if b.attached[id] == nil && !b.opened[id] {
+			ids = append(ids, id)
+		}
 	}
 	b.mu.Unlock()
 	for _, id := range ids {
-		if _, err := b.attachTab(id); err != nil {
+		if _, err := b.attachTab(id, c); err != nil {
 			logf("chrome: no se pudo enganchar la pestaña %d: %v", id, err)
 		}
 	}
 	return nil
 }
 
-func (b *ChromeBridge) attachTab(tabID int) (*chromeTab, error) {
+// attachTab engancha la pestaña para el cliente c. Si ya la maneja otro, no se la saca: error.
+func (b *ChromeBridge) attachTab(tabID int, c *pwClient) (*chromeTab, error) {
 	b.mu.Lock()
 	if t := b.attached[tabID]; t != nil {
 		b.mu.Unlock()
+		if t.owner != c {
+			return nil, fmt.Errorf("la pestaña %d la maneja otro cliente de Playwright", tabID)
+		}
 		return t, nil
 	}
 	b.mu.Unlock()
@@ -656,10 +748,13 @@ func (b *ChromeBridge) attachTab(tabID int) (*chromeTab, error) {
 	b.mu.Lock()
 	if t := b.attached[tabID]; t != nil { // otro pedido la enganchó mientras tanto
 		b.mu.Unlock()
+		if t.owner != c {
+			return nil, fmt.Errorf("la pestaña %d la maneja otro cliente de Playwright", tabID)
+		}
 		return t, nil
 	}
 	b.nextSession++
-	t := &chromeTab{tabID: tabID, sessionID: fmt.Sprintf("pw-tab-%d", b.nextSession), targetInfo: res.TargetInfo, children: map[string]bool{}}
+	t := &chromeTab{tabID: tabID, sessionID: fmt.Sprintf("pw-tab-%d", b.nextSession), targetInfo: res.TargetInfo, children: map[string]bool{}, owner: c}
 	b.attached[tabID] = t
 	b.mu.Unlock()
 	info := map[string]any{}
@@ -668,7 +763,7 @@ func (b *ChromeBridge) attachTab(tabID int) (*chromeTab, error) {
 	}
 	info["attached"] = true
 	params, _ := json.Marshal(map[string]any{"sessionId": t.sessionID, "targetInfo": info, "waitingForDebugger": false})
-	b.toPlaywright(cdpMessage{Method: "Target.attachedToTarget", Params: params})
+	b.toClient(c, cdpMessage{Method: "Target.attachedToTarget", Params: params})
 	return t, nil
 }
 
@@ -686,7 +781,7 @@ func (b *ChromeBridge) detachTab(tabID int) {
 		return
 	}
 	params, _ := json.Marshal(map[string]any{"sessionId": t.sessionID, "targetId": t.targetInfo["targetId"]})
-	b.toPlaywright(cdpMessage{Method: "Target.detachedFromTarget", Params: params})
+	b.toClient(t.owner, cdpMessage{Method: "Target.detachedFromTarget", Params: params})
 }
 
 // tabForTarget dice qué pestaña de Chrome tiene ese target (0 si ninguna enganchada).
@@ -701,12 +796,12 @@ func (b *ChromeBridge) tabForTarget(targetID string) int {
 	return 0
 }
 
-// aliasFor da una sesión más para la pestaña de ese target (ver aliases).
-func (b *ChromeBridge) aliasFor(targetID string) (map[string]any, error) {
+// aliasFor da una sesión más para la pestaña de ese target (ver aliases), si es del cliente c.
+func (b *ChromeBridge) aliasFor(targetID string, c *pwClient) (map[string]any, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	for id, t := range b.attached {
-		if t.targetInfo["targetId"] == targetID {
+		if t.targetInfo["targetId"] == targetID && t.owner == c {
 			b.nextSession++
 			alias := fmt.Sprintf("pw-alias-%d", b.nextSession)
 			b.aliases[alias] = id
@@ -720,36 +815,48 @@ func (b *ChromeBridge) aliasFor(targetID string) (map[string]any, error) {
 // Con `newWindow` (CDP) va a la ventana aparte de Jarvis, para trabajo que la persona no necesita ver (el pool de AI
 // Studio de Wally); con `background` además esa ventana nace minimizada. Una extensión vieja los ignora y la abre en
 // la ventana de siempre.
-func (b *ChromeBridge) createTarget(url string, newWindow, background bool) (map[string]any, error) {
+func (b *ChromeBridge) createTarget(c *pwClient, url string, newWindow, background bool) (map[string]any, error) {
 	if url == "" {
 		url = "about:blank"
 	}
+	b.mu.Lock()
+	b.creating++
+	b.mu.Unlock()
+	done := func() {
+		b.mu.Lock()
+		b.creating--
+		b.mu.Unlock()
+	}
 	raw, err := b.call("chrome.tabs.create", map[string]any{"url": url, "active": true, "newWindow": newWindow, "background": background})
 	if err != nil {
+		done()
 		return nil, err
 	}
 	var tab struct {
 		ID int `json:"id"`
 	}
 	if json.Unmarshal(raw, &tab) != nil || tab.ID == 0 {
+		done()
 		return nil, errors.New("la extensión no pudo abrir la pestaña")
 	}
 	b.mu.Lock()
 	b.shared[tab.ID] = true
 	b.opened[tab.ID] = true
+	b.openedAt[tab.ID] = time.Now()
 	b.mu.Unlock()
-	t, err := b.attachTab(tab.ID)
+	done() // ya está marcada como de quien la abrió: el reparto que esperaba la saltea
+	t, err := b.attachTab(tab.ID, c)
 	if err != nil {
 		return nil, err
 	}
 	return map[string]any{"targetId": t.targetInfo["targetId"]}, nil
 }
 
-func (b *ChromeBridge) closeTarget(targetID string) (map[string]any, error) {
+func (b *ChromeBridge) closeTarget(targetID string, c *pwClient) (map[string]any, error) {
 	b.mu.Lock()
 	id := 0
 	for tid, t := range b.attached {
-		if t.targetInfo["targetId"] == targetID {
+		if t.targetInfo["targetId"] == targetID && t.owner == c {
 			id = tid
 		}
 	}
@@ -809,13 +916,19 @@ func chromeSessionStarted() func() {
 	}
 }
 
-// dropPlaywright corta la conexión de Playwright; servePlaywright suelta las pestañas al verla cerrarse.
+// dropPlaywright corta la conexión de Playwright DEL SERVIDOR (la de las sesiones de Jarvis); servePlaywright suelta
+// sus pestañas al verla cerrarse. Las de otros clientes (el harness) siguen: no son de Jarvis.
 func (b *ChromeBridge) dropPlaywright() {
 	b.mu.Lock()
-	pw := b.pw
+	var self []*pwClient
+	for _, c := range b.clients {
+		if c.self {
+			self = append(self, c)
+		}
+	}
 	b.mu.Unlock()
-	if pw != nil {
-		_ = pw.Close(websocket.StatusNormalClosure, "no quedan sesiones en Chrome")
+	for _, c := range self {
+		_ = c.conn.Close(websocket.StatusNormalClosure, "no quedan sesiones en Chrome")
 	}
 }
 
@@ -831,7 +944,8 @@ func chromeContext(pw *playwright.Playwright) (playwright.BrowserContext, error)
 			return cs[0], nil
 		}
 	}
-	b, err := pw.Chromium.ConnectOverCDP("ws://" + apiAddr + "/api/chrome/cdp")
+	// ?client=jarvis: el puente sabe que es la conexión del propio servidor (dropPlaywright corta sólo ésa).
+	b, err := pw.Chromium.ConnectOverCDP("ws://" + apiAddr + "/api/chrome/cdp?client=jarvis")
 	if err != nil {
 		return nil, fmt.Errorf("conectar con Chrome: %w", err)
 	}

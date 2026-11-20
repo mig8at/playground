@@ -24,9 +24,10 @@ func TestExtensionOrigin(t *testing.T) {
 // Cada comando de Playwright tiene que ir a la pestaña correcta: la de su sesión, la dueña de una sesión hija
 // (iframe de otro origen) llevando esa sesión, y la de un alias (la sesión del screencast) sin sesión.
 func TestDebuggerTarget(t *testing.T) {
+	me := &pwClient{id: 1}
 	b := &ChromeBridge{
 		attached: map[int]*chromeTab{
-			7: {tabID: 7, sessionID: "pw-tab-1", targetInfo: map[string]any{"targetId": "T7"}, children: map[string]bool{"hija": true}},
+			7: {tabID: 7, sessionID: "pw-tab-1", targetInfo: map[string]any{"targetId": "T7"}, children: map[string]bool{"hija": true}, owner: me},
 		},
 		aliases: map[string]int{"pw-alias-2": 7},
 	}
@@ -41,7 +42,7 @@ func TestDebuggerTarget(t *testing.T) {
 		{"", 7, ""}, // del navegador entero: a cualquier pestaña enganchada
 	}
 	for _, c := range cases {
-		got, err := b.debuggerTarget("X.y", c.session)
+		got, err := b.debuggerTarget("X.y", c.session, me)
 		if err != nil {
 			t.Fatalf("sesión %q: %v", c.session, err)
 		}
@@ -52,20 +53,21 @@ func TestDebuggerTarget(t *testing.T) {
 			t.Errorf("sesión %q llevó sessionId %q, quería %q", c.session, sid, c.child)
 		}
 	}
-	if _, err := b.debuggerTarget("X.y", "desconocida"); err == nil {
+	if _, err := b.debuggerTarget("X.y", "desconocida", me); err == nil {
 		t.Error("una sesión que nadie tiene tiene que dar error, no ir a cualquier pestaña")
 	}
-	if _, err := (&ChromeBridge{attached: map[int]*chromeTab{}}).debuggerTarget("X.y", ""); err == nil {
+	if _, err := (&ChromeBridge{attached: map[int]*chromeTab{}}).debuggerTarget("X.y", "", me); err == nil {
 		t.Error("sin pestañas enganchadas, un comando del navegador entero tiene que dar error")
 	}
 }
 
 func TestAliasFor(t *testing.T) {
+	me := &pwClient{id: 1}
 	b := &ChromeBridge{
-		attached: map[int]*chromeTab{7: {tabID: 7, sessionID: "pw-tab-1", targetInfo: map[string]any{"targetId": "T7"}}},
+		attached: map[int]*chromeTab{7: {tabID: 7, sessionID: "pw-tab-1", targetInfo: map[string]any{"targetId": "T7"}, owner: me}},
 		aliases:  map[string]int{},
 	}
-	res, err := b.aliasFor("T7")
+	res, err := b.aliasFor("T7", me)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +75,45 @@ func TestAliasFor(t *testing.T) {
 	if b.aliases[alias] != 7 {
 		t.Errorf("el alias %q no apunta a la pestaña 7", alias)
 	}
-	if _, err := b.aliasFor("otro"); err == nil {
+	if _, err := b.aliasFor("otro", me); err == nil {
 		t.Error("un target que no está enganchado tiene que dar error")
 	}
+}
+
+// Varios clientes de Playwright a la vez (Jarvis y el harness): cada uno llega sólo a SUS pestañas. Un comando del
+// otro —por sesión, por alias o del navegador entero— no puede caer en una pestaña ajena, y pedir un alias de un
+// target ajeno falla. Antes había un solo cliente y el segundo se rechazaba.
+func TestClientsOnlyReachTheirOwnTabs(t *testing.T) {
+	jarvis := &pwClient{id: 1, self: true, autoAttach: true}
+	harness := &pwClient{id: 2, autoAttach: true}
+	b := &ChromeBridge{
+		clients: map[int]*pwClient{1: jarvis, 2: harness},
+		attached: map[int]*chromeTab{
+			7: {tabID: 7, sessionID: "pw-tab-1", targetInfo: map[string]any{"targetId": "T7"}, children: map[string]bool{"hija": true}, owner: jarvis},
+			9: {tabID: 9, sessionID: "pw-tab-2", targetInfo: map[string]any{"targetId": "T9"}, children: map[string]bool{}, owner: harness},
+		},
+		aliases: map[string]int{"pw-alias-3": 7},
+	}
+	for _, s := range []string{"pw-tab-1", "hija", "pw-alias-3"} {
+		if _, err := b.debuggerTarget("X.y", s, harness); err == nil {
+			t.Errorf("el harness llegó a la sesión %q, que es de Jarvis", s)
+		}
+	}
+	if got, err := b.debuggerTarget("X.y", "", harness); err != nil || got["tabId"] != 9 {
+		t.Errorf("un comando del navegador entero del harness tiene que ir a SU pestaña (9), fue a %v (%v)", got, err)
+	}
+	if got, err := b.debuggerTarget("X.y", "", jarvis); err != nil || got["tabId"] != 7 {
+		t.Errorf("y el de Jarvis a la suya (7), fue a %v (%v)", got, err)
+	}
+	if _, err := b.aliasFor("T7", harness); err == nil {
+		t.Error("el harness no puede pedir un alias de una pestaña de Jarvis")
+	}
+	if _, err := b.attachTab(7, harness); err == nil {
+		t.Error("enganchar una pestaña que ya maneja otro cliente tiene que fallar, no robársela")
+	}
+	b.mu.Lock()
+	if got := b.autoAttachClient(); got != jarvis {
+		t.Errorf("una pestaña compartida nueva le toca a Jarvis (el propio servidor), le tocó a %v", got)
+	}
+	b.mu.Unlock()
 }

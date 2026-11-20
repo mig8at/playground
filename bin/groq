@@ -4,6 +4,8 @@
 #   bin/groq [ask] --prompt '…' [--file doc.md] [--model openai/gpt-oss-120b] [--out r.md] [--keep] [--json]
 root=$(cd "$(dirname "$0")/.." && pwd -P) || exit 1
 case "$1" in
+  # La ayuda no abre Chrome ni le pregunta nada al modelo: es el encabezado de este archivo.
+  help|-h|--help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; exit 0 ;;
   ask) recipe=$1; shift ;;
   *) recipe=ask ;;
 esac

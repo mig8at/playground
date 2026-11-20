@@ -17,13 +17,19 @@ let heartbeat = null
 
 // ── las pestañas permitidas ──
 // En memoria, para mirarlas SIN esperar: los eventos de depuración tienen que salir en el orden en que llegan, y una
-// lectura asíncrona por evento los podría desordenar. Se guardan también en storage.session, que sobrevive a que el
-// service worker se duerma (y se borra al cerrar Chrome).
+// lectura asíncrona por evento los podría desordenar. Se guardan también en storage.LOCAL, que sobrevive a que el
+// service worker se duerma y a RECARGAR la extensión (con storage.session, que se borra al recargar, las pestañas que
+// Jarvis había abierto pasaban a parecer de la persona y nadie las cerraba). Al arrancar Chrome los ids de pestaña
+// empiezan de nuevo: ahí se vacían (onStartup), y al cargar se descartan los que ya no existen.
+// groupTitles: los nombres de grupo que puso Jarvis. Una huérfana tiene que estar en uno de ésos: así un id viejo
+// nunca apunta a una pestaña de un grupo tuyo.
 
-const lists = { shared: [], opened: [] }
-const loaded = chrome.storage.session.get(['shared', 'opened']).then((s) => {
-  lists.shared = s.shared || []
-  lists.opened = s.opened || []
+const lists = { shared: [], opened: [], groupTitles: [] }
+const loaded = chrome.storage.local.get(['shared', 'opened', 'groupTitles']).then(async (s) => {
+  const alive = new Set((await chrome.tabs.query({})).map((t) => t.id))
+  lists.shared = (s.shared || []).filter((id) => alive.has(id))
+  lists.opened = (s.opened || []).filter((id) => alive.has(id))
+  lists.groupTitles = s.groupTitles || []
 })
 
 function allowedIds() {
@@ -36,7 +42,7 @@ function isAllowed(tabId) {
 
 async function setLists(next) {
   Object.assign(lists, next)
-  await chrome.storage.session.set({ shared: lists.shared, opened: lists.opened })
+  await chrome.storage.local.set({ shared: lists.shared, opened: lists.opened, groupTitles: lists.groupTitles })
   notifyShared()
   broadcastStatus()
 }
@@ -143,12 +149,13 @@ async function handle(method, params) {
       if (props.newWindow) {
         const tab = await createInAsideWindow(props.url || 'about:blank', !!props.background)
         await setLists({ opened: [...lists.opened, tab.id] })
+        await keepAlive(tab.id)
         return { id: tab.id }
       }
       const tab = await chrome.tabs.create({ url: props.url || 'about:blank', active: props.active !== false })
       await setLists({ opened: [...lists.opened, tab.id] })
+      await keepAlive(tab.id)
       await addToGroup(tab)
-      ensureControlTab({ windowId: tab.windowId }).catch(() => {})
       return { id: tab.id }
     }
     case 'chrome.tabs.activate': {
@@ -156,6 +163,44 @@ async function handle(method, params) {
       const [tabId] = params
       guard(tabId)
       await chrome.tabs.update(tabId, { active: true })
+      return {}
+    }
+    case 'chrome.tabs.listOpened': {
+      // Las pestañas que abrió Jarvis y siguen en un grupo suyo: el servidor decide cuáles quedaron huérfanas.
+      await loaded
+      const out = []
+      for (const id of lists.opened) {
+        let tab
+        try { tab = await chrome.tabs.get(id) } catch { continue }
+        if (tab.groupId === -1) continue
+        let title = ''
+        try { title = (await chrome.tabGroups.get(tab.groupId)).title || '' } catch { continue }
+        if (!lists.groupTitles.includes(title)) continue
+        out.push({ id, groupId: tab.groupId, group: title, title: tab.title || '', url: tab.url || '' })
+      }
+      return out
+    }
+    case 'chrome.tabs.sendBehind': {
+      // Deja la pestaña detrás de verdad, para medir si el sitio anda de fondo (bin/jarvis focus check): al frente
+      // de su ventana va la pestaña Jarvis de esa ventana; si no hay, otra cualquiera de la ventana; si es la única,
+      // se abre la pestaña Jarvis ahí. No se toca el contenido de ninguna.
+      const [tabId] = params
+      guard(tabId)
+      const tab = await chrome.tabs.get(tabId)
+      const url = chrome.runtime.getURL('control.html')
+      const [control] = await chrome.tabs.query({ url, windowId: tab.windowId })
+      const others = (await chrome.tabs.query({ windowId: tab.windowId })).filter((t) => t.id !== tabId)
+      const target = control || others[0]
+      if (target) await chrome.tabs.update(target.id, { active: true })
+      else await chrome.tabs.create({ url, windowId: tab.windowId, pinned: true, index: 0, active: true })
+      return { active: (await chrome.tabs.get(tabId)).active }
+    }
+    case 'chrome.tabs.setGroup': {
+      // La sesión tiene un grupo propio (bin/jarvis start --group): su pestaña sale del «Jarvis» y va al de su tarea.
+      const [tabId, title, color] = params
+      guard(tabId)
+      const tab = await chrome.tabs.get(tabId)
+      await addToGroup(tab, title || 'Jarvis', title ? color : 'purple')
       return {}
     }
     case 'chrome.tabs.remove': {
@@ -167,6 +212,14 @@ async function handle(method, params) {
     default:
       throw new Error(`no sé hacer ${method}`)
   }
+}
+
+// keepAlive: que Chrome no DESCARTE la pestaña de una sesión cuando está de fondo (el ahorro de memoria descarta las
+// pestañas que no se miran; Claude trabaja justamente en ésas). Una descartada pierde la página y la sesión con ella.
+// Lo que sigue pudiendo pasar: el ahorro de energía congela las de fondo que gastan mucho CPU (Chrome 133+), y eso
+// no tiene llave para una extensión.
+async function keepAlive(tabId) {
+  try { await chrome.tabs.update(tabId, { autoDiscardable: false }) } catch { /* la pestaña ya se cerró */ }
 }
 
 // ── la ventana aparte: trabajo que la persona no necesita ver (el pool de AI Studio de Wally) ──
@@ -186,15 +239,31 @@ async function createInAsideWindow(url, minimized) {
   return win.tabs[0]
 }
 
-// ── el grupo «Jarvis»: las pestañas que abre Claude, juntas y de un color, para no confundirlas con las tuyas ──
+// ── los grupos: las pestañas que abre Claude, juntas y de un color, para no confundirlas con las tuyas ──
+// Por defecto van al grupo «Jarvis» (violeta); una sesión con grupo propio (bin/jarvis start --group 'VTEX') va al de
+// su tarea, con el color que le dio el servidor.
 
-async function addToGroup(tab) {
+async function addToGroup(tab, title = 'Jarvis', color = 'purple') {
   try {
-    // El grupo se busca por su nombre en la ventana, no por un id guardado: un id se pierde al recargar la extensión
-    // (o al reiniciar Chrome) y se terminaba con dos grupos «Jarvis» en la misma ventana.
-    const [group] = await chrome.tabGroups.query({ title: 'Jarvis', windowId: tab.windowId })
+    if (!lists.groupTitles.includes(title)) await setLists({ groupTitles: [...lists.groupTitles, title] })
+    // El grupo se busca por su nombre, no por un id guardado: un id se pierde al recargar la extensión (o al reiniciar
+    // Chrome). Primero en la ventana de la pestaña; si está en OTRA ventana, la pestaña se muda a ésa: antes se
+    // armaba un segundo grupo con el mismo nombre.
+    let [group] = await chrome.tabGroups.query({ title, windowId: tab.windowId })
+    if (!group) {
+      const [elsewhere] = await chrome.tabGroups.query({ title })
+      if (elsewhere) {
+        await chrome.tabs.move(tab.id, { windowId: elsewhere.windowId, index: -1 })
+        group = elsewhere
+      }
+    }
+    if (group && tab.groupId === group.id) {
+      if (color && group.color !== color) await chrome.tabGroups.update(group.id, { color })
+      return
+    }
     const groupId = await chrome.tabs.group(group ? { tabIds: [tab.id], groupId: group.id } : { tabIds: [tab.id], createProperties: { windowId: tab.windowId } })
-    if (!group) await chrome.tabGroups.update(groupId, { title: 'Jarvis', color: 'purple' })
+    if (!group) await chrome.tabGroups.update(groupId, { title, color: color || 'purple' })
+    else if (color && group.color !== color) await chrome.tabGroups.update(groupId, { color })
   } catch {
     /* sin grupo la pestaña funciona igual */
   }
@@ -238,28 +307,17 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
   return true
 })
 
-// La pestaña Jarvis, el centro de control: fijada a la izquierda. Está siempre que haya trabajo: se abre sola al
-// instalar la extensión y cuando Claude abre su primera pestaña (sin quitarle la pestaña a la persona); el ícono la
-// trae al frente.
-async function ensureControlTab({ focus = false, windowId } = {}) {
-  const url = chrome.runtime.getURL('control.html')
-  const [open] = await chrome.tabs.query({ url })
-  if (open) {
-    if (focus) {
-      await chrome.tabs.update(open.id, { active: true })
-      await chrome.windows.update(open.windowId, { focused: true })
-    }
-    return
-  }
-  const props = { url, pinned: true, index: 0, active: focus }
-  if (windowId !== undefined) props.windowId = windowId
-  await chrome.tabs.create(props)
-}
-
-chrome.action.onClicked.addListener(() => ensureControlTab({ focus: true }))
+// El ícono abre el panel lateral (side-panel.html: los grupos abiertos y sus pestañas). La pestaña Jarvis ya no se abre
+// sola (2026-11-20, decisión de Miguel: lo de ver está en Cockpit).
+chrome.sidePanel?.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {})
 
 chrome.alarms.create('navegador-keepalive', { periodInMinutes: 1 })
 chrome.alarms.onAlarm.addListener((a) => { if (a.name === 'navegador-keepalive') connect() })
-chrome.runtime.onStartup.addListener(connect)
-chrome.runtime.onInstalled.addListener(() => { connect(); ensureControlTab({ focus: true }).catch(() => {}) })
+// Chrome arrancó: los ids de pestaña empiezan de nuevo, así que las listas de antes ya no nombran nada nuestro.
+chrome.runtime.onStartup.addListener(async () => {
+  await loaded
+  await setLists({ shared: [], opened: [] })
+  connect()
+})
+chrome.runtime.onInstalled.addListener(connect)
 connect()

@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -30,6 +31,10 @@ const clientHeader = "X-Jarvis-Client"
 // "0" apaga el cierre).
 const tabIdleDefault = 10 * time.Minute
 
+// tabDoneIdleDefault: cuánto queda la pestaña de una meta terminada (o de una sesión que nunca tuvo meta) antes de
+// cerrarse sola. Corto: si la próxima meta es en el mismo sitio, la reutiliza antes (Claim).
+const tabDoneIdleDefault = 3 * time.Minute
+
 type Tab struct {
 	ID      string
 	Runner  *Runner
@@ -37,21 +42,32 @@ type Tab struct {
 	Created time.Time
 	// ByClaude: la abrió el CLI (no la persona desde la interfaz). Sólo éstas se cierran solas.
 	ByClaude bool
+	// Group y Color: el grupo de pestañas de Chrome de su tarea (groups.go). Vacío = el grupo «Jarvis» de siempre. Se
+	// leen y escriben con Tabs.mu.
+	Group string
+	Color string
+	// claimed: cuándo la tomó un `start` (Claim, groups.go); hasta que su Claude arranca, otro no la toma.
+	claimed time.Time
 	// Las dos se leen y escriben con Tabs.mu.
 	lastUsed time.Time // el último comando de Claude o acción de la persona sobre ella
 	watchers int       // interfaces mirándola ahora (streams de cuadros abiertos)
 }
 
 type Tabs struct {
-	mu    sync.Mutex
-	store *Store
-	seq   int
-	tabs  map[string]*Tab
-	last  string // la última que se abrió: el default de un pedido sin pestaña
+	mu sync.Mutex
+	// claimMu pone en fila los Claim: dos `start` a la vez no pueden elegir la misma sesión.
+	claimMu sync.Mutex
+	store   *Store
+	seq     int
+	tabs    map[string]*Tab
+	last    string // la última que se abrió: el default de un pedido sin pestaña
+	// doneIdle: cuánto queda abierta la pestaña de una sesión cuya meta terminó (JARVIS_TAB_DONE_IDLE; 0 = el mismo
+	// tope que las que trabajan). cleanup.go.
+	doneIdle time.Duration
 }
 
 func NewTabs(store *Store) *Tabs {
-	t := &Tabs{store: store, tabs: map[string]*Tab{}}
+	t := &Tabs{store: store, tabs: map[string]*Tab{}, doneIdle: tabDoneIdleDefault}
 	t.New()
 	return t
 }
@@ -134,8 +150,15 @@ func (t *Tabs) pick(w http.ResponseWriter, r *http.Request) *Tab {
 	if id == "" {
 		id = r.URL.Query().Get("tab")
 	}
-	tab := t.Get(id)
-	if tab == nil {
+	var tab *Tab
+	// Sin pestaña pero con grupo (--group G en el CLI): la última sesión de ESE grupo, no la última de todas. Así dos
+	// trabajos en paralelo, cada uno en su grupo, no se pisan aunque ninguno diga --session.
+	if g := groupOf(r); id == "" && g != "" {
+		if tab = t.ByGroup(g); tab == nil {
+			writeErr(w, http.StatusNotFound, fmt.Errorf("no hay sesiones en el grupo «%s» (bin/jarvis groups los lista; start --group lo crea)", g))
+			return nil
+		}
+	} else if tab = t.Get(id); tab == nil {
 		writeErr(w, http.StatusNotFound, fmt.Errorf("no hay pestaña %s (bin/jarvis tabs las lista)", id))
 		return nil
 	}
@@ -144,9 +167,10 @@ func (t *Tabs) pick(w http.ResponseWriter, r *http.Request) *Tab {
 	if fromCLI(r) || r.Method != http.MethodGet {
 		t.Touch(tab)
 	}
-	// «Siguiendo a Claude» en Chrome: la pestaña donde actúa pasa al frente (en su ventana).
+	// La pestaña va al frente sólo si hace falta (focus.go): lo que necesita a la persona (el modo guía), «seguir a
+	// Claude» prendido o un sitio que no anda de fondo. Si no, Claude trabaja detrás y no te mueve la vista.
 	if fromCLI(r) {
-		tab.Runner.focusChrome()
+		tab.Runner.focusChrome(strings.HasPrefix(r.URL.Path, "/api/live/guide"))
 	}
 	return tab
 }
@@ -190,39 +214,21 @@ func IdleLimit(env string) time.Duration {
 	return tabIdleDefault
 }
 
-// Sweep cierra las pestañas que abrió Claude y que llevan más de idle sin uso, y devuelve cuáles cerró. Nunca cierra:
-// - las que abrió la persona;
-// - la última que se abrió (es adonde cae un comando sin --session: cerrarla mandaría el próximo a otra página);
-// - una que alguien está mirando en la interfaz;
-// - una con un Claude corriendo (`ask`) o una reproducción en marcha;
-// - la única que queda.
-// Una sesión de Claude desde la conversación (`empezar`) sin `terminar` sí se cierra si quedó sin uso: es la pestaña
-// que se olvidó.
+// Sweep cierra las sesiones que abrió Claude y ya no hacen falta (Plan con manual=false) y devuelve cuáles cerró o
+// dejó sin página. idle es el tope de una con su Claude todavía en una meta; las demás (terminó o nunca empezó) usan
+// t.doneIdle, más corto: una meta terminada no tiene por qué dejar su pestaña 10 minutos. 0 apaga el cierre.
 func (t *Tabs) Sweep(now time.Time, idle time.Duration) []string {
 	if idle <= 0 {
 		return nil
 	}
-	t.mu.Lock()
-	var candidates []*Tab
-	if len(t.tabs) > 1 {
-		for _, tab := range t.tabs {
-			if tab.ByClaude && tab.ID != t.last && tab.watchers == 0 && now.Sub(tab.lastUsed) > idle {
-				candidates = append(candidates, tab)
-			}
+	var out []string
+	for _, it := range t.Plan(now, idle, false) {
+		if t.applySession(it) {
+			out = append(out, it.Session)
 		}
 	}
-	t.mu.Unlock()
-	var closed []string
-	for _, tab := range candidates {
-		if tab.Asker.Process() || tab.Runner.State(0).Busy {
-			continue
-		}
-		if err := t.Close(tab.ID); err == nil {
-			closed = append(closed, tab.ID)
-		}
-	}
-	sort.Strings(closed)
-	return closed
+	sort.Strings(out)
+	return out
 }
 
 // TabInfo es lo que la interfaz y el CLI ven de cada pestaña.
@@ -241,16 +247,21 @@ type TabInfo struct {
 	// Device y ChromeTab: dónde corre la sesión; con «chrome», en qué pestaña de Chrome (el panel de Jarvis va a ella).
 	Device    string `json:"device,omitempty"`
 	ChromeTab int    `json:"chromeTab,omitempty"`
+	// Group y Color: el grupo de pestañas de Chrome de su tarea; vacío, el «Jarvis» de siempre.
+	Group string `json:"group,omitempty"`
+	Color string `json:"color,omitempty"`
 }
 
 func (t *Tabs) Info() []TabInfo {
 	t.mu.Lock()
 	last := t.last
 	idle := map[string]int{}
+	group := map[string][2]string{}
 	for id, tab := range t.tabs {
 		if tab.watchers == 0 {
 			idle[id] = int(time.Since(tab.lastUsed).Seconds())
 		}
+		group[id] = [2]string{tab.Group, tab.Color}
 	}
 	t.mu.Unlock()
 	var out []TabInfo
@@ -259,7 +270,7 @@ func (t *Tabs) Info() []TabInfo {
 		as := tab.Asker.State(-1)
 		out = append(out, TabInfo{ID: tab.ID, Site: st.Site, Title: st.Title, URL: st.URL, Active: st.Active,
 			Goal: as.Goal, Busy: as.Running, Last: tab.ID == last, ByClaude: tab.ByClaude, IdleSec: idle[tab.ID],
-			Device: st.Device, ChromeTab: st.ChromeTab})
+			Device: st.Device, ChromeTab: st.ChromeTab, Group: group[tab.ID][0], Color: group[tab.ID][1]})
 	}
 	return out
 }

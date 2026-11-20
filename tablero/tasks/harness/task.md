@@ -13,6 +13,27 @@ ramas: ["risk-services-mockery-lambda:dictado-compartido"]
 
 ## Pendientes
 
+- [ ] La red diaria: correr solas las corridas con nombre (`make harness-run RUN=finandina,pullman`) a una hora fija, en
+  paralelo, con video y dictamen, guardar si cerraron y avisar cuando una que cerraba deja de cerrar (la idea de Sentinel
+  para qa: un cambio que rompe Finandina se ve esa mañana, con el video de dónde y el dictamen de por qué). Termina con
+  una corrida agendada de lunes a viernes y un aviso de macOS al fallar. Por ahora no (Miguel, 2026-11-19).
+- [ ] Grabaciones con capítulos: marcas en la barra del reproductor por pantalla (el log ya sabe a qué segundo entró
+  cada una) para saltar al listado, al formulario o a la firma, y el estado de la base al lado. Termina con una
+  grabación de Finandina donde tocar «formulario» lleva a ese segundo.
+- [ ] Carriles que muestran la corrida de otro comercio: la pestaña de Pullman mostraba en su celular la 468446 de
+  Finandina (comparten carril). Termina con una pestaña que, sin corrida propia, muestra su celular vacío.
+- [ ] En qa, «Asesor» se ve prendido en la pregunta del canal hasta que el panel termina de medir el ambiente (sin
+  asesor de prueba debería salir apagado desde el principio). Termina con Finandina en qa mostrando «Asesor» apagado
+  al abrir la pestaña.
+- [ ] El logo de «Finandina Pruebas» (547) en la base local es el de Motai: ponerle el de letra. Termina con la «F» en
+  el celular.
+- [ ] `harness-doctor` dice que la rama local está atrasada, pero no qué se rompe por eso (CrediPullman da «Class
+  LenderDatacreditoRule not found» en la categoría). Termina con el doctor nombrando lo que falta.
+- [ ] Unificar las formas de correr el mismo caminador: `harness-walk-wizard ENGINE=browser`, `jarvis-walk` y
+  `harness-run` (dejar `harness-run` como puerta, `jarvis-walk` como `harness-run CHROME=1`). Termina con un solo
+  comando documentado y los viejos como alias.
+- [ ] El ruido conocido de la consola del celular (WebSocket, hidratación de React) sale en cada apertura: juntarlo en
+  una línea plegada.
 - [ ] Pasar `harness-allied-create` al backoffice nuevo: el admin de legacy-application ya no es por donde se crean
   comercios (CORE-562) y su alta da 500. El comercio y su sede se crean en `merchant-api`, y las entidades y el logo
   en legacy-backend, por el gateway del backoffice con un token de STAFF; el asesor de prueba se crea aparte. Mapa en

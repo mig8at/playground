@@ -440,6 +440,95 @@ try {
             r = { user: uid, ventanaSeg: seg, tablas: tables };
             break;
         }
+        case 'request-tables': { // las filas de UNA solicitud y su cliente, tabla por tabla → {ureq, user, tables:[{table, rows}]}
+            // Para la consola de Probeta (la extensión): ver cómo va quedando la base mientras se avanza. SÓLO
+            // LECTURA. A diferencia de `activity` no va por ventana de tiempo sino por la solicitud y su usuario, así que
+            // en la base compartida no se cuela lo del equipo. No ve DELETEs. Los textos largos (los JSON de las
+            // centrales) van completos hasta 40 KB y las credenciales del usuario no se leen.
+            const ureq = num(a[0]);
+            const uid = await scalar<number>('SELECT user_id FROM user_requests WHERE id = ?', [ureq]);
+            if (!uid) { r = { ureq, user: null, tables: [] }; break; }
+            const T: Array<{ t: string; where: string; p: number; limit?: number }> = [
+                { t: 'user_requests', where: 'id = ?', p: ureq },
+                { t: 'users', where: 'id = ?', p: uid },
+                { t: 'user_request_records', where: 'user_id = ?', p: uid },
+                { t: 'risk_central_user_data', where: 'user_id = ?', p: uid },
+                { t: 'user_request_risk_central_user_data', where: 'user_request_id = ?', p: ureq },
+                { t: 'user_summaries', where: 'user_id = ?', p: uid },
+                { t: 'user_field_values', where: 'user_id = ?', p: uid },
+                { t: 'creditop_x_user_requests_records', where: 'user_id = ?', p: uid },
+                { t: 'lender_transactions', where: 'user_request_id = ?', p: ureq },
+                { t: 'logs', where: 'user_id = ?', p: uid, limit: 40 },
+            ];
+            const SECRET = /password|remember_token|secret|token$/i;
+            // Las columnas JSON llegan como OBJETO (con `String()` daban «[object Object]»): van como JSON completo, para
+            // que la consola las muestre formateadas. Un tope alto por celda (40 KB) para que una respuesta enorme de una
+            // central no ahogue el panel.
+            const clip = (v: unknown) => {
+                if (v == null) return null;
+                if (v instanceof Date) return v.toISOString().replace('T', ' ').slice(0, 19);
+                if (Buffer.isBuffer(v)) return `(${v.length} bytes)`;
+                const t = typeof v === 'object' ? JSON.stringify(v) : String(v);
+                return t.length > 40_000 ? `${t.slice(0, 40_000)}… (recortado: ${t.length} caracteres)` : t;
+            };
+            const tables = await Promise.all(T.map(async (d) => {
+                try {
+                    const rowList = await query(`SELECT * FROM \`${d.t}\` WHERE ${d.where} ORDER BY id DESC LIMIT ${d.limit ?? 30}`, [d.p]);
+                    return { table: d.t, rows: rowList.map((row: any) => Object.fromEntries(Object.entries(row)
+                        .filter(([k]) => !SECRET.test(k)).map(([k, v]) => [k, clip(v)]))) };
+                } catch (e) { return { table: d.t, rows: [], error: (e as Error).message.split('\n')[0].slice(0, 120) }; }
+            }));
+            // LOS NOMBRES DE LOS NÚMEROS: para cada columna que apunta a un catálogo, el nombre de cada valor que aparece
+            // (la consola lo muestra al pasar el mouse: `11` → «Autorizada»). Una consulta por catálogo, sólo con los
+            // valores presentes; un catálogo que falte en este ambiente se omite.
+            const LOOKUP: Record<string, { from: string; label: string; only?: string }> = {
+                user_request_status_id: { from: 'user_request_statuses', label: 'name' },
+                lender_id: { from: 'lenders', label: 'name' },
+                risk_central_id: { from: 'risk_centrals', label: 'name' },
+                creditop_x_user_requests_process_statuses_id: { from: 'creditop_x_user_requests_process_statuses', label: "CONCAT(name, COALESCE(CONCAT(' · ', description), ''))" },
+                status_id: { from: 'lender_transaction_statuses', label: 'name', only: 'lender_transactions' },
+                field_id: { from: 'fields', label: "CONCAT(name, COALESCE(CONCAT(' · ', description), ''))" },
+                allied_branch_id: { from: 'allied_branches', label: 'name' },
+                credit_line_id: { from: 'credit_lines', label: 'name' },
+                user_profile_id: { from: 'user_profiles', label: 'name' },
+            };
+            const labels: Record<string, Record<string, string>> = {};
+            await Promise.all(Object.entries(LOOKUP).map(async ([col, l]) => {
+                const values = [...new Set(tables.filter((t) => !l.only || t.table === l.only)
+                    .flatMap((t) => t.rows.map((row: any) => row[col])).filter((v) => v != null && /^\d+$/.test(String(v))))];
+                if (!values.length) return;
+                try {
+                    const found = await query(`SELECT id, ${l.label} AS label FROM \`${l.from}\` WHERE id IN (?)`, [values]);
+                    labels[col] = Object.fromEntries(found.map((f: any) => [String(f.id), String(f.label ?? '').slice(0, 160)]));
+                } catch { /* catálogo ausente en este ambiente */ }
+            }));
+            r = { ureq, user: uid, tables, labels };
+            break;
+        }
+        case 'decrypt-central': { // `<solicitud> <id de risk_central_user_data>` → {ok, central, plain} la respuesta de una central, DESCIFRADA
+            // Para la consola de Probeta: la columna `data` va cifrada con el APP_KEY del backend (formato de Laravel). Sólo
+            // lectura, nunca prod, y sólo una fila que sea del cliente de esa solicitud. La guarda de «cliente de prueba» la
+            // pone el panel (`/api/ext/decrypt`).
+            if (TARGET === 'prod') throw new Error('decrypt-central nunca corre en prod');
+            const ureq = num(a[0]), rid = num(a[1]);
+            const row = await one<{ data: string | null; central: string | null }>(
+                `SELECT d.data, rc.name AS central FROM risk_central_user_data d
+                   JOIN user_requests ur ON ur.user_id = d.user_id AND ur.id = ?
+                   LEFT JOIN risk_centrals rc ON rc.id = d.risk_central_id
+                  WHERE d.id = ? LIMIT 1`, [ureq, rid]);
+            if (!row) { r = { ok: false, motivo: `la fila ${rid} no es del cliente de la solicitud ${ureq}` }; break; }
+            if (!row.data) { r = { ok: true, central: row.central, plain: null }; break; }
+            const { decryptLaravelString } = await import('../pkg/laravel-crypt.ts');
+            const { appKey } = await import('../pkg/db.ts');
+            try {
+                let plain = decryptLaravelString(String(row.data), appKey());
+                // `encrypt()` de Laravel serializa en PHP (`s:123:"…";`): se saca la envoltura si la trae.
+                const ser = /^s:\d+:"([\s\S]*)";$/.exec(plain);
+                if (ser) plain = ser[1];
+                r = { ok: true, central: row.central, plain };
+            } catch (e) { r = { ok: false, motivo: `no se pudo descifrar: ${(e as Error).message}` }; }
+            break;
+        }
         case 'orphans': { // solicitudes que apuntan a un usuario INEXISTENTE. `--fix` las borra.
             // Las produce mezclar ambientes: un `user_id` de una base insertado en otra (F-65). Quedan
             // como minas en la base COMPARTIDA — el siguiente que abra esa solicitud se come un 500

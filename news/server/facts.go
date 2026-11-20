@@ -9,6 +9,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -226,6 +227,11 @@ func engines() map[string]engineState {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		if exec.CommandContext(ctx, "python3", "-c", "import torch").Run() == nil {
 			torch.Ready, torch.Hint = &yes, ""
+		} else if venvs := torchVenvs(); len(venvs) > 0 {
+			// Sin torch en el sistema, pero con el de los modelos probados: eso es tenerlo (es como se corren acá).
+			// Antes decía «Falta PyTorch» con 92 favoritos, en una Mac que lo tiene en cada entorno (2026-11-19).
+			torch.Ready, torch.Hint = &yes, ""
+			torch.Name = fmt.Sprintf("PyTorch (en %d entorno%s de ~/.cache/my-tools)", len(venvs), map[bool]string{true: "", false: "s"}[len(venvs) == 1])
 		}
 		cancel()
 		enginesHere["torch"] = torch
@@ -242,4 +248,15 @@ func engines() map[string]engineState {
 		}
 	})
 	return enginesHere
+}
+
+// torchVenvs: los entornos de Python de los modelos probados que traen torch (`~/.cache/my-tools/<modelo>/.venv`), el
+// mismo lugar en la Mac y en el PC.
+func torchVenvs() []string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil
+	}
+	found, _ := filepath.Glob(filepath.Join(home, ".cache", "my-tools", "*", ".venv", "lib", "python*", "site-packages", "torch"))
+	return found
 }

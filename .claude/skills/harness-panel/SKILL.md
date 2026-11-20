@@ -614,7 +614,7 @@ consola de la corrida (para copiarla), sin mezclarse con el estado de las corrid
 - Lo que crea en prod y por qué para antes del listado: `harness/CLAUDE.md`, fila de `dev/prod-run.ts`.
 
 
-## El plan de corrida: una corrida armada que espera su play (2026-10-20)
+## El plan de corrida: una corrida armada que espera su play (2026-10-20) — ⛔ REEMPLAZADO el 2026-11-19 por las corridas con nombre (abajo)
 
 ⚠ **Desde el 2026-10-21 el plan NO está en la interfaz** (pedido de Miguel): se quitaron la franja `#planBar`, «Paso a
 paso» y su lógica de `index.html`. Siguen `pkg/run-plan.ts`, `bin/plan.ts` (`make harness-plan`) y `/api/plan` en el
@@ -1303,3 +1303,128 @@ no es la de por defecto (`?vista=buros`, `?consola=mocks`, `?inicio=entidades`).
   dejaba la tarjeta de la corrida en el centro aunque la pestaña fuera la de un comercio. `showStageView('prod')` cae en
   `orig`.
 
+
+## Los sidebars de arriba abajo, y las GRABACIONES (2026-11-19)
+
+- **La consola es del editor, no de la ventana**: el editor, la manija `#rszB` y `#bottomPanel` viven en `.center` (la
+  columna del medio de `.shell`), así que los dos sidebars ocupan el alto entero, como en las demás herramientas. Los `id`
+  no cambiaron. Maximizar la consola (`bindPanelMaximize` con `root: .center`) tapa el editor, no los sidebars. ⚠ La
+  consola ya no es hija del `.workbench`: su alto lo da la grilla de `.center` (`--panel-h`), no la regla de la base.
+- **«Grabaciones» es una vista fija de la barra izquierda** (`#recordingsSide`, después de Admin; `renderMerchants` la saca
+  y la vuelve a poner como al Admin). Lista los videos de `make harness-run` (`pkg/recordings.ts`: el índice
+  `.runs/recordings.json` más los videos sueltos de `.runs/videos/`), la más nueva arriba, con su nombre de `runs.json`
+  («Finandina», «Pullman»). **Las agrega el agente al correr**: el panel no agrega ni borra. Se vuelve a pedir cada 20 s y
+  al volver a la ventana.
+- **Elegir una la muestra en el sidebar derecho a todo el alto** (pestaña `#tabRecording`, oculta hasta que hay una
+  elegida; `?vista=grabacion`), con su ambiente, solicitud, entidad, si cerró, pantallas y duración. No es un fieldset: se
+  mira también con una corrida andando. El video sale de `/api/recordings/<id>/video` con `Range` (sin eso no se puede
+  adelantar). La elegida se recuerda (`harness.recording`).
+- Verificado el 2026-11-19 en el panel de :5195: las tres de la tarde con sus datos, y una corrida nueva de Pullman
+  (468439) apareció sola en el índice al terminar.
+
+## Finandina en la barra, y lo que hizo falta para que cierre sola (2026-11-19)
+
+- **`finandina` en `harness.json`**, al lado de Pullman: en local «Finandina Pruebas» (547, `03751a1d`), en la compartida
+  BUSINESS_FINANDINA (368, `c0fca632`). Sin asesor de prueba en ninguna: se corre por **autogestión** (el ▶ del celular
+  del cliente).
+- **`amount` en el registro**: el monto con que arranca una pestaña NUEVA de ese comercio (`defaultTabConfig(slug)`).
+  Finandina pide mínimo $3.000.000 y con los $2.000.000 de siempre su tarjeta sale con el botón apagado; la suya es
+  5.000.000. Una pestaña ya guardada conserva su monto.
+- **«Hasta el final» rellena con CLICS REALES cuando una pantalla no avanza** (`autofill` de `pkg/autofill-qr.ts`, el del
+  caminador, sobre `devicePage(id)`), con «No» en los radios, hasta 6 veces por pantalla; si llenó algo, no cuenta para
+  «no sale». Hacía falta para las declaraciones PEP de la segunda página del formulario adicional.
+- **La regla de fechas ya no toma tres `Select` con placeholder propio por día/mes/año** (`pkg/date-trio.ts`: «Selecciona
+  Departamento de residencia» no es de una fecha; sólo el placeholder pelado cae por posición). Prueba en
+  `pkg/date-trio.spec.ts`.
+- **El autorrelleno del celular prefiere Bogotá** en los desplegables sin valor pedido, como el caminador: con la primera
+  opción (Amazonas, fuera de las zonas de Finandina) el front cancelaba después del formulario (código 5001).
+- Verificado en local desde el panel: ▶ → «Hasta el final» con Banco Finandina, 468445 en 11 en ~1 min 30 s.
+
+- **El reproductor es propio y minimalista** (2026-11-19): sin `controls` (en Cockpit eran los de Safari, con volumen y
+  pantalla completa encima). El cuadro mide lo que el video, por su proporción contra el lugar (`container-type: size`,
+  `--ar`): sin barras negras. Clic reproduce o pausa; al pasar el mouse, una barra de 3 px abajo para adelantar
+  (arrastrando o con las flechas). `#t=0.1` en el `src` para que Safari pinte el primer cuadro en pausa.
+- **Los videos ya no empiezan en blanco**: al pasar a .mp4, `blankLead` (`pkg/wizard-browser.ts`) mira un cuadro cada
+  medio segundo y corta hasta el primero con contenido (~1,7 s en local, ~7,7 s contra qa).
+
+## Las CORRIDAS CON NOMBRE: el paso a paso armado (2026-11-19)
+
+Reemplazan al plan de corrida (`pkg/run-plan.ts`, `bin/plan.ts`, `/api/plan`, `.runs/plan.json`: borrados; `make
+harness-plan` sólo dice adónde se fue). **`harness/runs.json`, en git** (`pkg/runs.ts` lo valida): cada corrida es un
+comercio de `harness.json` (`merchant`), un canal (`asesor` · `autogestion` · `ecommerce`), la entidad (`lender`, el id;
+`lenderName`, como sale en el listado), el caso (`case`: los ids de los campos del panel) y dónde corre (`targets`, el
+primero manda por defecto). Sirve para las dos cosas:
+
+- **En el panel, la vista «Corridas»** (fija, entre Admin y Grabaciones): elegir una navega a
+  `/<ambiente>/<comercio>/<canal>?corrida=<clave>` (el de ahora si es uno de sus `targets`; si no, el primero) y
+  `applyRoute` le carga el caso (`applyNamedRun`: cada campo con `input`/`change`). La pestaña recuerda `run` y
+  `runLender`, y los dos celulares muestran «elegí <entidad>» (`syncRunLender`). Se le da ▶ y se avanza tocando Continuar
+  en el celular: el autorrelleno llena cada pantalla. En el listado la entidad la toca la persona.
+- **Por consola**: `make harness-run RUN=finandina [TARGET=…]` la corre sola con video; con `PANEL=1` no la corre: la deja
+  armada en el panel (`bin/cockpit open harness <ruta>`).
+- **El autorrelleno del celular contesta «No» en las declaraciones del formulario adicional** (sólo en `dynamic-form/<n>`
+  y `additional-info/<n>`; son `ToggleGroup` de Radix: `role=group` con botones `role=radio`). Fuera de ahí los radios
+  de Radix siguen sin tocarse (F-214, «Confirmación de cupo»).
+- Verificado el 2026-11-19 con Jarvis en el Chrome de Miguel: Finandina en qa, armada por `PANEL=1`, monto 5.000.000 y
+  «elegí Banco Finandina»; ▶ y un Continuar por pantalla → 505175 en 11. Pullman (tienda, local) queda armada con «elegí
+  CrediPullman»; no se avanzó.
+
+## «Por qué no avanza», dicho por la pantalla (2026-11-19)
+
+`deviceBlockers(id)` (`panel/devices.ts`, `BLOCKERS_JS`, va como TEXTO por la trampa de `__name`) lee lo que la pantalla
+del celular pide: los mensajes de validación a la vista (`.text-destructive`, `role=alert`, los `-form-item-message`; ⚠
+nunca un `<label>`, que trae variantes `aria-invalid:text-destructive` y con `[class*=]` salían los rótulos), los campos
+`aria-invalid`, los obligatorios (rótulo con `*`, `required`, `aria-required`) vacíos o sin elegir —inputs, `Select` de
+Radix con `data-placeholder`, grupos de opciones— y las casillas obligatorias sin marcar. Hasta 6, sin repetir el campo
+que ya nombra su mensaje. Se usa en:
+
+- **un toque tuyo en el celular** (`deviceInput` → `watchAfterTap`): a los 1,5 s, si sigue en la misma ruta y la pantalla
+  pide algo nuevo, la consola de su carril dice «⚠ no avanzó: la pantalla pide: …» (no repite lo mismo en la misma pantalla);
+- **«Avanzar» y su botón deshabilitado** (`deviceAdvance`): en vez de «falta algo que el panel no sabe llenar»;
+- **«Hasta el final» cuando se traba** (`advanceAll`): «toca y no sale de … : la pantalla pide …»;
+- **`GET /api/device/<id>/blockers`**, para un agente.
+
+Verificado el 2026-11-19 en `dynamic-form/25` de Finandina (local): en la página sin autorrelleno, antes de tocar
+«Departamento de residencia: sin elegir · Ciudad de residencia: sin elegir · Dirección de residencia: vacío · Actividad
+económica: sin elegir», y después de tocar Continuar los «… es requerido» del formulario; en el celular del panel, la
+ruta nueva dio esos cuatro al entrar y ninguno a los 3 s (el autorrelleno los llenó). El aviso tras un toque a mano no se
+probó con un toque real en el lienzo.
+
+## El dictamen de la solicitud al llegar al final (2026-11-19)
+
+`bin/pg request verdict --target T --ureq N` (`cmd/pg/request_verdict.go`; en TS `requestVerdict` de
+`pkg/backend-reads.ts`) junta en frases: cómo terminó (y el comentario de la cancelación con su código), qué centrales se
+consultaron PARA esa solicitud (las del cliente entre 10 min antes de crearla y 5 después de su último cambio) y con qué
+cuenta (`credential_id` de lo que se mandó → su dueño: entidad, comercio o sucursal; sin él, la de CreditOp), lo que dejó
+en la tabla `logs` y lo que dice Loki de ella (líneas que la nombran por nivel y las primeras 3 de error; ventana ±6 h
+porque qa guarda la hora de Colombia y la base local UTC; en local sólo si su Loki es local; en prod no).
+
+- **En el panel**: cuando un celular entra a una pantalla final (`loan-approved`, `request-canceled`, rechazada) —a mano o
+  con «Hasta el final»—, `setTerminalHook` → la consola de su carril escribe «◆ dictamen de la solicitud N», una vez por
+  solicitud.
+- **En `make harness-run`**: al final de cada corrida, y queda en su grabación (`verdict`), que el panel muestra debajo
+  del video.
+- Verificado el 2026-11-19: qa 505175 (Experian con la de Banco Finandina, credencial 15; Loki 96 líneas, 1 error),
+  local 468444 (cancelada, código 5001), el panel con 468453 y `harness-run` con 468451 (en local consultó Experian
+  dos veces: Acierta+Quanto con la de CreditOp y Acierta con la de Finandina).
+
+## Elegir la entidad: sin los 30 s y sin el falso «no está» (2026-11-19)
+
+`chooseEntity` (`pkg/wizard-browser.ts`, lo comparten el panel y el caminador) esperaba «Hemos terminado de consultar» o
+un botón continuar/solicitar/elegir. El listado de una sola opción («Opción más adecuada según tu perfil», Finandina) no
+tiene ninguno —su botón es «Activar mi crédito»— y se comía los 30 s en cada corrida. Ahora espera a que el listado
+TERMINE: el texto final o un botón de elegir habilitado (`activar mi crédito`, `validar pre aprobado` incluidos; mirar
+apenas aparece el nombre no sirve: la tarjeta sigue consultando con el botón apagado). Y si la entidad está pero no se
+puede elegir, devuelve `found: true` con lo que dice la tarjeta («Sin cupo disponible», el monto mínimo o máximo) en vez de
+«no está en el listado». Medido en local: Finandina 146,1 s → 116,6 s (468457 → 468456); Pullman sigue cerrando (468458,
+55 s); con un cliente sin cupo, «está en el listado pero no se pudo elegir» en el acto.
+
+## Cada corrida dice su recorrido y en qué se diferencia (2026-11-19)
+
+`runs.json` suma `journey` (`[canal, riel-N, producto, +variación…]`, ids de `journeys.json`, la gramática del
+`recorrido:` de las tareas; `pkg/runs.ts` los valida y exige que el canal sea el de `channel`) y `notes` (lo propio:
+Finandina, por qué es riel 4 sin API, su mínimo, el tope mensual y la formalización vacía; Pullman, por qué es riel 2).
+`describeJourney` lo pone en palabras con los nombres del catálogo, y lo usan la lista del CLI (`make harness-run`, que
+compara; `CHECK=1` mira el `response_type` de la entidad en cada ambiente de `targets`), la vista «Corridas» (el riel en
+la fila y el recorrido en el tooltip) y la **ficha** `#runCard` arriba de la vista Cliente cuando la pestaña es de una
+corrida. Y con un canal que no es Asesor, `applyChannel` limpia el «✗ permiso del asesor» que quedaba del canal anterior.

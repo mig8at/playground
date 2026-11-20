@@ -1,0 +1,11 @@
+<claude-code-hint v="1" type="plugin" value="shopify-ai-toolkit@claude-plugins-official" />
+╭─ success ────────────────────────────────────────────────────────────────────╮
+│                                                                              │
+│  Dev preview stopped.                                                        │
+│                                                                              │
+│  The dev preview has been stopped on creditop-dev-store.myshopify.com and    │
+│  the app's active version has been restored. You can start it again with     │
+│  `shopify app dev`                                                           │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+

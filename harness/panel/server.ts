@@ -11,7 +11,7 @@
 import { createServer, get, IncomingMessage, ServerResponse } from 'node:http';
 import { accept as acceptSocket } from './ws.ts';
 import { spawn, execFile, execFileSync } from 'node:child_process';
-import { readFileSync, existsSync, writeFileSync, readdirSync, statSync, mkdirSync, rmSync } from 'node:fs';
+import { readFileSync, existsSync, writeFileSync, readdirSync, statSync, mkdirSync, rmSync, createReadStream } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 import { MockSupervisor, MOCKS as MOCK_REGISTRY } from './mocks.ts';
@@ -21,13 +21,16 @@ import { envData, type AutofillData } from '../pkg/autofill.ts';
 import { identityWithoutProviderNotice } from '../pkg/config.ts';
 import { adminSession, ensureLocalAdmin, ADMIN_APP } from '../pkg/admin-access.ts';
 import { laneOf, roleOf, inLane, laneIndex, isDeviceId, LANES, type Lane, type Role } from './devices.ts';
-import { deviceFillOtp, deviceChooseEntity, openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, watchRequests, deviceGoto, deviceReload, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, deviceTap, deviceAdvance, deviceStream, deviceBusyWatch, deviceStorage, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
+import { devicePage, deviceBlockers, setTerminalHook, deviceFillOtp, deviceChooseEntity, openDevice, openDevices, setDeviceLogger, prewarmDevices, warmDevice, watchNavigation, watchRequests, deviceGoto, deviceReload, deviceText, deviceEval, deviceOpenedAt, deviceState, deviceShot, deviceInput, deviceTap, deviceAdvance, deviceStream, deviceBusyWatch, deviceStorage, closeDevice, closeAllDevices, SELENIUM_BOXES, type DeviceId, type DeviceInput, type DeviceSession } from './devices.ts';
 import { vpnDev, type VpnStatus } from '../pkg/vpn.ts';
-import { validatePlan, readPlan, writePlan, clearPlan } from '../pkg/run-plan.ts';
+import { readRuns, describeJourney } from '../pkg/runs.ts';
+import { requestVerdict, type Target } from '../pkg/backend-reads.ts';
 import { prodCatalog, prodMerchant, prodBranches } from '../pkg/prod-catalog.ts';
 import { waitForOtp } from '../pkg/otp-service.ts';
 import { readFlows, writeFlows, branchFor } from '../pkg/flows.ts';
 import { listRecipes, lastRuns } from '../dev/recipe.ts';
+import { listRecordings, recordingVideo } from '../pkg/recordings.ts';
+import { autofill as autofillByClicks } from '../pkg/autofill-qr.ts';
 import { homedir } from 'node:os';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -409,7 +412,7 @@ const ADMIN_MENU_JS = `(() => {
 // corre `node bin/dbops.ts <args...>` y devuelve el JSON parseado (o null si falla). Target-aware (dev → I_KNOW).
 function dbopsJson(args: string[], target: string, extraEnv: NodeJS.ProcessEnv = {}): Promise<any> {
     return new Promise((ok) => {
-        execFile('node', ['bin/dbops.ts', ...args], { cwd: ROOT, env: { ...envFor(target), ...extraEnv }, timeout: 30000 }, (err, stdout) => {
+        execFile('node', ['bin/dbops.ts', ...args], { cwd: ROOT, env: { ...envFor(target), ...extraEnv }, timeout: 30000, maxBuffer: 32 * 1024 * 1024 }, (err, stdout) => {
             if (err) return ok(null);
             try { ok(JSON.parse(stdout)); } catch { ok(null); }
         });
@@ -861,6 +864,27 @@ async function screenError(id: DeviceId): Promise<string> {
     const txt = await deviceText(id).catch(() => '');
     return txt.split('\n').map((l) => l.trim()).find((l) => l.length < 160 && /error|no se pudo|no pudimos|fall[oó]|intenta(lo)? de nuevo|inténtalo|no encontramos una opci[oó]n/i.test(l)) ?? '';
 }
+/* EL DICTAMEN AL LLEGAR AL FINAL (2026-11-19): cuando un celular entra a una pantalla final (aprobada, cancelada,
+ * rechazada) —tocando a mano o con «Hasta el final»—, la consola de su carril dice cómo terminó la solicitud y qué lo
+ * sostiene: las centrales y con qué cuenta, lo que dejó en `logs` y lo que dice Loki (`pg request verdict`). Una vez por
+ * solicitud. Antes eso eran tres consultas a mano. */
+const verdictDone = new Set<string>();
+setTerminalHook((id, ureq, screen) => {
+    const t = (deviceTarget.get(id) || 'local') as Target;
+    const key = `${t}:${ureq}`;
+    if (verdictDone.has(key) || t === 'prod') return;
+    verdictDone.add(key);
+    // Un instante: la última transición de la base llega un poco después que la pantalla.
+    setTimeout(() => {
+        try {
+            const v = requestVerdict(t, ureq);
+            deviceLog(id, `◆ dictamen de la solicitud ${ureq} (${screen}):`);
+            for (const line of v.verdict) deviceLog(id, `   · ${line}`);
+            for (const e of v.loki.errors ?? []) deviceLog(id, `   ✗ Loki: ${e.slice(0, 180)}`);
+        } catch (e) { deviceLog(id, `⚠ dictamen de ${ureq}: ${(e as Error).message.split('\n')[0]}`); }
+    }, 2_500);
+});
+
 async function advanceAll(id: DeviceId, until: string | null, opts: { lender?: string; follow?: boolean } = {}): Promise<void> {
     if (advancing.has(id)) return;
     const run = { stop: false };
@@ -872,7 +896,7 @@ async function advanceAll(id: DeviceId, until: string | null, opts: { lender?: s
     const whatFor = [until ? `hasta «${until}»` : 'hasta el final', opts.lender && `eligiendo «${opts.lender}»`, opts.follow && 'siguiendo al cliente'].filter(Boolean).join(', ');
     deviceLog(id, `⏩ avanzando ${whatFor}${remote ? ' (espera de ambiente remoto)' : ''}`);
     let why = 'llegó a 80 pasos';
-    let stuck = 0, idle = 0, chosen = false, handoff = false, kycRetried = false, redictatedAt = '', kycSeenAt = 0;
+    let stuck = 0, idle = 0, chosen = false, handoff = false, kycRetried = false, redictatedAt = '', kycSeenAt = 0, clickFills = 0;
     // EL DICTADO A LA LAMBDA SE RENUEVA JUSTO ANTES DE QUE SE CONSULTE. Vive en la memoria de un contenedor (F-139) y se
     // pierde en minutos: se dictó y se confirmó al abrir (16:32:50 UTC) y cuando el pipeline de KYC consultó Ágil Data,
     // tres minutos después, contestó su persona por defecto (JUAN CARLOS PEREZ GOMEZ) y la identidad no coincidió (qa,
@@ -945,7 +969,26 @@ async function advanceAll(id: DeviceId, until: string | null, opts: { lender?: s
             idle = 0;
             deviceLog(id, '▸ ' + r.detail);
             stuck = r.moved ? 0 : stuck + 1;
-            if (stuck >= 3) { const shown = await screenError(id); why = `toca y no sale de ${pathOf(r.url)}: ${shown ? `la pantalla dice «${shown}»` : 'algo que el panel no sabe llenar'}`; break; }
+            if (r.moved) clickFills = 0;
+            /* LA PRIMERA VEZ QUE UNA PANTALLA NO AVANZA, el relleno con CLICS REALES (el del caminador, `pkg/autofill-qr.ts`).
+             * El autorrelleno del celular escribe desde adentro de la página, y los `Select` de Radix del formulario
+             * adicional (departamento, ciudad, actividad económica) no abren así: Finandina se quedaba en
+             * `dynamic-form/25` con tres «es requerido» (local, 2026-11-19, 468441). El caminador elige Bogotá como
+             * residencia: con la primera opción salía Amazonas, fuera de las zonas de Finandina. */
+            // Corre cada vez que no avanza (un formulario de dos páginas sigue en la misma ruta) y, si llenó algo, eso es
+            // avanzar: no cuenta para el «no sale». Con tope, para que un campo que nunca valida no lo deje girando.
+            // Los radios, «No» (como el caminador): las declaraciones PEP de Finandina son obligatorias.
+            if (stuck >= 1 && clickFills < 6) {
+                clickFills += 1;
+                const page = devicePage(id);
+                const facts = page ? await autofillByClicks(page, [], { hidratar: false, t: 3_000, preferirRadio: /^no$/i }).catch(() => [] as string[]) : [];
+                if (facts.length) { deviceLog(id, `▸ rellenó con clics lo que faltaba: ${facts.join(' · ')}`); stuck = 0; }
+            }
+            if (stuck >= 3) {
+                const shown = await screenError(id), asks = await deviceBlockers(id);
+                why = `toca y no sale de ${pathOf(r.url)}: ${asks.length ? `la pantalla pide ${asks.join(' · ')}` : shown ? `la pantalla dice «${shown}»` : 'algo que el panel no sabe llenar'}`;
+                break;
+            }
             await sleep(remote ? 2_000 : 800);
         }
     } catch (e) {
@@ -1802,8 +1845,6 @@ const server = createServer(async (req, res) => {
         return json(res, 200, data);
     }
 
-    // EL PLAN DE CORRIDA (`pkg/run-plan.ts`): una corrida armada de antemano —por un agente con `bin/plan.ts`, o por acá—
-    // que el panel muestra arriba de los celulares para darle play. Uno por máquina, en `.runs/plan.json`.
     if (path === '/api/autorun') return json(res, 200, { autoRun: autoRuns[laneParam(url.searchParams.get('lane'))] });
     // LOS CARRILES de este panel (`HARNESS_LANES`) y cuáles tienen algún celular abierto: la interfaz los pide en UNA
     // consulta en vez de preguntar celular por celular.
@@ -1829,15 +1870,138 @@ const server = createServer(async (req, res) => {
         const lastUsedOf = (l: Lane) => Math.max(0, ...[inLane('client', l), inLane('advisor', l)].map((d) => deviceState(d).lastUsed ?? 0));
         return json(res, 200, { lanes: LANES, open: perLane((l) => opened.some((d) => d !== 'admin' && laneOf(d) === l)), requests: perLane(requestOf), lastUsed: perLane(lastUsedOf) });
     }
-    if (path === '/api/plan') {
-        if (req.method === 'GET') return json(res, 200, { plan: readPlan() });
-        if (req.method === 'DELETE') { clearPlan(); return json(res, 200, { ok: true }); }
-        if (req.method === 'POST') {
-            const r = validatePlan(await readBody(req));
-            if (!r.ok || !r.plan) return json(res, 400, { ok: false, errors: r.errors });
-            writePlan(r.plan);
-            return json(res, 200, { ok: true, plan: r.plan });
+    /* ── LA EXTENSIÓN «PROBETA» (`harness/extension`, 2026-11-20) ──────────────────────────────────────────────────────
+     * El panel lateral de Chrome que prepara al cliente de una prueba A MANO en el wizard: precarga una persona, le dicta
+     * las centrales (lo mismo que la vista Burós), muestra el OTP y el dictamen, y aprueba la identidad a mano. Cada prueba
+     * es una persona NUEVA: no se da de baja ni se borra a nadie (decisión de Miguel, 2026-11-20; la baja salió). Habla
+     * con este servidor porque es el que sabe dictarle al lambda de cada ambiente; la extensión no guarda credenciales.
+     * ⚠ CORS sólo para extensiones de Chrome (el servidor escucha en la interfaz local): una página cualquiera no puede
+     * pedirle a esto que apruebe nada. Nunca prod. */
+    if (path.startsWith('/api/ext/')) {
+        const origin = String(req.headers.origin || '');
+        const cors: Record<string, string> = origin.startsWith('chrome-extension://')
+            ? { 'access-control-allow-origin': origin, 'access-control-allow-headers': 'content-type', 'access-control-allow-methods': 'GET, POST, OPTIONS' } : {};
+        if (origin && !origin.startsWith('chrome-extension://')) { res.writeHead(403); return res.end(); }
+        if (req.method === 'OPTIONS') { res.writeHead(204, cors); return res.end(); }
+        const send = (code: number, body: unknown) => { res.writeHead(code, { 'content-type': 'application/json', 'cache-control': 'no-store', ...cors }); res.end(JSON.stringify(body)); };
+        const q = url.searchParams;
+        const tgt = String(q.get('target') || '').toLowerCase();
+        if (!['local', 'dev', 'qa', 'staging'].includes(tgt)) return send(400, { error: `ambiente «${tgt}» no admitido (local, dev, qa, staging; nunca prod)` });
+        const digits = (v: unknown) => String(v ?? '').replace(/\D/g, '');
+        const { runPg } = await import('../pkg/pg.ts');
+        const sqlJson = (query: string) => { const r = runPg(['sql', '--target', tgt, '--json', '--query', query]); try { const j = JSON.parse(r.stdout); return (j.rows ?? j) as any[]; } catch { return []; } };
+        // ¿Es un cliente de PRUEBA? Por su correo: los que arman el harness, la extensión y el autorrelleno.
+        const TEST_MAIL = /^(qa[\w.+-]*@gmail\.com|qa\.harness[\w.+-]*@creditop\.com|synth-[\w.+-]*@creditop\.com|miguel-test@creditop\.com|ext\.prueba[\w.+-]*@creditop\.com)$/i;
+        try {
+            if (path === '/api/ext/state') {
+                const doc = digits(q.get('doc'));
+                if (doc.length < 6) return send(400, { error: 'falta la cédula' });
+                const { clientState } = await import('../pkg/backend-reads.ts');
+                const st = clientState(tgt as any, doc);
+                const active: any = st.active;
+                const mail = active?.id ? String(sqlJson(`SELECT email FROM users WHERE id = ${Number(active.id)}`)[0]?.email ?? '') : '';
+                return send(200, { doc, active: active ? { id: active.id, name: `${active.first_name ?? ''} ${active.surname ?? ''}`.trim(), since: active.created_at, email: mail, test: TEST_MAIL.test(mail) } : null,
+                    requests: (st.requests ?? []).slice(0, 5).map((r: any) => ({ id: r.id, status: r.user_request_status_id, at: r.created_at })) });
+            }
+            if (path === '/api/ext/person') {
+                // Una persona NUEVA: cédula y celular que no tengan cliente activo en esa base, con DOS nombres (del mismo género) y
+                // DOS apellidos colombianos comunes al azar. Datos personales tiene un solo campo «Nombres» y otro «Apellidos»
+                // (`personal-info-form.tsx`), así que van juntos. Sin tildes ni Ñ: el nombre completo se le dicta igual a las
+                // centrales y la validación de nombre del KYC lo compara letra por letra con lo que se escribe en el wizard.
+                const MALE_NAMES = ['ANDRES', 'CARLOS', 'JUAN', 'SANTIAGO', 'SEBASTIAN', 'DANIEL', 'ALEJANDRO', 'DIEGO', 'FELIPE',
+                    'JORGE', 'LUIS', 'MIGUEL', 'CAMILO', 'NICOLAS', 'DAVID', 'JULIAN', 'MATEO', 'OSCAR', 'RICARDO', 'FERNANDO'];
+                const FEMALE_NAMES = ['MARIA', 'LAURA', 'ANDREA', 'CAROLINA', 'NATALIA', 'PAOLA', 'DANIELA', 'VALENTINA', 'CAMILA', 'JULIANA',
+                    'ALEJANDRA', 'CATALINA', 'DIANA', 'SANDRA', 'LILIANA', 'MONICA', 'ADRIANA', 'PAULA', 'SOFIA', 'MARCELA'];
+                const LAST = ['RODRIGUEZ', 'GOMEZ', 'GONZALEZ', 'MARTINEZ', 'GARCIA', 'LOPEZ', 'HERNANDEZ', 'SANCHEZ', 'RAMIREZ',
+                    'PEREZ', 'DIAZ', 'TORRES', 'ROJAS', 'VARGAS', 'MORENO', 'GUTIERREZ', 'JIMENEZ', 'CASTRO', 'RUIZ', 'ALVAREZ',
+                    'ROMERO', 'SUAREZ', 'MEJIA', 'RESTREPO', 'OSORIO', 'CARDENAS', 'OSPINA', 'ARIAS', 'CASTILLO', 'RIVERA',
+                    'SALAZAR', 'CORTES', 'HERRERA', 'MEDINA', 'AGUDELO', 'GIRALDO', 'VELASQUEZ', 'QUINTERO', 'BETANCUR', 'ZAPATA'];
+                /** Dos distintos de la lista, en orden de sorteo. */
+                const two = (xs: string[]) => { const a = Math.floor(Math.random() * xs.length); let b = Math.floor(Math.random() * (xs.length - 1)); if (b >= a) b++; return `${xs[a]} ${xs[b]}`; };
+                for (let i = 0; i < 8; i++) {
+                    const doc = '109' + String(Math.floor(Math.random() * 1e7)).padStart(7, '0');
+                    const phone = '31' + String(Math.floor(Math.random() * 1e8)).padStart(8, '0');
+                    const taken = sqlJson(`SELECT COUNT(*) n FROM users WHERE status = 1 AND (document_number = '${doc}' OR cell_phone = '${phone}')`)[0]?.n;
+                    if (Number(taken) === 0) return send(200, { doc, phone, firstName: two(Math.random() < 0.5 ? MALE_NAMES : FEMALE_NAMES), lastName: two(LAST), email: `ext.prueba+${doc}@creditop.com` });
+                }
+                return send(500, { error: 'no encontré una cédula libre' });
+            }
+            if (path === '/api/ext/dictate' && req.method === 'POST') {
+                const b = await readBody(req);
+                const doc = digits(b.doc);
+                if (doc.length < 6) return send(400, { error: 'falta la cédula' });
+                const order = { doc, firstName: b.firstName, lastName: b.lastName,
+                    bureaus: { agildata: 'ok', mareigua: 'ok', tusdatos: 'ok', experian: b.experian === 'empty' ? 'empty' : 'ok' },
+                    bureauData: { agildata: { income: b.income, occupation: b.occupation, months: b.months }, mareigua: { income: b.income, months: b.months } },
+                    experian: { score: b.score, negatives: b.negatives, consulted: b.consulted, delinquencies: b.delinquencies } };
+                const { COMPANY_LAMBDA } = await import('../pkg/risk-lambda.ts');
+                const r = tgt === 'local' ? await applyBureauModes(order, tgt)
+                    : COMPANY_LAMBDA[tgt] ? await dictateCompanyCase(order, tgt)
+                    : { ok: false, detalle: `en ${tgt} el backend consulta un lambda que no acepta dictado (F-149): contestan los valores por defecto` };
+                return send(200, r);
+            }
+            if (path === '/api/ext/otp') {
+                const phone = digits(q.get('phone'));
+                if (phone.length < 10) return send(400, { error: 'falta el celular' });
+                // En local el OTP es el de prueba: los últimos 4 del celular. Fuera, el que generó el servicio de OTP.
+                if (tgt === 'local') return send(200, { code: phone.slice(-4), source: 'local' });
+                const { latestOtp, revealOtp } = await import('../pkg/otp-service.ts');
+                const rec = await latestOtp(phone).catch(() => null);
+                if (!rec) return send(200, { code: null, source: 'servicio de OTP' });
+                return send(200, { code: await revealOtp(phone, rec.createdAt).catch(() => null), at: rec.createdAt, template: rec.template, source: 'servicio de OTP' });
+            }
+            if (path === '/api/ext/identity' && req.method === 'POST') {
+                // LA IDENTIDAD APROBADA A MANO, como el admin y como hace el panel con sus celulares (`rescueIdentity`): la
+                // selfie de ADO no se puede hacer desde un Chrome de escritorio con dispositivo emulado. Sólo si la solicitud
+                // es del celular de la prueba (lo exige `dbops identity-approve` fuera de local) y su cliente es de prueba.
+                // Es un rodeo: no prueba que la validación real funcione.
+                const b = await readBody(req);
+                const ureq = Number(digits(b.ureq)), phone = digits(b.phone);
+                if (!ureq) return send(400, { ok: false, detail: 'falta la solicitud' });
+                if (tgt !== 'local' && phone.length < 10) return send(400, { ok: false, detail: 'falta el celular de la prueba' });
+                const row = sqlJson(`SELECT u.email FROM user_requests ur JOIN users u ON u.id = ur.user_id WHERE ur.id = ${ureq}`)[0];
+                if (!row) return send(409, { ok: false, detail: `no pude leer la solicitud ${ureq} en ${tgt} (¿no existe, o la VPN está caída?)` });
+                const mail = String(row.email ?? '');
+                if (tgt !== 'local' && !TEST_MAIL.test(mail)) return send(409, { ok: false, detail: `el cliente de ${ureq} no parece de prueba (correo «${mail || 'vacío'}»): no se aprueba desde acá` });
+                const r = await dbopsJson(['identity-approve', String(ureq), ...(phone ? [phone] : [])], tgt);
+                return send(r?.ok ? 200 : 409, { ok: !!r?.ok, detail: r?.ok ? `identidad de ${ureq} aprobada a mano` : (r?.motivo ?? 'sin respuesta') });
+            }
+            if (path === '/api/ext/tables') {
+                // Las tablas de la solicitud, para la consola de la extensión. Sólo lectura (`dbops request-tables`).
+                const ureq = Number(digits(q.get('ureq')));
+                if (!ureq) return send(400, { error: 'falta la solicitud' });
+                const r = await dbopsJson(['request-tables', String(ureq)], tgt);
+                return r ? send(200, r) : send(500, { error: `no pude leer las tablas de ${ureq} en ${tgt}` });
+            }
+            if (path === '/api/ext/decrypt') {
+                // La respuesta de una central, descifrada (`dbops decrypt-central`): sólo de un cliente de PRUEBA fuera de local.
+                const ureq = Number(digits(q.get('ureq'))), id = Number(digits(q.get('id')));
+                if (!ureq || !id) return send(400, { ok: false, detail: 'falta la solicitud o la fila' });
+                if (tgt !== 'local') {
+                    const mail = String(sqlJson(`SELECT u.email FROM user_requests ur JOIN users u ON u.id = ur.user_id WHERE ur.id = ${ureq}`)[0]?.email ?? '');
+                    if (!TEST_MAIL.test(mail)) return send(409, { ok: false, detail: `el cliente de ${ureq} no parece de prueba (correo «${mail || 'vacío'}»): no se descifra desde acá` });
+                }
+                const r = await dbopsJson(['decrypt-central', String(ureq), String(id)], tgt);
+                return send(r?.ok ? 200 : 409, r ? { ok: !!r.ok, central: r.central, plain: r.plain, detail: r.motivo } : { ok: false, detail: 'sin respuesta' });
+            }
+            if (path === '/api/ext/verdict') {
+                const ureq = Number(digits(q.get('ureq')));
+                if (!ureq) return send(400, { error: 'falta la solicitud' });
+                const { requestVerdict } = await import('../pkg/backend-reads.ts');
+                const v = requestVerdict(tgt as any, ureq, { loki: false });
+                return send(200, { ureq, status: v.request?.user_request_status_id, statusName: v.request?.status, lender: v.request?.lender, verdict: v.verdict });
+            }
+        } catch (e) {
+            return send(500, { error: (e as Error).message.split('\n')[0] });
         }
+        return send(404, { error: 'no hay esa ruta' });
+    }
+
+    // LAS CORRIDAS CON NOMBRE (`runs.json`, `pkg/runs.ts`): la vista «Corridas» las lista y abre la elegida armada. Se leen
+    // en cada pedido: lo que se agrega al archivo se ve al recargar. Reemplazan al plan de corrida (`/api/plan`).
+    if (path === '/api/runs') {
+        const { errors, runs } = readRuns();
+        return json(res, 200, { errors, runs: Object.entries(runs).map(([key, r]) => ({ key, ...r, journeyText: describeJourney(r) })) });
     }
 
     // Permiso del asesor al comercio — lo dispara la SELECCIÓN de comercio en el panel (funnel), no el
@@ -2259,6 +2423,28 @@ const server = createServer(async (req, res) => {
     }
 
     // ── EL REGISTRO DE COMERCIOS (`harness.json`, ver `pkg/flows.ts`) ──────────────────────────────────────────────
+    // LAS GRABACIONES: los videos de `make harness-run` (`pkg/recordings.ts`). La lista se lee en cada pedido: la corrida
+    // que termina la agrega al índice y el panel la ve en su próxima consulta. Desde el panel no se agregan ni se borran.
+    if (path === '/api/recordings') return json(res, 200, listRecordings());
+    // El video, con `Range`: sin eso el reproductor no puede adelantar ni volver (Safari ni siquiera lo arranca).
+    const rec = /^\/api\/recordings\/([\w.+-]+)\/video$/.exec(path);
+    if (rec) {
+        const f = recordingVideo(rec[1]);
+        if (!f) return json(res, 404, { error: 'no hay esa grabación' });
+        const size = statSync(f).size;
+        const type = f.endsWith('.webm') ? 'video/webm' : 'video/mp4';
+        const range = /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range || ''));
+        if (range) {
+            const start = range[1] ? Number(range[1]) : Math.max(0, size - Number(range[2]));
+            const end = range[1] && range[2] ? Math.min(Number(range[2]), size - 1) : size - 1;
+            if (start >= size || start > end) { res.writeHead(416, { 'content-range': `bytes */${size}` }); return res.end(); }
+            res.writeHead(206, { 'content-type': type, 'accept-ranges': 'bytes', 'content-range': `bytes ${start}-${end}/${size}`, 'content-length': end - start + 1 });
+            return void createReadStream(f, { start, end }).pipe(res);
+        }
+        res.writeHead(200, { 'content-type': type, 'accept-ranges': 'bytes', 'content-length': size });
+        return void createReadStream(f).pipe(res);
+    }
+
     // La barra son sus entradas con `panel: true`, en el orden del archivo. Se lee en cada pedido: lo que agrega o asocia
     // `make harness-merchants` se ve al recargar. El panel NO agrega comercios (eso es el CLI); sólo renombra la fila y
     // la saca de la barra.
@@ -2267,7 +2453,7 @@ const server = createServer(async (req, res) => {
             .filter(([, v]) => v.panel)
             .map(([slug, v]) => ({
                 slug, name: v.name || slug, country: v.country || '', note: v.note || '', channels: v.channels || null,
-                allied_name: v.allied_name || '',
+                allied_name: v.allied_name || '', amount: v.amount || null,
                 // Lo de cada base (sucursal, ids, slug, asesor de prueba): el panel lo muestra antes de medir el ambiente.
                 bases: v.bases,
                 // La de prod: con ella se encuentra el comercio en el catálogo de prod (ahí el id y el slug pueden ser otros).
@@ -2605,7 +2791,7 @@ connect();
     // la corrida (`dbops ecommerce-url`)— y abre el checkout en el contexto del cliente. Por ahora sólo
     // navega: el bypass del OTP y la siembra del buró vienen después.
     // El celular: `admin`, o un rol con su carril (`advisor`, `client-c`…). Uno de un carril que este panel no tiene, 404.
-    const deviceRoute = /^\/api\/device\/((?:client|advisor)(?:-[b-h])?|admin)(?:\/(open|state|shot|stream|close|input|reload|tab|tap|advance|advance-all|advance-stop|saved|resume|menu|goto))?$/.exec(path);
+    const deviceRoute = /^\/api\/device\/((?:client|advisor)(?:-[b-h])?|admin)(?:\/(open|state|shot|stream|close|input|reload|tab|tap|advance|advance-all|advance-stop|saved|resume|menu|goto|blockers))?$/.exec(path);
     if (deviceRoute && isDeviceId(deviceRoute[1])) {
         const id = deviceRoute[1] as DeviceId, action = deviceRoute[2] || 'state';
         if (action === 'open' && req.method === 'POST' && id !== 'admin') {
@@ -2729,6 +2915,8 @@ connect();
             return json(res, 200, { ok: true, advancing: !!run });
         }
         // Tocar por lo que DICE la pantalla, no por coordenadas: `tap` un texto, `advance` el botón principal.
+        // ¿QUÉ PIDE ESTA PANTALLA? Lo mismo que la consola dice cuando no avanza (`deviceBlockers`), para un agente.
+        if (action === 'blockers' && req.method === 'GET') return json(res, 200, { blockers: await deviceBlockers(id), url: deviceState(id).url ?? null });
         if ((action === 'tap' || action === 'advance') && req.method === 'POST') {
             const b = action === 'tap' ? await readBody(req) : {};
             const text = String(b?.text ?? '').trim();

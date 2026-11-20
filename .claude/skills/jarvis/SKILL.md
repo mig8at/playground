@@ -22,9 +22,17 @@ con LISTO / NO PUDE / NECESITO / CONFIRMAR.
   3. `bin/jarvis finish 'LISTO: …'` (o `NO PUDE: …`): guarda la corrida y, con LISTO, el flujo en
      `jarvis/flows/<proyecto>/`.
   `bin/jarvis script` da el recorrido como prueba de Playwright.
-- **Varias cosas en paralelo: pestañas.** Cada una es una sesión aparte (su página, sus pasos, su flujo).
-  `start` abre una nueva si en la actual ya trabaja otro Claude y dice su número; desde ahí, cada comando de esa
-  meta va con `--session N` (si no, cae en la última que se abrió, que puede ser otra). `bin/jarvis tabs`
+- **Varias cosas en paralelo: sesiones y grupos.** Cada sesión es aparte (su página, sus pasos, su flujo) y va a
+  su **grupo de pestañas de Chrome**: `start --group 'VTEX' [--color blue] '<meta>'` la pone en ése (si Miguel nombró
+  la tarea, usá su nombre); sin `--group`, Jarvis arma uno con la meta. `start` elige y reserva la sesión en el
+  servidor (dos a la vez nunca toman la misma) y dice su número: desde ahí, cada comando de esa meta va con
+  `--session N` (si no, cae en la última que se abrió, que puede ser otra). Claude trabaja **de fondo**: un comando no le trae la
+  pestaña a Miguel, salvo `point` y los sitios `front` (`bin/jarvis focus`; `focus check` mide el de la sesión,
+  `focus follow on` vuelve a traerla siempre). Si un sitio se porta raro detrás, `focus check` antes de suponer.
+- **Pestañas: reutilizar y cerrar.** Pasale siempre `--url` a `start`: si ya hay una sesión libre en ese sitio, usa su
+  pestaña. Terminá cada meta con `finish` (la libera para la próxima y se cierra sola a los 3 min). Antes de abrir
+  varias cosas, `bin/jarvis cleanup` dice qué quedó abierto de más; `--apply` lo cierra. `--group G` sirve igual si sos el único
+  Claude en ese grupo. `bin/jarvis groups` los lista; `groups close G`, `groups move N G` y `groups color G C`. `bin/jarvis tabs`
   las lista; `tabs nueva [url]` abre una (con la página, p. ej. una app de tu localhost) y `tabs cerrar N` cierra una. Dos pestañas del mismo sitio comparten el login.
 - **Que te enseñe:** `bin/jarvis ask --guide [--url U] "<meta>"` (o «Enseñame» en la interfaz): Claude marca
   cada paso en la página en vivo y Miguel lo hace. Sin `--guide` es automático: lo hace Claude y sólo frena antes

@@ -441,6 +441,32 @@ function script(data: AutofillData) {
             n++;
         }
 
+        /* 4b · LAS DECLARACIONES DEL FORMULARIO ADICIONAL, «No» (2026-11-19). La excepción ACOTADA a lo de arriba: sólo en
+         *     `dynamic-form/<n>` y `additional-info/<n>` (el form-service), donde los radios son declaraciones —«¿Tú, tu
+         *     cónyuge o familiar hasta 2° grado son PEP?»— y no una decisión del flujo. Sin esto el paso a paso se quedaba
+         *     en la segunda página del de Finandina tocando «Enviar». Se elige «No» y sólo en un grupo sin respuesta; un
+         *     grupo sin opción «No» no se toca. */
+        if (/\/(dynamic-form|additional-info)\/\d+/.test(location.pathname)) {
+            // Son un `ToggleGroup` de Radix (`DynamicRadioField`): el grupo es `role=group` y cada opción un botón
+            // `role=radio` con su texto adentro; la elegida lleva `aria-checked=true` (o `data-state=on`).
+            const textOf = (r: HTMLElement) => {
+                const byId = r.id ? document.querySelector(`label[for="${CSS.escape(r.id)}"]`)?.textContent : '';
+                return norm(r.getAttribute('aria-label') || byId || r.textContent || '').trim();
+            };
+            const on = (r: Element) => r.getAttribute('aria-checked') === 'true' || r.getAttribute('data-state') === 'on';
+            const groups = new Set<Element>();
+            for (const r of Array.from(document.querySelectorAll<HTMLElement>('[role=radio]'))) {
+                const g = r.closest('[role=radiogroup],[role=group]') ?? r.parentElement;
+                if (g) groups.add(g);
+            }
+            for (const group of groups) {
+                const radios = Array.from(group.querySelectorAll<HTMLElement>('[role=radio]'));
+                if (!radios.some((r) => visible(r)) || radios.some(on)) continue;
+                const no = radios.find((r) => textOf(r) === 'no');
+                if (no && no.getAttribute('aria-disabled') !== 'true' && !(no as HTMLButtonElement).disabled) { no.click(); n++; }
+            }
+        }
+
         /* 5 · LOS COMBOBOX QUE NO SON `<select>`. El wizard usa los de shadcn/radix —un botón con un
          *     popover—, y son justo los peores de llenar a mano (departamento, ciudad, ocupación). No
          *     se les puede escribir el valor: hay que abrir y elegir, así que esto CLICKEA. Va último y
@@ -485,9 +511,13 @@ function script(data: AutofillData) {
             const root: ParentNode = panel ?? document;
             const options = Array.from(root.querySelectorAll<HTMLElement>('[role=option]:not([aria-disabled=true])'));
             if (!options.length) { await closePopover(trigger); return false; }
+            /* Sin un valor pedido, BOGOTÁ si está entre las opciones (departamento y ciudad), como el caminador
+             * (`preferredOptions` de `pkg/autofill-qr.ts`); si no, la primera. Con la primera el departamento era
+             * «Amazonas», fuera de las zonas de Banco Finandina, y el front cancelaba la solicitud después del formulario
+             * adicional (local, 2026-11-19, 468444: «Cancelación no voluntaria código 5001»). */
             const chosenOne = searched
                 ? options.find((o) => searched.some((b) => norm(o.textContent || '') === norm(b)))
-                : options[0];
+                : options.find((o) => /bogot[aá]/i.test(o.textContent || '')) ?? options[0];
             if (!chosenOne) { await closePopover(trigger); return false; }
             chosenOne.click();
             await wait(180);

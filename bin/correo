@@ -22,4 +22,6 @@ if [ ! -x "$bin" ] || [ -n "$stale" ] || [ "$root/go.mod" -nt "$bin" ]; then
   fi
   mv -f "$tmp" "$bin"
 fi
+# Sin argumentos, la ayuda: el binario pelado es el servidor (así lo corre el LaunchAgent), y acá se viene a consultar.
+[ $# -eq 0 ] && set -- help
 cd "$root" && MY_TOOLS_ROOT="$root" exec "$bin" "$@"

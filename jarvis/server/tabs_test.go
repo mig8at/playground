@@ -44,11 +44,12 @@ func TestTabsDefaultAndClose(t *testing.T) {
 // de la interfaz (que consulta todas solas), no.
 func TestSweepClosesIdleClaudeTabs(t *testing.T) {
 	tabs := NewTabs(nil)
-	person := tabs.Get("")      // la inicial: de la persona
-	old := tabs.NewBy(true)     // de Claude, sin uso
-	watched := tabs.NewBy(true) // de Claude, la está mirando la interfaz
-	used := tabs.NewBy(true)    // de Claude, recién usada por un comando
-	last := tabs.NewBy(true)    // de Claude, la última que se abrió
+	tabs.doneIdle = 10 * time.Minute // acá se prueba el uso (mirar, comandos); las terminadas, en cleanup_test.go
+	person := tabs.Get("")           // la inicial: de la persona
+	old := tabs.NewBy(true)          // de Claude, sin uso
+	watched := tabs.NewBy(true)      // de Claude, la está mirando la interfaz
+	used := tabs.NewBy(true)         // de Claude, recién usada por un comando
+	last := tabs.NewBy(true)         // de Claude, la última que se abrió
 	now := time.Now().Add(20 * time.Minute)
 	stopWatching := tabs.Watch(watched)
 

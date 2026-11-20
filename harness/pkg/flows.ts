@@ -51,6 +51,9 @@ export interface MerchantEntry {
     note?: string;
     /** El nombre del comercio en la base (el de la fila puede ser otro: `name`). */
     allied_name?: string;
+    /** El monto con que arranca una pestaña nueva de este comercio en el panel (pesos). Para la entidad que tiene mínimo:
+     *  Finandina no acepta menos de $3.000.000 y con el de siempre ($2.000.000) el botón queda apagado. */
+    amount?: number;
     channels?: string[];
     otp_bypass_phone?: string;
     bases: Partial<Record<Base, BaseEntry>>;
@@ -88,6 +91,7 @@ export function normalizeEntry(raw: any): MerchantEntry {
     const channels = r.channels ?? r.canales;
     if (Array.isArray(channels) && channels.length) out.channels = channels.map(String);
     if (r.panel ?? r.favorite ?? r.fav) out.panel = true;
+    if (Number(r.amount) > 0) out.amount = Math.round(Number(r.amount));
     if (r.bases && typeof r.bases === 'object') {
         for (const b of ['local', 'shared', 'prod'] as const) { const v = baseEntryOf(r.bases[b]); if (v) out.bases[b] = v; }
     } else {
@@ -119,7 +123,7 @@ export function writeFlows(flows: Flows, file = FLOWS_FILE): void {
     } catch { /* ilegible: se reescribe igual */ }
     // Cada entrada con sus claves en un orden fijo (lo que se lee primero arriba, las bases al final): el archivo está
     // versionado y se lee en los diffs.
-    const ORDER = ['name', 'panel', 'country', 'note', 'allied_name', 'channels', 'otp_bypass_phone', 'bases'];
+    const ORDER = ['name', 'panel', 'country', 'note', 'amount', 'allied_name', 'channels', 'otp_bypass_phone', 'bases'];
     const BASE_ORDER = ['branch', 'branch_id', 'allied_id', 'allied_slug', 'advisor'];
     const pickIn = (o: any, keys: string[]) => Object.fromEntries(keys.filter((f) => o[f] !== undefined && o[f] !== '').map((f) => [f, o[f]]));
     const merchants = Object.fromEntries(Object.entries(flows.merchants).map(([k, e]) => [k, {

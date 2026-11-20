@@ -197,12 +197,23 @@ func correoAt(addr string) bool {
 
 func main() {
 	// La consola (cli.go): `correo list|latest|read|search|…`. Va antes de los flags del servidor.
-	if len(os.Args) > 1 && cliCommands[os.Args[1]] {
-		root := os.Getenv("MY_TOOLS_ROOT")
-		if root == "" {
-			root, _ = os.Getwd()
+	// Lo que no es un comando NO arranca el servidor: un comando mal escrito levantaba la API y se quedaba colgado.
+	// El servidor sólo sale con sus flags (`-serve`, `-once`, `-install`…), como lo llaman make, Cockpit y el LaunchAgent.
+	if len(os.Args) > 1 {
+		switch a := os.Args[1]; {
+		case a == "help" || a == "-h" || a == "--help" || a == "-help":
+			fmt.Println(cliHelp)
+			os.Exit(0)
+		case cliCommands[a]:
+			root := os.Getenv("MY_TOOLS_ROOT")
+			if root == "" {
+				root, _ = os.Getwd()
+			}
+			os.Exit(runCLI(root, os.Args[1:]))
+		case !strings.HasPrefix(a, "-"):
+			fmt.Fprintln(os.Stderr, unknownCommand(a))
+			os.Exit(2)
 		}
-		os.Exit(runCLI(root, os.Args[1:]))
 	}
 	serve := flag.String("serve", "127.0.0.1:5225", "dónde escucha la API (sólo 127.0.0.1)")
 	every := flag.Duration("every", time.Minute, "cada cuánto mira Gmail")
@@ -211,7 +222,13 @@ func main() {
 	install := flag.Bool("install", false, "la deja corriendo de fondo como LaunchAgent (desde el binario compilado)")
 	uninstall := flag.Bool("uninstall", false, "saca el LaunchAgent (lo guardado se queda)")
 	status := flag.Bool("status", false, "¿el LaunchAgent está cargado?")
+	serverFlags := flag.Bool("flags", false, "lista estos flags del servidor y sale")
 	flag.Parse()
+	if *serverFlags {
+		flag.CommandLine.SetOutput(os.Stdout)
+		flag.PrintDefaults()
+		return
+	}
 
 	root, err := os.Getwd()
 	if err != nil {

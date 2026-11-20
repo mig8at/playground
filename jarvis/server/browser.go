@@ -56,6 +56,9 @@ type Runner struct {
 	log     []LogLine
 	seq     int
 	live    *live // la sesión en vivo, si hay una (live.go)
+	// group y groupColor: el grupo de pestañas de Chrome de la sesión (groups.go); vacío, el «Jarvis» de siempre.
+	group      string
+	groupColor string
 }
 
 func NewRunner(store *Store) *Runner { return &Runner{store: store} }

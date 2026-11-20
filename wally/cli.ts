@@ -112,8 +112,25 @@ async function upload(file: string) {
 }
 
 const [cmd, sub] = positional();
+// La ayuda es el encabezado de este archivo. Pedida (`help`, `--help`, sin comando) va a stdout y sale 0; un comando
+// que no existe dice cuál fue y sale 2. Ninguna de las dos levanta Wally: antes `help` lo arrancaba por Cockpit.
+const COMMANDS = ['agents', 'agent', 'skills', 'topics', 'conversations', 'new', 'delete', 'ask', 'compact'];
+const helpText = () => fs.readFileSync(new URL(import.meta.url), 'utf8').split('\n').filter((l) => l.startsWith('//')).slice(0, 25).map((l) => l.slice(3)).join('\n');
+if (!cmd || cmd === 'help' || args.includes('--help') || args.includes('-h')) {
+    console.log(helpText());
+    process.exit(0);
+}
+if (!COMMANDS.includes(cmd)) {
+    const near = COMMANDS.filter((c) => c.startsWith(cmd) || cmd.startsWith(c));
+    console.error(`wally: no conozco «${cmd}»${near.length ? ` (¿${near.join(' · ')}?)` : ''} · bin/wally help lista los comandos`);
+    process.exit(2);
+}
+if (cmd === 'agent' && !['create', 'update', 'delete'].includes(sub || '')) {
+    console.error(`wally: «agent ${sub || ''}» no existe: agent create | update | delete · bin/wally help`);
+    process.exit(2);
+}
 try {
-    if (cmd) await ensureUp(); // sin comando sólo se muestra la ayuda
+    await ensureUp();
     if (cmd === 'agents') {
         const { agents } = await api('/api/agents');
         out(agents, agents.length ? agents.map((a: any) =>
@@ -227,8 +244,9 @@ try {
             if (st.stopped) process.exitCode = 1;
         }
     } else {
-        console.error(fs.readFileSync(new URL(import.meta.url), 'utf8').split('\n').filter((l) => l.startsWith('//')).slice(0, 25).map((l) => l.slice(3)).join('\n'));
-        process.exit(cmd ? 2 : 0);
+        // Un comando conocido con un subcomando que no existe (`agent borrar`).
+        console.error(`wally: «${[cmd, sub].filter(Boolean).join(' ')}» no es un comando · bin/wally help los lista`);
+        process.exit(2);
     }
 } catch (e: any) {
     console.error(`  ✗ ${e.message || e}`);

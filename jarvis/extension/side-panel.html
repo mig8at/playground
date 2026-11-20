@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="es" data-style="panels">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jarvis</title>
+  <link rel="stylesheet" href="theme.css">
+  <link rel="stylesheet" href="workbench.css">
+  <link rel="stylesheet" href="side-panel.css">
+</head>
+<body>
+  <!-- El panel lateral de Chrome: los grupos de pestañas abiertos y sus pestañas. Nada más, por ahora. -->
+  <div class="sp">
+    <section class="sp-block sp-grow" aria-label="Grupos abiertos">
+      <div class="region-head"><span>Grupos abiertos</span><span id="summary" class="count"></span></div>
+      <div id="groups" class="region-body"></div>
+    </section>
+  </div>
+  <script src="side-panel.js"></script>
+</body>
+</html>

@@ -17,8 +17,10 @@ Usa las regiones de `tools/ui` y nada propio para dividir la pantalla:
 
 - **El sidebar son cuatro vistas** (`sidebar en-bloques` y `.view`, como el del chat): **Semana** (las semanas y, con
   su encabezado de grupo, los temas), **Favoritos**, **Instalados** e **Investigación**. Cada una se pliega con su
-  encabezado y scrollea sola; las abiertas se reparten el alto, salvo Instalados, que mide lo que tiene (hasta un
-  tercio). Lo abierto queda en `news.sidebar-views`. Los encabezados llevan el dato que resume la vista (la semana, el
+  encabezado y scrollea sola; cada abierta toma el alto de lo que tiene y, si no entra todo, se achica con un piso de
+  cuatro filas (Semana, la navegación, es la que menos cede; Instalados, hasta el 28 %). Lo que no entra se desvanece
+  abajo en vez de cortar una fila por la mitad. En Instalados cada fila va en dos renglones: el nombre entero y, debajo,
+  qué herramienta lo usa y cuánto pesa; la papelera aparece al pasar el mouse. Lo abierto queda en `news.sidebar-views`. Los encabezados llevan el dato que resume la vista (la semana, el
   conteo, lo que ocupan los instalados o qué máquina es) y su acción frecuente (actualizar la semana, volver a medir).
 - **La consola** (la región `panel`, abajo del editor; arranca cerrada y se abre con su botón del pie o tocando el
   contador de avisos). Tres pestañas:
@@ -28,6 +30,10 @@ Usa las regiones de `tools/ui` y nada propio para dividir la pantalla:
     modelos y si están; y en qué carpetas se buscan los instalados.
   - **Avisos**: lo que pide atención ahora, con qué hacer (sin sesión del modelo de fondo, semana incompleta, una
     sección que no cargó, un motor que falta y cuántos favoritos lo piden). Sale de lo que la interfaz ya sabe.
+    El consejo de los textos sale del error: sólo uno de sesión pide iniciarla; el resto (p. ej. «los papers: el modelo
+    no devolvió JSON», cada tanda dice cuál fue) se arregla con «Actualizar» o solo en la próxima actualización.
+    **PyTorch cuenta como instalado si está en el python del sistema o en el entorno de algún modelo probado**
+    (`~/.cache/my-tools/*/.venv`): antes la Mac decía «Falta PyTorch: 92 favoritos lo piden» teniéndolo en dos.
 - **El pie quedó corto**: de cuándo es lo de Hugging Face, el contador de avisos y «Actualizar». El detalle de un
   error largo (el del modelo de fondo) ya no se corta ahí: está en Avisos.
 

@@ -47,6 +47,7 @@ En dev, lo de legacy-backend lo atiende el despliegue de la rama `lab`, sobre la
 |---|---|---|
 | `merchant` | **sólo lectura · ¿cómo está este comercio?** Salud, puntos de venta con su hash, entidades con el alcance de sus reglas, qué entidad está prendida en qué punto de venta y por qué no se puede prender, ecommerce y productos. ~5 s | `<id \| nombre \| hash>` · `--json` |
 | `merchant-logo` | el logo del comercio: por defecto uno de letra (círculo de color con la primera letra), o `--file`. ⚠ Mientras los triggers de auditoría de `allieds` nombren columnas borradas por CORE-562, el guardado falla con 422 («Unknown column 'show_products' in 'OLD'»): la receta lo dice y sale 1 | `<id \| nombre \| hash>` · `--file logo.png` · `--json` |
+| `activation` | prende (o apaga con `--off`) una entidad en un punto de venta del comercio, por la matriz de activaciones: lo mismo que su interruptor. Lee la celda antes y no escribe si el backoffice no la deja prender (dice por qué). Una entidad agregada por el admin viejo queda apagada hasta prenderla acá | `<comercio> --lender <id> --branch <id \| nombre \| hash>` · `--off` · `--json` |
 
 ## VTEX (cuenta de pruebas `creditop`)
 

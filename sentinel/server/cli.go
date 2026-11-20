@@ -30,6 +30,36 @@ import (
 
 var cliCommands = map[string]bool{"now": true, "day": true, "signal": true, "deploy": true, "ack": true, "schema": true, "cases": true, "rules": true, "verdict": true, "why": true}
 
+// cliHelp es lo que dicen `bin/sentinel`, `help`, `-h` y `--help`. No arranca nada ni lee nada.
+const cliHelp = `sentinel — el vigía de producción, por consola. Sólo lee (ack es lo único que escribe, y va por la API).
+
+  bin/sentinel now                          cómo está producción ahora: lo que pide atención, lo que se sigue, los servicios
+  bin/sentinel day [AAAA-MM-DD]             el día: cuánto entró contra lo normal, qué se salió y cuándo, despliegues y avisos
+  bin/sentinel signal <señal|nombre>        una señal hora por hora, hoy contra lo normal («credifamilia», «merchant:94»)
+  bin/sentinel deploy <repo> [versión] [--hours 2]
+                                            ¿se dañó algo después de ese despliegue? Sin versión, el último a producción
+  bin/sentinel why <señal>                  el porqué de una señal ahora, como hipótesis (le pregunta al modelo de fondo)
+  bin/sentinel verdict [--make]             el dictamen de la mañana (el último guardado; --make arma el de hoy, ~30 s)
+  bin/sentinel cases <señal> [--hours N]    solicitudes de ejemplo de la señal (lee producción)
+  bin/sentinel rules <entidad> [--hours N]  qué regla dura rechaza a la entidad, ahora contra antes (lee producción)
+  bin/sentinel schema                       lo que producción tiene y dev ya no: columnas renombradas o borradas
+  bin/sentinel ack <señal> [--undo]         reconocer un episodio («ya lo sé»); pide la API arriba
+
+  --json en cualquiera, para un agente. now, day, signal y deploy leen lo guardado en sentinel/.data: no piden la API.
+  El servidor es otra cosa (make sentinel, o el de fondo): sus flags, con bin/sentinel --flags.`
+
+// unknownCommand: qué se escribió y, si se parece a uno, cuál. Una línea: la ayuda entera tapaba el error.
+func unknownCommand(cmd string) string {
+	msg := fmt.Sprintf("sentinel: no conozco «%s»", cmd)
+	for known := range cliCommands {
+		if strings.HasPrefix(known, cmd) || strings.HasPrefix(cmd, known) {
+			msg += fmt.Sprintf(" (¿%s?)", known)
+			break
+		}
+	}
+	return msg + " · bin/sentinel help lista los comandos"
+}
+
 // runCLI: un comando de la consola. Devuelve el código de salida.
 func runCLI(root string, args []string) int {
 	cmd := args[0]

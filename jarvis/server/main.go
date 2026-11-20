@@ -71,6 +71,11 @@ func main() {
 	}
 	tabs := NewTabs(store)
 	defer tabs.CloseAll()
+	if v := os.Getenv("JARVIS_TAB_DONE_IDLE"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil && d >= 0 {
+			tabs.doneIdle = d
+		}
+	}
 	go sweepTabs(tabs, IdleLimit(os.Getenv("JARVIS_TAB_IDLE")))
 	for _, a := range listApps() {
 		go serveDir(a.Addr(), filepath.Join("apps", a.ID), a.Name)
@@ -80,15 +85,16 @@ func main() {
 	}
 }
 
-// sweepTabs cierra cada medio minuto las pestañas de Claude que quedaron sin uso (Tabs.Sweep).
+// sweepTabs cierra cada medio minuto lo que ya no hace falta (cleanup.go): las sesiones de Claude sin uso y las
+// pestañas huérfanas que dejó un reinicio.
 func sweepTabs(tabs *Tabs, idle time.Duration) {
 	if idle <= 0 {
 		return
 	}
-	log.Printf("jarvis: las pestañas de Claude sin uso se cierran a los %s (JARVIS_TAB_IDLE)", idle)
+	log.Printf("jarvis: se cierran solas las sesiones de Claude terminadas a los %s y las olvidadas a los %s (JARVIS_TAB_DONE_IDLE, JARVIS_TAB_IDLE), y las pestañas huérfanas", tabs.doneIdle, idle)
 	for range time.Tick(30 * time.Second) {
-		if closed := tabs.Sweep(time.Now(), idle); len(closed) > 0 {
-			log.Printf("jarvis: cerré las pestañas %s: Claude las dejó sin uso más de %s", strings.Join(closed, ", "), idle)
+		for _, it := range tabs.Cleanup(time.Now(), idle, false, true) {
+			log.Printf("jarvis: cerré %s %s%d (%s): %s", it.Kind, it.Session, it.ChromeTab, it.URL, it.Reason)
 		}
 	}
 }
@@ -162,15 +168,69 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 	// cierra (frena su Claude y su sesión).
 	mux.HandleFunc("/api/tabs", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
-			tab := tabs.NewBy(fromCLI(r))
-			writeJSON(w, http.StatusOK, map[string]string{"id": tab.ID})
+			// Con {group, color}, la sesión nace en ese grupo de Chrome (groups.go).
+			var body struct{ Group, Color string }
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			tab, err := tabs.NewIn(fromCLI(r), body.Group, body.Color)
+			if err != nil {
+				writeErr(w, http.StatusBadRequest, err)
+				return
+			}
+			writeJSON(w, http.StatusOK, map[string]string{"id": tab.ID, "group": tab.Group, "color": tab.Color})
 			return
 		}
 		writeJSON(w, http.StatusOK, tabs.Info())
 	})
+	// POST /api/tabs/claim {group, color} — la sesión para una meta nueva de ese grupo, elegida y reservada de una vez
+	// (Tabs.Claim): así dos `start` en paralelo no toman la misma.
+	mux.HandleFunc("/api/tabs/claim", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			writeErr(w, http.StatusMethodNotAllowed, fmt.Errorf("POST"))
+			return
+		}
+		var body struct {
+			Group, Color, URL string
+			Auto              bool
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		tab, how, err := tabs.Claim(fromCLI(r), body.Group, body.Color, body.URL, body.Auto)
+		if err != nil {
+			writeErr(w, http.StatusBadRequest, err)
+			return
+		}
+		t := tabs.Info()
+		out := map[string]string{"id": tab.ID, "reused": how}
+		for _, i := range t {
+			if i.ID == tab.ID {
+				out["group"], out["color"], out["url"] = i.Group, i.Color, i.URL
+			}
+		}
+		writeJSON(w, http.StatusOK, out)
+	})
+	// PUT /api/tabs/<id> {group, color} — la pasa a otro grupo (vacío: al «Jarvis» de siempre) y mueve su pestaña.
 	mux.HandleFunc("/api/tabs/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPut {
+			tab := tabs.Get(strings.TrimPrefix(r.URL.Path, "/api/tabs/"))
+			if tab == nil || strings.TrimPrefix(r.URL.Path, "/api/tabs/") == "" {
+				writeErr(w, http.StatusNotFound, fmt.Errorf("no hay pestaña %s", strings.TrimPrefix(r.URL.Path, "/api/tabs/")))
+				return
+			}
+			var body struct{ Group, Color string }
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				writeErr(w, http.StatusBadRequest, err)
+				return
+			}
+			name, color, err := tabs.SetGroup(tab, body.Group, body.Color)
+			if err != nil {
+				writeErr(w, http.StatusBadRequest, err)
+				return
+			}
+			tabs.Touch(tab)
+			writeJSON(w, http.StatusOK, map[string]string{"id": tab.ID, "group": name, "color": color})
+			return
+		}
 		if r.Method != http.MethodDelete {
-			writeErr(w, http.StatusMethodNotAllowed, fmt.Errorf("DELETE"))
+			writeErr(w, http.StatusMethodNotAllowed, fmt.Errorf("DELETE o PUT"))
 			return
 		}
 		if err := tabs.Close(strings.TrimPrefix(r.URL.Path, "/api/tabs/")); err != nil {
@@ -350,7 +410,9 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 			writeErr(w, http.StatusBadRequest, err)
 			return
 		}
-		if err := runner.LiveNav(in.Action, in.URL); err != nil {
+		err := runner.LiveNav(in.Action, in.URL)
+		runner.noteFocusResult(err)
+		if err != nil {
 			var note *NavNote
 			if errors.As(err, &note) {
 				writeJSON(w, http.StatusOK, map[string]any{"ok": true, "note": note.Note})
@@ -374,6 +436,7 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 			return
 		}
 		step, err := runner.LiveAct(in)
+		runner.noteFocusResult(err)
 		if err != nil {
 			writeJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": err.Error(), "step": step})
 			return
@@ -669,6 +732,57 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 		}
 		writeJSON(w, http.StatusOK, map[string]bool{"ok": ok})
 	})
+	// GET /api/cleanup — qué se puede cerrar ahora y por qué (sesiones de Claude terminadas u olvidadas, pestañas
+	// huérfanas) · POST — lo cierra. cleanup.go.
+	mux.HandleFunc("/api/cleanup", func(w http.ResponseWriter, r *http.Request) {
+		items := tabs.Cleanup(time.Now(), IdleLimit(os.Getenv("JARVIS_TAB_IDLE")), true, r.Method == http.MethodPost)
+		if items == nil {
+			items = []CleanupItem{}
+		}
+		writeJSON(w, http.StatusOK, items)
+	})
+	// GET /api/focus — qué sitios van al frente (focus.go) · PUT {host, mode} — lo pone a mano (mode "" lo borra) ·
+	// PUT {follow} — «seguir a Claude»: cada comando trae su pestaña.
+	mux.HandleFunc("/api/focus", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPut {
+			var in struct {
+				Host   string
+				Mode   string
+				Follow *bool
+			}
+			if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+				writeErr(w, http.StatusBadRequest, err)
+				return
+			}
+			var err error
+			switch {
+			case in.Follow != nil:
+				err = focusStore.SetFollow(*in.Follow)
+			case in.Mode == "":
+				err = focusStore.Set(focusHost("https://"+in.Host), nil)
+			default:
+				err = focusStore.Set(focusHost("https://"+in.Host), &FocusProfile{Mode: in.Mode, Source: "manual"})
+			}
+			if err != nil {
+				writeErr(w, http.StatusBadRequest, err)
+				return
+			}
+		}
+		writeJSON(w, http.StatusOK, focusStore.View())
+	})
+	// POST /api/live/focus-check — mide si el sitio de la sesión anda con la pestaña detrás y lo guarda.
+	mux.HandleFunc("/api/live/focus-check", func(w http.ResponseWriter, r *http.Request) {
+		tab := tabs.pick(w, r)
+		if tab == nil {
+			return
+		}
+		res, err := tab.Runner.FocusCheck()
+		if err != nil {
+			writeErr(w, http.StatusConflict, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, res)
+	})
 	// GET /api/flows — los flujos (jarvis/flows). POST /api/flows {run, name} — guarda una corrida como flujo.
 	// GET|DELETE /api/flows/<app>/<id> · POST /api/flows/<app>/<id>/replay {mode: auto|teach}
 	// ── el motor «chrome» (chrome.go): la extensión, Playwright y el estado ──
@@ -893,8 +1007,10 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 				writeErr(w, http.StatusConflict, err)
 				return
 			}
+			tabs.Release(tab) // ya la protege su meta: la reserva de Claim sobra
 		case "end":
 			asker.End()
+			tabs.Release(tab) // terminada, la puede tomar la próxima meta (en el mismo sitio, con su pestaña)
 		default:
 			if in.Kind == "think" {
 				runner.LiveNarrate(in.Text) // también es el subtítulo del próximo paso

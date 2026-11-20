@@ -1012,6 +1012,7 @@ async function runBrowser(c: Case, i: number, browser: any): Promise<Result> {
     const { ctx, evidencia: evidence } = opened;
     // `let`: con Jarvis, en el handoff el cliente sigue en su propia pestaña (openCustomerTab) y la del asesor queda.
     let page = opened.page;
+    let lenderChosen = false;   // ya se eligió la entidad en el listado: lo que sigue ahí es el traspaso, no otra elección
 
     const finish = async (end: Result['fin'], reason: string) => {
         r.fin = end; r.motivo = reason; r.ms = Date.now() - t0;
@@ -1248,7 +1249,15 @@ async function runBrowser(c: Case, i: number, browser: any): Promise<Result> {
         // arma `/self-service/<hash>/<ureq>/confirmation` y **se lo manda al CUSTOMER** por WhatsApp; la
         // pantalla `/continue` es la del que eligió, que sólo dice «se envió un mensaje» y no tiene botón
         // para avanzar. El caminador hace lo que haría el cliente al tocar el link. Es el salto A→B del panel.
-        if (sheet === 'continue' && r.ur) {
+        /* ⚠ Y LA MISMA PANTALLA SIN CAMBIAR DE RUTA: elegida una entidad del riel 4 por asesor (Finandina en qa,
+         * 2026-11-20), el asesor ve «Solicitud en validación de usuario · Se ha enviado un mensaje de WhatsApp…» todavía en
+         * `/lenders`. Sin esto la vuelta siguiente creía seguir en el listado y decía «no está en el listado» con la
+         * solicitud ya en 3. */
+        // Ya elegida la entidad, en el listado se ESPERA ese aviso (tarda en llegar): volver a buscar la entidad no sirve.
+        const handoffText = page.getByText(/se ha enviado un mensaje|solicitud en validaci[oó]n de usuario/i).first();
+        if (sheet === 'lenders' && r.ur && lenderChosen) await handoffText.waitFor({ state: 'visible', timeout: 30_000 }).catch(() => {});
+        const handoffShown = sheet === 'lenders' && r.ur && await handoffText.isVisible().catch(() => false);
+        if ((sheet === 'continue' || handoffShown) && r.ur) {
             log(`${CUSTOMER_SEGMENT} CreditopX → ${baseHandoff}/${r.ur}/confirmation`);
             const customerTab = await openCustomerTab(ctx, config.feBaseUrl);
             if (customerTab) { page = customerTab; log('   el cliente sigue en su propia pestaña de Chrome; la del asesor queda en «se envió un mensaje»'); }
@@ -1263,9 +1272,10 @@ async function runBrowser(c: Case, i: number, browser: any): Promise<Result> {
             if (!entityName) return finish('trabado', 'con --engine navegador hay que pedir la entidad (`#hash:ID`)');
             const el = await chooseEntity(page, entityName, { lookOnly: !flag('close') });
             r.enListado = el.ok;
-            if (!el.ok) return finish('trabado', `«${entityName}» no está en el listado · visibles: ${el.visibles.slice(0, 8).join(' · ')}`);
+            if (!el.ok) return finish('trabado', el.found ? `«${entityName}» ${el.motivo}` : `«${entityName}» no está en el listado · visibles: ${el.visibles.slice(0, 8).join(' · ')}`);
             if (!flag('close')) return finish('listo', `llegó al listado, con «${entityName}»`);
             log(`elegí «${entityName}» en el listado${el.motivo ? ` · ⚠ ${el.motivo}` : ''}`);
+            lenderChosen = true;
             await page.waitForTimeout(1500);
             continue;
         }

@@ -15,7 +15,8 @@
 // Lo único que SÍ necesita puntería es elegir una entidad concreta del listado, porque ahí el caminador
 // no puede tomar «la primera»: el caso pide una. Se resuelve por el NOMBRE de la entidad, que se lee de
 // la base — el listado lo muestra y es lo único estable sin testids.
-import { readFileSync } from 'node:fs';
+import fs, { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { blockDevOverlays } from './dev-overlays.ts';
 import { chromium, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import { autofill, clickAdvance, validationErrors, readToEnd, HANDS, waitForPerson, type Field } from './autofill-qr.ts';
@@ -86,9 +87,20 @@ const JARVIS_CHROME = process.env.JARVIS_CHROME === '1';
 const JARVIS_CDP = process.env.JARVIS_CDP || 'ws://127.0.0.1:5203/api/chrome/cdp';
 const jarvisPages = new WeakMap<BrowserContext, Page[]>();
 
+/* HARNESS_SLOW=<ms> (o JARVIS_SLOW): una pausa antes de cada acción, para que se vea cada campo y cada clic, en el Chrome
+ * de la persona (`make jarvis-walk SLOW=1200`) o en la ventana y el video del Chromium propio (`make harness-run`). */
+const SLOW = Number(process.env.HARNESS_SLOW || process.env.JARVIS_SLOW || 0);
+/* HARNESS_VIDEO=<carpeta>: graba cada caso (un .webm por pestaña, del tamaño del celular) y al cerrar lo pasa a .mp4,
+ * que se comparte en Slack o WhatsApp. Sólo con el Chromium propio: Playwright no graba un contexto que no creó, y el
+ * del Chrome de la persona no lo crea él (`make harness-run`). */
+const VIDEO_DIR = process.env.HARNESS_VIDEO || '';
+const PHONE = { width: 420, height: 900 };
+
 export async function openBrowser(opts: { headed?: boolean } = {}): Promise<Browser> {
-    if (JARVIS_CHROME) return chromium.connectOverCDP(JARVIS_CDP);
-    return chromium.launch({ headless: !opts.headed });
+    const slow = SLOW > 0 ? { slowMo: SLOW } : {};
+    if (JARVIS_CHROME) return chromium.connectOverCDP(JARVIS_CDP, slow);
+    // Con ventana, del tamaño del celular (más la barra de la ventana), para que se vea como uno.
+    return chromium.launch({ headless: !opts.headed, ...slow, ...(opts.headed ? { args: [`--window-size=${PHONE.width},${PHONE.height + 90}`] } : {}) });
 }
 
 const UA_MOBILE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 '
@@ -176,7 +188,8 @@ export function evidenceNotice(consoleOut: string[], red: string[], maximum = 3)
 export async function openContext(browser: Browser, baseURL: string, opts: { traza?: string; storageState?: string } = {})
 : Promise<{ ctx: BrowserContext; page: Page; evidencia: Evidence }> {
     const ctx = JARVIS_CHROME ? browser.contexts()[0] : await browser.newContext({
-        baseURL, userAgent: UA_MOBILE, viewport: { width: 420, height: 900 },
+        baseURL, userAgent: UA_MOBILE, viewport: PHONE,
+        ...(VIDEO_DIR ? { recordVideo: { dir: VIDEO_DIR, size: PHONE } } : {}),
         ...(opts.storageState ? { storageState: opts.storageState } : {}),
     });
     await blockDevOverlays(ctx);
@@ -289,7 +302,40 @@ export async function closeContext(ctx: BrowserContext, saveTo: string | null): 
     }
     if (saveTo) await ctx.tracing.stop({ path: saveTo }).catch(() => {});
     else await ctx.tracing.stop().catch(() => {});
+    // El video se escribe al cerrar el contexto: se piden antes las rutas y se espera el archivo después.
+    const videos = VIDEO_DIR ? ctx.pages().map((p) => p.video()).filter((v) => v !== null) : [];
     await ctx.close().catch(() => {});
+    for (const v of videos) {
+        const webm = await v!.path().catch(() => null);
+        if (webm) console.log(`  🎬 video: ${toMp4(webm)}`);
+    }
+}
+
+/** CUÁNTO DEL PRINCIPIO ES BLANCO: la página vacía mientras carga el wizard (medido el 2026-11-19: ~1 s en local, ~7 s
+ *  contra qa). Se mira un cuadro cada medio segundo de los primeros 30, en gris y chiquito, y el primero que no es casi
+ *  todo blanco es donde empieza el video. Sin ffmpeg o sin contenido en ese tramo, 0: no se corta nada. */
+export function blankLead(file: string): number {
+    const W = 24, H = 52, STEP = 0.5;
+    const r = spawnSync('ffmpeg', ['-loglevel', 'error', '-t', '30', '-i', file, '-vf', `fps=${1 / STEP},scale=${W}:${H}`, '-f', 'rawvideo', '-pix_fmt', 'gray', '-'], { maxBuffer: 64 * 1024 * 1024 });
+    const buf: Buffer | undefined = r.stdout as any;
+    if (r.status !== 0 || !buf?.length) return 0;
+    const frame = W * H;
+    for (let i = 0; i * frame < buf.length; i += 1) {
+        let sum = 0;
+        for (let j = i * frame; j < Math.min((i + 1) * frame, buf.length); j += 1) sum += buf[j];
+        if (sum / frame < 250) return Math.max(0, i * STEP - 0.3);
+    }
+    return 0;
+}
+
+/** El .webm de Playwright a .mp4 (H.264, que abre cualquier teléfono). Sin ffmpeg queda el .webm y se dice. */
+export function toMp4(webm: string): string {
+    const mp4 = webm.replace(/\.webm$/, '.mp4');
+    const lead = blankLead(webm);
+    const r = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', ...(lead > 0 ? ['-ss', lead.toFixed(1)] : []), '-i', webm, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', mp4]);
+    if (r.status !== 0) return `${webm} (sin pasar a mp4: ${r.error ? 'falta ffmpeg' : String(r.stderr).trim().slice(0, 120)})`;
+    fs.rmSync(webm, { force: true });
+    return mp4;
 }
 
 /** Un banner de error a la vista. Es el muro que el motor HTTP no ve: el front puede responder 200 y
@@ -347,14 +393,25 @@ async function ctaInCard(page: Page, header: ReturnType<Page['getByRole']>) {
 
 /** `lookOnly`: sólo confirma que la entidad está en el listado, SIN abrir ni elegir su tarjeta (elegir escribe en la
  *  solicitud). Es lo que necesita una corrida que termina en el listado y pidió una entidad concreta. */
-export async function chooseEntity(page: Page, name: string, opts: { lookOnly?: boolean } = {}): Promise<{ ok: boolean; visibles: string[]; motivo?: string }> {
+export async function chooseEntity(page: Page, name: string, opts: { lookOnly?: boolean } = {}): Promise<{ ok: boolean; found?: boolean; visibles: string[]; motivo?: string }> {
     // El listado se arma con las tarjetas ya resueltas: se espera a que aparezca alguna antes de mirar.
     // ⚠ Y NO SÓLO A UN BOTÓN «continuar/solicitar/elegir»: en los listados de tarjetas desplegables no
     // hay ninguno, y esta espera se comía sus 30 s enteros en cada caso (medido el 2026-09-25). La señal
     // de que el listado está completo la da la pantalla: «Hemos terminado de consultar…».
-    await page.getByText(/hemos terminado de consultar/i)
-        .or(page.getByRole('button', { name: /continuar|solicitar|elegir|seleccionar/i }))
-        .first().waitFor({ state: 'visible', timeout: 30_000 }).catch(() => {});
+    // ⚠ TAMBIÉN LOS BOTONES DE ELEGIR DE UNA TARJETA y el NOMBRE de la entidad: el listado de una sola opción («Opción más
+    // adecuada según tu perfil», Finandina) no dice «Hemos terminado…» ni tiene «continuar»: su botón es «Activar mi
+    // crédito». Sin esto la espera se comía sus 30 s enteros en cada corrida (medido el 2026-11-19: 30–35 s en local y qa).
+    // ⚠ Y LISTO, NO SÓLO DIBUJADO: la tarjeta aparece con su nombre mientras todavía consulta, con el botón apagado; mirar
+    // ahí daba «no se pudo elegir». Se espera a que termine: el texto final, o un botón de elegir HABILITADO.
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const cta = /continuar|solicitar|elegir|seleccionar|activar mi cr[eé]dito|validar pre ?aprobado/i;
+    for (const until = Date.now() + 30_000; Date.now() < until;) {
+        if (await page.getByText(/hemos terminado de consultar/i).first().isVisible().catch(() => false)) break;
+        const ready = await page.getByRole('button', { name: cta }).evaluateAll((bs) =>
+            bs.some((b) => !(b as HTMLButtonElement).disabled && (b as HTMLElement).offsetParent !== null)).catch(() => false);
+        if (ready) break;
+        await page.waitForTimeout(300);
+    }
     /* ⚠ UN CREDITOPX ROTATIVO MUESTRA ANTES SU PRESENTACIÓN: «Así funciona tu cupo rotativo» con un solo «Continuar»,
      * que tapa el listado. Sin pasarla, el nombre de la entidad no está en la pantalla y el caminador decía «no está en
      * el listado» (2026-11-06, la copia de Mario Hernández en qa, entidad 200). Se pasa como la pasaría el cliente. */
@@ -366,7 +423,7 @@ export async function chooseEntity(page: Page, name: string, opts: { lookOnly?: 
     }
     // JARVIS_HANDS: la entidad la elige la persona; se marca su tarjeta y se espera a que la página siga.
     if (HANDS && !opts.lookOnly) {
-        const card = page.getByRole('button', { name: new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') }).first();
+        const card = page.getByRole('button', { name: new RegExp(escaped, 'i') }).first();
         if (await card.isVisible().catch(() => false)) {
             return (await waitForPerson(page, card)) ? { ok: true, visibles: [name] } : { ok: false, visibles: [name], motivo: `nadie eligió «${name}» en 15 min` };
         }
@@ -406,12 +463,19 @@ export async function chooseEntity(page: Page, name: string, opts: { lookOnly?: 
         }
     }
     // La tarjeta puede no ser un `button`: se prueba por texto y se clickea su botón de avance.
-    const card = page.getByText(new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')).first();
+    const card = page.getByText(new RegExp(escaped, 'i')).first();
     if (await card.count().catch(() => 0)) {
         if (opts.lookOnly) return { ok: true, visibles };
         await card.click({ timeout: 5_000 }).catch(() => {});
         const av = await clickAdvance(page);
         if (av.ok) return { ok: true, visibles };
+        /* ⚠ ESTÁ, PERO NO SE PUEDE ELEGIR: no es «no está en el listado». Medido el 2026-11-19: Finandina en el listado
+         * con «Activar mi crédito» apagado porque el monto superaba su cupo, y el caminador decía que no estaba. Se dice
+         * lo que la tarjeta muestra (el monto mínimo o máximo, «no pudimos consultar…»). */
+        const said = await card.locator('xpath=ancestor::*[.//button][1]').innerText().catch(() => '');
+        const why = said.split('\n').map((l) => l.trim())
+            .find((l) => /sin cupo|m[ií]nimo|m[aá]ximo|supera|inferior|no pudimos|no est[aá] disponible|no cumple/i.test(l)) ?? '';
+        return { ok: false, found: true, visibles, motivo: `está en el listado pero no se pudo elegir${why ? `: ${why}` : ` (${av.motivo ?? 'su botón no responde'})`}` };
     }
     return { ok: false, visibles };
 }

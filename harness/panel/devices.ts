@@ -62,6 +62,11 @@ const open = new Map<DeviceId, Device>();
 type DeviceLogger = (id: DeviceId, line: string) => void;
 let deviceLogger: DeviceLogger = () => { };
 export function setDeviceLogger(fn: DeviceLogger): void { deviceLogger = fn; }
+/** Cuando un celular llega a una pantalla FINAL (aprobada, cancelada, rechazada) con su solicitud: el panel la dictamina. */
+type TerminalHook = (id: DeviceId, ureq: number, screen: string) => void;
+let terminalHook: TerminalHook = () => { };
+export function setTerminalHook(fn: TerminalHook): void { terminalHook = fn; }
+const TERMINAL = /\/(\d{5,9})\/(loan-approved|request-canceled|request-rejected|rejected|denied)(?:[/?]|$)/;
 
 /* ── EL RUIDO DE LA CONSOLA ────────────────────────────────────────────────────────────────────────────────────
  * Avisos que salen en CADA corrida local y no dicen nada del caso: tapaban lo que sí importaba (el 422 de la firma
@@ -97,6 +102,7 @@ function narrate(id: DeviceId, d: Omit<Device, 'openedAt'>, isCurrent: () => boo
         const u = frame.url();
         if (u === lastUrl || u === 'about:blank') return;
         lastUrl = u;
+        { const t = TERMINAL.exec((() => { try { return new URL(u).pathname; } catch { return ''; } })()); if (t && isCurrent()) terminalHook(id, Number(t[1]), t[2]); }
         if (isCurrent()) touchDevice(id);
         emit(`→ ${u.replace(/^https?:\/\/[^/]+/, '')}`);
     });
@@ -586,6 +592,25 @@ export type DeviceInput =
 // en cada uno agregaba una vuelta a la página por evento.
 const viewportCache = new Map<DeviceId, { at: number; vp: { width: number; height: number } }>();
 
+/** DESPUÉS DE UN TOQUE DE LA PERSONA: si a los 1,5 s sigue en la misma ruta y la pantalla pide algo que antes no
+ *  pedía, se dice en la consola de su carril. Es el «toqué Continuar y no pasa nada» del paso a paso: la respuesta
+ *  sale sola, sin captura. No repite lo mismo dos veces seguidas en la misma pantalla. */
+const lastAsk = new Map<DeviceId, string>();
+function watchAfterTap(id: DeviceId): void {
+    const d = open.get(id);
+    if (!d) return;
+    const before = d.page.url();
+    setTimeout(async () => {
+        const now = open.get(id);
+        if (!now || now !== d || now.page.url() !== before) { lastAsk.delete(id); return; }
+        const b = await deviceBlockers(id);
+        const key = `${before}|${b.join('|')}`;
+        if (!b.length || lastAsk.get(id) === key) return;
+        lastAsk.set(id, key);
+        deviceLogger(id, `⚠ no avanzó: ${blockersNote(b)}`);
+    }, 1_500);
+}
+
 export async function deviceInput(id: DeviceId, ev: DeviceInput): Promise<boolean> {
     const d = open.get(id);
     if (!d) return false;
@@ -599,7 +624,7 @@ export async function deviceInput(id: DeviceId, ev: DeviceInput): Promise<boolea
             ?? d.page.viewportSize() ?? (id === 'admin' ? DESKTOP : { width: PHONE.viewport.width, height: PHONE.viewport.height }));
     viewportCache.set(id, { at: cached && cached.vp === vp ? cached.at : Date.now(), vp });
     const at = (x: number, y: number) => [Math.round(Math.min(1, Math.max(0, x)) * vp.width), Math.round(Math.min(1, Math.max(0, y)) * vp.height)] as const;
-    if (ev.type === 'click') { const [x, y] = at(ev.x, ev.y); await d.page.mouse.click(x, y); }
+    if (ev.type === 'click') { const [x, y] = at(ev.x, ev.y); await d.page.mouse.click(x, y); watchAfterTap(id); }
     else if (ev.type === 'key') await d.page.keyboard.press(ev.key);
     else if (ev.type === 'text') await d.page.keyboard.type(ev.text);
     else if (ev.type === 'wheel') { const [x, y] = at(ev.x, ev.y); await d.page.mouse.move(x, y); await d.page.mouse.wheel(0, ev.dy); }
@@ -708,6 +733,73 @@ async function unlock(page: Page): Promise<string[]> {
     return did;
 }
 
+/* ── POR QUÉ NO AVANZA (2026-11-19) ────────────────────────────────────────────────────────────────────────────────
+ * Lo que la pantalla PIDE, leído de la pantalla: los mensajes de validación a la vista («Departamento de residencia es
+ * requerido»), los campos marcados inválidos y los obligatorios (rótulo con *) vacíos o sin elegir: inputs, `Select` de
+ * Radix y grupos de opciones. Antes el panel decía «falta algo que el panel no sabe llenar» y había que sacar capturas
+ * para saber qué (Finandina, `dynamic-form/25`: departamento, ciudad, actividad y las dos declaraciones PEP).
+ * ⚠ Va como TEXTO, no como función: `tsx` les agrega a las funciones anidadas un ayudante (`__name`) que en la página no
+ * existe, el `evaluate` tira y se traga (la misma trampa del menú del admin). */
+const BLOCKERS_JS = `(() => {
+  const vis = (el) => { const r = el.getBoundingClientRect(); const cs = getComputedStyle(el);
+    return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none' && Number(cs.opacity) > 0.05; };
+  const clean = (t) => String(t || '').replace(/\\s+/g, ' ').replace(/\\*/g, '').trim();
+  const out = [];
+  const add = (t) => { t = clean(t); if (t && t.length < 160 && !out.some((o) => o === t || o.startsWith(t) || t.startsWith(o))) out.push(t); };
+  const labelOf = (el) => {
+    const byFor = el.id && document.querySelector('label[for="' + CSS.escape(el.id) + '"]');
+    if (byFor) return byFor.textContent;
+    const ids = (el.getAttribute('aria-labelledby') || '').split(/\\s+/).filter(Boolean);
+    if (ids.length) return ids.map((i) => document.getElementById(i)?.textContent || '').join(' ');
+    const wrap = el.closest('label'); if (wrap) return wrap.textContent;
+    let p = el.parentElement;
+    for (let i = 0; p && i < 4; i++, p = p.parentElement) { const l = p.querySelector('label'); if (l && !l.contains(el)) return l.textContent; }
+    return el.getAttribute('aria-label') || el.getAttribute('placeholder') || '';
+  };
+  const required = (el, label) => el.required || el.getAttribute('aria-required') === 'true' || /\\*\\s*$/.test(String(label || '').trim());
+  // 1 · los mensajes de validación que ya están a la vista
+  // ⚠ La clase EXACTA y nunca un rótulo: los <label> del wizard llevan variantes como «aria-invalid:text-destructive», y
+  // con [class*=] salían los rótulos en vez de los «es requerido» (medido en dynamic-form/25 de Finandina).
+  for (const el of document.querySelectorAll('[role=alert], [id$="-form-item-message"], .text-destructive, .error-message')) {
+    if (el.closest('label') || !vis(el) || el.children.length >= 3) continue;
+    const t = clean(el.textContent);
+    if (t.length > 2) add(t);
+  }
+  // 2 · los campos marcados inválidos y los obligatorios vacíos
+  for (const f of document.querySelectorAll('input:not([type=hidden]):not([type=radio]):not([type=checkbox]), textarea, select, button[role=combobox]')) {
+    if (!vis(f) || f.getAttribute('aria-hidden') === 'true') continue;
+    const raw = labelOf(f), label = clean(raw);
+    if (!label || out.some((o) => o.startsWith(label))) continue;   // ya lo dice su mensaje («… es requerido»)
+    const empty = f.matches('button[role=combobox]') ? f.hasAttribute('data-placeholder') : !String(f.value || '').trim();
+    if (f.getAttribute('aria-invalid') === 'true') add(label + ': no es válido');
+    else if (empty && required(f, raw)) add(label + (f.matches('button[role=combobox], select') ? ': sin elegir' : ': vacío'));
+  }
+  // 3 · los grupos de opciones (radios de Radix o nativos) obligatorios sin respuesta
+  const groups = new Set();
+  for (const r of document.querySelectorAll('[role=radio], input[type=radio]')) { const g = r.closest('[role=radiogroup],[role=group]') || r.parentElement; if (g) groups.add(g); }
+  for (const g of groups) {
+    const radios = [...g.querySelectorAll('[role=radio], input[type=radio]')];
+    if (!radios.some(vis) || radios.some((r) => r.checked || r.getAttribute('aria-checked') === 'true' || r.getAttribute('data-state') === 'on')) continue;
+    const raw = labelOf(g);
+    if (required(g, raw) && !out.some((o) => o.startsWith(clean(raw)))) add(clean(raw) + ': sin elegir');
+  }
+  // 4 · una casilla obligatoria sin marcar (términos, autorización)
+  for (const c of document.querySelectorAll('input[type=checkbox], button[role=checkbox]')) {
+    if (!vis(c) || c.checked || c.getAttribute('aria-checked') === 'true') continue;
+    const raw = labelOf(c);
+    if (required(c, raw)) add(clean(raw).slice(0, 80) + ': sin marcar');
+  }
+  return out.slice(0, 6);
+})()`;
+
+/** Lo que la pantalla del celular está pidiendo para avanzar (vacío si no se ve nada). */
+export async function deviceBlockers(id: DeviceId): Promise<string[]> {
+    const d = open.get(id);
+    if (!d) return [];
+    return (await d.page.evaluate(BLOCKERS_JS).catch(() => [])) as string[];
+}
+const blockersNote = (b: string[]) => (b.length ? `la pantalla pide: ${b.join(' · ')}` : '');
+
 /** Toca el botón principal de la pantalla (ver `ADVANCE`), destrabándolo si hace falta. `otp`: el código del bypass. */
 export async function deviceAdvance(id: DeviceId, otp?: string, waitMs = 4_000): Promise<{ ok: boolean; detail: string; moved?: boolean; url?: string }> {
     touchDevice(id);
@@ -719,7 +811,8 @@ export async function deviceAdvance(id: DeviceId, otp?: string, waitMs = 4_000):
         const did = [...await fillAmounts(d.page), ...await fillOtp(d.page, otp)];
         if (await el.isDisabled().catch(() => false)) did.push(...await unlock(d.page));
         if (await el.isDisabled().catch(() => false)) {
-            return { ok: false, detail: `«${label}» sigue deshabilitado${did.length ? ` (${did.join(', ')})` : ''}: falta algo que el panel no sabe llenar` };
+            const b = await deviceBlockers(id);
+            return { ok: false, detail: `«${label}» sigue deshabilitado${did.length ? ` (${did.join(', ')})` : ''}: ${b.length ? blockersNote(b) : 'falta algo que el panel no sabe llenar'}` };
         }
         const before = d.page.url();
         await el.click({ timeout: 10_000 });
@@ -727,7 +820,9 @@ export async function deviceAdvance(id: DeviceId, otp?: string, waitMs = 4_000):
         // `waitMs`: qa navega más lento que local (la respuesta del backend viaja por la VPN); con 4 s se leía «no cambió».
         await d.page.waitForURL((u) => u.toString() !== before, { timeout: waitMs }).catch(() => { });
         const moved = d.page.url() !== before;
-        const tail = moved ? '' : ' · la pantalla no cambió de ruta';
+        // Sin moverse, lo que la pantalla pide (si no, un formulario de dos páginas que sí avanzó por dentro).
+        const asks = moved ? [] : await deviceBlockers(id);
+        const tail = moved ? '' : ` · la pantalla no cambió de ruta${asks.length ? ` · ${blockersNote(asks)}` : ''}`;
         return { ok: true, detail: [...did, `tocó «${label}»`].join(' · ') + tail, moved, url: d.page.url() };
     }
     return { ok: false, detail: `no hay un botón para avanzar (${ADVANCE.join(', ')})`, url: d.page.url() };
@@ -747,7 +842,7 @@ export async function deviceChooseEntity(id: DeviceId, name: string): Promise<{ 
     const d = open.get(id);
     if (!d) return { ok: false, detail: 'el celular no está abierto', visibles: [] };
     const r = await chooseEntity(d.page, name);
-    if (!r.ok) return { ok: false, detail: `«${name}» no está en el listado`, visibles: r.visibles };
+    if (!r.ok) return { ok: false, detail: r.found ? `«${name}» ${r.motivo}` : `«${name}» no está en el listado`, visibles: r.visibles };
     return { ok: true, detail: `eligió «${name}»${r.motivo ? ` (⚠ ${r.motivo})` : ''}`, visibles: r.visibles };
 }
 
@@ -788,6 +883,12 @@ export async function deviceText(id: DeviceId): Promise<string> {
 export async function deviceEval<A, R>(id: DeviceId, fn: (arg: A) => R, arg: A): Promise<R | undefined> {
     const d = open.get(id);
     return d ? await d.page.evaluate(fn as any, arg).catch(() => undefined) as R : undefined;
+}
+
+/** La página de Playwright de un celular, para lo que necesita CLICS REALES y no un `evaluate` (los `Select` de Radix del
+ *  formulario adicional: `autofill` de `pkg/autofill-qr.ts`). */
+export function devicePage(id: DeviceId): Page | null {
+    return open.get(id)?.page ?? null;
 }
 
 /** Cuándo se abrió el celular (para saber si un vigilante sigue mirando al MISMO navegador). */
