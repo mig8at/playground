@@ -639,9 +639,10 @@ const status = computed(() => {
       <!-- en vivo -->
       <template v-else>
         <nav class="tabs live-tabs" aria-label="Pestañas">
-          <div v-for="t in tabs" :key="t.id" class="tab" :class="{ on: t.id === viewTab }" :title="t.busy ? `Claude: ${t.meta}` : t.url">
+          <div v-for="t in tabs" :key="t.id" class="tab" :class="{ on: t.id === viewTab }" :title="t.attention ? `Te necesita: ${t.attention}` : t.busy ? `Claude: ${t.meta}` : t.url">
             <button type="button" class="tab-label" @click="pickTab(t.id)">
-              <span v-if="t.busy" class="tab-busy" aria-label="Claude trabajando"></span>
+              <span v-if="t.attention" class="tab-attention" :aria-label="`Te necesita: ${t.attention}`"></span>
+              <span v-else-if="t.busy" class="tab-busy" aria-label="Claude trabajando"></span>
               <span>{{ tabLabel(t) }}</span>
             </button>
             <button type="button" class="tab-close" :aria-label="`Cerrar la pestaña ${tabLabel(t)}`" @click="closeTab(t.id)"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
@@ -659,7 +660,7 @@ const status = computed(() => {
           <p v-if="liveError" class="err pad">{{ liveError }}</p>
           <p v-if="viewError" class="err pad">{{ viewError }}</p>
           <div v-if="gridShown && gridTabs.length" class="live-grid" aria-label="Todas las sesiones en vivo">
-            <button v-for="t in gridTabs" :key="t.id" type="button" class="grid-card" :class="{ acted: t.id === lastActed, busy: t.busy }"
+            <button v-for="t in gridTabs" :key="t.id" type="button" class="grid-card" :class="{ acted: t.id === lastActed, busy: t.busy, attention: !!t.attention }"
               :title="`Abrir en grande: ${t.meta || tabLabel(t)}`" @click="openFromGrid(t.id)">
               <span class="grid-head">
                 <span class="grid-swatch" :style="{ '--group-color': GROUP_COLORS[t.color] || 'var(--fg-3)' }" aria-hidden="true"></span>
@@ -667,6 +668,7 @@ const status = computed(() => {
                 <span class="grid-id">sesión {{ t.id }}</span>
                 <span v-if="t.busy" class="tab-busy" aria-label="Claude trabajando"></span>
               </span>
+              <span v-if="t.attention" class="grid-attention" role="status">⚠ Te necesita: {{ t.attention }}</span>
               <span v-if="t.viewing" class="grid-viewing">la estás mirando en Chrome</span>
               <span class="grid-shot">
                 <img v-if="thumbs[t.id]" :src="thumbs[t.id]" :alt="`La página de la sesión ${t.id}`" />
@@ -1003,6 +1005,11 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .grid-goal, .grid-step { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .grid-goal { font-size: var(--text-sm) }
 .grid-viewing { font-size: var(--text-xs); color: var(--primary-ink) }
+/* Una sesión que necesita a la persona (un código, un paso de la guía, un captcha): borde y motivo en la tinta del
+   error, que se vea de lejos. Gana al borde de «Claude actuó acá». */
+.grid-card.attention, .grid-card.attention.acted { border-color: var(--destructive-ink); box-shadow: 0 0 0 2px var(--destructive-ink) }
+.grid-attention { font-size: var(--text-sm); font-weight: 600; color: var(--destructive-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.tab-attention { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--destructive-ink) }
 .follow-dot-btn { flex: none; display: grid; place-items: center; width: 22px; height: 22px; margin-left: var(--space-1); padding: 0; border: 0;
   border-radius: var(--radius-control); background: none; cursor: pointer }
 .follow-dot-btn:hover, .follow-dot-btn:focus-visible { background: var(--hover) }

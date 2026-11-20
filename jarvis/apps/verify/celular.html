@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Celular (simulado)</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="phone">
+  <!-- El «celular» de la app de práctica: los códigos que mandó Verificación, uno por correo. Lo mira la persona. -->
+  <header class="top"><strong class="brand">Mensajes</strong></header>
+  <main><ul id="messages" class="messages"></ul><p id="empty" class="muted">Todavía no llegó ningún código.</p></main>
+  <script>
+    const P = 'verify.code.'
+    function render() {
+      const keys = Object.keys(localStorage).filter((k) => k.startsWith(P)).sort()
+      document.getElementById('empty').hidden = keys.length > 0
+      document.getElementById('messages').innerHTML = keys.map((k) =>
+        `<li><span class="muted">${k.slice(P.length).replace(/[<>&]/g, '')}</span><strong>Tu código es ${localStorage.getItem(k)}</strong></li>`).join('')
+    }
+    window.addEventListener('storage', render)
+    render()
+  </script>
+</body>
+</html>

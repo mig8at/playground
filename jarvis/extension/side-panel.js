@@ -68,7 +68,9 @@ function closeButton(g, onClose) {
 // groups: [{ id, title, color, tabs: [{ id, title, url, active }] }]
 function render(groups, onPick, onClose) {
   const tabs = groups.reduce((n, g) => n + g.tabs.length, 0)
-  $('summary').textContent = `${groups.length} grupo(s) · ${tabs} pestaña(s)`
+  // Las que necesitan a la persona llevan 🔔 en el título (server/attention.go): se cuentan arriba.
+  const need = groups.reduce((n, g) => n + g.tabs.filter((t) => (t.title || '').startsWith('🔔')).length, 0)
+  $('summary').textContent = `${groups.length} grupo(s) · ${tabs} pestaña(s)` + (need ? ` · 🔔 ${need} te necesitan` : '')
   if (!groups.length) {
     $('groups').replaceChildren(el('p', 'sp-empty', 'Ningún grupo abierto en esta ventana.'))
     return

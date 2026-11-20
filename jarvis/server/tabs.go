@@ -254,6 +254,8 @@ type TabInfo struct {
 	Aside bool `json:"aside,omitempty"`
 	// Viewing: la persona tiene esta pestaña delante ahora (view.go).
 	Viewing bool `json:"viewing,omitempty"`
+	// Attention: por qué la sesión necesita a la persona ahora (attention.go); vacío, no la necesita.
+	Attention string `json:"attention,omitempty"`
 }
 
 func (t *Tabs) Info() []TabInfo {
@@ -274,7 +276,7 @@ func (t *Tabs) Info() []TabInfo {
 		as := tab.Asker.State(-1)
 		out = append(out, TabInfo{ID: tab.ID, Site: st.Site, Title: st.Title, URL: st.URL, Active: st.Active,
 			Goal: as.Goal, Busy: as.Running, Last: tab.ID == last, ByClaude: tab.ByClaude, IdleSec: idle[tab.ID],
-			Device: st.Device, ChromeTab: st.ChromeTab, Group: group[tab.ID][0], Color: group[tab.ID][1], Aside: tab.Runner.Aside(), Viewing: chromeBridge.looking(st.ChromeTab)})
+			Device: st.Device, ChromeTab: st.ChromeTab, Group: group[tab.ID][0], Color: group[tab.ID][1], Aside: tab.Runner.Aside(), Viewing: chromeBridge.looking(st.ChromeTab), Attention: tab.Attention()})
 	}
 	return out
 }

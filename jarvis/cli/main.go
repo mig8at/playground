@@ -153,6 +153,8 @@ func main() {
 		err = focusCmd(args)
 	case "cleanup":
 		err = cleanupCmd(args)
+	case "attention":
+		err = attentionCmd(args)
 	case "think":
 		if len(args) == 0 {
 			usage()
@@ -296,6 +298,9 @@ func help(w io.Writer) {
   start [--group G] [--color C] [--aside] [--url U] '<meta>'   (--aside: en una ventana aparte de Jarvis, sin foco: tu ventana queda limpia)   cada meta va a su sesión, en su grupo de pestañas de Chrome:
                         G si lo nombrás (si ya existe, se suma), si no uno con el nombre de la meta. Dos trabajos en
                         paralelo, cada uno con su --session (o su --group), no se pisan
+  attention '<motivo>' | attention --clear   la sesión necesita a la persona (un código, una llave, un login): 🔔 en
+                        su pestaña, su grupo en rojo, un número en el ícono de Jarvis y la tarjeta marcada en Cockpit.
+                        Se borra con --clear, al terminar la meta (finish) o al cerrar la sesión
   cleanup [--apply]     qué se puede cerrar y por qué: sesiones de Claude terminadas u olvidadas y pestañas huérfanas
                         (las que quedaron sin sesión tras un reinicio). Sin --apply sólo muestra; el barrido de
                         fondo cierra lo mismo solo (las terminadas a los 3 min, las olvidadas a los 10)
@@ -311,7 +316,7 @@ func help(w io.Writer) {
 
 // commands son los comandos que entiende main (los de antes, en castellano, se traducen al entrar: legacy.go). Sólo
 // sirve para sugerir uno cuando se escribe mal: el switch de main es el que manda.
-var commands = []string{"start", "chrome", "docs", "recipe", "tabs", "groups", "focus", "cleanup", "think", "finish", "project", "ask", "open", "device", "ua", "look",
+var commands = []string{"start", "chrome", "docs", "recipe", "tabs", "groups", "focus", "cleanup", "attention", "think", "finish", "project", "ask", "open", "device", "ua", "look",
 	"click", "dblclick", "hover", "check", "uncheck", "fill", "select", "press", "upload", "drag", "point", "changes", "dialog",
 	"scroll", "goto", "back", "forward", "reload", "text", "wait", "value", "download", "read", "shot", "steps", "script", "report",
 	"reset", "close", "help"}
@@ -1395,6 +1400,8 @@ type tabInfo struct {
 	Aside bool   `json:"aside"` // en la ventana aparte de Jarvis
 	// Viewing: la persona la tiene delante ahora.
 	Viewing bool `json:"viewing"`
+	// Attention: por qué la sesión necesita a la persona ahora (vacío, no).
+	Attention string `json:"attention"`
 }
 
 func listTabs() ([]tabInfo, error) {
@@ -1471,6 +1478,9 @@ func tabsCmd(args []string) error {
 		}
 		if t.Viewing {
 			who += " · la estás mirando"
+		}
+		if t.Attention != "" {
+			who += " · ⚠ te necesita: " + t.Attention
 		}
 		if t.Busy {
 			who += " · Claude: " + t.Goal

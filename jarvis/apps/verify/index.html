@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Verificación · Ingreso</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Verificación: una app de práctica de Jarvis. Dos pasos que una herramienta no puede hacer sola —un código que
+       llega al «celular» y un «mantené apretado»— para practicar que Jarvis avise que necesita a la persona. Guarda en
+       el localStorage de esta página; ?reset la deja de cero. -->
+  <header class="top"><strong class="brand">Verificación</strong><span id="who" class="who"></span></header>
+  <main>
+    <section id="step-login" class="card">
+      <h1>Ingresá</h1>
+      <form id="login-form">
+        <label for="email">Correo</label>
+        <input id="email" type="email" required placeholder="vos@ejemplo.test">
+        <div class="row"><button type="submit">Enviar código</button></div>
+      </form>
+    </section>
+
+    <section id="step-code" class="card" hidden>
+      <h1>Escribí el código</h1>
+      <p class="muted">Te mandamos un código de 6 dígitos al celular. <a href="/celular.html" target="_blank">Abrir el celular (simulado)</a></p>
+      <form id="code-form">
+        <label for="code">Código</label>
+        <input id="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" required>
+        <p id="code-error" class="error" role="alert"></p>
+        <div class="row"><button type="submit">Verificar</button></div>
+      </form>
+    </section>
+
+    <section id="step-hold" class="card" hidden>
+      <h1>Confirmá que sos humano</h1>
+      <p class="muted">Mantené apretado el botón 2 segundos.</p>
+      <button id="hold" type="button" class="hold"><span id="hold-bar" class="bar"></span><span class="label">Mantené apretado</span></button>
+    </section>
+
+    <section id="step-done" class="card" hidden>
+      <h1>Verificado ✓</h1>
+      <p class="muted">Listo: ya podés seguir.</p>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

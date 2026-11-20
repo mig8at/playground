@@ -196,7 +196,7 @@ async function handle(method, params) {
         if (tab.groupId === -1) continue
         let title = ''
         try { title = (await chrome.tabGroups.get(tab.groupId)).title || '' } catch { continue }
-        if (!lists.groupTitles.includes(title)) continue
+        if (!lists.groupTitles.includes(title.replace(ATTENTION, ''))) continue
         out.push({ id, groupId: tab.groupId, group: title, title: tab.title || '', url: tab.url || '' })
       }
       return out
@@ -215,6 +215,35 @@ async function handle(method, params) {
       if (target) await chrome.tabs.update(target.id, { active: true })
       else await chrome.tabs.create({ url, windowId: tab.windowId, pinned: true, index: 0, active: true })
       return { active: (await chrome.tabs.get(tabId)).active }
+    }
+    case 'attention.set': {
+      // Las pestañas que necesitan a la persona (server/attention.go): el número en el ícono, el motivo al pasar por
+      // encima, y su grupo en rojo con «⚠» delante del nombre mientras dure (después vuelve a como estaba). El 🔔 del
+      // título lo pone el servidor en la página.
+      const [items] = params
+      await chrome.action.setBadgeBackgroundColor({ color: '#d93025' })
+      await chrome.action.setBadgeText({ text: items.length ? String(items.length) : '' })
+      await chrome.action.setTitle({ title: items.length ? `Jarvis · ${items.length} pestaña(s) te necesitan:\n` + items.map((i) => '• ' + i.reason).join('\n') : 'Jarvis' })
+      const want = new Set()
+      for (const it of items) {
+        try { const t = await chrome.tabs.get(it.tabId); if (t.groupId !== -1) want.add(t.groupId) } catch { /* ya no está */ }
+      }
+      const { marked = {} } = await chrome.storage.session.get('marked')
+      for (const [gid, orig] of Object.entries(marked)) {
+        if (want.has(Number(gid))) continue
+        try { await chrome.tabGroups.update(Number(gid), orig) } catch { /* el grupo ya no está */ }
+        delete marked[gid]
+      }
+      for (const gid of want) {
+        if (marked[gid]) continue
+        try {
+          const g = await chrome.tabGroups.get(gid)
+          marked[gid] = { title: g.title, color: g.color }
+          await chrome.tabGroups.update(gid, { title: ATTENTION + g.title, color: 'red' })
+        } catch { /* el grupo ya no está */ }
+      }
+      await chrome.storage.session.set({ marked })
+      return {}
     }
     case 'chrome.tabs.surface': {
       // Que la pestaña de una sesión quede activa SIN robarte la vista: si en tu ventana (la última con foco, la tengas
@@ -309,6 +338,9 @@ async function homeSize(asideWindowId) {
 // Por defecto van al grupo «Jarvis» (violeta); una sesión con grupo propio (bin/jarvis start --group 'VTEX') va al de
 // su tarea, con el color que le dio el servidor.
 
+// ATTENTION: lo que lleva delante el nombre de un grupo mientras una de sus pestañas necesita a la persona.
+const ATTENTION = '⚠ '
+
 async function addToGroup(tab, title = 'Jarvis', color = 'purple', allowMove = true) {
   try {
     if (!lists.groupTitles.includes(title)) await setLists({ groupTitles: [...lists.groupTitles, title] })
@@ -316,6 +348,10 @@ async function addToGroup(tab, title = 'Jarvis', color = 'purple', allowMove = t
     // Chrome). Primero en la ventana de la pestaña; si está en OTRA ventana, la pestaña se muda a ésa: antes se
     // armaba un segundo grupo con el mismo nombre.
     let [group] = await chrome.tabGroups.query({ title, windowId: tab.windowId })
+    // Un grupo marcado (necesita a la persona) se llama «⚠ <nombre>» y está en rojo: es el mismo grupo, y no se le
+    // cambia el color mientras esté marcado.
+    if (!group) [group] = await chrome.tabGroups.query({ title: ATTENTION + title, windowId: tab.windowId })
+    if (group?.title.startsWith(ATTENTION)) color = '' 
     if (!group && allowMove) {
       const [elsewhere] = await chrome.tabGroups.query({ title })
       if (elsewhere) {

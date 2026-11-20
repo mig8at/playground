@@ -61,6 +61,8 @@ type Runner struct {
 	groupColor string
 	// aside: la pestaña de la sesión va en la ventana aparte de Jarvis, no en la de la persona (aside.go).
 	aside bool
+	// attention: Claude necesita a la persona en esta sesión, y por qué (attention.go). Vacío, no.
+	attention string
 }
 
 func NewRunner(store *Store) *Runner { return &Runner{store: store} }

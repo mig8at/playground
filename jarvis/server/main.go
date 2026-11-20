@@ -77,6 +77,7 @@ func main() {
 		}
 	}
 	go sweepTabs(tabs, IdleLimit(os.Getenv("JARVIS_TAB_IDLE")))
+	go syncAttention(tabs)
 	for _, a := range listApps() {
 		go serveDir(a.Addr(), filepath.Join("apps", a.ID), a.Name)
 	}
@@ -747,6 +748,17 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 		}
 		writeJSON(w, http.StatusOK, items)
 	})
+	// POST /api/live/attention {reason} — Claude necesita a la persona en esta sesión (vacío lo borra). attention.go.
+	mux.HandleFunc("/api/live/attention", func(w http.ResponseWriter, r *http.Request) {
+		tab := tabs.pick(w, r)
+		if tab == nil {
+			return
+		}
+		var in struct{ Reason string }
+		_ = json.NewDecoder(r.Body).Decode(&in)
+		tab.Runner.SetAttention(in.Reason)
+		writeJSON(w, http.StatusOK, map[string]string{"attention": tab.Attention()})
+	})
 	// GET /api/focus — qué sitios van al frente (focus.go) · PUT {host, mode} — lo pone a mano (mode "" lo borra) ·
 	// PUT {follow} — «seguir a Claude»: cada comando trae su pestaña.
 	mux.HandleFunc("/api/focus", func(w http.ResponseWriter, r *http.Request) {
@@ -1016,7 +1028,8 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 			tabs.Release(tab) // ya la protege su meta: la reserva de Claim sobra
 		case "end":
 			asker.End()
-			tabs.Release(tab) // terminada, la puede tomar la próxima meta (en el mismo sitio, con su pestaña)
+			runner.SetAttention("") // terminada la meta, lo que Claude había pedido ya no corre
+			tabs.Release(tab)       // terminada, la puede tomar la próxima meta (en el mismo sitio, con su pestaña)
 		default:
 			if in.Kind == "think" {
 				runner.LiveNarrate(in.Text) // también es el subtítulo del próximo paso
