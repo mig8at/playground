@@ -29,6 +29,8 @@ con LISTO / NO PUDE / NECESITO / CONFIRMAR.
   `--session N` (si no, cae en la última que se abrió, que puede ser otra). Claude trabaja **de fondo**: un comando no le trae la
   pestaña a Miguel, salvo `point` y los sitios `front` (`bin/jarvis focus`; `focus check` mide el de la sesión,
   `focus follow on` vuelve a traerla siempre). Si un sitio se porta raro detrás, `focus check` antes de suponer.
+- **Trabajo de fondo que Miguel no necesita ver: `start --aside`.** La sesión va a la ventana aparte de Jarvis y su
+  ventana queda limpia; la sigue en la vista «Todas» de la interfaz.
 - **Pestañas: reutilizar y cerrar.** Pasale siempre `--url` a `start`: si ya hay una sesión libre en ese sitio, usa su
   pestaña. Terminá cada meta con `finish` (la libera para la próxima y se cierra sola a los 3 min). Antes de abrir
   varias cosas, `bin/jarvis cleanup` dice qué quedó abierto de más; `--apply` lo cierra. `--group G` sirve igual si sos el único

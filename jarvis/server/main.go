@@ -190,10 +190,10 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 		}
 		var body struct {
 			Group, Color, URL string
-			Auto              bool
+			Auto, Aside       bool
 		}
 		_ = json.NewDecoder(r.Body).Decode(&body)
-		tab, how, err := tabs.Claim(fromCLI(r), body.Group, body.Color, body.URL, body.Auto)
+		tab, how, err := tabs.Claim(fromCLI(r), body.Group, body.Color, body.URL, body.Auto, body.Aside)
 		if err != nil {
 			writeErr(w, http.StatusBadRequest, err)
 			return
@@ -259,6 +259,9 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 			return
 		}
 		q := r.URL.Query()
+		if q.Get("aside") == "1" {
+			runner.SetAside(true) // la pestaña va en la ventana aparte (aside.go)
+		}
 		site, err := store.SiteFor(q.Get("url"))
 		if err != nil {
 			writeErr(w, http.StatusBadRequest, err)

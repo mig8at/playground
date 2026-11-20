@@ -134,7 +134,7 @@ func placeInGroup(goal, start string) (string, error) {
 	// `start` a la vez tomaran la misma sesión vacía.
 	// Con el sitio, el servidor reutiliza una sesión libre que ya está ahí (su pestaña) en vez de abrir otra.
 	var nt struct{ ID, Group, Reused, URL string }
-	body := map[string]any{"group": groupName, "color": groupColor, "url": start, "auto": !explicit}
+	body := map[string]any{"group": groupName, "color": groupColor, "url": start, "auto": !explicit, "aside": asideMode}
 	if err := call(http.MethodPost, "/api/tabs/claim", body, &nt); err != nil {
 		return "", err
 	}

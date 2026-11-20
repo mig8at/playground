@@ -59,6 +59,8 @@ type Runner struct {
 	// group y groupColor: el grupo de pestañas de Chrome de la sesión (groups.go); vacío, el «Jarvis» de siempre.
 	group      string
 	groupColor string
+	// aside: la pestaña de la sesión va en la ventana aparte de Jarvis, no en la de la persona (aside.go).
+	aside bool
 }
 
 func NewRunner(store *Store) *Runner { return &Runner{store: store} }

@@ -297,10 +297,18 @@ func (r *Runner) runLive(ctx context.Context, site Site, start string, ready cha
 	// si no, una nueva, que se cierra.
 	done := chromeSessionStarted()
 	var sharedTab int
-	page, sharedTab = sharedChromePage(bctx, start)
+	if !r.Aside() { // en la ventana aparte va una pestaña propia, nunca la que compartió la persona en la suya
+		page, sharedTab = sharedChromePage(bctx, start)
+	}
 	if page != nil {
 		chromeTabInUse(sharedTab, true) // tomada ya, antes de que otra sesión que arranca a la vez la elija
 		release = func() { chromeTabInUse(sharedTab, false); done() }
+	} else if r.Aside() {
+		if page, _, err = asideChromePage(bctx); err != nil {
+			done()
+			return fmt.Errorf("abrir la pestaña en la ventana aparte: %w", err)
+		}
+		release = func() { chromeTabInUse(*chromeOwnTab, false); _ = page.Close(); done() }
 	} else {
 		if page, err = bctx.NewPage(); err != nil {
 			done()

@@ -200,7 +200,10 @@ async function handle(method, params) {
       const [tabId, title, color] = params
       guard(tabId)
       const tab = await chrome.tabs.get(tabId)
-      await addToGroup(tab, title || 'Jarvis', title ? color : 'purple')
+      // En la ventana aparte (start --aside), el grupo se arma ahí: no se la muda a la ventana de la persona aunque
+      // ahí haya un grupo con el mismo nombre (sería sacarla de donde se pidió que trabaje).
+      const { asideWindowId } = await chrome.storage.session.get('asideWindowId')
+      await addToGroup(tab, title || 'Jarvis', title ? color : 'purple', tab.windowId !== asideWindowId)
       return {}
     }
     case 'chrome.tabs.remove': {
@@ -243,14 +246,14 @@ async function createInAsideWindow(url, minimized) {
 // Por defecto van al grupo «Jarvis» (violeta); una sesión con grupo propio (bin/jarvis start --group 'VTEX') va al de
 // su tarea, con el color que le dio el servidor.
 
-async function addToGroup(tab, title = 'Jarvis', color = 'purple') {
+async function addToGroup(tab, title = 'Jarvis', color = 'purple', allowMove = true) {
   try {
     if (!lists.groupTitles.includes(title)) await setLists({ groupTitles: [...lists.groupTitles, title] })
     // El grupo se busca por su nombre, no por un id guardado: un id se pierde al recargar la extensión (o al reiniciar
     // Chrome). Primero en la ventana de la pestaña; si está en OTRA ventana, la pestaña se muda a ésa: antes se
     // armaba un segundo grupo con el mismo nombre.
     let [group] = await chrome.tabGroups.query({ title, windowId: tab.windowId })
-    if (!group) {
+    if (!group && allowMove) {
       const [elsewhere] = await chrome.tabGroups.query({ title })
       if (elsewhere) {
         await chrome.tabs.move(tab.id, { windowId: elsewhere.windowId, index: -1 })

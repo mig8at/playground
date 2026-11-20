@@ -80,6 +80,10 @@ var tabID = envOr("JARVIS_SESSION", os.Getenv("JARVIS_SESION"))
 var groupName = os.Getenv("JARVIS_GROUP")
 var groupColor = os.Getenv("JARVIS_GROUP_COLOR")
 
+// asideMode: `start --aside` abre la pestaña de la sesión en la ventana aparte de Jarvis, no en la de la persona
+// (server/aside.go).
+var asideMode bool
+
 // takeTabFlag saca `--session N`, `--group G` y `--color C` de los argumentos, estén donde estén.
 func takeTabFlag(argv []string) []string {
 	out := argv[:0:0]
@@ -289,7 +293,7 @@ func help(w io.Writer) {
   tabs [new [url] | close N]   las pestañas abiertas (cada una, su sesión); nueva abre otra (con la página).
                         Cualquier comando: --session N (o JARVIS_SESSION=N), o --group G (la última sesión de ese
                         grupo); sin eso, la última que se abrió.
-  start [--group G] [--color C] [--url U] '<meta>'   cada meta va a su sesión, en su grupo de pestañas de Chrome:
+  start [--group G] [--color C] [--aside] [--url U] '<meta>'   (--aside: en una ventana aparte de Jarvis, sin foco: tu ventana queda limpia)   cada meta va a su sesión, en su grupo de pestañas de Chrome:
                         G si lo nombrás (si ya existe, se suma), si no uno con el nombre de la meta. Dos trabajos en
                         paralelo, cada uno con su --session (o su --group), no se pisan
   cleanup [--apply]     qué se puede cerrar y por qué: sesiones de Claude terminadas u olvidadas y pestañas huérfanas
@@ -598,7 +602,11 @@ func startLive(args []string) error {
 			time.Sleep(200 * time.Millisecond)
 		}
 	}
-	return call(http.MethodPost, "/api/live/start?url="+url.QueryEscape(start), nil, nil)
+	q := "/api/live/start?url=" + url.QueryEscape(start)
+	if asideMode {
+		q += "&aside=1"
+	}
+	return call(http.MethodPost, q, nil, nil)
 }
 
 func look(fresh bool) error {
@@ -1285,9 +1293,14 @@ func shellLine(args []string) string {
 
 func begin(args []string) error {
 	start := ""
-	for len(args) > 0 && (args[0] == "--url" || strings.HasPrefix(args[0], "--c") || args[0] == "--movil") {
+	for len(args) > 0 && (args[0] == "--url" || args[0] == "--aside" || strings.HasPrefix(args[0], "--c") || args[0] == "--movil") {
 		if err := engineFlag(args[0]); err != nil {
 			return err
+		}
+		if args[0] == "--aside" {
+			asideMode = true
+			args = args[1:]
+			continue
 		}
 		if args[0] == "--chrome" {
 			args = args[1:]
@@ -1322,7 +1335,11 @@ func begin(args []string) error {
 	if err := call(http.MethodPost, "/api/ask/external", map[string]string{"action": "begin", "meta": goal}, nil); err != nil {
 		return err
 	}
-	fmt.Printf("sesión abierta en el panel, pestaña %s, grupo «%s»: %s\n", tabID, groupName, goal)
+	where := ""
+	if asideMode {
+		where = ", en la ventana aparte"
+	}
+	fmt.Printf("sesión abierta en el panel, pestaña %s, grupo «%s»%s: %s\n", tabID, groupName, where, goal)
 	fmt.Printf("seguí con --session %s en cada comando (o JARVIS_SESSION=%s): con otros trabajos en paralelo, así no caés en otra\n", tabID, tabID)
 	fmt.Println()
 	if start != "" {
@@ -1375,6 +1392,7 @@ type tabInfo struct {
 	// Group y Color: el grupo de pestañas de Chrome de su tarea (vacío, el «Jarvis» de siempre).
 	Group string `json:"group"`
 	Color string `json:"color"`
+	Aside bool   `json:"aside"` // en la ventana aparte de Jarvis
 }
 
 func listTabs() ([]tabInfo, error) {
@@ -1445,6 +1463,9 @@ func tabsCmd(args []string) error {
 		who := ""
 		if t.Group != "" {
 			who = " · grupo «" + t.Group + "»"
+		}
+		if t.Aside {
+			who += " · ventana aparte"
 		}
 		if t.Busy {
 			who += " · Claude: " + t.Goal

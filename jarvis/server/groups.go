@@ -155,7 +155,7 @@ const claimHold = 90 * time.Second
 //
 // Va en fila (claimMu): antes el CLI elegía por su cuenta y dos `start` a la vez tomaban la misma sesión vacía. Y
 // antes no miraba el sitio: cada meta abría su pestaña aunque hubiera una ociosa en el mismo admin.
-func (t *Tabs) Claim(byClaude bool, name, color, url string, auto bool) (*Tab, string, error) {
+func (t *Tabs) Claim(byClaude bool, name, color, url string, auto, aside bool) (*Tab, string, error) {
 	t.claimMu.Lock()
 	defer t.claimMu.Unlock()
 	key := groupKey(name)
@@ -176,7 +176,7 @@ func (t *Tabs) Claim(byClaude bool, name, color, url string, auto bool) (*Tab, s
 			continue
 		}
 		switch {
-		case host != "" && st.Active && focusHost(st.URL) == host:
+		case host != "" && st.Active && focusHost(st.URL) == host && tab.Runner.Aside() == aside:
 			bySite = tab
 		case key != "" && group != "" && groupKey(group) == key:
 			free = tab
@@ -205,6 +205,10 @@ func (t *Tabs) Claim(byClaude bool, name, color, url string, auto bool) (*Tab, s
 		if _, _, err := t.SetGroup(tab, name, color); err != nil {
 			return nil, "", err
 		}
+	}
+	// Una sesión sin página toma el modo pedido (ventana aparte o la de la persona); una con página lo conserva.
+	if !tab.Runner.LiveState(false).Active {
+		tab.Runner.SetAside(aside)
 	}
 	t.mu.Lock()
 	tab.claimed = now
