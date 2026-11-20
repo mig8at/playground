@@ -46,7 +46,13 @@ func serveThumbs(w http.ResponseWriter, r *http.Request, tabs *Tabs) {
 	sent := map[string][]byte{}
 	tick := time.NewTicker(thumbInterval)
 	defer tick.Stop()
+	lastPing := time.Now()
 	for {
+		// Señal de vida cada 10 s, como /api/events: la grilla reabre el stream si deja de llegar.
+		if time.Since(lastPing) > 10*time.Second {
+			fmt.Fprint(w, "event: ping\ndata: {}\n\n")
+			lastPing = time.Now()
+		}
 		alive := map[string]bool{}
 		for _, tab := range tabs.All() {
 			frame := tab.Runner.LastFrame()

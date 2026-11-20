@@ -85,6 +85,12 @@ perfiles de Chromium que quedaron de antes del 2026-11-07 ya no se usan).
 
 ## Trampas que ya costaron tiempo
 
+- **La interfaz de Cockpit mostraba sesiones viejas** (2026-11-20): durante la demo de paralelismo tenía 6 sesiones en
+  2 grupos y la grilla mostraba una sola, vacía, de antes de empezar. Su stream de eventos (`/api/events`) había quedado
+  colgado —«abierto» por el proxy, sin traer nada— desde un reinicio del servidor; las miniaturas andaban porque su
+  stream se abrió después. El servidor mandaba su señal de vida como comentario SSE, que la página no ve. Ahora los dos
+  streams mandan un evento `ping` cada 10 s y la interfaz reabre el que pase 25 s sin traer nada.
+
 - **Varias sesiones en la misma app comparten su `localStorage`** (es el Chrome de la persona, mismo origen), y Chrome
   NO hace atómico «leer, cambiar, escribir» entre pestañas: cada una lee de su copia y lo que escribe otra le llega
   unos milisegundos después. Medido el 2026-11-20: con la lista entera en una clave, 4 sesiones crearon una tarea a la

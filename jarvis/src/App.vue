@@ -105,10 +105,15 @@ function openFromGrid(id) {
   liveMode.value = 'one'
 }
 let thumbStream = null
+let thumbsSeenAt = Date.now()
+setInterval(() => { if (thumbStream && Date.now() - thumbsSeenAt > STREAM_STALE_MS) openThumbs() }, 5_000)
 function openThumbs() {
   thumbStream?.close()
+  thumbsSeenAt = Date.now()
   thumbStream = new EventSource('/api/live/thumbs')
+  thumbStream.addEventListener('ping', () => { thumbsSeenAt = Date.now() })
   thumbStream.addEventListener('thumb', (e) => {
+    thumbsSeenAt = Date.now()
     try {
       const { tab, frame } = JSON.parse(e.data)
       thumbs.value = { ...thumbs.value, [tab]: 'data:image/jpeg;base64,' + frame.data }
@@ -151,7 +156,14 @@ const loaded = ref(false)
 const offline = ref(false)
 let events = null
 let reconnectTimer = 0
+// Vigía del stream: el servidor manda algo al menos cada 10 s (un `ping`, o la lista de sesiones, que cambia cada
+// segundo). Si pasan STREAM_STALE_MS sin nada, la conexión quedó colgada (pasaba tras reiniciar el servidor: seguía
+// «abierta» por el proxy sin traer nada, y la interfaz mostraba sesiones viejas) y se reabre.
+const STREAM_STALE_MS = 25_000
+let eventsSeenAt = Date.now()
+setInterval(() => { if (events && Date.now() - eventsSeenAt > STREAM_STALE_MS) connect() }, 5_000)
 function connect() {
+  eventsSeenAt = Date.now()
   clearTimeout(reconnectTimer)
   events?.close()
   events = new EventSource('/api/events')
@@ -164,7 +176,8 @@ function connect() {
     // de Vite devuelve uno con la API caída): queda cerrado para siempre y había que recargar la página.
     if (source.readyState === EventSource.CLOSED && events === source) reconnectTimer = setTimeout(connect, 2000)
   }
-  const on = (kind, fn) => events.addEventListener(kind, (e) => { try { fn(JSON.parse(e.data)) } catch { /* evento roto */ } })
+  const on = (kind, fn) => events.addEventListener(kind, (e) => { eventsSeenAt = Date.now(); try { fn(JSON.parse(e.data)) } catch { /* evento roto */ } })
+  events.addEventListener('ping', () => { eventsSeenAt = Date.now() })
   on('tabs', onTabs)
   on('live', (st) => {
     const prev = liveStates.value[st.tab]

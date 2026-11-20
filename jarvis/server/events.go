@@ -125,7 +125,10 @@ func serveEvents(w http.ResponseWriter, r *http.Request, tabs *Tabs, store *Stor
 	send("flows", listFlows())
 	send("apps", listAll())
 	fl.Flush()
-	ping := time.NewTicker(20 * time.Second)
+	// Un evento `ping` (no un comentario: ésos el navegador no se los muestra a la página) cada 10 s: la interfaz
+	// reabre el stream si pasa un rato sin recibir nada. Tras un reinicio del servidor, una conexión por el proxy
+	// podía quedar «abierta» sin traer nada más, y la interfaz de Cockpit mostraba la lista vieja de sesiones.
+	ping := time.NewTicker(10 * time.Second)
 	defer ping.Stop()
 	for {
 		select {
@@ -135,7 +138,7 @@ func serveEvents(w http.ResponseWriter, r *http.Request, tabs *Tabs, store *Stor
 			_, _ = w.Write(msg)
 			fl.Flush()
 		case <-ping.C:
-			fmt.Fprint(w, ": ping\n\n")
+			fmt.Fprint(w, "event: ping\ndata: {}\n\n")
 			fl.Flush()
 		}
 	}
