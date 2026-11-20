@@ -249,12 +249,11 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": [
         "run",
-        "dev",
-        "--prefix",
-        "/Users/miguelochoa/Desktop/CREDITOP/my-tools/game"
+        "dev"
       ],
-      "port": 5180,
-      "autoPort": false
+      "port": 5181,
+      "autoPort": false,
+      "cwd": "game"
     },
     {
       "name": "wizard-codigo-logo",
