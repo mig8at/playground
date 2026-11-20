@@ -1,11 +1,27 @@
 {
   "manifest_version": 3,
   "name": "Jarvis",
-  "version": "0.2.5",
-  "description": "Claude trabaja a tu lado en este Chrome: maneja las pestañas que le compartís (y las que abre) por el navegador de my-tools (127.0.0.1:5203), y en la pestaña Jarvis ves sus sesiones y los flujos.",
+  "version": "0.2.6",
+  "description": "Claude trabaja a tu lado en este Chrome: maneja las pestañas que le compartís (y las que abre) por el navegador de my-tools (127.0.0.1:5203). El ícono abre el panel lateral con los grupos abiertos y sus pestañas.",
   "minimum_chrome_version": "125",
-  "permissions": ["debugger", "tabs", "tabGroups", "storage", "alarms"],
-  "host_permissions": ["http://127.0.0.1:5203/*"],
-  "background": { "service_worker": "background.js" },
-  "action": { "default_title": "Jarvis" }
+  "permissions": [
+    "debugger",
+    "tabs",
+    "tabGroups",
+    "storage",
+    "alarms",
+    "sidePanel"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:5203/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Jarvis"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  }
 }

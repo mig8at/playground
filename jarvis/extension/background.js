@@ -148,7 +148,6 @@ async function handle(method, params) {
       const tab = await chrome.tabs.create({ url: props.url || 'about:blank', active: props.active !== false })
       await setLists({ opened: [...lists.opened, tab.id] })
       await addToGroup(tab)
-      ensureControlTab({ windowId: tab.windowId }).catch(() => {})
       return { id: tab.id }
     }
     case 'chrome.tabs.activate': {
@@ -268,28 +267,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
   return true
 })
 
-// La pestaña Jarvis, el centro de control: fijada a la izquierda. Está siempre que haya trabajo: se abre sola al
-// instalar la extensión y cuando Claude abre su primera pestaña (sin quitarle la pestaña a la persona); el ícono la
-// trae al frente.
-async function ensureControlTab({ focus = false, windowId } = {}) {
-  const url = chrome.runtime.getURL('control.html')
-  const [open] = await chrome.tabs.query({ url })
-  if (open) {
-    if (focus) {
-      await chrome.tabs.update(open.id, { active: true })
-      await chrome.windows.update(open.windowId, { focused: true })
-    }
-    return
-  }
-  const props = { url, pinned: true, index: 0, active: focus }
-  if (windowId !== undefined) props.windowId = windowId
-  await chrome.tabs.create(props)
-}
-
-chrome.action.onClicked.addListener(() => ensureControlTab({ focus: true }))
+// El ícono abre el panel lateral (sidepanel.html: los grupos abiertos y sus pestañas). La pestaña Jarvis ya no se abre
+// sola (2026-11-20, decisión de Miguel: lo de ver está en Cockpit).
+chrome.sidePanel?.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {})
 
 chrome.alarms.create('navegador-keepalive', { periodInMinutes: 1 })
 chrome.alarms.onAlarm.addListener((a) => { if (a.name === 'navegador-keepalive') connect() })
 chrome.runtime.onStartup.addListener(connect)
-chrome.runtime.onInstalled.addListener(() => { connect(); ensureControlTab({ focus: true }).catch(() => {}) })
+chrome.runtime.onInstalled.addListener(connect)
 connect()

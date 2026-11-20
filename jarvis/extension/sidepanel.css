@@ -1,0 +1,26 @@
+/* El panel lateral de Jarvis en Chrome. La forma la ponen theme.css y workbench.css (copias de tools/ui); acá sólo lo
+ * de este panel: un bloque con los grupos, a lo ancho que Chrome le dé (320 a 600 px). */
+
+[hidden] { display: none !important }
+
+html, body { height: 100% }
+/* La letra la pone el workbench en .workbench; este panel no lo usa, así que va acá. */
+body { margin: 0; font-family: var(--font-sans); font-size: var(--text-base); color: var(--foreground) }
+
+.sp { box-sizing: border-box; display: flex; flex-direction: column; height: 100%; padding: var(--panels-gap, 8px); background: var(--canvas) }
+.sp-block { display: flex; flex-direction: column; min-height: 0; background: var(--card); color: var(--card-foreground);
+  border: 1px solid var(--border); border-radius: var(--radius) }
+.sp-grow { flex: 1 1 0 }
+.sp-block > .region-head { padding-inline: var(--gutter) }
+
+/* Un grupo: su color de Chrome, su nombre y cuántas pestañas tiene; abajo, sus pestañas. */
+.sp-group { padding: var(--space-1) 0 var(--space-2) }
+.sp-group + .sp-group { border-top: 1px solid var(--border) }
+.sp-group-head { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--gutter); font-weight: 600 }
+.sp-group-head > .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.sp-swatch { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--group-color, var(--fg-3)) }
+.sp-group-head > .count { font-weight: 400 }
+.sp-group .row { cursor: pointer }
+.sp-group .row > span:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.sp-group .row .row-meta { flex: none; font-size: var(--text-xs); color: var(--fg-3) }
+.sp-empty { margin: var(--space-3) var(--gutter); font-size: var(--text-sm); color: var(--fg-3) }
