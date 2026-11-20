@@ -160,4 +160,35 @@
     setTimeout(() => { passing = false; }, 1500);
     void r;
   }, true);
+
+  /* EL SALTO AL CLIENTE, EN LA PÁGINA: en `…/<solicitud>/continue` («Solicitud en validación de usuario») el cliente
+   * seguiría desde el link del WhatsApp, que en las pruebas no le llega a nadie. Un botón flotante lleva la pestaña a
+   * `/self-service/<sucursal>/<solicitud>/confirmation`, como si lo hubiera abierto. En Shadow DOM, para que el CSS del
+   * wizard no lo toque; el wizard navega sin recargar, así que se mira la ruta cada medio segundo. */
+  const clientLink = () => {
+    const m = /^\/(?:merchant|self-service)\/([0-9a-f]{8})\/(\d{5,9})\/continue/.exec(location.pathname);
+    return m ? `${location.origin}/self-service/${m[1]}/${m[2]}/confirmation` : null;
+  };
+  let jump = null;
+  const syncJump = () => {
+    const link = clientLink();
+    if (!link) { jump?.remove(); jump = null; return; }
+    if (jump?.dataset.link === link && jump.isConnected) return;
+    jump?.remove();
+    jump = document.createElement('div');
+    jump.dataset.link = link;
+    jump.style.cssText = 'position:fixed;z-index:2147483647;left:50%;bottom:16px;transform:translateX(-50%)';
+    const root = jump.attachShadow({ mode: 'open' });
+    root.innerHTML = `<style>
+      button { all: unset; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px;
+        padding: 10px 18px; border-radius: 12px; background: #1c1c1a; color: #fafaf9; box-shadow: 0 6px 20px rgba(0,0,0,.25);
+        font: 600 14px/1.2 system-ui, -apple-system, sans-serif; white-space: nowrap }
+      button:hover { background: #2f2f2c }
+      small { font-weight: 400; font-size: 11px; color: #b4b2a9 }
+    </style><button title="${link}">Continuar como el cliente →<small>Cliente de prueba · el link del WhatsApp</small></button>`;
+    root.querySelector('button').onclick = () => { location.href = link; };
+    document.documentElement.appendChild(jump);
+  };
+  syncJump();
+  setInterval(syncJump, 500);
 })();

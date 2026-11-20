@@ -29,7 +29,8 @@ ambiente. La extensión no guarda credenciales. `make harness-extension` dice c�
 - **Sigue el cliente**: cuando el asesor termina (`/merchant/…/continue`, o `/self-service/…/continue`, «Solicitud en validación
   de usuario»), el panel arma el link del cliente —el del WhatsApp, que en las pruebas no llega—
   `/self-service/<sucursal>/<solicitud>/confirmation`, arriba del todo: **Continuar como el cliente** cambia la URL de
-  la misma pestaña, como si hubiera abierto el link; también se puede copiar.
+  la misma pestaña, como si hubiera abierto el link; también se puede copiar. En la página misma aparece el mismo
+  botón, flotante abajo.
 
 ⚠ Sólo qa y local aceptan dictado (F-149): en dev y staging el panel lo avisa y las centrales contestan lo de por
 defecto. Nunca prod. `sidepanel.html#tab=<id>` ata el panel a una pestaña (para abrirlo como página o probarlo).
