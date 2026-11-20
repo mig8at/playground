@@ -21,7 +21,12 @@ ambiente. La extensión no guarda credenciales. `make harness-extension` dice c�
 - **Antes de cada envío de datos personales** («Siguiente», «Continuar») la página espera un instante a que el panel
   vuelva a dictar: el lambda olvida lo dictado en minutos (F-139).
 - **OTP**: en local, los últimos 4 del celular; fuera, el último que generó el servicio de OTP (el de #qa-messages).
-- **La solicitud**: la de la URL de la pestaña, con su dictamen (`pg request verdict`).
+- **La solicitud**: el recorrido como línea de tiempo —bolitas que se llenan con las pantallas por las que pasa la
+  pestaña, con su hora—, la solicitud de la URL con su estado y entidad, y el dictamen (`pg request verdict`) plegado.
+  Los pasos fijos (monto, celular, código, datos personales, empleo, entidades, confirmación, identidad, fecha de pago,
+  firma) salen siempre; los opcionales (validando datos, Ábaco, formulario adicional, traspaso, cuota inicial,
+  documentos) sólo si se pasó por ahí. Lo anterior a la pantalla actual se da por hecho aunque el panel no lo haya visto
+  (sin hora). El último punto, «Autorizada (11)», lo dice la base; una cancelación o un rechazo lo pinta en rojo.
 - **El botón del paso**, debajo de «Nueva solicitud» y «Rellenar», a todo el ancho: aparece en las pantallas que en las
   pruebas no se pueden resolver como la persona y desaparece al pasarlas.
   - `…/continue` («Solicitud en validación de usuario», el asesor terminó): **Continuar aquí** lleva la pestaña a

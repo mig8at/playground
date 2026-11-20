@@ -62,8 +62,10 @@ async function syncTab() {
   entryBase = tab?.url ? entryOf(tab.url) : null;
   lockPerson(!!target && inProgress(tab?.url));
   const u = tab?.url ? ureqOf(tab.url) : null;
-  if (u !== lastUreq) { lastUreq = u; renderRequest(); }
+  if (u !== lastUreq) { lastUreq = u; lastStatus = null; renderRequest(); }
   renderStep(tab?.url);
+  await trackScreen(tab?.url);
+  renderFlow();
 }
 
 // ── EL PASO: un solo botón a todo el ancho, debajo de «Nueva solicitud» y «Rellenar», que aparece según la pantalla de
@@ -219,7 +221,92 @@ async function readOtp() {
 $('otpRefresh').onclick = readOtp;
 $('otpCopy').onclick = () => { const c = $('otp').textContent; if (/\d/.test(c)) navigator.clipboard.writeText(c); };
 
+// ── EL RECORRIDO: una línea de tiempo de bolitas que se llenan con las pantallas por las que pasa la pestaña. ─────
+// Los pasos FIJOS salen siempre, en el orden del wizard; los OPCIONALES (los que dependen del comercio o la entidad) sólo si
+// la pestaña pasó por ahí. Lo anterior a la pantalla actual se da por hecho aunque no se haya visto (el panel se abrió a
+// mitad), con la hora sólo si se vio. El último punto, «Autorizada (11)», lo dice la BASE (el estado de la solicitud), y un
+// estado de cancelación o rechazo lo pinta en rojo. Las horas viven en `chrome.storage.session` por pestaña: se van al
+// cerrar el navegador. Los nombres de las pantallas, los que maneja el caminador (`dev/walk-wizard.ts`).
+const FLOW = [
+  ['monto', 'Monto', (s, q) => s === 'solicitar' && !/phone/i.test(q.get('step') || '')],
+  ['phone', 'Celular', (s, q) => s === 'solicitar' && /phone/i.test(q.get('step') || '')],
+  ['otp', 'Código (OTP)', (s) => s === 'otp'],
+  ['personal', 'Datos personales', (s) => /^(personal-info|save-personal-info)$/.test(s)],
+  ['kyc', 'Validando datos', (s) => /^(kyc-processing|validating|validando)$/.test(s), true],
+  ['employment', 'Empleo', (s) => s === 'employment-info'],
+  ['abaco', 'Ingresos (Ábaco)', (s) => s === 'abaco', true],
+  ['additional', 'Formulario adicional', (s) => /^(dynamic-form|additional-info)$/.test(s), true],
+  ['lenders', 'Entidades', (s) => s === 'lenders'],
+  ['handoff', 'Traspaso al cliente', (s) => s === 'continue', true],
+  ['confirmation', 'Confirmación', (s) => s === 'confirmation'],
+  ['identity', 'Identidad', (s) => /^(identity-validation|validar-persona)/.test(s)],
+  ['downPayment', 'Cuota inicial', (s) => s === 'down-payment', true],
+  ['paymentDate', 'Fecha de pago', (s) => /^(first-payment-date|payment-schedule)$/.test(s)],
+  ['documents', 'Documentos', (s) => s === 'sign-documents', true],
+  ['signature', 'Firma', (s) => /^(otp-validation|waiting-signature)$/.test(s)],
+  ['approved', 'Aprobado', (s) => /^(loan-approved|approved)$/.test(s), true],
+];
+const ORDER = Object.fromEntries(FLOW.map(([k], i) => [k, i]));
+let lastStatus = null;            // { status, statusName } de la solicitud, del último dictamen
+let visits = {};                  // { clave: 'HH:MM' } de esta pestaña
+let current = null;               // la clave de la pantalla actual, o `{ unknown: segmento }`
+function screenOf(url) {
+  try {
+    const u = new URL(url);
+    const segs = u.pathname.split('/').filter(Boolean);
+    if (segs.length < 3 || !/^[0-9a-f]{8}$/.test(segs[1])) return null;
+    // `/flujo/sucursal/solicitar` o `/flujo/sucursal/<solicitud o celular>/<pantalla>/…`
+    const s = /^\d+$/.test(segs[2]) ? (segs[3] || '') : segs[2];
+    if (!s) return null;
+    const hit = FLOW.find(([, , m]) => m(s, u.searchParams));
+    return hit ? hit[0] : { unknown: s };
+  } catch { return null; }
+}
+async function trackScreen(url) {
+  if (tabId == null) return;
+  const key = `flow:${tabId}`;
+  visits = (await chrome.storage.session.get(key))[key] || {};
+  current = target ? screenOf(url) : null;
+  if (typeof current !== 'string') return;
+  // Volver al monto después de haber pasado del código es OTRA solicitud: se empieza de cero.
+  if (current === 'monto' && Object.keys(visits).some((k) => ORDER[k] > ORDER.otp)) visits = {};
+  if (!visits[current]) {
+    visits[current] = new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false });
+    await chrome.storage.session.set({ [key]: visits });
+  }
+}
+function renderFlow() {
+  const box = $('flow');
+  if (!target || !current) { box.innerHTML = ''; return; }
+  const unknown = typeof current === 'object' ? current.unknown : null;
+  // El punto de la pantalla actual en el orden: una desconocida va justo después de lo último que se vio.
+  const seen = Object.keys(visits).map((k) => ORDER[k]).filter((i) => i != null);
+  const at = unknown ? Math.max(-1, ...seen) + 0.5 : ORDER[current];
+  const items = FLOW.filter(([k, , , optional]) => !optional || visits[k] || k === current)
+    .map(([k, label]) => ({ k, label, pos: ORDER[k], time: visits[k] || '' }));
+  if (unknown) items.push({ k: 'unknown', label: unknown.replace(/-/g, ' '), pos: at, time: '' });
+  items.sort((a, b) => a.pos - b.pos);
+  const st = Number(lastStatus?.status), name = String(lastStatus?.statusName || '');
+  const authorized = st === 11, failed = /cancel|rechaz|negad|desist|expir|anulad/i.test(name);
+  for (const it of items) it.state = authorized || it.pos < at ? 'done' : it.pos === at ? 'cur' : 'pend';
+  items.push({ k: 'end', label: failed ? name : 'Autorizada (11)', state: authorized ? 'done' : failed ? 'bad' : 'pend', time: '' });
+  box.innerHTML = '';
+  items.forEach((it, i) => {
+    const row = document.createElement('div'); row.className = 'st';
+    const rail = document.createElement('div'); rail.className = 'rail';
+    rail.appendChild(Object.assign(document.createElement('span'), { className: `dot ${it.state}`, textContent: it.state === 'done' ? '✓' : it.state === 'bad' ? '✕' : '' }));
+    if (i < items.length - 1) rail.appendChild(Object.assign(document.createElement('span'), { className: `line ${it.state === 'done' ? 'done' : ''}` }));
+    const lbl = document.createElement('div'); lbl.className = `lbl ${it.state}`;
+    const name = document.createElement('span');
+    if (it.state === 'cur') { name.append(Object.assign(document.createElement('b'), { textContent: it.label }), ' ', Object.assign(document.createElement('span'), { className: 'now', textContent: '· ahora' })); }
+    else name.textContent = it.label;
+    lbl.append(name, Object.assign(document.createElement('time'), { textContent: it.time }));
+    row.append(rail, lbl); box.appendChild(row);
+  });
+}
+
 // ── la solicitud de la pestaña y su dictamen ────────────────────────────────────────────────────────────────────
+let openVerdict = false;   // el dictamen abierto o plegado, entre refrescos
 async function renderRequest() {
   const box = $('req');
   if (!lastUreq || !target) { box.textContent = 'Todavía no hay solicitud en esta pestaña.'; return; }
@@ -227,11 +314,21 @@ async function renderRequest() {
     const v = await api(`/verdict?ureq=${lastUreq}`);
     box.innerHTML = '';
     const row = (a, b) => { const d = document.createElement('div'); d.className = 'row'; d.append(Object.assign(document.createElement('span'), { textContent: a }), Object.assign(document.createElement('span'), { textContent: b })); box.appendChild(d); };
+    lastStatus = { status: v.status, statusName: v.statusName };
+    renderFlow();
     row('Solicitud', `${v.ureq} · ${v.status} «${v.statusName || ''}»`);
     if (v.lender) row('Entidad', v.lender);
-    const ul = document.createElement('ul');
-    for (const line of (v.verdict || []).slice(1)) ul.appendChild(Object.assign(document.createElement('li'), { textContent: line }));
-    box.appendChild(ul);
+    // El dictamen (centrales y avisos), plegado: el recorrido ya dice dónde va.
+    const lines = (v.verdict || []).slice(1);
+    if (lines.length) {
+      const det = document.createElement('details');
+      det.open = openVerdict;
+      det.ontoggle = () => { openVerdict = det.open; };
+      det.appendChild(Object.assign(document.createElement('summary'), { textContent: `Dictamen (${lines.length})` }));
+      const ul = document.createElement('ul');
+      for (const line of lines) ul.appendChild(Object.assign(document.createElement('li'), { textContent: line }));
+      det.appendChild(ul); box.appendChild(det);
+    }
   } catch (e) { box.textContent = `No pude leer la solicitud ${lastUreq}: ${e.message}`; }
 }
 
