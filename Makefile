@@ -733,6 +733,15 @@ harness-extension: ## @har la EXTENSIÓN de Chrome «Probeta» (harness/extensio
 	@echo "  1. chrome://extensions → Modo de desarrollador → Cargar descomprimida → $(CURDIR)/harness/extension"
 	@echo "  2. Abrí el wizard (qa o local) y tocá el ícono de la extensión: se abre el panel lateral."
 	@echo "  3. El panel del harness tiene que estar arriba (Cockpit → Harness, o make panel)."
+
+.PHONY: probeta-qa probeta-server
+probeta-qa: ## @har la extensión «Probeta-qa» (probeta-qa/extension) para COMPARTIR con el equipo: lo mismo que Probeta en qa pero sin el harness ni claves (dicta al mock de qa, OTP con la VPN). La base y aprobar la identidad, con `make probeta-server`. Dice cómo cargarla
+	@echo "  Probeta-qa · extensión de Chrome (probeta-qa/README.md)"
+	@echo "  1. chrome://extensions → Modo de desarrollador → Cargar descomprimida → $(CURDIR)/probeta-qa/extension"
+	@echo "  2. Abrí el wizard de qa y tocá el ícono azul. ⚙ dice qué falta para cada parte."
+	@echo "  3. Opcional: make probeta-server (la base de qa, la cédula libre y aprobar la identidad)."
+probeta-server: ## @har el servidor de Probeta (probeta-qa/server, Go) en 127.0.0.1:5230: la base de qa para Probeta-qa (tablas, centrales descifradas, cédula libre, aprobar identidad). Lee probeta-qa/server/.env; sólo la base de desarrollo, nunca prod
+	cd probeta-qa/server && go run .
 	@echo "  Después de cambiarla: recargala desde chrome://extensions."
 
 harness-run: ## @har ⚠ ESCRIBE (en el ambiente de la corrida): una o varias CORRIDAS CON NOMBRE (harness/runs.json: finandina, pullman…) en un celular de 420×900, despacio, y deja el VIDEO de cada una en .mp4 para compartir (harness/.runs/videos/). Es el caminador con el navegador, sin ventana. Sin RUN, la lista. RUN=finandina o RUN=finandina,pullman (a la vez) [TARGET=uno de sus targets; sin él, el primero] [PANEL=1 en vez de correrla, la deja ARMADA en el panel para avanzarla vos tocando Continuar] [SLOW=600 ms por acción] [HEADED=1 con ventana] [VIDEO=0 sin video] [BLOCK=<tarea>]

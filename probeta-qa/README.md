@@ -38,6 +38,30 @@ El contrato que espera la extensión (todo JSON):
 Las guardas van en el servidor, no en la extensión: sólo qa (nunca prod), sólo clientes de prueba (por su correo) y sólo
 la solicitud del celular de la prueba.
 
+### Correrlo
+
+Es Go, en `server/` (módulo propio, sin depender de my-tools):
+
+    cd probeta-qa/server
+    go run .                     # o: go build -o probeta-server . && ./probeta-server
+
+Lee el `.env` de la carpeta (o el de al lado del ejecutable); `.env.example` dice qué lleva. Con la VPN de dev.
+
+- **No arranca** si `PROBETA_DB_HOST` no es la base de desarrollo (la que comparten dev, qa y staging): un host de
+  producción en el `.env` no sirve.
+- Escucha sólo en `127.0.0.1` y sólo le contesta a extensiones de Chrome: una página web cualquiera recibe 403.
+- Sin `PROBETA_APP_KEY`, todo anda menos descifrar las centrales; ⚙ lo dice.
+- «Aprobar identidad» escribe `manual_validation = 1` y `last_validation` del cliente, y le pone las fotos sintéticas de la
+  cédula si no tiene (sin ellas la formalización falla por documentos). Es lo mismo que hace el harness.
+
+⚠ El `.env` lleva la clave del usuario de la base compartida: no va a git (`server/.gitignore`). Lo ideal es un usuario
+de la base sólo para esto (lectura de esas tablas y `UPDATE` de `users`), creado por infraestructura; hoy es el mismo
+que usa el harness.
+
+Probado el 2026-11-20 contra qa: salud (base y `APP_KEY`), cédula libre, las tablas de la solicitud 505198 con sus
+catálogos, las tres centrales descifradas, «Aprobar identidad» con el celular correcto y negada con otro, una fila de
+otro cliente negada y un `Origin` web con 403.
+
 ## Instalarla
 
 1. `chrome://extensions` → «Modo de desarrollador» → «Cargar descomprimida» → esta carpeta `probeta-qa/extension`.

@@ -102,7 +102,7 @@ h2 .lock { color: var(--accent); font-weight: 400 }
 header #gear { margin-left: 0 }
 h2 .opt { color: var(--fg3); font-weight: 400 }
 .checks { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 8px }
-.checks li { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 2px 8px; align-items: start }
+.checks > li { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 2px 8px; align-items: start }
 .checks .dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 4px; background: var(--fg3) }
 .checks .dot.ok { background: var(--ok) } .checks .dot.bad { background: var(--bad) } .checks .dot.warn { background: var(--warn) }
 .checks b { font-weight: 600; font-size: 12.5px }
