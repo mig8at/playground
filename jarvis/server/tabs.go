@@ -37,17 +37,25 @@ type Tab struct {
 	Created time.Time
 	// ByClaude: la abrió el CLI (no la persona desde la interfaz). Sólo éstas se cierran solas.
 	ByClaude bool
+	// Group y Color: el grupo de pestañas de Chrome de su tarea (groups.go). Vacío = el grupo «Jarvis» de siempre. Se
+	// leen y escriben con Tabs.mu.
+	Group string
+	Color string
+	// claimed: cuándo la tomó un `start` (Claim, groups.go); hasta que su Claude arranca, otro no la toma.
+	claimed time.Time
 	// Las dos se leen y escriben con Tabs.mu.
 	lastUsed time.Time // el último comando de Claude o acción de la persona sobre ella
 	watchers int       // interfaces mirándola ahora (streams de cuadros abiertos)
 }
 
 type Tabs struct {
-	mu    sync.Mutex
-	store *Store
-	seq   int
-	tabs  map[string]*Tab
-	last  string // la última que se abrió: el default de un pedido sin pestaña
+	mu sync.Mutex
+	// claimMu pone en fila los Claim: dos `start` a la vez no pueden elegir la misma sesión.
+	claimMu sync.Mutex
+	store   *Store
+	seq     int
+	tabs    map[string]*Tab
+	last    string // la última que se abrió: el default de un pedido sin pestaña
 }
 
 func NewTabs(store *Store) *Tabs {
@@ -134,8 +142,15 @@ func (t *Tabs) pick(w http.ResponseWriter, r *http.Request) *Tab {
 	if id == "" {
 		id = r.URL.Query().Get("tab")
 	}
-	tab := t.Get(id)
-	if tab == nil {
+	var tab *Tab
+	// Sin pestaña pero con grupo (--group G en el CLI): la última sesión de ESE grupo, no la última de todas. Así dos
+	// trabajos en paralelo, cada uno en su grupo, no se pisan aunque ninguno diga --session.
+	if g := groupOf(r); id == "" && g != "" {
+		if tab = t.ByGroup(g); tab == nil {
+			writeErr(w, http.StatusNotFound, fmt.Errorf("no hay sesiones en el grupo «%s» (bin/jarvis groups los lista; start --group lo crea)", g))
+			return nil
+		}
+	} else if tab = t.Get(id); tab == nil {
 		writeErr(w, http.StatusNotFound, fmt.Errorf("no hay pestaña %s (bin/jarvis tabs las lista)", id))
 		return nil
 	}
@@ -241,16 +256,21 @@ type TabInfo struct {
 	// Device y ChromeTab: dónde corre la sesión; con «chrome», en qué pestaña de Chrome (el panel de Jarvis va a ella).
 	Device    string `json:"device,omitempty"`
 	ChromeTab int    `json:"chromeTab,omitempty"`
+	// Group y Color: el grupo de pestañas de Chrome de su tarea; vacío, el «Jarvis» de siempre.
+	Group string `json:"group,omitempty"`
+	Color string `json:"color,omitempty"`
 }
 
 func (t *Tabs) Info() []TabInfo {
 	t.mu.Lock()
 	last := t.last
 	idle := map[string]int{}
+	group := map[string][2]string{}
 	for id, tab := range t.tabs {
 		if tab.watchers == 0 {
 			idle[id] = int(time.Since(tab.lastUsed).Seconds())
 		}
+		group[id] = [2]string{tab.Group, tab.Color}
 	}
 	t.mu.Unlock()
 	var out []TabInfo
@@ -259,7 +279,7 @@ func (t *Tabs) Info() []TabInfo {
 		as := tab.Asker.State(-1)
 		out = append(out, TabInfo{ID: tab.ID, Site: st.Site, Title: st.Title, URL: st.URL, Active: st.Active,
 			Goal: as.Goal, Busy: as.Running, Last: tab.ID == last, ByClaude: tab.ByClaude, IdleSec: idle[tab.ID],
-			Device: st.Device, ChromeTab: st.ChromeTab})
+			Device: st.Device, ChromeTab: st.ChromeTab, Group: group[tab.ID][0], Color: group[tab.ID][1]})
 	}
 	return out
 }

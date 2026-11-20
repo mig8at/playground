@@ -436,6 +436,13 @@ func (r *Runner) runLive(ctx context.Context, site Site, start string, ready cha
 					l.chromeTab = chromeBridge.tabForTarget(id)
 					chromeTabInUse(l.chromeTab, true)
 					*chromeOwnTab = l.chromeTab
+					// Con un grupo (start --group), la pestaña sale del «Jarvis» de siempre y va al de su tarea.
+					r.mu.Lock()
+					grouped := r.group != ""
+					r.mu.Unlock()
+					if grouped {
+						r.applyGroup(l.chromeTab)
+					}
 				}
 			}
 		}

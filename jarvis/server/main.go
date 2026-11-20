@@ -162,15 +162,60 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 	// cierra (frena su Claude y su sesión).
 	mux.HandleFunc("/api/tabs", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
-			tab := tabs.NewBy(fromCLI(r))
-			writeJSON(w, http.StatusOK, map[string]string{"id": tab.ID})
+			// Con {group, color}, la sesión nace en ese grupo de Chrome (groups.go).
+			var body struct{ Group, Color string }
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			tab, err := tabs.NewIn(fromCLI(r), body.Group, body.Color)
+			if err != nil {
+				writeErr(w, http.StatusBadRequest, err)
+				return
+			}
+			writeJSON(w, http.StatusOK, map[string]string{"id": tab.ID, "group": tab.Group, "color": tab.Color})
 			return
 		}
 		writeJSON(w, http.StatusOK, tabs.Info())
 	})
+	// POST /api/tabs/claim {group, color} — la sesión para una meta nueva de ese grupo, elegida y reservada de una vez
+	// (Tabs.Claim): así dos `start` en paralelo no toman la misma.
+	mux.HandleFunc("/api/tabs/claim", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			writeErr(w, http.StatusMethodNotAllowed, fmt.Errorf("POST"))
+			return
+		}
+		var body struct{ Group, Color string }
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		tab, err := tabs.Claim(fromCLI(r), body.Group, body.Color)
+		if err != nil {
+			writeErr(w, http.StatusBadRequest, err)
+			return
+		}
+		t := tabs.Get(tab.ID)
+		writeJSON(w, http.StatusOK, map[string]string{"id": t.ID, "group": t.Group, "color": t.Color})
+	})
+	// PUT /api/tabs/<id> {group, color} — la pasa a otro grupo (vacío: al «Jarvis» de siempre) y mueve su pestaña.
 	mux.HandleFunc("/api/tabs/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPut {
+			tab := tabs.Get(strings.TrimPrefix(r.URL.Path, "/api/tabs/"))
+			if tab == nil || strings.TrimPrefix(r.URL.Path, "/api/tabs/") == "" {
+				writeErr(w, http.StatusNotFound, fmt.Errorf("no hay pestaña %s", strings.TrimPrefix(r.URL.Path, "/api/tabs/")))
+				return
+			}
+			var body struct{ Group, Color string }
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				writeErr(w, http.StatusBadRequest, err)
+				return
+			}
+			name, color, err := tabs.SetGroup(tab, body.Group, body.Color)
+			if err != nil {
+				writeErr(w, http.StatusBadRequest, err)
+				return
+			}
+			tabs.Touch(tab)
+			writeJSON(w, http.StatusOK, map[string]string{"id": tab.ID, "group": name, "color": color})
+			return
+		}
 		if r.Method != http.MethodDelete {
-			writeErr(w, http.StatusMethodNotAllowed, fmt.Errorf("DELETE"))
+			writeErr(w, http.StatusMethodNotAllowed, fmt.Errorf("DELETE o PUT"))
 			return
 		}
 		if err := tabs.Close(strings.TrimPrefix(r.URL.Path, "/api/tabs/")); err != nil {

@@ -158,6 +158,14 @@ async function handle(method, params) {
       await chrome.tabs.update(tabId, { active: true })
       return {}
     }
+    case 'chrome.tabs.setGroup': {
+      // La sesión tiene un grupo propio (bin/jarvis start --group): su pestaña sale del «Jarvis» y va al de su tarea.
+      const [tabId, title, color] = params
+      guard(tabId)
+      const tab = await chrome.tabs.get(tabId)
+      await addToGroup(tab, title || 'Jarvis', title ? color : 'purple')
+      return {}
+    }
     case 'chrome.tabs.remove': {
       const [tabId] = params
       guard(tabId)
@@ -186,15 +194,22 @@ async function createInAsideWindow(url, minimized) {
   return win.tabs[0]
 }
 
-// ── el grupo «Jarvis»: las pestañas que abre Claude, juntas y de un color, para no confundirlas con las tuyas ──
+// ── los grupos: las pestañas que abre Claude, juntas y de un color, para no confundirlas con las tuyas ──
+// Por defecto van al grupo «Jarvis» (violeta); una sesión con grupo propio (bin/jarvis start --group 'VTEX') va al de
+// su tarea, con el color que le dio el servidor.
 
-async function addToGroup(tab) {
+async function addToGroup(tab, title = 'Jarvis', color = 'purple') {
   try {
     // El grupo se busca por su nombre en la ventana, no por un id guardado: un id se pierde al recargar la extensión
-    // (o al reiniciar Chrome) y se terminaba con dos grupos «Jarvis» en la misma ventana.
-    const [group] = await chrome.tabGroups.query({ title: 'Jarvis', windowId: tab.windowId })
+    // (o al reiniciar Chrome) y se terminaba con dos grupos con el mismo nombre en la misma ventana.
+    const [group] = await chrome.tabGroups.query({ title, windowId: tab.windowId })
+    if (group && tab.groupId === group.id) {
+      if (color && group.color !== color) await chrome.tabGroups.update(group.id, { color })
+      return
+    }
     const groupId = await chrome.tabs.group(group ? { tabIds: [tab.id], groupId: group.id } : { tabIds: [tab.id], createProperties: { windowId: tab.windowId } })
-    if (!group) await chrome.tabGroups.update(groupId, { title: 'Jarvis', color: 'purple' })
+    if (!group) await chrome.tabGroups.update(groupId, { title, color: color || 'purple' })
+    else if (color && group.color !== color) await chrome.tabGroups.update(groupId, { color })
   } catch {
     /* sin grupo la pestaña funciona igual */
   }

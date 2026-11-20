@@ -122,7 +122,7 @@ async function refreshSessions() {
       const who = state.opened.includes(s.chromeTab) ? 'la abrió Claude' : 'compartida por vos'
       row.append(
         el('span', '', s.meta || s.title || s.url),
-        el('span', 'row-desc', `${s.busy ? 'Claude trabajando' : idleText(s.idleSec || 0)} · ${who} · ${s.title || s.url}`),
+        el('span', 'row-desc', `${s.group ? `grupo «${s.group}» · ` : ''}${s.busy ? 'Claude trabajando' : idleText(s.idleSec || 0)} · ${who} · ${s.title || s.url}`),
       )
       row.addEventListener('click', () => { selected = s.id; view = { kind: 'session' }; renderTools(); refreshSessions() })
       row.addEventListener('dblclick', () => goTo(s))
