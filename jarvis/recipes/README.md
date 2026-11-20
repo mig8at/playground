@@ -30,6 +30,24 @@ espera como `waitFor`, un `goto` al inicio si el flujo no abre página, y la cab
 según si el flujo tocaba algo. Es un punto de partida, no la receta terminada: falta decir qué comprueba (lo que
 dice la pantalla al final), qué parte va mejor por API y los ⚠ del día. Nunca pisa una receta sin `FORCE=1`.
 
+**O directo a la API** (2026-11-20, `api-from-flow.ts`): si la herramienta guarda por una API propia, la receta puede
+saltarse la pantalla y repetir los pedidos que hizo la corrida del flujo:
+
+    make jarvis-recipe-api FLOW=jarvis/flows/<sitio>/<id>.json APP=<herramienta> NAME=<receta> [FORCE=1]
+
+Lee la red que quedó con la corrida (`.data/runs/<run>/devlog.json`: Jarvis guarda ahí el cuerpo de cada pedido que
+escribe, con contraseñas, tokens, cookies y tarjetas tapadas como `•••`), se queda con lo que ESCRIBE (fetch o xhr que
+no es GET), lo asigna al paso que lo disparó y cambia en el cuerpo cada dato del flujo por su parámetro. La opción toma
+el nombre del campo de la API (`--name`, `--price`): así queda en inglés y dice qué manda (una en castellano, como
+`--nombre`, no llegaba: `args.ts` la traduce antes). La receta abre la página de entrada con tu sesión (sin su
+`?query`) y hace cada pedido desde ahí (`fetch` con `credentials: 'include'`), y falla si uno devuelve ≥ 400. Lo que
+no repite lo dice: lo escrito al cargar la página de entrada, antes del primer paso (el `?reset` de una app de
+práctica) y avisa con ⚠ un dato tapado, un id dentro de la URL (es el de ese día) o un dato del flujo que no apareció
+en ningún pedido. Necesita una corrida con red: un flujo grabado antes del 2026-11-20 no la tiene y se niega. Medido
+con el Inventario (`apps/inventory`, :5220, la única app de práctica con API: `"api": true` en su `app.json` y un
+almacén en memoria, `server/practiceapi.go`): «Crear un producto» → `inventory/create-product`, un POST, y
+`--name "Guantes de cuero" --price 89000 --stock 15` creó ese producto (también con `--nombre`/`--precio`).
+
 La cabecera es la documentación (`bin/jarvis docs <app> apis`): el primer párrafo es el título (empieza con
 «SÓLO LECTURA ·», «ESCRIBE ·» o «RECETA ·»), cada `make jarvis-recipe …` es un uso, una línea con ESCRIBE dice qué
 escribe y cada ⚠ es un aviso. Un `.ts` sin línea de uso es un **módulo de apoyo** (`api.ts`, `shopify/partners.ts`)

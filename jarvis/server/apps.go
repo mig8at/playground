@@ -23,6 +23,8 @@ type App struct {
 	Start       string `json:"start,omitempty"` // la ruta donde se arranca (por defecto, /)
 	URL         string `json:"url"`
 	Real        bool   `json:"real,omitempty"` // un proyecto con nombre propio de un sitio real (no una app de práctica)
+	// API: la app tiene, en su puerto, una API JSON en memoria (/api/<colección>: practiceapi.go).
+	API bool `json:"api,omitempty"`
 }
 
 func (a App) Addr() string { return fmt.Sprintf("127.0.0.1:%d", a.Port) }

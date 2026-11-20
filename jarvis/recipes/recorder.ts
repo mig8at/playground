@@ -20,7 +20,8 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '.
 export async function openChrome() {
     const status = await (await fetch('http://127.0.0.1:5203/api/chrome')).json();
     if (!status.connected) throw new Error('Jarvis no está conectado en Chrome');
-    if (status.driving) throw new Error('hay una sesión de Jarvis manejando Chrome: cerrala (bin/jarvis close)');
+    // Desde el 2026-11-20 el puente acepta varios clientes a la vez (cada uno con sus pestañas): una receta corre aunque
+    // haya sesiones de Jarvis abiertas. Antes se negaba («hay una sesión de Jarvis manejando Chrome»).
     const cache = path.join(os.homedir(), 'Library/Caches/ms-playwright-go');
     const version = fs.readdirSync(cache).filter((d) => fs.existsSync(path.join(cache, d, 'package'))).sort().pop()!;
     const { chromium } = await import(path.join(cache, version, 'package', 'index.mjs'));
@@ -34,7 +35,7 @@ export type Call = { step: string; method: string; url: string; operation?: stri
 
 // Lo que no es de la herramienta: analítica (Amplitude, …), el chat de Copilot y su barra (`TopbarData` trae el
 // perfil de la persona: nombre y correo), el monitoreo, la sesión y las precargas de pantallas del admin.
-const NOISE = /monitoring|insights|logger|analytics|amplitude|sentry|datadog|google|hotjar|clarity|copilot|vercel\.app|\/api\/sessions|featurehub|feature-flag|messenger|\/2\/httpapi|\/rec\/page|\/admin(\/[\w-]+)*\/?(\?|$)/i;
+export const NOISE = /monitoring|insights|logger|analytics|amplitude|sentry|datadog|google|hotjar|clarity|copilot|vercel\.app|\/api\/sessions|featurehub|feature-flag|messenger|\/2\/httpapi|\/rec\/page|\/admin(\/[\w-]+)*\/?(\?|$)/i;
 const NOISE_OPS = /^(TopbarData|topbarData|TopBarData|myself|LoggedUser|CurrentAdminUser|GetUserProfile|MyInfo)$/;
 
 /** Graba las escrituras de la página (también las de sus iframes). `rec.step('…')` rotula las que vienen. */

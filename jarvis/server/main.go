@@ -79,7 +79,7 @@ func main() {
 	go sweepTabs(tabs, IdleLimit(os.Getenv("JARVIS_TAB_IDLE")))
 	go syncAttention(tabs)
 	for _, a := range listApps() {
-		go serveDir(a.Addr(), filepath.Join("apps", a.ID), a.Name)
+		go serveDir(a.Addr(), filepath.Join("apps", a.ID), a.Name, a.API)
 	}
 	if err := serve(ln, store, tabs); err != nil {
 		fail(err)
@@ -101,12 +101,17 @@ func sweepTabs(tabs *Tabs, idle time.Duration) {
 }
 
 // serveDir sirve una app local (jarvis/apps/<app>) en su puerto: el navegador la trata como un sitio aparte.
-func serveDir(addr, sub, name string) {
+func serveDir(addr, sub, name string, withAPI bool) {
 	_, file, _, _ := runtime.Caller(0)
 	dir := filepath.Join(filepath.Dir(filepath.Dir(file)), sub)
 	fs := http.FileServer(http.Dir(dir))
+	api := newPracticeAPI()
 	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
+		if withAPI && strings.HasPrefix(r.URL.Path, "/api/") {
+			api.ServeHTTP(w, r)
+			return
+		}
 		fs.ServeHTTP(w, r)
 	})
 	fmt.Fprintf(os.Stderr, "jarvis: %s en http://%s\n", name, addr)

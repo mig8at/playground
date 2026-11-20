@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Inventario</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Inventario: una app de práctica de Jarvis que guarda en un servidor (la API de práctica, /api/products), no en el
+       navegador. ?reset la deja vacía. -->
+  <header class="top"><strong class="brand">Inventario</strong><button id="new" type="button">Nuevo producto</button></header>
+  <main>
+    <table class="grid">
+      <thead><tr><th>Producto</th><th class="num">Precio</th><th class="num">Stock</th><th></th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <p id="empty" class="muted" hidden>Todavía no hay productos.</p>
+  </main>
+  <dialog id="editor">
+    <form id="form">
+      <h2>Nuevo producto</h2>
+      <label for="name">Nombre</label><input id="name" required>
+      <label for="price">Precio</label><input id="price" type="number" min="0" step="1" required>
+      <label for="stock">Stock</label><input id="stock" type="number" min="0" step="1" value="0">
+      <p id="error" class="error" role="alert"></p>
+      <div class="row"><button type="button" class="sec" id="cancel">Cancelar</button><button type="submit">Guardar</button></div>
+    </form>
+  </dialog>
+  <div id="notice" class="notice" role="status" hidden></div>
+  <script src="app.js"></script>
+</body>
+</html>

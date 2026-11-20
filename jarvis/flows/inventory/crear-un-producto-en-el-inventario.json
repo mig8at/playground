@@ -1,0 +1,107 @@
+{
+  "name": "Crear un producto en el inventario",
+  "meta": "Crear un producto en el inventario",
+  "start": "http://localhost:5220/?reset",
+  "device": "chrome",
+  "created": "2026-11-20T17:34:31.599263-05:00",
+  "verified": "0001-01-01T00:00:00Z",
+  "run": "2026-11-20_17-34-23_s2",
+  "steps": [
+    {
+      "action": "click",
+      "target": "Nuevo producto",
+      "instruction": "Hacé clic en «Nuevo producto»",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Nuevo producto",
+          "visible": true,
+          "code": "page.getByText('Nuevo producto', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "code": "page.getByText('Nuevo producto', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "action": "fill",
+      "target": "Nombre",
+      "value": "Casco urbano",
+      "instruction": "Escribí «Casco urbano» en «Nombre»",
+      "param": "Nombre",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Nombre",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Nombre', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('textbox', { name: 'Nombre', exact: true }).fill('Casco urbano')"
+    },
+    {
+      "action": "fill",
+      "target": "Precio",
+      "value": "350000",
+      "instruction": "Escribí «350000» en «Precio»",
+      "param": "Precio",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "spinbutton",
+          "value": "Precio",
+          "exact": true,
+          "code": "page.getByRole('spinbutton', { name: 'Precio', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('spinbutton', { name: 'Precio', exact: true }).fill('350000')"
+    },
+    {
+      "action": "fill",
+      "target": "Stock",
+      "value": "20",
+      "instruction": "Escribí «20» en «Stock»",
+      "param": "Stock",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "spinbutton",
+          "value": "Stock",
+          "exact": true,
+          "code": "page.getByRole('spinbutton', { name: 'Stock', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('spinbutton', { name: 'Stock', exact: true }).fill('20')"
+    },
+    {
+      "action": "click",
+      "target": "Guardar",
+      "instruction": "Hacé clic en «Guardar»",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Guardar",
+          "visible": true,
+          "code": "page.getByText('Guardar', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "code": "page.getByText('Guardar', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "action": "expect",
+      "target": "Producto creado",
+      "value": "Producto creado",
+      "instruction": "Comprobá que se vea «Producto creado»",
+      "code": "expect(page.getByText('Producto creado').filter({ visible: true }).first()).toBeVisible()"
+    }
+  ]
+}

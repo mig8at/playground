@@ -171,3 +171,6 @@ funnel stake stakes reinstall vault novelty trending upvotes gguf onnx mlx safet
 vram nvidia gib llama
 # news/server/facts.go: PyTorch (`import torch`), el motor de casi todos los modelos de Hugging Face
 torch
+# jarvis (2026-11-20): el registro de consola y red de una sesión (devlog; con = console en la interfaz), los nombres
+# de campos secretos que se tapan en un cuerpo (cvv, cvc, apikey, privatekey) y la API de las apps de práctica
+devlog con cvv cvc apikey privatekey practiceapi

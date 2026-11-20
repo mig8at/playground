@@ -1,0 +1,7 @@
+{
+  "name": "Inventario",
+  "port": 5220,
+  "api": true,
+  "description": "Un inventario de productos que guarda en un servidor de verdad (la API de práctica de Jarvis: /api/products). Para practicar lo que un admin hace por la red: ver sus pedidos (bin/jarvis network) y convertir un flujo en una receta por API (make jarvis-recipe-api).",
+  "start": "/"
+}

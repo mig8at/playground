@@ -1,0 +1,21 @@
+/* Inventario: su propio aspecto (no es una herramienta de my-tools). */
+* { box-sizing: border-box }
+body { margin: 0; font: 15px/1.5 system-ui, sans-serif; color: #1e293b; background: #f8fafc }
+.top { display: flex; align-items: center; gap: 12px; padding: 12px 20px; background: #b45309; color: #fff }
+.brand { font-size: 18px; margin-right: auto }
+main { max-width: 760px; margin: 24px auto; padding: 0 20px }
+.grid { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden }
+.grid th, .grid td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: left }
+.num { text-align: right }
+button { font: inherit; padding: 7px 14px; border: 0; border-radius: 6px; background: #b45309; color: #fff; cursor: pointer }
+.top button { background: #fff; color: #b45309; font-weight: 600 }
+button.sec { background: #e2e8f0; color: #1e293b }
+button.danger { background: #fee2e2; color: #b91c1c }
+dialog { border: 0; border-radius: 12px; padding: 22px; width: 420px; max-width: calc(100vw - 32px) }
+dialog::backdrop { background: rgb(0 0 0 / .35) }
+label { display: block; font-weight: 600; font-size: 14px; margin: 10px 0 4px }
+input { width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font: inherit }
+.row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px }
+.error { color: #b91c1c; font-size: 13px; min-height: 18px; margin: 6px 0 0 }
+.muted { color: #64748b }
+.notice { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #0f172a; color: #fff; padding: 10px 16px; border-radius: 8px }

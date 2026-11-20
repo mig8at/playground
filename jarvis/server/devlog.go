@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -19,6 +20,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/playwright-community/playwright-go"
 )
@@ -42,6 +44,10 @@ type NetEntry struct {
 	Status int       `json:"status,omitempty"` // 0 si falló sin respuesta
 	Failed string    `json:"failed,omitempty"` // por qué falló (sin respuesta)
 	Ms     int       `json:"ms,omitempty"`     // desde que salió hasta la respuesta
+	// Body y ContentType: el cuerpo de un pedido que ESCRIBE (POST, PUT, PATCH, DELETE), con lo que parece una
+	// credencial tapado (redactBody). Es lo que permite convertir un flujo en receta por API (recipes/api-from-flow.ts).
+	Body        string `json:"body,omitempty"`
+	ContentType string `json:"contentType,omitempty"`
 }
 
 type devlog struct {
@@ -118,6 +124,7 @@ func (d *devlog) attach(p playwright.Page) {
 		if ok {
 			e.At, e.Ms = t0, int(time.Since(t0).Milliseconds())
 		}
+		withBody(&e, req)
 		d.addNet(e)
 	})
 	p.OnRequestFailed(func(req playwright.Request) {
@@ -249,4 +256,105 @@ func (s *Store) RunDevLog(id string) (DevLog, string, error) {
 	}
 	d.Active = true
 	return d, id, nil
+}
+
+// bodyMax: el tope del cuerpo que se guarda de un pedido (un formulario, un JSON de un guardado).
+const bodyMax = 64 << 10
+
+// withBody guarda el cuerpo de un pedido que escribe. Sólo lo que el evento ya trae (PostData, los encabezados de la
+// solicitud): pedir más desde el manejador traba el driver.
+func withBody(e *NetEntry, req playwright.Request) {
+	if e.Method == "GET" || e.Method == "HEAD" || e.Method == "OPTIONS" {
+		return
+	}
+	if h := req.Headers(); h != nil {
+		e.ContentType = h["content-type"]
+	}
+	body, err := req.PostData()
+	if err != nil || body == "" {
+		return
+	}
+	if len(body) > bodyMax {
+		body = body[:bodyMax]
+	}
+	e.Body = redactBody(body, e.ContentType)
+}
+
+// isSecretKey: el nombre de un campo que lleva una credencial; su valor no se guarda nunca (CLAUDE.md: contraseñas,
+// llaves y tokens, nunca) y queda «•••». Se compara por PARTES enteras del nombre (apiKey, api_key, x-auth-token →
+// api·key, x·auth·token): con una búsqueda suelta, «pin» tapaba «shipping» y «auth» tapaba «author».
+var secretParts = map[string]bool{"password": true, "pass": true, "passwd": true, "pwd": true, "secret": true, "token": true,
+	"auth": true, "authorization": true, "credential": true, "credentials": true, "cookie": true, "session": true,
+	"sessionid": true, "otp": true, "pin": true, "cvv": true, "cvc": true, "apikey": true, "privatekey": true}
+
+func isSecretKey(k string) bool {
+	var parts []string
+	var cur []rune
+	flush := func() {
+		if len(cur) > 0 {
+			parts = append(parts, strings.ToLower(string(cur)))
+			cur = cur[:0]
+		}
+	}
+	for i, r := range k {
+		switch {
+		case r == '_' || r == '-' || r == '.' || r == ' ':
+			flush()
+		case unicode.IsUpper(r) && i > 0:
+			flush()
+			cur = append(cur, r)
+		default:
+			cur = append(cur, r)
+		}
+	}
+	flush()
+	for i, p := range parts {
+		if secretParts[p] {
+			return true
+		}
+		if i+1 < len(parts) && (p == "api" || p == "private" || p == "access" || p == "card") && (parts[i+1] == "key" || parts[i+1] == "number" || parts[i+1] == "token") {
+			return true
+		}
+	}
+	return false
+}
+
+// redactBody tapa los valores de los campos con nombre de credencial, en un JSON o en un formulario.
+func redactBody(body, contentType string) string {
+	if strings.Contains(contentType, "json") || strings.HasPrefix(strings.TrimSpace(body), "{") || strings.HasPrefix(strings.TrimSpace(body), "[") {
+		var v any
+		if json.Unmarshal([]byte(body), &v) == nil {
+			b, _ := json.Marshal(redactJSON(v))
+			return string(b)
+		}
+	}
+	if strings.Contains(contentType, "x-www-form-urlencoded") {
+		if q, err := url.ParseQuery(body); err == nil {
+			for k := range q {
+				if isSecretKey(k) {
+					q.Set(k, "•••")
+				}
+			}
+			return q.Encode()
+		}
+	}
+	return body
+}
+
+func redactJSON(v any) any {
+	switch t := v.(type) {
+	case map[string]any:
+		for k, x := range t {
+			if isSecretKey(k) {
+				t[k] = "•••"
+			} else {
+				t[k] = redactJSON(x)
+			}
+		}
+	case []any:
+		for i := range t {
+			t[i] = redactJSON(t[i])
+		}
+	}
+	return v
 }

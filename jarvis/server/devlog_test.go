@@ -2,6 +2,7 @@ package main
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -64,5 +65,31 @@ func TestDevlogSavedWithTheRun(t *testing.T) {
 	}
 	if _, _, err := s.RunDevLog("../otra"); err == nil {
 		t.Fatal("un id con ruta tiene que negarse")
+	}
+}
+
+// El cuerpo de un pedido que escribe se guarda para poder repetirlo, pero una credencial nunca: queda tapada, en un
+// JSON (también anidada) y en un formulario.
+func TestRedactBody(t *testing.T) {
+	got := redactBody(`{"name":"Casco","price":350000,"auth":{"apiKey":"abc"},"password":"x"}`, "application/json")
+	for _, bad := range []string{"abc", `"x"`} {
+		if strings.Contains(got, bad) {
+			t.Fatalf("quedó una credencial: %s", got)
+		}
+	}
+	if !strings.Contains(got, `"name":"Casco"`) || !strings.Contains(got, `"price":350000`) {
+		t.Fatalf("lo que no es credencial tiene que quedar igual: %s", got)
+	}
+	if f := redactBody("user=ana&pwd=123&stock=4", "application/x-www-form-urlencoded"); strings.Contains(f, "123") || !strings.Contains(f, "stock=4") {
+		t.Fatalf("formulario: %s", f)
+	}
+}
+
+func TestIsSecretKey(t *testing.T) {
+	for k, want := range map[string]bool{"password": true, "apiKey": true, "api_key": true, "X-Auth-Token": true, "cardNumber": true,
+		"sessionId": true, "shipping": false, "author": false, "name": false, "price": false, "pinned": false, "keyword": false} {
+		if got := isSecretKey(k); got != want {
+			t.Errorf("isSecretKey(%q) = %v, quería %v", k, got, want)
+		}
 	}
 }
