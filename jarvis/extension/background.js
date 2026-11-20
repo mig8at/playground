@@ -149,10 +149,12 @@ async function handle(method, params) {
       if (props.newWindow) {
         const tab = await createInAsideWindow(props.url || 'about:blank', !!props.background)
         await setLists({ opened: [...lists.opened, tab.id] })
+        await keepAlive(tab.id)
         return { id: tab.id }
       }
       const tab = await chrome.tabs.create({ url: props.url || 'about:blank', active: props.active !== false })
       await setLists({ opened: [...lists.opened, tab.id] })
+      await keepAlive(tab.id)
       await addToGroup(tab)
       return { id: tab.id }
     }
@@ -210,6 +212,14 @@ async function handle(method, params) {
     default:
       throw new Error(`no sé hacer ${method}`)
   }
+}
+
+// keepAlive: que Chrome no DESCARTE la pestaña de una sesión cuando está de fondo (el ahorro de memoria descarta las
+// pestañas que no se miran; Claude trabaja justamente en ésas). Una descartada pierde la página y la sesión con ella.
+// Lo que sigue pudiendo pasar: el ahorro de energía congela las de fondo que gastan mucho CPU (Chrome 133+), y eso
+// no tiene llave para una extensión.
+async function keepAlive(tabId) {
+  try { await chrome.tabs.update(tabId, { autoDiscardable: false }) } catch { /* la pestaña ya se cerró */ }
 }
 
 // ── la ventana aparte: trabajo que la persona no necesita ver (el pool de AI Studio de Wally) ──
