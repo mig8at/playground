@@ -85,6 +85,10 @@ function liveMoved(prev, st) {
 // velocidad completa. Las miniaturas no cuentan como mirar: no frenan el cierre automático de las sesiones.
 const liveMode = ref(readPref('jarvis.liveMode', 'one') === 'grid' ? 'grid' : 'one')
 watch(liveMode, (m) => savePref('jarvis.liveMode', m))
+// #/all abre directo la vista «Todas» (bin/cockpit open jarvis '#/all': la demo de paralelismo la usa).
+const wantsAll = () => readHashRoute().parts[0] === 'all'
+if (wantsAll()) liveMode.value = 'grid'
+window.addEventListener('hashchange', () => { if (wantsAll()) { liveMode.value = 'grid'; view.value = { kind: 'live' } } })
 const thumbs = ref({}) // id de la sesión → la imagen (data URL)
 const lastActed = ref('') // la sesión donde Claude hizo algo por última vez: su tarjeta se marca
 // Los colores de los grupos de pestañas, como los pinta Chrome (chrome.tabGroups.Color).
