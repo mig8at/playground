@@ -1,6 +1,6 @@
 #!/bin/bash
 # DEMO de paralelismo para MIRAR: dos grupos con tres sesiones cada uno trabajan a la vez, unos 30 s, mientras la
-# persona usa su Chrome. Cockpit se abre en la vista «Todas» de Jarvis para verlas en vivo.
+# persona usa su Chrome. Se miran en la vista «Todas» de Jarvis en Cockpit (sin traerlo al frente).
 #   «Tareas» (demo de tareas, :5207): cada sesión crea 3 tareas, con su nota.
 #   «Panel Andino» (:5206): una cambia el IVA y el nombre de la tienda; dos invitan a dos usuarios cada una.
 # Las pestañas se abren DETRÁS de la que está mirando la persona y ningún comando la trae al frente (de fondo por
@@ -17,7 +17,9 @@ since() { python3 -c "import time; print(round(time.time()-$1,1))"; }
 open_session() { $J start --group "$1" --color "$2" --url "$3" "$4" 2>&1 | grep -o 'pestaña [0-9]*' | head -1 | awk '{print $2}'; }
 view() { curl -s $API/api/chrome | python3 -c "import json,sys; v=json.load(sys.stdin).get('view',{}); print(('Chrome · ' + (v.get('title') or '?')[:60]) if v.get('focused') else 'otra app (Cockpit, Claude…)')"; }
 
-bin/cockpit open jarvis '#/all' >/dev/null 2>&1
+# Cockpit se asegura arriba SIN traerlo al frente: la demo no le quita el foco a lo que la persona tenga abierto. La
+# grilla recuerda la vista «Todas»; para abrirla a mano: bin/cockpit open jarvis '#/all'.
+bin/cockpit ensure jarvis >/dev/null 2>&1
 echo "── abriendo 2 grupos × 3 sesiones (detrás de tu pestaña) ──"
 T1=$(open_session 'Tareas' blue 'http://localhost:5207/?reset' 'Tareas · sesión 1: crear 3 tareas')
 P1=$(open_session 'Panel Andino' green 'http://localhost:5206/?reset' 'Panel · sesión 1: IVA y nombre de la tienda')

@@ -834,13 +834,10 @@ func (b *ChromeBridge) createTarget(c *pwClient, url string, newWindow, backgrou
 		b.creating--
 		b.mu.Unlock()
 	}
-	// Si la persona está usando Chrome, la pestaña nueva se abre DETRÁS: abrirla activa le cambiaba la que tenía
-	// delante. Detrás funciona igual (el screencast la mantiene viva: focus.go). Si Chrome no tiene el foco, o la
-	// extensión no avisa qué mira (anterior a la 0.2.13), se abre activa como siempre.
-	active := true
-	if v := b.View(); v.TabID != 0 && v.Focused {
-		active = false
-	}
+	// La pestaña nueva se abre DETRÁS, siempre: abrirla activa le cambiaba a la persona la que tenía delante (y, con
+	// Chrome sin foco, la que iba a encontrar al volver). Detrás funciona igual: el screencast la mantiene viva
+	// (focus.go). Sólo con una extensión que no avisa qué mira la persona (anterior a la 0.2.13) se abre activa.
+	active := b.View().TabID == 0
 	raw, err := b.call("chrome.tabs.create", map[string]any{"url": url, "active": active, "newWindow": newWindow, "background": background})
 	if err != nil {
 		done()

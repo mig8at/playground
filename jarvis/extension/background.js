@@ -198,15 +198,17 @@ async function handle(method, params) {
       return { active: (await chrome.tabs.get(tabId)).active }
     }
     case 'chrome.tabs.surface': {
-      // Que la pestaña de una sesión quede activa SIN robarte la vista: si estás mirando otra pestaña de esa misma
-      // ventana (y Chrome tiene el foco), la sesión se muda a la ventana aparte de Jarvis y se activa ahí; si no, se
-      // activa en su ventana como siempre. Devuelve si se mudó.
+      // Que la pestaña de una sesión quede activa SIN robarte la vista: si en tu ventana (la última con foco, la tengas
+      // delante o no) tenés activa otra pestaña, la sesión se muda a la ventana aparte de Jarvis y se activa ahí; si no,
+      // se activa en su ventana. Devuelve si se mudó.
       const [tabId] = params
       guard(tabId)
       const tab = await chrome.tabs.get(tabId)
       const win = await chrome.windows.getLastFocused({ windowTypes: ['normal'] }).catch(() => null)
       const { asideWindowId } = await chrome.storage.session.get('asideWindowId')
-      const inYourWay = !!win?.focused && win.id === tab.windowId && !tab.active && tab.windowId !== asideWindowId
+      // La ventana de la persona es la última que tuvo foco: aunque ahora esté en otra app, la pestaña activa ahí es la
+      // que va a encontrar al volver, y no se le cambia.
+      const inYourWay = !!win && win.id === tab.windowId && !tab.active && tab.windowId !== asideWindowId
       if (!inYourWay) {
         await chrome.tabs.update(tabId, { active: true })
         return { moved: false }

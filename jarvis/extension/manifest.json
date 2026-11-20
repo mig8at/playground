@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Jarvis",
-  "version": "0.2.13",
+  "version": "0.2.14",
   "description": "Claude trabaja a tu lado en este Chrome: maneja las pestañas que le compartís (y las que abre) por el navegador de my-tools (127.0.0.1:5203). El ícono abre el panel lateral con los grupos abiertos y sus pestañas.",
   "minimum_chrome_version": "125",
   "permissions": [
