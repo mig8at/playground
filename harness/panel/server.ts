@@ -412,7 +412,7 @@ const ADMIN_MENU_JS = `(() => {
 // corre `node bin/dbops.ts <args...>` y devuelve el JSON parseado (o null si falla). Target-aware (dev → I_KNOW).
 function dbopsJson(args: string[], target: string, extraEnv: NodeJS.ProcessEnv = {}): Promise<any> {
     return new Promise((ok) => {
-        execFile('node', ['bin/dbops.ts', ...args], { cwd: ROOT, env: { ...envFor(target), ...extraEnv }, timeout: 30000 }, (err, stdout) => {
+        execFile('node', ['bin/dbops.ts', ...args], { cwd: ROOT, env: { ...envFor(target), ...extraEnv }, timeout: 30000, maxBuffer: 32 * 1024 * 1024 }, (err, stdout) => {
             if (err) return ok(null);
             try { ok(JSON.parse(stdout)); } catch { ok(null); }
         });

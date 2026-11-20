@@ -444,7 +444,7 @@ try {
             // Para la consola de la extensión «Cliente de prueba»: ver cómo va quedando la base mientras se avanza. SÓLO
             // LECTURA. A diferencia de `activity` no va por ventana de tiempo sino por la solicitud y su usuario, así que
             // en la base compartida no se cuela lo del equipo. No ve DELETEs. Los textos largos (los JSON de las
-            // centrales) se recortan y las credenciales del usuario no se leen.
+            // centrales) van completos hasta 40 KB y las credenciales del usuario no se leen.
             const ureq = num(a[0]);
             const uid = await scalar<number>('SELECT user_id FROM user_requests WHERE id = ?', [ureq]);
             if (!uid) { r = { ureq, user: null, tables: [] }; break; }
@@ -461,12 +461,15 @@ try {
                 { t: 'logs', where: 'user_id = ?', p: uid, limit: 40 },
             ];
             const SECRET = /password|remember_token|secret|token$/i;
+            // Las columnas JSON llegan como OBJETO (con `String()` daban «[object Object]»): van como JSON completo, para
+            // que la consola las muestre formateadas. Un tope alto por celda (40 KB) para que una respuesta enorme de una
+            // central no ahogue el panel.
             const clip = (v: unknown) => {
                 if (v == null) return null;
                 if (v instanceof Date) return v.toISOString().replace('T', ' ').slice(0, 19);
                 if (Buffer.isBuffer(v)) return `(${v.length} bytes)`;
-                const t = String(v);
-                return t.length > 240 ? `${t.slice(0, 240)}… (${t.length})` : t;
+                const t = typeof v === 'object' ? JSON.stringify(v) : String(v);
+                return t.length > 40_000 ? `${t.slice(0, 40_000)}… (recortado: ${t.length} caracteres)` : t;
             };
             const tables = await Promise.all(T.map(async (d) => {
                 try {

@@ -333,8 +333,8 @@ async function renderRequest() {
 }
 
 // ── LA CONSOLA: las tablas que toca la solicitud, una pestaña por tabla, con sus filas (las de esta solicitud y su cliente,
-// no «lo último que se escribió»: la base de qa es compartida). Cada fila muestra las columnas que importan de esa tabla;
-// al tocarla, todas las que no están vacías. Lo que cambió desde la lectura anterior queda resaltado unos segundos. Sólo
+// no «lo último que se escribió»: la base de qa es compartida), en una tabla horizontal: primero las columnas que importan
+// de esa tabla, después las demás. Un objeto JSON o un texto largo se toca y se abre entero, formateado, debajo. Lo que cambió desde la lectura anterior queda resaltado unos segundos. Sólo
 // lectura (`/api/ext/tables` → `dbops request-tables`), y se lee sólo con la consola abierta: no carga la base de balde.
 const KEY_COLS = {
   user_requests: ['user_request_status_id', 'lender_id', 'original_amount', 'amount', 'flow_id', 'disbursed_at', 'updated_at'],
@@ -351,13 +351,13 @@ const KEY_COLS = {
 const SHORT = { user_request_records: 'ur_records', risk_central_user_data: 'centrales', user_request_risk_central_user_data: 'ur_centrales',
   user_summaries: 'summaries', user_field_values: 'field_values', creditop_x_user_requests_records: 'creditop_x', lender_transactions: 'lender_tx' };
 const HOT_MS = 20000;
-let db = { ureq: null, tables: [], at: '' }, dbTab = 'user_requests', dbPrev = new Map(), dbChanged = new Map(), dbOpen = new Set(), dbBusy = false;
+let db = { ureq: null, tables: [], at: '' }, dbTab = 'user_requests', dbPrev = new Map(), dbChanged = new Map(), dbBusy = false;
 async function refreshDb() {
   if (!$('dbConsole').open || !target || !lastUreq || dbBusy) { renderDb(); return; }
   dbBusy = true;
   try {
     const r = await api(`/tables?ureq=${lastUreq}`);
-    if (db.ureq !== lastUreq) { dbPrev = new Map(); dbChanged = new Map(); dbOpen = new Set(); }
+    if (db.ureq !== lastUreq) { dbPrev = new Map(); dbChanged = new Map(); dbDetail = null; }
     const now = Date.now(), first = dbPrev.size === 0;
     for (const t of r.tables || []) for (const row of t.rows) {
       const key = `${t.table}:${row.id}`, before = dbPrev.get(key);
@@ -373,6 +373,9 @@ async function refreshDb() {
   dbBusy = false;
   renderDb();
 }
+/** ¿Es un objeto o una lista en JSON? Devuelve el valor ya parseado, o `undefined`. */
+const jsonOf = (v) => { if (typeof v !== 'string' || !/^[\[{]/.test(v)) return undefined; try { return JSON.parse(v); } catch { return undefined; } };
+let dbDetail = null;   // { key, col }: la celda abierta abajo de la tabla
 function renderDb() {
   const tabs = $('dbTabs'), rows = $('dbRows'), foot = $('dbFoot');
   if (!lastUreq || !target) { tabs.innerHTML = ''; rows.innerHTML = '<div class="empty">Sin solicitud en esta pestaña.</div>'; foot.textContent = ''; return; }
@@ -384,25 +387,61 @@ function renderDb() {
     const recent = t.rows.some((row) => hot(`${t.table}:${row.id}`));
     b.append(SHORT[t.table] || t.table, Object.assign(document.createElement('span'), { className: `n${t.rows.length ? ' has' : ''}`, textContent: t.error ? '!' : t.rows.length }));
     if (recent) b.append(Object.assign(document.createElement('span'), { className: 'hot', textContent: ' ●' }));
-    b.onclick = () => { dbTab = t.table; renderDb(); };
+    b.onclick = () => { dbTab = t.table; dbDetail = null; renderDb(); };
     tabs.appendChild(b);
   }
   const t = db.tables.find((x) => x.table === dbTab) || db.tables[0];
+  const keep = rows.querySelector('.grid')?.scrollLeft || 0, keepPre = rows.querySelector('.detail pre')?.scrollTop || 0;
   rows.innerHTML = '';
   if (!t || !t.rows.length) rows.innerHTML = `<div class="empty">${t?.error ? `No se pudo leer: ${t.error}` : 'Sin filas para esta solicitud todavía.'}</div>`;
-  for (const row of t?.rows || []) {
-    const key = `${t.table}:${row.id}`, chg = hot(key), open = dbOpen.has(key);
-    const div = Object.assign(document.createElement('div'), { className: `row${chg?.isNew ? ' new' : ''}` });
-    const want = open ? Object.keys(row).filter((c) => row[c] != null && row[c] !== '') : ['id', ...(KEY_COLS[t.table] || Object.keys(row).slice(1, 5)).filter((c) => c in row)];
-    for (const c of want) {
-      const kv = Object.assign(document.createElement('div'), { className: `kv${chg && !chg.isNew && chg.cols.has(c) ? ' chg' : ''}` });
-      kv.append(Object.assign(document.createElement('span'), { className: 'k', textContent: c }),
-        Object.assign(document.createElement('span'), { className: `v${row[c] == null ? ' null' : ''}`, textContent: row[c] == null ? 'NULL' : row[c] }));
-      div.appendChild(kv);
+  else {
+    // LAS COLUMNAS: primero las que importan de esa tabla, después las demás; afuera las que están vacías en todas las filas.
+    const all = [...new Set(t.rows.flatMap((r) => Object.keys(r)))];
+    const filled = all.filter((c) => t.rows.some((r) => r[c] != null && r[c] !== ''));
+    const first = ['id', ...(KEY_COLS[t.table] || [])].filter((c) => filled.includes(c));
+    const cols = [...first, ...filled.filter((c) => !first.includes(c))];
+    const wrap = Object.assign(document.createElement('div'), { className: 'grid' });
+    const table = document.createElement('table');
+    const head = table.createTHead().insertRow();
+    for (const c of cols) head.appendChild(Object.assign(document.createElement('th'), { textContent: c }));
+    const body = table.createTBody();
+    for (const row of t.rows) {
+      const key = `${t.table}:${row.id}`, chg = hot(key);
+      const tr = body.insertRow();
+      if (chg?.isNew) tr.className = 'new';
+      for (const c of cols) {
+        const v = row[c], obj = jsonOf(v);
+        const td = tr.insertCell();
+        if (chg && !chg.isNew && chg.cols.has(c)) td.classList.add('chg');
+        if (v == null) { td.textContent = 'NULL'; td.classList.add('null'); continue; }
+        // Un objeto se resume en la celda («{…} 12 claves») y se abre formateado abajo; un texto largo, igual.
+        const text = obj !== undefined ? (Array.isArray(obj) ? `[…] ${obj.length}` : `{…} ${Object.keys(obj || {}).length} claves`) : String(v);
+        td.textContent = text;
+        td.title = obj !== undefined ? 'Ver el objeto' : String(v);
+        if (obj !== undefined || String(v).length > 40) {
+          td.classList.add('open');
+          if (dbDetail?.key === key && dbDetail.col === c) td.classList.add('sel');
+          td.onclick = () => { dbDetail = dbDetail?.key === key && dbDetail.col === c ? null : { key, col: c }; renderDb(); };
+        }
+      }
     }
-    if (!open) div.appendChild(Object.assign(document.createElement('div'), { className: 'more', textContent: '+ todas las columnas' }));
-    div.onclick = () => { open ? dbOpen.delete(key) : dbOpen.add(key); renderDb(); };
-    rows.appendChild(div);
+    wrap.appendChild(table); rows.appendChild(wrap);
+    wrap.scrollLeft = keep;
+    // EL DETALLE: la celda elegida, entera, con el JSON formateado.
+    const row = dbDetail && t.rows.find((r) => `${t.table}:${r.id}` === dbDetail.key);
+    if (row && dbDetail.col in row) {
+      const v = row[dbDetail.col], obj = jsonOf(v);
+      const det = Object.assign(document.createElement('div'), { className: 'detail' });
+      const bar = Object.assign(document.createElement('div'), { className: 'bar' });
+      const copy = Object.assign(document.createElement('button'), { textContent: 'Copiar' });
+      copy.onclick = () => navigator.clipboard.writeText(obj !== undefined ? JSON.stringify(obj, null, 2) : String(v));
+      const close = Object.assign(document.createElement('button'), { textContent: '✕' });
+      close.onclick = () => { dbDetail = null; renderDb(); };
+      bar.append(Object.assign(document.createElement('span'), { textContent: `${SHORT[t.table] || t.table} · id ${row.id} · ${dbDetail.col}` }), copy, close);
+      det.append(bar, Object.assign(document.createElement('pre'), { textContent: obj !== undefined ? JSON.stringify(obj, null, 2) : String(v) }));
+      rows.appendChild(det);
+      det.querySelector('pre').scrollTop = keepPre;
+    }
   }
   const recentCount = [...dbChanged.values()].filter((c) => now - c.at < HOT_MS).length;
   foot.innerHTML = '';
