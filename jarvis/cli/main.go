@@ -155,6 +155,10 @@ func main() {
 		err = cleanupCmd(args)
 	case "attention":
 		err = attentionCmd(args)
+	case "console":
+		err = consoleCmd(args)
+	case "network":
+		err = networkCmd(args)
 	case "think":
 		if len(args) == 0 {
 			usage()
@@ -298,6 +302,8 @@ func help(w io.Writer) {
   start [--group G] [--color C] [--aside] [--url U] '<meta>'   (--aside: en una ventana aparte de Jarvis, sin foco: tu ventana queda limpia)   cada meta va a su sesión, en su grupo de pestañas de Chrome:
                         G si lo nombrás (si ya existe, se suma), si no uno con el nombre de la meta. Dos trabajos en
                         paralelo, cada uno con su --session (o su --group), no se pisan
+  console [--errors] [--search t] [--all] · network [--failed] [--search t] [--all]   la consola y la red de la
+                        sesión (documento, fetch y xhr; --all, todo), sin abrir DevTools
   attention '<motivo>' | attention --clear   la sesión necesita a la persona (un código, una llave, un login): 🔔 en
                         su pestaña, su grupo en rojo, un número en el ícono de Jarvis y la tarjeta marcada en Cockpit.
                         Se borra con --clear, al terminar la meta (finish) o al cerrar la sesión
@@ -316,7 +322,7 @@ func help(w io.Writer) {
 
 // commands son los comandos que entiende main (los de antes, en castellano, se traducen al entrar: legacy.go). Sólo
 // sirve para sugerir uno cuando se escribe mal: el switch de main es el que manda.
-var commands = []string{"start", "chrome", "docs", "recipe", "tabs", "groups", "focus", "cleanup", "attention", "think", "finish", "project", "ask", "open", "device", "ua", "look",
+var commands = []string{"start", "chrome", "docs", "recipe", "tabs", "groups", "focus", "cleanup", "attention", "console", "network", "think", "finish", "project", "ask", "open", "device", "ua", "look",
 	"click", "dblclick", "hover", "check", "uncheck", "fill", "select", "press", "upload", "drag", "point", "changes", "dialog",
 	"scroll", "goto", "back", "forward", "reload", "text", "wait", "value", "download", "read", "shot", "steps", "script", "report",
 	"reset", "close", "help"}

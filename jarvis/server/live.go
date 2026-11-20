@@ -160,13 +160,15 @@ type live struct {
 	// background: el último comando de Claude corrió con la pestaña detrás (focus.go); si vence por tiempo, el sitio
 	// aprende que va al frente.
 	background bool
-	subs       map[chan []byte]struct{}
-	lastFrame  []byte
-	current    *Page
-	version    int
-	signature  string // qué hay para tocar en el último análisis: la versión sube sólo si cambia
-	analyzing  bool
-	steps      []Step
+	// dev: la consola y la red de la página, mientras dure la sesión (devlog.go).
+	dev       *devlog
+	subs      map[chan []byte]struct{}
+	lastFrame []byte
+	current   *Page
+	version   int
+	signature string // qué hay para tocar en el último análisis: la versión sube sólo si cambia
+	analyzing bool
+	steps     []Step
 
 	analyzeMu sync.Mutex
 	dirty     chan struct{}
@@ -330,6 +332,8 @@ func (r *Runner) runLive(ctx context.Context, site Site, start string, ready cha
 	defer release()
 	l := &live{site: site, bctx: bctx, page: page, tap: &tap{}, start: start, w: w, h: h, device: device, dpr: dpr, subs: map[chan []byte]struct{}{}, dirty: make(chan struct{}, 1)}
 	l.tap.attach(page)
+	l.dev = newDevlog()
+	l.dev.attach(page)
 	page.OnDialog(func(d playwright.Dialog) {
 		l.mu.Lock()
 		dismiss := l.dismissDialogs

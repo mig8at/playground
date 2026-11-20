@@ -455,6 +455,44 @@ const script = ref('')
 async function loadScript() { try { script.value = await fetch('/api/live/script', { headers: { 'X-Jarvis-Tab': viewTab.value } }).then((r) => r.text()) } catch { script.value = '' } }
 watch([panelTab, () => liveState.value.steps?.length], () => { if (panelTab.value === 'script') loadScript() })
 
+// ── la consola y la red de la sesión elegida (server/devlog.go) ──
+// Siguen a la sesión que se mira (viewTab): elegir otra pestaña arriba, o abrir una tarjeta de la grilla, cambia lo que
+// muestran. Se pide sólo lo nuevo (since) cada 1,5 s mientras una de las dos pestañas está a la vista.
+const devCon = ref([])
+const devNet = ref([])
+const devOnlyBad = ref(false) // consola: sólo errores y avisos · red: sólo fallidos y 4xx/5xx
+const devAllNet = ref(false) // red: también imágenes, estilos, fuentes…
+let devLast = 0
+let devFor = ''
+let devTimer = 0
+async function loadDev() {
+  const tab = viewTab.value
+  if (!tab) return
+  if (tab !== devFor) { devFor = tab; devLast = 0; devCon.value = []; devNet.value = [] }
+  try {
+    const d = await fetch(`/api/live/devlog?since=${devLast}`, { headers: { 'X-Jarvis-Tab': tab } }).then((r) => r.json())
+    if (tab !== devFor) return
+    if (d.console?.length) devCon.value = [...devCon.value, ...d.console].slice(-500)
+    if (d.network?.length) devNet.value = [...devNet.value, ...d.network].slice(-500)
+    devLast = d.last || devLast
+  } catch { /* la API se reinicia: se reintenta */ }
+}
+const devShown = computed(() => shown.value.panel && (panelTab.value === 'console' || panelTab.value === 'network'))
+// Al montar: `shown` (las regiones visibles) se declara más abajo.
+onMounted(() => watch([devShown, viewTab], ([on]) => {
+  clearInterval(devTimer)
+  if (on) { loadDev(); devTimer = setInterval(loadDev, 1500) }
+}, { immediate: true }))
+onBeforeUnmount(() => clearInterval(devTimer))
+const isBadLevel = (l) => l === 'error' || l === 'warning' || l === 'excepción'
+const isBadNet = (e) => !!e.failed || e.status >= 400
+const conShown = computed(() => devCon.value.filter((e) => !devOnlyBad.value || isBadLevel(e.level)))
+const netShown = computed(() => devNet.value.filter((e) => (devAllNet.value || ['document', 'fetch', 'xhr'].includes(e.type)) && (!devOnlyBad.value || isBadNet(e))))
+const conBad = computed(() => devCon.value.filter((e) => isBadLevel(e.level)).length)
+const netBad = computed(() => devNet.value.filter(isBadNet).length)
+const hhmmss = (t) => new Date(t).toLocaleTimeString('es-CO', { hour12: false })
+const viewedTab = computed(() => tabs.value.find((t) => t.id === viewTab.value))
+
 // ── las regiones (workbench) ──
 const sidebarOpen = ref(readSize('jarvis.sidebar-open', 1) !== 0)
 const sidebarW = ref(readSize('jarvis.sidebar-w', 320))
@@ -499,7 +537,10 @@ const panelResize = {
   reopen: () => panelH.value,
   commit: (v) => { saveSize('jarvis.panel-open', v ? 1 : 0); if (v) saveSize('jarvis.panel-h', panelH.value) },
 }
-const toggle = (key, r) => { r.value = !r.value; saveSize(key, r.value ? 1 : 0) }
+// Se nombra la región, no se pasa su ref: desde la plantilla Vue desenvuelve el ref y llegaba el valor (false), así que
+// los tres botones del pie no abrían ni cerraban nada (pasaba desde el 2026-11-07; visto el 2026-11-20).
+const regionRefs = { sidebar: sidebarOpen, panel: panelOpen, aux: auxOpen }
+const toggle = (key, name) => { const r = regionRefs[name]; r.value = !r.value; saveSize(key, r.value ? 1 : 0) }
 
 const themeToggle = ref(null)
 let themeBinding = null
@@ -851,17 +892,40 @@ const status = computed(() => {
       </template>
     </aside>
 
-    <section v-if="shown.panel" class="panel" aria-label="Pasos de la sesión">
+    <section v-if="shown.panel" class="panel" aria-label="Pasos, script, consola y red de la sesión">
       <div class="rsz rsz-edge-top" v-resize="panelResize"></div>
       <nav class="tabs">
         <button type="button" class="tab" :class="{ on: panelTab === 'steps' }" @click="panelTab = 'steps'">Pasos <span class="count">{{ (liveState.steps || []).length }}</span></button>
         <button type="button" class="tab" :class="{ on: panelTab === 'script' }" @click="panelTab = 'script'">Script</button>
+        <button type="button" class="tab" :class="{ on: panelTab === 'console' }" @click="panelTab = 'console'">Consola <span v-if="conBad" class="count bad">{{ conBad }}</span></button>
+        <button type="button" class="tab" :class="{ on: panelTab === 'network' }" @click="panelTab = 'network'">Red <span v-if="netBad" class="count bad">{{ netBad }}</span></button>
+        <template v-if="panelTab === 'console' || panelTab === 'network'">
+          <span class="grow"></span>
+          <span class="dev-of muted small">{{ viewedTab ? `sesión ${viewedTab.id}${viewedTab.group ? ' · ' + viewedTab.group : ''}` : 'ninguna sesión' }}</span>
+          <button type="button" class="toggle btn-xs" :aria-pressed="devOnlyBad" @click="devOnlyBad = !devOnlyBad">{{ panelTab === 'console' ? 'Sólo errores' : 'Sólo fallidos' }}</button>
+          <button v-if="panelTab === 'network'" type="button" class="toggle btn-xs" :aria-pressed="devAllNet" title="También imágenes, estilos y fuentes" @click="devAllNet = !devAllNet">Todo</button>
+        </template>
       </nav>
       <div class="region-body">
         <template v-if="panelTab === 'steps'">
           <p v-if="!(liveState.steps || []).length" class="none">Los pasos de la sesión en vivo, con su línea de Playwright.</p>
           <div v-for="(s, i) in liveState.steps || []" :key="i" class="log-line" :data-kind="s.ok ? 'ok' : 'warn'">
             <span class="what wrap">{{ s.manual ? '👉' : s.ok ? '✓' : '✗' }} {{ s.code }}<template v-if="s.error"> · {{ s.error }}</template></span>
+          </div>
+        </template>
+        <template v-else-if="panelTab === 'console'">
+          <p v-if="!conShown.length" class="none">{{ devCon.length ? 'Ningún error ni aviso.' : 'Lo que la página de la sesión elegida dice en su consola.' }}</p>
+          <div v-for="e in conShown" :key="e.seq" class="log-line dev-line" :data-kind="isBadLevel(e.level) ? 'warn' : 'ok'">
+            <span class="dev-time">{{ hhmmss(e.at) }}</span><span class="dev-level" :class="{ bad: isBadLevel(e.level) }">{{ e.level }}</span>
+            <span class="what wrap">{{ e.text }}<span v-if="e.where" class="muted"> · {{ e.where }}</span></span>
+          </div>
+        </template>
+        <template v-else-if="panelTab === 'network'">
+          <p v-if="!netShown.length" class="none">{{ devNet.length ? 'Nada con ese filtro.' : 'Los pedidos de red de la sesión elegida: documento, fetch y xhr («Todo» suma imágenes y estilos).' }}</p>
+          <div v-for="e in netShown" :key="e.seq" class="log-line dev-line" :data-kind="isBadNet(e) ? 'warn' : 'ok'" :title="e.url">
+            <span class="dev-time">{{ hhmmss(e.at) }}</span><span class="dev-method">{{ e.method }}</span>
+            <span class="dev-status" :class="{ bad: isBadNet(e) }">{{ e.failed ? '✗' : e.status }}</span><span class="dev-type muted">{{ e.type }}</span>
+            <span class="dev-ms muted">{{ e.ms }} ms</span><span class="what dev-url">{{ e.url }}<span v-if="e.failed" class="bad"> · {{ e.failed }}</span></span>
           </div>
         </template>
         <pre v-else class="script">{{ script || 'Sin pasos todavía.' }}</pre>
@@ -898,9 +962,9 @@ const status = computed(() => {
       </button>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
         <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
-        <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Proyectos y flujos" aria-label="Mostrar u ocultar la barra lateral" @click="toggle('jarvis.sidebar-open', sidebarOpen)"><span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span></button>
-        <button type="button" class="region-action" :aria-pressed="!!shown.panel" title="Pasos y script" aria-label="Mostrar u ocultar los pasos" @click="toggle('jarvis.panel-open', panelOpen)"><span class="ui-icon" data-icon="console" aria-hidden="true"></span></button>
-        <button type="button" class="region-action" :aria-pressed="!!shown.aux" :disabled="!agentShown && !flowOpen" title="El flujo o Claude trabajando" aria-label="Mostrar u ocultar el panel de Claude" @click="toggle('jarvis.aux-open', auxOpen)"><span class="ui-icon" data-icon="detail" aria-hidden="true"></span></button>
+        <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Proyectos y flujos" aria-label="Mostrar u ocultar la barra lateral" @click="toggle('jarvis.sidebar-open', 'sidebar')"><span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span></button>
+        <button type="button" class="region-action" :aria-pressed="!!shown.panel" title="Pasos, script, consola y red" aria-label="Mostrar u ocultar los pasos" @click="toggle('jarvis.panel-open', 'panel')"><span class="ui-icon" data-icon="console" aria-hidden="true"></span></button>
+        <button type="button" class="region-action" :aria-pressed="!!shown.aux" :disabled="!agentShown && !flowOpen" title="El flujo o Claude trabajando" aria-label="Mostrar u ocultar el panel de Claude" @click="toggle('jarvis.aux-open', 'aux')"><span class="ui-icon" data-icon="detail" aria-hidden="true"></span></button>
       </div>
     </footer>
   </div>
@@ -1005,6 +1069,18 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .grid-goal, .grid-step { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .grid-goal { font-size: var(--text-sm) }
 .grid-viewing { font-size: var(--text-xs); color: var(--primary-ink) }
+/* La consola y la red del panel de abajo: una línea por mensaje o pedido, en columnas que no se desarman. */
+.panel .tabs .grow { flex: 1 }
+.panel .tabs .toggle { align-self: center; margin-right: var(--space-1) }
+.dev-of { align-self: center; margin-right: var(--space-2) }
+.count.bad { color: var(--destructive-ink) }
+.dev-line { gap: var(--space-2) }
+.dev-line > span { flex: none }
+.dev-time { color: var(--fg-3) }
+.dev-level { width: 6.5em } .dev-method { width: 4em } .dev-status { width: 2.5em; text-align: right } .dev-type { width: 5em } .dev-ms { width: 5em; text-align: right }
+.dev-level.bad, .dev-status.bad, .dev-url .bad { color: var(--destructive-ink) }
+.dev-line > .what { flex: 1; min-width: 0 }
+.dev-url { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 /* Una sesión que necesita a la persona (un código, un paso de la guía, un captcha): borde y motivo en la tinta del
    error, que se vea de lejos. Gana al borde de «Claude actuó acá». */
 .grid-card.attention, .grid-card.attention.acted { border-color: var(--destructive-ink); box-shadow: 0 0 0 2px var(--destructive-ink) }

@@ -748,6 +748,15 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 		}
 		writeJSON(w, http.StatusOK, items)
 	})
+	// GET /api/live/devlog?since=N — la consola y la red de la sesión desde el número N (devlog.go).
+	mux.HandleFunc("/api/live/devlog", func(w http.ResponseWriter, r *http.Request) {
+		tab := tabs.pick(w, r)
+		if tab == nil {
+			return
+		}
+		since, _ := strconv.Atoi(r.URL.Query().Get("since"))
+		writeJSON(w, http.StatusOK, tab.Runner.LiveDevLog(since))
+	})
 	// POST /api/live/attention {reason} — Claude necesita a la persona en esta sesión (vacío lo borra). attention.go.
 	mux.HandleFunc("/api/live/attention", func(w http.ResponseWriter, r *http.Request) {
 		tab := tabs.pick(w, r)
