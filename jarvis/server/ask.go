@@ -45,6 +45,7 @@ type Asker struct {
 	// external: una sesión que maneja Claude desde la conversación con bin/jarvis (empezar · pienso ·
 	// terminar): no hay proceso; los eventos los manda el CLI.
 	external bool
+	keep     string // qué se guarda de la meta (keep.go)
 }
 
 // AskState es lo que lee la interfaz: los eventos desde el número since.
@@ -56,6 +57,7 @@ type AskState struct {
 	Started  time.Time  `json:"start"`
 	Exit     string     `json:"exit,omitempty"`
 	External bool       `json:"external,omitempty"` // la maneja Claude desde la conversación
+	Keep     string     `json:"keep,omitempty"`     // qué se guarda de la meta: none · run · flow · recipe (keep.go)
 	Total    int        `json:"total"`
 	Events   []AskEvent `json:"events"`
 }
@@ -184,7 +186,7 @@ func (a *Asker) State(since int) AskState {
 	if since > len(a.events) {
 		since = 0
 	}
-	return AskState{Tab: a.tab, Running: a.running || a.external, Waiting: a.waiting, Goal: a.goal, Started: a.started, Exit: a.exit, External: a.external,
+	return AskState{Tab: a.tab, Running: a.running || a.external, Waiting: a.waiting, Goal: a.goal, Started: a.started, Exit: a.exit, External: a.external, Keep: a.keep,
 		Total: len(a.events), Events: append([]AskEvent{}, a.events[since:]...)}
 }
 
@@ -220,13 +222,14 @@ func (a *Asker) Stop() {
 }
 
 // Begin abre una sesión externa (Claude desde la conversación): el panel se limpia y muestra la meta.
-func (a *Asker) Begin(goal string) error {
+func (a *Asker) Begin(goal, keep string) error {
 	a.mu.Lock()
 	if a.running {
 		a.mu.Unlock()
 		return errors.New("hay una meta de ask corriendo: esperá a que termine")
 	}
 	a.external, a.waiting, a.goal, a.started, a.exit, a.events = true, false, strings.TrimSpace(goal), time.Now(), "", nil
+	a.keep = keep
 	a.mu.Unlock()
 	hub.Publish("askstate", a.State(0))
 	return nil
@@ -246,10 +249,18 @@ func (a *Asker) Event(kind, text string) {
 	hub.Publish("ask", ev)
 }
 
+// SetKeep cambia qué se guarda de la meta en curso (finish --keep).
+func (a *Asker) SetKeep(k string) {
+	a.mu.Lock()
+	a.keep = k
+	a.mu.Unlock()
+	hub.Publish("askstate", a.State(-1))
+}
+
 // End cierra la sesión externa.
 func (a *Asker) End() {
 	a.mu.Lock()
-	a.external = false
+	a.external, a.keep = false, ""
 	a.mu.Unlock()
 	hub.Publish("askstate", a.State(-1))
 }

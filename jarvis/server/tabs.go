@@ -240,6 +240,7 @@ type TabInfo struct {
 	Active bool   `json:"active"`         // tiene una página abierta
 	Goal   string `json:"meta,omitempty"` // la meta de su Claude, si hay uno trabajando
 	Busy   bool   `json:"busy"`           // su Claude está trabajando
+	Keep   string `json:"keep,omitempty"` // qué se guarda de su meta (keep.go)
 	Last   bool   `json:"last"`           // es la que atiende un pedido sin pestaña
 	// ByClaude: la abrió Claude; IdleSec: hace cuántos segundos nadie la usa (las de Claude se cierran solas).
 	ByClaude bool `json:"byClaude"`
@@ -275,7 +276,7 @@ func (t *Tabs) Info() []TabInfo {
 		st := tab.Runner.LiveState(false)
 		as := tab.Asker.State(-1)
 		out = append(out, TabInfo{ID: tab.ID, Site: st.Site, Title: st.Title, URL: st.URL, Active: st.Active,
-			Goal: as.Goal, Busy: as.Running, Last: tab.ID == last, ByClaude: tab.ByClaude, IdleSec: idle[tab.ID],
+			Goal: as.Goal, Busy: as.Running, Keep: as.Keep, Last: tab.ID == last, ByClaude: tab.ByClaude, IdleSec: idle[tab.ID],
 			Device: st.Device, ChromeTab: st.ChromeTab, Group: group[tab.ID][0], Color: group[tab.ID][1], Aside: tab.Runner.Aside(), Viewing: chromeBridge.looking(st.ChromeTab), Attention: tab.Attention()})
 	}
 	return out

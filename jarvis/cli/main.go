@@ -22,7 +22,7 @@
 //	bin/jarvis chrome                         ¿está conectada la extensión de Chrome? ¿qué pestañas compartió la persona?
 //	bin/jarvis start [--url U] '<meta>'       abre una sesión de Claude desde la conversación: el panel de la interfaz
 //	              think '<texto>'               muestra cada comando, lo que piensa (think) y cómo terminó (finish,
-//	              finish 'LISTO: …'             que guarda la corrida y, con LISTO, el flujo)
+//	              finish 'LISTO: …'             que guarda lo que pidió --keep: none · run (defecto) · flow · recipe)
 //	bin/jarvis shot [--full] <archivo.png>    guarda lo que se ve ahora (--full: toda la página en páginas numeradas,
 //	                                           archivo-01.png, -02…, bajando el scroll)
 //	bin/jarvis steps | script | reset         los pasos hechos, como script de Playwright, o de cero
@@ -298,6 +298,9 @@ func help(w io.Writer) {
   recipe <herramienta> <receta> [args]   corre una receta (bin/jarvis docs <herramienta> las lista)
   chrome   ¿la extensión de Chrome está conectada?
   start [--url U] '<meta>' · think '<texto>' · finish 'LISTO: …'   una sesión de Claude desde la conversación, a la vista en el panel
+  start --keep none|run|flow|recipe '<meta>'   qué queda al terminar: none sólo investiga (no guarda nada) · run la corrida (defecto) ·
+                        flow además el flujo, si terminó en LISTO · recipe además la receta por API (finish --recipe <nombre>)
+  finish [--keep …] [--recipe nombre] 'LISTO: …'   --keep cambia al final lo que se pidió en start
   tabs [new [url] | close N]   las pestañas abiertas (cada una, su sesión); nueva abre otra (con la página).
                         Cualquier comando: --session N (o JARVIS_SESSION=N), o --group G (la última sesión de ese
                         grupo); sin eso, la última que se abrió.
@@ -1309,8 +1312,15 @@ func shellLine(args []string) string {
 }
 
 func begin(args []string) error {
-	start := ""
-	for len(args) > 0 && (args[0] == "--url" || args[0] == "--aside" || strings.HasPrefix(args[0], "--c") || args[0] == "--movil") {
+	start, keep := "", keepRun
+	for len(args) > 1 && args[0] == "--keep" || len(args) > 0 && (args[0] == "--url" || args[0] == "--aside" || strings.HasPrefix(args[0], "--c") || args[0] == "--movil") {
+		if args[0] == "--keep" {
+			if !validKeep(args[1]) {
+				return fmt.Errorf("--keep %q no existe: none · run · flow · recipe", args[1])
+			}
+			keep, args = args[1], args[2:]
+			continue
+		}
 		if err := engineFlag(args[0]); err != nil {
 			return err
 		}
@@ -1349,7 +1359,7 @@ func begin(args []string) error {
 			return err
 		}
 	}
-	if err := call(http.MethodPost, "/api/ask/external", map[string]string{"action": "begin", "meta": goal}, nil); err != nil {
+	if err := call(http.MethodPost, "/api/ask/external", map[string]string{"action": "begin", "meta": goal, "keep": keep}, nil); err != nil {
 		return err
 	}
 	where := ""
@@ -1357,6 +1367,7 @@ func begin(args []string) error {
 		where = ", en la ventana aparte"
 	}
 	fmt.Printf("sesión abierta en el panel, pestaña %s, grupo «%s»%s: %s\n", tabID, groupName, where, goal)
+	fmt.Printf("al terminar queda: %s (--keep %s)\n", keepSays[keep], keep)
 	fmt.Printf("seguí con --session %s en cada comando (o JARVIS_SESSION=%s): con otros trabajos en paralelo, así no caés en otra\n", tabID, tabID)
 	fmt.Println()
 	if start != "" {
@@ -1366,15 +1377,45 @@ func begin(args []string) error {
 }
 
 func finish(args []string) error {
+	keep, recipe := "", ""
+	for len(args) > 1 && (args[0] == "--keep" || args[0] == "--recipe") {
+		if args[0] == "--keep" {
+			if !validKeep(args[1]) {
+				return fmt.Errorf("--keep %q no existe: none · run · flow · recipe", args[1])
+			}
+			keep = args[1]
+		} else {
+			recipe = args[1]
+		}
+		args = args[2:]
+	}
 	result := strings.TrimSpace(strings.Join(args, " "))
 	if result == "" {
 		usage()
 	}
-	var st struct{ Meta string }
+	var st struct {
+		Meta string
+		Keep string
+	}
 	_ = call(http.MethodGet, "/api/ask?desde=999999", nil, &st)
 	goal := st.Meta
+	if keep == "" {
+		keep = st.Keep
+	}
+	if keep == "" { // una meta de antes de --keep, o sin start: como siempre
+		keep = keepFlow
+	}
+	if keep != st.Keep {
+		_ = call(http.MethodPost, "/api/ask/external", map[string]string{"action": "keep", "keep": keep}, nil)
+	}
 	defer call(http.MethodPost, "/api/ask/external", map[string]string{"action": "end"}, nil)
 	_ = panelEvent("result", result)
+	if keep == keepNone {
+		var d struct{ Discarded string }
+		_ = call(http.MethodPost, "/api/ask/external", map[string]string{"action": "discard"}, &d)
+		fmt.Println("no guardé nada: era sólo investigar (--keep none). Para quedártela, se termina con finish --keep run|flow en lugar de finish a secas")
+		return nil
+	}
 	url, err := writeReportInfo(map[string]any{"meta": goal, "result": result, "keyword": keyword(result), "source": "Claude desde la conversación"})
 	if err != nil {
 		return err
@@ -1384,13 +1425,22 @@ func finish(args []string) error {
 	if lastRunID != "" {
 		fmt.Printf("su consola y su red: bin/jarvis console --run %s · bin/jarvis network --run %s\n", lastRunID, lastRunID)
 	}
-	if keyword(result) == "LISTO" && lastRunID != "" && goal != "" {
-		var fl struct{ App, ID, Path string }
-		if err := call(http.MethodPost, "/api/flows", map[string]string{"run": lastRunID, "name": goal}, &fl); err != nil {
-			return fmt.Errorf("no se guardó como flujo: %w", err)
-		}
-		_ = panelEvent("flow", fl.App+"/"+fl.ID)
-		fmt.Printf("flujo guardado: %s\n", fl.Path)
+	if keep == keepRun {
+		fmt.Println("sin flujo (--keep run): un flujo se pide con --keep flow, en start o en finish")
+		return nil
+	}
+	if keyword(result) != "LISTO" || lastRunID == "" || goal == "" {
+		fmt.Println("sin flujo: sólo se guarda una meta que terminó en LISTO")
+		return nil
+	}
+	var fl struct{ App, ID, Path string }
+	if err := call(http.MethodPost, "/api/flows", map[string]string{"run": lastRunID, "name": goal}, &fl); err != nil {
+		return fmt.Errorf("no se guardó como flujo: %w", err)
+	}
+	_ = panelEvent("flow", fl.App+"/"+fl.ID)
+	fmt.Printf("flujo guardado: %s\n", fl.Path)
+	if keep == keepRecipe {
+		return recipeFromFlow(fl.App, fl.Path, recipe)
 	}
 	return nil
 }

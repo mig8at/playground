@@ -478,8 +478,16 @@ func (r *Runner) runLive(ctx context.Context, site Site, start string, ready cha
 	r.live = l
 	r.mu.Unlock()
 	defer func() {
-		// La consola y la red de la corrida quedan con ella aunque nadie haya llamado a finish (devlog.go).
-		if err := l.saveDevlog(); err != nil {
+		// La consola y la red de la corrida quedan con ella aunque nadie haya llamado a finish (devlog.go); de una meta
+		// «sólo investigar» (keep.go) no queda nada.
+		if r.Keep() == keepNone {
+			l.mu.Lock()
+			dir := l.runDir
+			l.mu.Unlock()
+			if dir != "" {
+				_ = os.RemoveAll(dir)
+			}
+		} else if err := l.saveDevlog(); err != nil {
 			r.say("warn", "no se guardó la consola y la red de la corrida: %v", err)
 		}
 		r.mu.Lock()

@@ -16,11 +16,15 @@ con LISTO / NO PUDE / NECESITO / CONFIRMAR.
 ## Cuándo usar qué
 - **Lo hace Claude en esta conversación** (lo normal): seguí ask.md con `bin/jarvis …` desde Bash, a la vista de
   Miguel en el panel de la interfaz:
-  1. `bin/jarvis start --url <url de la app> '<la meta>'` abre la sesión en el panel (y el navegador).
+  1. `bin/jarvis start --keep <nivel> --url <url de la app> '<la meta>'` abre la sesión en el panel (y el
+     navegador). **`--keep` dice qué queda al terminar; elegilo según para qué es la meta**: investigar o mirar algo →
+     `none` (no queda nada); hacer una tarea una vez → `run` (la corrida: fotos, consola y red; es el defecto);
+     aprender cómo se hace, para reproducirlo → `flow`; automatizarlo por API → `recipe` (y en `finish`,
+     `--recipe <nombre-en-inglés>`). Si a mitad de camino sale algo que vale guardar, `finish --keep flow` lo sube.
   2. Antes de cada acción, `bin/jarvis think '<por qué, en una línea>'`: es lo que Miguel lee en el panel y
      el subtítulo del paso en el video del flujo. Cada comando aparece solo en el panel.
-  3. `bin/jarvis finish 'LISTO: …'` (o `NO PUDE: …`): guarda la corrida y, con LISTO, el flujo en
-     `jarvis/flows/<proyecto>/`.
+  3. `bin/jarvis finish 'LISTO: …'` (o `NO PUDE: …`): guarda lo que pidió `--keep` (el flujo, en
+     `jarvis/flows/<proyecto>/`, sólo con LISTO) y dice qué guardó y qué no.
   `bin/jarvis script` da el recorrido como prueba de Playwright.
 - **Varias cosas en paralelo: sesiones y grupos.** Cada sesión es aparte (su página, sus pasos, su flujo) y va a
   su **grupo de pestañas de Chrome**: `start --group 'VTEX' [--color blue] '<meta>'` la pone en ése (si Miguel nombró

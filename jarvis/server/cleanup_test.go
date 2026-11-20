@@ -12,7 +12,7 @@ func TestCleanupPlanDoneVersusWorking(t *testing.T) {
 	person := tabs.Get("") // de la persona
 	done := tabs.NewBy(true)
 	working := tabs.NewBy(true)
-	if err := working.Asker.Begin("una meta que sigue"); err != nil {
+	if err := working.Asker.Begin("una meta que sigue", ""); err != nil {
 		t.Fatal(err)
 	}
 	tabs.NewBy(true) // la última, vacía: no se toca

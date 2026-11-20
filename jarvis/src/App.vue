@@ -1,4 +1,12 @@
 <script setup>
+// Qué se guarda de una meta (bin/jarvis start --keep, server/keep.go): se ve en la tarjeta y en el panel de Claude.
+const KEEP_LABEL = { none: 'sólo investiga', run: 'guarda la corrida', flow: 'guarda el flujo', recipe: 'guarda flujo y receta' }
+const KEEP_SAYS = {
+  none: 'Al terminar no queda nada: ni la corrida ni el flujo',
+  run: 'Al terminar queda la corrida (fotos, consola y red), sin flujo',
+  flow: 'Al terminar queda la corrida y, si terminó bien, el flujo',
+  recipe: 'Al terminar queda la corrida, el flujo y su receta por API',
+}
 /* Jarvis · la interfaz. Flujos para usar herramientas complejas: le decís a Claude qué querés hacer en una app,
  * lo ves trabajar en vivo (el navegador real en el editor y lo que piensa a la derecha) y lo que aprende queda como
  * FLUJO (jarvis/flows, JSON en git): se reproduce navegando de nuevo, con sus datos precargados o abiertos, y
@@ -715,7 +723,7 @@ const status = computed(() => {
                 <img v-if="thumbs[t.id]" :src="thumbs[t.id]" :alt="`La página de la sesión ${t.id}`" />
                 <span v-else class="muted small">esperando el primer cuadro…</span>
               </span>
-              <span class="grid-goal">{{ t.meta || tabLabel(t) }}</span>
+              <span class="grid-goal">{{ t.meta || tabLabel(t) }}<span v-if="t.meta && t.keep" class="grid-keep muted" :title="KEEP_SAYS[t.keep]"> · {{ KEEP_LABEL[t.keep] }}</span></span>
               <span class="grid-step muted small">{{ lastStep(t.id) || t.url }}</span>
             </button>
           </div>
@@ -850,6 +858,7 @@ const status = computed(() => {
       <div class="region-head">
         <span>Claude</span>
         <span v-if="askState.running" class="badge badge-xs" :class="askState.waiting ? 'kw-ask' : 'kw-none'">{{ askState.waiting ? 'espera tu respuesta' : askState.external ? 'desde la conversación' : 'trabajando…' }}</span>
+        <span v-if="askState.running && askState.keep" class="badge badge-xs kw-none" :title="KEEP_SAYS[askState.keep]">{{ KEEP_LABEL[askState.keep] }}</span>
         <div class="region-actions">
           <button v-if="askState.running" type="button" class="region-action" title="Frenar" aria-label="Frenar" @click="stopAsk"><span class="ui-icon" data-icon="stop" aria-hidden="true"></span></button>
           <button v-else type="button" class="region-action" title="Limpiar" aria-label="Limpiar" @click="askEvents = []"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>

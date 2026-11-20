@@ -1042,17 +1042,30 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 			Goal   string `json:"meta"`
 			Kind   string `json:"k"`
 			Text   string `json:"t"`
+			Keep   string `json:"keep"`
 		}
 		_ = json.NewDecoder(r.Body).Decode(&in)
+		if err := checkKeep(in.Keep); err != nil {
+			writeErr(w, http.StatusBadRequest, err)
+			return
+		}
 		switch in.Action {
+		case "keep":
+			asker.SetKeep(in.Keep)
+			runner.SetKeep(in.Keep)
+		case "discard": // finish de una meta «none»: la corrida no queda
+			writeJSON(w, http.StatusOK, map[string]string{"discarded": runner.DiscardRun()})
+			return
 		case "begin":
-			if err := asker.Begin(in.Goal); err != nil {
+			runner.SetKeep(in.Keep)
+			if err := asker.Begin(in.Goal, in.Keep); err != nil {
 				writeErr(w, http.StatusConflict, err)
 				return
 			}
 			tabs.Release(tab) // ya la protege su meta: la reserva de Claim sobra
 		case "end":
 			asker.End()
+			runner.SetKeep("")      // la meta ya decidió qué quedaba (finish); lo que siga en la sesión, como siempre
 			runner.SetAttention("") // terminada la meta, lo que Claude había pedido ya no corre
 			tabs.Release(tab)       // terminada, la puede tomar la próxima meta (en el mismo sitio, con su pestaña)
 		default:

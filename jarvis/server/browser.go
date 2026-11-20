@@ -63,6 +63,8 @@ type Runner struct {
 	aside bool
 	// attention: Claude necesita a la persona en esta sesión, y por qué (attention.go). Vacío, no.
 	attention string
+	// keep: qué se guarda de la meta en curso (keep.go). Vacío: como siempre.
+	keep string
 }
 
 func NewRunner(store *Store) *Runner { return &Runner{store: store} }
