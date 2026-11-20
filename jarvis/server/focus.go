@@ -306,7 +306,7 @@ type FocusCheckResult struct {
 	Host   string          `json:"host"`
 	Mode   string          `json:"mode"`
 	Checks map[string]bool `json:"checks"`
-	Frames int             `json:"frames"` // animaciones en 1 s (al frente, ~60)
+	Frames int             `json:"frames"` // animaciones en 1 s (al frente, 60 o 120 según la pantalla)
 	Ticks  int             `json:"ticks"`  // temporizadores de 10 ms en 1 s (al frente, ~100; frenados, ~1)
 	Saved  bool            `json:"saved"`  // false si el sitio estaba puesto a mano: la medición no lo pisa
 }

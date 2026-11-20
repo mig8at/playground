@@ -72,7 +72,7 @@ func focusCmd(args []string) error {
 		fmt.Printf("%s con la pestaña detrás:\n", res.Host)
 		fmt.Printf("  %s se ve (visibilityState)\n", mark(res.Checks["visible"]))
 		fmt.Printf("  %s tiene foco (hasFocus)\n", mark(res.Checks["focus"]))
-		fmt.Printf("  %s animaciones: %d en 1 s (al frente, ~60)\n", mark(res.Checks["frames"]), res.Frames)
+		fmt.Printf("  %s animaciones: %d en 1 s (al frente, 60 o 120 según la pantalla)\n", mark(res.Checks["frames"]), res.Frames)
 		fmt.Printf("  %s temporizadores: %d de 100 en 1 s\n", mark(res.Checks["timers"]), res.Ticks)
 		verdict := "anda de fondo"
 		if res.Mode == "front" {
