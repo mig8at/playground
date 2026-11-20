@@ -305,6 +305,9 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 		runner := tab.Runner
 		writeJSON(w, http.StatusOK, runner.LiveState(r.URL.Query().Get("fresh") == "1"))
 	})
+	// GET /api/live/thumbs — el último cuadro de cada sesión, a lo sumo uno por segundo, por un solo stream: la vista
+	// «Todas» de la interfaz (thumbs.go). No cuenta como mirar: no frena el cierre automático.
+	mux.HandleFunc("/api/live/thumbs", func(w http.ResponseWriter, r *http.Request) { serveThumbs(w, r, tabs) })
 	// GET /api/live/frames — los cuadros del screencast, por Server-Sent Events (JSON: {data: jpeg base64, meta}).
 	mux.HandleFunc("/api/live/frames", func(w http.ResponseWriter, r *http.Request) {
 		tab := tabs.pick(w, r)

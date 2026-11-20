@@ -67,6 +67,8 @@ function pickTab(id) {
   manualUntil = Date.now() + FOLLOW_PAUSE_MS
 }
 function followTo(id) {
+  lastActed.value = id
+  if (liveMode.value === 'grid') return // en la grilla se marca la tarjeta; no se cambia de vista
   if (!followClaude.value || !id || id === viewTab.value || Date.now() < manualUntil) return
   if (!tabs.value.some((t) => t.id === id)) return
   viewTab.value = id
@@ -77,6 +79,51 @@ function liveMoved(prev, st) {
   if (!prev) return false
   return (st.steps?.length ?? 0) > (prev.steps?.length ?? 0) || (!!st.url && st.url !== prev.url)
 }
+
+// ── la vista «Todas»: cada sesión en vivo a la vez (miniaturas, server/thumbs.go) ──
+// Un solo stream con el último cuadro de cada sesión, uno por segundo: la que se abre en grande sigue por el suyo, a
+// velocidad completa. Las miniaturas no cuentan como mirar: no frenan el cierre automático de las sesiones.
+const liveMode = ref(readPref('jarvis.liveMode', 'one') === 'grid' ? 'grid' : 'one')
+watch(liveMode, (m) => savePref('jarvis.liveMode', m))
+const thumbs = ref({}) // id de la sesión → la imagen (data URL)
+const lastActed = ref('') // la sesión donde Claude hizo algo por última vez: su tarjeta se marca
+// Los colores de los grupos de pestañas, como los pinta Chrome (chrome.tabGroups.Color).
+const GROUP_COLORS = { grey: '#5f6368', blue: '#1a73e8', red: '#d93025', yellow: '#f9ab00', green: '#188038', pink: '#d01884',
+  purple: '#9334e6', cyan: '#007b83', orange: '#fa903e' }
+const gridTabs = computed(() => tabs.value.filter((t) => t.active || thumbs.value[t.id]))
+function lastStep(id) {
+  const steps = liveStates.value[id]?.steps || []
+  const s = steps[steps.length - 1]
+  return s ? (s.ok === false ? '✗ ' : '✓ ') + (s.target || s.code || '') : ''
+}
+function openFromGrid(id) {
+  pickTab(id)
+  liveMode.value = 'one'
+}
+let thumbStream = null
+function openThumbs() {
+  thumbStream?.close()
+  thumbStream = new EventSource('/api/live/thumbs')
+  thumbStream.addEventListener('thumb', (e) => {
+    try {
+      const { tab, frame } = JSON.parse(e.data)
+      thumbs.value = { ...thumbs.value, [tab]: 'data:image/jpeg;base64,' + frame.data }
+    } catch { /* cuadro roto */ }
+  })
+  thumbStream.addEventListener('gone', (e) => {
+    try {
+      const { tab } = JSON.parse(e.data)
+      const next = { ...thumbs.value }
+      delete next[tab]
+      thumbs.value = next
+    } catch { /* evento roto */ }
+  })
+}
+const gridShown = computed(() => liveMode.value === 'grid' && view.value.kind === 'live')
+watch(gridShown, (on) => {
+  if (on) openThumbs()
+  else { thumbStream?.close(); thumbStream = null }
+}, { immediate: true })
 
 async function newTab() {
   try { const t = await api('/api/tabs', { method: 'POST' }); viewTab.value = t.id; go({ kind: 'live' }) } catch (e) { liveError.value = e.message }
@@ -200,7 +247,7 @@ function openFrames() {
   }
   frames.addEventListener('end', () => { frames?.close(); frames = null })
 }
-const showLive = computed(() => isLive.value && view.value.kind === 'live')
+const showLive = computed(() => isLive.value && view.value.kind === 'live' && liveMode.value === 'one')
 watch(showLive, (on) => {
   if (on) requestAnimationFrame(() => { openFrames(); watchEditor() })
   else { frames?.close(); frames = null }
@@ -583,12 +630,39 @@ const status = computed(() => {
             <button type="button" class="tab-close" :aria-label="`Cerrar la pestaña ${tabLabel(t)}`" @click="closeTab(t.id)"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
           </div>
           <button type="button" class="region-action new-tab" title="Pestaña nueva: otra sesión en paralelo" aria-label="Pestaña nueva" @click="newTab"><span class="ui-icon" data-icon="plus" aria-hidden="true"></span></button>
+          <span class="grow"></span>
+          <button type="button" class="region-action grid-toggle" :class="{ on: liveMode === 'grid' }" :aria-pressed="liveMode === 'grid'"
+            :title="liveMode === 'grid' ? 'Ver una sesión en grande' : 'Ver todas las sesiones a la vez (cómo trabaja Claude en paralelo)'"
+            :aria-label="liveMode === 'grid' ? 'Ver una sesión' : 'Ver todas las sesiones'" @click="liveMode = liveMode === 'grid' ? 'one' : 'grid'">
+            <span class="ui-icon" data-icon="apps" aria-hidden="true"></span><span class="grid-toggle-text">Todas</span>
+          </button>
         </nav>
         <div v-if="!isLive" class="region-head"><span>Jarvis</span></div>
         <div ref="editorBody" class="region-body live-body">
           <p v-if="liveError" class="err pad">{{ liveError }}</p>
           <p v-if="viewError" class="err pad">{{ viewError }}</p>
-          <div v-if="isLive" class="live-wrap" :class="{ guiding: guide || replayShown || liveState.popup }">
+          <div v-if="gridShown && gridTabs.length" class="live-grid" aria-label="Todas las sesiones en vivo">
+            <button v-for="t in gridTabs" :key="t.id" type="button" class="grid-card" :class="{ acted: t.id === lastActed, busy: t.busy }"
+              :title="`Abrir en grande: ${t.meta || tabLabel(t)}`" @click="openFromGrid(t.id)">
+              <span class="grid-head">
+                <span class="grid-swatch" :style="{ '--group-color': GROUP_COLORS[t.color] || 'var(--fg-3)' }" aria-hidden="true"></span>
+                <span class="grid-group">{{ t.group || 'Jarvis' }}</span>
+                <span class="grid-id">sesión {{ t.id }}</span>
+                <span v-if="t.busy" class="tab-busy" aria-label="Claude trabajando"></span>
+              </span>
+              <span class="grid-shot">
+                <img v-if="thumbs[t.id]" :src="thumbs[t.id]" :alt="`La página de la sesión ${t.id}`" />
+                <span v-else class="muted small">esperando el primer cuadro…</span>
+              </span>
+              <span class="grid-goal">{{ t.meta || tabLabel(t) }}</span>
+              <span class="grid-step muted small">{{ lastStep(t.id) || t.url }}</span>
+            </button>
+          </div>
+          <div v-else-if="gridShown" class="home">
+            <h1>Ninguna sesión en vivo</h1>
+            <p class="muted">Cuando Claude trabaje en varias pestañas a la vez, cada una aparece acá en vivo.</p>
+          </div>
+          <div v-else-if="isLive" class="live-wrap" :class="{ guiding: guide || replayShown || liveState.popup }">
             <div v-if="liveState.popup" class="guide-bar popup-bar">
               <span class="bar-what">Ventana emergente: {{ hostOf(liveState.popup) }}</span>
               <span class="muted small">La manejás acá como cualquier página; cuando termina (un login), se cierra sola y vuelve la página.</span>
@@ -890,6 +964,26 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .sb-url + .device-controls { margin-left: auto }
 .nav-controls { flex: none; margin-right: var(--space-1) }
 .live-tabs .new-tab { align-self: center; margin-left: var(--space-1) }
+/* La vista «Todas»: el botón a la derecha de las pestañas y la grilla de sesiones en vivo. */
+.live-tabs .grow { flex: 1 }
+.grid-toggle { align-self: center; display: inline-flex; flex-direction: row; align-items: center; flex: none; width: auto; white-space: nowrap;
+  gap: var(--space-1); padding: 0 var(--space-2); margin-right: var(--space-1) }
+.grid-toggle.on { color: var(--foreground); background: var(--accent) }
+.grid-toggle-text { font-size: var(--text-sm) }
+.live-grid { box-sizing: border-box; height: 100%; overflow: auto; padding: var(--space-3); display: grid; gap: var(--space-3);
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); align-content: start }
+.grid-card { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; padding: var(--space-2); text-align: left; cursor: pointer;
+  font: inherit; color: var(--card-foreground); background: var(--card); border: 1px solid var(--border); border-radius: var(--radius) }
+.grid-card:hover { border-color: var(--fg-3) }
+.grid-card.acted { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary) }
+.grid-head { display: flex; align-items: center; gap: var(--space-2); min-width: 0; font-size: var(--text-sm) }
+.grid-swatch { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--group-color) }
+.grid-group { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.grid-id { margin-left: auto; flex: none; font-size: var(--text-xs); color: var(--fg-3) }
+.grid-shot { display: grid; place-items: center; aspect-ratio: 16 / 10; overflow: hidden; border-radius: var(--radius-sm); background: var(--muted) }
+.grid-shot img { width: 100%; height: 100%; object-fit: contain; display: block }
+.grid-goal, .grid-step { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.grid-goal { font-size: var(--text-sm) }
 .follow-dot-btn { flex: none; display: grid; place-items: center; width: 22px; height: 22px; margin-left: var(--space-1); padding: 0; border: 0;
   border-radius: var(--radius-control); background: none; cursor: pointer }
 .follow-dot-btn:hover, .follow-dot-btn:focus-visible { background: var(--hover) }
