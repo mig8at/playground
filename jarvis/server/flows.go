@@ -67,7 +67,7 @@ type FlowSummary struct {
 	Source   string    `json:"run"`
 	Device   string    `json:"device,omitempty"`
 	Params   int       `json:"params"`
-	Photo    string    `json:"photo,omitempty"` // la última foto de su corrida (la tarjeta de la galería)
+	Photo    string    `json:"photo,omitempty"`   // la última foto de su corrida (la tarjeta de la galería)
 	Repairs  int       `json:"repairs,omitempty"` // arreglos propuestos que esperan que la persona los apruebe (repair.go)
 }
 
