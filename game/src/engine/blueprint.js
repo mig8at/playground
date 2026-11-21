@@ -551,6 +551,8 @@ function layoutFloor(L,F,level,r,opt={}){
 // ---------- Etapa 7: puertas y ventanas (en el marco local) ----------
 // Los módulos de fachada (de 2 m, desde la esquina del lote) que caen enteros dentro de [a,b].
 const modulesIn=(a,b)=>{const out=[];for(let m=2*Math.ceil(a/2);m+2<=b+1e-9;m+=2)out.push(m);return out;};
+// (¿este módulo de fachada lleva vidriera? los que quedan a un número impar de módulos de la puerta más cercana)
+const conVidriera=(m,puertas)=>Math.round(Math.min(...puertas.map(d=>Math.abs(m-d)))/2)%2===1;
 function openings(L,F,plan,level,r){// (PC: el ancho de la puerta de calle de este lote —PUERTA.doble en los de sus tipos—)
  const pcDe=q=>PUERTA.doble.excepto.includes(L.type)?PUERTA.calle:PUERTA.doble.ancho;
  const doors=[],windows=[],{Lu,Lv}=F,{rooms,corr,core}=plan,c=corr[0];
@@ -586,7 +588,12 @@ function openings(L,F,plan,level,r){// (PC: el ancho de la puerta de calle de es
    if(mods.length){const mid=(q.u0+q.u1)/2,byMid=[...mods].sort((a,b)=>Math.abs(a+1-mid)-Math.abs(b+1-mid)),garage=q.type==='garaje'&&mods.length>=2;
     const dm=garage?[byMid[0],mods.find(m=>Math.abs(m-byMid[0])===2)??byMid[1]].sort((a,b)=>a-b):[byMid[0]];
     doors.push(garage?{axis:'u',at:0,from:dm[0]+.2,len:dm[1]+2-dm[0]-.4,a:i,b:'calle',street:true,wide:true,bay:true}:{axis:'u',at:0,from:dm[0]+(2-pcDe(q))/2,len:pcDe(q),a:i,b:'calle',street:true});
-    if(q.type==='local')for(const m of mods)if(!dm.includes(m))windows.push({axis:'u',at:0,from:m+.1,len:1.8,a:i,shop:true});}}
+    // EL PAÑO DE MURO (2026-11-21, Miguel: «en el primer piso hay mucha vidriera: vale la pena dejar también paredes», para
+    // que haya dónde pintar un grafiti): en un local todos los módulos que no eran la puerta eran vidriera, y 41 de los 139
+    // frentes a la calle de la ciudad 1 tenían más del 80 % de vano. Ahora se alternan desde la puerta: el módulo de al lado
+    // es vidriera, el siguiente muro, el otro vidriera… Queda un paño ciego de 2 m entre vidrieras, y el local sigue con
+    // su vidriera pegada a la entrada.
+    if(q.type==='local')for(const m of mods)if(!dm.includes(m)&&conVidriera(m,dm))windows.push({axis:'u',at:0,from:m+.1,len:1.8,a:i,shop:true});}}
  });
  // Casa sin pasillo: la puerta de calle en el primer cuarto.
  if(level===0&&Lv<=8&&rooms.length){const m=modulesIn(rooms[0].u0,rooms[0].u1)[0];if(m!=null)doors.push({axis:'u',at:0,from:m+(2-pcDe(rooms[0]))/2,len:pcDe(rooms[0]),a:0,b:'calle',street:true});}
@@ -614,7 +621,7 @@ function openings(L,F,plan,level,r){// (PC: el ancho de la puerta de calle de es
   for(const q of rooms){if(q.type!=='local'||q.band!=='back'||q.v1<Lv-1e-6)continue;const mods=modulesIn(q.u0,q.u1).filter(m=>alPatio(m+.2)&&alPatio(m+1.8)&&libre(m));if(!mods.length)continue;
    const mid=(q.u0+q.u1)/2,dm=[...mods].sort((a,b)=>Math.abs(a+1-mid)-Math.abs(b+1-mid))[0];q.alPatio=true;
    doors.push({axis:'u',at:Lv,from:dm+(2-pcDe(q))/2,len:pcDe(q),a:q.id,b:'patio',street:true,patio:true});
-   for(const m of mods)if(m!==dm)windows.push({axis:'u',at:Lv,from:m+.1,len:1.8,a:q.id,shop:true});}
+   for(const m of mods)if(m!==dm&&conVidriera(m,[dm]))windows.push({axis:'u',at:Lv,from:m+.1,len:1.8,a:q.id,shop:true});}
   // (atrás o en un costado: en un lote de esquina el patio puede quedar al lado)
   if(!doors.some(d=>d.patio)){const cands=[],LADOS=[['back','u',Lv,(r)=>r.v1>=Lv-1e-6,r=>[r.u0,r.u1]],['left','v',0,r=>r.u0<=1e-6,r=>[r.v0,r.v1]],['right','v',Lu,r=>r.u1>=Lu-1e-6,r=>[r.v0,r.v1]]];
    const da=(s,t)=>F.at(s,t,0)==='patio',suelta=(ax,at,m)=>!doors.some(d=>d.axis===ax&&Math.abs(d.at-at)<1e-6&&d.from<m+2&&d.from+d.len>m);
