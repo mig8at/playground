@@ -340,6 +340,15 @@ function glyph(g,k,W,D,m,pc=false){
  else{box(x0,y0,W,D,k==='colchoneta'||k==='probador'?r:0);pinta();}
 }
 
+// Un mueble suelto, para el catálogo: su símbolo de frente (el frente hacia abajo), con su medida en metros, centrado en
+// el canvas. `px`: píxeles por metro.
+export function drawMueble(canvas,kind,w,d,{px=70,lado=150,pc=false}={}){
+ const dpr=window.devicePixelRatio||1;canvas.width=canvas.height=Math.round(lado*dpr);canvas.style.width=canvas.style.height=lado+'px';
+ const g=canvas.getContext('2d'),m=Math.min(px,(lado-24)/Math.max(w,d));g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,lado,lado);
+ // (el piso: una rejilla de medio metro, para leer el tamaño de un vistazo)
+ g.strokeStyle='rgba(0,0,0,.06)';g.lineWidth=1;g.beginPath();for(let x=lado/2%(m/2);x<lado;x+=m/2){g.moveTo(x,0);g.lineTo(x,lado);g.moveTo(0,x);g.lineTo(lado,x);}g.stroke();
+ g.save();g.translate(lado/2,lado/2);glyph(g,kind,w*m,d*m,m,pc);g.restore();return m;}
+
 // ---------- LO DE AFUERA Y LAS AZOTEAS (2026-11-19) ----------
 // El plano ya traía todo esto medido —1.838 árboles, 482 piezas de mobiliario, 1.259 marcas de pintura, los nombres de
 // 21 vías, los botines y lo que hay en cada azotea, en la ciudad 1— pero el dibujo no lo mostraba: sólo se veía en el 3D.

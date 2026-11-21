@@ -145,6 +145,7 @@ const fmt=n=>n.toLocaleString('es-CO');
     abajo, chico, hasta que la ciudad esté lista -->
     <RouterLink class="cta" :to="{path:'/juego',query:{paseo:1,ciudad:1,jugadores:3,vista:'tercera'}}">Entrar a la ciudad<small>caminar y sobrevolar · sin gente ni policía</small></RouterLink>
     <RouterLink class="fantasma" :to="{path:'/plano',query:{ciudad:1,jugadores:3}}">Ver el plano</RouterLink>
+    <RouterLink class="fantasma" :to="{path:'/catalogo'}">Catálogo: muebles, fachadas y texturas</RouterLink>
     <button class="link juego-despues" @click="paso=cuenta.conectado?'home':'entrar'">El juego (salas) →</button>
    </div>
    <small class="ver">prototipo · {{ new Date().getFullYear() }}</small>

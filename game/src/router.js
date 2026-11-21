@@ -14,6 +14,8 @@ const router=createRouter({
   {path:'/demo',name:'demo',component:()=>import('./views/DemoView.vue'),meta:{title:'En partida'}},
   // (el plano 2D entero, sin cargar el 3D: /plano?ciudad=1&jugadores=3)
   {path:'/plano',name:'plano',component:()=>import('./views/PlanoView.vue'),meta:{title:'El plano'}},
+  // (el catálogo: los muebles, las fachadas y las texturas, de a uno, sin el mapa)
+  {path:'/catalogo',name:'catalogo',component:()=>import('./views/CatalogoView.vue'),meta:{title:'El catálogo'}},
   {path:'/:resto(.*)*',redirect:'/'},
  ],
 });

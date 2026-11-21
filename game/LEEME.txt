@@ -16,6 +16,10 @@ EL JUEGO
              Diseño (2026-10-18): la ciudad del juego de fondo (public/fondos: capturas del 3D, la noche en el título),
              paneles de vidrio, ámbar los ladrones y azul la policía, títulos en Bungee y texto en Rubik (paquetes de
              @fontsource: sin internet). Lo prueba harness/pruebas/validar-entrada.mjs (nivel 10).
+  /catalogo  EL CATÁLOGO (2026-11-21; ?seccion=muebles|fachadas|texturas): lo que el plano usa, de a una pieza y sin el
+             mapa. Muebles: cada uno con su símbolo, lo que el plano le reserva, lo que mide su modelo 3D y en qué
+             cuartos va. Fachadas: el alzado de todos los edificios de una ciudad con el paquete elegido. Texturas: cada
+             una sobre seis colores y la tabla de qué pone cada paquete.
   /juego?paseo=1   EL PASEO (2026-11-21): la ciudad sola en 3D, sin ronda, sin policía ni ladrones y sin la gente con su
              rutina (nada de eso se arma ni se carga). Se camina; V despega y aterriza (en el aire: WASD hacia donde se
              mira, Espacio sube, C baja, Shift acelera); N cambia el día. Arriba a la derecha, el rendimiento: cuadros

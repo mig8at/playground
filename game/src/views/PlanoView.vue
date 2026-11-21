@@ -114,6 +114,7 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
    <label class="sel-paquete" title="El paquete de texturas de fachadas y techos">Texturas <select v-model="paquete"><option v-for="(P,k) in PAQUETES" :key="k" :value="k">{{ P.nombre }}</option></select></label>
    <button class="techos" :class="{on:nivel>=maxPisos}" @click="nivel=nivel>=maxPisos?0:maxPisos" title="Ver la ciudad desde arriba, con sus techos (o volver a la planta baja)">Techos</button>
    <button class="ajustar" @click="ajustar" title="Ver todo (0)">Ver todo</button>
+   <RouterLink class="catalogo" :to="{path:'/catalogo',query:{seccion:'fachadas',ciudad:seed}}" title="Los muebles, las fachadas y las texturas, de a uno">Catálogo</RouterLink>
    <RouterLink class="jugar" :to="{path:'/juego',query:{paseo:1,ciudad:seed,jugadores:team,vista:'tercera'}}" title="La ciudad sola en 3D: caminar, sobrevolar y ver cómo rinde. Sin gente ni policía.">Entrar a la ciudad</RouterLink>
   </header>
 
@@ -173,6 +174,7 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
 .barra input[type=number]{width:74px;background:rgba(255,255,255,.08);border:1px solid var(--borde);border-radius:8px;color:var(--tx);padding:5px 8px}
 .sel-paquete select{background:rgba(255,255,255,.08);border:1px solid var(--borde);border-radius:8px;color:var(--tx);padding:5px 8px;font:inherit}.sel-paquete option{color:#1b2130}
 .barra button.techos.on{background:rgba(255,169,77,.18);border-color:rgba(255,169,77,.5)}
+.catalogo{color:var(--tx);text-decoration:none;border:1px solid var(--borde);border-radius:8px;padding:6px 12px;background:rgba(255,255,255,.08);margin-left:auto}.catalogo+.jugar{margin-left:0}
 .barra button,.jugar{background:rgba(255,255,255,.08);border:1px solid var(--borde);border-radius:8px;color:var(--tx);padding:6px 12px;font:inherit;text-decoration:none;cursor:pointer}
 .barra button:hover:not(:disabled),.jugar:hover{background:rgba(255,255,255,.16)}
 .barra button:disabled{opacity:.4;cursor:default}
