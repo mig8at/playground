@@ -848,7 +848,7 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
   pointer-events: none; }
 /* preparando la voz: gira con cuántos faltan; si algo falló, en el color de error */
 .tl-sync { position: relative; flex: 0 0 auto; display: inline-flex; width: 22px; height: 22px; align-items: center; justify-content: center; color: var(--primary); }
-.tl-sync.bad { color: var(--destructive); }
+.tl-sync.bad { color: var(--status-bad); }
 .tl-sync svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 .tl-sync.working svg { animation: tl-spin 1.2s linear infinite; }
 @keyframes tl-spin { to { transform: rotate(-360deg); } }

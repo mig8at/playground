@@ -1161,7 +1161,7 @@ onBeforeUnmount(() => {
         <p v-if="deletion.error" class="hot">{{ deletion.error }}</p>
         <div class="confirm-actions">
           <button type="button" class="btn btn-sm btn-outline" @click="closeDelete">Cancelar</button>
-          <button type="submit" class="btn btn-sm btn-danger" :disabled="!canDelete">
+          <button type="submit" class="btn btn-sm btn-destructive" :disabled="!canDelete">
             <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>{{ deletion.running ? 'Borrando…' : 'Borrar' }}
           </button>
         </div>
@@ -1192,7 +1192,7 @@ onBeforeUnmount(() => {
         <p v-if="deactivation.error" class="hot">{{ deactivation.error }}</p>
         <div class="confirm-actions">
           <button type="button" class="btn btn-sm btn-outline" @click="closeDeactivation">Cancelar</button>
-          <button type="submit" class="btn btn-sm btn-danger" :disabled="deactivation.running || (deactivation.purge && Number(deactivation.person.requests) > 0)">
+          <button type="submit" class="btn btn-sm btn-destructive" :disabled="deactivation.running || (deactivation.purge && Number(deactivation.person.requests) > 0)">
             <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>{{ deactivation.running ? '…' : deactivation.purge ? 'Borrar del todo' : 'Dar de baja' }}
           </button>
         </div>
@@ -1280,9 +1280,6 @@ code.wrap { word-break: break-all }
 .confirm-dialog p { margin: 0 0 var(--space-2); line-height: 1.5 }
 .confirm-dialog .checkbox-row { align-items: flex-start; margin-bottom: var(--space-2) }
 .confirm-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-3) }
-/* El rojo es el de ecommerce, no `--destructive`: en el tema Darkmatter ése es un verde azulado apagado. */
-.btn-danger { background: var(--status-bad); color: var(--on-status-bad) }
-.btn-danger:hover { background: color-mix(in oklab, var(--status-bad) 88%, transparent) }
 /* El aviso de lo borrado, arriba del editor, con su ✕. */
 .alert.done { margin: var(--space-2) var(--gutter) 0; width: auto; grid-template-columns: 1fr auto }
 .alert.done .alert-desc { grid-column: 1 }

@@ -108,5 +108,5 @@ onBeforeUnmount(() => { observer?.disconnect(); resizer?.disconnect(); task?.des
 .pdf-page { display: block; width: 100%; height: auto; border-radius: 2px; background: var(--card);
   box-shadow: 0 1px 2px color-mix(in oklab, var(--background) 55%, transparent), 0 6px 18px color-mix(in oklab, var(--background) 45%, transparent) }
 .pdf-note { margin: 0; text-align: center; color: var(--fg-2); font-size: var(--text-xs) }
-.pdf-note.error { color: var(--destructive-ink) }
+.pdf-note.error { color: var(--status-bad) }
 </style>

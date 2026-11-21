@@ -27,4 +27,4 @@ body { margin: 0; font-family: var(--font-sans); font-size: var(--text-base); co
 
 /* Cerrar un grupo: una cruz que, al primer clic, pide confirmar con el texto en la tinta del error. */
 .sp-close { flex: none; margin-left: var(--space-1) }
-.sp-close.armed { width: auto; padding: 0 var(--space-2); color: var(--destructive-ink); border: 1px solid var(--destructive-ink) }
+.sp-close.armed { width: auto; padding: 0 var(--space-2); color: var(--status-bad); border: 1px solid var(--status-bad) }

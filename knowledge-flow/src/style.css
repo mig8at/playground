@@ -67,6 +67,5 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 .run-row.more { grid-template-columns: 16px 1fr; color: var(--fg-3); font-size: var(--text-xs) }
 .run-row.more .run-title { grid-column: 2 }
 .run-title .tag { margin-left: 6px; font-size: var(--text-xs); font-weight: 400; color: var(--fg-3) }
-/* Borrar una corrida: la papelera de la cabecera, y su confirmación en la misma línea. */
-.danger-btn { background: var(--status-bad); border-color: var(--status-bad); color: var(--on-status-bad) }
+/* Borrar una corrida: la papelera de la cabecera, y su confirmación en la misma línea (con .btn-destructive). */
 .run-row.more.asking { color: var(--status-bad) }

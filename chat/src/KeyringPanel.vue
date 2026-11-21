@@ -172,7 +172,7 @@ async function copy(text, tag) {
 .keyring-team { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; color: var(--fg-2); font-size: var(--text-xs) }
 .keyring-team .keyring-input { flex: 1 1 200px; max-width: 360px }
 .keyring-auto { display: flex; align-items: center; gap: 8px; color: var(--fg-2); font-size: var(--text-xs); cursor: pointer }
-.keyring-error { margin: 0; color: var(--destructive-ink); font-size: var(--text-sm) }
+.keyring-error { margin: 0; color: var(--status-bad); font-size: var(--text-sm) }
 /* Dos tarjetas lado a lado (una debajo de la otra si no entran), con el mismo armado: campos, y abajo el resultado
    con su botón. */
 .keyring-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px }

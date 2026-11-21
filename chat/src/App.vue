@@ -2325,7 +2325,7 @@ code { font-family: var(--font-mono); font-size: .92em }
 /* La tarjeta de un documento (WhatsApp): una franja apenas más oscura que la burbuja, el tipo en un cuadrito de color. */
 .attachment { --kind: var(--fg-3); display: flex; flex-direction: column; gap: 2px; padding: 0; border-radius: 10px;
   background: color-mix(in oklab, var(--foreground) 5%, transparent); border: 1px solid var(--hairline); overflow: hidden }
-.attachment.kind-pdf { --kind: var(--destructive) }
+.attachment.kind-pdf { --kind: var(--status-bad) }
 .attachment.kind-sheet { --kind: var(--chart-1) }
 .attachment.kind-doc { --kind: var(--primary) }
 .attachment.kind-zip { --kind: var(--chart-2) }
@@ -2375,7 +2375,7 @@ button.doc-card:focus-visible { outline: 2px solid var(--ring); outline-offset: 
   background: color-mix(in oklab, var(--kind, var(--fg-2)) 14%, var(--background)) }
 div.file-tile { cursor: default }
 button.file-tile { cursor: zoom-in }
-.file-tile.kind-pdf { --kind: var(--destructive) }
+.file-tile.kind-pdf { --kind: var(--status-bad) }
 .file-tile.kind-sheet { --kind: var(--chart-1) }
 .file-tile.kind-doc { --kind: var(--primary) }
 .file-tile.kind-zip { --kind: var(--chart-2) }

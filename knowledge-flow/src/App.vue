@@ -247,7 +247,7 @@ onBeforeUnmount(() => {
         <span>{{ run ? `Corrida #${run.id}` : 'Knowledge' }}</span>
         <span v-if="run" class="count">{{ stepCount }} de {{ run.steps.length }} pasos</span>
         <template v-if="canDelete(run)">
-          <button v-if="confirming === `run-${run.id}`" type="button" class="btn btn-sm danger-btn" @click="deleteRun(run.id)">Borrar la #{{ run.id }}</button>
+          <button v-if="confirming === `run-${run.id}`" type="button" class="btn btn-sm btn-destructive" @click="deleteRun(run.id)">Borrar la #{{ run.id }}</button>
           <button v-if="confirming === `run-${run.id}`" type="button" class="btn btn-sm btn-outline" @click="confirming = ''">Cancelar</button>
           <button v-else type="button" class="region-action" title="Borrar esta corrida (no pasó: no hay nada que perder)" :aria-label="`Borrar la corrida #${run.id}`" @click="deleteRun(run.id)"><span class="ui-icon" data-icon="trash" aria-hidden="true"></span></button>
         </template>

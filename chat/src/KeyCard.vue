@@ -197,7 +197,7 @@ label.key-pick:hover { background: color-mix(in oklab, var(--foreground) 5%, tra
 .key-note { padding: 4px 10px; color: var(--fg-2); font-size: var(--text-xs) }
 .key-value { display: flex; align-items: center; gap: 2px; margin: 0 12px 6px; padding: 2px 2px 2px 10px; border-radius: 6px; background: var(--background) }
 .key-value code { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: var(--text-sm) }
-.key-error { margin: 0 12px 6px; color: var(--destructive-ink); font-size: var(--text-xs) }
+.key-error { margin: 0 12px 6px; color: var(--status-bad); font-size: var(--text-xs) }
 .key-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-2); padding: 4px 6px; border-top: 1px solid var(--hairline) }
 /* Una acción de la tarjeta: icono y texto, como los botones de un archivo en WhatsApp. */
 .key-btn { color: var(--primary-ink, var(--primary)) }   /* sobre .btn.btn-ghost.btn-sm: sólo el color */

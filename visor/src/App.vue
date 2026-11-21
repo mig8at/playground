@@ -1479,7 +1479,7 @@ onUnmounted(() => {
 .tree-lane > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .tree-lane > small { flex: none; font-variant-numeric: tabular-nums }
 .tree-sep { height: 1px; margin: var(--space-1) var(--space-3); background-clip: content-box; background-color: var(--border) }
-.tree-error { color: var(--destructive) }
+.tree-error { color: var(--status-bad) }
 /* El campo del buscador toma la banda de la barra izquierda, al lado de su lupa. */
 .sidebar > .region-head > .search-input { flex: 1; min-width: 0 }
 .search-results { padding-bottom: var(--space-2) }

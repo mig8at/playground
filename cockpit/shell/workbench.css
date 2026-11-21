@@ -521,12 +521,12 @@ body.resizing { cursor: col-resize; user-select: none }
 .btn-outline:hover { background: var(--hover) }
 .btn-ghost { background: transparent; color: inherit }
 .btn-ghost:hover { background: var(--hover) }
-/* ⚠ El original pone `text-white` sobre destructive, y ACÁ NO SIRVE: `--destructive` es #e06666, un
-   rojo medio, y el blanco encima mide 3,35:1. Lo cazó `make style-check` sobre este mismo archivo.
-   Va el fondo de la app como tinta —la misma inversión que usa el tooltip del original—, que sobre
-   ese rojo sí llega. Si un tema trae un rojo oscuro, esto sigue funcionando: se invierte solo. */
-.btn-destructive { background: var(--destructive-ink); color: var(--background) }
-.btn-destructive:hover { background: color-mix(in oklab, var(--destructive-ink) 90%, transparent) }
+/* El rojo de borrar es el de la base, --status-bad, con --on-status-bad encima (2026-11-21, decisión de Miguel): el
+   --destructive de Darkmatter en oscuro es un gris verdoso que no dice «borrar», y por eso Knowledge y ecommerce
+   tenían su propio botón rojo. Lo mismo para toda la familia «destructive» de la base: insignia, aviso, toast y el
+   error de un campo. El --destructive del tema queda sin usar en los componentes. */
+.btn-destructive { background: var(--status-bad); color: var(--on-status-bad) }
+.btn-destructive:hover { background: color-mix(in oklab, var(--status-bad) 90%, transparent) }
 /* El de enlace no es un botón disfrazado de texto: es texto que se comporta como enlace. */
 .btn-link { height: auto; padding: 0; background: none; border: 0; color: var(--primary-ink);
   text-underline-offset: 4px }
@@ -551,7 +551,7 @@ body.resizing { cursor: col-resize; user-select: none }
 }
 .input::placeholder { color: var(--fg-3) }
 .input:disabled { pointer-events: none; cursor: not-allowed; opacity: .5 }
-.input[aria-invalid="true"] { border-color: var(--destructive) }
+.input[aria-invalid="true"] { border-color: var(--status-bad) }
 textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--gutter); resize: vertical }
 .input-sm { height: var(--control-sm); padding: 0 var(--space-2); font-size: var(--text-base) }
 /* Extensión declarada: shadcn corta en `sm`. Hace falta un escalón más para el campo que vive
@@ -570,7 +570,7 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 .field { display: flex; flex-direction: column; gap: var(--space-2) }
 .field > label, .label { font-size: var(--text-sm); font-weight: 500; line-height: 16px; color: var(--fg-2) }
 .field-hint { font-size: var(--text-sm); color: var(--fg-3); line-height: 16px }
-.field-error { font-size: var(--text-sm); color: var(--destructive) }
+.field-error { font-size: var(--text-sm); color: var(--status-bad) }
 
 /* ── PÍLDORA ────────────────────────────────────────────────────────────────────────────────────
    Relleno O contorno, nunca los dos: es la regla del barrido de marcos y también la del original,
@@ -584,7 +584,7 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
   transition: color var(--motion-fast), box-shadow var(--motion-fast);
 }
 .badge-secondary { background: var(--secondary); color: var(--secondary-foreground) }
-.badge-destructive { background: var(--destructive-ink); color: var(--background) }
+.badge-destructive { background: var(--status-bad); color: var(--on-status-bad) }
 .badge-outline { background: transparent; color: var(--foreground); border-color: var(--border) }
 .badge-ghost { background: transparent; color: var(--fg-3) }
 /* ⚠ `badge-xs` NO está en el original, y es una extensión DECLARADA: estas herramientas son densas y
@@ -750,8 +750,7 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
    Una grilla de dos columnas —icono y texto— para que el título y la descripción queden alineados
    entre sí aunque el icono mida distinto. Sin icono, la primera columna es 0 y no deja hueco.
    Las dos variantes del original (primario y destructivo) y dos del semáforo de la base (2026-11-21): `alert-warn`
-   (espera que lo mires) y `alert-bad` (falló). El destructivo es para lo que BORRA; una falla es `alert-bad`, porque
-   el destructivo de Darkmatter en oscuro es un gris verdoso que no dice falla. */
+   (espera que lo mires) y `alert-bad` (falló). El destructivo, para lo que BORRA, va en el mismo rojo (--status-bad). */
 .alert {
   /* Un aviso de la base: una barra de 2 a la izquierda y un tinte, cuadrado. Ni marco ni radio. */
   position: relative; display: grid; grid-template-columns: 0 1fr; align-items: start;
@@ -767,8 +766,8 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 .alert-desc { grid-column: 2; display: grid; justify-items: start; gap: 4px;
   font-size: var(--text-base); color: var(--fg-2) }
 .alert-desc p { margin: 0; line-height: 1.6 }
-.alert-destructive { border-left-color: var(--destructive); background: color-mix(in oklab, var(--destructive) 8%, transparent) }
-.alert-destructive .alert-desc { color: var(--destructive-ink) }
+.alert-destructive { border-left-color: var(--status-bad); background: color-mix(in oklab, var(--status-bad) 8%, transparent) }
+.alert-destructive .alert-desc { color: var(--status-bad) }
 .alert-warn { border-left-color: var(--status-warn); background: color-mix(in oklab, var(--status-warn) 8%, transparent) }
 .alert-bad { border-left-color: var(--status-bad); background: color-mix(in oklab, var(--status-bad) 8%, transparent) }
 :is(.alert-warn, .alert-bad) .alert-desc { color: var(--foreground) }
@@ -881,7 +880,7 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 .toast-title { grid-column: 2; min-width: 0; font-weight: 600 }
 .toast-desc { grid-column: 2; min-width: 0; color: var(--fg-2) }
 .toast-actions { grid-column: 3; grid-row: 1 / span 2; display: flex; align-items: center; gap: 2px }
-.toast-destructive .toast-icon { color: var(--destructive-ink) }
+.toast-destructive .toast-icon { color: var(--status-bad) }
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px) } }
 
 /* ── CONFIRMACIÓN ───────────────────────────────────────────────────────────────────────────────

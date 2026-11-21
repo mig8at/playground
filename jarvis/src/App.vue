@@ -1141,20 +1141,20 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .panel .tabs .grow { flex: 1 }
 .panel .tabs .toggle { align-self: center; margin-right: var(--space-1) }
 .dev-of { align-self: center; margin-right: var(--space-2) }
-.count.bad { color: var(--destructive-ink) }
+.count.bad { color: var(--status-bad) }
 .dev-line { gap: var(--space-2) }
 .dev-line > span { flex: none }
 .dev-time { color: var(--fg-3) }
 .dev-level { width: 6.5em } .dev-method { width: 4em } .dev-status { width: 2.5em; text-align: right } .dev-type { width: 5em } .dev-ms { width: 5em; text-align: right }
-.dev-level.bad, .dev-status.bad, .dev-url .bad { color: var(--destructive-ink) }
+.dev-level.bad, .dev-status.bad, .dev-url .bad { color: var(--status-bad) }
 .dev-line > .what { flex: 1; min-width: 0 }
 .dev-url { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 /* Una sesión que necesita a la persona (un código, un paso de la guía, un captcha): borde y motivo en la tinta del
    error, que se vea de lejos. Gana al borde de «Claude actuó acá». */
-.grid-card.attention, .grid-card.attention.acted { border-color: var(--destructive-ink); box-shadow: 0 0 0 2px var(--destructive-ink) }
+.grid-card.attention, .grid-card.attention.acted { border-color: var(--status-bad); box-shadow: 0 0 0 2px var(--status-bad) }
 .grid-attention .ui-icon { vertical-align: -3px; margin-right: var(--space-1) }
-.grid-attention { font-size: var(--text-sm); font-weight: 600; color: var(--destructive-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-.tab-attention { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--destructive-ink) }
+.grid-attention { font-size: var(--text-sm); font-weight: 600; color: var(--status-bad); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.tab-attention { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--status-bad) }
 .follow-dot-btn { flex: none; display: grid; place-items: center; width: var(--control-xs); height: var(--control-xs); margin-left: var(--space-1); padding: 0; border: 0;
   border-radius: var(--radius-control); background: none; cursor: pointer }
 .follow-dot-btn:hover, .follow-dot-btn:focus-visible { background: var(--hover) }
