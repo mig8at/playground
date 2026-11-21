@@ -186,5 +186,6 @@ adjective dental appliances motorcycles unconfirmed
 dominican puerto rico
 # los campos del registro mercantil abierto de Confecámaras (datos.gov.co): su contrato, no el nuestro
 json: sabueso/server/sources.go nit_propietario razon_social estado_matricula camara_comercio para de del y la el
+json: sabueso/server/people.go representante_legal estado_matricula fecha_actualizacion
 # las palabras que se le quitan a una razón social para compararla (formas jurídicas y artículos): datos, no nombres
 json: sabueso/server/model.go sas s a ltda sa y cia de la el los las bic zomac sigla
