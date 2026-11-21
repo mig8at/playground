@@ -639,6 +639,8 @@ const status = computed(() => {
         <div class="region-head">
           <span class="ellipsis">Proyecto</span>
           <div class="region-actions">
+            <button v-if="project.app" type="button" class="region-action" title="Abrirlo en vivo" aria-label="Abrirlo en vivo" @click="openApp(project.app)"><span class="ui-icon" data-icon="play" aria-hidden="true"></span></button>
+            <button v-if="project.flows.length || !project.app || project.app.real" type="button" class="region-action" title="Borrar el proyecto: sus flujos y sus corridas" aria-label="Borrar el proyecto" @click="deleteProject({ app: project.id, list: project.flows, url: project.app?.url, real: project.app?.real })"><span class="ui-icon" data-icon="trash" aria-hidden="true"></span></button>
             <button type="button" class="region-action" title="Volver al navegador en vivo" aria-label="Cerrar" @click="go({ kind: 'live' })"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
           </div>
         </div>
@@ -648,10 +650,6 @@ const status = computed(() => {
             <header class="flow-head">
               <h1>{{ appName(project.id) }}</h1>
               <p v-if="project.app" class="muted">{{ project.app.description }}</p>
-              <div class="flow-actions">
-                <button v-if="project.app" type="button" class="btn btn-outline" @click="openApp(project.app)">Abrir en vivo</button>
-                <button v-if="project.flows.length || !project.app || project.app.real" type="button" class="btn btn-ghost" @click="deleteProject({ app: project.id, list: project.flows, url: project.app?.url, real: project.app?.real })">Borrar proyecto</button>
-              </div>
             </header>
             <section>
               <h2>Flujos</h2>
@@ -666,7 +664,7 @@ const status = computed(() => {
                     <button type="button" class="pflow-name" @click="go({ kind: 'flow', app: f.app, id: f.id })">{{ f.name }}</button>
                     <span class="muted small">{{ f.steps }} pasos<template v-if="f.params"> · {{ f.params }} datos</template> · {{ fmtDate(f.verified) ? `verificado ${fmtDate(f.verified)}` : `creado ${fmtDate(f.created)}` }}</span>
                     <div class="flow-actions">
-                      <button type="button" class="btn btn-sm" title="Llena los campos solo; los botones los tocás vos" @click="playFlowOf(f, 'fill')">Reproducir</button>
+                      <button type="button" class="btn btn-outline btn-sm" title="Llena los campos solo; los botones los tocás vos" @click="playFlowOf(f, 'fill')">Reproducir</button>
                     </div>
                   </div>
                 </div>
@@ -710,10 +708,9 @@ const status = computed(() => {
           <button type="button" class="region-action grid-toggle" :class="{ on: liveMode === 'grid' }" :aria-pressed="liveMode === 'grid'"
             :title="liveMode === 'grid' ? 'Ver una sesión en grande' : 'Ver todas las sesiones a la vez (cómo trabaja Claude en paralelo)'"
             :aria-label="liveMode === 'grid' ? 'Ver una sesión' : 'Ver todas las sesiones'" @click="liveMode = liveMode === 'grid' ? 'one' : 'grid'">
-            <span class="ui-icon" data-icon="apps" aria-hidden="true"></span><span class="grid-toggle-text">Todas</span>
+            <span class="ui-icon" data-icon="apps" aria-hidden="true"></span>
           </button>
         </nav>
-        <div v-if="!isLive" class="region-head"><span>Jarvis</span></div>
         <div ref="editorBody" class="region-body live-body">
           <p v-if="liveError" class="err pad">{{ liveError }}</p>
           <p v-if="viewError" class="err pad">{{ viewError }}</p>
@@ -726,7 +723,7 @@ const status = computed(() => {
                 <span class="grid-id">sesión {{ t.id }}</span>
                 <span v-if="t.busy" class="tab-busy" aria-label="Claude trabajando"></span>
               </span>
-              <span v-if="t.attention" class="grid-attention" role="status">⚠ Te necesita: {{ t.attention }}</span>
+              <span v-if="t.attention" class="grid-attention" role="status"><span class="ui-icon" data-icon="alert" aria-hidden="true"></span>Te necesita: {{ t.attention }}</span>
               <span v-if="t.viewing" class="grid-viewing">la estás mirando en Chrome</span>
               <span class="grid-shot">
                 <img v-if="thumbs[t.id]" :src="thumbs[t.id]" :alt="`La página de la sesión ${t.id}`" />
@@ -833,20 +830,20 @@ const status = computed(() => {
           </div>
         </header>
 
-        <section v-if="flowRepairs.length" class="flow-repairs" role="status">
-          <h2>{{ flowRepairs.length === 1 ? 'Un arreglo propuesto' : `${flowRepairs.length} arreglos propuestos` }}</h2>
-          <p class="muted small">Al repetir el flujo, un elemento ya no estaba y Jarvis siguió con uno parecido. El flujo no cambió: aplicalo si es el correcto.</p>
-          <ul>
-            <li v-for="r in flowRepairs" :key="r.step">
-              <span class="flow-n">{{ r.step + 1 }}</span>
-              <span>«{{ r.old }}» → <strong>«{{ r.new }}»</strong> <span class="muted small">· parecido {{ Math.round(r.score * 100) }} %<template v-if="r.run"> · <a :href="`#/corrida/${r.run}`">ver la repetición</a></template></span></span>
-            </li>
-          </ul>
-          <div class="flow-actions">
-            <button type="button" class="btn btn-sm" title="Los pasos usan los elementos nuevos desde la próxima repetición" @click="resolveRepairs('apply')">Aplicar</button>
-            <button type="button" class="btn btn-sm btn-ghost" title="El flujo queda como estaba" @click="resolveRepairs('discard')">Descartar</button>
+        <div v-if="flowRepairs.length" class="alert alert-ask" role="status">
+          <span class="alert-icon ui-icon" data-icon="alert" aria-hidden="true"></span>
+          <div class="alert-title">{{ flowRepairs.length === 1 ? 'Un arreglo propuesto' : `${flowRepairs.length} arreglos propuestos` }}</div>
+          <div class="alert-desc">
+            <p>Al repetir el flujo, un elemento ya no estaba y Jarvis siguió con uno parecido. El flujo no cambió: aplicalo si es el correcto.</p>
+            <ul class="repair-list">
+              <li v-for="r in flowRepairs" :key="r.step">Paso {{ r.step + 1 }}: «{{ r.old }}» por <strong>«{{ r.new }}»</strong> · parecido {{ Math.round(r.score * 100) }} %<template v-if="r.run"> · <a :href="`#/corrida/${r.run}`">ver la repetición</a></template></li>
+            </ul>
+            <div class="flow-actions">
+              <button type="button" class="btn btn-outline btn-sm" title="Los pasos usan los elementos nuevos desde la próxima repetición" @click="resolveRepairs('apply')">Aplicar</button>
+              <button type="button" class="btn btn-ghost btn-sm" title="El flujo queda como estaba" @click="resolveRepairs('discard')">Descartar</button>
+            </div>
           </div>
-        </section>
+        </div>
 
         <section v-if="flowParams.length" class="flow-data">
           <h2>Datos del flujo</h2>
@@ -904,8 +901,10 @@ const status = computed(() => {
           <p v-else-if="e.k === 'answer'" class="ev-answer">› {{ e.t }}</p>
           <p v-else class="ev-note">{{ e.t }}</p>
         </template>
-        <div v-if="askState.waiting" class="card ask-card">
-          <div class="ask-head"><span class="badge badge-xs kw kw-ask">{{ askKeyword }}</span> Te pregunta:</div>
+        <div v-if="askState.waiting" class="alert alert-ask ask-card" role="status">
+          <span class="alert-icon ui-icon" data-icon="help" aria-hidden="true"></span>
+          <div class="alert-title">{{ askKeyword === 'CONFIRMAR' ? 'Te pide confirmar' : 'Te pregunta' }}</div>
+          <div class="alert-desc">
           <div class="ev-result-text">{{ askQuestion }}</div>
           <div v-if="askKeyword === 'CONFIRMAR'" class="bar-form">
             <button type="button" class="btn btn-destructive btn-sm" @click="answerAsk('sí')">Sí, hacelo</button>
@@ -916,6 +915,7 @@ const status = computed(() => {
             <button type="submit" class="btn btn-outline btn-sm" :disabled="!askReply.trim()">Enviar</button>
           </form>
           <button type="button" class="btn btn-ghost btn-sm" @click="answerAsk('')">Terminar sin contestar</button>
+          </div>
         </div>
         <p v-if="askError" class="err">{{ askError }}</p>
         <p v-if="!askState.running && askState.exit" class="err">El proceso terminó: {{ askState.exit }}</p>
@@ -944,7 +944,7 @@ const status = computed(() => {
         <template v-if="panelTab === 'steps'">
           <p v-if="!(liveState.steps || []).length" class="none">Los pasos de la sesión en vivo, con su línea de Playwright.</p>
           <div v-for="(s, i) in liveState.steps || []" :key="i" class="log-line" :data-kind="s.ok ? 'ok' : 'warn'">
-            <span class="what wrap">{{ s.manual ? '👉' : s.ok ? '✓' : '✗' }} {{ s.code }}<template v-if="s.error"> · {{ s.error }}</template></span>
+            <span class="what wrap"><span class="ui-icon step-icon" :data-icon="s.manual ? 'pick' : s.ok ? 'check' : 'close'" :title="s.manual ? 'lo hizo la persona' : s.ok ? 'salió bien' : 'falló'" aria-hidden="true"></span> {{ s.code }}<template v-if="s.error"> · {{ s.error }}</template></span>
           </div>
         </template>
         <template v-else-if="panelTab === 'console'">
@@ -1049,10 +1049,12 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .leaf-mark.ok { background: var(--kw-ok); border-color: var(--kw-ok) }
 .leaf-mark.fix { background: var(--kw-ask); border-color: var(--kw-ask) }
 .node-fix { flex: none; font-size: var(--text-xs, 11px); color: var(--kw-ask); white-space: nowrap }
-.flow-repairs { border-left: 3px solid var(--kw-ask); padding-left: 10px }
-.flow-repairs ul { list-style: none; margin: 6px 0; padding: 0; display: grid; gap: 4px }
-.flow-repairs li { display: flex; gap: 8px; align-items: baseline }
 .step-fix { color: var(--kw-ask) }
+/* El aviso de la base (.alert) en ámbar: espera a la persona. El color semántico va en la hoja de Jarvis, no en la base. */
+.alert-ask { border-left-color: var(--kw-ask); background: color-mix(in oklab, var(--kw-ask) 8%, transparent) }
+.alert-ask .alert-icon { color: var(--kw-ask) }
+.repair-list { margin: 0; padding-left: var(--space-4); display: grid; gap: var(--space-1) }
+.step-icon { vertical-align: -3px }
 .run-dot { flex: none; width: 8px; height: 8px; margin: 0 4px; border-radius: 50% }
 .tree-none { padding-left: calc(var(--gutter) + 22px) }
 /* la portada de un proyecto */
@@ -1090,10 +1092,9 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .live-tabs .new-tab { align-self: center; margin-left: var(--space-1) }
 /* La vista «Todas»: el botón a la derecha de las pestañas y la grilla de sesiones en vivo. */
 .live-tabs .grow { flex: 1 }
-.grid-toggle { align-self: center; display: inline-flex; flex-direction: row; align-items: center; flex: none; width: auto; white-space: nowrap;
-  gap: var(--space-1); padding: 0 var(--space-2); margin-right: var(--space-1) }
-.grid-toggle.on { color: var(--foreground); background: var(--accent) }
-.grid-toggle-text { font-size: var(--text-sm) }
+/* Un modo: el icono contesta, sin texto; encendido se lee en la tinta, sin caja (README de tools/ui). */
+.grid-toggle { align-self: center; flex: none; margin-right: var(--space-1); color: var(--fg-3) }
+.grid-toggle.on { color: var(--foreground) }
 .live-grid { box-sizing: border-box; height: 100%; overflow: auto; padding: var(--space-3); display: grid; gap: var(--space-3);
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); align-content: start }
 .grid-card { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; padding: var(--space-2); text-align: left; cursor: pointer;
@@ -1124,6 +1125,7 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 /* Una sesión que necesita a la persona (un código, un paso de la guía, un captcha): borde y motivo en la tinta del
    error, que se vea de lejos. Gana al borde de «Claude actuó acá». */
 .grid-card.attention, .grid-card.attention.acted { border-color: var(--destructive-ink); box-shadow: 0 0 0 2px var(--destructive-ink) }
+.grid-attention .ui-icon { vertical-align: -3px; margin-right: var(--space-1) }
 .grid-attention { font-size: var(--text-sm); font-weight: 600; color: var(--destructive-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .tab-attention { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--destructive-ink) }
 .follow-dot-btn { flex: none; display: grid; place-items: center; width: 22px; height: 22px; margin-left: var(--space-1); padding: 0; border: 0;
@@ -1147,7 +1149,7 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .bar-what { flex: 1; min-width: 0; font-weight: 600; line-height: 1.4 }
 .bar-form { display: flex; gap: var(--space-2); align-items: center }
 .bar-form .input { flex: 1; min-width: 0 }
-.guide-box { position: absolute; z-index: 2; pointer-events: none; border: 3px solid var(--primary); border-radius: 6px; animation: guide-pulse 1.4s ease-in-out infinite }
+.guide-box { position: absolute; z-index: 2; pointer-events: none; border: 3px solid var(--primary); border-radius: var(--radius-control); animation: guide-pulse 1.4s ease-in-out infinite }
 @keyframes guide-pulse { 50% { outline: 6px solid color-mix(in srgb, var(--primary) 35%, transparent); outline-offset: 2px } }
 
 /* inicio */
@@ -1169,6 +1171,9 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .flow-data { display: flex; flex-direction: column; gap: var(--space-2) }
 .flow.side { padding: var(--space-3) var(--gutter); gap: var(--space-4) }
 .flow.side h1 { font-size: var(--text-base) }
+.flow.side > section > h2 { display: flex; align-items: center; height: var(--view-head-h); margin: 0 calc(-1 * var(--gutter)) var(--space-2);
+  padding: 0 var(--gutter); border-top: 1px solid var(--border); font-size: var(--text-sm) }
+.flow.side > .alert { margin: 0 calc(-1 * var(--gutter)); width: auto }
 .flow.side .flow-actions { flex-wrap: wrap }
 .flow.side .data-row { grid-template-columns: 1fr auto }
 .flow.side .data-row > label:first-child { grid-column: 1 / -1; margin-bottom: -6px }
@@ -1181,7 +1186,7 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .flow-n { flex: none; width: 24px; color: var(--fg-3); font-variant-numeric: tabular-nums }
 .flow-step-body { flex: 1; min-width: 0 }
 .flow-what { font-weight: 600 }
-.editable { border-radius: 4px; outline: none; cursor: text }
+.editable { border-radius: var(--radius-control); outline: none; cursor: text }
 .editable:hover { box-shadow: 0 0 0 1px var(--border) }
 .editable:focus { box-shadow: 0 0 0 2px var(--primary) }
 .step-del { visibility: hidden }
@@ -1201,8 +1206,7 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .ev-result { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-2) var(--space-3); border-left: 2px solid var(--border); background: var(--hover) }
 .ev-result .kw { align-self: flex-start }
 .ev-result-text { white-space: pre-wrap; line-height: 1.5 }
-.ask-card { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--kw-ask); border-radius: var(--radius-control) }
-.ask-head { display: flex; align-items: center; gap: var(--space-2); font-weight: 600 }
+.ask-card .alert-desc { gap: var(--space-2); color: var(--foreground) }
 .agent-done { display: flex; flex-wrap: wrap; gap: var(--space-2) }
 .script { margin: 0; padding: var(--space-2) var(--gutter); font-family: var(--font-mono); font-size: var(--text-sm); white-space: pre-wrap }
 </style>

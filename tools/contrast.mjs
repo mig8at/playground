@@ -33,6 +33,7 @@ const UIS = [
   { tool: 'visor', url: 'http://localhost:5186' },
   { tool: 'keyring', url: 'http://localhost:5182' },
   { tool: 'ecommerce', url: 'http://localhost:5178' },
+  { tool: 'jarvis', url: 'http://localhost:5202' },
 ];
 
 /* Algunas vistas no existen hasta que alguien toca algo. Lo mínimo para que el barrido vea el

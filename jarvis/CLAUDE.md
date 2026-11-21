@@ -46,7 +46,7 @@ perfiles de Chromium que quedaron de antes del 2026-11-07 ya no se usan).
 
 ## Cómo se valida
 
-- **Go**: `go build ./... && go vet ./... && go test ./...` en `server/` y en `cli/`. **La interfaz**: `npx vite build`.
+- **Go**: `go build ./... && go vet ./... && go test ./...` en `server/` y en `cli/`. **La interfaz**: `npx vite build`, y contra el estándar de `tools/ui` `make style-check` y `make style-contrast ONLY=jarvis` (en los dos temas, con `THEME=light`; Jarvis entró a esa auditoría el 2026-11-20). Lo que se alineó ese día: los avisos (arreglos propuestos, la pregunta de Claude) son el `.alert` de la base en ámbar (`.alert-ask`), las secciones de la barra del flujo se separan por su banda a sangre, un solo botón primario por región, las acciones del proyecto son iconos en su banda, el modo «Todas» es el icono solo (encendido en la tinta, sin caja), iconos de Lucide en vez de ⚠ 👉 ✓ ✗ y sin la banda que sólo decía «Jarvis».
 - **En la práctica, en tu Chrome**: `bin/jarvis open <url>` y `look`. Las recetas se prueban corriéndolas.
 - **La extensión sin tu Chrome**: `node jarvis/dev/chrome-stand-in.cjs` (un navegador de prueba con la extensión
   cargada; no es un motor para trabajar).
