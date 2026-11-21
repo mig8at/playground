@@ -19,3 +19,6 @@ export function entregaDe(bp){let sacados=0,quedan=0,viviendas=new Set();
    const furniture=lv.furniture.filter(f=>{const q=cuartos.find(q=>dentro(f,q));if(!q||DE_OBRA.has(f.kind)){if(q)quedan++;return true;}sacados++;return false;});
    return {...lv,furniture};})}));
  return {...bp,lots,entrega:{sacados,quedan,viviendas:viviendas.size+(bp.isla?.casas||[]).filter(c=>c.spec).length}};}
+
+// Lo mismo para una casa del monte (su `spec`, con el plano de hogar.js adentro): sin los muebles de quien vive.
+export function entregaCasa(spec){const H=spec?.hogar;if(!H?.levels)return spec;return {...spec,hogar:{...H,levels:H.levels.map(lv=>({...lv,furniture:(lv.furniture||[]).filter(f=>DE_OBRA.has(f.kind))}))}};}

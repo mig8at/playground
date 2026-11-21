@@ -42,10 +42,10 @@ export function aparecerEn(bp,gente=[],{sitios=sitiosDe(bp),cupo=cupoDe(bp).cupo
  if(gente.length>=cupo)return {ok:false,razon:`La ciudad está llena: ${cupo} personas.`};
  if(!sitios.length)return {ok:false,razon:'La ciudad no tiene andenes donde aparecer.'};
  const cx=bp.map.W*CELL/2,cz=bp.map.H*CELL/2;let mejor=null;
- for(const s of sitios){const {n,cerca}=poblacionEn(s,gente,radio),centro=Math.hypot(s.x-cx,s.z-cz);
+ for(const s of sitios){const P=poblacionEn(s,gente,radio),n=P.n,cerca=Math.min(P.cerca,1e9),/* (sin nadie, la distancia es infinita y no se puede comparar) */centro=Math.hypot(s.x-cx,s.z-cz);
   // menos gente; a igual gente (con 1e-9 de tolerancia), más lejos de la más cercana; a igual, más cerca del centro
   if(!mejor||n<mejor.n-1e-9||Math.abs(n-mejor.n)<=1e-9&&(cerca>mejor.cerca+1e-6||Math.abs(cerca-mejor.cerca)<=1e-6&&centro<mejor.centro))mejor={s,n,cerca,centro};}
- return {ok:true,x:mejor.s.x,z:mejor.s.z,n:+mejor.n.toFixed(3),cerca:Number.isFinite(mejor.cerca)?+mejor.cerca.toFixed(1):null};}
+ return {ok:true,x:mejor.s.x,z:mejor.s.z,n:+mejor.n.toFixed(3),cerca:mejor.cerca<1e9?+mejor.cerca.toFixed(1):null};}
 
 // GENTE DE PRUEBA: n puntos sobre los andenes, amontonados alrededor de unos pocos focos (como pasa de verdad: la gente
 // se junta), para que «lo menos poblado» signifique algo. La misma semilla da siempre la misma gente.

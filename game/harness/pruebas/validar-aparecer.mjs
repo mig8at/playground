@@ -22,6 +22,8 @@ for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:3}),{W,H,kind}=
  for(const n of [0,40,Math.min(200,cupo-1)]){const g=poblar(bp,n,s*7+n,sitios),r=aparecerEn(bp,g,{sitios,cupo});entradas++;
   if(!r.ok){falla('no deja entrar con lugar',{ciudad:s,n,razon:r.razon});continue;}
   const mio=cuenta(r,g),menor=Math.min(...sitios.map(p=>cuenta(p,g)));if(mio>menor+1e-6)falla('había un sitio menos poblado',{ciudad:s,n,elegido:+mio.toFixed(3),menor:+menor.toFixed(3)});}
+ // con la ciudad vacía, el primero cae en el sitio más cercano al centro
+ {const r=aparecerEn(bp,[],{sitios,cupo}),cx=W*CELL/2,cz=H*CELL/2,d=p=>Math.hypot(p.x-cx,p.z-cz),menor=Math.min(...sitios.map(d));if(d(r)>menor+.01)falla('con la ciudad vacía no aparece en el centro',{ciudad:s,a:+d(r).toFixed(1),menor:+menor.toFixed(1)});}
  // llenar de a uno: queda más repartido que al azar
  const lleno=[],hasta=Math.min(cupo,150);for(let i=0;i<hasta;i++){const r=aparecerEn(bp,lleno,{sitios,cupo});if(!r.ok){falla('se negó antes del cupo',{ciudad:s,i,razon:r.razon});break;}lleno.push({x:r.x,z:r.z});entradas++;}
  const azar=poblar(bp,lleno.length,s+99,sitios),dR=vecino(lleno),dA=vecino(azar);if(dR<=dA)falla('entrando de a uno no queda más repartido que al azar',{ciudad:s,repartido:+dR.toFixed(1),azar:+dA.toFixed(1)});

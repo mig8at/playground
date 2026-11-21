@@ -51,6 +51,8 @@ import {createSociedad3d} from '../lib/sociedad3d.js';
 import {sociedadDe,puertasDeLugares,abierto,horaTexto,ocupacionSociedad,direccionHogar} from '../engine/sociedad.js';
 import {rng} from '../engine/veredas.js';
 import {mapaDeJuego} from '../engine/juego/mapa.js';
+import {entregaDe,entregaCasa} from '../engine/entrega.js';
+import {sitiosDe,aparecerEn} from '../engine/aparecer.js';
 import {RELOJ,MODO_BOTIN,PATRULLA} from '../engine/medidas.js';
 
 // (el salto, el del 2D —CIRCULACION.peaton.salto—: de ahí sale ALCANCE, a qué muebles se sube; CHOQUE_MUEBLE)
@@ -219,7 +221,11 @@ function load(ready=null){
  shooting?.clear();if(world){scene.remove(world.group);world.dispose();barrios?.dispose();casas?.dispose();viviendas?.dispose();crowd.dispose();traffic.dispose();island.dispose();folk.dispose();planoVista?.dispose();indoor?.dispose();patrol?.dispose();animals?.dispose();}
  persec?.dispose();persec=null;finVista.value=null;presoVista.value=null;patrullas=null;velocidad.value=null;menuAbierto.value=false;menuDatos.value=null;retratoLadron=null;titulares=[];ropaMochila=[];censoMenu=null;marcaPlano=null;cerraduras=null;soc?.dispose();soc=null;cierres=null;horaVista.value='';quienVista.value=null;nocheAuto=null;policiaVista.value=null;avisosVistos=0;
  // La ciudad del plano por etapas (/generador): el 3D dibuja sus edificios tal cual.
- const want={seed:seed.value,team:team.value,parks};plan=ready&&ready.seed===want.seed&&ready.team===want.team?ready:generateBlueprint(want);city=plan.map;lap('plano');let vs=7;const vr=()=>((vs=(vs*9301+49297)%233280)/233280);
+ const want={seed:seed.value,team:team.value,parks};plan=ready&&ready.seed===want.seed&&ready.team===want.team?ready:generateBlueprint(want);
+ // (2026-11-21, Miguel: la ciudad se muestra como se vende, con las viviendas vacías —engine/entrega.js—: sólo el baño y
+ // la cocina. El juego viejo y sus pruebas siguen con todo amueblado)
+ if(PASEO&&!plan.entrega)plan=entregaDe(plan);
+ city=plan.map;lap('plano');let vs=7;const vr=()=>((vs=(vs*9301+49297)%233280)/233280);
  // (prueba: el plano con sólo sus lotes —renumerados: el 3D supone que el número de cada lote es su lugar en la lista—, y
  // nada dibujado a más de 2 casillas de ellos)
  let vacio=null;
@@ -240,7 +246,7 @@ function load(ready=null){
  // Las casas de las manzanas de la montaña, con su jardín.
  casas=createCasas(PRUEBA?{...plan,isla:{...plan.isla,casas:[]}}:plan,{nature,nature2,rampaEn:island.rampaEn});world.group.add(casas.group);lap('casas');
  // Las casas armadas (vivienda3d.js): se entra, se sube y se ve por las ventanas.
- viviendas=createHouses((PRUEBA?[]:plan.isla?.casas||[]).filter(c=>c.spec).map(c=>({spec:c.colores||c.cortinas?{...c.spec,...(c.colores?{colores2d:c.colores}:{}),...(c.cortinas?{cortinas2d:c.cortinas}:{})}:c.spec,x:c.x,y:c.nivel,z:c.z,ry:c.ry})),{kit:furniture||casa2?{...(furniture||{}),...(casa2||{}),...(tienda||{})}:null});world.group.add(viviendas.group);lap('viviendas');
+ viviendas=createHouses((PRUEBA?[]:plan.isla?.casas||[]).filter(c=>c.spec).map(c=>PASEO?{...c,spec:entregaCasa(c.spec)}:c).map(c=>({spec:c.colores||c.cortinas?{...c.spec,...(c.colores?{colores2d:c.colores}:{}),...(c.cortinas?{cortinas2d:c.cortinas}:{})}:c.spec,x:c.x,y:c.nivel,z:c.z,ry:c.ry})),{kit:furniture||casa2?{...(furniture||{}),...(casa2||{}),...(tienda||{})}:null});world.group.add(viviendas.group);lap('viviendas');
  // (lo que queda entero detrás de la niebla no se dibuja: las casas del monte, por baldosas —niebla3d.js—)
  niebla=crearNiebla([viviendas.group]);// (el plano se suma al dibujarlo, más abajo)
  // La vegetación y el equipamiento del plano, por el contrato del 2D con el 3D (src/engine/contrato3d.js): cada cosa en
@@ -290,6 +296,9 @@ function load(ready=null){
  // (compilar los shaders ya, en paralelo, en vez de a la primera vez que cada cosa aparece en cámara: eso eran los tirones
  // al girar o al entrar a un edificio)
  renderer.compileAsync?.(scene,camera).catch(()=>{}).then(()=>setTimeout(()=>shooting?.warm().catch(()=>{}),300));
+ // (en la ciudad sola se aparece donde dice el plano —engine/aparecer.js—: el sitio del andén con menos gente. Todavía no
+ // hay gente de verdad, así que es el más cercano al centro; cuando la haya, se le pasa acá)
+ if(PASEO&&!PRUEBA){const a=aparecerEn(plan,[],{sitios:sitiosDe(plan)});if(a.ok)world.spawn={...world.spawn,x:a.x,z:a.z};}
  Object.assign(player,{x:world.spawn.x,z:world.spawn.z,feet:world.groundAt(world.spawn.x,world.spawn.z),vy:0});
  if(PRUEBA){const L=plan.lots[0],d=L?.levels?.[0]?.doors?.find(d=>d.street);
   if(d){const mx=(d.x0+d.x1)/2,mz=(d.y0+d.y1)/2,h=Math.abs(d.y1-d.y0)<1e-6,adentro=L.parts.some(p=>(h?mx:mx+.5)>p.x&&(h?mx:mx+.5)<p.x+p.w&&(h?mz+.5:mz)>p.y&&(h?mz+.5:mz)<p.y+p.h),s=adentro?-1:1,
@@ -1038,7 +1047,7 @@ onMounted(async()=>{
   const a=performance.now();load(ready);tiempos.armarMundo=Math.round(performance.now()-a);}tiempos.total=Math.round(performance.now()-t0);applyLight(true);
  carga.value={parte:1,etapa:'Listo',lista:false};
  // Para revisar desde la consola: mover al jugador y la cámara sin teclado.
- if(import.meta.env.DEV)window.__demo={caminar,get ayudaEsquinas(){return ayudaEsquinas;},set ayudaEsquinas(v){ayudaEsquinas=v;},usarRonda,rondaT,get finVista(){return finVista.value;},get presoVista(){return presoVista.value;},muñecoDelPerfil,abrirMenu,cerrarMenu,accionMenu,get menuAbierto(){return menuAbierto.value;},get menuDatos(){return menuDatos.value;},get retratoLadron(){return retratoLadron;},get patrullas(){return patrullas;},subirPatrulla,bajarPatrulla,get velocidad(){return velocidad.value;},curar(){muerto.value=false;vidaVista.value=VIDA.max;},get soc(){return soc;},get cierres(){return cierres;},fijarHora,get hora(){return horaVista.value;},get quien(){return quienVista.value;},get ronda(){return ronda;},get cerraduras(){return cerraduras;},get persec(){return persec;},get policia(){return policiaVista.value;},get vida(){return vidaVista.value;},get muerto(){return muerto.value;},tiempos,WORLD_TIMES,THREE,fps,aiming,get shooting(){return shooting;},get vm(){return vm;},get scene(){return scene;},player,camera,euler,get avatar(){return avatar;},view,get cut(){return cut;},get world(){return world;},get city(){return city;},get plan(){return plan;},get composer(){return composer;},get renderer(){return renderer;},get crowd(){return crowd;},get traffic(){return traffic;},get island(){return island;},get folk(){return folk;},get animals(){return animals;},get indoor(){return indoor;},get patrol(){return patrol;},get viviendas(){return viviendas;},get casas(){return casas;},keys,step,dronePos,render:renderFrame,get aclarado(){return aclarado;},get visKey(){return visKey;},get acciones(){return acciones;},get niebla(){return niebla;},get lugar(){return lugar.value;},fijarDron(x,y,z){Object.assign(dronePos,{x,y,z});despegue=null;},huecosTerrazas(){// (2026-10-16: rayos hacia abajo en 3×3 puntos de cada casilla de lote del monte: un hueco es ver más de 1 m bajo el lote y bajo la calle de al lado)
+ if(import.meta.env.DEV)window.__demo={caminar,get mundo(){return world;},get plan(){return plan;},get ayudaEsquinas(){return ayudaEsquinas;},set ayudaEsquinas(v){ayudaEsquinas=v;},usarRonda,rondaT,get finVista(){return finVista.value;},get presoVista(){return presoVista.value;},muñecoDelPerfil,abrirMenu,cerrarMenu,accionMenu,get menuAbierto(){return menuAbierto.value;},get menuDatos(){return menuDatos.value;},get retratoLadron(){return retratoLadron;},get patrullas(){return patrullas;},subirPatrulla,bajarPatrulla,get velocidad(){return velocidad.value;},curar(){muerto.value=false;vidaVista.value=VIDA.max;},get soc(){return soc;},get cierres(){return cierres;},fijarHora,get hora(){return horaVista.value;},get quien(){return quienVista.value;},get ronda(){return ronda;},get cerraduras(){return cerraduras;},get persec(){return persec;},get policia(){return policiaVista.value;},get vida(){return vidaVista.value;},get muerto(){return muerto.value;},tiempos,WORLD_TIMES,THREE,fps,aiming,get shooting(){return shooting;},get vm(){return vm;},get scene(){return scene;},player,camera,euler,get avatar(){return avatar;},view,get cut(){return cut;},get world(){return world;},get city(){return city;},get plan(){return plan;},get composer(){return composer;},get renderer(){return renderer;},get crowd(){return crowd;},get traffic(){return traffic;},get island(){return island;},get folk(){return folk;},get animals(){return animals;},get indoor(){return indoor;},get patrol(){return patrol;},get viviendas(){return viviendas;},get casas(){return casas;},keys,step,dronePos,render:renderFrame,get aclarado(){return aclarado;},get visKey(){return visKey;},get acciones(){return acciones;},get niebla(){return niebla;},get lugar(){return lugar.value;},fijarDron(x,y,z){Object.assign(dronePos,{x,y,z});despegue=null;},huecosTerrazas(){// (2026-10-16: rayos hacia abajo en 3×3 puntos de cada casilla de lote del monte: un hueco es ver más de 1 m bajo el lote y bajo la calle de al lado)
   const I=plan.isla,ray=new THREE.Raycaster(),out=[];let n=0;island.group.updateMatrixWorld(true);const objs=[];island.group.traverse(o=>{if(o.isMesh&&!o.isInstancedMesh)objs.push(o);});
   const ejes=I.carreteras.filter(c=>c.puntos).flatMap(c=>c.puntos.slice(1).map((p,i)=>({a:c.puntos[i],b:p})));
   const calle=(x,z)=>{let best=null,bd=1e9;for(const {a,b} of ejes){const dx=b.x-a.x,dz=b.z-a.z,L2=dx*dx+dz*dz||1,t=Math.max(0,Math.min(1,((x-a.x)*dx+(z-a.z)*dz)/L2)),dd=Math.hypot(x-a.x-t*dx,z-a.z-t*dz);if(dd<bd){bd=dd;best=a.h+(b.h-a.h)*t;}}return bd<14?best:null;};
@@ -1124,10 +1133,10 @@ onBeforeUnmount(()=>{
    <div v-if="!carga.lista" class="carga" role="status" aria-live="polite">
     <div class="carga-centro">
      <b class="carga-logo">FUGA</b>
-     <p class="carga-papel" :class="POLICIA?'policia':'ladron'">{{ POLICIA?'Hoy sos policía':'Hoy sos ladrón' }}</p>
+     <p class="carga-papel" :class="POLICIA?'policia':'ladron'">{{ PASEO?'La ciudad':POLICIA?'Hoy sos policía':'Hoy sos ladrón' }}</p>
      <div class="carga-barra" role="progressbar" :aria-valuenow="Math.round(carga.parte*100)" aria-valuemin="0" aria-valuemax="100"><i :style="{transform:`scaleX(${carga.parte})`}"></i></div>
      <p class="carga-etapa">{{ carga.etapa }}</p>
-     <p class="carga-pista">{{ POLICIA?'Un ladrón corriendo llama la atención; uno caminando se pierde entre la gente.':'Caminá: correr llama la atención. Lo robado no cuenta hasta que llega a una guarida.' }}</p>
+     <p class="carga-pista">{{ PASEO?'Las viviendas están vacías, como se entregan: sólo el baño y la cocina.':POLICIA?'Un ladrón corriendo llama la atención; uno caminando se pierde entre la gente.':'Caminá: correr llama la atención. Lo robado no cuenta hasta que llega a una guarida.' }}</p>
     </div>
    </div>
   </Transition>

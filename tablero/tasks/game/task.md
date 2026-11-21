@@ -13,7 +13,8 @@ jira_title: ""
 
 - [x] Sacar policías y ladrones a `game/fuga/`: la pantalla de la ciudad no pide ningún archivo de esa carpeta y el probador (48 pruebas) pasa sin el juego viejo.
 - [ ] Limpiar de `DemoView.vue` el código dormido del juego viejo: termina cuando el archivo no nombra la ronda ni la persecución fuera de `cargarFuga`.
-- [ ] Llevar la vivienda vacía y el punto de aparición al 3D: termina cuando el paseo abre sin muebles en las viviendas y la persona aparece en el sitio que da el plano.
+- [x] Llevar la vivienda vacía y el punto de aparición al 3D: el paseo dibuja 3.033 muebles menos que el juego viejo en la ciudad chica (los que saca el plano) y la persona aparece en el sitio que da el plano.
+- [ ] Sacar de las cocinas vacías lo que el 3D pone encima del mesón (ollas, comida): termina cuando una cocina entregada sólo tiene mesón, estufa, nevera y lavaplatos.
 - [x] Caminar Colombia (720 m) en 3D con la primera imagen en menos de 15 s: abre en 14 s y rinde 60–74 cuadros por segundo, sin cargar por zonas.
 - [ ] Decidir si hace falta cargar el 3D por zonas. Depende de: Miguel — hoy no hace falta para 720 m; haría falta para una ciudad bastante más grande o para una máquina más lenta que este PC.
 - [ ] Aplicar las texturas de fachada y techo en el 3D: termina cuando el paseo muestra el paquete elegido en el visor.
@@ -140,6 +141,6 @@ Todo el trabajo está en la rama `game/visual` de `mig8at/playground`, PR 6 (abi
 
 - Nada de lo hecho se probó en la Mac: todo en el PC con Linux.
 - Las ciudades grandes (576 m y 720 m) no pasan por el probador, que sólo mira la de 3 por equipo. La de 720 m se abrió en 3D y se miró una esquina; no se recorrió entera.
-- Las texturas, los objetos colocados, la vivienda vacía y el punto de aparición no se ven en el 3D: sólo en el plano.
+- Las texturas y los objetos colocados no se ven en el 3D: sólo en el plano. La vivienda vacía en el 3D se comprobó contando muebles, no entrando a mirar un departamento.
 - Después de la vivienda vacía y el punto de aparición no se corrió el probador entero, sólo la prueba nueva (`validar-aparecer`).
 - El probador que se corre es el rápido, de una ciudad; el completo de cuatro no se corrió.
