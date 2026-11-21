@@ -1,0 +1,347 @@
+{
+ "about": "En qué países opera cada entidad que origina en CreditOp Colombia. Lo buscó Claude por internet (claude -p con WebSearch y WebFetch) el 2026-11-21; cada país trae su fuente. Revisado a mano: Welli en Perú (Forbes), PayJoy en México, KrediYA en Centroamérica y México, y la salida de Addi de Brasil se sostienen; la fuente de PayJoy en Perú no lo menciona.",
+ "lenders": [
+  {
+   "name": "Addi",
+   "what": "Fintech colombiana de BNPL (compra ahora, paga después) que ofrece crédito de consumo en el punto de venta físico y online, con cupos rotativos y crédito a plazos",
+   "countries": [
+    {
+     "country": "Colombia",
+     "status": "operating",
+     "how": "Marca propia Addi: cupo de crédito ('Cupo'), 'Crédito Grande' a hasta 24 cuotas y un marketplace propio para comprar a plazos en más de 35.000 comercios",
+     "source": "https://co.addi.com/"
+    },
+    {
+     "country": "Brasil",
+     "status": "exited",
+     "how": "Operó como Addi Brasil desde 2021 ofreciendo BNPL en comercios, pero cerró la operación en 2023 para enfocarse en Colombia",
+     "source": "https://finsidersbrasil.com.br/noticias-sobre-fintechs/addi-fintech-colombiana-de-bnpl-deixa-o-brasil-apos-dois-anos-finsiders/"
+    },
+    {
+     "country": "México",
+     "status": "announced",
+     "how": "En 2021 Addi anunció planes de abrir oficina y lanzar su producto BNPL en México durante el primer trimestre de 2022; no se encontró confirmación de que la operación local haya llegado a lanzarse ni de que siga activa",
+     "source": "https://www.larepublica.co/finanzas/hay-una-oportunidad-grande-para-expandir-nuestro-negocio-en-brasil-o-en-mexico-3012059"
+    }
+   ]
+  },
+  {
+   "name": "PayJoy",
+   "what": "Fintech estadounidense especializada en financiación de smartphones (bloqueo del dispositivo como garantía) que además ofrece tarjeta de crédito y líneas de crédito de consumo",
+   "countries": [
+    {
+     "country": "México",
+     "status": "operating",
+     "how": "Marca PayJoy México: financiamiento de celulares, Tarjeta PayJoy y línea de crédito 'Crédito para Todo'",
+     "source": "https://www.payjoy.com/mx/sobre-nosotros"
+    },
+    {
+     "country": "Colombia",
+     "status": "operating",
+     "how": "Marca PayJoy Colombia: financiación de celulares a cuotas, Tarjeta PayJoy y línea de crédito flexible",
+     "source": "https://payjoy.com/co/sobre-nosotros"
+    },
+    {
+     "country": "Brasil",
+     "status": "operating",
+     "how": "Marca PayJoy Brasil: financiamiento de celulares y tarjeta/crédito, según su sitio local",
+     "source": "https://www.payjoy.com/br/sobre-nos"
+    },
+    {
+     "country": "Panamá",
+     "status": "operating",
+     "how": "Marca PayJoy Panamá: financiación de celulares y productos de crédito de consumo",
+     "source": "https://live-upstream.payjoy.com/pa/sobre-nosotros"
+    },
+    {
+     "country": "Perú",
+     "status": "operating",
+     "how": "Marca PayJoy Perú: financiación de celulares; en 2026 recibió una línea de crédito corporativa de USD 140M para expandir su operación en el país",
+     "source": "https://www.prnewswire.com/mx/comunicados-de-prensa/cnbc-nombra-a-payjoy-una-de-las-principales-empresas-de-tecnologia-financiera-del-mundo-en-2026-302833962.html"
+    },
+    {
+     "country": "Ecuador",
+     "status": "operating",
+     "how": "Marca PayJoy Ecuador: financiación de celulares y productos de crédito digital",
+     "source": "https://www.eluniverso.com/patrocinado/payjoy-busca-ampliar-la-inclusion-financiera-con-tecnologia-y-creditos-digitales/"
+    },
+    {
+     "country": "Sudáfrica",
+     "status": "operating",
+     "how": "PayJoy opera fuera de Latam con el mismo modelo de financiación de smartphones",
+     "source": "https://www.payjoy.com"
+    },
+    {
+     "country": "Filipinas",
+     "status": "operating",
+     "how": "PayJoy opera con financiación de smartphones",
+     "source": "https://www.payjoy.com"
+    },
+    {
+     "country": "Indonesia",
+     "status": "operating",
+     "how": "PayJoy opera con financiación de smartphones",
+     "source": "https://www.payjoy.com"
+    }
+   ]
+  },
+  {
+   "name": "Sistecrédito",
+   "what": "Financiera colombiana (fundada en 1996 en Medellín) que ofrece crédito de consumo para compras a cuotas en comercios aliados, enfocada en población sin historial crediticio",
+   "countries": [
+    {
+     "country": "Colombia",
+     "status": "operating",
+     "how": "Marca propia Sistecrédito: crédito de consumo rotativo para financiar compras en más de 500 municipios del país; no se encontró evidencia de operación en otros países",
+     "source": "https://www.portafolio.co/contenido-patrocinado/sistecredito-el-credito-de-todos-575660"
+    }
+   ]
+  },
+  {
+   "name": "Krediya",
+   "what": "Fintech regional que ofrece financiamiento digital tipo BNPL, principalmente para la compra de smartphones y tablets, con aprobación en minutos",
+   "countries": [
+    {
+     "country": "Colombia",
+     "status": "operating",
+     "how": "Marca KrediYA: financiamiento digital de smartphones/tablets a cuotas",
+     "source": "https://krediya.com"
+    },
+    {
+     "country": "México",
+     "status": "operating",
+     "how": "Marca KrediYA: financiamiento digital de smartphones/tablets a cuotas",
+     "source": "https://krediya.com"
+    },
+    {
+     "country": "Panamá",
+     "status": "operating",
+     "how": "Marca KrediYA: financiamiento digital de smartphones/tablets a cuotas",
+     "source": "https://krediya.com"
+    },
+    {
+     "country": "Guatemala",
+     "status": "operating",
+     "how": "Marca KrediYA: financiamiento digital de smartphones/tablets a cuotas",
+     "source": "https://krediya.com"
+    },
+    {
+     "country": "Costa Rica",
+     "status": "operating",
+     "how": "Marca KrediYA: financiamiento digital de smartphones a cuotas; la fintech destaca su estrategia de democratización de crédito para smartphones en el país",
+     "source": "https://delfino.cr/2024/07/con-estrategia-para-democratizacion-de-creditos-para-smartphones-krediya-impulsa-crecimiento-en-el-pais"
+    },
+    {
+     "country": "El Salvador",
+     "status": "operating",
+     "how": "Marca KrediYA: financiamiento digital de smartphones/tablets a cuotas",
+     "source": "https://krediya.com"
+    },
+    {
+     "country": "Honduras",
+     "status": "operating",
+     "how": "Marca KrediYA: financiamiento digital de smartphones/tablets a cuotas",
+     "source": "https://krediya.com"
+    }
+   ]
+  },
+  {
+   "name": "Bancolombia (Grupo Cibest)",
+   "what": "Banco comercial colombiano, principal filial de Grupo Cibest; ofrece crédito de consumo y el producto BNPL 'Compra y paga después' (compre ahora, pague después en 4 cuotas sin interés) usado hoy por CreditOp en Colombia",
+   "countries": [
+    {
+     "country": "Colombia",
+     "status": "operating",
+     "how": "Marca Bancolombia: crédito de consumo y 'Compra y paga después' (BNPL, 4 cuotas sin interés, disponible en comercios aliados y plataformas como Wompi, Payválida, Creditop)",
+     "source": "https://www.bancolombia.com/pagos/compra-y-paga-despues"
+    },
+    {
+     "country": "Panamá",
+     "status": "operating",
+     "how": "Filiales Bancolombia Panamá (Sucursal Panamá) y Cibest Capital Panamá: banca, inversión y mercado de capitales (no retail BNPL)",
+     "source": "https://www.bancolombia.com/acerca-de/sala-prensa/noticias/resultados-corporativos/estrategia-de-inversion-regional-cibest-2026"
+    },
+    {
+     "country": "Puerto Rico",
+     "status": "operating",
+     "how": "Filial Bancolombia Puerto Rico: banca, fiducia, banca de inversión y financiamiento para clientes con actividad transfronteriza (no es banca minorista masiva)",
+     "source": "https://www.bancolombia.com/acerca-de/sala-prensa/noticias/resultados-corporativos/estrategia-de-inversion-regional-cibest-2026"
+    },
+    {
+     "country": "El Salvador",
+     "status": "operating",
+     "how": "Filial Bancoagrícola (del Grupo Cibest): crédito personal y tarjetas de crédito al consumidor",
+     "source": "https://www.larepublica.co/finanzas/banco-agricola-filial-de-bancolombia-en-el-salvador-recibe-credito-de-us-330-millones-del-ifc-3054822"
+    },
+    {
+     "country": "Guatemala",
+     "status": "operating",
+     "how": "Filial BAM (Banco Agromercantil de Guatemala): tarjeta de crédito 'Puntos BAM' (Visa/Mastercard) y préstamos personales ('Préstamo Fácil Digital', 'Préstamo Planilla')",
+     "source": "https://www.bancolombia.com/acerca-de/sala-prensa/noticias/resultados-corporativos/estrategia-de-inversion-regional-cibest-2026"
+    },
+    {
+     "country": "Estados Unidos",
+     "status": "operating",
+     "how": "Cibest Capital USA: plataforma de inversión regional (no crédito de consumo masivo)",
+     "source": "https://www.bancolombia.com/acerca-de/sala-prensa/noticias/resultados-corporativos/estrategia-de-inversion-regional-cibest-2026"
+    },
+    {
+     "country": "Islas Caimán",
+     "status": "exited",
+     "how": "Bancolombia Cayman: operación en proceso de desmonte finalizada en 2021, ya no opera",
+     "source": "https://www.larepublica.co/finanzas/desmonte-de-la-operacion-de-bancolombia-cayman-finalizaria-en-el-ultimo-trimestre-de-2021-3070131"
+    },
+    {
+     "country": "Panamá (Banistmo)",
+     "status": "exited",
+     "how": "Grupo Cibest vendió Banistmo (filial bancaria panameña adquirida en 2013) a Inversiones Cuscatlán; ya no es parte del grupo",
+     "source": "https://www.bancolombia.com/acerca-de/sala-prensa/noticias/productos-servicios/grupo-cibest-vende-banistmo-panama"
+    }
+   ]
+  },
+  {
+   "name": "Davivienda (Davivienda Group / DaviBank)",
+   "what": "Banco comercial colombiano; ofrece crédito de consumo, tarjetas de crédito y préstamos personales",
+   "countries": [
+    {
+     "country": "Colombia",
+     "status": "operating",
+     "how": "Marca Davivienda/DaviBank: tarjetas de crédito y crédito de consumo",
+     "source": "https://www.portafolio.co/economia/finanzas/nace-nuevo-banco-en-colombia-asi-es-la-marca-davibank-el-resultado-de-la-integracion-de-davivienda-y-scotiabank-483986"
+    },
+    {
+     "country": "Panamá",
+     "status": "operating",
+     "how": "Banco Davivienda Panamá (antigua operación de Scotiabank Panamá, integrada en 2025): tarjetas de crédito, cuentas y crédito de consumo",
+     "source": "https://www.larepublica.co/finanzas/scotiabank-en-panama-ahora-se-convirtio-en-banco-davivienda-4285320"
+    },
+    {
+     "country": "Costa Rica",
+     "status": "operating",
+     "how": "Banco Davivienda Costa Rica: tarjetas de crédito, 'Crédito Móvil' (préstamo personal 100% digital) y tarjetas de marca compartida (ej. Unimart)",
+     "source": "https://delfino.cr/2024/11/davivienda-y-unimart-lanzan-tarjeta-con-beneficios-exclusivos"
+    },
+    {
+     "country": "Honduras",
+     "status": "operating",
+     "how": "Banco Davivienda Honduras: tarjetas de crédito y préstamos personales gestionables vía app",
+     "source": "https://www.numeroservicioalcliente.com/davivienda-honduras/"
+    },
+    {
+     "country": "El Salvador",
+     "status": "operating",
+     "how": "Banco Davivienda El Salvador (tercer banco más grande del país): tarjetas de crédito y préstamos personales",
+     "source": "https://www.davivienda.com.sv"
+    },
+    {
+     "country": "Estados Unidos",
+     "status": "operating",
+     "how": "Sucursal de Davivienda en Miami, Florida, con licencia de la Reserva Federal desde 2010/2011 (banca internacional/corresponsal, no crédito de consumo minorista)",
+     "source": "https://en.wikipedia.org/wiki/Davivienda"
+    }
+   ]
+  },
+  {
+   "name": "Banco de Occidente",
+   "what": "Banco comercial colombiano del Grupo Aval; ofrece crédito de consumo, tarjetas de crédito y libranzas",
+   "countries": [
+    {
+     "country": "Colombia",
+     "status": "operating",
+     "how": "Marca Banco de Occidente: tarjetas de crédito, crédito de consumo y de libre inversión",
+     "source": "https://www.larepublica.co/banco-de-occidente"
+    },
+    {
+     "country": "Panamá",
+     "status": "operating",
+     "how": "Filial con licencia internacional Banco de Occidente (Panamá), S.A.: cuentas de ahorro, cuentas corrientes/money market y tarjeta de crédito (banca personal y corporativa)",
+     "source": "https://www.superbancos.gob.pa/documents/general-information-banks/int_licence_banks/OCCIDENTE.pdf"
+    }
+   ]
+  },
+  {
+   "name": "Nequi",
+   "what": "Billetera digital / compañía de financiamiento colombiana (hoy en proceso de independencia de Grupo Bancolombia), ofrece crédito de consumo digital (ej. 'Nequi Mi Plata Segura', avances y créditos dentro de la app)",
+   "countries": [
+    {
+     "country": "Colombia",
+     "status": "operating",
+     "how": "Nequi, desde el 1 de septiembre opera como Compañía de Financiamiento independiente de Bancolombia, ofreciendo productos de ahorro y crédito de consumo digital dentro de la app",
+     "source": "https://www.latamfintech.co/articles/nequi-iniciara-operaciones-como-compania-de-financiamiento-en-colombia-desde-el-1-de-septiembre"
+    },
+    {
+     "country": "El Salvador",
+     "status": "operating",
+     "how": "Nequi opera integrado a través de Bancoagrícola (filial de Grupo Cibest), con ahorro, remesas y crédito para inclusión financiera",
+     "source": "https://www.latamfintech.co/articles/nequi-expande-sus-operaciones-a-el-salvador-y-guatemala-para-impulsar-la-inclusion-financiera-en-centroamerica"
+    },
+    {
+     "country": "Guatemala",
+     "status": "operating",
+     "how": "Nequi opera integrado a través de Bam (Banco Agromercantil), con ahorro, remesas y crédito",
+     "source": "https://newsinamerica.com/pdcc/noticias/gerenciales/2025/guatemala-tiene-una-nueva-opcion-para-mejorar-la-relacion-con-el-dinero-nequi-por-bam/"
+    },
+    {
+     "country": "Panamá",
+     "status": "exited",
+     "how": "Nequi operaba como producto bajo la licencia bancaria de Banistmo; cerró operaciones el 31 de diciembre de 2024/2025 y migró usuarios a Banistmo",
+     "source": "https://www.prensa.com/economia/nequi-el-banco-digital-dejara-de-operar-a-partir-del-31-de-diciembre/"
+    }
+   ]
+  },
+  {
+   "name": "Welli",
+   "what": "Fintech colombiana de crédito para salud: financia procedimientos y tratamientos médicos en el punto de atención (consultorio/clínica) mediante aprobación digital en minutos.",
+   "countries": [
+    {
+     "country": "Colombia",
+     "status": "operating",
+     "how": "Marca Welli: crédito para pacientes que financia procedimientos médicos y odontológicos en clínicas y consultorios afiliados, con aprobación en minutos.",
+     "source": "https://forbes.co/2025/07/08/emprendedores/welli-fintech-procedimientos-medicos"
+    },
+    {
+     "country": "Perú",
+     "status": "operating",
+     "how": "Marca Welli: inició operaciones ofreciendo financiación de tratamientos médicos a pacientes y, además, una línea de crédito para que clínicas y profesionales de salud adquieran equipos médicos.",
+     "source": "https://forbes.co/2026/07/30/emprendedores/fintech-colombiana-llega-a-peru-y-amplia-su-negocio-para-financiar-tratamientos-medicos-en-la-region/"
+    }
+   ]
+  },
+  {
+   "name": "Meddipay",
+   "what": "Fintech colombiana (Meddipay SAS) de financiamiento para salud: ofrece planes de pago para tratamientos médicos, odontológicos, de bienestar y estética.",
+   "countries": [
+    {
+     "country": "Colombia",
+     "status": "operating",
+     "how": "Marca Meddipay: planes de pago/crédito al consumidor para financiar tratamientos de salud, bienestar y estética directamente con el paciente.",
+     "source": "https://www.meddipay.com.co/"
+    }
+   ]
+  },
+  {
+   "name": "Prami",
+   "what": "Fintech colombiana de crédito digital fundada por estudiantes de la Universidad de los Andes, enfocada en formalizar el crédito de consumo en zonas rurales y municipios de menos de un millón de habitantes.",
+   "countries": [
+    {
+     "country": "Colombia",
+     "status": "operating",
+     "how": "Marca Prami: préstamos de consumo solicitados por WhatsApp y en comercios aliados, con aprobación en menos de 15 minutos, dirigidos a población rural no bancarizada.",
+     "source": "https://www.larepublica.co/especiales/avanzan-las-fintech/prami-la-fintech-que-otorga-prestamos-en-zonas-rurales-y-municipios-de-menos-de-un-millon-de-habitantes-3849941"
+    }
+   ]
+  },
+  {
+   "name": "Su+Pay",
+   "what": "Marca de crédito de consumo en punto de venta (antes llamada SU+ Pay, hoy comercializada como Crédito SUMAS), operada por Intercrédito de Colombia / SUMAS, financiera antioqueña nacida en 2005.",
+   "countries": [
+    {
+     "country": "Colombia",
+     "status": "operating",
+     "how": "Marca SU+ Pay / Crédito SUMAS (Intercrédito de Colombia S.A.S.): crédito de consumo en punto de venta para compras a plazos (1 a 36 meses, sin cuota inicial) en más de 3.000-4.500 comercios físicos y en línea en categorías como moda, tecnología, hogar y salud.",
+     "source": "https://www.portafolio.co/negocios/empresas/sumas-evoluciona-su-marca-y-fortalece-su-expansion-como-fintech-de-credito-digital-634166"
+    }
+   ]
+  }
+ ]
+}
