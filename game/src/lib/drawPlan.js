@@ -54,6 +54,11 @@ export function drawCityStage(canvas,bp,{cell,stage,level=0,selected=-1,fronts=t
  const street={[K.street]:PAPER.street,[K.avenue]:PAPER.avenue,[K.alley]:PAPER.alley,[K.border]:PAPER.border};
  for(let y=0;y<H;y++)for(let x=0;x<W;x++){const k=kind[y*W+x];g.fillStyle=street[k]||(k===K.kiosk?PAPER.avenue:'#d3d8cf');g.fillRect(x*cell,y*cell,cell+.5,cell+.5);}
  for(const b of bp.blocks){g.fillStyle=USE_COLOR[b.use];g.fillRect(b.x0*cell,b.y0*cell,b.w*cell,b.h*cell);
+  // (el piso de cada espacio abierto: matas de pasto en el parque —siempre en el mismo lugar: salen de la casilla— y las
+  // juntas de las losas de 2 m en la plaza)
+  if(m>=2&&b.use==='parque'){g.fillStyle='rgba(70,120,60,.22)';for(let y=b.y0;y<=b.y1;y++)for(let x=b.x0;x<=b.x1;x++)for(let k=0;k<5;k++){const h1=Math.sin((x*73+y*151+k*37)*12.9898)*43758.5453,h2=Math.sin((x*29+y*83+k*61)*78.233)*12543.31,u=h1-Math.floor(h1),v=h2-Math.floor(h2);
+     g.beginPath();g.ellipse((x+u)*cell,(y+v)*cell,Math.max(1,m*.45),Math.max(.8,m*.28),u*3,0,7);g.fill();}}
+  if(m>=3&&b.use==='plaza'){g.strokeStyle='rgba(120,100,70,.16)';g.lineWidth=1;g.beginPath();for(let u=0;u<=b.w*CELL;u+=2){g.moveTo(b.x0*cell+u*m,b.y0*cell);g.lineTo(b.x0*cell+u*m,(b.y0+b.h)*cell);}for(let v=0;v<=b.h*CELL;v+=2){g.moveTo(b.x0*cell,b.y0*cell+v*m);g.lineTo((b.x0+b.w)*cell,b.y0*cell+v*m);}g.stroke();}
   if(b.use==='plaza'||b.use==='parque'){for(let y=b.y0;y<=b.y1;y++)for(let x=b.x0;x<=b.x1;x++)if(kind[y*W+x]===K.kiosk){g.fillStyle=PAPER.kiosk;g.beginPath();g.arc((x+.5)*cell,(y+.5)*cell,cell*.32,0,7);g.fill();}}
   if(stage>=3)for(let y=b.y0;y<=b.y1;y++)for(let x=b.x0;x<=b.x1;x++)if(kind[y*W+x]===K.alley){g.fillStyle=PAPER.alley;g.fillRect(x*cell,y*cell,cell+.5,cell+.5);}}
  // LA CALZADA Y LA VEREDA (2026-11-21): la calle era una sola franja clara. Con las medidas de CALLE —vereda de 3 m a cada
@@ -76,12 +81,23 @@ export function drawCityStage(canvas,bp,{cell,stage,level=0,selected=-1,fronts=t
  for(const c of bp.courts){g.fillStyle=PAPER.courtyard;g.fillRect(c.x0*cell,c.y0*cell,(c.x1-c.x0+1)*cell,(c.y1-c.y0+1)*cell);}
  // (la sombra de cada edificio, corrida hacia abajo a la derecha según sus pisos —hasta 5 m—: da el relieve de la ciudad sin
  // el 3D; en el piso que se mira, sólo los que llegan hasta ahí)
- if(m>=1.2){g.fillStyle='rgba(38,42,54,.17)';for(const L of bp.lots){if(level>=L.floors)continue;const d=Math.min(5,(L.floors-level)*ALTURA.piso*.3)*m;for(const P of L.parts)g.fillRect(P.x*m+d,P.y*m+d,P.w*m,P.h*m);}}
+ if(m>=1.2){g.fillStyle='rgba(38,42,54,.17)';for(const L of bp.lots){const d=Math.min(5,(level>=L.floors?L.floors:L.floors-level)*ALTURA.piso*.3)*m;// (visto desde arriba de su techo, la sombra entera)
+  for(const P of L.parts)g.fillRect(P.x*m+d,P.y*m+d,P.w*m,P.h*m);}}
  for(const L of bp.lots){g.fillStyle=TYPES[L.type].color;for(const P of L.parts)g.fillRect(P.x*m,P.y*m,P.w*m,P.h*m);}
  // Etapas 5–8: el piso elegido de cada edificio, en chico.
  if(stage>=5)for(const L of bp.lots){const lv=L.levels[Math.min(level,L.levels.length-1)];if(level>=L.floors)continue;drawLevel(g,lv,{m,stage,small:m<10,labels:m>=16});}
  for(const L of bp.lots){g.strokeStyle=L.id===selected?'#c0392b':'rgba(40,46,50,.55)';g.lineWidth=L.id===selected?2.5:1;outline(g,L.parts,v=>v*m,v=>v*m);
-  if(level>=L.floors&&stage>=5){g.fillStyle='rgba(255,255,255,.55)';for(const P of L.parts)g.fillRect(P.x*m,P.y*m,P.w*m,P.h*m);}
+  // EL TECHO (2026-11-21): por encima de su último piso un edificio era un velo blanco. Ahora es su techo: la losa del
+  // color que decide el plano, el pretil alrededor y, si es mansarda, sus faldones de pizarra con la cumbrera; lo de la
+  // azotea (tanques, antenas, materas) lo pone encima drawExterior.
+  if(level>=L.floors&&stage>=5){const C=L.colores||{},manz=L.fachada?.techo==='mansarda',base=manz?(C.techo||'#4b5560'):'#cfcbc2',pret=Math.max(1,.35*m);
+   for(const P of L.parts){const x=P.x*m,y=P.y*m,w=P.w*m,h=P.h*m;g.fillStyle=C.moldura||'#e9e6de';g.fillRect(x,y,w,h);g.fillStyle=base;g.fillRect(x+pret,y+pret,w-2*pret,h-2*pret);
+    if(manz&&m>=1.5){const f=Math.min(w,h)*.22;g.fillStyle='rgba(255,255,255,.14)';g.fillRect(x+pret+f,y+pret+f,w-2*(pret+f),h-2*(pret+f));g.strokeStyle='rgba(0,0,0,.28)';g.lineWidth=Math.max(.6,m*.06);g.beginPath();
+     for(const [cx,cy] of [[x+pret,y+pret],[x+w-pret,y+pret],[x+pret,y+h-pret],[x+w-pret,y+h-pret]]){g.moveTo(cx,cy);g.lineTo(cx<x+w/2?cx+f:cx-f,cy<y+h/2?cy+f:cy-f);}g.strokeRect(x+pret+f,y+pret+f,w-2*(pret+f),h-2*(pret+f));g.stroke();}
+    else if(m>=3){g.strokeStyle='rgba(0,0,0,.07)';g.lineWidth=1;g.beginPath();for(let u=2;u<P.w;u+=2){g.moveTo(x+u*m,y+pret);g.lineTo(x+u*m,y+h-pret);}g.stroke();}}}
+  // (el nombre de cada edificio, a media distancia —de cerca ya se leen sus cuartos—, con un halo para que se lea)
+  if(stage>=5&&m>=2.2&&m<11){const t=L.shopName||L.name,r=L.rect,fs=Math.max(9,Math.min(13,m*2.2));if(t&&r.w*m>fs*t.length*.42){g.font=`600 ${fs}px system-ui,sans-serif`;g.textAlign='center';g.textBaseline='middle';
+    const cx=(r.x+r.w/2)*m,cy=(r.y+r.h/2)*m;g.lineWidth=3;g.strokeStyle='rgba(255,255,255,.85)';g.strokeText(t,cx,cy);g.fillStyle='rgba(30,34,40,.9)';g.fillText(t,cx,cy);}}
   // Etapa 4: los pisos de cada uno.
   if(stage>=4&&cell>=14){g.fillStyle='rgba(30,34,36,.75)';g.font=`600 ${Math.max(9,Math.min(12,cell*.42))}px ui-monospace,monospace`;g.textAlign='center';g.textBaseline='middle';
    if(stage===4)g.fillText(L.floors,(L.rect.x+L.rect.w/2)*m,(L.rect.y+L.rect.h/2)*m);}
