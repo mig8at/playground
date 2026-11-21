@@ -88,9 +88,13 @@ type Measured struct {
 	At      string            `json:"at"`
 	Sectors map[string]Sector `json:"sectors"` // por id
 	Clients []Client          `json:"clients"`
-	Error   string            `json:"error,omitempty"`
-	byNIT   map[string]string // nit → nombre
-	byName  map[string]string // nombre normalizado → nombre
+	// Dónde opera CreditOp (los países de sus comercios activos, en español) y los nombres de sus entidades activas:
+	// con eso se sabe qué entidades ya tiene y qué países nuevos activaría cada una (lenders.go).
+	Countries []string          `json:"countries"`
+	Lenders   []string          `json:"lenders"`
+	Error     string            `json:"error,omitempty"`
+	byNIT     map[string]string // nit → nombre
+	byName    map[string]string // nombre normalizado → nombre
 }
 
 var (
@@ -197,6 +201,22 @@ func measure(ctx context.Context) *Measured {
 	}
 	for _, r := range rows {
 		m.Clients = append(m.Clients, Client{Name: str(r["name"]), NIT: normalizeNIT(str(r["nit"]))})
+	}
+	rows, err = pgRows(ctx, "SELECT DISTINCT c.name FROM allieds a JOIN countries c ON c.id=a.country_id WHERE a.status=1")
+	if err != nil {
+		m.Error = err.Error()
+		return m
+	}
+	for _, r := range rows {
+		m.Countries = append(m.Countries, spanishCountry(str(r["name"])))
+	}
+	rows, err = pgRows(ctx, "SELECT name FROM lenders WHERE status=1")
+	if err != nil {
+		m.Error = err.Error()
+		return m
+	}
+	for _, r := range rows {
+		m.Lenders = append(m.Lenders, str(r["name"]))
 	}
 	return m
 }

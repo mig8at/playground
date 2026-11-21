@@ -16,6 +16,7 @@ import { vResize, readSize, saveSize, readPref, savePref, fitRegions, cssSize, b
 const companies = ref([])
 const stages = ref({ merchant: [], lender: [] })
 const sectors = ref([])
+const lenders = ref([]) // las entidades que llevarían a otros países (server/lenders.go)
 const measuredAt = ref('')
 const measureError = ref('')
 const clientCount = ref(0)
@@ -38,6 +39,7 @@ async function load() {
     companies.value = s.companies
     stages.value = s.stages
     sectors.value = s.sectors
+    lenders.value = (s.lenders || []).filter((l) => l.activates.length) // las que no activan ningún país nuevo no van
     measuredAt.value = s.measuredAt
     measureError.value = s.measureError || ''
     clientCount.value = s.clients
@@ -256,6 +258,10 @@ const picked = computed(() => (route.value.view === 'company' && reachable.value
 const COUNTRIES = [{ id: 'CO', name: 'Colombia', tax: 'NIT' }, { id: 'PE', name: 'Perú', tax: 'RUC' }]
 const countryOf = (c) => COUNTRIES.find((x) => x.id === (c.country || 'CO')) || COUNTRIES[0]
 const byCountry = (id) => reachable.value.filter((c) => (c.country || 'CO') === id)
+// El detalle de una entidad, al pasar el mouse: si la tenemos, qué países activaría y dónde opera.
+const lenderTitle = (l) => [l.have ? 'Ya trabaja con CreditOp' : 'Todavía no trabaja con CreditOp',
+  l.activates.length ? `Activaría: ${l.activates.join(', ')}` : 'No activa países nuevos',
+  `Opera en: ${l.countries.map((c) => c.country + (c.unconfirmed ? ' (sin confirmar)' : '')).join(', ')}`].join('\n')
 const logOf = (c) => [...c.activities].reverse()
 
 // ── el panel: la actividad de todas ──
@@ -330,7 +336,7 @@ onBeforeUnmount(() => {
     <aside v-show="shown.sidebar" class="sidebar" aria-label="Comercios">
       <div class="rsz rsz-edge-right" v-resize="sidebarResize"></div>
       <div class="region-head"><span>Comercios</span><span class="count">{{ reachable.length }}</span></div>
-      <div class="region-body">
+      <div class="region-body side-stack">
         <template v-for="co in COUNTRIES" :key="co.id">
           <div class="region-head group"><span>{{ co.name }}</span><span class="count">{{ byCountry(co.id).length }}</span></div>
           <a v-for="c in byCountry(co.id)" :key="c.id" class="row" :class="{ on: picked?.id === c.id }" :href="`#/c/${c.id}`" :title="reachTitle(c)">
@@ -341,6 +347,16 @@ onBeforeUnmount(() => {
           <div v-if="loaded && !byCountry(co.id).length" class="side-empty">Ninguno con canal todavía: <code>bin/sabueso hunt --country {{ co.id }}</code>.</div>
         </template>
         <div v-if="apiError" class="side-empty late">{{ apiError }}</div>
+        <!-- Al fondo: las entidades que llevarían a CreditOp a otros países, de la que más activa a la que menos. En
+             gris las que todavía no trabajan con CreditOp. Sólo para tenerlas pendientes. -->
+        <div v-if="lenders.length" class="side-bottom">
+          <div class="region-head group"><span>Entidades</span><span class="count">{{ lenders.length }}</span></div>
+          <div v-for="l in lenders" :key="l.name" class="row lender" :class="{ missing: !l.have }" :title="lenderTitle(l)">
+            <span class="ui-icon" data-icon="shield" aria-hidden="true"></span>
+            <span>{{ l.name }}</span>
+            <span class="row-meta">{{ l.activates.length ? `+${l.activates.length} ${l.activates.length === 1 ? 'país' : 'países'}` : '—' }}</span>
+          </div>
+        </div>
       </div>
     </aside>
 

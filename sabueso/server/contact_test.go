@@ -130,3 +130,21 @@ func TestCountry(t *testing.T) {
 		t.Error("un país que no está se rechaza")
 	}
 }
+
+func TestRankLenders(t *testing.T) {
+	m := &Measured{Countries: []string{"Colombia", "Perú", "República Dominicana"}, Lenders: []string{"Cuotealo BCP", "PayJoy"}}
+	list := rankLenders([]Lender{
+		{Name: "Credicorp (BCP)", Aliases: []string{"BCP"}, Countries: []LenderCountry{{Country: "Perú"}, {Country: "Colombia"}, {Country: "Bolivia"}, {Country: "Chile"}}},
+		{Name: "Promerica", Aliases: []string{"Promerica"}, Countries: []LenderCountry{{Country: "Guatemala"}, {Country: "Honduras"}, {Country: "República Dominicana"}}},
+		{Name: "PayJoy", Aliases: []string{"PayJoy"}, Countries: []LenderCountry{{Country: "México"}}},
+	}, m)
+	if list[0].Name != "Credicorp (BCP)" || len(list[0].Activates) != 2 || !list[0].Have {
+		t.Errorf("Credicorp activa Bolivia y Chile y ya la tenemos: %+v", list[0])
+	}
+	if list[1].Name != "Promerica" || len(list[1].Activates) != 2 || list[1].Have {
+		t.Errorf("Promerica: República Dominicana ya está, no la tenemos: %+v", list[1])
+	}
+	if !list[2].Have || len(list[2].Activates) != 1 {
+		t.Errorf("PayJoy: %+v", list[2])
+	}
+}

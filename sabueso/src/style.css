@@ -123,3 +123,10 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 .muted.small { font-size: var(--text-xs) }
 .contact-source { font-size: var(--text-xs); color: var(--fg-3) }
 .side-empty code, .empty-desc code { font-family: var(--font-mono); font-size: var(--text-xs) }
+
+/* las entidades, al fondo del sidebar: en gris las que todavía no trabajan con CreditOp */
+.side-stack { display: flex; flex-direction: column }
+.side-bottom { margin-top: auto; padding-top: var(--space-3) }
+.row.lender { cursor: default; color: var(--foreground) }
+.row.lender:hover { background: none }
+.row.lender.missing, .row.lender.missing .row-meta, .row.lender.missing .ui-icon { color: var(--fg-3) }

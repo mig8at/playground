@@ -23,6 +23,13 @@ cadenas del sector con sus locales y la fuente; cada búsqueda gasta el asiento 
 (BCP Vehicular financia el vehículo entero; `ticketFor` en `server/fit.go`). Las entidades de CreditOp Colombia que
 operan en otros países: `tablero/tasks/sabueso/artifacts/entidades-por-pais.json`.
 
+**Las entidades, al fondo del sidebar** (Miguel, 2026-11-21: «sólo para tenerlas pendientes»): las que llevarían a
+CreditOp a otros países, de la que más países activa a la que menos; en gris las que todavía no trabajan con CreditOp.
+Salen de `sabueso/lenders.json` (dónde opera cada una en América Latina, con su fuente, buscado por Claude) cruzado con
+prod (`server/lenders.go`): si ya la tenemos (por sus nombres en `lenders`) y qué países activaría (donde opera y
+CreditOp todavía no; hoy CreditOp está en Colombia, Perú y República Dominicana). Las que no activan ningún país no van.
+Al pasar el mouse, el detalle. Para sumar una, se agrega a `lenders.json` con su fuente.
+
 **Por ahora sólo comercios** (Miguel, 2026-11-21: «empecemos por comercio; oculta, no elimines»): las entidades están
 ocultas en la interfaz con `SHOW_LENDERS = false` (`src/App.vue`); el servidor y los datos las siguen sabiendo llevar.
 
@@ -105,6 +112,7 @@ La vista completa sigue en el código (con `SIMPLE = false`):
 | prod (por `bin/pg`) y el registro mercantil | `server/sources.go` |
 | el contacto: Claude por internet y el mejor canal | `server/contact.go` (y `runClaude`, la llamada compartida) |
 | encontrar comercios en un país sin registro abierto | `server/web_find.go` |
+| las entidades que activarían otros países | `lenders.json` (los datos) y `server/lenders.go` |
 | el sitio de la empresa, leído sin modelo | `server/site.go` (`SABUESO_LIVE=1 go test -run Live` va a internet) |
 | la consola | `sabueso/cli` (`bin/sabueso`, compilado en `~/.cache/my-tools/sabueso`) |
 | la API | `server/main.go` (encabezado `X-Sabueso: 1` y Host local, como el Llavero) |

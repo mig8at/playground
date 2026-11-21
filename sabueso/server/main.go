@@ -177,7 +177,12 @@ func routes() *http.ServeMux {
 			}
 			out = append(out, s)
 		}
+		lenders, _ := loadLenders()
+		if lenders == nil {
+			lenders = []Lender{}
+		}
 		writeJSON(w, 200, map[string]any{"companies": st.Companies, "stages": stages, "sectors": out,
+			"lenders": rankLenders(lenders, m), "operating": m.Countries,
 			"measuredAt": m.At, "measureError": m.Error, "clients": len(m.Clients)})
 	})
 
