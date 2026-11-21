@@ -24,7 +24,11 @@ con LISTO / NO PUDE / NECESITO / CONFIRMAR.
   2. Antes de cada acción, `bin/jarvis think '<por qué, en una línea>'`: es lo que Miguel lee en el panel y
      el subtítulo del paso en el video del flujo. Cada comando aparece solo en el panel.
   3. `bin/jarvis finish 'LISTO: …'` (o `NO PUDE: …`): guarda lo que pidió `--keep` (el flujo, en
-     `jarvis/flows/<proyecto>/`, sólo con LISTO) y dice qué guardó y qué no.
+     `jarvis/flows/<proyecto>/`, sólo con LISTO) y dice qué guardó y qué no. Una grabación con el mismo recorrido
+     o nombre que un flujo existente **actualiza ése** (no crea otro); `--flow <app>/<id>` elige cuál, `--new-flow`
+     fuerza uno aparte. Los flujos: `bin/jarvis flows [app] | flows <app>/<id> | flows rm | flows rename`. Si una
+     repetición encontró un elemento cambiado, propone el arreglo: mostráselo a Miguel y aplicalo con
+     `flows repairs <app>/<id> --apply` sólo si él lo aprueba.
   `bin/jarvis script` da el recorrido como prueba de Playwright.
 - **Varias cosas en paralelo: sesiones y grupos.** Cada sesión es aparte (su página, sus pasos, su flujo) y va a
   su **grupo de pestañas de Chrome**: `start --group 'VTEX' [--color blue] '<meta>'` la pone en ése (si Miguel nombró

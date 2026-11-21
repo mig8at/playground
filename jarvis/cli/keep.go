@@ -25,18 +25,21 @@ var keepSays = map[string]string{
 
 func validKeep(k string) bool { _, ok := keepSays[k]; return ok }
 
-// recipeFromFlow escribe la receta por API de un flujo recién guardado (recipes/api-from-flow.ts). Sin nombre, el
-// del flujo; el nombre de una receta va en inglés (make tablero-naming), así que conviene pasarlo: finish --recipe.
+// recipeFromFlow escribe (o actualiza: una receta por flujo) la receta por API de un flujo recién guardado
+// (recipes/api-from-flow.ts). El nombre de una receta va en inglés (make tablero-naming): finish --recipe.
 func recipeFromFlow(app, flowPath, name string) error {
 	root, err := repoRoot()
 	if err != nil {
 		return err
 	}
-	if name == "" {
-		name = filepath.Base(flowPath[:len(flowPath)-len(filepath.Ext(flowPath))])
-		fmt.Printf("la receta va con el nombre del flujo (%s): en inglés es con finish --recipe <nombre>\n", name)
+	// Sin nombre, el generador usa la receta que ya salió de este flujo (y la actualiza) o, si no hay, el id del flujo.
+	args := []string{filepath.Join(root, "jarvis", "recipes", "api-from-flow.ts"), "--flow", flowPath, "--app", app}
+	if name != "" {
+		args = append(args, "--name", name)
+	} else {
+		fmt.Println("sin --recipe: la receta de este flujo si ya hay una, o una con el id del flujo (en inglés es con finish --recipe <nombre>)")
 	}
-	cmd := exec.Command("node", filepath.Join(root, "jarvis", "recipes", "api-from-flow.ts"), "--flow", flowPath, "--app", app, "--name", name)
+	cmd := exec.Command("node", args...)
 	cmd.Dir, cmd.Stdout, cmd.Stderr = root, os.Stdout, os.Stderr
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("el flujo quedó, la receta no (si el flujo no escribió por API, no hay receta que sacar): %w", err)

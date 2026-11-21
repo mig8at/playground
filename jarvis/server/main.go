@@ -872,14 +872,18 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 	})
 	mux.HandleFunc("/api/flows", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
-			var in struct{ Run, Name string }
+			var in struct {
+				Run, Name string
+				Into      string `json:"into"` // <app>/<id>: actualizar ése
+				New       bool   `json:"new"`  // uno nuevo aunque haya uno igual
+			}
 			_ = json.NewDecoder(r.Body).Decode(&in)
-			fl, err := store.SaveFlow(in.Run, in.Name)
+			fl, how, err := store.SaveFlow(in.Run, in.Name, SaveOpts{Into: in.Into, New: in.New})
 			if err != nil {
 				writeErr(w, http.StatusConflict, err)
 				return
 			}
-			writeJSON(w, http.StatusOK, map[string]string{"app": fl.App, "id": fl.ID, "path": filepath.Join("jarvis", "flows", fl.App, fl.ID+".json")})
+			writeJSON(w, http.StatusOK, map[string]string{"app": fl.App, "id": fl.ID, "how": how, "path": filepath.Join("jarvis", "flows", fl.App, fl.ID+".json")})
 			return
 		}
 		writeJSON(w, http.StatusOK, listFlows())
@@ -909,6 +913,16 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 				return
 			}
 			writeJSON(w, http.StatusOK, runner.LiveState(false))
+		case len(parts) == 3 && parts[2] == "repairs" && r.Method == http.MethodPost:
+			// POST /api/flows/<app>/<id>/repairs {action: apply|discard}: los arreglos que propuso una repetición.
+			var in struct{ Action string }
+			_ = json.NewDecoder(r.Body).Decode(&in)
+			fl, n, err := FlowRepairs(app, id, in.Action)
+			if err != nil {
+				writeErr(w, http.StatusConflict, err)
+				return
+			}
+			writeJSON(w, http.StatusOK, map[string]any{"app": fl.App, "id": fl.ID, "count": n})
 		case r.Method == http.MethodPut:
 			var in struct {
 				Name  string     `json:"name"`

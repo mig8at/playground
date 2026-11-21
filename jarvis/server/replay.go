@@ -80,7 +80,10 @@ type Replay struct {
 	Skipped int      `json:"skipped"`
 	Report  string   `json:"report,omitempty"` // la corrida nueva, al terminar
 	Flow    string   `json:"flow,omitempty"`   // app/id, si se repite un flujo
-	answers chan string
+	// Repaired: pasos cuyo elemento ya no estaba y se reemplazó por uno parecido (repair.go).
+	Repaired int `json:"repaired,omitempty"`
+	repairs  []FlowRepair
+	answers  chan string
 }
 
 var replayableNav = map[string]bool{"goto": true, "back": true, "forward": true, "reload": true, "scroll-page": true, "expect": true, "dialog": true}
@@ -307,17 +310,32 @@ func (r *Runner) runReplay(l *live, rp *Replay, steps []Step) {
 		keyword, status = "NO PUDE", "stopped"
 	}
 	result := fmt.Sprintf("%s: se repitió «%s»: %d pasos los hizo la herramienta, %d la persona y %d se saltaron.", keyword, rp.Goal, rp.Did, rp.ByHand, rp.Skipped)
+	if rp.Repaired > 0 {
+		result += fmt.Sprintf(" %d paso(s) se repararon: el elemento había cambiado y quedó propuesto el arreglo.", rp.Repaired)
+	}
 	origin := "repetición de " + rp.Run
 	if rp.Flow != "" {
 		origin = "flujo " + rp.Flow
 	}
 	dir, _ := r.LiveReport(ReportInfo{Goal: "Repetición · " + rp.Goal, Result: result, Keyword: keyword, Source: origin})
 	// Un flujo que se repitió entero (sin saltear nada) queda verificado con la fecha de hoy.
-	if rp.Flow != "" && !stopped && rp.Skipped == 0 {
+	// Con arreglos no queda verificado (se verificó otra cosa): los arreglos quedan propuestos para que la persona los
+	// apruebe (repair.go).
+	if rp.Flow != "" && (len(rp.repairs) > 0 || (!stopped && rp.Skipped == 0)) {
 		app, id, _ := strings.Cut(rp.Flow, "/")
 		flowsMu.Lock()
 		if fl, err := getFlow(app, id); err == nil {
-			fl.Verified = time.Now()
+			fl.App, fl.ID = app, id
+			if len(rp.repairs) > 0 {
+				for i := range rp.repairs {
+					if dir != "" {
+						rp.repairs[i].Run = filepath.Base(dir)
+					}
+				}
+				fl.Repairs = rp.repairs
+			} else {
+				fl.Verified = time.Now()
+			}
 			if dir != "" {
 				fl.LastRun = filepath.Base(dir)
 			}
@@ -357,6 +375,23 @@ func (r *Runner) replayStep(l *live, rp *Replay, st Step, set func(func())) (str
 			missing = true
 		}
 	}
+	// No está: antes de rendirse, uno del mismo tipo con un nombre parecido (repair.go). Queda propuesto, no escrito.
+	repairedFrom := ""
+	if missing && st.Target != "" {
+		if pg, _ := r.liveAnalyze(l); pg != nil {
+			if c, score := findReplacement(pg, st.Action, st.Target); c != nil {
+				ref := &Ref{Loc: c.Locators[c.Best], Frame: c.Frame}
+				cand := locatorFor(l.page, ref.Loc, ref.Frame)
+				if n, err := cand.Count(); err == nil && n == 1 {
+					repairedFrom = st.Target
+					loc, missing = cand, false
+					st.Ref, st.Target, st.Code = ref, c.Name, ref.Loc.Code
+					rp.repairs = append(rp.repairs, FlowRepair{Step: rp.Index, Old: repairedFrom, New: c.Name, Ref: ref, Code: ref.Loc.Code, Score: score, At: time.Now()})
+					set(func() { rp.Repaired++ })
+				}
+			}
+		}
+	}
 	danger := (st.Action == "click" || st.Action == "dblclick") && destructiveLike.MatchString(st.Target)
 	// En autorrelleno, un botón o un enlace lo toca la persona: decide ella cada acción.
 	byPerson := rp.Mode == "teach" || st.Pause || (rp.Mode == "fill" && (st.Action == "click" || st.Action == "dblclick" || st.Action == "press"))
@@ -373,6 +408,10 @@ func (r *Runner) replayStep(l *live, rp *Replay, st Step, set func(func())) (str
 		r.shotBefore(l, loc, &shown)
 	}
 	note := instruction
+	if repairedFrom != "" {
+		instruction = stepInstruction(st)
+		note = instruction + " (reparado: «" + repairedFrom + "» ya no estaba; uso «" + st.Target + "»)"
+	}
 	if missing {
 		note += " (no encuentro el elemento: el panel puede haber cambiado; hacelo vos o saltalo)"
 	}

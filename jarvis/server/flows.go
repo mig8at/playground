@@ -33,7 +33,11 @@ type Flow struct {
 	Verified time.Time  `json:"verified,omitempty"`
 	Source   string     `json:"run,omitempty"`     // la corrida donde se grabó (su video, si está en .data)
 	LastRun  string     `json:"lastRun,omitempty"` // la última repetición
+	Updated  time.Time  `json:"updated,omitempty"` // la última vez que una grabación igual lo actualizó (SaveFlow)
 	Steps    []FlowStep `json:"steps"`
+	// Repairs: los arreglos que propuso una repetición que encontró un elemento cambiado (repair.go). No se aplican
+	// solos: `bin/jarvis flows repairs <app>/<id> --apply` (o --discard).
+	Repairs []FlowRepair `json:"repairs,omitempty"`
 }
 
 type FlowStep struct {
@@ -215,11 +219,20 @@ func writeFlow(fl Flow) error {
 	return nil
 }
 
-// SaveFlow guarda una corrida como flujo: sus pasos repetibles, con la instrucción en palabras de cada uno.
-func (s *Store) SaveFlow(runID, name string) (Flow, error) {
+// SaveOpts: a qué flujo va una grabación. Into ("<app>/<id>") actualiza ése; New fuerza uno nuevo aunque ya haya uno
+// igual. Sin nada, una grabación con el MISMO recorrido que un flujo de la app (o el mismo nombre) lo actualiza.
+type SaveOpts struct {
+	Into string
+	New  bool
+}
+
+// SaveFlow guarda una corrida como flujo: sus pasos repetibles, con la instrucción en palabras de cada uno. Devuelve
+// también cómo: "new" (uno nuevo), "same-steps" (actualizó el que tiene el mismo recorrido), "same-name" (el que se
+// llama igual) o "into" (el que se pidió).
+func (s *Store) SaveFlow(runID, name string, opts SaveOpts) (Flow, string, error) {
 	data, err := s.Run(runID)
 	if err != nil {
-		return Flow{}, err
+		return Flow{}, "", err
 	}
 	meta, _ := data["run"].(RunMeta)
 	all, _ := data["steps"].([]Step)
@@ -228,7 +241,7 @@ func (s *Store) SaveFlow(runID, name string) (Flow, error) {
 		fl.Name = meta.Goal
 	}
 	if fl.Name == "" {
-		return Flow{}, errors.New("el flujo necesita un nombre")
+		return Flow{}, "", errors.New("el flujo necesita un nombre")
 	}
 	for _, st := range all {
 		if !replayable(st) {
@@ -242,7 +255,7 @@ func (s *Store) SaveFlow(runID, name string) (Flow, error) {
 		fl.Steps = append(fl.Steps, fs)
 	}
 	if len(fl.Steps) == 0 {
-		return Flow{}, errors.New("la corrida no tiene pasos para repetir")
+		return Flow{}, "", errors.New("la corrida no tiene pasos para repetir")
 	}
 	fl.App = appFor(meta.Start)
 	// En una app local, las URLs quedan relativas a la app: el flujo sigue andando aunque cambie el puerto.
@@ -255,6 +268,14 @@ func (s *Store) SaveFlow(runID, name string) (Flow, error) {
 			}
 		}
 	}
+	flowsMu.Lock()
+	defer flowsMu.Unlock()
+	if old, how, err := sameFlow(fl, opts); err != nil {
+		return Flow{}, "", err
+	} else if old != nil {
+		fl = mergeInto(*old, fl)
+		return fl, how, writeFlow(fl)
+	}
 	base := slugify(fl.Name)
 	fl.ID = base
 	for i := 2; ; i++ {
@@ -264,7 +285,107 @@ func (s *Store) SaveFlow(runID, name string) (Flow, error) {
 		}
 		fl.ID = fmt.Sprintf("%s-%d", base, i)
 	}
-	return fl, writeFlow(fl)
+	return fl, "new", writeFlow(fl)
+}
+
+// ── un flujo, no dos iguales ──
+//
+// Grabar dos veces lo mismo dejaba «crear-producto» y «crear-producto-2» con los mismos pasos: nadie sabía cuál era el
+// bueno y borrar o editar uno no tocaba al otro. Ahora el flujo tiene una identidad —su app y su id— y una grabación
+// nueva va al que ya es ése: el que tiene el mismo RECORRIDO (los mismos pasos sobre los mismos elementos, sin mirar los
+// datos escritos) o, si no, el que se llama igual.
+
+// fingerprint es el recorrido de un flujo: acción y elemento de cada paso (y el texto esperado), sin los datos que se
+// escribieron —tampoco dentro del nombre de un elemento: «Publicar Bicicleta urbana» y «Publicar Casco» son el mismo
+// botón de la fila del producto creado— ni la ida a la página de entrada (una grabación la tiene si abrió la página y
+// otra no, si reusó una sesión que ya estaba ahí).
+func fingerprint(steps []FlowStep) string {
+	var data []string
+	for _, s := range steps {
+		if s.Param != "" && len([]rune(s.Value)) >= 3 {
+			data = append(data, strings.ToLower(s.Value))
+		}
+	}
+	var b strings.Builder
+	for i, s := range steps {
+		if s.Action == "goto" && (i == 0 || i == 1 && steps[0].Action == "goto") {
+			continue
+		}
+		what := s.Target
+		if s.Action == "goto" || s.Action == "expect" {
+			what = s.Value
+		}
+		what = strings.ToLower(strings.TrimSpace(what))
+		if s.Action != "goto" && s.Param == "" {
+			for _, d := range data {
+				what = strings.ReplaceAll(what, d, "\x00")
+			}
+		}
+		b.WriteString(s.Action + "\x1f" + what + "\x1e")
+	}
+	return b.String()
+}
+
+// sameFlow busca el flujo que esta grabación tiene que actualizar (nil: va uno nuevo).
+func sameFlow(fl Flow, opts SaveOpts) (*Flow, string, error) {
+	if opts.Into != "" {
+		app, id, _ := strings.Cut(opts.Into, "/")
+		old, err := getFlow(app, id)
+		if err != nil {
+			return nil, "", fmt.Errorf("no existe el flujo %s: %w", opts.Into, err)
+		}
+		old.App, old.ID = app, id
+		return &old, "into", nil
+	}
+	if opts.New {
+		return nil, "", nil
+	}
+	paths, _ := filepath.Glob(filepath.Join(flowsDir(), fl.App, "*.json"))
+	fp := fingerprint(fl.Steps)
+	var byName *Flow
+	for _, p := range paths {
+		old, err := readFlow(p)
+		if err != nil {
+			continue
+		}
+		old.App, old.ID = fl.App, strings.TrimSuffix(filepath.Base(p), ".json")
+		if fingerprint(old.Steps) == fp {
+			return &old, "same-steps", nil
+		}
+		if byName == nil && (old.ID == slugify(fl.Name) || strings.EqualFold(strings.TrimSpace(old.Name), fl.Name)) {
+			o := old
+			byName = &o
+		}
+	}
+	if byName != nil {
+		return byName, "same-name", nil
+	}
+	return nil, "", nil
+}
+
+// mergeInto pone la grabación nueva en el flujo viejo: sus pasos, su corrida y sus datos de ahora; del viejo quedan el
+// id, el nombre (la persona lo puede haber cambiado), cuándo se creó y, si el recorrido es el mismo, lo que la persona
+// decidió en cada paso (dónde para, su texto) y que estaba verificado. Los arreglos propuestos se descartan: la
+// grabación nueva ya es el arreglo.
+func mergeInto(old, fl Flow) Flow {
+	same := fingerprint(old.Steps) == fingerprint(fl.Steps)
+	fl.ID, fl.App, fl.Name, fl.Created, fl.Updated, fl.Repairs = old.ID, old.App, old.Name, old.Created, time.Now(), nil
+	if same {
+		fl.Verified = old.Verified
+		off := len(old.Steps) - len(fl.Steps) // una tiene la ida a la entrada y la otra no: se alinean por el final
+		for i := range fl.Steps {
+			if i+off < 0 || i+off >= len(old.Steps) {
+				continue
+			}
+			o := old.Steps[i+off]
+			fl.Steps[i].Pause = o.Pause || fl.Steps[i].Secret
+			// El texto de un paso queda si lo escribió la persona (no es el que arma Jarvis solo).
+			if o.Param == "" && o.Instruction != "" && o.Instruction != stepInstruction(Step{Action: o.Action, Target: o.Target, Value: o.Value}) {
+				fl.Steps[i].Instruction = o.Instruction
+			}
+		}
+	}
+	return fl
 }
 
 // appOrigin es el origen (http://127.0.0.1:<puerto>) de una app local del registro, o vacío.
@@ -299,6 +420,22 @@ func flowSteps(fl Flow, values map[int]string) []Step {
 		if v, ok := values[i]; ok && s.Param != "" {
 			st.Value = v
 			st.Guide = stepInstruction(Step{Action: s.Action, Target: s.Target, Value: v})
+		}
+		// Un elemento cuyo nombre lleva un dato del flujo («Publicar Bicicleta urbana», la fila del producto que se
+		// acaba de crear) se busca con el dato de ESTA repetición: con otro nombre, el botón es «Publicar Casco».
+		for j, d := range fl.Steps[:i] {
+			if v, ok := values[j]; ok && d.Param != "" && len([]rune(d.Value)) >= 3 && v != d.Value && strings.Contains(st.Target, d.Value) {
+				st.Target = strings.ReplaceAll(st.Target, d.Value, v)
+				st.Code = strings.ReplaceAll(st.Code, d.Value, v)
+				st.Guide = stepInstruction(Step{Action: st.Action, Target: st.Target, Value: st.Value})
+				if st.Ref != nil {
+					ref := *st.Ref
+					ref.Loc.Value = strings.ReplaceAll(ref.Loc.Value, d.Value, v)
+					ref.Loc.ScopeName = strings.ReplaceAll(ref.Loc.ScopeName, d.Value, v)
+					ref.Loc.Code = strings.ReplaceAll(ref.Loc.Code, d.Value, v)
+					st.Ref = &ref
+				}
+			}
 		}
 		out = append(out, st)
 	}

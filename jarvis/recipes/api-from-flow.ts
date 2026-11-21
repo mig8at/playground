@@ -28,6 +28,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { recipeOfFlow } from './same-recipe.ts';
 import { NOISE } from './recorder.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -35,11 +36,21 @@ const argv = process.argv.slice(2);
 const flag = (n: string) => { const i = argv.indexOf(`--${n}`); return i >= 0 ? argv[i + 1] : undefined; };
 const flowPath = flag('flow');
 const app = flag('app');
-const name = flag('name');
+let name = flag('name');
 const force = argv.includes('--force');
+const asNew = argv.includes('--new');
 const verify = argv.includes('--verify');
+// Una receta por flujo (same-recipe.ts): si ya hay una de este flujo, se actualiza ésa (--new: otra aparte).
+const sameRecipe = flowPath && app ? recipeOfFlow(ROOT, app, path.relative(ROOT, path.resolve(ROOT, flowPath)), 'api') : undefined;
+let updating = false;
+if (sameRecipe && !asNew) {
+    if (name && name !== sameRecipe) console.log(`  ya hay una receta de este flujo, ${app}/${sameRecipe}: actualizo ésa en vez de crear ${name} (otra aparte: --new)`);
+    name = sameRecipe;
+    updating = true;
+}
+if (!name && flowPath) name = path.basename(flowPath, '.json');
 if (!flowPath || !app || !name || !/^[a-z0-9-]+$/.test(name) || !/^[a-z0-9-]+$/.test(app)) {
-    console.error('  uso: api-from-flow --flow jarvis/flows/<sitio>/<id>.json --app <herramienta> --name <receta-en-kebab> [--force]');
+    console.error('  uso: api-from-flow --flow jarvis/flows/<sitio>/<id>.json --app <herramienta> --name [<receta-en-kebab>] [--force] [--new]');
     process.exit(2);
 }
 
@@ -245,7 +256,7 @@ const unused = params.filter((p) => !p.used);
 if (unused.length) warnings.push(`datos del flujo que no aparecen en ningún pedido (quedan fuera de la receta): ${unused.map((p) => p.label).join(', ')}`);
 
 const out = path.join(ROOT, 'jarvis/recipes', app, `${name}.ts`);
-if (fs.existsSync(out) && !force) fail(`ya existe ${path.relative(ROOT, out)} (--force lo pisa)`);
+if (fs.existsSync(out) && !force && !updating) fail(`ya existe ${path.relative(ROOT, out)} (--force lo pisa)`);
 const usage = `make jarvis-recipe APP=${app} RECIPE=${name}` + (used.length ? ` ARGS='${used.map((p) => `--${p.flag} ${JSON.stringify(p.def)}`).join(' ')}'` : '');
 const header = [
     `// RECETA CON TU SESIÓN · ${flow.name}. Repite por la API los pedidos que hizo la página en el flujo, sin clics.`,
@@ -322,7 +333,7 @@ try {
 `;
 fs.mkdirSync(path.dirname(out), { recursive: true });
 fs.writeFileSync(out, body);
-console.log(`  ✓ ${path.relative(ROOT, out)} (${writes.length} pedido(s), ${used.length} parámetro(s))`);
+console.log(`  ✓ ${path.relative(ROOT, out)} (${writes.length} pedido(s), ${used.length} parámetro(s))${updating ? ' · actualicé la receta de este flujo (lo que habías pulido: git diff)' : ''}`);
 for (const w of writesDesc) console.log(`    ESCRIBE ${w}`);
 for (const w of warnings) console.log(`    ⚠ ${w}`);
 for (const w of skipped) console.log(`    no se repite: ${w}`);

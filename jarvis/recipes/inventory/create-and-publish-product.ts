@@ -1,18 +1,18 @@
 // RECETA CON TU SESIÓN · Crear y publicar un producto en el inventario. Repite por la API los pedidos que hizo la página en el flujo, sin clics.
-// (Salió de jarvis/flows/inventory/crear-y-publicar-un-producto-en-el-inventario.json y de la red de su corrida 2026-11-20_17-58-21_s1: make jarvis-recipe-api. Pulí la explicación.)
+// (Salió de jarvis/flows/inventory/crear-y-publicar-un-producto-en-el-inventario.json y de la red de su corrida 2026-11-20_18-50-30_s1: make jarvis-recipe-api. Pulí la explicación.)
 //
-//   make jarvis-recipe APP=inventory RECIPE=create-and-publish-product ARGS='--name "Bicicleta urbana" --price "1250000" --stock "7"'
+//   make jarvis-recipe APP=inventory RECIPE=create-and-publish-product ARGS='--name "Casco integral" --price "480000" --stock "12"'
 //
-// Crear y publicar un producto en el inventario
+// Crear y publicar otro producto
 //
-// Parámetros: --name (Nombre; por defecto "Bicicleta urbana") · --price (Precio; por defecto "1250000") · --stock (Stock; por defecto "7") · --json
+// Parámetros: --name (Nombre; por defecto "Casco integral") · --price (Precio; por defecto "480000") · --stock (Stock; por defecto "12") · --json
 // Necesita: Jarvis conectado en Chrome y la sesión de http://localhost:5220 abierta en Chrome (los pedidos van con sus cookies).
-// ESCRIBE: POST /api/products (paso «Guardar») · POST /api/skus (paso «Guardar») · PUT /api/products/3 (paso «Publicar Bicicleta urbana»)
-// Encadena: el campo «code» del pedido 2 («SKU-3») lleva adentro un id devuelto antes
+// ESCRIBE: POST /api/products (paso «Guardar») · POST /api/skus (paso «Guardar») · PUT /api/products/1 (paso «Publicar Casco integral»)
+// Encadena: el campo «code» del pedido 2 («SKU-1») lleva adentro un id devuelto antes
 // Encadena: el campo «productId» del pedido 2 es «id» de lo que devolvió el pedido 1
-// Encadena: PUT /api/products/3: el 3 de la URL es «id» de lo que devolvió el pedido 1
+// Encadena: PUT /api/products/1: el 1 de la URL es «id» de lo que devolvió el pedido 1
 // Encadena: el campo «id» del pedido 3 es «id» de lo que devolvió el pedido 1
-// Verificada: 2026-11-20 contra http://localhost:5220: POST /api/products → 201 · POST /api/skus → 201 · PUT /api/products/5 → 200; mismos estados y campos que la grabación.
+// Verificada: 2026-11-20 contra http://localhost:5220: POST /api/products → 201 · POST /api/skus → 201 · PUT /api/products/9 → 200; mismos estados y campos que la grabación.
 import '../args.ts';
 import { openChrome } from '../recorder.ts';
 
@@ -20,9 +20,9 @@ const argv = process.argv.slice(2);
 const JSON_OUT = argv.includes('--json');
 const say = (s: string) => { if (!JSON_OUT) console.log(`  ${s}`); };
 const DEFAULTS: Record<string, string> = {
-    "name": "Bicicleta urbana",
-    "price": "1250000",
-    "stock": "7"
+    "name": "Casco integral",
+    "price": "480000",
+    "stock": "12"
 };
 const arg = (n: string) => { const i = argv.indexOf(`--${n}`); return i >= 0 ? argv[i + 1] : DEFAULTS[n]; };
 
@@ -31,7 +31,7 @@ const arg = (n: string) => { const i = argv.indexOf(`--${n}`); return i >= 0 ? a
 const CALLS = [
     { step: "Guardar", method: "POST", url: (r: any[]) => "/api/products", contentType: "application/json", body: (r: any[]) => JSON.stringify({ "name": arg("name"), "price": Number(arg("price")), "stock": Number(arg("stock")) }), recorded: 201, shape: ["id","name","price","stock"] },
     { step: "Guardar", method: "POST", url: (r: any[]) => "/api/skus", contentType: "application/json", body: (r: any[]) => JSON.stringify({ "code": `SKU-${pick(r, 0, "id")}`, "productId": pick(r, 0, "id"), "stock": Number(arg("stock")) }), recorded: 201, shape: ["code","id","productId","stock"] },
-    { step: "Publicar Bicicleta urbana", method: "PUT", url: (r: any[]) => `/api/products/${pick(r, 0, "id")}`, contentType: "application/json", body: (r: any[]) => JSON.stringify({ "id": pick(r, 0, "id"), "name": arg("name"), "price": Number(arg("price")), "status": "published", "stock": Number(arg("stock")) }), recorded: 200, shape: ["id","name","price","status","stock"] },
+    { step: "Publicar Casco integral", method: "PUT", url: (r: any[]) => `/api/products/${pick(r, 0, "id")}`, contentType: "application/json", body: (r: any[]) => JSON.stringify({ "id": pick(r, 0, "id"), "name": arg("name"), "price": Number(arg("price")), "status": "published", "stock": Number(arg("stock")) }), recorded: 200, shape: ["id","name","price","status","stock"] },
 ];
 
 // pick(r, n, 'data.id'): un campo de lo que devolvió el pedido n de esta corrida; si no está, la receta no puede seguir.

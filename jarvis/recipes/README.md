@@ -30,6 +30,11 @@ espera como `waitFor`, un `goto` al inicio si el flujo no abre página, y la cab
 según si el flujo tocaba algo. Es un punto de partida, no la receta terminada: falta decir qué comprueba (lo que
 dice la pantalla al final), qué parte va mejor por API y los ⚠ del día. Nunca pisa una receta sin `FORCE=1`.
 
+**Una receta por flujo** (2026-11-20, `same-recipe.ts`): los dos generadores miran primero si ya hay una receta que
+salió de ESE flujo (su cabecera lo dice) y, si la hay, la actualizan —mismo nombre, mismo archivo— en vez de dejar dos
+iguales con nombres distintos; `NAME=` pasa a ser opcional y `NEW=1` hace otra aparte. Lo pulido a mano se pisa, pero
+está en git (`git diff`).
+
 **O directo a la API** (2026-11-20, `api-from-flow.ts`): si la herramienta guarda por una API propia, la receta puede
 saltarse la pantalla y repetir los pedidos que hizo la corrida del flujo:
 

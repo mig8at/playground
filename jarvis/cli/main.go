@@ -157,6 +157,8 @@ func main() {
 		err = attentionCmd(args)
 	case "batch":
 		err = batchCmd(args)
+	case "flows":
+		err = flowsCmd(args)
 	case "console":
 		err = consoleCmd(args)
 	case "network":
@@ -300,7 +302,10 @@ func help(w io.Writer) {
   start [--url U] '<meta>' · think '<texto>' · finish 'LISTO: …'   una sesión de Claude desde la conversación, a la vista en el panel
   start --keep none|run|flow|recipe '<meta>'   qué queda al terminar: none sólo investiga (no guarda nada) · run la corrida (defecto) ·
                         flow además el flujo, si terminó en LISTO · recipe además la receta por API (finish --recipe <nombre>)
-  finish [--keep …] [--recipe nombre] 'LISTO: …'   --keep cambia al final lo que se pidió en start
+  finish [--keep …] [--recipe nombre] [--flow app/id | --new-flow] 'LISTO: …'   --keep cambia al final lo que se pidió en start;
+                        una grabación con el mismo recorrido (o nombre) que un flujo ACTUALIZA ése; --flow elige cuál, --new-flow fuerza uno nuevo
+  flows [app] · flows show <app>/<id> · flows rm <app>/<id> · flows rename <app>/<id> 'nombre'
+                        · flows repairs <app>/<id> [--apply | --discard]   los flujos guardados, y los arreglos que propuso una repetición
   tabs [new [url] | close N]   las pestañas abiertas (cada una, su sesión); nueva abre otra (con la página).
                         Cualquier comando: --session N (o JARVIS_SESSION=N), o --group G (la última sesión de ese
                         grupo); sin eso, la última que se abrió.
@@ -331,7 +336,7 @@ func help(w io.Writer) {
 
 // commands son los comandos que entiende main (los de antes, en castellano, se traducen al entrar: legacy.go). Sólo
 // sirve para sugerir uno cuando se escribe mal: el switch de main es el que manda.
-var commands = []string{"start", "chrome", "docs", "recipe", "tabs", "groups", "focus", "cleanup", "attention", "console", "network", "batch", "think", "finish", "project", "ask", "open", "device", "ua", "look",
+var commands = []string{"start", "chrome", "docs", "recipe", "tabs", "groups", "focus", "cleanup", "attention", "console", "network", "batch", "flows", "think", "finish", "project", "ask", "open", "device", "ua", "look",
 	"click", "dblclick", "hover", "check", "uncheck", "fill", "select", "press", "upload", "drag", "point", "changes", "dialog",
 	"scroll", "goto", "back", "forward", "reload", "text", "wait", "value", "download", "read", "shot", "steps", "script", "report",
 	"reset", "close", "help"}
@@ -1377,9 +1382,15 @@ func begin(args []string) error {
 }
 
 func finish(args []string) error {
-	keep, recipe := "", ""
-	for len(args) > 1 && (args[0] == "--keep" || args[0] == "--recipe") {
-		if args[0] == "--keep" {
+	keep, recipe, into, newFlow := "", "", "", false
+	for len(args) > 0 && args[0] == "--new-flow" || len(args) > 1 && (args[0] == "--keep" || args[0] == "--recipe" || args[0] == "--flow") {
+		if args[0] == "--new-flow" {
+			newFlow, args = true, args[1:]
+			continue
+		}
+		if args[0] == "--flow" {
+			into = args[1]
+		} else if args[0] == "--keep" {
 			if !validKeep(args[1]) {
 				return fmt.Errorf("--keep %q no existe: none · run · flow · recipe", args[1])
 			}
@@ -1433,12 +1444,21 @@ func finish(args []string) error {
 		fmt.Println("sin flujo: sólo se guarda una meta que terminó en LISTO")
 		return nil
 	}
-	var fl struct{ App, ID, Path string }
-	if err := call(http.MethodPost, "/api/flows", map[string]string{"run": lastRunID, "name": goal}, &fl); err != nil {
+	var fl struct{ App, ID, Path, How string }
+	if err := call(http.MethodPost, "/api/flows", map[string]any{"run": lastRunID, "name": goal, "into": into, "new": newFlow}, &fl); err != nil {
 		return fmt.Errorf("no se guardó como flujo: %w", err)
 	}
 	_ = panelEvent("flow", fl.App+"/"+fl.ID)
-	fmt.Printf("flujo guardado: %s\n", fl.Path)
+	switch fl.How {
+	case "same-steps":
+		fmt.Printf("flujo actualizado (ya había uno con el mismo recorrido, %s/%s): %s · uno aparte: finish --new-flow\n", fl.App, fl.ID, fl.Path)
+	case "same-name":
+		fmt.Printf("flujo actualizado (ya había uno con el mismo nombre, %s/%s; los pasos cambiaron): %s · uno aparte: finish --new-flow\n", fl.App, fl.ID, fl.Path)
+	case "into":
+		fmt.Printf("flujo actualizado (el que pediste, %s/%s): %s\n", fl.App, fl.ID, fl.Path)
+	default:
+		fmt.Printf("flujo guardado: %s\n", fl.Path)
+	}
 	if keep == keepRecipe {
 		return recipeFromFlow(fl.App, fl.Path, recipe)
 	}

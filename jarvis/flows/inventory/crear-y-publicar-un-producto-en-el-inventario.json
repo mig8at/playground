@@ -1,24 +1,18 @@
 {
   "name": "Crear y publicar un producto en el inventario",
-  "meta": "Crear y publicar un producto en el inventario",
+  "meta": "Crear y publicar otro producto",
   "start": "http://localhost:5220/",
   "device": "chrome",
   "created": "2026-11-20T17:58:31.142899-05:00",
   "verified": "0001-01-01T00:00:00Z",
-  "run": "2026-11-20_17-58-21_s1",
+  "run": "2026-11-20_18-50-30_s1",
+  "lastRun": "2026-11-20_18-58-53_s3",
+  "updated": "2026-11-20T18:52:02.250814-05:00",
   "steps": [
-    {
-      "action": "goto",
-      "target": "http://localhost:5220/",
-      "value": "http://localhost:5220/",
-      "instruction": "Abrí http://localhost:5220/",
-      "code": "page.goto('http://localhost:5220/')"
-    },
     {
       "action": "click",
       "target": "Nuevo producto",
       "instruction": "Hacé clic en «Nuevo producto»",
-      "why": "Abro el formulario de producto nuevo",
       "ref": {
         "loc": {
           "kind": "text",
@@ -34,8 +28,8 @@
     {
       "action": "fill",
       "target": "Nombre",
-      "value": "Bicicleta urbana",
-      "instruction": "Escribí «Bicicleta urbana» en «Nombre»",
+      "value": "Casco integral",
+      "instruction": "Escribí «Casco integral» en «Nombre»",
       "param": "Nombre",
       "ref": {
         "loc": {
@@ -48,13 +42,13 @@
           "works": true
         }
       },
-      "code": "page.getByRole('textbox', { name: 'Nombre', exact: true }).fill('Bicicleta urbana')"
+      "code": "page.getByRole('textbox', { name: 'Nombre', exact: true }).fill('Casco integral')"
     },
     {
       "action": "fill",
       "target": "Precio",
-      "value": "1250000",
-      "instruction": "Escribí «1250000» en «Precio»",
+      "value": "480000",
+      "instruction": "Escribí «480000» en «Precio»",
       "param": "Precio",
       "ref": {
         "loc": {
@@ -67,13 +61,13 @@
           "works": true
         }
       },
-      "code": "page.getByRole('spinbutton', { name: 'Precio', exact: true }).fill('1250000')"
+      "code": "page.getByRole('spinbutton', { name: 'Precio', exact: true }).fill('480000')"
     },
     {
       "action": "fill",
       "target": "Stock",
-      "value": "7",
-      "instruction": "Escribí «7» en «Stock»",
+      "value": "12",
+      "instruction": "Escribí «12» en «Stock»",
       "param": "Stock",
       "ref": {
         "loc": {
@@ -86,7 +80,7 @@
           "works": true
         }
       },
-      "code": "page.getByRole('spinbutton', { name: 'Stock', exact: true }).fill('7')"
+      "code": "page.getByRole('spinbutton', { name: 'Stock', exact: true }).fill('12')"
     },
     {
       "action": "click",
@@ -94,15 +88,16 @@
       "instruction": "Hacé clic en «Guardar»",
       "ref": {
         "loc": {
-          "kind": "text",
+          "kind": "role",
+          "role": "button",
           "value": "Guardar",
-          "visible": true,
-          "code": "page.getByText('Guardar', { exact: true }).filter({ visible: true })",
-          "count": 0,
-          "works": false
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Guardar', exact: true })",
+          "count": 1,
+          "works": true
         }
       },
-      "code": "page.getByText('Guardar', { exact: true }).filter({ visible: true }).click()"
+      "code": "page.getByRole('button', { name: 'Guardar', exact: true })"
     },
     {
       "action": "expect",
@@ -113,20 +108,19 @@
     },
     {
       "action": "click",
-      "target": "Publicar Bicicleta urbana",
-      "instruction": "Hacé clic en «Publicar Bicicleta urbana»",
-      "why": "Lo publico desde su fila",
+      "target": "Publicar Casco integral",
+      "instruction": "Hacé clic en «Publicar Casco integral»",
       "ref": {
         "loc": {
           "kind": "label",
-          "value": "Publicar Bicicleta urbana",
+          "value": "Publicar Casco integral",
           "visible": true,
-          "code": "page.getByLabel('Publicar Bicicleta urbana', { exact: true }).filter({ visible: true })",
+          "code": "page.getByLabel('Publicar Casco integral', { exact: true }).filter({ visible: true })",
           "count": 0,
           "works": false
         }
       },
-      "code": "page.getByLabel('Publicar Bicicleta urbana', { exact: true }).filter({ visible: true }).click()"
+      "code": "page.getByLabel('Publicar Casco integral', { exact: true }).filter({ visible: true }).click()"
     },
     {
       "action": "expect",

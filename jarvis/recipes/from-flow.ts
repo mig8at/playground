@@ -13,16 +13,27 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { recipeOfFlow } from './same-recipe.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const argv = process.argv.slice(2);
 const flag = (n: string) => { const i = argv.indexOf(`--${n}`); return i >= 0 ? argv[i + 1] : undefined; };
 const flowPath = flag('flow');
 const app = flag('app');
-const name = flag('name');
+let name = flag('name');
 const force = argv.includes('--force');
+const asNew = argv.includes('--new');
+// Una receta por flujo (same-recipe.ts): si ya hay una de este flujo, se actualiza ésa (--new: otra aparte).
+const sameRecipe = flowPath && app ? recipeOfFlow(ROOT, app, path.relative(ROOT, path.resolve(ROOT, flowPath)), 'screen') : undefined;
+let updating = false;
+if (sameRecipe && !asNew) {
+    if (name && name !== sameRecipe) console.log(`  ya hay una receta de este flujo, ${app}/${sameRecipe}: actualizo ésa en vez de crear ${name} (otra aparte: --new)`);
+    name = sameRecipe;
+    updating = true;
+}
+if (!name && flowPath) name = path.basename(flowPath, '.json');
 if (!flowPath || !app || !name || !/^[a-z0-9-]+$/.test(name) || !/^[a-z0-9-]+$/.test(app)) {
-    console.error('  uso: from-flow --flow jarvis/flows/<sitio>/<id>.json --app <herramienta> --name <receta-en-kebab> [--force]');
+    console.error('  uso: from-flow --flow jarvis/flows/<sitio>/<id>.json --app <herramienta> --name [<receta-en-kebab>] [--force] [--new]');
     process.exit(2);
 }
 
@@ -76,7 +87,7 @@ for (const s of flow.steps) {
 }
 
 const out = path.join(ROOT, 'jarvis/recipes', app, `${name}.ts`);
-if (fs.existsSync(out) && !force) {
+if (fs.existsSync(out) && !force && !updating) {
     console.error(`  ✗ ya existe ${path.relative(ROOT, out)} (--force lo pisa)`);
     process.exit(1);
 }

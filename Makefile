@@ -488,12 +488,12 @@ jarvis-recipe: ## @dia ⚠ ESCRIBE: corre una RECETA de Jarvis, una tarea comple
 	@node jarvis/recipes/$(APP)/$(call jarvis_recipe,$(RECIPE)).ts $(ARGS) $(if $(JSON),--json)
 
 .PHONY: jarvis-recipe-from
-jarvis-recipe-from: ## @dia escribe el ESQUELETO de una receta de Jarvis a partir de un FLUJO (el registro de un día → cómo se hace siempre): cada paso con su localizador, lo escrito como parámetros. FLOW=jarvis/flows/<sitio>/<id>.json APP=<herramienta> NAME=<receta> [FORCE=1]
-	@node jarvis/recipes/from-flow.ts --flow "$(FLOW)" --app "$(APP)" --name "$(NAME)" $(if $(FORCE),--force)
+jarvis-recipe-from: ## @dia escribe el ESQUELETO de una receta de Jarvis a partir de un FLUJO (el registro de un día → cómo se hace siempre): cada paso con su localizador, lo escrito como parámetros. Si ya hay una receta de ese flujo, la actualiza (NEW=1: otra aparte). FLOW=jarvis/flows/<sitio>/<id>.json APP=<herramienta> [NAME=<receta>] [FORCE=1] [NEW=1]
+	@node jarvis/recipes/from-flow.ts --flow "$(FLOW)" --app "$(APP)" $(if $(NAME),--name "$(NAME)") $(if $(FORCE),--force) $(if $(NEW),--new)
 
 .PHONY: jarvis-recipe-api
-jarvis-recipe-api: ## @dia escribe una RECETA POR API a partir de un FLUJO y de la red de su corrida: repite con tu sesión los pedidos que hizo la página, sin clics, con los datos del flujo como parámetros y los ids que devuelve un pedido encadenados al siguiente (si el flujo no hizo pedidos que escriben, lo dice). VERIFY=1 la corre una vez (ESCRIBE) y la compara con la grabación. FLOW=jarvis/flows/<sitio>/<id>.json APP=<herramienta> NAME=<receta> [FORCE=1] [VERIFY=1]
-	@node jarvis/recipes/api-from-flow.ts --flow "$(FLOW)" --app "$(APP)" --name "$(NAME)" $(if $(FORCE),--force) $(if $(VERIFY),--verify)
+jarvis-recipe-api: ## @dia escribe una RECETA POR API a partir de un FLUJO y de la red de su corrida: repite con tu sesión los pedidos que hizo la página, sin clics, con los datos del flujo como parámetros y los ids que devuelve un pedido encadenados al siguiente (si el flujo no hizo pedidos que escriben, lo dice). VERIFY=1 la corre una vez (ESCRIBE) y la compara con la grabación. Si ya hay una receta de ese flujo, la actualiza (NEW=1: otra aparte). FLOW=jarvis/flows/<sitio>/<id>.json APP=<herramienta> [NAME=<receta>] [FORCE=1] [VERIFY=1] [NEW=1]
+	@node jarvis/recipes/api-from-flow.ts --flow "$(FLOW)" --app "$(APP)" $(if $(NAME),--name "$(NAME)") $(if $(FORCE),--force) $(if $(VERIFY),--verify) $(if $(NEW),--new)
 
 # Los nombres de las recetas de antes del 2026-11-07 (en castellano) siguen andando: las tareas guardan el comando.
 JARVIS_OLD_RECIPES := crear-producto:create-product crear-producto-pantalla:create-product-screen coleccion:collection \
