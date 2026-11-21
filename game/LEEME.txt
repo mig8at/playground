@@ -25,6 +25,10 @@ EL JUEGO
              mira, Espacio sube, C baja, Shift acelera); N cambia el día. Arriba a la derecha, el rendimiento: cuadros
              por segundo, ms por cuadro, el peor cuadro, llamadas de dibujo y triángulos. Es la entrada principal del
              título («Entrar a la ciudad») y del visor del plano; el juego (las salas) quedó como enlace chico.
+  TAMAÑOS    (2026-11-21, engine/ciudad.js SIZES; en el visor, «Tamaño»; en la URL, jugadores=): 2 → 222 × 168 m,
+             3 → 276 × 192, 5 → 354 × 246, 8 → 444 × 312 (los cuatro del juego), y dos más para pasear y para otros
+             juegos: 12 → 576 × 396 m (55 manzanas, 466 edificios) y 16 → 720 × 492 m (96 manzanas, 811 edificios,
+             88.000 muebles; el plano tarda ~30 s la primera vez). La isla crece con la ciudad.
   /plano     El plano 2D entero, sin cargar el 3D (2026-11-19; ?ciudad=1&jugadores=3): rueda para acercar, arrastrar
              para moverse, + y − para cambiar de piso (arriba del último, las azoteas), capas que se apagan (pintura de
              vías, mobiliario, árboles, nombres de vías, botines) y clic en un edificio para su piso en grande con sus

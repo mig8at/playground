@@ -6,12 +6,12 @@
 //   · EL PLANO: muebles que se pisan o se salen de su cuarto, cuartos vacíos, baños, ventanas, ensanches, casas del monte.
 //   · AFUERA: mobiliario encimado o dentro de un edificio, troncos y copas contra los edificios, las azoteas.
 //   · LA ESTABILIDAD: la misma semilla da el mismo plano, y cuánto cambia cada medida de una ciudad a otra.
-// Uso: node harness/pruebas/auditar-plano.mjs [ciudades=4] [semilla0=1] [--json]
+// Uso: node harness/pruebas/auditar-plano.mjs [ciudades=4] [semilla0=1] [--equipo=3] [--json]
 import {createHash} from 'node:crypto';
 import {generateBlueprint,SIZES} from '../../src/engine/blueprint.js';
 import {MUEBLES_MEDIDOS} from '../../src/engine/muebles-medidos.js';
 
-const args=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=Number(args[0])||4,S0=Number(args[1])||1,JSON_OUT=process.argv.includes('--json');
+const args=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=Number(args[0])||4,S0=Number(args[1])||1,JSON_OUT=process.argv.includes('--json'),TEAM=Number((process.argv.find(a=>a.startsWith('--equipo='))||'').split('=')[1])||3;// (--equipo=12: el tamaño de la ciudad)
 const hallazgos=new Map();
 const anota=(grupo,clave,ej)=>{const k=grupo+' · '+clave,h=hallazgos.get(k)||hallazgos.set(k,{grupo,clave,n:0,ej:[]}).get(k);h.n++;if(h.ej.length<4&&ej)h.ej.push(ej);};
 const medidas={};const mide=(k,v)=>(medidas[k]||(medidas[k]=[])).push(v);
@@ -36,10 +36,10 @@ const pisa=(a,b,t=.05)=>Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,a.x>b.x?a.x:b.x)>
 const VACIOS_OK=new Set(['hall','entrada','vestibulo']);// (de paso: pueden ir sin muebles)
 const firma=bp=>createHash('sha1').update(JSON.stringify([bp.lots.map(L=>[L.id,L.type,L.floors,L.rect,L.levels.map(lv=>[lv.rooms.length,lv.furniture.map(f=>[f.kind,f.x,f.y,f.w,f.h]),lv.doors.length,lv.windows.length])]),bp.equipamiento?.length,bp.vegetacion?.arboles?.length])).digest('hex').slice(0,12);
 const t00=Date.now();
-for(let s=S0;s<S0+N;s++){const t0=Date.now(),bp=generateBlueprint({seed:s,team:3}),ms=Date.now()-t0,en=(L,lv,x)=>`ciudad ${s} lote ${L.id} (${L.type}) piso ${lv.level}: ${x}`;
+for(let s=S0;s<S0+N;s++){const t0=Date.now(),bp=generateBlueprint({seed:s,team:TEAM}),ms=Date.now()-t0,en=(L,lv,x)=>`ciudad ${s} lote ${L.id} (${L.type}) piso ${lv.level}: ${x}`;
  mide('segundos por ciudad',+(ms/1000).toFixed(1));
  // la misma semilla, el mismo plano
- if(firma(generateBlueprint({seed:s,team:3}))!==firma(bp))anota('estabilidad','la misma semilla dio dos planos distintos',`ciudad ${s}`);
+ if(firma(generateBlueprint({seed:s,team:TEAM}))!==firma(bp))anota('estabilidad','la misma semilla dio dos planos distintos',`ciudad ${s}`);
  let cuartos=0,muebles=0,banos=0,pisosViv=0;
  for(const L of bp.lots){const huella=L.parts.reduce((a,P)=>a+P.w*P.h,0);
   for(const lv of L.levels.slice(0,L.floors)){
@@ -86,7 +86,7 @@ for(let s=S0;s<S0+N;s++){const t0=Date.now(),bp=generateBlueprint({seed:s,team:3
 // ---------- la lista ----------
 const lista=[...hallazgos.values()].sort((a,b)=>b.n-a.n);
 if(JSON_OUT){console.log(JSON.stringify({ciudades:N,desde:S0,lista,medidas,modelos},null,1));process.exit(0);}
-console.log(`\nAUDITORÍA DEL PLANO · ${N} ciudades desde la semilla ${S0} · ${Math.round((Date.now()-t00)/1000)} s\n`);
+console.log(`\nAUDITORÍA DEL PLANO · ${N} ciudades de ${TEAM} por equipo desde la semilla ${S0} · ${Math.round((Date.now()-t00)/1000)} s\n`);
 if(!lista.length)console.log('  Nada que calibrar: ningún renglón.');
 for(const g of ['modelos','plano','casas','afuera','estabilidad']){const ls=lista.filter(h=>h.grupo===g);if(!ls.length)continue;console.log(`  ${g.toUpperCase()}`);
  for(const h of ls){console.log(`   ${String(h.n).padStart(5)}  ${h.clave}`);for(const e of h.ej)console.log(`          · ${e}`);}console.log('');}

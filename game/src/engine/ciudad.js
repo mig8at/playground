@@ -10,7 +10,11 @@ const SIZES=[
  {team:2,W:37,H:28,sites:2,hideouts:3},
  {team:3,W:46,H:32,sites:2,hideouts:3},
  {team:5,W:59,H:41,sites:3,hideouts:4},
- {team:8,W:74,H:52,sites:4,hideouts:5}];
+ {team:8,W:74,H:52,sites:4,hideouts:5},
+ // (2026-11-21, Miguel: «agrandar la ciudad»: dos tamaños más, para pasearla y para otros juegos —el juego de policías y
+ // ladrones sigue con los cuatro de arriba—: 576 × 396 m y 720 × 492 m, contra los 276 × 192 de la de 3 por equipo)
+ {team:12,W:96,H:66,sites:5,hideouts:6},
+ {team:16,W:120,H:82,sites:6,hideouts:7}];
 // Casillas: por debajo de SOLID se camina.
 // Perillas de la ciudad. avenidas: los cortes largos son avenidas de dos casillas (con kioscos). Apagado (pedido de
 // Miguel, 2026-10-11): todas las calles del mismo ancho, una casilla de doble sentido (un carril por lado).

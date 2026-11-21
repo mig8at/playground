@@ -21,6 +21,8 @@ const host=ref(null),lienzo=ref(null),piso=ref(null),nitido=ref(null),nitidoList
 let relojNitido=0;
 let plano=null,origen={x0:0,y0:0},celda=20,arrastre=null,tocado=false;// (tocado: ya acercó o movió; mientras no, el plano se reajusta al cambiar el tamaño de la ventana)
 const vista=reactive({x:0,y:0,k:1});// (la posición y el zoom del lienzo dentro del visor, en píxeles de pantalla)
+// (los tamaños de ciudad —engine/ciudad.js SIZES—: los cuatro del juego y dos más grandes, para pasear y para otros juegos)
+const TAMANOS=[{team:2,nombre:'Mínima',m:'222 × 168 m'},{team:3,nombre:'Chica',m:'276 × 192 m'},{team:5,nombre:'Mediana',m:'354 × 246 m'},{team:8,nombre:'Grande',m:'444 × 312 m'},{team:12,nombre:'Muy grande',m:'576 × 396 m'},{team:16,nombre:'Enorme',m:'720 × 492 m'}];
 const NOMBRE_CAPA={pintura:'Pintura de vías',equipo:'Mobiliario',arboles:'Árboles',nombres:'Nombres de vías',botines:'Botines'};
 const TIPO={vivienda:'Vivienda',oficinas:'Oficinas',comercio:'Comercio',hotel:'Hotel',casa:'Casa',local:'Local',colegio:'Colegio',comisaria:'Comisaría',biblioteca:'Biblioteca',hospital:'Hospital',objetivo:'Objetivo',residencial:'Residencial'};
 
@@ -104,7 +106,7 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
    <RouterLink to="/?paso=home" class="logo" title="Volver a las salas">FUGA</RouterLink>
    <b class="titulo">El plano</b>
    <label>Ciudad <input type="number" min="1" v-model.number="seed" @change="cargar"></label>
-   <label>Por equipo <input type="number" min="2" max="8" v-model.number="team" @change="cargar"></label>
+   <label title="El tamaño de la ciudad amurallada (la isla crece con ella)">Tamaño <select v-model.number="team" @change="cargar"><option v-for="t in TAMANOS" :key="t.team" :value="t.team">{{ t.nombre }} · {{ t.m }}</option></select></label>
    <div class="pisos" role="group" aria-label="Piso">
     <button :disabled="nivel<=0" @click="nivel--" title="Bajar un piso (−)">−</button>
     <span>{{ nivel===0?'Planta baja':'Piso '+nivel }}</span>
@@ -171,6 +173,7 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
 .logo{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font:400 11px var(--t);text-decoration:none;color:#2a1705;background:linear-gradient(135deg,var(--ladron),var(--ladron2));transform:rotate(-4deg)}
 .titulo{font:400 16px var(--t);letter-spacing:.5px}
 .barra label{display:flex;align-items:center;gap:6px;color:var(--tx2)}
+.barra label select{background:rgba(255,255,255,.08);border:1px solid var(--borde);border-radius:8px;color:var(--tx);padding:5px 8px;font:inherit}.barra label option{color:#1b2130}
 .barra input[type=number]{width:74px;background:rgba(255,255,255,.08);border:1px solid var(--borde);border-radius:8px;color:var(--tx);padding:5px 8px}
 .sel-paquete select{background:rgba(255,255,255,.08);border:1px solid var(--borde);border-radius:8px;color:var(--tx);padding:5px 8px;font:inherit}.sel-paquete option{color:#1b2130}
 .barra button.techos.on{background:rgba(255,169,77,.18);border-color:rgba(255,169,77,.5)}
