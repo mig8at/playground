@@ -15,6 +15,7 @@ import {plantInstances} from './nature3d.js';
 import {gridPath,approachOf} from './sitting3d.js';
 import {kitModel} from './objetos3d.js';
 import {LOWPOLY} from './downtown3d.js';
+import {TEXTURAS3D} from './texturas3d.js';
 
 // Las tablas de las paredes: una textura de líneas que se tiñe con el color de la casa (una tabla cada 25 cm).
 let sidingTex=null;
@@ -56,7 +57,7 @@ export function createHouses(items,{kit=null,shadows=true}={}){
  const BALDOSA=144,baldosaDe=(x,z)=>Math.floor(x/BALDOSA)+','+Math.floor(z/BALDOSA);for(const h of houses)h.t=baldosaDe(h.x,h.z);
  // ---------- La parte fija, fundida por material ----------
  // (LOWPOLY: las tablas y las tejas, lisas —el color de la casa, sin la textura—)
- const LP=LOWPOLY.on,MATS={tablas:LP?{roughness:.85,flatShading:true}:{map:siding(),roughness:.85},liso:{roughness:.9},interior:{roughness:.95,emissive:'#2e2b27'},zocalo:{roughness:.95},techo:{roughness:.8},teja_barro:LP?{roughness:.8,flatShading:true}:{map:tileTex('barro'),roughness:.8},teja_madera:LP?{roughness:.85,flatShading:true}:{map:tileTex('madera'),roughness:.85},madera:{roughness:.75},cielo:{roughness:1,emissive:'#5a564e'},marco:{roughness:.7},farol:{roughness:.4,emissive:'#ffc46b',emissiveIntensity:0},
+ const LP=LOWPOLY.on&&!TEXTURAS3D.on,/* (2026-11-21: con TEXTURAS3D vuelven las tablas y las tejas dibujadas) */MATS={tablas:LP?{roughness:.85,flatShading:true}:{map:siding(),roughness:.85},liso:{roughness:.9},interior:{roughness:.95,emissive:'#2e2b27'},zocalo:{roughness:.95},techo:{roughness:.8},teja_barro:LP?{roughness:.8,flatShading:true}:{map:tileTex('barro'),roughness:.8},teja_madera:LP?{roughness:.85,flatShading:true}:{map:tileTex('madera'),roughness:.85},madera:{roughness:.75},cielo:{roughness:1,emissive:'#5a564e'},marco:{roughness:.7},farol:{roughness:.4,emissive:'#ffc46b',emissiveIntensity:0},
   // (el vidrio de las ventanas de los cuartos —objetos3d ventana—: transparente; de noche, con la luz de adentro)
   vidrio:{transparent:true,opacity:.22,roughness:.05,metalness:.1,depthWrite:false,side:THREE.DoubleSide,emissive:'#ffcf8a',emissiveIntensity:0}};
  const buf={},bufDe=(k,t)=>{const kk=k+'|'+t;return buf[kk]||(buf[kk]={p:[],n:[],c:[],u:[]});};
@@ -115,7 +116,7 @@ export function createHouses(items,{kit=null,shadows=true}={}){
  const byModel={};for(const d of doors)if(kit?.[d.o.m])(byModel[d.o.m]||(byModel[d.o.m]=[])).push(d);
  for(const [n,list0] of Object.entries(byModel))for(const list of porBaldosa(list0)){list.forEach((d,i)=>{d.i=i;d.m=leafM(d);});const meshes=kitInstances(n,list,'White');list.forEach(d=>{d.meshes=meshes;});}
  // El portón del garaje: un panel de tablas que gira hacia adentro y arriba desde su borde de arriba.
- const gGeo=new THREE.BoxGeometry(1,1,1),gMat=new THREE.MeshStandardMaterial(LOWPOLY.on?{roughness:.8,flatShading:true}:{map:siding(),roughness:.8});own.push(gGeo,gMat);
+ const gGeo=new THREE.BoxGeometry(1,1,1),gMat=new THREE.MeshStandardMaterial(LOWPOLY.on&&!TEXTURAS3D.on?{roughness:.8,flatShading:true}:{map:siding(),roughness:.8});own.push(gGeo,gMat);
  const gIm=garages.length?new THREE.InstancedMesh(gGeo,gMat,garages.length):null;
  const garageM=g=>g.frame.clone().multiply(new THREE.Matrix4().makeTranslation(0,g.o.y0+g.o.h,0)).multiply(new THREE.Matrix4().makeRotationX(-Math.PI/2*.92*g.a))
   .multiply(new THREE.Matrix4().makeTranslation(0,-g.o.h/2,0)).multiply(mm.makeScale(g.o.w-.04,g.o.h-.02,.06));

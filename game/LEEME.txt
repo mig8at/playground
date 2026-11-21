@@ -26,6 +26,10 @@ EL JUEGO
              que no cambia, dirección, área y precio base (área × 1.000 × clase × centro × piso × parque; todo sale
              de PRECIO). En /plano: el total al pie y, en la ficha de un edificio, lo que se vende ahí. Prueba:
              validar-propiedades.
+  FACHADA MEDIDA (2026-11-21, engine/fachada-medida.js): cada fachada en metros: los vanos de cada piso, los paños de
+             muro entre ellos, la textura que le toca (la misma en el alzado 2D y en el 3D) y cómo cuadra (hiladas
+             enteras por piso, módulos de 2 m). paniosPintables: lo que se puede pintar en la planta baja. Las
+             texturas del 3D se dibujan en lib/texturas3d.js. Prueba: validar-fachada-medida.
   COLOCAR    (2026-11-21, engine/colocar.js): una persona dice «acá» y el plano contesta dónde queda exactamente y si se
              puede, con la razón. De pared (cuadro, espejo, reloj, repisa): se pega a la pared más cercana, a la grilla
              de 5 cm; no pisa puertas ni ventanas ni otro colgado, ni queda detrás de un mueble alto. De piso (planta,

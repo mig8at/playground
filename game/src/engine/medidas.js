@@ -629,7 +629,14 @@ export const PALETA={
   moderno:{t:'Moderno (concreto)',pared:['#ecebe6','#cfcfcb','#9ea3a8','#4a4f57','#e5dccb'],moldura:{oscura:.5,clara:.5},uniforme:true,acentoClaro:true,
    acento:['#e0712c','#f2c230','#d6332e','#2d63b5','#2f9e6b'],marco:{moldura:1},zocalo:{piedra:.5,ninguno:.5}}},
  // qué tradiciones caben en cada familia de barrio de la ciudad (fachada.js BARRIOS) y en las manzanas del monte
- tradicionesDe:{historico:['caribe','nordico','holandes','lisboa','laboca'],elegante:['haussmann','victoriano','charleston','lisboa'],moderno:['moderno','nordico','caribe'],
+ // (2026-11-21, Miguel, viendo el 3D: «hay fachadas con colores diferentes; que queden uniformes, para que sea más
+ // bonito». Cada barrio usa ahora sólo tradiciones de pared pareja —la piedra crema, el encalado blanco, el ladrillo
+ // oscuro, el concreto—: las fachadas de una cuadra son del mismo tono y se distinguen por la textura, los marcos y el
+ // zócalo. Las de muchos colores —Caribe, Burano, La Boca, las victorianas…— siguen definidas arriba y quedan en
+ // tradicionesVariadas, por si se quiere un barrio así)
+ tradicionesDe:{historico:['holandes','haussmann','mediterraneo'],elegante:['haussmann','mediterraneo'],moderno:['moderno','haussmann'],
+  monte:['mediterraneo','haussmann','antioqueno']},
+ tradicionesVariadas:{historico:['caribe','nordico','holandes','lisboa','laboca'],elegante:['haussmann','victoriano','charleston','lisboa'],moderno:['moderno','nordico','caribe'],
   monte:['antioqueno','mediterraneo','burano','caribe','charleston','victoriano']},
  // (la diferencia mínima entre vecinos —ΔE de CIE76—: dos cuartos que se tocan, dos fachadas de lotes vecinos; la
  // moldura contra la pared, en contraste de luminancia WCAG)

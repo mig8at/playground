@@ -56,9 +56,9 @@ const TAMANOS=[{team:2,nombre:'Mínima',m:'222 × 168 m'},{team:3,nombre:'Chica'
 const NOMBRE_CAPA={pintura:'Pintura de vías',equipo:'Mobiliario',arboles:'Árboles',nombres:'Nombres de vías',botines:'Botines'};
 const TIPO={vivienda:'Vivienda',oficinas:'Oficinas',comercio:'Comercio',hotel:'Hotel',casa:'Casa',local:'Local',colegio:'Colegio',comisaria:'Comisaría',biblioteca:'Biblioteca',hospital:'Hospital',objetivo:'Objetivo',residencial:'Residencial'};
 
-const alzado=ref(null),ladoAlzado=ref(null),medidoAlzado=ref(null);
+const alzado=ref(null),ladoAlzado=ref(null),medidoAlzado=ref(null),NOMBRE_TEX={ladrillo:'ladrillo a la vista',ladrillo_pintado:'ladrillo pintado',sillar:'sillar de piedra',estuco:'estuco',panel:'panel',hormigon:'hormigón a la vista',tablilla:'tablilla'};
 // (el paquete de texturas de las fachadas: se recuerda en este navegador)
-const guardado=(()=>{try{return localStorage.getItem('fuga.paquete');}catch{return null;}})(),paquete=ref(PAQUETES[guardado]?guardado:'clasico');
+const guardado=(()=>{try{return localStorage.getItem('fuga.paquete');}catch{return null;}})(),paquete=ref(PAQUETES[guardado]?guardado:'ciudad');// (sin nada guardado: «Como el 3D»)
 watch(paquete,v=>{try{localStorage.setItem('fuga.paquete',v);}catch{}});
 const LADO={N:'Norte',S:'Sur',E:'Este',W:'Oeste'};
 // (los lados del edificio que dan a algo abierto: una medianera no tiene fachada)
@@ -127,7 +127,7 @@ const casaNivel=computed(()=>casa.value?Math.min(nivel.value,casa.value.spec.hog
 const casaCuartos=computed(()=>{const c=casa.value;if(!c)return [];return c.spec.hogar.levels[casaNivel.value].rooms.filter(q=>q.type!=='hall').map(q=>({nombre:q.label||ROOM_LABEL[q.type]||q.type,medida:`${(q.u1-q.u0).toFixed(1)} × ${(q.v1-q.v0).toFixed(1)} m`}));});
 async function dibujarPiso(){await nextTick();if(casa.value&&piso.value){drawHogar(piso.value,casa.value.spec.hogar,{level:casaNivel.value,width:piso.value.parentElement.clientWidth,vacia:vacias.value});return;}
  const L=elegido.value;if(!L||!piso.value)return;
- if(alzado.value){const lado=ladosAbiertos.value.includes(ladoAlzado.value)?ladoAlzado.value:L.front;ladoAlzado.value=lado;medidoAlzado.value=drawElevation(alzado.value,L,{width:alzado.value.parentElement.clientWidth,lado,paquete:paquete.value});}
+ if(alzado.value){const lado=ladosAbiertos.value.includes(ladoAlzado.value)?ladoAlzado.value:L.front;ladoAlzado.value=lado;medidoAlzado.value=drawElevation(alzado.value,L,{width:alzado.value.parentElement.clientWidth,lado,paquete:paquete.value,pintables:true});}
  pintarPiso();}
 
 async function cargar(){
@@ -228,6 +228,8 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
    <div class="paquetes" role="group" aria-label="Paquete de texturas"><span>Texturas</span><button v-for="(P,k) in PAQUETES" :key="k" :class="{on:k===paquete}" :title="P.nota" @click="paquete=k">{{ P.nombre }}</button><small>{{ PAQUETES[paquete].nota }}</small></div>
    <div class="ficha-piso"><canvas ref="alzado"></canvas></div>
    <p class="alzado-mat">{{ {ladrillo:'Ladrillo',piedra:'Piedra',metal:'Metal y concreto'}[elegido.fachada?.familia]||'—' }} · pintura {{ elegido.fachada?.pintura||'natural' }} · moldura {{ elegido.fachada?.moldura||'—' }} · techo {{ elegido.fachada?.techo==='mansarda'?'de mansarda':'plano' }}<template v-if="elegido.fachada?.balcones"> · balcones</template><template v-if="elegido.fachada?.toldos&&elegido.fachada.toldos!=='no'"> · toldos {{ elegido.fachada.toldos }}</template></p>
+   <p v-if="medidoAlzado?.textura" class="alzado-med">Muro de <b>{{ NOMBRE_TEX[medidoAlzado.textura]||medidoAlzado.textura }}</b> en el 3D<template v-if="medidoAlzado.hiladas"> · {{ medidoAlzado.hiladas }} hiladas por piso</template> · {{ medidoAlzado.modulos }} módulos de 2 m ·
+    <template v-if="medidoAlzado.pintables.length"><b style="color:#48dba0">{{ medidoAlzado.pintables.length }} {{ medidoAlzado.pintables.length===1?'paño pintable':'paños pintables' }}</b> (en verde): {{ medidoAlzado.pintables.map(p=>p.ancho+' × '+p.alto+' m').join(', ') }}</template><template v-else>sin paños pintables de este lado</template></p>
    <p v-if="medidoAlzado" class="alzado-med">
     <template v-if="medidoAlzado.ventanas">{{ medidoAlzado.ventanas }} ventanas arriba de la planta baja: <b :class="{alerta:medidoAlzado.corridas}">{{ medidoAlzado.corridas }} corridas</b><template v-if="medidoAlzado.corridas"> (con borde naranja)</template><template v-if="medidoAlzado.sobreMuro">, {{ medidoAlzado.sobreMuro }} sobre muro</template> · </template>
     vidrio por piso: <span v-for="(v,i) in medidoAlzado.vano" :key="i">{{ i===0?'PB':i }} {{ v }} %<template v-if="i<medidoAlzado.vano.length-1">, </template></span> · alto {{ medidoAlzado.alto }} m</p>

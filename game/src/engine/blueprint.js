@@ -667,6 +667,10 @@ function openings(L,F,plan,level,r){// (PC: el ancho de la puerta de calle de es
  // El pasillo, con una ventana en cada punta que da afuera.
  // (centrada en el pasillo y del largo que le entra: con 2 m era de 1,2 a 0,4 del borde; con el de 1,5 se pasaba al cuarto de atrás)
  if(Lv>8&&c.v0%2===0){const P=c.v1-c.v0,wl=Math.min(1.2,P-.3);for(const [s,u] of [['left',0],['right',Lu]])if(glazed(s,c.v0+P/2))windows.push({axis:'v',at:u,from:c.v0+(P-wl)/2,len:wl,a:'pasillo'});}
+ // (2026-11-21, lo encontró la fachada medida —validar-fachada-medida—: la ventana del remate del pasillo se ponía sin mirar
+ // si en ese tramo de la fachada ya había una puerta de afuera —la del patio—, y quedaban una encima de la otra. La puerta
+ // gana: sale la ventana que la pisa)
+ for(let i=windows.length-1;i>=0;i--){const w=windows[i];if(doors.some(d=>d.street&&d.axis===w.axis&&Math.abs(d.at-w.at)<1e-6&&d.from<w.from+w.len-.01&&d.from+d.len>w.from+.01))windows.splice(i,1);}
  return {doors,windows};}
 
 // ---------- Etapa 8: muebles (en el marco local) ----------

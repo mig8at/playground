@@ -58,6 +58,8 @@ export const TEXTURAS={
 
 // Los paquetes: qué textura va en cada cosa. `muro` va por la familia del edificio (fachada.familia).
 export const PAQUETES={
+ // (2026-11-21: el muro de cada edificio con la textura que le toca en el 3D —engine/fachada-medida.js texturaDeMuro—)
+ ciudad:{nombre:'Como el 3D',nota:'Cada edificio con la textura que lleva en el 3D: sale de su familia y de su color.',comoEl3D:true,muro:{},zocalo:'sillar',mansarda:'pizarra',losa:'losa'},
  liso:{nombre:'Liso',nota:'Sin texturas: sólo los colores del plano.',muro:{},zocalo:null,mansarda:null,losa:null},
  clasico:{nombre:'Clásico',nota:'Ladrillo a soga, sillar de piedra y panel metálico; mansardas de pizarra.',muro:{ladrillo:'ladrillo',piedra:'sillar',metal:'panel'},zocalo:'sillar',mansarda:'pizarra',losa:'losa'},
  colonial:{nombre:'Colonial',nota:'Muros encalados, zócalo de piedra y teja de barro en todo techo inclinado.',muro:{ladrillo:'revoque',piedra:'revoque',metal:'estuco'},zocalo:'piedra_bola',mansarda:'teja',losa:'losa'},

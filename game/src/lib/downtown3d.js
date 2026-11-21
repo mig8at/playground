@@ -13,7 +13,8 @@ import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import {FACADE_PIECES} from '../engine/fachada.js';
-import {ES_DE_FACHADA,piezaLowPoly,medidasDePartes,PARED,PUERTA_DOBLE,puertaDobleLowPoly,MARQUESINA,marquesinaLowPoly,VENTANAL,ventanalLowPoly} from './fachada3d.js';
+import {TEXTURAS3D,texturaPared,texturaDe,uvDelMundo} from './texturas3d.js';
+import {ACABADO,ES_DE_FACHADA,piezaLowPoly,medidasDePartes,PARED,PUERTA_DOBLE,puertaDobleLowPoly,MARQUESINA,marquesinaLowPoly,VENTANAL,ventanalLowPoly} from './fachada3d.js';
 import {VIDRIO_VENTANAL} from '../engine/fachada.js';
 import {PUERTA} from '../engine/medidas.js';
 
@@ -71,10 +72,14 @@ export function loadDowntown(){
 // La pieza low poly propia (fachada3d.js) en el formato del paquete: una geometría por material, con la misma huella.
 function lowPolyDe(nombre,piece){
  const parts=piece.parts.filter(p=>!p.mat.startsWith('MI_FakeInterior')).map(p=>{p.geo.computeBoundingBox();const b=p.geo.boundingBox;return {mat:p.mat,box:{min:b.min.toArray(),max:b.max.toArray()}};});
- return deCajas(piezaLowPoly(nombre,medidasDePartes(parts)));}
-function deCajas(cajas){const porMat=new Map();
- for(const c of cajas){const g=new THREE.BoxGeometry(c.x1-c.x0,c.y1-c.y0,c.z1-c.z0).translate((c.x0+c.x1)/2,(c.y0+c.y1)/2,(c.z0+c.z1)/2);(porMat.get(c.mat)||porMat.set(c.mat,[]).get(c.mat)).push(g);}
- return {parts:[...porMat].map(([mat,gs])=>{const geo=mergeGeometries(gs,false);for(const g of gs)g.dispose();return {geo,mat,color:new THREE.Color('#ffffff')};}),lowpoly:true,cajas};}
+ return deCajas(piezaLowPoly(nombre,medidasDePartes(parts)),nombre);}
+// (2026-11-21: las cajas de PARED —la capa de afuera del muro, de ACABADO.capa de espesor, o una columna entera— van
+// aparte de las demás del mismo material, marcadas `pared`: son las que llevan textura —texturas3d.js—; un marco o una
+// puerta del mismo material sigue liso)
+const esPared=(c,columna)=>PARED.includes(c.mat)&&(columna||Math.abs(c.z1)<.02&&Math.abs(c.z1-c.z0-ACABADO.capa)<.02);
+function deCajas(cajas,nombre=''){const porMat=new Map(),columna=/Column/.test(nombre);
+ for(const c of cajas){const g=new THREE.BoxGeometry(c.x1-c.x0,c.y1-c.y0,c.z1-c.z0).translate((c.x0+c.x1)/2,(c.y0+c.y1)/2,(c.z0+c.z1)/2),k=c.mat+(esPared(c,columna)?'§pared':'');(porMat.get(k)||porMat.set(k,[]).get(k)).push(g);}
+ return {parts:[...porMat].map(([k,gs])=>{const geo=mergeGeometries(gs,false);for(const g of gs)g.dispose();const [mat,pared]=k.split('§');return {geo,mat,pared:!!pared,color:new THREE.Color('#ffffff')};}),lowpoly:true,cajas};}
 
 function textures(){
  const tl=new THREE.TextureLoader(),seen=new Map();
@@ -119,11 +124,14 @@ function bake(list){
 
 export function buildDowntown(kit,items,leaves=[]){
  const tex=textures(),mats=new Map(),buckets=new Map(),group=new THREE.Group(),own=[],litMats=[],bounce=[];
- const material=(name,color,tint,lit)=>{
-  const key=name+'|'+(tint||'')+'|'+(name==='MI_Glass'?lit>=0:'');if(mats.has(key))return key;
+ const material=(name,color,tint,lit,pared=false,textura=null)=>{
+  // (pared: la capa de afuera de un muro; con TEXTURAS3D lleva la textura que le toca a su material y su color)
+  const tx=pared&&TEXTURAS3D.on&&LOWPOLY.on?(textura||texturaDe(name,tint)):null;// (textura: la que trae el edificio del plano)
+  const key=name+'|'+(tint||'')+'|'+(name==='MI_Glass'?lit>=0:'')+(tx?'|T:'+tx:'');if(mats.has(key))return key;
   let m;
   if(name==='MI_Glass'){m=new THREE.MeshStandardMaterial({color:'#9fb4c2',transparent:true,opacity:.22,roughness:.05,metalness:.1,depthWrite:false,emissive:new THREE.Color(0)});if(lit>=0)litMats.push(m);}
   else if(LOWPOLY.on){const o=(MATS[name]||[])[1]||{};m=new THREE.MeshStandardMaterial({color:tint||LOWPOLY.BASE[name]||'#c9c4bb',roughness:o.roughness??.9,metalness:o.metalness??0,flatShading:true,side:THREE.DoubleSide});
+   if(tx){const t=texturaPared(tx);m.map=t;m.bumpMap=t;m.bumpScale=1.2;m.userData.uvMundo=true;}
    // (adentro, sin lámparas: un rebote parejo del mismo tono, en vez del de la textura)
    if(/^MI_Interior/.test(name)){m.emissive=new THREE.Color(o.plain?BOUNCE_PLAIN:BOUNCE_DAY);m.userData.day=o.plain?BOUNCE_PLAIN:BOUNCE_DAY;bounce.push(m);}}
   else{const [base,o={}]=MATS[name]||['T_Concrete'];m=new THREE.MeshStandardMaterial({map:o.plain?null:tint&&(base==='T_RedBrick'||base==='T_MetalConcrete'||base==='T_Trim')?tex.gray(base+'_BaseColor'):tex(base+'_BaseColor'),normalMap:tex((o.normal||base)+'_Normal',false),color:color.clone(),
@@ -143,7 +151,7 @@ export function buildDowntown(kit,items,leaves=[]){
   for(const part of piece.parts){if(part.mat.startsWith('MI_FakeInterior'))continue;
    // El color del edificio va sólo en sus paredes (tint.on); el resto queda con su color.
    const tint=tintOf(it.tint,part.mat);
-   const key=material(part.mat,part.color,tint,it.lit??-1)+(DOWNTOWN.zona?'@'+Math.floor(it.x/DOWNTOWN.zona)+','+Math.floor(it.z/DOWNTOWN.zona):'')+'§'+(it.lote??-1);(buckets.get(key)||buckets.set(key,[]).get(key)).push([part.geo,M]);}}
+   const key=material(part.mat,part.color,tint,it.lit??-1,part.pared,it.tint?.textura)+(DOWNTOWN.zona?'@'+Math.floor(it.x/DOWNTOWN.zona)+','+Math.floor(it.z/DOWNTOWN.zona):'')+'§'+(it.lote??-1);(buckets.get(key)||buckets.set(key,[]).get(key)).push([part.geo,M]);}}
  // Hojas de puerta (1 m × 2,2 m, con la bisagra en su origen): instancias que se abren hacia adentro cuando alguien
  // se acerca a menos de 2,5 m y se cierran solas. No se suman a las mallas juntadas porque se mueven.
  const doors=leaves.map(l=>({...l,a:0})),inst=[],byPiece=new Map();
@@ -162,7 +170,7 @@ export function buildDowntown(kit,items,leaves=[]){
  // adentro (engine/visibles.js).
  // (el lote va después de §: la clave del material lleva colores con #)
  let triangles=0;const porMat=new Map(),piezas=[];
- for(const [key,list] of buckets){const geo=bake(list);if(!geo)continue;triangles+=geo.index.count/3;const mk=key.split('§')[0],lote=+key.split('§')[1];(porMat.get(mk)||porMat.set(mk,[]).get(mk)).push({geo,lote});}// (la geometría se copia a la BatchedMesh: no se guarda)
+ for(const [key,list] of buckets){const geo=bake(list);if(!geo)continue;if(mats.get(key.split('§')[0].split('@')[0])?.userData.uvMundo)uvDelMundo(geo);triangles+=geo.index.count/3;const mk=key.split('§')[0],lote=+key.split('§')[1];(porMat.get(mk)||porMat.set(mk,[]).get(mk)).push({geo,lote});}// (la geometría se copia a la BatchedMesh: no se guarda)
  for(const [key,list] of porMat){const m=mats.get(key.split('@')[0]),nv=list.reduce((a,g)=>a+g.geo.attributes.position.count,0),ni=list.reduce((a,g)=>a+g.geo.index.count,0);
   const bm=new THREE.BatchedMesh(list.length,nv,ni,m);bm.sortObjects=!!m.transparent;
   for(const {geo,lote} of list){const gid=bm.addGeometry(geo),iid=bm.addInstance(gid);piezas.push({bm,iid,lote});}

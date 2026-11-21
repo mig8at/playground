@@ -17,11 +17,12 @@ jira_title: ""
 - [x] Sacar de las cocinas vacías lo que el 3D ponía encima de la estufa (una olla y una sartén): en la ciudad chica salieron 236 y 236; la comida que queda es la de los locales.
 - [x] Caminar Colombia (720 m) en 3D con la primera imagen en menos de 15 s: abre en 14 s y rinde 60–74 cuadros por segundo, sin cargar por zonas.
 - [ ] Decidir si hace falta cargar el 3D por zonas. Depende de: Miguel — hoy no hace falta para 720 m; haría falta para una ciudad bastante más grande o para una máquina más lenta que este PC.
-- [ ] Aplicar las texturas de fachada y techo en el 3D: termina cuando el paseo muestra el paquete elegido en el visor.
+- [x] Dar textura a las fachadas en el 3D: siete texturas dibujadas (ladrillo, ladrillo pintado, sillar, estuco, panel, hormigón, tablilla), la misma en el alzado 2D y en el 3D.
+- [ ] Dar textura también a los techos y al zócalo en el 3D: termina cuando el paseo los muestra con su material.
 - [x] Listar las propiedades de una ciudad (departamentos, locales, casas) con área y precio base: la misma semilla da el mismo listado y se ve en el visor.
 - [ ] Revisar la fórmula del precio base. Depende de: Miguel — los factores (clase, centro, piso, parque) son propuesta de Claude.
 - [ ] Dar dueño a una propiedad: termina cuando una propiedad se puede marcar como comprada por alguien y el listado lo muestra.
-- [ ] Listar los paños de muro pintables de la planta baja, para los grafitis: termina cuando cada paño sale con edificio, lado, tramo y alto.
+- [x] Listar los paños de muro pintables de la planta baja, para los grafitis: cada paño sale con edificio, lado, tramo, alto y dónde queda en el plano (233 en dos ciudades chicas).
 - [ ] Permitir colocar objetos en las casas del monte y verlos en el 3D: termina cuando un cuadro colgado en el plano aparece en el paseo.
 - [ ] Bajar las carreteras del monte a menos de 15 % de pendiente (hoy hasta 32 %): termina cuando la auditoría lo mide y no lo lista.
 - [ ] Decidir el gancho inicial para las primeras personas. Depende de: Miguel — elegir entre las ideas de «Cómo se propone armarlo».
@@ -47,6 +48,7 @@ Antes de pasar al juego, Miguel quiere **seguir refinando la ciudad**: la estét
 - **Lo de policías y ladrones se saca** del juego; si se guarda, en una carpeta chica aparte (`fuga`).
 - **La vivienda se entrega vacía**: sin sofás ni televisor, «limpia, para que el usuario la modifique a su gusto»; el baño y la cocina sí vienen.
 - **Quien entra aparece donde hay menos gente**: por ahora sin personajes, sólo puntos; la ciudad tiene un límite de población.
+- **Las fachadas, con textura y de color parejo**: «están muy planas», y después «hay fachadas con colores diferentes; que queden uniformes». Y que sus espacios salgan medidos del 2D.
 - **Falta el gancho inicial**: qué hace que las primeras personas quieran entrar. Sin resolver.
 
 ## Cómo se propone armarlo (propuesta de Claude, sin decidir)
@@ -71,6 +73,8 @@ Es interpretación mía de lo que pidió, para discutir; nada de esto está cons
 | colocar un objeto a mano (pared y piso) | `game/src/engine/colocar.js` |
 | la vivienda vacía (sólo baño y cocina) | `game/src/engine/entrega.js` |
 | dónde aparece quien entra, y el cupo | `game/src/engine/aparecer.js` |
+| la fachada medida: vanos, paños, textura y paños pintables | `game/src/engine/fachada-medida.js` |
+| las texturas de muro del 3D | `game/src/lib/texturas3d.js` |
 | el listado de lo que se vende, con área y precio | `game/src/engine/propiedades.js` |
 | dónde va cada contenedor de basura | `game/src/engine/contenedores.js` |
 | el dibujo del plano 2D, el alzado y las texturas | `game/src/lib/drawPlan.js`, `texturas2d.js` |
@@ -98,7 +102,8 @@ Cada uno con su condición de cierre. Los hechos pasan a la pila como bloque.
 ### 2. La ciudad bonita — en curso
 
 **Hecho**: veredas, cordones y asfalto; sombras; techos; nombres; texturas de fachada y techo en seis paquetes; alzado de cada edificio; paños de muro en la planta baja de los locales.
-**Falta**: aplicar las texturas en el 3D (hoy sólo en el plano); costa con contorno curvo; puentes y muelle; carreteras del monte de menos de 15 % (hoy hasta 32 %).
+**Hecho el 2026-11-21**: textura en las fachadas del 3D y color parejo por barrio (cada barrio usa sólo tradiciones de pared pareja: piedra crema, encalado, ladrillo oscuro, concreto; las de muchos colores quedan guardadas en `tradicionesVariadas`).
+**Falta**: textura en techos y zócalos del 3D; costa con contorno curvo; puentes y muelle; carreteras del monte de menos de 15 % (hoy hasta 32 %).
 **Cierre**: Miguel mira el catálogo de fachadas y el paseo y dice que la ciudad «se vende sola».
 
 ### 3. Todo calculado en el 2D — en curso
@@ -120,10 +125,11 @@ Cada uno con su condición de cierre. Los hechos pasan a la pila como bloque.
 **Falta**: dueño y permiso (sólo en lo propio); tienda y moneda; verlo en el 3D; las casas del monte; mover o quitar lo que puso el generador.
 **Cierre**: un jugador compra un cuadro, lo cuelga en su departamento y otro jugador lo ve.
 
-### 6. Grafitis en las fachadas — sin empezar
+### 6. Grafitis en las fachadas — empezado
 
 **Qué**: pintar píxeles sobre los paños de muro de la planta baja.
-**Primer paso**: del plano sale la lista de paños pintables (edificio, lado, de dónde a dónde, alto), que es lo que se venderá o se dejará pintar. El cambio de vidrieras del 2026-11-21 es lo que crea esos paños.
+**Hecho**: del plano sale la lista de paños pintables (edificio, lado, tramo, alto, y sus dos puntas en la ciudad): el muro de la planta baja entre vano y vano, del zócalo (0,8 m) al dintel (2,6 m), de 1 m de ancho o más. El alzado de cada edificio los marca en verde.
+**Falta**: pintar sobre ellos y guardarlo.
 **Cierre**: en el alzado de un edificio se puede pintar sobre un paño y queda guardado.
 
 ### 7. Mundos por idioma o país — sin empezar

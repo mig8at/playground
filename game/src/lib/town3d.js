@@ -11,6 +11,7 @@ import {liftFor} from './sitting3d.js';
 import {OBJETOS,placeParts,RUG_COUNT,kitModel,REEMPLAZOS} from './objetos3d.js';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import {LOWPOLY} from './downtown3d.js';
+import {texturaDeMuro} from '../engine/fachada-medida.js';
 import {PUERTA_DOBLE,MARQUESINA,VENTANAL} from './fachada3d.js';
 import {pendienteEn} from '../engine/techos.js';
 import {ALTURA,COLUMNA,CHOQUE_MUEBLE,CORTINA,AZOTEA,MANSARDA,esVidriera} from '../engine/medidas.js';
@@ -169,7 +170,9 @@ export function buildTown(bp,ctx){
   const tzC=C2?.acento?[C2.acento,(tz[2]?.[1]?.length?tz[2][1]:['MI_Trim_MetalConcrete','MI_Trim_Green','MI_Trim_Dark'])]:tz[2];
   const tint={zones:[tz[0]||Z0,tz[1]||Z0,tzC||Z0,[hallC,['MI_InteriorWall']],[C2?.marco||tz[1]?.[0]||null,['MI_Marco']],[C2?.zocalo||null,['MI_Zocalo']],[C2?.techo||null,['MI_Roof_Slate']]]};
   // (la culata —el muro ciego sobre el vecino más bajo—: del color de C2.culata, ladrillo a la vista; FACHADAS.md mejora 2)
-  const tintCul=C2?.culata?{zones:[[C2.culata,(tz[0]?.[1])||fs.paintOn||[]],...tint.zones.slice(1)]}:tint;
+  // (la textura del muro: la que dice el plano para esta familia y este color —engine/fachada-medida.js—; la culata, ladrillo)
+  tint.textura=texturaDeMuro(fs.spec?.familia,C2?.fachada||fs.paint);
+  const tintCul=C2?.culata?{zones:[[C2.culata,(tz[0]?.[1])||fs.paintOn||[]],...tint.zones.slice(1)],textura:'ladrillo'}:tint;
   // La planta baja levantada (escalinata, fachada.js): todo lo del lote se arma a nivel y al final sube R; el zócalo, las
   // escalinatas y el muro que asoma junto a un vecino más bajo (fixed) van a su altura de verdad.
   const R=L.raise||0,i0=items.length,l0=leaves.length,p0=plaques.length,a0=awnings.length,k0=cortinas.length,s0=superficies.length,fixed=[];wallLift=R;
