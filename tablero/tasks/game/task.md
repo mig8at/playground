@@ -11,7 +11,9 @@ jira_title: ""
 
 ## Pendientes
 
-- [ ] Sacar policías y ladrones a `game/fuga/`: termina cuando la pantalla de la ciudad no importa nada de esa carpeta y el probador pasa sin el nivel del juego viejo. Ya no se entra a él desde la interfaz (sólo con `?fuga=1`).
+- [x] Sacar policías y ladrones a `game/fuga/`: la pantalla de la ciudad no pide ningún archivo de esa carpeta y el probador (48 pruebas) pasa sin el juego viejo.
+- [ ] Limpiar de `DemoView.vue` el código dormido del juego viejo: termina cuando el archivo no nombra la ronda ni la persecución fuera de `cargarFuga`.
+- [ ] Llevar la vivienda vacía y el punto de aparición al 3D: termina cuando el paseo abre sin muebles en las viviendas y la persona aparece en el sitio que da el plano.
 - [ ] Cargar el 3D por zonas, según por dónde camina la persona: termina cuando la ciudad de 720 m («Colombia») se puede caminar en 3D y la primera imagen sale en menos de 15 s.
 - [ ] Aplicar las texturas de fachada y techo en el 3D: termina cuando el paseo muestra el paquete elegido en el visor.
 - [ ] Listar las propiedades de una ciudad (departamentos, locales, casas) con área y precio base: termina cuando la misma semilla da siempre el mismo listado y se ve en el visor.
@@ -39,6 +41,8 @@ Antes de pasar al juego, Miguel quiere **seguir refinando la ciudad**: la estét
 - **Grafitis en las fachadas**, estilo pixel art: cada quien pone punticos y deja algo escrito o dibujado. Para eso la planta baja necesita paredes, no sólo vidrieras.
 - **Colocar lo comprado con exactitud**: un cuadro en un lugar específico de la casa, «que encaje».
 - **Lo de policías y ladrones se saca** del juego; si se guarda, en una carpeta chica aparte (`fuga`).
+- **La vivienda se entrega vacía**: sin sofás ni televisor, «limpia, para que el usuario la modifique a su gusto»; el baño y la cocina sí vienen.
+- **Quien entra aparece donde hay menos gente**: por ahora sin personajes, sólo puntos; la ciudad tiene un límite de población.
 - **Falta el gancho inicial**: qué hace que las primeras personas quieran entrar. Sin resolver.
 
 ## Cómo se propone armarlo (propuesta de Claude, sin decidir)
@@ -61,6 +65,8 @@ Es interpretación mía de lo que pidió, para discutir; nada de esto está cons
 | el generador de la ciudad (manzanas, lotes, pisos, muebles) | `game/src/engine/blueprint.js`, `ciudad.js`, `hogar.js` |
 | las medidas, con su fuente | `game/src/engine/medidas.js` |
 | colocar un objeto a mano (pared y piso) | `game/src/engine/colocar.js` |
+| la vivienda vacía (sólo baño y cocina) | `game/src/engine/entrega.js` |
+| dónde aparece quien entra, y el cupo | `game/src/engine/aparecer.js` |
 | dónde va cada contenedor de basura | `game/src/engine/contenedores.js` |
 | el dibujo del plano 2D, el alzado y las texturas | `game/src/lib/drawPlan.js`, `texturas2d.js` |
 | el visor del plano · el catálogo · el paseo en 3D | `/plano` · `/catalogo` · `/juego?paseo=1` |
@@ -70,14 +76,12 @@ Es interpretación mía de lo que pidió, para discutir; nada de esto está cons
 
 Cada uno con su condición de cierre. Los hechos pasan a la pila como bloque.
 
-### 1. Sacar policías y ladrones a `game/fuga/` — empezado
+### 1. Sacar policías y ladrones a `game/fuga/` — hecho, falta limpiar
 
-**Hecho**: el juego viejo salió de la interfaz. `/juego` y `/ciudad` abren la ciudad sola; el juego viejo sólo arranca con `?fuga=1` o en `/demo` (la ruta de sus pruebas de pantalla). El título ya no ofrece las salas.
-**El mapa de quién usa qué** (para no romper la ciudad al moverlo): sólo los usa la pantalla de la ciudad `persecucion3d`, `patrulla3d`, `disparo3d`, `viewmodel3d`, `MenuJuego` y `MapaJuego`; `bots` y `partida` cuelgan de `persecucion3d` y de cinco pruebas; `ronda` la usan además las acciones del 3D; `guaridas` la usan los transeúntes y `botin` el generador del plano, así que esos dos no se mueven enteros. `mapa`, `transeuntes` e `identidad` son de la ciudad (la gente y sus rutas), no del juego viejo: se quedan.
-
-**Qué**: la ronda, la persecución, los bots, las guaridas, el botín, el allanamiento, el menú del juego y sus pruebas.
-**Por qué no se hizo todavía**: `DemoView.vue` (1.100 líneas) mezcla el paseo con la partida, y el nivel 9 del probador (12 pruebas) es casi todo de ese juego. Sacarlo es un cambio grande que conviene hacer solo, con el probador antes y después.
-**Cierre**: el paseo (`/juego?paseo=1`) funciona sin importar nada de `fuga/`; el probador pasa sin el nivel del juego viejo; lo viejo corre desde su carpeta o queda archivado.
+**Hecho**: la ronda, la partida, los bots, la persecución, las patrullas, las armas, el menú con su mapa y ocho pruebas viven en `game/fuga/`. La pantalla de la ciudad los carga sólo con `?fuga=1` o en `/demo`.
+**Lo que se quedó**, porque la ciudad lo usa: `guaridas` (los transeúntes), `botin` (el generador del plano), `mapa`, `transeuntes` e `identidad`.
+**Falta**: `DemoView.vue` todavía tiene el código del juego viejo, dormido; el título conserva las pantallas de salas.
+**Cierre**: el del pendiente de arriba.
 
 ### 1b. Cargar el 3D por zonas — sin empezar
 
@@ -106,7 +110,7 @@ Cada uno con su condición de cierre. Los hechos pasan a la pila como bloque.
 
 ### 5. Comprar y colocar — empezado
 
-**Hecho**: diez objetos (cinco de pared, cinco de piso) se colocan a mano en el plano de un piso, con sus reglas; se guardan en el navegador.
+**Hecho**: la vivienda se entrega vacía (sólo baño y cocina; en Colombia, 2.626 viviendas). Diez objetos (cinco de pared, cinco de piso) se colocan a mano en el plano de un piso, con sus reglas; se guardan en el navegador.
 **Falta**: dueño y permiso (sólo en lo propio); tienda y moneda; verlo en el 3D; las casas del monte; mover o quitar lo que puso el generador.
 **Cierre**: un jugador compra un cuadro, lo cuelga en su departamento y otro jugador lo ve.
 
@@ -121,7 +125,9 @@ Cada uno con su condición de cierre. Los hechos pasan a la pila como bloque.
 **Qué**: qué distingue un mundo de otro (paquete de texturas, nombres de calles, comercios) y cómo se elige el tamaño según la gente que entra.
 **Cierre**: dos mundos generados que se ven distintos sin tocar el generador, sólo con su paquete.
 
-### 8. Multijugador y dinámicas — sin empezar
+### 8. Multijugador y dinámicas — empezado por el punto de aparición
+
+**Hecho**: quien entra aparece en el sitio del andén con menos gente alrededor; el cupo es una persona por vivienda (propuesta de Claude: un número para cambiar). La gente es, por ahora, puntos de prueba en el plano.
 
 Personas reales, chat, empleos, conductor. Depende de 4 y 5. Hoy todo el multijugador de la entrada está simulado.
 
@@ -133,5 +139,6 @@ Todo el trabajo está en la rama `game/visual` de `mig8at/playground`, PR 6 (abi
 
 - Nada de lo hecho se probó en la Mac: todo en el PC con Linux.
 - Las ciudades grandes (576 m y 720 m) no se abrieron en 3D ni pasaron por el probador, que sólo mira la de 3 por equipo.
-- Las texturas y los objetos colocados no se ven en el 3D.
+- Las texturas, los objetos colocados, la vivienda vacía y el punto de aparición no se ven en el 3D: sólo en el plano.
+- Después de la vivienda vacía y el punto de aparición no se corrió el probador entero, sólo la prueba nueva (`validar-aparecer`).
 - El probador que se corre es el rápido, de una ciudad; el completo de cuatro no se corrió.

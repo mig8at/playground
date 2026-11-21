@@ -5,6 +5,7 @@ import {planHouse,FURN_SIZE,FLOOR0,FH} from '../engine/vivienda.js';
 import {AWNINGS,RAISE} from '../engine/fachada.js';
 import {ALTURA,CALLE} from '../engine/medidas.js';
 import {PAQUETES,textura} from './texturas2d.js';
+import {DE_OBRA,modeloDeObra} from '../engine/entrega.js';
 const K=City.K;
 const css=name=>getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
@@ -216,7 +217,7 @@ const MODELO={Bed_King:'cama',Bed_Single:'cama_s',C2_Bed:'cama_s',Couch_Medium2:
  NightStand_1:'mesa_noche',Drawer_1:'comoda',Bathroom_Toilet:'inodoro',Bathroom_Sink:'lavamanos',Bathroom_Shower1:'ducha',C2_Lamp:'lampara',C2_Closet:'armario',C2_Closet2:'armario',C2_ChairCushioned:'silla'};
 // px: los píxeles por metro a los que se está dibujando (el contexto viene en metros): desde 4 los muebles van con su
 // símbolo y desde 16 cada cuarto lleva su nombre.
-export function drawHouse(g,c,{stage,level,px=1}){let P=houseCache.get(c);if(!P){P=planHouse(c.spec);houseCache.set(c,P);}
+export function drawHouse(g,c,{stage,level,px=1,vacia=false}){/* (vacia: la casa entregada sin amueblar —engine/entrega.js—: sólo el baño y la cocina) */let P=houseCache.get(c);if(!P){P=planHouse(c.spec);houseCache.set(c,P);}
  if(px>=1.2){g.fillStyle='rgba(38,42,54,.17)';g.save();g.translate(c.x+1.2,c.z+1.2);g.rotate(-(c.ry||0));g.fillRect(-P.w/2,-P.d/2,P.w,P.d);g.restore();}
  g.save();g.translate(c.x,c.z);g.rotate(-(c.ry||0));
  g.fillStyle='#efe2c4';g.fillRect(-P.w/2,-P.d/2,P.w,P.d);
@@ -229,11 +230,11 @@ export function drawHouse(g,c,{stage,level,px=1}){let P=houseCache.get(c);if(!P)
   g.fillStyle='#3a3d40';for(const b of P.boxes)if(b.solid&&b.y1-b.y0>1.5&&b.y0<y0+1&&b.y1>y0+1&&(b.cat==='interior'||b.cat==='tablas'||b.cat==='liso'))g.fillRect(b.x0,b.z0,b.x1-b.x0,b.z1-b.z0);
   if(stage>=7)for(const o of P.openings){if(Math.abs(o.y0-(y0+(o.kind==='window'?.85:0)))>1.3)continue;g.strokeStyle=o.kind==='window'?'#5aa9d6':'#f4f2ec';g.lineWidth=o.kind==='window'?.35:.5;g.beginPath();
    if(o.axis==='x'){g.moveTo(o.c-o.w/2,o.at);g.lineTo(o.c+o.w/2,o.at);}else{g.moveTo(o.at,o.c-o.w/2);g.lineTo(o.at,o.c+o.w/2);}g.stroke();}
-  if(stage>=8)for(const f of P.furniture){const sz=FURN_SIZE[f.m];if(!sz||Math.abs(f.y-y0)>.5)continue;g.save();g.translate(f.x,f.z);g.rotate(-(f.rot||0));
+  if(stage>=8)for(const f of P.furniture){const sz=FURN_SIZE[f.m];if(!sz||Math.abs(f.y-y0)>.5||vacia&&!modeloDeObra(f.m))continue;g.save();g.translate(f.x,f.z);g.rotate(-(f.rot||0));
    if(px>=4){g.scale(1/px,1/px);glyph(g,MODELO[f.m]||'caja',sz[0]*px,sz[1]*px,px);}
    else{g.fillStyle=/Bed/.test(f.m)?'#9c86b8':/Sofa|Couch/.test(f.m)?'#b88b6a':/Kitchen/.test(f.m)?'#c9c3b8':/Bathroom/.test(f.m)?'#ffffff':'#a7825f';g.fillRect(-sz[0]/2,-sz[1]/2,sz[0],sz[1]);}g.restore();}
   // (los del plano de hogar traen hacia dónde miran en `dir` —en u,v—; en la casa la v va al revés)
-  if(stage>=8&&HL)for(const f of HL.furniture){if(px<4){g.fillStyle=ITEM_COLOR[f.kind]||'#a7825f';g.fillRect(hx(f.u0),hz(f.v1),f.u1-f.u0,f.v1-f.v0);continue;}
+  if(stage>=8&&HL)for(const f of HL.furniture){if(vacia&&!DE_OBRA.has(f.kind))continue;if(px<4){g.fillStyle=ITEM_COLOR[f.kind]||'#a7825f';g.fillRect(hx(f.u0),hz(f.v1),f.u1-f.u0,f.v1-f.v0);continue;}
    const ry=f.dir?Math.atan2(f.dir[0],-f.dir[1]):0,alX=Math.abs(Math.sin(ry))>.5,w=f.u1-f.u0,d=f.v1-f.v0;
    g.save();g.translate(hx((f.u0+f.u1)/2),hz((f.v0+f.v1)/2));g.rotate(-ry);g.scale(1/px,1/px);glyph(g,f.kind,(alX?d:w)*px,(alX?w:d)*px,px,f.pc);g.restore();}
   if(HL&&px>=16){g.textAlign='center';g.textBaseline='middle';g.fillStyle='rgba(40,44,48,.8)';
@@ -301,7 +302,7 @@ export function drawIslaStage(canvas,bp,{cell,stage=9,level=0,selected=-1,fronts
    g.fillStyle=L.kind==='puesto'?'#2f5f9a':'#c0672f';g.fillRect(cx-w/2,y-fs,w,fs+2);g.fillStyle='#fff';g.fillText(t,cx,y);}}
  g.setTransform(dpr*m,0,0,dpr*m,-B.x0*cell*dpr,-B.y0*cell*dpr);
  // Las casas armadas del monte, con su plano (etapa 3 en adelante).
- if(stage>=3)for(const c of I.casas||[])if(c.spec)drawHouse(g,c,{stage,level,px:m});
+ if(stage>=3)for(const c of I.casas||[])if(c.spec)drawHouse(g,c,{stage,level,px:m,vacia:!!bp.entrega});
  if(stage>=9)drawExterior(g,bp,{level,px:m,capas});
  if(level===0){g.font='bold 5px sans-serif';g.textAlign='center';g.fillStyle='#3b4446';
   // El nombre de cada pueblo, sobre su plaza (con un fondo para que se lea).
@@ -480,7 +481,7 @@ export function drawElevation(canvas,L,{width=560,lado=null,paquete='liso'}={}){
 // ---------- Las casas desde la familia (engine/hogar.js, 2026-10-12) ----------
 // El plano de un piso: cuartos (con su nombre y medida), paredes, puertas (con su giro), ventanas y muebles. u a lo
 // ancho, v hacia el fondo; el frente (la calle) abajo del dibujo.
-export function drawHogar(canvas,P,{level=0,width=560}={}){
+export function drawHogar(canvas,P,{level=0,width=560,vacia=false}={}){
  const dpr=window.devicePixelRatio||1,pad=30,m=Math.min(56,(width-2*pad)/P.W),hgt=P.D*m+2*pad+18;
  canvas.width=Math.round(width*dpr);canvas.height=Math.round(hgt*dpr);canvas.style.width=width+'px';canvas.style.height=hgt+'px';
  const g=canvas.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,width,hgt);
@@ -489,7 +490,7 @@ export function drawHogar(canvas,P,{level=0,width=560}={}){
  for(const q of L.rooms){g.fillStyle=COL[q.type]||'#eee';g.fillRect(X(q.u0),Y(q.v1),(q.u1-q.u0)*m,(q.v1-q.v0)*m);}
  // la escalera: sus peldaños
  for(const q of L.rooms.filter(q=>q.type==='escalera')){g.strokeStyle='#b9ad98';g.lineWidth=1;for(let v=q.v0+.25;v<q.v1;v+=.27){g.beginPath();g.moveTo(X(q.u0),Y(v));g.lineTo(X(q.u1),Y(v));g.stroke();}}
- for(const f of L.furniture){const ry=f.dir?Math.atan2(f.dir[0],-f.dir[1]):0,alX=Math.abs(Math.sin(ry))>.5,w=f.u1-f.u0,d=f.v1-f.v0;// (el frente abajo: la v va al revés)
+ for(const f of L.furniture){if(vacia&&!DE_OBRA.has(f.kind))continue;const ry=f.dir?Math.atan2(f.dir[0],-f.dir[1]):0,alX=Math.abs(Math.sin(ry))>.5,w=f.u1-f.u0,d=f.v1-f.v0;// (el frente abajo: la v va al revés)
   g.save();g.translate(X((f.u0+f.u1)/2),Y((f.v0+f.v1)/2));g.rotate(-ry);glyph(g,f.kind,(alX?d:w)*m,(alX?w:d)*m,m,f.pc);g.restore();}
  // paredes: el contorno de cada cuarto (la fachada más gruesa) y, encima, los vanos de las puertas en blanco
  g.strokeStyle='#3a3d40';g.lineCap='square';for(const q of L.rooms){g.lineWidth=2;g.strokeRect(X(q.u0),Y(q.v1),(q.u1-q.u0)*m,(q.v1-q.v0)*m);}

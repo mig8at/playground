@@ -45,7 +45,8 @@ const NIVELES=[
   {n:'interiores',f:'validar-interiores.mjs',a:[N,S0],fallas:F,res:/^se llega caminando/},
   {n:'muebles',f:'validar-muebles.mjs',a:[N,S0],fallas:F,res:/^muebles/},
   {n:'usos',f:'validar-usos.mjs',a:[N,S0],fallas:F,res:/^usos/},
-  {n:'colocar',f:'validar-colocar.mjs',a:[N,S0],fallas:F,res:/^colocar/},// (2026-11-21: colgar y apoyar objetos a mano —engine/colocar.js—)
+  {n:'colocar',f:'validar-colocar.mjs',a:[N,S0],fallas:F,res:/^colocar/},
+  {n:'aparecer',f:'validar-aparecer.mjs',a:[N,S0],fallas:F,res:/^aparecer/},// (2026-11-21: dónde aparece quien entra —engine/aparecer.js—)// (2026-11-21: colgar y apoyar objetos a mano —engine/colocar.js—)
   {n:'aulas',f:'validar-aulas.mjs',a:[N,S0],fallas:F,res:/^aulas/},
   {n:'giros',f:'validar-giros.mjs',a:[N,S0],fallas:F,res:/^giros/},
   {n:'cortinas',f:'validar-cortinas.mjs',a:[N,S0],fallas:F,res:/^cortinas/}]},

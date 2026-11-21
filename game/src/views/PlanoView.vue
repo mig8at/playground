@@ -12,6 +12,8 @@ import '@fontsource-variable/rubik';
 import {planoDe} from '../lib/mapasGuardados.js';
 import {drawWorldStage,drawFloorPlan,drawHogar,drawElevation,drawColocados,marcoPiso,CAPAS,ROOM_LABEL} from '../lib/drawPlan.js';
 import {colocar,OBJETOS,GRILLA} from '../engine/colocar.js';
+import {entregaDe} from '../engine/entrega.js';
+import {sitiosDe,aparecerEn,cupoDe,poblar,RADIO} from '../engine/aparecer.js';
 import {CELL,TYPES} from '../engine/blueprint.js';
 import {PAQUETES} from '../lib/texturas2d.js';
 
@@ -23,6 +25,24 @@ const seed=ref(Math.max(1,Number(route.query.ciudad)||1)),team=ref(Math.max(2,Nu
 const estado=ref('Armando el plano…'),nivel=ref(0),capas=reactive({...CAPAS}),elegido=ref(null),casa=ref(null),cursor=ref(null),tardo=ref(0);
 const host=ref(null),lienzo=ref(null),piso=ref(null),nitido=ref(null),nitidoListo=ref(false),escala=ref(0);
 let relojNitido=0;
+// (la vivienda vacía: lo que se vende es el lugar sin amueblar —engine/entrega.js—; «Amueblado» muestra lo que puso el
+// generador, que es lo que comprueba que los cuartos tienen buen tamaño)
+const vacias=ref(true),entrega=ref(null);let planoEntero=null;
+// (la gente, como puntos, y dónde aparece el próximo —engine/aparecer.js—: el sitio menos poblado. «Entra una persona»
+// la suma ahí y recalcula; el cupo es una persona por vivienda)
+const cuanta=ref(0),cupo=ref(0),aparicion=ref(null),verGente=ref(true),capaGente=ref(null);let sitios=[],gente=[];
+// (la gente va en su propia capa, en píxeles de pantalla: así un punto se ve igual con la ciudad entera que de cerca, y
+// moverla no redibuja el plano)
+function dibujarGente(){const c=capaGente.value;if(!c||!host.value)return;const dpr=window.devicePixelRatio||1,w=host.value.clientWidth,h=host.value.clientHeight;if(c.width!==Math.round(w*dpr)||c.height!==Math.round(h*dpr)){c.width=Math.round(w*dpr);c.height=Math.round(h*dpr);}
+ const g=c.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,w,h);if(!verGente.value||!planoEntero)return;
+ const m=celda*vista.k/CELL,sx=x=>vista.x+(x/CELL-origen.x0)*celda*vista.k,sz=z=>vista.y+(z/CELL-origen.y0)*celda*vista.k,r=Math.max(2.6,Math.min(.3*m,7));
+ g.fillStyle='#ffd166';g.strokeStyle='rgba(20,16,8,.85)';g.lineWidth=1;for(const p of gente){const x=sx(p.x),y=sz(p.z);if(x<-9||y<-9||x>w+9||y>h+9)continue;g.beginPath();g.arc(x,y,r,0,7);g.fill();g.stroke();}
+ const a=aparicion.value;if(a?.ok){const x=sx(a.x),y=sz(a.z),R=Math.max(6,r*1.5);g.fillStyle='rgba(72,219,160,.13)';g.strokeStyle='rgba(72,219,160,.85)';g.lineWidth=1.5;g.beginPath();g.arc(x,y,RADIO*m,0,7);g.fill();g.stroke();
+  g.fillStyle='#48dba0';g.strokeStyle='#0b2b1f';g.lineWidth=2;g.beginPath();g.arc(x,y,R,0,7);g.fill();g.stroke();g.beginPath();g.moveTo(x-R*1.8,y);g.lineTo(x+R*1.8,y);g.moveTo(x,y-R*1.8);g.lineTo(x,y+R*1.8);g.stroke();}}
+function ponerGente(){if(!planoEntero)return;const a=aparecerEn(planoEntero,gente,{sitios,cupo:cupo.value});aparicion.value=a;cuanta.value=gente.length;dibujarGente();}
+function poblarCon(n){if(!planoEntero)return;gente=poblar(planoEntero,Math.max(0,Math.min(cupo.value,n)),seed.value,sitios);ponerGente();}
+function entra(n=1){for(let i=0;i<n;i++){const a=aparecerEn(planoEntero,gente,{sitios,cupo:cupo.value});if(!a.ok)break;gente=[...gente,{x:a.x,z:a.z}];}ponerGente();}
+function irAparicion(){const a=aparicion.value;if(!a?.ok||!host.value)return;const k=Math.max(vista.k,6/celda*6),w=host.value.clientWidth,h=host.value.clientHeight;vista.k=k;vista.x=w/2-(a.x/CELL-origen.x0)*celda*k;vista.y=h/2-(a.z/CELL-origen.y0)*celda*k;tocado=true;pedirNitido();}
 let plano=null,origen={x0:0,y0:0},celda=20,arrastre=null,tocado=false;// (tocado: ya acercó o movió; mientras no, el plano se reajusta al cambiar el tamaño de la ventana)
 const vista=reactive({x:0,y:0,k:1});// (la posición y el zoom del lienzo dentro del visor, en píxeles de pantalla)
 // (los tamaños de ciudad —engine/ciudad.js SIZES—: los cuatro del juego y dos más grandes, para pasear y para otros juegos)
@@ -94,7 +114,7 @@ const medidas=computed(()=>{const L=elegido.value;if(!L)return null;const lv=L.l
  return {area:Math.round(area),pasillo:Math.round(pas/area*100),ensanche:Math.round(ens/area*100),muebles:lv.furniture.length,puertas:lv.doors.length,ventanas:lv.windows.length};});
 const casaNivel=computed(()=>casa.value?Math.min(nivel.value,casa.value.spec.hogar.levels.length-1):0);
 const casaCuartos=computed(()=>{const c=casa.value;if(!c)return [];return c.spec.hogar.levels[casaNivel.value].rooms.filter(q=>q.type!=='hall').map(q=>({nombre:q.label||ROOM_LABEL[q.type]||q.type,medida:`${(q.u1-q.u0).toFixed(1)} × ${(q.v1-q.v0).toFixed(1)} m`}));});
-async function dibujarPiso(){await nextTick();if(casa.value&&piso.value){drawHogar(piso.value,casa.value.spec.hogar,{level:casaNivel.value,width:piso.value.parentElement.clientWidth});return;}
+async function dibujarPiso(){await nextTick();if(casa.value&&piso.value){drawHogar(piso.value,casa.value.spec.hogar,{level:casaNivel.value,width:piso.value.parentElement.clientWidth,vacia:vacias.value});return;}
  const L=elegido.value;if(!L||!piso.value)return;
  if(alzado.value){const lado=ladosAbiertos.value.includes(ladoAlzado.value)?ladoAlzado.value:L.front;ladoAlzado.value=lado;medidoAlzado.value=drawElevation(alzado.value,L,{width:alzado.value.parentElement.clientWidth,lado,paquete:paquete.value});}
  pintarPiso();}
@@ -104,13 +124,16 @@ async function cargar(){
  router.replace({query:{ciudad:seed.value,jugadores:team.value}});
  const t0=performance.now(),r=await planoDe({seed:seed.value,team:team.value,parks:true});
  if(!r.plano){estado.value='No se pudo armar el plano de esta ciudad.';return;}
- plano=r.plano;maxPisos.value=Math.max(...plano.lots.map(L=>L.floors));const V=plano.vegetacion||{};
+ planoEntero=r.plano;const pe=entregaDe(planoEntero);entrega.value=pe.entrega;plano=vacias.value?pe:planoEntero;maxPisos.value=Math.max(...plano.lots.map(L=>L.floors));const V=plano.vegetacion||{};
  resumen.value={edificios:plano.lots.length,casas:plano.isla.casas?.length||0,arboles:(V.arboles?.length||0)+(V.palmeras?.length||0),mobiliario:plano.equipamiento?.length||0,
   muebles:plano.lots.reduce((a,L)=>a+L.levels.slice(0,L.floors).reduce((b,lv)=>b+lv.furniture.length,0),0),ms:Math.round(performance.now()-t0),guardado:r.guardado};
- nivel.value=0;estado.value='';await nextTick();dibujar();ajustar();
+ sitios=sitiosDe(planoEntero);cupo.value=cupoDe(planoEntero).cupo;
+ nivel.value=0;estado.value='';await nextTick();dibujar();ajustar();poblarCon(Math.round(cupo.value*.15));// (de arranque, la ciudad al 15 % de su cupo)
 }
 watch([nivel,capas,paquete],()=>{dibujar();dibujarPiso();pedirNitido();});
 watch(vista,pedirNitido);
+watch([vista,verGente],dibujarGente,{deep:true});
+watch(vacias,v=>{if(!planoEntero)return;plano=v?entregaDe(planoEntero):planoEntero;if(elegido.value)elegido.value=plano.lots.find(L=>L.id===elegido.value.id)||null;dibujar();dibujarPiso();pedirNitido();});
 watch([elegido,casa,grande,ladoAlzado,paquete],dibujarPiso);
 watch(elegido,()=>{ladoAlzado.value=null;fantasma.value=null;});
 let obs;
@@ -132,6 +155,15 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
    </div>
    <div class="capas"><label v-for="(n,k) in NOMBRE_CAPA" :key="k" :class="{on:capas[k]}"><input type="checkbox" v-model="capas[k]">{{ n }}</label></div>
    <label class="sel-paquete" title="El paquete de texturas de fachadas y techos">Texturas <select v-model="paquete"><option v-for="(P,k) in PAQUETES" :key="k" :value="k">{{ P.nombre }}</option></select></label>
+   <button class="techos" :class="{on:vacias}" @click="vacias=!vacias" :title="vacias?'Las viviendas, como se entregan: sólo el baño y la cocina. Tocá para ver cómo las amuebla el generador.':'Las viviendas amuebladas por el generador. Tocá para verlas vacías, como se entregan.'">{{ vacias?'Viviendas vacías':'Amueblado' }}</button>
+   <div class="gente" role="group" aria-label="Gente" title="Cada punto amarillo es una persona. El punto verde es donde aparece la próxima: el sitio del andén con menos gente alrededor (30 m). El cupo es una persona por vivienda.">
+    <span><b>{{ cuanta.toLocaleString('es-CO') }}</b> de {{ cupo.toLocaleString('es-CO') }} personas</span>
+    <button :disabled="cuanta>=cupo" @click="entra(1)">Entra una</button>
+    <button :disabled="cuanta>=cupo" @click="entra(50)">+50</button>
+    <button :disabled="!cuanta" @click="poblarCon(0)">Vaciar</button>
+    <button :disabled="!aparicion?.ok" @click="irAparicion">Ver dónde aparece</button>
+    <button :class="{on:verGente}" @click="verGente=!verGente" title="Mostrar u ocultar los puntos">{{ verGente?'Ocultar':'Mostrar' }}</button>
+   </div>
    <button class="techos" :class="{on:nivel>=maxPisos}" @click="nivel=nivel>=maxPisos?0:maxPisos" title="Ver la ciudad desde arriba, con sus techos (o volver a la planta baja)">Techos</button>
    <button class="ajustar" @click="ajustar" title="Ver todo (0)">Ver todo</button>
    <RouterLink class="catalogo" :to="{path:'/catalogo',query:{seccion:'fachadas',ciudad:seed}}" title="Los muebles, las fachadas y las texturas, de a uno">Catálogo</RouterLink>
@@ -141,11 +173,15 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
   <div ref="host" class="visor" :class="{arrastrando:arrastre}" @wheel="rueda" @pointerdown="baja" @pointermove="mueve" @pointerup="sube" @pointerleave="cursor=null">
    <canvas ref="lienzo" class="base" :style="{transform:`translate(${vista.x}px,${vista.y}px) scale(${vista.k})`}"></canvas>
    <canvas ref="nitido" class="nitido" :class="{listo:nitidoListo}"></canvas>
+   <canvas ref="capaGente" class="capa-gente"></canvas>
    <div v-if="estado" class="estado">{{ estado }}</div>
    <div class="pie">
     <span v-if="cursor">x {{ cursor.x }} m · z {{ cursor.z }} m</span>
     <span v-if="escala">{{ escala.toFixed(1) }} px por metro</span>
     <span v-if="resumen">{{ resumen.edificios }} edificios · {{ resumen.casas }} casas · {{ resumen.muebles.toLocaleString('es-CO') }} muebles · {{ resumen.arboles.toLocaleString('es-CO') }} árboles · {{ resumen.mobiliario }} de mobiliario</span>
+    <span v-if="entrega&&vacias">{{ entrega.viviendas.toLocaleString('es-CO') }} viviendas vacías · {{ entrega.sacados.toLocaleString('es-CO') }} muebles afuera · quedan {{ entrega.quedan.toLocaleString('es-CO') }} de baño y cocina</span>
+    <span v-if="aparicion?.ok">aparece en x {{ aparicion.x }} · z {{ aparicion.z }} m{{ aparicion.cerca!=null?' · la persona más cercana, a '+aparicion.cerca+' m':'' }}</span>
+    <span v-else-if="aparicion">{{ aparicion.razon }}</span>
     <span v-if="resumen">plano {{ resumen.guardado?'guardado':'armado' }} en {{ (resumen.ms/1000).toFixed(1) }} s · dibujo {{ tardo }} ms</span>
     <span class="ayuda">rueda: acercar · arrastrar: mover · clic: un edificio · + −: pisos</span>
    </div>
@@ -211,6 +247,11 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
 .pisos{display:flex;align-items:center;gap:6px}.pisos span{min-width:88px;text-align:center;font-weight:600}
 .pisos button{width:30px;padding:5px 0;font-weight:700}
 .capas{display:flex;gap:6px;flex-wrap:wrap}
+.gente{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:3px 8px;border:1px solid rgba(72,219,160,.35);border-radius:10px}
+.gente span{color:var(--tx3);font-size:13px}.gente b{color:#ffd166}
+.gente button{padding:5px 9px;border-radius:8px;border:1px solid var(--borde);background:transparent;color:var(--tx);cursor:pointer;font:inherit;font-size:13px}
+.gente button:disabled{opacity:.4;cursor:default}
+.capa-gente{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .capas label{padding:5px 10px;border-radius:99px;border:1px solid var(--borde);cursor:pointer;color:var(--tx3);gap:0}
 .capas label.on{background:rgba(255,169,77,.16);border-color:rgba(255,169,77,.5);color:var(--tx)}
 .capas input{position:absolute;opacity:0;pointer-events:none}

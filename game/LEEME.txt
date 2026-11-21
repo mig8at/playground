@@ -16,6 +16,12 @@ EL JUEGO
              Diseño (2026-10-18): la ciudad del juego de fondo (public/fondos: capturas del 3D, la noche en el título),
              paneles de vidrio, ámbar los ladrones y azul la policía, títulos en Bungee y texto en Rubik (paquetes de
              @fontsource: sin internet). Lo prueba harness/pruebas/validar-entrada.mjs (nivel 10).
+  ENTREGA    (2026-11-21, engine/entrega.js): la vivienda se entrega vacía. Saca de un plano armado los muebles de quien
+             vive (camas, sofás, mesas, televisores) y deja lo de obra: baño y cocina. No toca locales ni oficinas. En
+             /plano es el botón «Viviendas vacías» (prendido de entrada); «Amueblado» muestra lo que puso el generador.
+  APARECER   (2026-11-21, engine/aparecer.js): una persona es un punto. sitiosDe da los lugares del andén donde se puede
+             aparecer; aparecerEn elige el menos poblado (gente a 30 m, pesada por distancia); cupoDe, el tope: una
+             persona por vivienda. En /plano: los puntos amarillos, el punto verde y «Entra una». Prueba: validar-aparecer.
   COLOCAR    (2026-11-21, engine/colocar.js): una persona dice «acá» y el plano contesta dónde queda exactamente y si se
              puede, con la razón. De pared (cuadro, espejo, reloj, repisa): se pega a la pared más cercana, a la grilla
              de 5 cm; no pisa puertas ni ventanas ni otro colgado, ni queda detrás de un mueble alto. De piso (planta,
