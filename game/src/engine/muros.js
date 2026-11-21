@@ -43,7 +43,7 @@ function vidrioDe(fs,w,nivel,len){if(w.pieza==='ventanal')return [VIDRIO_VENTANA
 function ocupaVano(L,fs,v,nivel,base,sube,cercaDeCalle){const c=(v.u0+v.u1)/2,m0=Math.floor(c/MOD+1e-6)*MOD,m1=m0+MOD,out=[];
  if(v.clase==='puerta'){out.push({u0:Math.min(m0,v.u0-.2),u1:Math.max(m1,v.u1+.2),y0:0,y1:sube+3,clase:'puerta'});return out;}
  // (en la planta baja de lo que no es vivienda —oficinas, hoteles, lo público— toda ventana es una vidriera: medidas.js esVidriera)
- if(v.clase==='vidriera'||nivel===0&&esVidriera(L.type,{shop:false})){out.push({u0:m0,u1:m1,y0:0,y1:sube+3.25,clase:'vidriera'});return out;}// (con su toldo, que asoma sobre el piso de arriba)
+ if(v.clase==='vidriera'||nivel===0&&esVidriera(L.type,{shop:false})){out.push({u0:m0,u1:m1,y0:0,y1:sube+3,clase:'vidriera'});return out;}
  for(const G of vidrioDe(fs,v,nivel,v.u1-v.u0))out.push({u0:c+G[0]-CERCO,u1:c+G[1]+CERCO,y0:base+G[2]-CERCO-.08,y1:base+G[3]+CERCO+.1,clase:'ventana'});
  if(!out.length)out.push({u0:v.u0-CERCO,u1:v.u1+CERCO,y0:base+.3,y1:base+2.8,clase:'ventana'});
  // (el balcón —de la segunda planta para arriba— es una puerta con su losa y sus barandas; la doble une dos módulos)
@@ -61,7 +61,9 @@ export function huecosDeLinea(L,horiz,linea,nivel){const out=[];for(const m of L
   const tx=m.dy,tz=-m.dx,c=-CELDA/2+1+2*m.k,c0=horiz?ex+tx*c:ez+tz*c,sg=horiz?tx:tz,pon=(a,b,y0,y1,clase)=>out.push({t0:Math.min(a,b),t1:Math.max(a,b),y0,y1,clase});
   if(m.tipo==='ventana'||m.tipo==='doble'){const g=vidrioDeModulo(m);if(g)pon(c0+g[0]*sg-CERCO*sg,c0+g[1]*sg+CERCO*sg,g[2]-CERCO-.08,g[3]+CERCO+.1,m.tipo==='doble'?'doble':'ventana');else pon(c0-1,c0+1,.3,2.8,'ventana');}
   else if(m.tipo==='balcon')pon(c0-1.1,c0+1.1,-.3,3,'balcon');
-  else if(m.tipo==='vidriera')pon(c0-1,c0+1,0,3.25,'vidriera');
+  // (la vidriera, su módulo y su piso, ni un centímetro más: el toldo cuelga de 2,97 m hacia abajo, no sube al piso de
+  // arriba —hasta el 2026-11-21 se le sumaban 25 cm «por el toldo» y en la vista de fachadas parecía más alta que el piso—)
+  else if(m.tipo==='vidriera')pon(c0-1,c0+1,0,3,'vidriera');
   else if(m.tipo==='puerta'||m.tipo==='puerta_doble'||m.tipo==='porton')pon(c0-1,c0+1,0,3,'puerta');}
  return out;}
 function huecosDeFachada(L,F){const fs=estiloDe(L),out=[{u0:0,u1:F.ancho,y0:0,y1:F.sube+ZOCALO_ALTO,clase:'zocalo'}];
