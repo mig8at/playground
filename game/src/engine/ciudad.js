@@ -43,13 +43,18 @@ function generate({seed=1,team=3,buildings='rooms',siteDoors=null,parks=false}={
  // Calle de circunvalación: todo el borde se recorre, así ninguna manzana queda encerrada.
  const C=CIUDAD.calle;for(let i=1;i<=C;i++){for(let x=1;x<W-1;x++){set(x,i,K.street);set(x,H-1-i,K.street);}for(let y=1;y<H-1;y++){set(i,y,K.street);set(W-1-i,y,K.street);}}
 
+ // LA JERARQUÍA DE LAS CIUDADES GRANDES (2026-11-21, Miguel: «rompé la cuadrícula»; sólo desde 12 por equipo: las del juego
+ // quedan exactamente como estaban). En una ciudad de 55 o 96 manzanas todas las calles se veían iguales. Ahora: los dos
+ // primeros cortes —el que parte la ciudad y el que parte cada mitad— son siempre avenidas, así queda una cruz de avenidas
+ // que la ordena; la manzana más cercana al centro es el parque central; y los parques se reparten en más zonas.
+ const GRANDE=team>=12;
  // 1. Subdivisión: cada corte abre una calle. Las calles largas son avenidas de dos carriles.
  const blocks=[],avenues=[];
  const split=(x0,y0,x1,y1,depth)=>{
   const w=x1-x0+1,h=y1-y0+1,limit=buildings==='rooms'?int(7,11)+(r()<.45?int(3,5):0):int(6,9);
   if(w<=limit&&h<=limit){blocks.push({x0,y0,x1,y1});return;}
   // Con habitaciones, partes de al menos 5 (edificios con interior); si no, de 3 como siempre.
-  const minPart=buildings==='rooms'?5:3,ancho=len=>CIUDAD.avenidas&&len>=.55*Math.max(W,H)?CIUDAD.avenida:CIUDAD.calle,fits=v=>(v?w:h)>=2*minPart+ancho(v?h:w);
+  const minPart=buildings==='rooms'?5:3,ancho=len=>CIUDAD.avenidas&&(len>=.55*Math.max(W,H)||GRANDE&&depth<=1)?CIUDAD.avenida:CIUDAD.calle,/* (GRANDE: los dos primeros cortes son avenidas, la cruz que ordena la ciudad) */fits=v=>(v?w:h)>=2*minPart+ancho(v?h:w);
   let vertical=w>h?r()<.85:w<h?r()<.15:r()<.5;
   // Si el corte elegido no cabe, se prueba el otro sentido: así no quedan manzanas largas y finas.
   if(!fits(vertical))vertical=!vertical;
@@ -296,11 +301,13 @@ function generate({seed=1,team=3,buildings='rooms',siteDoors=null,parks=false}={
  // 48 / 57 % sin parques; no mueve el equilibrio.
  const parkSet=new Set();
  if(parks){
-  const Z={2:[2,1],3:[2,2],5:[3,2],8:[4,2]}[team]||[2,2],[zx,zy]=W>=H?Z:[Z[1],Z[0]];
+  const Z={2:[2,1],3:[2,2],5:[3,2],8:[4,2],12:[3,2],16:[4,3]}[team]||[2,2],[zx,zy]=W>=H?Z:[Z[1],Z[0]];
   // Presupuesto: un 9 % de la ciudad. Las zonas se recorren en un orden al azar (de la semilla); si el mejor parque de
   // una zona no cabe en lo que queda, esa zona se queda sin parque. Se prefieren las manzanas chicas.
   const special=[...used].map(b=>({x:b.cx,y:b.cy})),free=blocks.filter(b=>!used.has(b)&&b.w>=5&&b.h>=5);
-  let budget=Math.round(W*H*.09);
+  let budget=Math.round(W*H*(GRANDE?.11:.09));
+  // (el parque central: la manzana libre más cercana al centro, antes de repartir los demás)
+  if(GRANDE){const c=free.filter(b=>!special.some(a=>Math.hypot(a.x-b.cx,a.y-b.cy)<6)).sort((a,b)=>Math.hypot(a.cx-W/2,a.cy-H/2)-Math.hypot(b.cx-W/2,b.cy-H/2))[0];if(c){parkSet.add(c);budget-=c.w*c.h;result.central={x0:c.x0,y0:c.y0};}}
   const zones=[];for(let j=0;j<zy;j++)for(let i=0;i<zx;i++)zones.push([i,j]);
   for(let k=zones.length-1;k>0;k--){const m=Math.floor(r()*(k+1));[zones[k],zones[m]]=[zones[m],zones[k]];}
   for(const [i,j] of zones){

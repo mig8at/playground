@@ -68,6 +68,7 @@ export function drawCityStage(canvas,bp,{cell,stage,level=0,selected=-1,fronts=t
  // cuadro de vereda que las une. Así la pintura de vías (cebras, líneas de carril) cae sobre asfalto, como en la calle.
  if(stage>=3&&m>=1.2){const via=(x,y)=>x>=0&&y>=0&&x<W&&y<H&&(kind[y*W+x]===K.street||kind[y*W+x]===K.avenue),v=CALLE.vereda*m,cordon=Math.max(.6,Math.min(1.6,m*.12));
   g.fillStyle=PAPER.asfalto;for(let y=0;y<H;y++)for(let x=0;x<W;x++)if(via(x,y))g.fillRect(x*cell,y*cell,cell+.5,cell+.5);
+  const esquinas=[];
   g.fillStyle=PAPER.street;g.strokeStyle=PAPER.cordon;g.lineWidth=cordon;g.beginPath();
   for(let y=0;y<H;y++)for(let x=0;x<W;x++){if(!via(x,y))continue;const X0=x*cell,Y0=y*cell,n=!via(x,y-1),s2=!via(x,y+1),w=!via(x-1,y),e=!via(x+1,y);
    if(n){g.fillRect(X0,Y0,cell+.5,v);g.moveTo(X0+(w?v:0),Y0+v);g.lineTo(X0+cell-(e?v:0),Y0+v);}
@@ -75,9 +76,11 @@ export function drawCityStage(canvas,bp,{cell,stage,level=0,selected=-1,fronts=t
    if(w){g.fillRect(X0,Y0,v,cell+.5);g.moveTo(X0+v,Y0+(n?v:0));g.lineTo(X0+v,Y0+cell-(s2?v:0));}
    if(e){g.fillRect(X0+cell-v,Y0,v+.5,cell+.5);g.moveTo(X0+cell-v,Y0+(n?v:0));g.lineTo(X0+cell-v,Y0+cell-(s2?v:0));}
    // (la esquina de una manzana que toca esta casilla sólo en diagonal: su cuadro de vereda, con el cordón en L)
-   for(const [dx,dy] of [[-1,-1],[1,-1],[-1,1],[1,1]]){if(via(x+dx,y+dy)||!via(x+dx,y)||!via(x,y+dy))continue;const cx=dx<0?X0:X0+cell-v,cy=dy<0?Y0:Y0+cell-v;g.fillRect(cx,cy,v+.5,v+.5);
-    const ix=dx<0?X0+v:X0+cell-v,iy=dy<0?Y0+v:Y0+cell-v;g.moveTo(ix,dy<0?Y0:Y0+cell);g.lineTo(ix,iy);g.lineTo(dx<0?X0:X0+cell,iy);}}
-  g.stroke();}
+   // (2026-11-21: redondeada, como el cordón de una esquina de verdad —un cuarto de círculo del radio de la vereda con el
+   // centro en la esquina de la manzana—; antes era un cuadro, y todas las esquinas se veían en ángulo recto)
+   for(const [dx,dy] of [[-1,-1],[1,-1],[-1,1],[1,1]]){if(via(x+dx,y+dy)||!via(x+dx,y)||!via(x,y+dy))continue;esquinas.push([dx<0?X0:X0+cell,dy<0?Y0:Y0+cell,dx,dy]);}}
+  g.stroke();
+  for(const [cx,cy,dx,dy] of esquinas){const a0=dx<0?(dy<0?0:-Math.PI/2):(dy<0?Math.PI/2:Math.PI);g.beginPath();g.moveTo(cx,cy);g.arc(cx,cy,v,a0,a0+Math.PI/2);g.closePath();g.fill();g.beginPath();g.arc(cx,cy,v,a0,a0+Math.PI/2);g.stroke();}}
  if(stage===2){g.strokeStyle='rgba(0,0,0,.25)';g.lineWidth=1;for(const b of bp.blocks)g.strokeRect(b.x0*cell+.5,b.y0*cell+.5,b.w*cell-1,b.h*cell-1);return;}
  // Etapa 3: lotes por tipo; patios de manzana.
  for(const c of bp.courts){g.fillStyle=PAPER.courtyard;g.fillRect(c.x0*cell,c.y0*cell,(c.x1-c.x0+1)*cell,(c.y1-c.y0+1)*cell);}
