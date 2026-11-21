@@ -20,6 +20,7 @@ jira_title: ""
 - [x] Dar textura a las fachadas en el 3D: siete texturas dibujadas (ladrillo, ladrillo pintado, sillar, estuco, panel, hormigón, tablilla), la misma en el alzado 2D y en el 3D.
 - [x] Dar textura también a los techos y al zócalo en el 3D: mansardas de pizarra, azotea con membrana y gravilla, zócalo de piedra.
 - [ ] Pintar grafitis desde adentro del 3D y guardarlos en un servidor: termina cuando lo que pinta una persona lo ve otra.
+- [ ] Unir las dos caras de un tabique en una sola pared con dos caras. Depende de: Miguel — hoy cada cara es una pared aparte (una por cuarto); decidir si la base de datos las quiere así o como una pared con dos lados.
 - [ ] Decidir quién puede pintar un muro. Depende de: Miguel — adentro, el dueño; afuera, el dueño del edificio, cualquiera, o pagando con la moneda.
 - [ ] Permitir pintar las paredes de las casas del monte: termina cuando una pared de una casa del monte se pinta en el plano y se ve en el 3D.
 - [ ] Decidir si se usan texturas de foto bajadas de internet. Depende de: Miguel — hoy todas están dibujadas en el código, del mismo estilo; las de foto (libres, de Poly Haven o ambientCG) se verían más reales y menos «de dibujo», y pesan más.
@@ -135,6 +136,7 @@ Cada uno con su condición de cierre. Los hechos pasan a la pila como bloque.
 **Qué**: pintar píxeles sobre los paños de muro de la planta baja.
 **Hecho**: del plano sale la lista de paños pintables (edificio, lado, tramo, alto, y sus dos puntas en la ciudad): el muro de la planta baja entre vano y vano, del zócalo (0,8 m) al dintel (2,6 m), de 1 m de ancho o más. El alzado de cada edificio los marca en verde.
 **Hecho también**: pintar. Lo que se pinta es el **muro entero** (decisión de Miguel, 2026-11-21): una fachada completa o una pared de un cuarto, sin sus ventanas ni sus puertas; afuera y adentro, para decorar la casa. La grilla es de píxeles de 5 cm (una fachada de 12 × 6 m son 240 × 120), con 15 colores, pincel de 1 a 8 píxeles y acercar. Se pinta en el plano, queda guardado en el navegador y el paseo en 3D lo muestra en esa pared.
+**Las paredes son independientes** (decisión de Miguel, 2026-11-21): una fachada no es un solo muro. Cada lado se parte en paredes de un piso de alto y, a lo ancho, de un tabique al siguiente; cada una tiene su identificador (`L<lote>-<lado>-P<piso>-T<tramo>` afuera, `L<lote>-P<piso>-C<cuarto>-<lado>` adentro). La fachada se sigue pintando de corrido, pero se guarda y se carga por pared: es lo que después lista una base de datos. Un edificio enumera todas las suyas.
 **Falta**: las casas del monte (su plano está en otras coordenadas); pintar desde adentro del 3D; guardarlo en un servidor para que lo vean otros; quién puede pintar cada muro (el dueño adentro; afuera, por decidir).
 **Cierre**: una persona pinta un muro y otra lo ve al pasar.
 
