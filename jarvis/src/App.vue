@@ -15,7 +15,7 @@ const KEEP_SAYS = {
  * Todo llega por UN stream en tiempo real (/api/events, server/events.go); los cuadros del navegador, por el suyo
  * (/api/live/frames). La ruta: #/ (en vivo), #/project/<app> (su portada), #/flow/<app>/<id>. */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { vResize, readSize, saveSize, readPref, savePref, fitRegions, cssSize, bindThemeToggle, readHashRoute, hashRoute, setRoute } from './workbench.js'
+import { vResize, readSize, saveSize, readPref, savePref, fitRegions, cssSize, bindThemeToggle, readHashRoute, hashRoute, setRoute, confirmDialog, toast, registerCommands, bindCommandPalette } from './workbench.js'
 import RunViewer from './RunViewer.vue'
 
 // Cada pedido va a la pestaña que se está mirando (server/tabs.go): sin el encabezado, el servidor usaría la última
@@ -147,7 +147,7 @@ async function newTab() {
 }
 async function closeTab(id) {
   const t = tabs.value.find((x) => x.id === id)
-  if (t?.busy && !confirm(`En esta pestaña está trabajando Claude («${t.meta}»). ¿Cerrarla igual? Se frena.`)) return
+  if (t?.busy && !(await confirmDialog({ title: '¿Cerrar la pestaña?', description: `En esta pestaña está trabajando Claude («${t.meta}»). Si la cerrás, se frena.`, confirm: 'Cerrar', destructive: true }))) return
   try { await api(`/api/tabs/${id}`, { method: 'DELETE' }) } catch (e) { liveError.value = e.message }
 }
 
@@ -402,8 +402,8 @@ function editStepText(i, el) {
   if (t && t !== flowSteps.value[i].instruction) saveFlowStep(i, { instruction: t })
   else el.innerText = flowSteps.value[i].instruction || flowSteps.value[i].action
 }
-function removeStep(i) {
-  if (confirm(`¿Sacar el paso ${i + 1} del flujo? «${flowSteps.value[i].instruction || flowSteps.value[i].action}»`)) saveFlowStep(i, { delete: true })
+async function removeStep(i) {
+  if (await confirmDialog({ title: `¿Sacar el paso ${i + 1} del flujo?`, description: `«${flowSteps.value[i].instruction || flowSteps.value[i].action}»`, confirm: 'Sacar', destructive: true })) saveFlowStep(i, { delete: true })
 }
 // Los arreglos que propuso una repetición (server/repair.go): un elemento había cambiado y se siguió con uno
 // parecido. No se escriben solos en el flujo: se aplican o se descartan acá (o con bin/jarvis flows repairs).
@@ -411,7 +411,10 @@ const flowRepairs = computed(() => flowData.value?.flow.repairs || [])
 const repairOf = (i) => flowRepairs.value.find((r) => r.step === i)
 async function resolveRepairs(action) {
   viewError.value = ''
-  try { await api(`/api/flows/${view.value.app}/${view.value.id}/repairs`, { method: 'POST', body: JSON.stringify({ action }) }) } catch (e) { viewError.value = e.message }
+  try {
+    await api(`/api/flows/${view.value.app}/${view.value.id}/repairs`, { method: 'POST', body: JSON.stringify({ action }) })
+    toast(action === 'apply' ? 'Arreglo aplicado' : 'Arreglo descartado', { icon: 'check', description: action === 'apply' ? 'La próxima repetición usa los elementos nuevos' : 'El flujo queda como estaba' })
+  } catch (e) { viewError.value = e.message }
 }
 async function playFlow(m) {
   viewError.value = ''
@@ -419,24 +422,27 @@ async function playFlow(m) {
 }
 // Borrar lo que ya no hace falta (algo que sólo se quería entender): un flujo, o un proyecto entero.
 async function deleteFlowOf(f) {
-  if (!confirm(`¿Borrar el flujo «${f.name}»? Se borra su archivo de jarvis/flows.`)) return
+  if (!(await confirmDialog({ title: `¿Borrar el flujo «${f.name}»?`, description: 'Se borra su archivo de jarvis/flows.', confirm: 'Borrar', destructive: true }))) return
   try {
     await api(`/api/flows/${f.app}/${f.id}`, { method: 'DELETE' })
+    toast('Flujo borrado', { icon: 'trash', description: f.name })
     if (view.value.kind === 'flow' && view.value.app === f.app && view.value.id === f.id) go({ kind: 'project', app: f.app })
   } catch (e) { viewError.value = e.message }
 }
 async function deleteProject(g) {
   const n = g.list.length
   const keeps = g.url && !g.real ? ' La app de práctica sigue en la lista, vacía.' : ''
-  if (!confirm(`¿Borrar el proyecto «${appName(g.app)}»? Se borran ${n === 1 ? 'su flujo' : `sus ${n} flujos`} y sus corridas guardadas (los videos).${keeps}`)) return
+  if (!(await confirmDialog({ title: `¿Borrar el proyecto «${appName(g.app)}»?`, description: `Se borran ${n === 1 ? 'su flujo' : `sus ${n} flujos`} y sus corridas guardadas (los videos).${keeps}`, confirm: 'Borrar', destructive: true }))) return
   try {
     await api(`/api/projects/${g.app}`, { method: 'DELETE' })
+    toast('Proyecto borrado', { icon: 'trash', description: appName(g.app) })
     if (view.value.app === g.app) go(g.url && !g.real ? { kind: 'project', app: g.app } : { kind: 'live' })
   } catch (e) { viewError.value = e.message }
 }
 async function deleteFlow() {
-  if (!confirm(`¿Eliminar el flujo «${flowData.value.flow.name}»? Se borra su archivo de jarvis/flows.`)) return
-  try { await api(`/api/flows/${view.value.app}/${view.value.id}`, { method: 'DELETE' }); go({ kind: 'live' }) } catch (e) { viewError.value = e.message }
+  const name = flowData.value.flow.name
+  if (!(await confirmDialog({ title: `¿Borrar el flujo «${name}»?`, description: 'Se borra su archivo de jarvis/flows.', confirm: 'Borrar', destructive: true }))) return
+  try { await api(`/api/flows/${view.value.app}/${view.value.id}`, { method: 'DELETE' }); go({ kind: 'live' }); toast('Flujo borrado', { icon: 'trash', description: name }) } catch (e) { viewError.value = e.message }
 }
 
 // ── la barra lateral ──
@@ -558,6 +564,28 @@ const panelResize = {
 const regionRefs = { sidebar: sidebarOpen, panel: panelOpen, aux: auxOpen }
 const toggle = (key, name) => { const r = regionRefs[name]; r.value = !r.value; saveSize(key, r.value ? 1 : 0) }
 
+// ── la paleta de comandos (⌘K, tools/ui): lo que se hace en Jarvis sin mouse, y cada flujo para abrirlo ──
+const urlField = ref(null)
+registerCommands([
+  { id: 'open-page', label: 'Abrir una página', group: 'Navegador', icon: 'external', keywords: ['url', 'sitio'], run: () => { sidebarOpen.value = true; setTimeout(() => urlField.value?.focus(), 0) } },
+  { id: 'new-tab', label: 'Abrir una pestaña nueva', group: 'Navegador', icon: 'plus', run: () => newTab() },
+  { id: 'grid', label: 'Ver todas las sesiones a la vez', group: 'Navegador', icon: 'apps', keywords: ['todas', 'grilla', 'paralelo'], run: () => { liveMode.value = liveMode.value === 'grid' ? 'one' : 'grid'; go({ kind: 'live' }) } },
+  { id: 'follow', label: 'Seguir a Claude (o dejar de seguirlo)', group: 'Navegador', icon: 'eye', run: () => { followClaude.value = !followClaude.value } },
+  { id: 'replay', label: 'Reproducir este flujo', group: 'Flujo', icon: 'play', when: () => flowOpen.value, run: () => playFlow('fill') },
+  { id: 'sidebar', label: 'Mostrar u ocultar los proyectos', group: 'Disposición', icon: 'sidebar', run: () => toggle('jarvis.sidebar-open', 'sidebar') },
+  { id: 'panel', label: 'Mostrar u ocultar los pasos, la consola y la red', group: 'Disposición', icon: 'console', run: () => toggle('jarvis.panel-open', 'panel') },
+  { id: 'aux', label: 'Mostrar u ocultar el panel de Claude', group: 'Disposición', icon: 'detail', run: () => toggle('jarvis.aux-open', 'aux') },
+])
+// Cada flujo y cada proyecto, para ir directo («crear producto» y Enter); se rearman cuando cambia la lista.
+let unregisterFlows = () => {}
+watch([flows, apps], () => {
+  unregisterFlows()
+  unregisterFlows = registerCommands([
+    ...flows.value.map((f) => ({ id: `flow:${f.app}/${f.id}`, label: f.name, group: 'Flujos', icon: 'play', hint: appName(f.app), keywords: [f.app], run: () => go({ kind: 'flow', app: f.app, id: f.id }) })),
+    ...flowGroups.value.map((g) => ({ id: `project:${g.app}`, label: appName(g.app), group: 'Proyectos', icon: 'folder', hint: `${g.list.length} flujos`, run: () => openProject(g.app) })),
+  ])
+}, { immediate: true })
+
 const themeToggle = ref(null)
 let themeBinding = null
 onMounted(() => {
@@ -565,6 +593,7 @@ onMounted(() => {
   window.addEventListener('hashchange', onHashChange)
   window.addEventListener('resize', onWindowResize)
   if (themeToggle.value) themeBinding = bindThemeToggle(themeToggle.value)
+  bindCommandPalette()
 })
 onBeforeUnmount(() => {
   clearTimeout(reconnectTimer); events?.close(); frames?.close(); resizeObs?.disconnect(); themeBinding?.()
@@ -594,7 +623,7 @@ const status = computed(() => {
 
       <!-- abrir cualquier página en vivo (por ejemplo, para loguearse a mano con Google) -->
       <form class="open-url" @submit.prevent="openURL(urlInput)">
-        <input v-model="urlInput" class="input input-sm" type="text" inputmode="url" placeholder="Abrir una página: https://…" aria-label="Abrir una página" spellcheck="false" />
+        <input ref="urlField" v-model="urlInput" class="input input-sm" type="text" inputmode="url" placeholder="Abrir una página: https://…" aria-label="Abrir una página" spellcheck="false" />
         <button type="submit" class="region-action" title="Abrirla en vivo" aria-label="Abrirla en vivo" :disabled="!urlInput.trim() || opening"><span class="ui-icon" data-icon="play" aria-hidden="true"></span></button>
       </form>
       <div class="region-head"><span>Proyectos</span><span class="count">{{ flowGroups.length }}</span></div>

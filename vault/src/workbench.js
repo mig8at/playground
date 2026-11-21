@@ -525,6 +525,11 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
         const count = document.createElement('span'); count.className = 'n'; count.textContent = item.count;
         control.appendChild(count);
       }
+      // El atajo del ítem, como tecla (`shortcut: 'mod+shift+c'`): el menú es donde se descubre.
+      if (item.shortcut) {
+        const k = document.createElement('kbd'); k.className = 'kbd'; k.textContent = formatShortcut(item.shortcut);
+        control.appendChild(k);
+      }
       control.addEventListener('click', () => {
         if (checkbox) settle();
         if (!checkbox) close(!link);
@@ -572,4 +577,189 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
   return { open, close, refresh, destroy() {
     close(); trigger.removeEventListener('click', toggle); trigger.removeEventListener('keydown', triggerKeys);
   } };
+}
+
+// ── ATAJOS ───────────────────────────────────────────────────────────────────────────────────────
+// Un atajo se escribe una vez, igual en todas las herramientas: 'mod+k', 'mod+shift+p', 'alt+r', '?', 'g t'
+// no (sin secuencias). `mod` es ⌘ en Mac y Ctrl en el resto. formatShortcut lo muestra como se lee en ESA
+// máquina (⌘K · Ctrl+K) y matchShortcut dice si un keydown es ése.
+const isMac = () => typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || '');
+export function formatShortcut(shortcut, mac = isMac()) {
+  const names = mac ? { mod: '⌘', shift: '⇧', alt: '⌥', ctrl: '⌃', enter: '↩', escape: 'Esc', backspace: '⌫' }
+    : { mod: 'Ctrl', shift: 'Shift', alt: 'Alt', ctrl: 'Ctrl', enter: 'Enter', escape: 'Esc', backspace: 'Retroceso' };
+  const parts = String(shortcut).toLowerCase().split('+').map((p) => names[p] || (p.length === 1 ? p.toUpperCase() : p[0].toUpperCase() + p.slice(1)));
+  return parts.join(mac ? '' : '+');
+}
+export function matchShortcut(e, shortcut, mac = isMac()) {
+  const parts = String(shortcut).toLowerCase().split('+');
+  const key = parts.pop();
+  const want = { mod: parts.includes('mod'), shift: parts.includes('shift'), alt: parts.includes('alt'), ctrl: parts.includes('ctrl') };
+  const mod = mac ? e.metaKey : e.ctrlKey;
+  const ctrl = mac ? e.ctrlKey : false;
+  // Un carácter que ya sale con Shift (?, !, :) no pide Shift aparte: '?' es Shift+/ en casi todos los teclados.
+  const printable = key.length === 1 && !/[a-z0-9]/.test(key);
+  if (mod !== want.mod || e.altKey !== want.alt || ctrl !== want.ctrl) return false;
+  if (!printable && e.shiftKey !== want.shift) return false;
+  const pressed = (e.key || '').toLowerCase();
+  return pressed === key || (key.length === 1 && /[a-z0-9]/.test(key) && (e.code || '').toLowerCase() === (/[0-9]/.test(key) ? `digit${key}` : `key${key}`));
+}
+// Escribiendo en un campo, un atajo sin modificador (?, una letra) es texto, no un comando.
+const typing = (el) => !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
+
+// ── AVISO BREVE ──────────────────────────────────────────────────────────────────────────────────
+// toast('Producto creado') · toast('Se borró la tarea', { action: { label: 'Deshacer', run: () => … } }).
+// De a uno: uno nuevo reemplaza al anterior. Se va solo (4 s; con una acción, 8 s, para alcanzar a tocarla) y
+// queda mientras el puntero está encima. Lo lee un lector de pantalla (aria-live).
+let currentToast = null;
+export function toast(title, { description = '', action = null, icon = '', kind = '', timeout } = {}) {
+  currentToast?.close();
+  let stack = document.querySelector('.toast-stack');
+  if (!stack) {
+    stack = document.createElement('div'); stack.className = 'toast-stack';
+    stack.setAttribute('role', 'status'); stack.setAttribute('aria-live', 'polite');
+    document.body.appendChild(stack);
+  }
+  const el = document.createElement('div');
+  el.className = 'toast' + (kind === 'destructive' ? ' toast-destructive' : '');
+  if (icon) { const i = document.createElement('span'); i.className = 'ui-icon toast-icon'; i.dataset.icon = icon; i.setAttribute('aria-hidden', 'true'); el.appendChild(i); }
+  const t = document.createElement('div'); t.className = 'toast-title'; t.textContent = title; el.appendChild(t);
+  if (description) { const d = document.createElement('div'); d.className = 'toast-desc'; d.textContent = description; el.appendChild(d); }
+  const actions = document.createElement('div'); actions.className = 'toast-actions';
+  if (action) {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'btn btn-ghost btn-xs'; b.textContent = action.label;
+    b.addEventListener('click', () => { handle.close(); action.run?.(); });
+    actions.appendChild(b);
+  }
+  const x = document.createElement('button'); x.type = 'button'; x.className = 'region-action'; x.title = 'Cerrar'; x.setAttribute('aria-label', 'Cerrar el aviso');
+  x.innerHTML = '<span class="ui-icon" data-icon="close" aria-hidden="true"></span>';
+  x.addEventListener('click', () => handle.close());
+  actions.appendChild(x); el.appendChild(actions);
+  stack.appendChild(el);
+  let timer = null;
+  const ms = timeout ?? (action ? 8000 : 4000);
+  const arm = () => { if (ms > 0) timer = setTimeout(() => handle.close(), ms); };
+  el.addEventListener('pointerenter', () => clearTimeout(timer));
+  el.addEventListener('pointerleave', arm);
+  const handle = { el, close() { clearTimeout(timer); el.remove(); if (currentToast === handle) currentToast = null; } };
+  currentToast = handle;
+  arm();
+  return handle;
+}
+
+// ── CONFIRMACIÓN ─────────────────────────────────────────────────────────────────────────────────
+// if (await confirmDialog({ title: '¿Borrar el flujo «X»?', description: 'No se puede deshacer.', confirm: 'Borrar',
+//   destructive: true })) … — en lugar de confirm(). Devuelve true sólo con el botón de confirmar; Escape, Cancelar o un
+// clic afuera devuelven false. Con destructive, el foco arranca en Cancelar.
+export function confirmDialog({ title, description = '', confirm = 'Confirmar', cancel = 'Cancelar', destructive = false } = {}) {
+  return new Promise((resolve) => {
+    const d = document.createElement('dialog'); d.className = 'ui-dialog';
+    d.setAttribute('aria-labelledby', 'ui-dialog-title');
+    const h = document.createElement('h2'); h.className = 'dialog-title'; h.id = 'ui-dialog-title'; h.textContent = title; d.appendChild(h);
+    if (description) { const p = document.createElement('p'); p.className = 'dialog-desc'; p.textContent = description; d.appendChild(p); }
+    const row = document.createElement('div'); row.className = 'dialog-actions';
+    const no = document.createElement('button'); no.type = 'button'; no.className = 'btn btn-outline'; no.textContent = cancel;
+    const yes = document.createElement('button'); yes.type = 'button'; yes.className = 'btn' + (destructive ? ' btn-destructive' : ''); yes.textContent = confirm;
+    row.append(no, yes); d.appendChild(row);
+    let answer = false;
+    const done = (v) => { answer = v; d.close(); };
+    no.addEventListener('click', () => done(false));
+    yes.addEventListener('click', () => done(true));
+    d.addEventListener('click', (e) => { if (e.target === d) done(false); }); // el clic en el fondo
+    d.addEventListener('close', () => { d.remove(); resolve(answer); });
+    document.body.appendChild(d);
+    d.showModal();
+    (destructive ? no : yes).focus();
+  });
+}
+
+// ── PALETA DE COMANDOS ───────────────────────────────────────────────────────────────────────────
+// registerCommands([{ id, label, group?, icon?, shortcut?, keywords?, hint?, when?: () => bool, run }]) suma los
+// comandos de la herramienta (devuelve cómo sacarlos). bindCommandPalette() pone ⌘K (y ?, sin estar escribiendo)
+// para abrirla y el atajo propio de cada comando. filterCommands es la búsqueda: sin tildes ni mayúsculas, todas
+// las palabras tienen que aparecer, y gana la que empieza antes.
+const commands = new Map();
+export function registerCommands(list) {
+  for (const c of list) commands.set(c.id, c);
+  return () => { for (const c of list) if (commands.get(c.id) === c) commands.delete(c.id); };
+}
+const plain = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+export function filterCommands(list, query) {
+  const words = plain(query).split(/\s+/).filter(Boolean);
+  if (!words.length) return list.slice();
+  const scored = [];
+  for (const c of list) {
+    const label = plain(c.label), haystack = `${label} ${plain(c.group)} ${plain((c.keywords || []).join(' '))}`;
+    if (!words.every((w) => haystack.includes(w))) continue;
+    const at = label.indexOf(words[0]);
+    scored.push({ c, score: (at < 0 ? 1000 : at) + (label.startsWith(words[0]) ? -500 : 0) });
+  }
+  return scored.sort((a, b) => a.score - b.score).map((x) => x.c);
+}
+const available = () => [...commands.values()].filter((c) => !c.when || c.when());
+let palette = null;
+export function openCommandPalette(initial = '') {
+  if (palette) return;
+  const d = document.createElement('dialog'); d.className = 'command'; d.setAttribute('aria-label', 'Comandos');
+  const input = document.createElement('input'); input.className = 'command-input'; input.type = 'text';
+  input.placeholder = 'Buscá una acción…'; input.setAttribute('role', 'combobox'); input.setAttribute('aria-expanded', 'true');
+  input.setAttribute('aria-controls', 'command-list'); input.setAttribute('aria-autocomplete', 'list'); input.value = initial;
+  const list = document.createElement('div'); list.className = 'command-list'; list.id = 'command-list'; list.setAttribute('role', 'listbox');
+  d.append(input, list); document.body.appendChild(d);
+  let shown = [], active = 0;
+  function render() {
+    shown = filterCommands(available(), input.value);
+    active = Math.min(active, Math.max(0, shown.length - 1));
+    list.replaceChildren();
+    if (!shown.length) { const e = document.createElement('div'); e.className = 'command-empty'; e.textContent = 'Nada coincide'; list.appendChild(e); return; }
+    let group = null;
+    shown.forEach((c, i) => {
+      if (!input.value.trim() && c.group && c.group !== group) {
+        group = c.group; const g = document.createElement('div'); g.className = 'command-group'; g.textContent = c.group; list.appendChild(g);
+      }
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'command-item'; b.id = `command-${i}`;
+      b.setAttribute('role', 'option'); b.setAttribute('aria-selected', String(i === active)); b.tabIndex = -1;
+      if (c.icon) { const ic = document.createElement('span'); ic.className = 'ui-icon'; ic.dataset.icon = c.icon; ic.setAttribute('aria-hidden', 'true'); b.appendChild(ic); }
+      const l = document.createElement('span'); l.className = 'command-label'; l.textContent = c.label; b.appendChild(l);
+      if (c.hint) { const h = document.createElement('span'); h.className = 'command-hint'; h.textContent = c.hint; b.appendChild(h); }
+      if (c.shortcut) { const k = document.createElement('kbd'); k.className = 'kbd'; k.textContent = formatShortcut(c.shortcut); b.appendChild(k); }
+      b.addEventListener('pointermove', () => { if (active !== i) { active = i; mark(); } });
+      b.addEventListener('click', () => choose(i));
+      list.appendChild(b);
+    });
+    input.setAttribute('aria-activedescendant', `command-${active}`);
+  }
+  function mark() {
+    list.querySelectorAll('.command-item').forEach((b, i) => b.setAttribute('aria-selected', String(i === active)));
+    input.setAttribute('aria-activedescendant', `command-${active}`);
+    list.querySelector(`#command-${active}`)?.scrollIntoView({ block: 'nearest' });
+  }
+  function choose(i) { const c = shown[i]; d.close(); if (c) setTimeout(() => c.run?.(), 0); }
+  input.addEventListener('input', () => { active = 0; render(); });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); if (shown.length) { active = (active + (e.key === 'ArrowDown' ? 1 : -1) + shown.length) % shown.length; mark(); } }
+    else if (e.key === 'Home' && !input.value) { e.preventDefault(); active = 0; mark(); }
+    else if (e.key === 'End' && !input.value) { e.preventDefault(); active = shown.length - 1; mark(); }
+    else if (e.key === 'Enter') { e.preventDefault(); choose(active); }
+  });
+  d.addEventListener('click', (e) => { if (e.target === d) d.close(); });
+  d.addEventListener('close', () => { d.remove(); palette = null; });
+  palette = d;
+  render();
+  d.showModal();
+  input.focus();
+}
+let paletteBound = false;
+export function bindCommandPalette({ shortcut = 'mod+k' } = {}) {
+  if (paletteBound) return;
+  paletteBound = true;
+  document.addEventListener('keydown', (e) => {
+    if (palette || e.defaultPrevented) return;
+    if (matchShortcut(e, shortcut) || (!typing(e.target) && matchShortcut(e, '?'))) { e.preventDefault(); openCommandPalette(); return; }
+    for (const c of available()) {
+      if (!c.shortcut || !matchShortcut(e, c.shortcut)) continue;
+      // Sin modificador (una letra, ?), escribiendo en un campo es texto.
+      if (!/(mod|alt|ctrl)\+/.test(c.shortcut) && typing(e.target)) continue;
+      e.preventDefault(); c.run?.(); return;
+    }
+  });
 }

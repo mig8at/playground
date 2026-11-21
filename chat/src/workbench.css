@@ -86,6 +86,13 @@
   --icon-size: 16px;
   --radius-control: 6px;    /* botón, campo, ítem de menú, botón de icono */
   --radius-float: 10px;     /* lo que flota: radio del ítem + el aire del menú (6 + 4), concéntricos */
+  /* El movimiento: DOS duraciones y una curva para todo lo que cambia de estado (2026-11-20). Eran quince
+     transiciones escritas a mano (.12s, .3s ease). Rápido para lo que responde al puntero (fondo al pasar, foco,
+     un interruptor); base para lo que aparece o se mueve (un aviso, un diálogo, el avance de una barra). Con
+     «reducir movimiento» del sistema, las dos valen 0: el estado cambia igual, sin animarse. */
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --ease-out: cubic-bezier(.2, .8, .2, 1);
   --hover: color-mix(in oklab, var(--foreground) 8%, transparent); /* fondo al pasar: fantasma, icono, fila */
   /* El primario cuando lleva TEXTO (un enlace, un botón, un contador filtrado). El primario del tema en
      claro (Darkmatter, #d87943) no llega a 4,5:1 ni como texto sobre blanco ni con texto blanco encima
@@ -431,7 +438,7 @@ button.region-head:focus-visible { outline: none; box-shadow: inset 0 0 0 2px va
    la misma, en el panel pintarían las DOS y se verían dos líneas. */
 .rsz { z-index: 5; touch-action: none; cursor: col-resize; position: relative }
 .rsz[aria-orientation="horizontal"], .rsz.rsz-b, .rsz.rsz-y, .rsz.rsz-edge-top { cursor: row-resize }
-.rsz::before { content: ""; position: absolute; inset: 0; background: transparent; transition: background .12s }
+.rsz::before { content: ""; position: absolute; inset: 0; background: transparent; transition: background var(--motion-fast) }
 .rsz::after { content: ""; position: absolute; inset: 0 -4px; z-index: 1 }
 .rsz[aria-orientation="horizontal"]::after, .rsz.rsz-b::after, .rsz.rsz-y::after, .rsz.rsz-edge-top::after { inset: -4px 0 }
 .rsz:hover::before, .rsz:focus-visible::before, .rsz.on::before, body.resizing .rsz.on::before { background: var(--ring) }
@@ -483,7 +490,7 @@ body.resizing { cursor: col-resize; user-select: none }
   border-radius: var(--radius-control);
   font: inherit; font-size: var(--text-base); font-weight: 500; line-height: 20px;
   background: var(--primary-ink); color: var(--primary-foreground);
-  cursor: pointer; transition: background .12s, color .12s, border-color .12s, box-shadow .12s;
+  cursor: pointer; transition: background var(--motion-fast), color var(--motion-fast), border-color var(--motion-fast), box-shadow var(--motion-fast);
 }
 .btn:hover { background: color-mix(in oklab, var(--primary-ink) 90%, transparent) }
 .btn:disabled, .btn[aria-disabled="true"] { pointer-events: none; opacity: .5 }
@@ -520,7 +527,7 @@ body.resizing { cursor: col-resize; user-select: none }
   padding: 0 var(--gutter); border: 1px solid var(--input); border-radius: var(--radius-control);
   background: transparent; color: var(--foreground);
   font: inherit; font-size: var(--text-base); line-height: 20px;
-  outline: none; transition: color .12s, border-color .12s, box-shadow .12s;
+  outline: none; transition: color var(--motion-fast), border-color var(--motion-fast), box-shadow var(--motion-fast);
 }
 .input::placeholder { color: var(--fg-3) }
 .input:disabled { pointer-events: none; cursor: not-allowed; opacity: .5 }
@@ -535,7 +542,7 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 /* Un campo con algo adentro —una lupa, una ✕, una unidad—. El borde lo lleva el GRUPO y el input
    queda desnudo adentro: si lo llevan los dos, se ven dos marcos concéntricos. */
 .input-group { display: flex; align-items: center; gap: var(--space-2); height: var(--control-md); padding: 0 var(--space-2);
-  border: 1px solid var(--input); border-radius: var(--radius-control); background: transparent; transition: border-color .12s, box-shadow .12s }
+  border: 1px solid var(--input); border-radius: var(--radius-control); background: transparent; transition: border-color var(--motion-fast), box-shadow var(--motion-fast) }
 .input-group > .input { height: auto; border: 0; box-shadow: none; padding: 0; flex: 1 }
 .input-group > svg, .input-group > .ico-txt { flex: none; color: var(--fg-3) }
 
@@ -554,7 +561,7 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
   height: 20px; padding: 0 var(--space-2); border: 1px solid transparent; border-radius: 999px;
   font-size: var(--text-xs); font-weight: 500; line-height: 16px;
   background: var(--primary-ink); color: var(--primary-foreground);
-  transition: color .12s, box-shadow .12s;
+  transition: color var(--motion-fast), box-shadow var(--motion-fast);
 }
 .badge-secondary { background: var(--secondary); color: var(--secondary-foreground) }
 .badge-destructive { background: var(--destructive-ink); color: var(--background) }
@@ -584,10 +591,10 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 .switch {
   position: relative; display: inline-flex; align-items: center; flex-shrink: 0;
   width: 32px; height: 18px; padding: 0; border: 1px solid transparent; border-radius: 999px;
-  background: var(--input); cursor: pointer; transition: background .12s, box-shadow .12s;
+  background: var(--input); cursor: pointer; transition: background var(--motion-fast), box-shadow var(--motion-fast);
 }
 .switch::after { content: ""; display: block; width: 14px; height: 14px; margin-left: 1px;
-  border-radius: 999px; background: var(--foreground); transition: transform .12s }
+  border-radius: 999px; background: var(--foreground); transition: transform var(--motion-fast) }
 .switch[aria-checked="true"] { background: var(--primary) }
 .switch[aria-checked="true"]::after { transform: translateX(14px); background: var(--primary-foreground) }
 .switch:disabled { cursor: not-allowed; opacity: .5 }
@@ -618,7 +625,7 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
   background: color-mix(in oklab, var(--primary) 20%, transparent) }
 .progress > i, .progress > .progress-bar {
   display: block; height: 100%; width: 100%; border-radius: inherit;
-  background: var(--primary); transition: width .3s ease }
+  background: var(--primary); transition: width var(--motion-base) var(--ease-out) }
 
 /* Dos extensiones declaradas —shadcn no las trae— y las dos ya existían a mano en dos herramientas:
 
@@ -659,7 +666,7 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
   height: var(--control-md); min-width: var(--control-md); padding: 0 var(--space-2);
   border: 1px solid transparent; border-radius: var(--radius-control); background: transparent;
   font: inherit; font-size: var(--text-base); font-weight: 500; color: inherit; white-space: nowrap;
-  cursor: pointer; transition: color .12s, background .12s, border-color .12s, box-shadow .12s;
+  cursor: pointer; transition: color var(--motion-fast), background var(--motion-fast), border-color var(--motion-fast), box-shadow var(--motion-fast);
 }
 /* ⚠ El original es `hover:bg-muted hover:text-muted-foreground`, y es la TERCERA vez que ese par
    falla en este tema: `--muted-foreground` sobre `--muted` mide 3,63:1. Va la rampa del 74% que ya
@@ -706,7 +713,7 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
   display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; width: 100%;
   padding: var(--space-3) 0; border: 1px solid transparent; border-radius: var(--radius-control);
   background: none; color: inherit; font: inherit; font-size: var(--text-base); font-weight: 500;
-  text-align: left; cursor: pointer; list-style: none; transition: all .12s; outline: none;
+  text-align: left; cursor: pointer; list-style: none; transition: all var(--motion-fast); outline: none;
 }
 .accordion-trigger::-webkit-details-marker { display: none }
 .accordion-trigger:hover { text-decoration: underline }
@@ -749,7 +756,7 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
   font-size: var(--text-base); color: var(--fg-3); word-break: break-word }
 .breadcrumb-item { display: inline-flex; align-items: center; gap: var(--space-2) }
 .breadcrumb-link { color: inherit; text-decoration: none; background: none; border: 0; padding: 0;
-  font: inherit; cursor: pointer; transition: color .12s }
+  font: inherit; cursor: pointer; transition: color var(--motion-fast) }
 .breadcrumb-link:hover { color: var(--foreground) }
 .breadcrumb-page { font-weight: 400; color: var(--foreground) }
 /* ⚠ Sin `opacity`: sobre `--fg-3` lo dejaba en 2,8:1. Un separador es tenue por su TAMAÑO. */
@@ -764,7 +771,7 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
   appearance: none; -webkit-appearance: none; flex: none; display: grid; place-content: center;
   width: 16px; height: 16px; margin: 0;
   border: 1px solid var(--input); border-radius: 4px; background: transparent; color: var(--primary-foreground); cursor: pointer;
-  transition: background .12s, border-color .12s, box-shadow .12s;
+  transition: background var(--motion-fast), border-color var(--motion-fast), box-shadow var(--motion-fast);
 }
 .checkbox::after { content: ""; width: 4px; height: 8px; margin-top: -2px;
   border: solid currentColor; border-width: 0 2px 2px 0; transform: rotate(45deg) scale(0);
@@ -825,6 +832,90 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 .cockpit-claude[aria-pressed="true"] { color: var(--foreground) }
 .cockpit-claude.unseen::after { content: ""; position: absolute; top: 3px; right: 3px; width: 6px; height: 6px; border-radius: 50%;
   background: var(--primary) }
+
+@media (prefers-reduced-motion: reduce) { :root { --motion-fast: 0ms; --motion-base: 0ms } }
+
+/* ── AVISO BREVE ────────────────────────────────────────────────────────────────────────────────
+   Lo que pasó y no necesita respuesta: «Producto creado», «Copiado», «Se borró la tarea · Deshacer» (2026-11-20).
+   Cinco herramientas lo armaban cada una a su manera. La regla es la de VS Code: abajo a la derecha, arriba del pie,
+   DE A UNO (uno nuevo reemplaza al anterior) y se va solo. Lo que sigue corriendo de fondo no es un aviso: va al pie.
+   Lo que necesita una decisión tampoco: es una confirmación (abajo). Se usa con `toast()` de workbench.js. */
+.toast-stack { position: fixed; z-index: 60; right: var(--space-3); bottom: calc(var(--statusbar-h) + var(--space-3));
+  display: grid; justify-items: end; pointer-events: none }
+.toast {
+  pointer-events: auto; box-sizing: border-box; display: grid; grid-template-columns: 0 1fr auto; align-items: center;
+  column-gap: 0; row-gap: var(--space-1); width: min(360px, calc(100vw - 2 * var(--space-3))); min-height: var(--control-lg);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  border: 1px solid var(--border); border-radius: var(--radius-float); background: var(--popover); color: var(--popover-foreground);
+  box-shadow: 0 10px 30px #0008; font-size: var(--text-base); line-height: 20px;
+  animation: toast-in var(--motion-base) var(--ease-out);
+}
+.toast:has(> .toast-icon) { grid-template-columns: 16px 1fr auto; column-gap: var(--space-2) }
+.toast-icon { grid-column: 1; color: var(--fg-2) }
+.toast-title { grid-column: 2; min-width: 0; font-weight: 600 }
+.toast-desc { grid-column: 2; min-width: 0; color: var(--fg-2) }
+.toast-actions { grid-column: 3; grid-row: 1 / span 2; display: flex; align-items: center; gap: 2px }
+.toast-destructive .toast-icon { color: var(--destructive-ink) }
+@keyframes toast-in { from { opacity: 0; transform: translateY(8px) } }
+
+/* ── CONFIRMACIÓN ───────────────────────────────────────────────────────────────────────────────
+   La pregunta antes de lo que no se deshace (borrar, publicar). Reemplaza al `confirm()` del navegador, que cinco
+   herramientas usaban: no respeta el tema, no dice qué botón es el peligroso y se ve distinto en cada navegador. Es un
+   `<dialog>` modal (el navegador da el foco atrapado y Escape), con `confirmDialog()` de workbench.js. El foco
+   arranca en Cancelar cuando la acción es destructiva: un Enter de más no borra nada. */
+.ui-dialog {
+  box-sizing: border-box; width: min(420px, calc(100vw - 2 * var(--space-4))); max-height: calc(100vh - 2 * var(--space-4));
+  margin: auto; padding: var(--space-6); display: grid; gap: var(--space-2);
+  border: 1px solid var(--border); border-radius: var(--radius-float); background: var(--popover); color: var(--popover-foreground);
+  box-shadow: 0 20px 50px #000a; font-size: var(--text-base);
+}
+.ui-dialog:not([open]) { display: none }
+.ui-dialog::backdrop { background: color-mix(in oklab, var(--background) 70%, transparent) }
+.ui-dialog[open] { animation: dialog-in var(--motion-base) var(--ease-out) }
+.dialog-title { margin: 0; font-size: var(--text-title); font-weight: 600; line-height: 24px }
+.dialog-desc { margin: 0; color: var(--fg-2); line-height: 1.6 }
+.dialog-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-4) }
+@keyframes dialog-in { from { opacity: 0; transform: scale(.98) } }
+
+/* ── PROGRESO EN UNA REGIÓN Y FILAS FANTASMA ────────────────────────────────────────────────────
+   Lo que está cargando se dice DONDE carga: una línea de 2 px pegada abajo de la banda de esa región (como la vista
+   de VS Code), indeterminada si no se sabe cuánto falta. Un spinner en el medio de la pantalla tapa lo que ya había.
+   Una lista que todavía no llegó se dibuja con filas fantasma de su misma altura: así no salta cuando llega. */
+.region-head:has(> .region-progress) { position: relative }
+.region-progress { position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; border-radius: 0 }
+.skeleton { display: block; height: 12px; border-radius: var(--radius-control);
+  background: color-mix(in oklab, var(--foreground) 10%, transparent); animation: skeleton 1.4s ease-in-out infinite }
+.skeleton-row { box-sizing: border-box; display: flex; align-items: center; gap: var(--space-2); height: var(--row-h); padding: 0 var(--gutter) }
+.skeleton-row > .skeleton:first-child { width: 60% }
+.skeleton-row:nth-child(3n+2) > .skeleton:first-child { width: 45% }
+.skeleton-row:nth-child(3n) > .skeleton:first-child { width: 72% }
+@keyframes skeleton { 50% { opacity: .5 } }
+@media (prefers-reduced-motion: reduce) { .skeleton { animation: none } }
+
+/* ── PALETA DE COMANDOS Y ATAJOS ────────────────────────────────────────────────────────────────
+   ⌘K (Ctrl+K) abre una lista de todo lo que se puede hacer en la herramienta, se filtra escribiendo y se elige con
+   flechas y Enter: así todo se puede usar sin mouse y un atajo se descubre al buscar su acción (la vara de Zed:
+   «¿se puede usar sin mouse? ¿los atajos se descubren solos?»). Cada herramienta registra sus comandos con
+   `registerCommands()`; `bindCommandPalette()` pone ⌘K y los atajos de cada comando. Un atajo se muestra siempre
+   con `.kbd`: en la paleta, en el menú de la región (`shortcut` en el ítem) y en un `title`. */
+.command { box-sizing: border-box; width: min(560px, calc(100vw - 2 * var(--space-4))); max-height: min(440px, calc(100vh - 2 * var(--space-6)));
+  margin: 12vh auto auto; padding: 0; display: flex; flex-direction: column; overflow: hidden;
+  border: 1px solid var(--border); border-radius: var(--radius-float); background: var(--popover); color: var(--popover-foreground);
+  box-shadow: 0 20px 50px #000a; font-size: var(--text-base) }
+.command:not([open]) { display: none }
+.command::backdrop { background: color-mix(in oklab, var(--background) 60%, transparent) }
+.command-input { flex: none; box-sizing: border-box; height: var(--control-lg); padding: 0 var(--space-4); border: 0; border-bottom: 1px solid var(--border);
+  background: transparent; color: inherit; font: inherit; font-size: var(--text-body); outline: none }
+.command-list { flex: 1; min-height: 0; overflow-y: auto; padding: var(--space-1) }
+.command-group { padding: var(--space-2) var(--space-2) var(--space-1); font-size: var(--text-xs); font-weight: 500; color: var(--fg-3) }
+.command-item { box-sizing: border-box; display: flex; align-items: center; gap: var(--space-2); width: 100%; height: var(--control-md); padding: 0 var(--space-2);
+  border: 0; border-radius: var(--radius-control); background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer }
+.command-item[aria-selected="true"] { background: var(--accent); color: var(--accent-foreground) }
+.command-item .ui-icon { color: var(--fg-2) }
+.command-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.command-hint { color: var(--fg-3); font-size: var(--text-sm); white-space: nowrap }
+.command-empty { padding: var(--space-4); color: var(--fg-3); text-align: center }
+.region-menu-item .kbd, .command-item .kbd { margin-left: auto }
 
 /* <icons> — generado por tools/ui-icons.mjs desde lucide-static@1.48.0 según tools/ui/icons.json.
    No se edita a mano: un icono nuevo se ELIGE en Lucide y se suma a icons.json. */

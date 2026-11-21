@@ -930,6 +930,122 @@
         }
       },
       "use": "Al pasar, al enfocar o con la fila elegida: dos botones de 24 como máximo, en el lugar del dato. En una pantalla táctil, siempre."
+    },
+    {
+      "group": "Avisos",
+      "id": "toast",
+      "name": "Aviso breve",
+      "cls": ".toast",
+      "html": "<div class=\"toast\"><span class=\"ui-icon toast-icon\" data-icon=\"check\" aria-hidden=\"true\"></span><div class=\"toast-title\">Producto creado</div><div class=\"toast-actions\"><button class=\"btn btn-ghost btn-xs\">Deshacer</button><button class=\"region-action\" aria-label=\"Cerrar\"><span class=\"ui-icon\" data-icon=\"close\" aria-hidden=\"true\"></span></button></div></div>",
+      "measure": {
+        "width": 360,
+        "minHeight": 40,
+        "paddingLeft": 12,
+        "paddingTop": 8,
+        "borderRadius": 10,
+        "fontSize": 13,
+        "lineHeight": 20
+      },
+      "parts": {
+        ".toast-title": {
+          "fontWeight": 600
+        },
+        ".btn": {
+          "height": 24
+        }
+      },
+      "use": "Lo que pasó y no pide respuesta, abajo a la derecha arriba del pie. De a uno; se va solo (4 s, 8 con acción). Con toast() de workbench.js."
+    },
+    {
+      "group": "Avisos",
+      "id": "dialog",
+      "name": "Confirmación",
+      "cls": ".ui-dialog",
+      "html": "<dialog open class=\"ui-dialog\" style=\"position:static\"><h2 class=\"dialog-title\">¿Borrar el flujo?</h2><p class=\"dialog-desc\">No se puede deshacer.</p><div class=\"dialog-actions\"><button class=\"btn btn-outline\">Cancelar</button><button class=\"btn btn-destructive\">Borrar</button></div></dialog>",
+      "measure": {
+        "width": 420,
+        "paddingLeft": 24,
+        "paddingTop": 24,
+        "borderRadius": 10,
+        "fontSize": 13
+      },
+      "parts": {
+        ".dialog-title": {
+          "fontSize": 16,
+          "fontWeight": 600
+        },
+        ".dialog-actions": {
+          "gap": 8,
+          "marginTop": 16
+        },
+        ".btn": {
+          "height": 32
+        }
+      },
+      "use": "La pregunta antes de lo que no se deshace, en lugar de confirm(). Foco en Cancelar si es destructiva. Con confirmDialog() de workbench.js."
+    },
+    {
+      "group": "Avisos",
+      "id": "region-progress",
+      "name": "Progreso de una región",
+      "cls": ".region-progress",
+      "html": "<div class=\"region-head\"><span>Flujos</span><div class=\"progress progress-xs progress-ind region-progress\"><i></i></div></div>",
+      "target": ".region-progress",
+      "measure": {
+        "height": 2,
+        "borderRadius": 0
+      },
+      "use": "Lo que carga, dicho donde carga: una línea de 2 pegada abajo de la banda. Indeterminada si no se sabe cuánto falta."
+    },
+    {
+      "group": "Listas",
+      "id": "skeleton-row",
+      "name": "Fila fantasma",
+      "cls": ".skeleton-row",
+      "html": "<div><div class=\"skeleton-row\"><span class=\"skeleton\"></span></div></div>",
+      "target": ".skeleton-row",
+      "measure": {
+        "height": 28,
+        "paddingLeft": 12
+      },
+      "parts": {
+        ".skeleton": {
+          "height": 12,
+          "borderRadius": 6
+        }
+      },
+      "use": "Una lista que todavía no llegó, con la altura de sus filas: no salta cuando llega."
+    },
+    {
+      "group": "Listas",
+      "id": "command-item",
+      "name": "Comando",
+      "cls": ".command-item",
+      "html": "<dialog open class=\"command\" style=\"position:static;margin:0\"><input class=\"command-input\" placeholder=\"Buscá una acción…\"><div class=\"command-list\"><button class=\"command-item\" aria-selected=\"true\"><span class=\"ui-icon\" data-icon=\"play\" aria-hidden=\"true\"></span><span class=\"command-label\">Abrir una página</span><kbd class=\"kbd\">⌘O</kbd></button></div></dialog>",
+      "target": ".command-item",
+      "measure": {
+        "height": 32,
+        "paddingLeft": 8,
+        "gap": 8,
+        "fontSize": 13,
+        "borderRadius": 6,
+        "iconSize": 16
+      },
+      "parts": {
+        ".command": {
+          "width": 560,
+          "borderRadius": 10
+        },
+        ".command-input": {
+          "height": 40,
+          "fontSize": 14,
+          "paddingLeft": 16
+        },
+        ".kbd": {
+          "height": 20
+        }
+      },
+      "use": "Una acción de la paleta (⌘K), con su atajo a la derecha. Con registerCommands() y bindCommandPalette() de workbench.js."
     }
   ]
 }

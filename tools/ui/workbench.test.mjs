@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { regionSize, reopenSize, fitRegions, bindResize, preferredTheme, setTheme, bindThemeToggle, THEME_KEY, THEME_BOOT, bindPanelMaximize,
-  readPref, savePref, setRoute, readHashRoute, hashRoute } from './workbench.js';
+  readPref, savePref, setRoute, readHashRoute, hashRoute, formatShortcut, matchShortcut, filterCommands } from './workbench.js';
 
 test('regionSize: 0 o al menos el mínimo', () => {
   assert.equal(regionSize(300, 240), 300);
@@ -246,4 +246,32 @@ test('setRoute: push para cambiar qué se mira, replace para el detalle, nada si
   setRoute('/#/b', { push: true });
   setRoute('/#/b?vista=comercio');
   assert.deepEqual(calls, [['push', '/#/b'], ['replace', '/#/b?vista=comercio']]);
+});
+
+test('formatShortcut: como se lee en cada máquina', () => {
+  assert.equal(formatShortcut('mod+k', true), '⌘K');
+  assert.equal(formatShortcut('mod+k', false), 'Ctrl+K');
+  assert.equal(formatShortcut('mod+shift+p', true), '⌘⇧P');
+  assert.equal(formatShortcut('alt+r', false), 'Alt+R');
+  assert.equal(formatShortcut('?', true), '?');
+});
+
+test('matchShortcut: mod es ⌘ en Mac y Ctrl en el resto', () => {
+  const ev = (o) => ({ key: '', code: '', metaKey: false, ctrlKey: false, altKey: false, shiftKey: false, ...o });
+  assert.ok(matchShortcut(ev({ key: 'k', metaKey: true }), 'mod+k', true));
+  assert.ok(!matchShortcut(ev({ key: 'k', ctrlKey: true }), 'mod+k', true), 'en Mac, Ctrl+K no es ⌘K');
+  assert.ok(matchShortcut(ev({ key: 'k', ctrlKey: true }), 'mod+k', false));
+  assert.ok(!matchShortcut(ev({ key: 'k', metaKey: true, shiftKey: true }), 'mod+k', true), 'un Shift de más no es el mismo atajo');
+  assert.ok(matchShortcut(ev({ key: '?', shiftKey: true }), '?', true), '? ya sale con Shift: no lo pide aparte');
+  assert.ok(matchShortcut(ev({ key: '®', code: 'KeyR', altKey: true }), 'alt+r', true), 'en Mac Alt cambia la letra: vale el código de la tecla');
+});
+
+test('filterCommands: sin tildes, todas las palabras, gana la que empieza antes', () => {
+  const list = [{ id: 'a', label: 'Abrir una página' }, { id: 'b', label: 'Borrar el proyecto', group: 'Proyecto' }, { id: 'c', label: 'Cambiar el tema', keywords: ['claro', 'oscuro'] }];
+  assert.deepEqual(filterCommands(list, '').map((c) => c.id), ['a', 'b', 'c']);
+  assert.deepEqual(filterCommands(list, 'pagina').map((c) => c.id), ['a'], 'sin tilde encuentra «página»');
+  assert.deepEqual(filterCommands(list, 'oscuro').map((c) => c.id), ['c'], 'por palabra clave');
+  assert.deepEqual(filterCommands(list, 'proyecto borrar').map((c) => c.id), ['b'], 'las palabras en cualquier orden');
+  assert.deepEqual(filterCommands(list, 'el').map((c) => c.id), ['b', 'c'], 'gana la que tiene la palabra antes');
+  assert.deepEqual(filterCommands(list, 'zzz'), []);
 });

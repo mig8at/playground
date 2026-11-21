@@ -386,6 +386,20 @@
         "jarvis/extension"
       ],
       "port": 5299
+    },
+    {
+      "name": "style-guide",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "5198",
+        "--bind",
+        "127.0.0.1",
+        "--directory",
+        "tools/ui"
+      ],
+      "port": 5198
     }
   ]
 }

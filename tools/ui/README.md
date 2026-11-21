@@ -241,6 +241,23 @@ El menú se monta fuera del scroll de la región y se ajusta a la ventana. Se ab
 
 En Vue se pasan `items` y se maneja `@select`. En HTML, `bindMenu(button, { getItems, onSelect, label })`. Cada opción tiene `id` y `label`, y puede tener `icon`, `disabled`, `count`, `checked` (una casilla: se alterna y el menú queda abierto) o `selected` (una opción única, como elegir un perfil: se marca y el menú se cierra); `{ separator: true }` divide grupos. Si el menú no entra abajo del botón, se abre arriba.
 
+## Avisos, confirmación, progreso y comandos
+
+Cuatro piezas que cada herramienta resolvía a su manera —cinco usaban el `confirm()` del navegador y cinco armaban sus propios avisos y atajos— y que salieron de comparar la base con VS Code, Linear, JetBrains y Zed (2026-11-20). Cada una dice **dónde** va, porque el error común no es el aspecto sino el lugar.
+
+| Qué pasa | Pieza | Dónde | Regla |
+| --- | --- | --- | --- |
+| Algo terminó y no pide respuesta («Producto creado», «Copiado») | `toast(título, { description, action, icon })` · `.toast` | Abajo a la derecha, arriba del pie | **De a uno**: uno nuevo reemplaza al anterior. Se va solo (4 s; 8 con una acción, para alcanzar a tocarla) y se queda mientras el puntero está encima. Una acción como mucho («Deshacer») |
+| Algo sigue corriendo de fondo | `.statusbar-item` con `.spinner` | El pie | No es un aviso: un aviso que dura lo que dura una tarea larga tapa y se olvida |
+| Una región está cargando | `.progress.progress-xs.progress-ind.region-progress` adentro de su `.region-head` | Abajo de la banda de ESA región, 2 px | Donde carga, no en el medio de la pantalla. Indeterminada si no se sabe cuánto falta: una barra que se llena sola inventa un porcentaje |
+| Una lista todavía no llegó | `.skeleton-row` › `.skeleton` | En el lugar de la lista | Filas de la misma altura que las de verdad, así no salta cuando llega |
+| Algo que no se deshace (borrar, publicar) | `await confirmDialog({ title, description, confirm, destructive })` · `.ui-dialog` | Un `<dialog>` modal, centrado | En lugar de `confirm()`. El título es la pregunta con el objeto («¿Borrar el flujo «X»?»), el botón dice el verbo («Borrar») y no «Aceptar». Con `destructive`, el botón va en `.btn-destructive` y el foco arranca en Cancelar. Escape, Cancelar o el fondo dicen que no |
+| Hacer algo sin mouse, o encontrar dónde está | `registerCommands([...])` · `bindCommandPalette()` · `.command` | ⌘K (Ctrl+K); también `?` si no se está escribiendo | Cada herramienta registra sus acciones: `{ id, label, group, icon, shortcut, keywords, hint, when, run }`. La búsqueda ignora tildes y mayúsculas y pide todas las palabras |
+
+**Un atajo se escribe una vez y se muestra siempre igual.** Se declara como `'mod+k'`, `'mod+shift+p'`, `'alt+r'` o `'?'` (`mod` es ⌘ en Mac y Ctrl en el resto), y `formatShortcut` lo muestra como se lee en esa máquina (⌘K · Ctrl+K) dentro de un `.kbd`: en la paleta, en el menú de la región (`shortcut` en el ítem de `bindMenu` o `RegionMenu`) y en el `title` de un botón («Abrir una página (⌘O)»). Un atajo sin modificador no corre mientras se escribe en un campo. Un atajo que no aparece en ningún lado no existe para quien no lo sabe.
+
+**El movimiento son dos tokens.** `--motion-fast` (120 ms) para lo que responde al puntero —fondo al pasar, foco, un interruptor— y `--motion-base` (200 ms) con `--ease-out` para lo que aparece o se mueve —un aviso, un diálogo, el avance de una barra—. Con «reducir movimiento» del sistema valen 0: el estado cambia igual, sin animarse. Una duración escrita a mano (`.12s`) no se apaga con esa preferencia.
+
 ## Construir sobre la base
 
 Para una herramienta nueva, y en ese orden para acercar una existente cada vez que se la toca:

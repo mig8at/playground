@@ -89,6 +89,8 @@
         </div>
         <p>Las acciones frecuentes usan iconos con tooltip. El menú reúne las opciones secundarias y muestra sus nombres completos. Un punto indica opciones activas.</p>
         <h2>Campos</h2><label class="field sample-input"><span class="label">Buscar</span><span class="input-group"><span class="ui-icon" data-icon="search" aria-hidden="true"></span><input class="input" placeholder="Nombre, clave o contenido…"></span><span class="field-hint">Una etiqueta clara y foco visible.</span></label>
+        <h2>Avisos, confirmación y comandos</h2><div class="toolbar" role="group" aria-label="Avisos y comandos"><button class="btn btn-outline" id="demoToast">Mostrar un aviso</button><button class="btn btn-outline" id="demoConfirm">Pedir confirmación</button><button class="btn btn-outline" id="demoPalette" title="Abrir la paleta de comandos (⌘K)">Abrir la paleta <kbd class="kbd">⌘K</kbd></button></div>
+        <div class="region-head" style="margin-top:var(--space-3)"><span>Una región cargando</span><div class="progress progress-xs progress-ind region-progress"><i></i></div></div><div class="skeleton-row"><span class="skeleton"></span></div><div class="skeleton-row"><span class="skeleton"></span></div><div class="skeleton-row"><span class="skeleton"></span></div>
         <h2>Acordeón</h2><details class="accordion-item"><summary class="accordion-trigger">Opciones adicionales<span class="accordion-chev" aria-hidden="true">⌄</span></summary><div class="accordion-content">Usa details para contenido desplegable dentro de una región. Usa view cuando las secciones se reparten el alto del sidebar.</div></details>
       </section>
       <section id="tokens" hidden>
@@ -124,7 +126,7 @@ Los ejemplos son locales y no ejecutan operaciones en las herramientas.</pre></s
   </div></footer>
 </div>
 <script type="module">
-import { bindResize, bindMenu } from './workbench.js';
+import { bindResize, bindMenu, toast, confirmDialog, registerCommands, bindCommandPalette, openCommandPalette } from './workbench.js';
 const wb=document.getElementById('workbench');
 const regions=[['leftResize','toggleLeft','navigation','--sidebar-w',224,160,400,1],['rightResize','toggleRight','inspector','--auxiliarybar-w',252,180,420,-1],['bottomResize','toggleBottom','console','--panel-h',152,80,360,-1,'y']];
 const controls=regions.map(([id,toggle,region,css,initial,min,max,sign,axis])=>{
@@ -133,9 +135,9 @@ const controls=regions.map(([id,toggle,region,css,initial,min,max,sign,axis])=>{
   const get=()=>parseFloat(getComputedStyle(wb).getPropertyValue(css));
   const set=(v,remember=true)=>{if(v&&remember)last=v;wb.style.setProperty(css,v+'px');el.style.visibility=v?'visible':'hidden';button.setAttribute('aria-pressed',String(v>0));};
   const c=bindResize(document.getElementById(id),{label:axis?'Alto de consola':'Ancho de '+region,min,max,sign,axis,defaultValue:initial,collapsible:true,get,set});
-  const toggle=()=>{set(get()?0:last);c.sync();};
-  button.onclick=toggle; button.setAttribute('aria-pressed','true');
-  return { close:()=>{set(0,false);c.sync();}, toggle };
+  const flip=()=>{set(get()?0:last);c.sync();};
+  button.onclick=flip; button.setAttribute('aria-pressed','true');
+  return { close:()=>{set(0,false);c.sync();}, toggle: flip };
 });
 document.getElementById('closePanel').onclick=()=>{controls[2].close();document.getElementById('toggleBottom').focus();};
 document.querySelectorAll('a[href^="#"]').forEach(link=>link.onclick=(e)=>{e.preventDefault();document.querySelectorAll('#content > section').forEach(s=>s.hidden='#'+s.id!==link.hash);document.querySelectorAll('a[href^="#"]').forEach(a=>a.removeAttribute('aria-current'));link.setAttribute('aria-current','page');document.getElementById('content').scrollTop=0;});
@@ -158,5 +160,15 @@ bindMenu(menuButton, {
     if (id === 'clear') document.getElementById('output').textContent = 'Consola de ejemplos limpia.';
   },
 });
+const log=(t)=>{document.getElementById('output').textContent+='\n'+t};
+document.getElementById('demoToast').onclick=()=>toast('Producto creado',{icon:'check',action:{label:'Deshacer',run:()=>log('Ejemplo: deshecho')}});
+document.getElementById('demoConfirm').onclick=async()=>log('Ejemplo: confirmación → '+(await confirmDialog({title:'¿Borrar el flujo «Crear una tarea»?',description:'Se borra su archivo. No se puede deshacer.',confirm:'Borrar',destructive:true})?'borrar':'cancelada'));
+registerCommands([
+  {id:'toast',label:'Mostrar un aviso',group:'Ejemplos',icon:'bell',shortcut:'alt+t',run:()=>document.getElementById('demoToast').click()},
+  {id:'confirm',label:'Pedir confirmación',group:'Ejemplos',icon:'alert',run:()=>document.getElementById('demoConfirm').click()},
+  {id:'console',label:'Mostrar u ocultar la consola',group:'Disposición',icon:'bottom',keywords:['panel'],run:()=>controls[2].toggle()},
+]);
+bindCommandPalette();
+document.getElementById('demoPalette').onclick=()=>openCommandPalette();
 </script>
 </body></html>
