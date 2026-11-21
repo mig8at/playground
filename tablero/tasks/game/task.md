@@ -19,6 +19,8 @@ jira_title: ""
 - [ ] Decidir si hace falta cargar el 3D por zonas. Depende de: Miguel — hoy no hace falta para 720 m; haría falta para una ciudad bastante más grande o para una máquina más lenta que este PC.
 - [x] Dar textura a las fachadas en el 3D: siete texturas dibujadas (ladrillo, ladrillo pintado, sillar, estuco, panel, hormigón, tablilla), la misma en el alzado 2D y en el 3D.
 - [x] Dar textura también a los techos y al zócalo en el 3D: mansardas de pizarra, azotea con membrana y gravilla, zócalo de piedra.
+- [ ] Pintar grafitis desde adentro del 3D y guardarlos en un servidor: termina cuando lo que pinta una persona lo ve otra.
+- [ ] Decidir quién puede pintar un paño. Depende de: Miguel — el dueño del edificio, cualquiera, o pagando con la moneda.
 - [ ] Decidir si se usan texturas de foto bajadas de internet. Depende de: Miguel — hoy todas están dibujadas en el código, del mismo estilo; las de foto (libres, de Poly Haven o ambientCG) se verían más reales y menos «de dibujo», y pesan más.
 - [x] Listar las propiedades de una ciudad (departamentos, locales, casas) con área y precio base: la misma semilla da el mismo listado y se ve en el visor.
 - [ ] Revisar la fórmula del precio base. Depende de: Miguel — los factores (clase, centro, piso, parque) son propuesta de Claude.
@@ -76,6 +78,7 @@ Es interpretación mía de lo que pidió, para discutir; nada de esto está cons
 | dónde aparece quien entra, y el cupo | `game/src/engine/aparecer.js` |
 | la fachada medida: vanos, paños, textura y paños pintables | `game/src/engine/fachada-medida.js` |
 | las texturas de muro del 3D | `game/src/lib/texturas3d.js` |
+| el grafiti: la grilla de pixel art de un paño · su capa 3D | `game/src/engine/grafiti.js` · `game/src/lib/grafitis3d.js` |
 | el listado de lo que se vende, con área y precio | `game/src/engine/propiedades.js` |
 | dónde va cada contenedor de basura | `game/src/engine/contenedores.js` |
 | el dibujo del plano 2D, el alzado y las texturas | `game/src/lib/drawPlan.js`, `texturas2d.js` |
@@ -130,8 +133,9 @@ Cada uno con su condición de cierre. Los hechos pasan a la pila como bloque.
 
 **Qué**: pintar píxeles sobre los paños de muro de la planta baja.
 **Hecho**: del plano sale la lista de paños pintables (edificio, lado, tramo, alto, y sus dos puntas en la ciudad): el muro de la planta baja entre vano y vano, del zócalo (0,8 m) al dintel (2,6 m), de 1 m de ancho o más. El alzado de cada edificio los marca en verde.
-**Falta**: pintar sobre ellos y guardarlo.
-**Cierre**: en el alzado de un edificio se puede pintar sobre un paño y queda guardado.
+**Hecho también**: pintar. Cada paño es una grilla de píxeles de 10 cm con una paleta de 15 colores; se pinta en el alzado del plano, queda guardado en el navegador y el paseo en 3D lo muestra en esa pared.
+**Falta**: pintar desde adentro del 3D; guardarlo en un servidor para que lo vean otros; quién puede pintar cada paño (dueño, cualquiera, pagando).
+**Cierre**: una persona pinta un paño y otra lo ve al pasar.
 
 ### 7. Mundos por idioma o país — sin empezar
 

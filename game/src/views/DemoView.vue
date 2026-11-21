@@ -53,6 +53,8 @@ import {rng} from '../engine/veredas.js';
 import {mapaDeJuego} from '../engine/juego/mapa.js';
 import {entregaDe,entregaCasa} from '../engine/entrega.js';
 import {sitiosDe,aparecerEn} from '../engine/aparecer.js';
+import {createGrafitis} from '../lib/grafitis3d.js';
+import {claveCiudad} from '../engine/grafiti.js';
 import {RELOJ,MODO_BOTIN,PATRULLA} from '../engine/medidas.js';
 
 // (el salto, el del 2D —CIRCULACION.peaton.salto—: de ahí sale ALCANCE, a qué muebles se sube; CHOQUE_MUEBLE)
@@ -145,7 +147,7 @@ function ride(d){const at=world.elevatorAt(player.x,player.z,player.feet);if(!at
 const CIUDAD_LIMPIA=true;
 const INERCIA={arranca:14,frena:18};// (1/s: qué tan rápido la velocidad del jugador alcanza a la que piden las teclas)
 const SIN_ANIMAR=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
-const tiempos={};let planoVista=null,shadowTick=0,animalKit=null,animals=null,casas=null,viviendas=null,barrios=null,edgePass=null,renderer,composer,bloom,scene,camera,controls,world,crowd,traffic,island,folk,city,plan=null,streetLights=[],lightClock=0,sky,stars,sun,hemi,frame=0,last=0,baseMap=null,mapOff={x:0,y:0};
+const tiempos={};let grafitis=null,planoVista=null,shadowTick=0,animalKit=null,animals=null,casas=null,viviendas=null,barrios=null,edgePass=null,renderer,composer,bloom,scene,camera,controls,world,crowd,traffic,island,folk,city,plan=null,streetLights=[],lightClock=0,sky,stars,sun,hemi,frame=0,last=0,baseMap=null,mapOff={x:0,y:0};
 // (esJugador: las puertas no se le abren solas —2026-10-18, Miguel: «que toque abrir y cerrar con E»—; a la gente, sí)
 const keys=new Set(),player={x:0,z:0,feet:0,vy:0,ground:true,bob:0,esJugador:true};
 const euler=new THREE.Euler(0,0,0,'YXZ');
@@ -244,6 +246,8 @@ function load(ready=null){
  barrios=createBarrios(PRUEBA?{...plan,isla:{...plan.isla,barrios:[]}}:plan,{downtown,nature,furniture:furniture||office?{...(furniture||{}),...(office||{})}:null,ocultar:island.rampaEn,mobiliario:!plan.equipamiento});world.group.add(barrios.group);lap('barrios');
  // La gente de la isla rodea los edificios de los barrios (y los árboles y faroles de sus jardines).
  // Las casas de las manzanas de la montaña, con su jardín.
+ // (los grafitis guardados en el plano —'fuga.grafitis', engine/grafiti.js—: cada uno, en su paño de muro)
+ grafitis?.dispose();{let g={};try{g=JSON.parse(localStorage.getItem('fuga.grafitis')||'{}')[claveCiudad(seed.value,team.value)]||{};}catch{}grafitis=createGrafitis(plan,g);world.group.add(grafitis.group);}
  casas=createCasas(PRUEBA?{...plan,isla:{...plan.isla,casas:[]}}:plan,{nature,nature2,rampaEn:island.rampaEn});world.group.add(casas.group);lap('casas');
  // Las casas armadas (vivienda3d.js): se entra, se sube y se ve por las ventanas.
  viviendas=createHouses((PRUEBA?[]:plan.isla?.casas||[]).filter(c=>c.spec).map(c=>PASEO?{...c,spec:entregaCasa(c.spec)}:c).map(c=>({spec:c.colores||c.cortinas?{...c.spec,...(c.colores?{colores2d:c.colores}:{}),...(c.cortinas?{cortinas2d:c.cortinas}:{})}:c.spec,x:c.x,y:c.nivel,z:c.z,ry:c.ry})),{kit:furniture||casa2?{...(furniture||{}),...(casa2||{}),...(tienda||{})}:null});world.group.add(viviendas.group);lap('viviendas');

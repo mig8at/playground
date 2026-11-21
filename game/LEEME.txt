@@ -30,6 +30,9 @@ EL JUEGO
              muro entre ellos, la textura que le toca (la misma en el alzado 2D y en el 3D) y cómo cuadra (hiladas
              enteras por piso, módulos de 2 m). paniosPintables: lo que se puede pintar en la planta baja. Las
              texturas del 3D se dibujan en lib/texturas3d.js. Prueba: validar-fachada-medida.
+  GRAFITI    (2026-11-21, engine/grafiti.js): pixel art sobre un paño pintable: una grilla de píxeles de 10 cm y una
+             paleta de 15 colores. En /plano se toca un paño verde del alzado y se pinta; queda en el navegador
+             ('fuga.grafitis', por ciudad) y el paseo 3D lo muestra en esa pared (lib/grafitis3d.js). Prueba: validar-grafiti.
   COLOCAR    (2026-11-21, engine/colocar.js): una persona dice «acá» y el plano contesta dónde queda exactamente y si se
              puede, con la razón. De pared (cuadro, espejo, reloj, repisa): se pega a la pared más cercana, a la grilla
              de 5 cm; no pisa puertas ni ventanas ni otro colgado, ni queda detrás de un mueble alto. De piso (planta,
