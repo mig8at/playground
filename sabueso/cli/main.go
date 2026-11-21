@@ -298,7 +298,7 @@ func hunt(args []string) error {
 		if ok {
 			found++
 		} else if err := call("POST", "/api/companies/"+id+"/drop", map[string]any{}, nil, time.Minute); err == nil {
-			fmt.Println("  sin canal: sale de Sabueso (queda anotada para no volver a buscarla)")
+			fmt.Println("  sale de Sabueso (queda anotada para no volver a buscarla)")
 		}
 	}
 	fmt.Printf("\n%d de %d con contacto. Se ven en Sabueso (Cockpit) y con bin/sabueso list.\n", found, tried)
@@ -336,6 +336,7 @@ var fitName = map[string]string{"proposals": "recibe propuestas", "commercial": 
 func contactByID(id string) (bool, error) {
 	var r struct {
 		Matched  bool
+		Client   string
 		Website  string
 		Summary  string
 		Contacts []contactT
@@ -344,6 +345,10 @@ func contactByID(id string) (bool, error) {
 	}
 	if err := call("POST", "/api/companies/"+id+"/contact", map[string]any{}, &r, 8*time.Minute); err != nil {
 		return false, err
+	}
+	if r.Client != "" {
+		fmt.Printf("  ya es comercio de CreditOp: %s\n", r.Client)
+		return false, nil
 	}
 	if r.Website != "" {
 		fmt.Printf("  sitio: %s\n", r.Website)
@@ -449,7 +454,7 @@ func huntWeb(country, sector string, count, tries int) error {
 		if ok {
 			found++
 		} else if err := call("POST", "/api/companies/"+out.ID+"/drop", map[string]any{}, nil, time.Minute); err == nil {
-			fmt.Println("  sin canal: sale de Sabueso (queda anotada para no volver a buscarla)")
+			fmt.Println("  sale de Sabueso (queda anotada para no volver a buscarla)")
 		}
 	}
 	fmt.Printf("\n%d de %d con contacto. Se ven en Sabueso (Cockpit) y con bin/sabueso list.\n", found, tried)

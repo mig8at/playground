@@ -89,7 +89,11 @@ La vista completa sigue en el código (con `SIMPLE = false`):
   sitio de la empresa.
 - **Quién ya es cliente**: los comercios activos de CreditOp, leídos en prod por `bin/pg sql` (sólo lectura). Se cruza
   por NIT **y por nombre**, porque 139 de 213 comercios activos no tienen NIT en CreditOp. El registro los marca «ya es
-  cliente» y por defecto los oculta.
+  cliente» y por defecto los oculta. ⚠ La razón social del registro no siempre se parece a la marca (Inversiones Crear
+  Rama vende como Dentisalud; Organización Dental Planet, como Odontofamily: las dos ya son clientes): por eso Claude
+  devuelve también las **marcas** y el sitio, y después de buscar el contacto se cruzan con los clientes
+  (`clientByBrand`, también el sitio con algo adelante: `clinicasodontofamily` contiene `odontofamily`). Si resulta
+  cliente, `hunt` lo saca y queda anotado con su nombre en CreditOp (`noChannel` con `client`).
 - **Lo medido en prod** (cuánto origina cada sector y los clientes) se guarda 6 horas en `.data/measured.json`;
   «Volver a medir» lo fuerza. Sin VPN o sin la sesión del conector, el embudo lo dice y sigue con lo último medido.
 - **Pasar a una persona** marca «lo retoma <persona>» en la bitácora: desde ahí la conversación sigue en persona, fuera

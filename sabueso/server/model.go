@@ -135,6 +135,8 @@ type Dropped struct {
 	Name    string `json:"name"`
 	At      string `json:"at"`
 	Summary string `json:"summary,omitempty"`
+	// Client: si salió porque ya es comercio de CreditOp (con ese nombre); vacío, porque no tiene canal.
+	Client string `json:"client,omitempty"`
 }
 
 func newID(prefix string) string {

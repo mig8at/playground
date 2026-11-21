@@ -33,7 +33,10 @@ type Contact struct {
 
 // Research: lo que devolvió una búsqueda.
 type Research struct {
-	Matched  bool      `json:"matched"`
+	Matched bool     `json:"matched"`
+	Brands  []string `json:"brands,omitempty"`
+	// Client: si por su marca o su sitio resultó ser un comercio que ya trabaja con CreditOp (con ese nombre).
+	Client   string    `json:"client,omitempty"`
 	Website  string    `json:"website"`
 	Summary  string    `json:"summary"`
 	Contacts []Contact `json:"contacts"`
@@ -44,6 +47,7 @@ type Research struct {
 
 const researchSchema = `{"type":"object","properties":{
  "matched":{"type":"boolean","description":"si encontraste la empresa y es la misma"},
+ "brands":{"type":"array","items":{"type":"string"},"description":"los nombres comerciales o marcas con que vende (ej. la razón social Inversiones Crear Rama vende como Dentisalud)"},
  "website":{"type":"string","description":"el sitio oficial, o vacío si no tiene"},
  "summary":{"type":"string","description":"en español, 1 a 3 frases: qué es la empresa y qué canal conviene usar para la propuesta"},
  "contacts":{"type":"array","items":{"type":"object","properties":{
@@ -241,6 +245,10 @@ func applyResearch(c *Company, r *Research) {
 			}
 		}
 	}
+	if r.Client != "" {
+		c.log("research", "Ya es comercio de CreditOp: "+r.Client+". "+r.Summary)
+		return
+	}
 	if b := best(r.Contacts); b != nil {
 		c.log("research", fmt.Sprintf("Contacto para la propuesta: %s %s (%s). %s", strings.ToLower(channelName[b.Channel]), b.Value, b.Area, r.Summary))
 	} else if !r.Matched {
@@ -248,4 +256,45 @@ func applyResearch(c *Company, r *Research) {
 	} else {
 		c.log("research", "Sin canal público para la propuesta. "+r.Summary)
 	}
+}
+
+// clientByBrand: si la empresa ya es comercio de CreditOp por alguna de sus marcas o por el nombre de su sitio
+// (dentisalud.com.co → «dentisalud»). Devuelve el nombre con que está en CreditOp.
+func clientByBrand(m *Measured, c *Company, r *Research) string {
+	if m == nil {
+		return ""
+	}
+	names := append([]string{}, r.Brands...)
+	if host := hostStem(r.Website); host != "" {
+		names = append(names, host)
+	}
+	for _, n := range names {
+		if cl := m.IsClient("", n); cl != "" {
+			return cl
+		}
+	}
+	// El sitio puede traer el nombre del cliente con algo adelante: «clinicasodontofamily» contiene «odontofamily».
+	if stem := hostStem(r.Website); stem != "" {
+		for _, cl := range m.Clients {
+			if n := strings.ReplaceAll(normalizeName(cl.Name), " ", ""); len(n) >= 6 && strings.Contains(stem, n) {
+				return cl.Name
+			}
+		}
+	}
+	return ""
+}
+
+// hostStem: el nombre de un sitio sin www, sin el dominio y sin prefijos de ruido («clinicasodontofamily.com» →
+// «clinicasodontofamily»).
+func hostStem(site string) string {
+	site = strings.TrimSpace(strings.ToLower(site))
+	site = strings.TrimPrefix(strings.TrimPrefix(site, "https://"), "http://")
+	site = strings.TrimPrefix(site, "www.")
+	if i := strings.IndexAny(site, "/?#"); i >= 0 {
+		site = site[:i]
+	}
+	if i := strings.IndexByte(site, '.'); i > 0 {
+		return site[:i]
+	}
+	return ""
 }

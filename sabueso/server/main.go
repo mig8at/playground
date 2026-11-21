@@ -387,7 +387,7 @@ func routes() *http.ServeMux {
 
 	// Sacarla porque no tiene canal: sale de la lista y queda anotada para que hunt no la vuelva a buscar.
 	mux.HandleFunc("POST /api/companies/{id}/drop", func(w http.ResponseWriter, r *http.Request) {
-		var in struct{ Summary string }
+		var in struct{ Summary, Client string }
 		_ = json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&in)
 		_, err := withState(func(st *State) error {
 			for i, c := range st.Companies {
@@ -396,7 +396,14 @@ func routes() *http.ServeMux {
 					if sum == "" && c.Research != nil {
 						sum = c.Research.Summary
 					}
-					st.NoChannel = append(st.NoChannel, Dropped{NIT: c.NIT, Name: c.Name, At: now(), Summary: sum})
+					d := Dropped{NIT: c.NIT, Name: c.Name, At: now(), Summary: sum}
+					if c.Research != nil {
+						d.Client = c.Research.Client
+					}
+					if in.Client != "" {
+						d.Client = in.Client
+					}
+					st.NoChannel = append(st.NoChannel, d)
 					st.Companies = append(st.Companies[:i], st.Companies[i+1:]...)
 					return nil
 				}
@@ -443,6 +450,9 @@ func routes() *http.ServeMux {
 			if c == nil {
 				return errNotFound
 			}
+			// La razón social del registro no siempre se parece a la marca (Inversiones Crear Rama vende como Dentisalud,
+			// que ya es cliente): se compara también con las marcas y el sitio que encontró Claude.
+			res.Client = clientByBrand(loadMeasured(r.Context(), false), c, res)
 			applyResearch(c, res)
 			return nil
 		})

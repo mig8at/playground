@@ -148,3 +148,18 @@ func TestRankLenders(t *testing.T) {
 		t.Errorf("PayJoy: %+v", list[2])
 	}
 }
+
+func TestClientByBrand(t *testing.T) {
+	m := &Measured{Clients: []Client{{Name: "Dentisalud"}, {Name: "Odontofamily", NIT: "901297974"}}}
+	m.index()
+	co := &Company{Name: "INVERSIONES CREAR RAMA S.A.S"}
+	if got := clientByBrand(m, co, &Research{Brands: []string{"Dentisalud"}, Website: "https://www.dentisalud.com.co"}); got != "Dentisalud" {
+		t.Errorf("por la marca: %q", got)
+	}
+	if got := clientByBrand(m, co, &Research{Website: "https://clinicasodontofamily.com/"}); got != "Odontofamily" {
+		t.Errorf("por el sitio con prefijo: %q", got)
+	}
+	if got := clientByBrand(m, co, &Research{Brands: []string{"Maquinarias"}, Website: "https://maquinarias.pe"}); got != "" {
+		t.Errorf("una que no es cliente: %q", got)
+	}
+}
