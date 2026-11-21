@@ -59,7 +59,14 @@ Las rutas con `customer-authorizer` cuyo backend confía en la identidad que le 
 sobrescrituras más, tomadas del contexto del authorizer: `overwrite:header.x-user-id`
 (`$context.authorizer.internal_id`) y `overwrite:header.x-cognito-identity-id` (`$context.authorizer.cognito_sub`).
 Así un valor mandado por quien llama no llega al backend. No todas las rutas de cliente las llevan:
-`GET /legacy-api/loans/debt-summary` arma la ruta con `internal_id_expr` en `overwrite:path`.
+`GET /legacy-api/loans/debt-summary` arma la ruta con `internal_id_expr` en `overwrite:path`, y las de
+`/legacy-api/loans/requests/…` no pasan la identidad.
+
+En `environments/prod`, las rutas de cliente bajo `/legacy-api/loans/customer/…` (consumer, revolving —incluida
+`GET …/revolving/credits/{revolving_credit_id}/payment-info`— y `customer/payments/{reference}` con su
+`/receipt`) pasan esas mismas dos cabeceras con `append:header.x-user-id` y `append:header.x-cognito-identity-id`
+en lugar de `overwrite:`. `append` agrega el valor del contexto al de la cabecera que ya venga, no lo reemplaza,
+así que no da la garantía de las rutas con `overwrite:`. Las de `v1/mobile-onboarding` en prod sí usan `overwrite:`.
 
 Un servicio sólo sale por el gateway si su ruta está declarada: que el backend tenga el endpoint
 desplegado no basta. Una ruta que falta en el gateway responde 404 aunque el backend la tenga, y la

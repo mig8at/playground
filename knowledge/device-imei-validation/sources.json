@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Registro de IMEI y espera del titular",
   "summary": "Paso del asesor a IMEI, registro y reintento, ruta de desembolso sin autenticación ni chequeo de estado, y polling del titular.",
-  "reviewedAt": "2026-11-17T12:52:59+00:00",
+  "reviewedAt": "2026-11-21T16:16:33+00:00",
   "sources": [
     {
       "repo": "frontend-monorepo",
@@ -161,8 +161,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/routes/api.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "acb45f23efd1ead97fe980af117a823efd872ce7",
+      "commit": "e76dc44419cfe137d0de17bfdf547e06dce03cbe",
+      "blob": "d9466495d6bc40c89e8b4d28b91c23148bdd8409",
       "sections": [
         "ruta-de-desembolso-del-dispositivo",
         "paso-del-asesor-al-formulario-de-imei"

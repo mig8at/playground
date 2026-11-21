@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Motai: tarifa, documentos por escenario y variables",
   "summary": "Calculadora sembrada del renting de Motai (precio, inicial sobre el precio, tarifa semanal por plan), el RTO como clon, el catálogo de documentos por rama con y sin codeudor, el origen de las variables de contrato y pagaré, y qué comando manda los recordatorios de cobro semanales.",
-  "reviewedAt": "2026-11-17T19:14:54+00:00",
+  "reviewedAt": "2026-11-21T16:16:33+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -163,8 +163,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Console/Commands/ReminderWeeklyLoansCommand.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "8314e26f298272852b58ab7a63eb022f94a9a550",
+      "commit": "e76dc44419cfe137d0de17bfdf547e06dce03cbe",
+      "blob": "e31e8fbf94a8a5aa18610c425b8460314484d45e",
       "sections": [
         "los-recordatorios-de-cobro"
       ]
@@ -181,8 +181,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/Reminders/WeeklyReminderQuery.php",
-      "commit": "117399f0c44ecbcfbe0a230a4546fa1744c273b4",
-      "blob": "3c5ca9ba7a95830602bb030f5fd4276af0ebd900",
+      "commit": "e76dc44419cfe137d0de17bfdf547e06dce03cbe",
+      "blob": "3ac243ad3477e656c48fca12865bba57f479d84b",
       "sections": [
         "los-recordatorios-de-cobro"
       ]

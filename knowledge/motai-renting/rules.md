@@ -131,3 +131,10 @@ manda un solo recordatorio por cliente y día y no les escribe a los créditos d
 (`user_requests.is_test` o `users.is_test` del dueño; cada utilización de un cupo se juzga por su
 propia solicitud). Los dos filtros miran el corte 3 exacto: un lender con
 el corte semanal de martes (4) no lo excluye `legacy-application` ni lo toma el comando semanal.
+
+Además, el comando semanal descarta los lenders listados en `settings.reminders_disabled_lender_ids`
+(`DisabledReminderLenders::ids()`, leído al inicio de la corrida). `WeeklyReminderQuery` los excluye con
+`whereKeyNot` dentro de la condición sobre el lender, tanto al enviar como al registrar los saltos por día no
+hábil, de modo que esos créditos ni se evalúan. Si hay lenders deshabilitados, la corrida deja un aviso con sus
+`lender_id`. Sin fila en el setting no se silencia a nadie; un valor ilegible aborta la corrida (con aviso por
+Slack y correo) sin escribirle a ningún cliente.

@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Corte semanal y recordatorios de cobranza",
   "summary": "Cortes 3 (viernes) y 4 (martes): primera cuota y tasa semanal en los dos monolitos; quién agenda cada comando de recordatorios, qué excluyen los generales, qué tiene que ser cierto para que salga una plantilla semanal y sus variables.",
-  "reviewedAt": "2026-11-17T18:57:39+00:00",
+  "reviewedAt": "2026-11-21T16:16:33+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -62,8 +62,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Console/Commands/ReminderWeeklyLoansCommand.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "8314e26f298272852b58ab7a63eb022f94a9a550",
+      "commit": "e76dc44419cfe137d0de17bfdf547e06dce03cbe",
+      "blob": "e31e8fbf94a8a5aa18610c425b8460314484d45e",
       "sections": [
         "quien-envia-cada-recordatorio",
         "cuando-sale-cada-plantilla",
@@ -73,8 +73,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/Reminders/WeeklyReminderQuery.php",
-      "commit": "117399f0c44ecbcfbe0a230a4546fa1744c273b4",
-      "blob": "3c5ca9ba7a95830602bb030f5fd4276af0ebd900",
+      "commit": "e76dc44419cfe137d0de17bfdf547e06dce03cbe",
+      "blob": "3ac243ad3477e656c48fca12865bba57f479d84b",
       "sections": [
         "quien-envia-cada-recordatorio",
         "cuando-sale-cada-plantilla"
@@ -93,8 +93,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Console/Commands/ReminderCreditopXRequestsCommand.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "d9adb4924ddeb3de67f628e4548270c50f24919c",
+      "commit": "e76dc44419cfe137d0de17bfdf547e06dce03cbe",
+      "blob": "c33cf33fa8df309f5faad2ae1cebbd58b0e4a665",
       "sections": [
         "quien-envia-cada-recordatorio",
         "que-tiene-que-ser-cierto-para-que-un-credito-reciba-algo"

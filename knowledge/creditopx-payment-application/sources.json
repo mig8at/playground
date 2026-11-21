@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Cómo entra y se aplica un pago CreditopX",
   "summary": "La cascada del pago mínimo, qué se hace con el sobrante (pago total, abono o retenido), la idempotencia por transacción y cómo llega el pago por Wompi (intención, webhook, vista previa pública y su token, consulta de estado), la cuota inicial y la caja de Pullman, en los dos monolitos.",
-  "reviewedAt": "2026-11-17T18:57:39+00:00",
+  "reviewedAt": "2026-11-21T16:16:33+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -69,8 +69,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/PaymentIntentService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "e04470439c1765b2ba236fdccb58735a30191f09",
+      "commit": "e76dc44419cfe137d0de17bfdf547e06dce03cbe",
+      "blob": "0e26b636289f744408c133566bbca3c631c7586f",
       "sections": [
         "wompi-intencion-y-webhook",
         "cuota-inicial",
@@ -288,8 +288,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/routes/api.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "acb45f23efd1ead97fe980af117a823efd872ce7",
+      "commit": "e76dc44419cfe137d0de17bfdf547e06dce03cbe",
+      "blob": "d9466495d6bc40c89e8b4d28b91c23148bdd8409",
       "sections": [
         "wompi-intencion-y-webhook",
         "wompi-vista-previa-publica"
@@ -307,8 +307,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Providers/RouteServiceProvider.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "011e190562f7d2fa39072576aabaa67b4830135f",
+      "commit": "e76dc44419cfe137d0de17bfdf547e06dce03cbe",
+      "blob": "6c7507cd8314e864798a54cc171fa86f39468b56",
       "sections": [
         "wompi-vista-previa-publica"
       ]

@@ -54,11 +54,18 @@ sin créditos de prueba (`user_requests.is_test` o `users.is_test` del dueño; c
 cupo se juzga por su propia solicitud): a esos no se les manda mensajería. El corte 4 no entra en
 esa consulta.
 
+Tampoco entran las entidades de `settings.reminders_disabled_lender_ids`. El comando lee
+`DisabledReminderLenders::ids()` al arrancar y `WeeklyReminderQuery` las descarta con `whereKeyNot` dentro del
+EXISTS del lender; la corrida deja un aviso en su resumen. Si el valor del setting es ilegible, la corrida aborta
+antes de escribirle a nadie.
+
 Los dos comandos generales dejan fuera las plantillas con `cutoff_type_id` no nulo.
 `app:reminder-creditop-x-requests-command` de legacy-backend (09:30 de Santo Domingo) sólo recorre
-créditos de SmartPay. El de legacy-application ya no lo agenda su `Kernel`: lo lanza el worker de
-loan-servicing como paso `reminders`, no antes de las 10:15 de Bogotá y después de causación,
-beneficios, pagos retenidos y rotativos (en modo `shadow` el paso sólo corre `artisan --version`).
+créditos de SmartPay; si el lender de SmartPay (160) está en `settings.reminders_disabled_lender_ids`, no carga
+plantillas ni envía nada, y el resumen de consola y de Slack lo avisa para que el cero no se lea como una falla
+(un valor ilegible del setting también aborta esa corrida). El de legacy-application ya no lo agenda su `Kernel`:
+lo lanza el worker de loan-servicing como paso `reminders`, no antes de las 10:15 de Bogotá y después de
+causación, beneficios, pagos retenidos y rotativos (en modo `shadow` el paso sólo corre `artisan --version`).
 Ese comando excluye los créditos de los cortes de `config/reminders.php`
 (`excluded_cutoff_type_ids`, que lista el 3) y de sus `excluded_lender_ids`; si la columna
 `cutoff_type_id` no existe en la base, no filtra plantillas. El corte 4 no está excluido: sus
@@ -86,15 +93,20 @@ día en `reminder_dispatch_log`. Cada plantilla sale una vez por crédito y cicl
 
 ## Qué tiene que ser cierto para que un crédito reciba algo
 
-Para un crédito con corte 3 tienen que darse todas: una entidad con corte 3 activa en su país; una
-plantilla semanal activa cuyo estado y offset le toquen ese día; una fila en
-`payment_methods_by_lender` para su entidad; país en el comercio (las plantillas por corte rutean
-el WhatsApp por él); y que messaging-service acepte el `template_name` con sus variables. Si falla
-alguna de las tres últimas, el intento queda `failed` y no se reintenta en esa corrida.
+Para un crédito con corte 3 tienen que darse todas: una entidad con corte 3 activa en su país que no esté en
+`settings.reminders_disabled_lender_ids`; una plantilla semanal activa cuyo estado y offset le toquen ese día; una
+fila en `payment_methods_by_lender` para su entidad; país en el comercio (las plantillas por corte rutean el
+WhatsApp por él); y que messaging-service acepte el `template_name` con sus variables. Si falla alguna de las tres
+últimas, el intento queda `failed` y no se reintenta en esa corrida.
 
-Si dos plantillas activas comparten estado, base, offset y recurrencia, el comando aborta la
-corrida entera antes de enviar. Como los comandos generales excluyen el corte 3, con todas las
-plantillas semanales inactivas, o con la corrida abortada, un crédito de corte 3 no recibe ningún
+`app:reminder-weekly-loans` lee `DisabledReminderLenders::ids()` en cada corrida, después de validar las plantillas.
+`WeeklyReminderQuery` descarta esos lenders con `whereKeyNot` dentro del EXISTS del lender, así que sus créditos ni
+se evalúan (tampoco dejan fila de día no hábil en `reminder_dispatch_log`) y la corrida suma un aviso al resumen. Si
+el valor del setting es ilegible, la corrida aborta entera antes de escribirle a nadie.
+
+Si dos plantillas activas comparten estado, base, offset y recurrencia, el comando aborta la corrida entera antes de
+enviar. Como los comandos generales excluyen el corte 3, con todas las plantillas semanales inactivas, con la
+corrida abortada o con la entidad en `reminders_disabled_lender_ids`, un crédito de corte 3 no recibe ningún
 recordatorio.
 
 ## Variables de los mensajes

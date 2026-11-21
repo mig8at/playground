@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Ecommerce: entrada, contexto y monto",
   "summary": "Rehidratación del pedido sin cookie de contexto, tres vínculos con la solicitud y prioridad del canal sobre la sesión.",
-  "reviewedAt": "2026-11-17T12:52:59+00:00",
+  "reviewedAt": "2026-11-21T16:16:33+00:00",
   "sources": [
     {
       "repo": "legacy-application",
@@ -171,8 +171,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Http/Middleware/ResolveCognitoUser.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "ed33402442bee8ad2c5639e0ca9d397d8adbb3df",
+      "commit": "e76dc44419cfe137d0de17bfdf547e06dce03cbe",
+      "blob": "cca4100eff479ba97aa1125a514cf459e610e46d",
       "sections": [
         "el-contrato-se-deserializa-antes-de-validar-la-credencial"
       ]

@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Solicitud: estados, cierre y guardas contra el retroceso",
   "summary": "El catálogo de estados de user_requests con sus ids anotados y por qué se lee por nombre, qué estados cierran una solicitud en cada monolito, la cancelación en cascada de solicitudes CreditopX hermanas al autorizar y safeCancel, la guarda de 11 y 8 que vive en el grupo de rutas (y el desembolso IMEI que la saltea), el 11 confirmado antes de radicar en originación delegada, el webhook tardío contra Autorizada, la gestión manual del comercio, una solicitud por pedido en ecommerce, Nequi y los links que vencen.",
-  "reviewedAt": "2026-11-17T12:52:59+00:00",
+  "reviewedAt": "2026-11-21T16:16:33+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -115,8 +115,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/routes/api.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "acb45f23efd1ead97fe980af117a823efd872ce7",
+      "commit": "e76dc44419cfe137d0de17bfdf547e06dce03cbe",
+      "blob": "d9466495d6bc40c89e8b4d28b91c23148bdd8409",
       "sections": [
         "la-guarda-de-11-y-8-vive-en-el-grupo-de-rutas-no-en-la-transicion",
         "con-originacion-delegada-11-se-confirma-antes-de-radicar"
