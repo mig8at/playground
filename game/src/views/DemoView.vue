@@ -62,7 +62,8 @@ import {RELOJ,MODO_BOTIN,PATRULLA} from '../engine/medidas.js';
 // (el salto, el del 2D —CIRCULACION.peaton.salto—: de ahí sale ALCANCE, a qué muebles se sube; CHOQUE_MUEBLE)
 const WALK=CIRCULACION.peaton.velocidad.camina,RUN=CIRCULACION.peaton.velocidad.corre,RADIUS=.26,GRAVITY=CIRCULACION.peaton.salto.gravedad,JUMP=CIRCULACION.peaton.salto.velocidad,MAP_CELL=2,STREET_LIGHTS=12;
 const route=useRoute(),router=useRouter();
-const team=ref(SIZES.includes(+route.query.jugadores)?+route.query.jugadores:3);
+// (los dos tamaños grandes —12 y 16: engine/ciudad.js— sólo en el paseo: el juego sigue con los cuatro de SIZES)
+const team=ref(SIZES.includes(+route.query.jugadores)||(route.name!=='demo'&&route.query.fuga==null)&&[12,16].includes(+route.query.jugadores)?+route.query.jugadores:3);
 // La demo usa los parques repartidos (opción del generador en prueba); ?parques=0 muestra la ciudad de siempre.
 const parks=route.query.parques!=='0';
 const pickCity=t=>{if(!parks)return randomCity(t);for(let i=0;i<200;i++){const s=1+Math.floor(Math.random()*99999);if(City.analyze(City.generate({seed:s,team:t,parks})).ok)return s;}return 1;};
@@ -73,7 +74,10 @@ const pickCity=t=>{if(!parks)return randomCity(t);for(let i=0;i<200;i++){const s
 // los FPS»): /juego?paseo=1 es la ciudad sola. Sin ronda, sin policía ni ladrones, sin la sociedad (la gente con su rutina):
 // nada de eso se arma ni se carga. Se camina, V despega y vuelve a tierra, N cambia el día, y arriba a la derecha va el
 // rendimiento: cuadros por segundo, milisegundos por cuadro, llamadas de dibujo y triángulos.
-const PASEO=route.query.paseo!=null;
+// (2026-11-21, Miguel: «quitemos todo lo que sea lógica de policías y ladrones… dejá sólo lo de la ciudad»): el paseo es
+// ahora el modo de /juego y de /ciudad. El juego viejo sólo arranca con ?fuga=1, o en /demo, que es la ruta que usan sus
+// pruebas de pantalla. Su código sigue en el árbol: sacarlo a game/fuga/ es el frente 1 de la tarea Game.
+const PASEO=route.query.paseo!=null||(route.name!=='demo'&&route.query.fuga==null);
 const PRUEBA=route.query.prueba==='edificio',PRUEBA_LOTES=PRUEBA?String(route.query.lotes||'32,34').split(',').map(Number):null;
 const seed=ref(+route.query.ciudad||(PRUEBA?2:pickCity(team.value)));
 // characters: los personajes animados (se cargan una vez al entrar); mientras tanto, «Cargando gente…».

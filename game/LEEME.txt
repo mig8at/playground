@@ -30,7 +30,11 @@ EL JUEGO
              de basura; el plano decide su lugar exacto en metros: sobre el andén, a CALLE.fachada + medio fondo de la
              línea de edificación, paralelo a la fachada, corrido si cae frente a una puerta, sobre un árbol o una pieza,
              y llevado al andén más cercano si el motor lo puso en un cruce. El 3D lo usa tal cual y el plano lo dibuja.
-  /juego?paseo=1   EL PASEO (2026-11-21): la ciudad sola en 3D, sin ronda, sin policía ni ladrones y sin la gente con su
+  RUMBO      (2026-11-21, tarea Game #136 del tablero): el juego deja de ser policías y ladrones y pasa a ser una ciudad
+             donde se compran propiedades. La entrada abre el plano de COLOMBIA (ciudad 1, tamaño 16) y /ciudad o
+             /juego abren la ciudad sola. El juego viejo sólo arranca con ?fuga=1 o en /demo; su código sigue en el
+             árbol hasta que se mude a game/fuga/. El 3D todavía arma la ciudad entera de una vez: la grande no carga.
+  /ciudad         EL PASEO (2026-11-21): la ciudad sola en 3D, sin ronda, sin policía ni ladrones y sin la gente con su
              rutina (nada de eso se arma ni se carga). Se camina; V despega y aterriza (en el aire: WASD hacia donde se
              mira, Espacio sube, C baja, Shift acelera); N cambia el día. Arriba a la derecha, el rendimiento: cuadros
              por segundo, ms por cuadro, el peor cuadro, llamadas de dibujo y triángulos. Es la entrada principal del

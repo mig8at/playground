@@ -11,6 +11,7 @@ const router=createRouter({
   {path:'/',name:'inicio',component:()=>import('./views/InicioView.vue'),meta:{title:'FUGA'}},
   {path:'/inicio',redirect:to=>({path:'/',query:to.query})},
   {path:'/juego',name:'juego',component:()=>import('./views/DemoView.vue'),meta:{title:'En partida'}},
+  {path:'/ciudad',name:'ciudad',component:()=>import('./views/DemoView.vue'),meta:{title:'La ciudad'}},
   {path:'/demo',name:'demo',component:()=>import('./views/DemoView.vue'),meta:{title:'En partida'}},
   // (el plano 2D entero, sin cargar el 3D: /plano?ciudad=1&jugadores=3)
   {path:'/plano',name:'plano',component:()=>import('./views/PlanoView.vue'),meta:{title:'El plano'}},

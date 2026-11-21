@@ -11,7 +11,8 @@ jira_title: ""
 
 ## Pendientes
 
-- [ ] Sacar policías y ladrones a `game/fuga/`: termina cuando el paseo no importa nada de esa carpeta y el probador pasa sin el nivel del juego viejo.
+- [ ] Sacar policías y ladrones a `game/fuga/`: termina cuando la pantalla de la ciudad no importa nada de esa carpeta y el probador pasa sin el nivel del juego viejo. Ya no se entra a él desde la interfaz (sólo con `?fuga=1`).
+- [ ] Cargar el 3D por zonas, según por dónde camina la persona: termina cuando la ciudad de 720 m («Colombia») se puede caminar en 3D y la primera imagen sale en menos de 15 s.
 - [ ] Aplicar las texturas de fachada y techo en el 3D: termina cuando el paseo muestra el paquete elegido en el visor.
 - [ ] Listar las propiedades de una ciudad (departamentos, locales, casas) con área y precio base: termina cuando la misma semilla da siempre el mismo listado y se ve en el visor.
 - [ ] Listar los paños de muro pintables de la planta baja, para los grafitis: termina cuando cada paño sale con edificio, lado, tramo y alto.
@@ -33,6 +34,7 @@ Antes de pasar al juego, Miguel quiere **seguir refinando la ciudad**: la estét
 - **Todo se compra y todo se vende**, con una moneda propia: el departamento, el mobiliario, la ropa, el carro, un viaje en taxi.
 - **La propiedad se revende**: el dueño de un departamento se lo puede vender a otro.
 - **Dinámicas que muevan plata**: ser conductor (un «Uber» dentro de la ciudad), conseguir un empleo. Con la duda propia: un negocio sin gente no sirve de nada.
+- **El primer mundo es Colombia**, en el tamaño más grande (720 × 492 m). Las ciudades chicas quedan para más adelante, como barrios o ciudades puntuales.
 - **Pocos mundos, no cientos de ciudades**: por idioma (habla hispana, habla inglesa) o por país (Colombia, Argentina, Chile), no una por ciudad real. «Si no, se pierde la lógica».
 - **Grafitis en las fachadas**, estilo pixel art: cada quien pone punticos y deja algo escrito o dibujado. Para eso la planta baja necesita paredes, no sólo vidrieras.
 - **Colocar lo comprado con exactitud**: un cuadro en un lugar específico de la casa, «que encaje».
@@ -68,11 +70,21 @@ Es interpretación mía de lo que pidió, para discutir; nada de esto está cons
 
 Cada uno con su condición de cierre. Los hechos pasan a la pila como bloque.
 
-### 1. Sacar policías y ladrones a `game/fuga/` — pendiente
+### 1. Sacar policías y ladrones a `game/fuga/` — empezado
+
+**Hecho**: el juego viejo salió de la interfaz. `/juego` y `/ciudad` abren la ciudad sola; el juego viejo sólo arranca con `?fuga=1` o en `/demo` (la ruta de sus pruebas de pantalla). El título ya no ofrece las salas.
+**El mapa de quién usa qué** (para no romper la ciudad al moverlo): sólo los usa la pantalla de la ciudad `persecucion3d`, `patrulla3d`, `disparo3d`, `viewmodel3d`, `MenuJuego` y `MapaJuego`; `bots` y `partida` cuelgan de `persecucion3d` y de cinco pruebas; `ronda` la usan además las acciones del 3D; `guaridas` la usan los transeúntes y `botin` el generador del plano, así que esos dos no se mueven enteros. `mapa`, `transeuntes` e `identidad` son de la ciudad (la gente y sus rutas), no del juego viejo: se quedan.
 
 **Qué**: la ronda, la persecución, los bots, las guaridas, el botín, el allanamiento, el menú del juego y sus pruebas.
 **Por qué no se hizo todavía**: `DemoView.vue` (1.100 líneas) mezcla el paseo con la partida, y el nivel 9 del probador (12 pruebas) es casi todo de ese juego. Sacarlo es un cambio grande que conviene hacer solo, con el probador antes y después.
 **Cierre**: el paseo (`/juego?paseo=1`) funciona sin importar nada de `fuga/`; el probador pasa sin el nivel del juego viejo; lo viejo corre desde su carpeta o queda archivado.
+
+### 1b. Cargar el 3D por zonas — sin empezar
+
+**El problema, medido**: el 3D arma la ciudad entera de una vez, en un solo paso que ocupa la máquina. La chica (276 m, 75 edificios) tarda 13 s; la de 444 m no había terminado a los 2 minutos; la de 720 m, a los 4. El plano 2D de esa misma ciudad se arma en 30 s la primera vez y abre al instante después.
+**La idea de Miguel**: el 2D es rápido y define todo; el 3D debería armar sólo lo que rodea a la persona mientras camina. Es lo que hace GTA V con la carga por zonas y las versiones lejanas baratas.
+**Cómo**: partir la ciudad en zonas (una manzana o una grilla de ~60 m), armar al entrar las que rodean al jugador y, de las demás, sólo una caja con su color y su techo; soltar las que quedan lejos. El plano ya sabe qué hay en cada zona.
+**Cierre**: el de la casilla de arriba.
 
 ### 2. La ciudad bonita — en curso
 

@@ -15,8 +15,11 @@ import {colocar,OBJETOS,GRILLA} from '../engine/colocar.js';
 import {CELL,TYPES} from '../engine/blueprint.js';
 import {PAQUETES} from '../lib/texturas2d.js';
 
+// EL PRIMER MUNDO (2026-11-21, Miguel: «que la primera ciudad sea Colombia, y por defecto la más grande»): los mundos van
+// por país o por idioma, no por ciudad real. Colombia es la ciudad 1 en su tamaño mayor; sin nada en la URL se abre ésa.
+const MUNDO={nombre:'Colombia',seed:1,team:16};
 const route=useRoute(),router=useRouter();
-const seed=ref(Math.max(1,Number(route.query.ciudad)||1)),team=ref(Math.max(2,Number(route.query.jugadores)||3));
+const seed=ref(Math.max(1,Number(route.query.ciudad)||1)),team=ref(Math.max(2,Number(route.query.jugadores)||MUNDO.team));
 const estado=ref('Armando el plano…'),nivel=ref(0),capas=reactive({...CAPAS}),elegido=ref(null),casa=ref(null),cursor=ref(null),tardo=ref(0);
 const host=ref(null),lienzo=ref(null),piso=ref(null),nitido=ref(null),nitidoListo=ref(false),escala=ref(0);
 let relojNitido=0;
@@ -119,7 +122,7 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
  <div class="plano">
   <header class="barra">
    <RouterLink to="/?paso=home" class="logo" title="Volver a las salas">FUGA</RouterLink>
-   <b class="titulo">El plano</b>
+   <b class="titulo">{{ seed===MUNDO.seed&&team===MUNDO.team?MUNDO.nombre:'El plano' }}</b>
    <label>Ciudad <input type="number" min="1" v-model.number="seed" @change="cargar"></label>
    <label title="El tamaño de la ciudad amurallada (la isla crece con ella)">Tamaño <select v-model.number="team" @change="cargar"><option v-for="t in TAMANOS" :key="t.team" :value="t.team">{{ t.nombre }} · {{ t.m }}</option></select></label>
    <div class="pisos" role="group" aria-label="Piso">
@@ -132,7 +135,7 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
    <button class="techos" :class="{on:nivel>=maxPisos}" @click="nivel=nivel>=maxPisos?0:maxPisos" title="Ver la ciudad desde arriba, con sus techos (o volver a la planta baja)">Techos</button>
    <button class="ajustar" @click="ajustar" title="Ver todo (0)">Ver todo</button>
    <RouterLink class="catalogo" :to="{path:'/catalogo',query:{seccion:'fachadas',ciudad:seed}}" title="Los muebles, las fachadas y las texturas, de a uno">Catálogo</RouterLink>
-   <RouterLink class="jugar" :to="{path:'/juego',query:{paseo:1,ciudad:seed,jugadores:team,vista:'tercera'}}" title="La ciudad sola en 3D: caminar, sobrevolar y ver cómo rinde. Sin gente ni policía.">Entrar a la ciudad</RouterLink>
+   <RouterLink class="jugar" :to="{path:'/ciudad',query:{ciudad:seed,jugadores:Math.min(team,3),vista:'tercera'}}" :title="team>3?'El 3D arma hoy la ciudad entera de una vez: la de 444 m tardó más de 2 minutos y la de 720 m más de 4 sin terminar. Por ahora entra a la versión chica de esta misma semilla.':'La ciudad sola en 3D: caminar, sobrevolar y ver cómo rinde.'">{{ team>3?'Entrar a un barrio en 3D':'Entrar a la ciudad' }}</RouterLink>
   </header>
 
   <div ref="host" class="visor" :class="{arrastrando:arrastre}" @wheel="rueda" @pointerdown="baja" @pointermove="mueve" @pointerup="sube" @pointerleave="cursor=null">
