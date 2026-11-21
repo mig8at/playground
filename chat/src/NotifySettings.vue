@@ -14,11 +14,20 @@ const MODES = { all: 'Todos', mentions: 'Sólo menciones', off: 'Ninguno' }
 const overrides = computed(() => Object.entries(s.value?.conversations || {})
   .map(([key, mode]) => ({ key, mode, name: props.nameOf(key) }))
   .sort((a, b) => a.name.localeCompare(b.name)))
+const LEVELS = { all: 'todos', important: 'sólo importantes', none: 'ninguno' }
+// Cockpit maneja la salida de todos los avisos (lib/notice): su permiso, el no molestar y el nivel del chat.
 const viaText = computed(() => {
-  const st = notify.status
-  if (st.macTool === 'chat-notifier') return 'Salen por «Chat de my-tools».'
-  if (st.macTool === 'terminal-notifier') return 'Salen por terminal-notifier.'
-  return 'Salen por osascript y pueden no verse: make cockpit compila el avisador.'
+  const st = notify.status || {}
+  const via = st.notifier === 'authorized' ? 'Salen por Cockpit.'
+    : st.notifier === 'denied' ? 'Cockpit no tiene permiso de avisos: Ajustes del Sistema → Notificaciones → «Cockpit».'
+    : st.notifier === 'notDetermined' ? 'Cockpit todavía no tiene permiso de avisos: su engranaje → Avisos → «Probar» lo pide.'
+    : 'Falta el avisador de Cockpit: make cockpit lo compila.'
+  const lvl = st.level && st.level !== 'all' ? ` El chat está en «${LEVELS[st.level] || st.level}» en Cockpit.` : ''
+  return via + lvl
+})
+const quietText = computed(() => {
+  const q = notify.status?.quiet
+  return q?.on ? `No molestar de ${q.from} a ${q.to} (una mención avisa igual si así está puesto).` : 'Sin horario de no molestar.'
 })
 const testing = ref(false)
 async function test() { testing.value = true; await testNotify(); testing.value = false }
@@ -59,19 +68,11 @@ async function test() { testing.value = true; await testNotify(); testing.value 
         <label class="notify-check"><input type="checkbox" :checked="s.preview" @change="saveNotify({ preview: $event.target.checked })"> Mostrar el texto del mensaje</label>
       </fieldset>
 
-      <fieldset class="notify-group" :disabled="!s.enabled">
-        <label class="notify-check"><input type="checkbox" :checked="s.quiet.on" @change="saveNotify({ quiet: { ...s.quiet, on: $event.target.checked } })"> No molestar</label>
-        <div class="notify-row quiet-hours" :class="{ off: !s.quiet.on }">
-          <span class="label">de</span>
-          <input class="input" type="time" :value="s.quiet.from" :disabled="!s.quiet.on" aria-label="No molestar desde"
-                 @change="saveNotify({ quiet: { ...s.quiet, from: $event.target.value } })">
-          <span class="label">a</span>
-          <input class="input" type="time" :value="s.quiet.to" :disabled="!s.quiet.on" aria-label="No molestar hasta"
-                 @change="saveNotify({ quiet: { ...s.quiet, to: $event.target.value } })">
-        </div>
-        <label class="notify-check"><input type="checkbox" :checked="s.mentionsBreakQuiet" :disabled="!s.quiet.on"
-               @change="saveNotify({ mentionsBreakQuiet: $event.target.checked })"> Si me mencionan, avisar igual</label>
-      </fieldset>
+      <!-- El no molestar es de TODOS los avisos de my-tools desde el 2026-11-21: vive en Cockpit (engranaje → Avisos). -->
+      <div class="notify-group">
+        <span class="label">No molestar</span>
+        <p class="field-hint">{{ quietText }} Se cambia en Cockpit, engranaje → Avisos: vale para todas las herramientas.</p>
+      </div>
 
       <fieldset class="notify-group" :disabled="!s.enabled">
         <span class="label">Por conversación</span>
@@ -105,9 +106,6 @@ async function test() { testing.value = true; await testNotify(); testing.value 
 .notify-group { display: flex; flex-direction: column; gap: var(--space-2); margin: 0; padding: var(--space-3) 0 0; border: 0; border-top: 1px solid var(--border); min-width: 0 }
 .notify-group:disabled { opacity: .5 }
 .notify-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap }
-.quiet-hours { justify-content: flex-start }
-.quiet-hours .input { width: auto }
-.quiet-hours.off { opacity: .6 }
 .notify-check { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm) }
 .notify-overrides { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px }
 .notify-overrides li { display: flex; align-items: center; gap: var(--space-2); min-width: 0 }

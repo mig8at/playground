@@ -834,6 +834,74 @@ fn dirs_log(name: &str) -> PathBuf {
     PathBuf::from(std::env::var("HOME").unwrap_or_default()).join("Library").join("Logs").join(name)
 }
 
+// LOS AVISOS (la campana y el engranaje → «Avisos»): Cockpit no los implementa. Los manda lib/notice (Go), desde cada
+// herramienta y también con Cockpit cerrado; acá sólo se leen y se editan con `bin/cockpit notices … --json`
+// (cmd/cockpit/notices.go), así hay UNA implementación y la consola dice lo mismo que la campana.
+fn run_cockpit_json(args: &[&str]) -> Result<serde_json::Value, String> {
+    let root = std::fs::canonicalize(ROOT).map_err(|e| format!("la raíz de my-tools ({ROOT}): {e}"))?;
+    let out = Command::new(root.join("bin").join("cockpit"))
+        .args(args)
+        .current_dir(&root)
+        .env("PATH", user_path())
+        .output()
+        .map_err(|e| format!("bin/cockpit: {e}"))?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
+    }
+    serde_json::from_slice(&out.stdout).map_err(|e| format!("bin/cockpit {}: {e}", args.join(" ")))
+}
+
+#[tauri::command]
+async fn notices_state() -> Result<serde_json::Value, String> {
+    tauri::async_runtime::spawn_blocking(|| run_cockpit_json(&["notices", "--json", "--limit", "300"]))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+// Abrir la bandeja la marca leída.
+#[tauri::command]
+async fn notices_read() -> Result<serde_json::Value, String> {
+    tauri::async_runtime::spawn_blocking(|| run_cockpit_json(&["notices", "--json", "--limit", "300", "--read"]))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn notices_save(settings: serde_json::Value) -> Result<serde_json::Value, String> {
+    tauri::async_runtime::spawn_blocking(move || run_cockpit_json(&["notices", "settings", "--set", &settings.to_string()]))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+// El aviso de prueba sale por el avisador de Cockpit: la primera vez, macOS pide su permiso.
+#[tauri::command]
+fn notices_test() {
+    run_cockpit_cli(&["notify", "--test"]);
+}
+
+fn notices_inbox() -> PathBuf {
+    let dir = std::env::var("MY_TOOLS_NOTICES_DIR").map(PathBuf::from).unwrap_or_else(|_| {
+        PathBuf::from(std::env::var("HOME").unwrap_or_default()).join("Library/Application Support/creditop-my-tools/notices")
+    });
+    dir.join("inbox.jsonl")
+}
+
+// El vigía de la bandeja: cuando cambia el archivo (un aviso nuevo de cualquier herramienta), le avisa a la carcasa
+// («cockpit-notices»), que vuelve a leerla. Mirar la fecha cada 2 s no cuesta nada.
+fn notices_watch(app: tauri::AppHandle) {
+    let mut last = None;
+    loop {
+        let now = std::fs::metadata(notices_inbox()).and_then(|m| m.modified()).ok();
+        if now.is_some() && now != last {
+            if last.is_some() {
+                let _ = app.emit("cockpit-notices", serde_json::json!({}));
+            }
+            last = now;
+        }
+        thread::sleep(Duration::from_secs(2));
+    }
+}
+
 // LA SESIÓN DEL PLAYGROUND: cada 10 min (la primera al minuto de abrir), `bin/cockpit session check`, que avisa si vence
 // en menos de una hora (cmd/cockpit/session.go). Sólo mientras Cockpit está abierto, a propósito: cerrado, no se trabaja.
 fn session_watch() {
@@ -853,6 +921,13 @@ fn open_link(app: &tauri::AppHandle, url: &tauri::Url) {
         return;
     }
     show_main(app);
+    // `cockpit://cockpit/`: el aviso de prueba (o uno de Cockpit mismo) abre la bandeja.
+    if url.host_str() == Some("cockpit") {
+        if let Some(w) = app.get_webview_window("main") {
+            let _ = w.eval("window.cockpitOpenNotices && window.cockpitOpenNotices()");
+        }
+        return;
+    }
     let Some(id) = url.host_str().and_then(|h| APPS.iter().find(|a| a.id == h)).map(|a| a.id) else { return };
     let route = url.fragment().map(|h| format!("#{h}")).unwrap_or_default();
     open_in_shell(app, id, &route);
@@ -892,7 +967,7 @@ fn main() {
         .manage(running)
         .manage(Current::default())
         .manage(Stopped::default())
-        .invoke_handler(tauri::generate_handler![apps, ensure_app, set_current, set_stopped, apps_state, restart_app, model_state, set_model, session_state, session_login])
+        .invoke_handler(tauri::generate_handler![apps, ensure_app, set_current, set_stopped, apps_state, restart_app, model_state, set_model, session_state, session_login, notices_state, notices_read, notices_save, notices_test])
         .setup(|app| {
             // El puerto de control, con una llave nueva en cada arranque.
             let token = new_token();
@@ -906,6 +981,10 @@ fn main() {
                 thread::spawn(move || watchdog(handle, watching));
             }
             thread::spawn(session_watch);
+            {
+                let handle = app.handle().clone();
+                thread::spawn(move || notices_watch(handle));
+            }
             let handle = app.handle().clone();
             WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
                 .title("Cockpit")

@@ -10,7 +10,7 @@ command -v cargo >/dev/null 2>&1 || { echo "cockpit · falta Rust: https://rustu
 triple=$(rustc -vV | sed -n 's/^host: //p')
 mkdir -p "$cockpit/src-tauri/binaries"
 (cd "$root" && go build -o "cockpit/src-tauri/binaries/chat-server-$triple" ./chat/server)
-sh "$root/chat/scripts/notifier.sh" || echo "⚠ el avisador no compiló: los avisos salen por osascript" >&2
+sh "$cockpit/notifier/build.sh" || echo "⚠ el avisador no compiló: los avisos salen por osascript" >&2
 (cd "$root/chat" && npm run build --silent >/dev/null)
 [ -d "$cockpit/node_modules" ] || (cd "$cockpit" && npm install --silent)
 cd "$cockpit" && npx tauri build --bundles app

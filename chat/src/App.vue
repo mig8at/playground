@@ -1912,7 +1912,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
                   :disabled="chat.listenBusy" @click="listening ? chat.stopListening() : chat.startListening()"></button></div>
         <p v-if="chat.listenError" class="field-hint bad">{{ chat.listenError }}</p>
         <p v-if="chat.me || chat.state?.session" class="profile-row"><span><b>{{ (chat.me || chat.state.session).email }}</b><small>la sesión del CLI: lo que mandás sale con este nombre</small></span></p>
-        <p class="profile-row"><span><b>{{ notify.status.via === 'tab' ? 'esta pestaña' : notify.status.macTool === 'chat-notifier' ? 'Chat de my-tools' : notify.status.macTool }}</b><small>muestra los avisos ahora</small></span></p>
+        <p class="profile-row"><span><b>{{ notify.status.via === 'tab' ? 'esta pestaña' : notify.status.notifier === 'authorized' ? 'Cockpit' : 'Cockpit (sin permiso de avisos todavía)' }}</b><small>muestra los avisos ahora</small></span></p>
       </div>
       </template>
     </aside>

@@ -6,7 +6,7 @@ import { reactive } from 'vue'
 export const notify = reactive({
   settings: null,
   // Por dónde sale un aviso ahora: `tab` (esta pestaña, con permiso) o `mac` (osascript o terminal-notifier).
-  status: { macTool: 'osascript' },
+  status: { notifier: 'missing', level: 'all', quiet: null },
   error: '',
 })
 

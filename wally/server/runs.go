@@ -6,14 +6,11 @@ package main
 // numerito del ícono de Wally en la barra de Cockpit.
 
 import (
-	"context"
+	"creditop/my-tools/lib/notice"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -129,29 +126,10 @@ func (a *app) runsUnseen() map[string]finishedRun {
 	return out
 }
 
-// macNotice: el aviso del sistema, por el avisador del chat («Chat de my-tools», que ya tiene permiso de avisos y abre
-// un enlace `cockpit://` al tocarlo), como Sentinel y Correo; sin él, por osascript.
+// macNotice: el aviso, por lib/notice (Cockpit decide el silencio y lo guarda en su bandeja). Tocarlo abre la
+// conversación en Wally. Una corrida que falló suena y es importante.
 func macNotice(title, body, route string, sound bool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	home, _ := os.UserHomeDir()
-	bin := filepath.Join(home, "Applications", "Chat de my-tools.app", "Contents", "MacOS", "ChatNotifier")
-	if st, err := os.Stat(bin); err == nil && !st.IsDir() {
-		args := []string{"--title", title, "--body", body, "--url", "cockpit://wally/" + route, "--group", "creditop-wally-" + route}
-		if sound {
-			args = append(args, "--sound")
-		}
-		out, err := exec.CommandContext(ctx, bin, args...).CombinedOutput()
-		if err == nil {
-			return nil
-		}
-		// Sin permiso de avisos para el avisador del chat (macOS lo puede quitar al reinstalar): por osascript, que
-		// avisa igual aunque tocarlo no abra Wally.
-		log.Printf("wally: el avisador del chat no pudo (%v %s): aviso por osascript", err, strings.TrimSpace(string(out)))
-	}
-	script := fmt.Sprintf("display notification %q with title %q", body, title)
-	if out, err := exec.CommandContext(ctx, "osascript", "-e", script).CombinedOutput(); err != nil {
-		return fmt.Errorf("osascript: %v %s", err, strings.TrimSpace(string(out)))
-	}
-	return nil
+	_, err := notice.Send(notice.Notice{App: "wally", Title: title, Body: body, URL: "cockpit://wally/" + route,
+		Group: "creditop-wally-" + route, Replace: true, Important: sound, Sound: sound})
+	return err
 }

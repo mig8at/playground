@@ -11,15 +11,13 @@ package main
 
 import (
 	"bufio"
-	"context"
+	"creditop/my-tools/lib/notice"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -45,7 +43,7 @@ type Notice struct {
 	Level  string `json:"level"` // alert · warn · recovered · stale
 	Text   string `json:"text"`
 	Sent   bool   `json:"sent"` // si macOS lo aceptó
-	// Via: por dónde salió («avisador del chat», «osascript», «notify-send»); si salió por el respaldo, dice por qué.
+	// Via: por dónde salió («avisador de Cockpit», «osascript», «notify-send», o «callado: …» si Cockpit lo silenció); si salió por el respaldo, dice por qué.
 	Via string `json:"via,omitempty"`
 }
 
@@ -503,58 +501,12 @@ var rulesPath string
 
 func loadRulesQuiet() (Rules, error) { return loadRules(rulesPath) }
 
-// systemNotice: el aviso del sistema, y por dónde salió. En macOS va por el avisador del chat («Chat de my-tools», que
-// abre un enlace `cockpit://` al tocarlo: Cockpit trae Sentinel al frente en esa ruta); si el avisador falla (sin
-// permiso de avisos, por ejemplo), por osascript, que no abre nada pero avisa, y `via` dice por qué cayó al respaldo.
-// En Linux, por `notify-send` si está en el PATH.
+// systemNotice: el aviso del sistema, y por dónde salió. Pasa por lib/notice (Cockpit decide el silencio y guarda el
+// aviso en su bandeja); tocarlo abre Sentinel en esa ruta. Una alerta suena y es importante: atraviesa el «sólo
+// importantes» y, si así está puesto, el no molestar.
 func systemNotice(title, body, route string, sound bool) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	var chatErr error
-	home, _ := os.UserHomeDir()
-	bin := filepath.Join(home, "Applications", "Chat de my-tools.app", "Contents", "MacOS", "ChatNotifier")
-	if st, err := os.Stat(bin); err == nil && !st.IsDir() {
-		args := []string{"--title", title, "--body", body, "--url", "cockpit://sentinel/" + route, "--group", "creditop-sentinel-" + route}
-		if sound {
-			args = append(args, "--sound")
-		}
-		out, err := exec.CommandContext(ctx, bin, args...).CombinedOutput()
-		if err == nil {
-			return "avisador del chat", nil
-		}
-		chatErr = fmt.Errorf("avisador: %v %s", err, strings.TrimSpace(string(out)))
-	}
-	if runtime.GOOS != "darwin" {
-		bin, err := exec.LookPath("notify-send")
-		if err != nil {
-			return "", fmt.Errorf("sin avisador en %s: no está notify-send en el PATH", runtime.GOOS)
-		}
-		// El sonido no depende de notify-send: en alerta va como urgencia crítica, que el escritorio no esconde sola.
-		// El «--» corta las opciones: un cuerpo que empieza con «-» no se lee como una.
-		urgency := "normal"
-		if sound {
-			urgency = "critical"
-		}
-		if out, err := exec.CommandContext(ctx, bin, "--app-name=Sentinel", "--urgency="+urgency, "--", title, body).CombinedOutput(); err != nil {
-			return "", fmt.Errorf("notify-send: %v %s", err, strings.TrimSpace(string(out)))
-		}
-		return "notify-send", nil
-	}
-	q := func(s string) string { return `"` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(s) + `"` }
-	script := "display notification " + q(body) + " with title " + q(title)
-	if sound {
-		script += ` sound name "Glass"`
-	}
-	if out, err := exec.CommandContext(ctx, "osascript", "-e", script).CombinedOutput(); err != nil {
-		if chatErr != nil {
-			return "", fmt.Errorf("%v; y osascript: %v %s", chatErr, err, strings.TrimSpace(string(out)))
-		}
-		return "", fmt.Errorf("osascript: %v %s", err, strings.TrimSpace(string(out)))
-	}
-	if chatErr != nil {
-		return "osascript (el avisador del chat falló: " + chatErr.Error() + ")", nil
-	}
-	return "osascript", nil
+	return notice.Send(notice.Notice{App: "sentinel", Title: title, Body: body, URL: "cockpit://sentinel/" + route,
+		Group: "creditop-sentinel-" + route, Replace: true, Important: sound, Sound: sound})
 }
 
 // replayNotices: qué avisos habrían salido en los últimos `days` días, con una pasada cada `stepMinutes`. No manda nada:

@@ -222,7 +222,7 @@ func Apps(root string) []Board {
 	}
 	return []Board{
 		app("chat", []string{"chat/server", "chat/cli", "chat/cmd"}, append(vue("chat"), "chat/src/stores/*.js"),
-			[]string{"chat/server/", "chat/src/", "chat/cli/", "chat/cmd/", "chat/scripts/", "chat/notifier/"}),
+			[]string{"chat/server/", "chat/src/", "chat/cli/", "chat/cmd/", "chat/scripts/"}),
 		app("jarvis", []string{"jarvis/server", "jarvis/cli", "jarvis/docs"},
 			append(vue("jarvis"), "jarvis/server/*.js", "jarvis/extension/*.js", "jarvis/extension/*.html", "jarvis/recipes/*.ts",
 				"jarvis/recipes/*/*.ts", "jarvis/dev/*.ts", "jarvis/apps/*/*.js", "jarvis/apps/*/*.html"),

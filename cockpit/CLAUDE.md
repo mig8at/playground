@@ -141,7 +141,7 @@ Lo que ya costó, y por qué existe:
 | pieza | dónde |
 |---|---|
 | qué apps hay, cómo se levantan, enlaces `cockpit://`, el puerto de control | `src-tauri/src/main.rs` |
-| la carcasa: la barra, la configuración (el engranaje abre un modal como el de canon: Apariencia, Claude, **Modelo** —el de segundo plano, abajo—, Apps —su estado y Reiniciar, con `apps_state` y `restart_app`— y Cómo se usa), los iframes, el panel «Claude», el botón Frenar | `shell/index.html` (su tema y taller son copias de `tools/ui`: `make style-sync`) |
+| la carcasa: la barra (con la **campana** de avisos), la configuración (el engranaje abre un modal como el de canon: Apariencia, Claude, **Modelo** —el de segundo plano, abajo—, **Avisos**, Apps —su estado y Reiniciar, con `apps_state` y `restart_app`— y Cómo se usa), los iframes, el panel «Claude», el botón Frenar | `shell/index.html` (su tema y taller son copias de `tools/ui`: `make style-sync`) |
 | el cliente del puerto de control | `lib/cockpit/` · el CLI: `cmd/cockpit/` (`bin/cockpit`) |
 | qué se ve de cada herramienta y a qué app lleva | `tablero/server/internal/hooks/cockpit.go` (con test) |
 | lo que una app le dice a la carcasa | `tools/ui/workbench.js` (todas) · `chat/src/desktop.js` (el chat) |
@@ -181,8 +181,39 @@ llaveros se veía muy chico). Todo lo suyo está en [`vault/CLAUDE.md`](../vault
 hora— que al tocarlo abre `cockpit://session/login`, que corre `playground login`. Con Cockpit cerrado no avisa nadie, a
 propósito. **No se renueva sola**: la página del playground pide tocar «Continuar con Google» cada vez (medido el
 2026-11-18 con una pestaña minimizada de Jarvis: a los 90 s seguía ahí), y que una herramienta toque ese botón por Miguel
-no se hace. ⚠ El aviso abre el enlace sólo si sale por el avisador del chat («Chat de my-tools» con permiso de avisos en
-Configuración del Sistema); por `osascript` se ve, pero tocarlo no hace nada.
+no se hace. ⚠ El aviso abre el enlace sólo si sale por el avisador de Cockpit (con permiso de avisos en Configuración
+del Sistema, abajo); por `osascript` se ve, pero tocarlo no hace nada.
+
+## Los avisos: los maneja Cockpit (2026-11-21)
+
+Decisión de Miguel: «que las notificaciones sean manejadas por cockpit». **Cada herramienta decide QUÉ merece un aviso;
+Cockpit decide CÓMO llega.** Todo pasa por [`lib/notice`](../lib/notice/notice.go) (`notice.Send`), el único camino: un
+test (`lib/notice/guard_test.go`) falla si otro archivo llama a un avisador por su cuenta. Hasta ese día había cuatro
+copias (Sentinel, Correo, Wally, chat), los avisos de Sentinel decían «Chat de my-tools» y el no molestar era sólo del chat.
+
+- **Funciona con Cockpit cerrado.** Sentinel, Correo, Knowledge, Wally y la daily corren de fondo: el silencio y la
+  bandeja son archivos (`~/Library/Application Support/creditop-my-tools/notices/`: `inbox.jsonl`, `settings.json`,
+  `state.json`) que lee `lib/notice` en cada aviso. Cockpit sólo los muestra y los edita, con `bin/cockpit notices … --json`
+  (Rust: `notices_state`, `notices_read`, `notices_save`, `notices_test`): una sola implementación, en Go.
+- **El silencio** (engranaje → **Avisos**, o `bin/cockpit mute|pause`): no molestar de todos los días (nació con el que
+  tenía el chat), una pausa (1 h, 3 h) y un nivel por herramienta: **Todos · Importantes · Ninguno**. Importante es lo que
+  suena: una alerta de Sentinel, una corrida de Knowledge que frenó o falló, una mención, un correo de quien seguís, la
+  sesión que vence. Los importantes atraviesan el no molestar si así está puesto; la pausa no la atraviesa nadie.
+- **La bandeja** (la campana de la barra, con el número sin leer): cada aviso de los últimos 30 días, por día, con el
+  ícono de su herramienta; tocarlo abre su ruta. Lo callado se ve con el ojo, apagado y con su motivo; lo que no salió,
+  con su error. Abrirla la marca leída. Rust mira el archivo cada 2 s y avisa a la carcasa (`cockpit-notices`).
+- **El avisador** es «Cockpit» (`~/Applications/Cockpit Avisos.app`, `cockpit/notifier/`, lo compila `make cockpit`,
+  firmado con `bin/sign` como `com.creditop.my-tools.notifier`): tocar un aviso abre `cockpit://<app>/#/<ruta>` y
+  `cockpit://cockpit/` abre la campana. Un aviso con `Replace` (una alerta que se repite, el estado de una corrida)
+  reemplaza al anterior de su grupo. **Su permiso lo da Miguel una vez**: `bin/cockpit notify --test` (o engranaje →
+  Avisos → Probar) lo pide; mientras no lo tenga, `lib/notice` sale por el avisador viejo del chat («Chat de
+  my-tools.app», que queda instalado sólo como respaldo) y, si tampoco, por `osascript`.
+- **Por consola:** `bin/cockpit notices [--app X] [--unread] [--read]` · `bin/cockpit notify --title … [--important]`
+  (lo que manda una sesión de Claude queda como app `claude`) · `bin/cockpit mute <app> [all|important|none]` ·
+  `bin/cockpit pause 1h|off`.
+- **Una herramienta nueva que avise** usa `notice.Send(notice.Notice{App: "<id de Cockpit>", Title, Body, URL:
+  "cockpit://<app>/#/…", Group, Replace, Important, Sound})` y se suma a `noticeApps` (`cmd/cockpit/notices.go`) para
+  tener su fila en Avisos.
 
 **Y adentro de Cockpit, imposible de no ver** (2026-11-19, Miguel: «cuando esté caducada debería aparecerme como una
 alerta en el centro de la pantalla, con un botoncito de login»; ese día el aviso de macOS pasó de largo y el modelo de

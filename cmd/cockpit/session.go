@@ -178,7 +178,7 @@ func sessionCheck(force bool) int {
 		fmt.Printf("%s %s (ya se avisó hace menos de una hora)\n", stamp, strings.ToLower(title[:1])+title[1:])
 		return 1
 	}
-	via, sendErr := notice.Send(notice.Notice{Title: title, Body: body, URL: sessionLogin, Group: "playground-session"})
+	via, sendErr := notice.Send(notice.Notice{App: "cockpit", Title: title, Body: body, URL: sessionLogin, Group: "playground-session", Replace: true, Important: true})
 	if sendErr != nil {
 		fmt.Printf("%s no se pudo avisar: %v\n", stamp, sendErr)
 		return 1

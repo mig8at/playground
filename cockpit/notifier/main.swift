@@ -1,13 +1,15 @@
-// EL AVISADOR DEL CHAT: una app mínima («Chat de my-tools») que muestra los avisos que decide el servidor del chat
-// (server/notify.go) cuando no hay ninguna pestaña abierta. Hace falta porque `osascript` desde el servicio no muestra
-// nada si «Editor de Scripts» nunca tuvo permiso de avisos; esta app pide el suyo una vez, con su nombre, y al tocar
-// un aviso abre el chat en esa conversación.
+// EL AVISADOR DE COCKPIT: una app mínima («Cockpit», ~/Applications/Cockpit Avisos.app) que muestra los avisos de
+// TODAS las herramientas de my-tools. No decide nada: lib/notice (Go) aplica el silencio, guarda la bandeja y la llama.
+// Hace falta porque `osascript` desde un servicio no muestra nada si «Editor de Scripts» nunca tuvo permiso de avisos;
+// esta app pide el suyo una vez, con su nombre, y al tocar un aviso abre su enlace `cockpit://<app>/#/<ruta>`.
+// Hasta el 2026-11-21 era «Chat de my-tools» y vivía en chat/notifier: los avisos de Sentinel decían «Chat».
 //
-//	ChatNotifier --title T --body B [--url U] [--group G] [--sound]   muestra un aviso y termina
-//	ChatNotifier --status                                              imprime authorized | denied | notDetermined
+//	CockpitNotifier --title T --body B [--url U] [--group G] [--id I] [--sound]   muestra un aviso y termina
+//	CockpitNotifier --status                     imprime authorized | denied | notDetermined
 //	(sin argumentos: así la abre macOS al tocar un aviso; abre su URL y termina)
 //
-// La compila scripts/notifier.sh.
+// --id: un aviso nuevo con el mismo id REEMPLAZA al anterior (una alerta que se repite no se apila).
+// La compila cockpit/notifier/build.sh (lo llama `make cockpit`).
 
 import AppKit
 import UserNotifications
@@ -71,7 +73,7 @@ final class Notifier: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
             if self.flags.contains("sound") { content.sound = .default }
             if let group = self.args["group"] { content.threadIdentifier = group }
             if let url = self.args["url"] { content.userInfo = ["url": url] }
-            let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+            let request = UNNotificationRequest(identifier: self.args["id"] ?? UUID().uuidString, content: content, trigger: nil)
             center.add(request) { error in
                 if let error = error {
                     FileHandle.standardError.write("no se pudo avisar: \(error.localizedDescription)\n".data(using: .utf8)!)

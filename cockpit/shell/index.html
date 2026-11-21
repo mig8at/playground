@@ -225,6 +225,31 @@
     background: var(--panel-surface, var(--background)); color: var(--foreground); box-shadow: var(--settings-shadow); font-size: var(--text-sm) }
   .session-soon[hidden] { display: none }
   .session-soon .btn { padding: 2px 10px }
+  /* LA BANDEJA DE AVISOS (2026-11-21): la campana de la barra abre una hoja pegada a la barra, con lo que avisó cada
+     herramienta, también lo callado (apagado, con su motivo). La mandan lib/notice y sus archivos; acá sólo se leen
+     (bin/cockpit notices --json, por Rust). Es un <dialog> no modal: Escape o un clic afuera la cierran. */
+  .notices { position: fixed; left: 52px; top: 8px; bottom: 8px; width: min(400px, calc(100vw - 64px)); height: auto; max-height: none; margin: 0; padding: 0;
+    display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--panels-radius, 10px);
+    background: var(--panel-surface, var(--background)); color: var(--foreground); box-shadow: var(--settings-shadow); overflow: hidden; z-index: 20 }
+  .notices:not([open]) { display: none }
+  .notices .region-body { flex: 1; min-height: 0; overflow: auto }
+  .notice-row { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; gap: 2px var(--space-2); width: 100%; padding: var(--space-2) var(--gutter);
+    border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer }
+  .notice-row:hover { background: var(--hover) }
+  .notice-row:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px }
+  .notice-row svg { width: 16px; height: 16px; margin-top: 2px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; color: var(--fg-3) }
+  .notice-title { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+  .notice-time { font-size: var(--text-xs); color: var(--fg-3); font-variant-numeric: tabular-nums }
+  .notice-body { grid-column: 2 / -1; font-size: var(--text-sm); color: var(--fg-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-line }
+  .notice-why { grid-column: 2 / -1; font-size: var(--text-xs); color: var(--fg-3) }
+  .notice-row.unread .notice-title::before { content: ""; display: inline-block; width: 6px; height: 6px; margin: 0 6px 2px 0; border-radius: 50%; background: var(--primary); vertical-align: middle }
+  .notice-row.silenced .notice-title { font-weight: 400; color: var(--fg-3) }
+  .notice-row.failed .notice-why { color: var(--status-bad) }
+  .notices-filter { margin-left: auto }
+  /* Los ajustes de avisos, en el engranaje. */
+  .notice-levels { display: inline-flex }
+  .quiet-row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap }
+  .quiet-row .input { width: auto }
 </style>
 </head>
 <body>
@@ -236,6 +261,15 @@
   <div class="login-head"><div class="login-icon" id="loginIcon"><span class="ui-icon" data-icon="lock" aria-hidden="true"></span></div>
     <div><h2 class="login-title" id="loginTitle"></h2><p class="login-when" id="loginWhen"></p></div></div>
   <div id="loginBody"></div>
+</dialog>
+<dialog class="notices" id="notices" aria-labelledby="noticesTitle">
+  <div class="region-head"><span id="noticesTitle">Avisos</span>
+    <div class="region-actions">
+      <button type="button" class="region-action" id="noticesSilenced" aria-pressed="false" title="Ver también lo callado" aria-label="Ver también lo callado"><span class="ui-icon" data-icon="eye" aria-hidden="true"></span></button>
+      <button type="button" class="region-action" id="noticesSettings" title="Ajustes de avisos" aria-label="Ajustes de avisos"><span class="ui-icon" data-icon="settings" aria-hidden="true"></span></button>
+      <button type="button" class="region-action" id="noticesClose" title="Cerrar" aria-label="Cerrar los avisos"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
+    </div></div>
+  <div class="region-body" id="noticesBody"></div>
 </dialog>
 <dialog class="settings" id="settings" aria-label="Configuración de Cockpit">
   <div class="settings-frame">
@@ -297,6 +331,10 @@ const frames = {}       // id → su iframe, creado la primera vez que se abre
 let apps = []
 let current = ''
 let pendingRoute = null // { id, hash }: un aviso que llegó antes de que la app cargara
+// La bandeja de avisos (abajo, «LOS AVISOS»): acá arriba porque render() la usa para la campana.
+const noticesEl = document.getElementById('notices')
+let noticesData = null
+let noticesUnread = 0
 
 const pick = (key, fallback) => { try { return localStorage.getItem(key) || fallback } catch { return fallback } }
 const keep = (key, value) => { try { localStorage.setItem(key, value) } catch { /* no hace falta */ } }
@@ -343,7 +381,18 @@ function render() {
   gear.addEventListener('click', () => { hideTip(); setSettingsOpen(!settingsOpen) })
   gear.addEventListener('mouseenter', () => { if (!settingsOpen) showTip(gear, 'Configuración') })
   gear.addEventListener('mouseleave', hideTip)
-  bar.append(spacer, gear)
+  const bell = document.createElement('button')
+  bell.type = 'button'
+  bell.className = 'notices-toggle' + (noticesEl.open ? ' on' : '')
+  bell.setAttribute('aria-label', noticesUnread ? `Avisos, ${noticesUnread} sin leer` : 'Avisos')
+  bell.setAttribute('aria-haspopup', 'dialog')
+  bell.setAttribute('aria-expanded', String(noticesEl.open))
+  bell.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></svg>'
+    + (noticesUnread > 0 ? `<span class="badge">${noticesUnread > 99 ? '99+' : noticesUnread}</span>` : '')
+  bell.addEventListener('click', (e) => { e.stopPropagation(); hideTip(); setNoticesOpen(!noticesEl.open) })
+  bell.addEventListener('mouseenter', () => { if (!noticesEl.open) showTip(bell, noticesPaused() ? 'Avisos (en pausa)' : 'Avisos') })
+  bell.addEventListener('mouseleave', hideTip)
+  bar.append(spacer, bell, gear)
   tellClaude()
 }
 
@@ -682,6 +731,7 @@ const SECTIONS = [
   { id: 'appearance', t: 'Apariencia', icon: 'theme', d: 'El color y el modo, claro u oscuro. Vale para todas las apps de Cockpit.', keys: 'tema claro oscuro color paleta nord catppuccin monokai vintage' },
   { id: 'claude', t: 'Claude', icon: 'claude', d: 'Lo que hace Claude, en vivo, en el panel que abre el asterisco del pie de cada app.', keys: 'seguir panel actividad frenar asterisco' },
   { id: 'model', t: 'Modelo', icon: 'clock', d: 'El modelo de lo que corre en segundo plano: lo agendado, a ciertas horas, sin nadie mirando.', keys: 'modelo claude gemini segundo plano agendado tareas bedrock ia' },
+  { id: 'notices', t: 'Avisos', icon: 'bell', d: 'Los avisos de todas las herramientas: el no molestar, una pausa y cuánto avisa cada una. Vale también con Cockpit cerrado.', keys: 'avisos notificaciones no molestar silencio pausa sonido campana' },
   { id: 'apps', t: 'Apps', icon: 'apps', d: 'Las herramientas de la barra: si están arriba, y reiniciar una para que tome un cambio.', keys: 'servidor puerto reiniciar arriba apagada' },
   { id: 'help', t: 'Cómo se usa', icon: 'help', d: 'Lo que hay en cada lugar de Cockpit.', keys: 'ayuda guía atajos barra pie' },
 ]
@@ -755,6 +805,8 @@ function paintSettings() {
         <span class="state ${modelState?.ready && !modelBusy ? 'up' : ''}">${modelBusy ? '…' : modelState?.ready ? 'listo' : 'no'}</span>
         <button type="button" class="btn btn-outline btn-sm" data-act="model-check" ${modelBusy ? 'disabled' : ''}>Comprobar</button></div></div>
       <p>Wally elige el suyo aparte, en su barra.</p></section>`
+  } else if (settingsSection === 'notices') {
+    blocks.innerHTML = noticesSettingsHTML()
   } else if (settingsSection === 'apps') {
     blocks.innerHTML = `<section><h3>Las apps de la barra</h3><div class="settings-box">${apps.map((a) => {
       const st = appStates.find((x) => x.id === a.id) || {}
@@ -792,7 +844,7 @@ document.getElementById('settingsClose').addEventListener('click', () => setSett
 document.getElementById('settingsSearch').addEventListener('input', (e) => { settingsFilter = e.target.value; paintSettings() })
 document.getElementById('settingsSections').addEventListener('click', (e) => {
   const id = e.target.closest('[data-section]')?.dataset.section
-  if (id) { settingsSection = id; paintSettings(); if (id === 'model') loadModelState() }
+  if (id) { settingsSection = id; paintSettings(); if (id === 'model') loadModelState(); if (id === 'notices') loadNotices() }
 })
 document.getElementById('settingsBlocks').addEventListener('click', async (e) => {
   const visibleId = e.target.closest('[data-visible]')?.dataset.visible
@@ -820,6 +872,7 @@ document.getElementById('settingsBlocks').addEventListener('click', async (e) =>
     document.querySelector(`#settingsBlocks [data-palette-pick="${pick.dataset.palettePick}"][data-mode="${pick.dataset.mode}"]`)?.focus()
     return
   }
+  if (await noticesSettingsClick(e)) return
   const act = e.target.closest('[data-act]')?.dataset.act
   if (!act) return
   if (act === 'light' || act === 'dark') {
@@ -885,6 +938,153 @@ tauri.event.listen('cockpit-activity', (e) => {
   const p = e.payload
   if (p?.kind === 'start' && p.app && (!p.session || !focus || p.session === focus)) followTo(p.app, p.route)
 })
+
+/* ── LOS AVISOS ─────────────────────────────────────────────────────────────────────────────────────────────────
+   Los manda lib/notice (Go) desde cada herramienta; Cockpit los lee y edita sus ajustes con `bin/cockpit notices`
+   (Rust: notices_state, notices_read, notices_save, notices_test). Rust avisa «cockpit-notices» cuando entra uno. */
+let noticesShowSilenced = false
+let noticesError = ''
+const noticesPaused = () => { const p = noticesData?.settings?.pausedUntil; return !!p && new Date(p) > new Date() }
+const NOTIFIER_TEXT = {
+  authorized: ['Cockpit puede avisar', 'macOS le dio permiso: los avisos dicen «Cockpit» y tocarlos abre la herramienta.', true],
+  notDetermined: ['Falta el permiso de macOS', 'Mientras tanto salen por el avisador viejo del chat. «Probar» lo pide: tocá «Permitir» en el aviso de macOS.', false],
+  denied: ['macOS no le da permiso', 'Ajustes del Sistema → Notificaciones → «Cockpit» → permitir. Mientras, salen por osascript.', false],
+  missing: ['Falta el avisador', 'make cockpit lo compila (hace falta swiftc). Mientras, salen por el avisador viejo o por osascript.', false],
+}
+async function loadNotices(read = false) {
+  try { noticesData = await invoke(read ? 'notices_read' : 'notices_state'); noticesError = '' } catch (err) { noticesError = String(err) }
+  noticesUnread = read ? 0 : (noticesData?.unread || 0)
+  render()
+  if (noticesEl.open) paintNotices()
+  if (settingsOpen && settingsSection === 'notices') paintSettings()
+}
+function setNoticesOpen(open) {
+  if (open && !noticesEl.open) { noticesEl.show(); paintNotices(); loadNotices(true); noticesEl.querySelector('#noticesClose').focus() }
+  else if (!open && noticesEl.open) noticesEl.close()
+  render()
+}
+const noticeDay = (d) => {
+  const today = new Date(), y = new Date(today.getTime() - 864e5)
+  if (d.toDateString() === today.toDateString()) return 'Hoy'
+  if (d.toDateString() === y.toDateString()) return 'Ayer'
+  return d.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' }).replace(/^./, (c) => c.toUpperCase())
+}
+function paintNotices() {
+  const body = document.getElementById('noticesBody')
+  const silencedBtn = document.getElementById('noticesSilenced')
+  silencedBtn.setAttribute('aria-pressed', String(noticesShowSilenced))
+  silencedBtn.classList.toggle('on', noticesShowSilenced)
+  if (noticesError) { body.innerHTML = `<div class="alert alert-bad" style="margin: var(--space-3); width: auto">${esc(noticesError)}</div>`; return }
+  if (!noticesData) { body.innerHTML = '<div class="skeleton-row"></div><div class="skeleton-row"></div>'; return }
+  const readUntil = noticesData.readUntil || ''
+  const items = (noticesData.items || []).filter((r) => noticesShowSilenced || !r.silenced)
+  const hiddenCount = (noticesData.items || []).length - items.length
+  const pause = noticesPaused() ? `<div class="alert alert-warn" style="margin: var(--space-3); width: auto"><div class="alert-desc">En pausa hasta las ${hhmm(noticesData.settings.pausedUntil)}: los avisos quedan acá sin sonar.</div></div>` : ''
+  if (!items.length) {
+    body.innerHTML = pause + `<div class="empty"><div class="empty-head"><div class="empty-title">Sin avisos</div><div class="empty-desc">${hiddenCount ? `Hay ${hiddenCount} callado${hiddenCount === 1 ? '' : 's'}: el ojo de arriba los muestra.` : 'Lo que avise cada herramienta va a quedar acá 30 días.'}</div></div></div>`
+    return
+  }
+  const appName = (id) => apps.find((a) => a.id === id)?.name || (noticesData.apps || []).find((a) => a.ID === id)?.Name || id
+  let html = pause, day = ''
+  for (const r of items) {
+    const d = new Date(r.at)
+    const dd = noticeDay(d)
+    if (dd !== day) { day = dd; html += `<div class="region-head group"><span>${esc(dd)}</span></div>` }
+    const cls = ['notice-row', r.silenced ? 'silenced' : '', r.error ? 'failed' : '', !r.silenced && r.at > readUntil ? 'unread' : ''].join(' ')
+    const why = r.silenced ? `callado: ${r.silenced}` : r.error ? `no salió: ${r.error}` : ''
+    html += `<button type="button" class="${cls}" data-url="${esc(r.url || '')}" title="${esc(appName(r.app))}${r.via ? ' · salió por ' + esc(r.via) : ''}">
+      <svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[r.app] || FALLBACK}</svg>
+      <span class="notice-title">${esc(r.title)}</span><span class="notice-time">${hhmm(r.at)}</span>
+      ${r.body ? `<span class="notice-body">${esc(r.body)}</span>` : ''}${why ? `<span class="notice-why">${esc(why)}</span>` : ''}</button>`
+  }
+  if (!noticesShowSilenced && hiddenCount) html += `<p class="notice-why" style="padding: var(--space-3) var(--gutter)">${hiddenCount} callado${hiddenCount === 1 ? '' : 's'} sin mostrar.</p>`
+  body.innerHTML = html
+}
+document.getElementById('noticesBody').addEventListener('click', (e) => {
+  const row = e.target.closest('.notice-row')
+  if (!row) return
+  const raw = row.dataset.url
+  setNoticesOpen(false)
+  if (!raw) return
+  try {
+    const u = new URL(raw)
+    if (u.protocol === 'cockpit:' && apps.some((a) => a.id === u.host)) window.cockpitOpen(u.host, u.hash)
+  } catch { /* un enlace raro no abre nada */ }
+})
+document.getElementById('noticesSilenced').addEventListener('click', () => { noticesShowSilenced = !noticesShowSilenced; paintNotices() })
+document.getElementById('noticesClose').addEventListener('click', () => setNoticesOpen(false))
+document.getElementById('noticesSettings').addEventListener('click', () => { setNoticesOpen(false); settingsSection = 'notices'; setSettingsOpen(true); loadNotices() })
+noticesEl.addEventListener('close', render)
+noticesEl.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); setNoticesOpen(false) } })
+document.addEventListener('mousedown', (e) => { if (noticesEl.open && !noticesEl.contains(e.target) && !e.target.closest('.notices-toggle')) setNoticesOpen(false) })
+window.cockpitOpenNotices = () => setNoticesOpen(true)
+tauri.event.listen('cockpit-notices', () => loadNotices(noticesEl.open))
+
+const LEVEL_NAMES = { all: 'Todos', important: 'Importantes', none: 'Ninguno' }
+function noticesSettingsHTML() {
+  if (noticesError) return `<div class="alert alert-bad"><div class="alert-desc">${esc(noticesError)}</div></div>`
+  if (!noticesData) return '<p>Cargando…</p>'
+  const st = noticesData.settings || {}
+  const q = st.quiet || {}
+  const [name, what, ok] = NOTIFIER_TEXT[noticesData.notifier] || NOTIFIER_TEXT.missing
+  const paused = noticesPaused()
+  const levels = (noticesData.apps || []).map((a) => {
+    const lvl = (st.apps || {})[a.ID] || 'all'
+    return `<div class="settings-row"><span class="settings-row-text"><span class="settings-row-name">${esc(a.Name)}</span></span>
+      <div class="toggle-group toggle-outline toggle-joined notice-levels" role="radiogroup" aria-label="Avisos de ${esc(a.Name)}">${['all', 'important', 'none'].map((l) =>
+        `<button type="button" class="toggle btn-sm" role="radio" aria-checked="${lvl === l}" aria-pressed="${lvl === l}" data-notice-level="${a.ID}:${l}">${LEVEL_NAMES[l]}</button>`).join('')}</div></div>`
+  }).join('')
+  return `<section><h3>El avisador</h3><div class="settings-box"><div class="settings-row"><span class="settings-row-text">
+      <span class="settings-row-name">${esc(name)}</span><span class="settings-row-what">${esc(what)}</span></span>
+      <span class="state ${ok ? 'up' : ''}">${ok ? 'listo' : 'no'}</span>
+      <button type="button" class="btn btn-outline btn-sm" data-notice-act="test">Probar</button></div></div></section>
+    <section><h3>No molestar</h3><div class="settings-box padded"><div class="quiet-row">
+      <button type="button" class="switch" role="switch" aria-checked="${!!q.on}" data-notice-act="quiet" aria-label="No molestar todos los días"></button>
+      <span>Todos los días de</span>
+      <input class="input" type="time" value="${esc(q.from || '19:00')}" data-notice-time="from" ${q.on ? '' : 'disabled'} aria-label="No molestar desde">
+      <span>a</span>
+      <input class="input" type="time" value="${esc(q.to || '08:00')}" data-notice-time="to" ${q.on ? '' : 'disabled'} aria-label="No molestar hasta"></div>
+      <label class="quiet-row" style="margin-top: var(--space-3)"><input type="checkbox" ${st.importantBreaksQuiet ? 'checked' : ''} data-notice-act="breaks"> Los importantes avisan igual (una alerta de Sentinel, una mención en el chat)</label></div></section>
+    <section><h3>Pausa</h3><div class="settings-box"><div class="settings-row"><span class="settings-row-text">
+      <span class="settings-row-name">${paused ? `En pausa hasta las ${hhmm(st.pausedUntil)}` : 'Sin pausa'}</span>
+      <span class="settings-row-what">En pausa no sale ninguno, ni los importantes; igual quedan en la campana.</span></span>
+      ${paused ? '<button type="button" class="btn btn-outline btn-sm" data-notice-act="unpause">Quitar la pausa</button>'
+        : '<button type="button" class="btn btn-outline btn-sm" data-notice-act="pause-1h">1 hora</button><button type="button" class="btn btn-outline btn-sm" data-notice-act="pause-3h">3 horas</button>'}</div></div></section>
+    <section><h3>Cuánto avisa cada una</h3><div class="settings-box">${levels}</div>
+      <p><b>Importantes</b>: lo que suena — una alerta de Sentinel, una corrida de Knowledge que frenó o falló, una mención, un correo de quien seguís. Lo que no sale queda en la campana con su motivo.</p></section>`
+}
+async function saveNoticeSettings(change) {
+  const next = { ...(noticesData?.settings || {}), ...change }
+  try { await invoke('notices_save', { settings: next }) } catch (err) { noticesError = String(err) }
+  await loadNotices()
+}
+async function noticesSettingsClick(e) {
+  const lvl = e.target.closest('[data-notice-level]')?.dataset.noticeLevel
+  if (lvl) {
+    const [app, level] = lvl.split(':')
+    await saveNoticeSettings({ apps: { ...(noticesData.settings.apps || {}), [app]: level } })
+    document.querySelector(`#settingsBlocks [data-notice-level="${lvl}"]`)?.focus()
+    return true
+  }
+  const act = e.target.closest('[data-notice-act]')?.dataset.noticeAct
+  if (!act) return false
+  const st = noticesData?.settings || {}
+  if (act === 'test') {
+    invoke('notices_test').catch(() => {})
+    window.toast?.('Aviso de prueba enviado', { description: 'Si macOS pide permiso, tocá «Permitir».' })
+    setTimeout(() => loadNotices(), 4000)
+  } else if (act === 'quiet') await saveNoticeSettings({ quiet: { ...st.quiet, on: !st.quiet?.on } })
+  else if (act === 'breaks') await saveNoticeSettings({ importantBreaksQuiet: e.target.checked })
+  else if (act === 'unpause') await saveNoticeSettings({ pausedUntil: '' })
+  else if (act.startsWith('pause-')) await saveNoticeSettings({ pausedUntil: new Date(Date.now() + parseInt(act.slice(6)) * 3600e3).toISOString() })
+  document.querySelector(`#settingsBlocks [data-notice-act="${act}"]`)?.focus()
+  return true
+}
+document.getElementById('settingsBlocks').addEventListener('change', (e) => {
+  const which = e.target.dataset?.noticeTime
+  if (which) saveNoticeSettings({ quiet: { ...(noticesData?.settings?.quiet || {}), [which]: e.target.value } })
+})
+setTimeout(() => loadNotices(), 800)
 
 // ⌘1, ⌘2…: cambiar de app (dentro de un iframe el atajo no llega acá; desde la barra, sí).
 window.addEventListener('keydown', (e) => {

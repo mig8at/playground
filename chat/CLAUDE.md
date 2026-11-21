@@ -44,7 +44,8 @@ llave que no tiene el equipo.
 
 ⚠ **Dos dueños, dos nombres.** El chat es una herramienta de **my-tools**: sus nombres propios dicen my-tools (el
 LaunchAgent `com.creditop.my-tools.chat`, el registro `creditop-my-tools-chat.log`, los datos en
-`~/Library/Application Support/creditop-my-tools-chat/` y el avisador «Chat de my-tools.app»). Pero **habla por el CLI
+`~/Library/Application Support/creditop-my-tools-chat/`; el avisador «Chat de my-tools.app» quedó sólo de respaldo:
+desde el 2026-11-21 los avisos pasan por `lib/notice` y salen por el de Cockpit, y el no molestar es de Cockpit). Pero **habla por el CLI
 del playground COMPARTIDO** (`Creditop-SAS/playground`): `playground listen|send|curl|cuadrilla|subscribe`, «tu sesión del
 playground», los servicios del equipo (`playground serve`, `~/playground/team`) y la red del playground son de allá y
 conservan su nombre.

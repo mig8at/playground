@@ -105,7 +105,7 @@ func main() {
 	if err != nil {
 		if *auto {
 			// Agendada, un error no se ve en ninguna terminal: se avisa.
-			_, _ = notice.Send(notice.Notice{Title: "La daily no salió", Body: err.Error(), URL: "cockpit://tablero/", Group: "creditop-daily"})
+			_, _ = notice.Send(notice.Notice{App: "tablero", Title: "La daily no salió", Body: err.Error(), URL: "cockpit://tablero/", Group: "creditop-daily", Replace: true, Important: true})
 		}
 		fail("%v", err)
 	}
@@ -122,7 +122,7 @@ func main() {
 	fmt.Fprintf(os.Stderr, "— guardada en %s (%s, %d min de %d tareas)\n", path, out.Model, out.MinutesIn, len(out.Tasks))
 	if *auto {
 		first := strings.SplitN(out.Text, "\n", 2)[0]
-		via, err := notice.Send(notice.Notice{Title: "Tu daily está lista", Body: first, URL: "cockpit://tablero/", Group: "creditop-daily"})
+		via, err := notice.Send(notice.Notice{App: "tablero", Title: "Tu daily está lista", Body: first, URL: "cockpit://tablero/", Group: "creditop-daily", Replace: true})
 		fmt.Printf("%s la del %s, guardada; aviso por %s %v\n", time.Now().Format(time.RFC3339), d, via, errOrEmpty(err))
 	}
 }

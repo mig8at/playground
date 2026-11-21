@@ -1,15 +1,10 @@
 package main
 
 import (
-	"context"
-	"fmt"
+	sysnotice "creditop/my-tools/lib/notice"
 	"net/mail"
 	"net/url"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
-	"time"
 
 	"creditop/my-tools/connectors/gmail"
 )
@@ -50,31 +45,14 @@ func sender(from string) string {
 	return from
 }
 
-// macNotice sale por el avisador del chat («Chat de my-tools», que ya tiene permiso de avisos y abre un enlace
-// `cockpit://` al tocarlo), como Sentinel; sin él, por osascript.
+// macNotice: el aviso, por lib/notice (Cockpit decide el silencio y lo guarda en su bandeja). Tocarlo abre el hilo
+// en Correo; uno nuevo del mismo hilo reemplaza al anterior. Un correo de quien seguís es importante: para eso existe.
 func macNotice(title, body, route string, sound bool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	home, _ := os.UserHomeDir()
-	bin := filepath.Join(home, "Applications", "Chat de my-tools.app", "Contents", "MacOS", "ChatNotifier")
-	if st, err := os.Stat(bin); err == nil && !st.IsDir() {
-		group := "creditop-correo"
-		if i := strings.LastIndex(route, "/"); i >= 0 && i < len(route)-1 {
-			group += "-" + route[i+1:] // uno por conversación
-		}
-		args := []string{"--title", title, "--body", body, "--url", "cockpit://correo/" + route, "--group", group}
-		if sound {
-			args = append(args, "--sound")
-		}
-		if out, err := exec.CommandContext(ctx, bin, args...).CombinedOutput(); err != nil {
-			return fmt.Errorf("avisador: %v %s", err, strings.TrimSpace(string(out)))
-		}
-		return nil
+	group := "creditop-correo"
+	if i := strings.LastIndex(route, "/"); i >= 0 && i < len(route)-1 {
+		group += "-" + route[i+1:] // uno por conversación
 	}
-	q := func(s string) string { return `"` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(s) + `"` }
-	script := "display notification " + q(body) + " with title " + q(title)
-	if sound {
-		script += ` sound name "Glass"`
-	}
-	return exec.CommandContext(ctx, "osascript", "-e", script).Run()
+	_, err := sysnotice.Send(sysnotice.Notice{App: "correo", Title: title, Body: body, URL: "cockpit://correo/" + route,
+		Group: group, Replace: true, Important: true, Sound: sound})
+	return err
 }

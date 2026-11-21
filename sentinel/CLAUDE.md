@@ -255,9 +255,10 @@ comercio chico mira 3, 6 o 24 horas. Avisan las del wizard entero y las de los c
 ## Cómo avisa (`server/alerts.go`)
 
 - **Un aviso de macOS cuando una señal pasa a alerta** (el estado sostenido, el mismo que muestra la interfaz), con
-  sonido. Tocarlo abre Cockpit en esa señal (`cockpit://sentinel/#/lender/6`). Sale por el avisador del chat («Chat de
-  my-tools»); si el avisador falla (sin permiso de avisos), por osascript, que avisa pero no abre nada al tocarlo, y el
-  aviso guarda por dónde salió (`via`).
+  sonido. Tocarlo abre Cockpit en esa señal (`cockpit://sentinel/#/lender/6`). Sale por `lib/notice`, como todos los avisos
+  desde el 2026-11-21: Cockpit aplica el silencio (una alerta es importante) y lo guarda en su campana
+  (`cockpit/CLAUDE.md` §«Los avisos»); el avisador es el de Cockpit y, sin permiso, osascript, que avisa pero no abre
+  nada al tocarlo. El aviso guarda por dónde salió (`via`); uno que Cockpit calló dice «callado: …» y no queda pendiente.
 - **Un aviso que no sale no se pierde** (`Pending` en `alerts.json`): cada pasada los reintenta en UNO solo («3 avisos
   no salieron desde…»). Mientras esperan, lo dicen `bin/sentinel now`, `make sentinel-status` y una franja roja en
   «Para mirar»; en la lista de avisos, los que no salieron llevan «no salió». `-notify-test` sale 2 si llegó por el

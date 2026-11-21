@@ -344,7 +344,7 @@ func (f *flow) modelReady() (bool, string) {
 	if st.Ready {
 		if was {
 			_, _ = notice.Send(notice.Notice{Title: "Knowledge · el modelo volvió", Body: "Retoma la puesta al día que estaba esperando.",
-				URL: "cockpit://knowledge/", Group: "creditop-knowledge"})
+				URL: "cockpit://knowledge/", Group: "creditop-knowledge", Replace: true})
 		}
 		return true, ""
 	}
@@ -354,7 +354,7 @@ func (f *flow) modelReady() (bool, string) {
 	}
 	if !was {
 		_, _ = notice.Send(notice.Notice{Title: "Knowledge · sin modelo", Body: "Hay fuentes viejas y el modelo no contesta: " + why,
-			URL: "cockpit://knowledge/", Group: "creditop-knowledge", Sound: true})
+			URL: "cockpit://knowledge/", Group: "creditop-knowledge", Replace: true, Important: true, Sound: true})
 	}
 	return false, why
 }
@@ -430,7 +430,7 @@ func (f *flow) tell(r *Run) {
 		title, sound = "Knowledge · falló", true
 	}
 	_, _ = notice.Send(notice.Notice{Title: title, Body: fmt.Sprintf("#%d · %s", r.ID, r.Result),
-		URL: fmt.Sprintf("cockpit://knowledge/#/run/%d", r.ID), Group: "creditop-knowledge", Sound: sound})
+		URL: fmt.Sprintf("cockpit://knowledge/#/run/%d", r.ID), Group: "creditop-knowledge", Important: sound, Sound: sound})
 }
 
 // ── la API ───────────────────────────────────────────────────────────────────────────────────────────────────────

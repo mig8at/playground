@@ -52,13 +52,22 @@ bin/cockpit — manejar Cockpit por consola (y que se vea en su panel «Claude»
   bin/cockpit say <texto…>          cuenta en el panel qué vas a hacer o qué encontraste
   bin/cockpit apps                  los ids de las apps
 
+  LOS AVISOS (lib/notice; sirven con Cockpit cerrado)
+  bin/cockpit notices [--app X] [--unread] [--limit N] [--json] [--read]   la bandeja: lo que avisó cada herramienta,
+                                    lo callado y por qué. --read lo marca leído
+  bin/cockpit notices settings [--set '<json>']   el no molestar, la pausa y el nivel de cada herramienta
+  bin/cockpit notify --title T [--body B] [--app X] [--url cockpit://…] [--important] [--sound]   manda un aviso
+  bin/cockpit notify --test         un aviso de prueba por el avisador de Cockpit (pide su permiso a macOS)
+  bin/cockpit mute <app> [all|important|none]   el nivel de una herramienta (sin nivel: none)
+  bin/cockpit pause <1h|30m|off>    ningún aviso por un rato
+
 Cada herramienta que usa Claude llega sola al panel (hook «cockpit»); say es para la intención y las conclusiones.`))
 		return 0
 	}
 	// Un comando que no existe se dice antes de buscar a Cockpit: con Cockpit cerrado contestaba «no está abierto»,
 	// que manda a abrir la app por un error de tipeo.
 	switch args[0] {
-	case "status", "apps", "open", "ensure", "restart", "say", "logs", "doctor", "session":
+	case "status", "apps", "open", "ensure", "restart", "say", "logs", "doctor", "session", "notices", "notify", "mute", "pause":
 	default:
 		fmt.Fprintf(os.Stderr, "cockpit: no conozco %q (bin/cockpit help)\n", args[0])
 		return 2
@@ -70,6 +79,17 @@ Cada herramienta que usa Claude llega sola al panel (hook «cockpit»); say es p
 	// doctor tampoco pasa por Cockpit: dice también si está cerrado.
 	if args[0] == "doctor" {
 		return doctor(args[1:])
+	}
+	// Los avisos tampoco: leen y escriben los archivos de lib/notice (notices.go).
+	switch args[0] {
+	case "notices":
+		return notices(args[1:])
+	case "notify":
+		return notifyCmd(args[1:])
+	case "mute":
+		return muteCmd(args[1:])
+	case "pause":
+		return pauseCmd(args[1:])
 	}
 	// session tampoco: la sesión del playground (session.go). Cockpit corre `session check` cada 10 min.
 	if args[0] == "session" {

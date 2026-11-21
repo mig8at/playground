@@ -4,7 +4,7 @@
 # ~/.cache/my-tools/cockpit (como bin/pg): `go run` costaría un segundo por llamada.
 root=$(cd "$(dirname "$0")/.." && pwd -P) || exit 1
 bin="${XDG_CACHE_HOME:-$HOME/.cache}/my-tools/cockpit"
-stale=$(find "$root/cmd/cockpit" "$root/lib/cockpit" -name '*.go' -newer "$bin" 2>/dev/null | head -n 1)
+stale=$(find "$root/cmd/cockpit" "$root/lib/cockpit" "$root/lib/notice" -name '*.go' -newer "$bin" 2>/dev/null | head -n 1)
 if [ ! -x "$bin" ] || [ -n "$stale" ] || [ "$root/go.mod" -nt "$bin" ]; then
   mkdir -p "$(dirname "$bin")" || exit 1
   tmp="$bin.$$"

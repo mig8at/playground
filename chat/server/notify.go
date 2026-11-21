@@ -6,15 +6,16 @@ package main
  *
  *   - por tipo: los mensajes directos, los de grupos (todos, sólo cuando te mencionan, o ninguno) y los de agentes;
  *   - por conversación, por encima de su tipo (#shopify sólo menciones, alguien en silencio);
- *   - «no molestar» en un horario, salvo, si querés, cuando te mencionan.
+ *   - una mención es un aviso importante.
  *
- * Lo muestra macOS: con el avisador propio («Chat de my-tools», scripts/notifier.sh), que al tocarlo abre esa
- * conversación en Cockpit (`cockpit://chat/#/c/…`); sin él, terminal-notifier u osascript. Si estás mirando esa
- * misma conversación con la ventana al frente, no avisa.
+ * Lo que sale pasa por lib/notice, como todos los avisos de my-tools: Cockpit aplica el «no molestar» y el nivel del
+ * chat, lo guarda en su bandeja y lo muestra con su avisador, que al tocarlo abre esa conversación
+ * (`cockpit://chat/#/c/…`). Si estás mirando esa misma conversación con la ventana al frente, no avisa.
  */
 
 import (
 	"context"
+	sysnotice "creditop/my-tools/lib/notice"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,7 +23,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -39,12 +39,6 @@ const (
 	notifyOff      = "off"
 )
 
-type quietHours struct {
-	On   bool   `json:"on"`
-	From string `json:"from"` // "19:00"
-	To   string `json:"to"`   // "08:00" (si es menor que From, cruza la medianoche)
-}
-
 type notifySettings struct {
 	Enabled bool   `json:"enabled"`
 	Sound   bool   `json:"sound"`
@@ -54,14 +48,13 @@ type notifySettings struct {
 	Agents  string `json:"agents"`  // all | off: lo que contestan o publican los agentes
 	// Por conversación (`#shopify`, `ana@creditop.com`): gana sobre su tipo.
 	Conversations map[string]string `json:"conversations"`
-	Quiet         quietHours        `json:"quiet"`
-	// Una mención avisa aunque sea horario de no molestar.
-	MentionsBreakQuiet bool `json:"mentionsBreakQuiet"`
+	// El horario de no molestar ya no es del chat: es de todos los avisos, en Cockpit (lib/notice). Una mención es un
+	// aviso importante, y atraviesa ese horario si así está puesto allá.
 }
 
 func defaultNotifySettings() notifySettings {
 	return notifySettings{Enabled: true, Sound: true, Preview: true, Direct: notifyAll, Groups: notifyAll, Agents: notifyAll,
-		Conversations: map[string]string{}, Quiet: quietHours{From: "19:00", To: "08:00"}, MentionsBreakQuiet: true}
+		Conversations: map[string]string{}}
 }
 
 func notifySettingsPath() (string, error) {
@@ -104,12 +97,6 @@ func (s notifySettings) normalized() notifySettings {
 		}
 	}
 	s.Conversations = clean
-	if _, err := time.Parse("15:04", s.Quiet.From); err != nil {
-		s.Quiet.From = "19:00"
-	}
-	if _, err := time.Parse("15:04", s.Quiet.To); err != nil {
-		s.Quiet.To = "08:00"
-	}
 	return s
 }
 
@@ -123,24 +110,6 @@ func writeNotifySettings(s notifySettings) (notifySettings, error) {
 	notifySettingsMu.Lock()
 	defer notifySettingsMu.Unlock()
 	return s, writePrivate(p, b)
-}
-
-// inQuiet: ¿esta hora cae en el horario de no molestar? (de 19:00 a 08:00 cruza la medianoche).
-func (q quietHours) inQuiet(now time.Time) bool {
-	if !q.On {
-		return false
-	}
-	from, err1 := time.Parse("15:04", q.From)
-	to, err2 := time.Parse("15:04", q.To)
-	if err1 != nil || err2 != nil || q.From == q.To {
-		return false
-	}
-	m := now.Hour()*60 + now.Minute()
-	f, t := from.Hour()*60+from.Minute(), to.Hour()*60+to.Minute()
-	if f < t {
-		return m >= f && m < t
-	}
-	return m >= f || m < t
 }
 
 // ── menciones: las mismas reglas que src/mentions.js (`@usuario`, `@usuario/agente`, `@todos`) ──
@@ -199,7 +168,7 @@ type me struct {
 }
 
 // decide: si este mensaje avisa y con qué texto. Las reglas, en orden: apagado → tuyo o viejo → la conversación
-// que estás mirando → su ajuste (el de la conversación gana sobre el del tipo) → no molestar.
+// que estás mirando → su ajuste (el de la conversación gana sobre el del tipo). El no molestar lo aplica Cockpit.
 func decide(m cli.Message, s notifySettings, who me, now time.Time) (notice, bool) {
 	if !s.Enabled || m.Dir == "out" || m.From.Email == "" || strings.EqualFold(m.From.Email, who.email) {
 		return notice{}, false
@@ -228,9 +197,6 @@ func decide(m cli.Message, s notifySettings, who me, now time.Time) (notice, boo
 	case mode == notifyOff:
 		return notice{}, false
 	case mode == notifyMentions && !mention:
-		return notice{}, false
-	}
-	if s.Quiet.inQuiet(now) && !(mention && s.MentionsBreakQuiet) {
 		return notice{}, false
 	}
 
@@ -329,62 +295,19 @@ func notifyFresh(fresh []cli.Message) {
 
 // Las pruebas lo cambian para no mostrar nada.
 var deliver = func(n notice) {
-	if err := macNotify(n); err != nil {
+	via, err := macNotify(n)
+	if err != nil {
 		log.Printf("aviso de macOS: %v", err)
 		return
 	}
-	log.Printf("aviso por macOS (%s): %s", macTool(), n.Title)
+	log.Printf("aviso (%s): %s", via, n.Title)
 }
 
-func macTool() string {
-	if notifierApp() != "" {
-		return "chat-notifier"
-	}
-	if _, err := exec.LookPath("terminal-notifier"); err == nil {
-		return "terminal-notifier"
-	}
-	return "osascript"
-}
-
-// notifierApp: el avisador propio («Chat de my-tools», scripts/notifier.sh), si está compilado.
-func notifierApp() string {
-	home, _ := os.UserHomeDir()
-	bin := filepath.Join(home, "Applications", "Chat de my-tools.app", "Contents", "MacOS", "ChatNotifier")
-	if st, err := os.Stat(bin); err == nil && !st.IsDir() {
-		return bin
-	}
-	return ""
-}
-
-// macNotify: con el avisador propio (tiene su permiso de avisos y tocarlo abre la conversación); si no está, con
-// terminal-notifier; y si tampoco, con osascript, que desde el servicio NO se ve si «Editor de Scripts» no tiene
-// permiso de avisos (pasó el 2026-11-10: salía sin error y no aparecía nada).
-func macNotify(n notice) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	if bin := notifierApp(); bin != "" {
-		args := []string{"--title", n.Title, "--body", n.Body, "--url", chatURL(n.Key), "--group", "creditop-chat-" + n.Key}
-		if n.Sound {
-			args = append(args, "--sound")
-		}
-		if out, err := exec.CommandContext(ctx, bin, args...).CombinedOutput(); err != nil {
-			return fmt.Errorf("avisador: %v %s", err, strings.TrimSpace(string(out)))
-		}
-		return nil
-	}
-	if bin, err := exec.LookPath("terminal-notifier"); err == nil {
-		args := []string{"-title", n.Title, "-message", n.Body, "-group", "creditop-chat-" + n.Key,
-			"-open", chatURL(n.Key)}
-		if n.Sound {
-			args = append(args, "-sound", "default")
-		}
-		return exec.CommandContext(ctx, bin, args...).Run()
-	}
-	script := fmt.Sprintf("display notification %s with title %s", appleString(n.Body), appleString(n.Title))
-	if n.Sound {
-		script += ` sound name "Glass"`
-	}
-	return exec.CommandContext(ctx, "osascript", "-e", script).Run()
+// macNotify: por lib/notice, como todos los avisos de my-tools: Cockpit decide el silencio (el no molestar, el nivel
+// del chat) y lo guarda en su bandeja; tocarlo abre la conversación. Una mención es importante.
+func macNotify(n notice) (string, error) {
+	return sysnotice.Send(sysnotice.Notice{App: "chat", Title: n.Title, Body: n.Body, URL: chatURL(n.Key),
+		Group: "creditop-chat-" + n.Key, Important: n.Mention, Sound: n.Sound})
 }
 
 // La interfaz de `make chat`; CHAT_UI_URL la cambia.
@@ -399,20 +322,18 @@ func chatURL(key string) string {
 	return base + "#/c/" + url.PathEscape(key)
 }
 
-// appleString: un texto como literal de AppleScript (comillas y barras escapadas; sin saltos raros).
-func appleString(s string) string {
-	s = strings.ReplaceAll(s, `\`, `\\`)
-	s = strings.ReplaceAll(s, `"`, `\"`)
-	s = strings.ReplaceAll(s, "\r", "")
-	return `"` + s + `"`
-}
-
-// Con qué avisa macOS.
+// Con qué avisa macOS: el permiso del avisador de Cockpit (authorized · denied · notDetermined · missing) y el
+// silencio de Cockpit que le toca al chat, para que la configuración del chat lo diga.
 func notifyStatus() map[string]any {
-	return map[string]any{"macTool": macTool()}
+	s := sysnotice.ReadSettings()
+	return map[string]any{"notifier": sysnotice.NotifierStatus(), "level": s.Level("chat"), "quiet": s.Quiet}
 }
 
 func registerNotify(mux *http.ServeMux) {
+	// El horario de no molestar pasó a Cockpit: si sus ajustes todavía no existen, nacen con el que tenía el chat.
+	if err := sysnotice.EnsureSettings(); err != nil {
+		log.Printf("avisos: no pude dejar los ajustes de Cockpit: %v", err)
+	}
 	mux.HandleFunc("GET /api/notify/settings", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"settings": readNotifySettings(), "status": notifyStatus()})
 	})
@@ -445,8 +366,8 @@ func registerNotify(mux *http.ServeMux) {
 	// Un aviso de prueba, como saldría uno de verdad.
 	mux.HandleFunc("POST /api/notify/test", func(w http.ResponseWriter, r *http.Request) {
 		s := readNotifySettings()
-		n := notice{Title: "Chat de my-tools", Body: "Así te va a llegar un aviso.", Sound: s.Sound}
-		if err := macNotify(n); err != nil {
+		n := notice{Title: "Chat", Body: "Así te va a llegar un aviso.", Sound: s.Sound}
+		if _, err := macNotify(n); err != nil {
 			fail(w, http.StatusInternalServerError, err)
 			return
 		}
