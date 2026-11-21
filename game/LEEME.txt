@@ -41,6 +41,9 @@ EL MÉTODO: TODO SE PRUEBA EN EL 2D
   node harness/pruebas/probar.mjs              el probador por niveles (0 medidas … 10 pantalla); --nivel=3-5, --seguir
   node harness/pruebas/calibrar.mjs <exp>      el calibrador (harness/pruebas/experimentos: rutina, descanso, botin…)
   node harness/pruebas/ver-fachadas.mjs        fotos de las fachadas para revisar a ojo
+  node harness/pruebas/auditar-plano.mjs [n]   la auditoría del plano (2026-11-20): no es pasa o no pasa, mide en n ciudades lo que
+                                               queda por calibrar —modelos contra el plano, muebles, baños, ventanas, casas,
+                                               mobiliario, copas— y lo da como lista de más a menos casos, con ejemplos
 Las medidas y reglas viven en src/engine/medidas.js; el diseño, en REGLAS.md, GENERADOR.md, FACHADAS.md y MEJORAS.md.
 
 harness/

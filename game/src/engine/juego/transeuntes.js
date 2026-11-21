@@ -126,7 +126,11 @@ export function crearTranseuntes(S,mapa){const bp=S.bp,H=3600;
    if(!f||!(dt>0)||dt>.25||Math.hypot(tx-f.x,tz-f.z)>6){f={x:tx,z:tz,vx:Math.sin(o.rumbo)*o.v,vz:Math.cos(o.rumbo)*o.v,tx,tz,tvx:Math.sin(o.rumbo)*o.v,tvz:Math.cos(o.rumbo)*o.v,r:o.rumbo};}
    else{const kf=1-Math.exp(-dt*6);f.tvx+=((tx-f.tx)/dt-f.tvx)*kf;f.tvz+=((tz-f.tz)/dt-f.tvz)*kf;let ax=w*w*(tx-f.x)+2*w*(f.tvx-f.vx),az=w*w*(tz-f.z)+2*w*(f.tvz-f.vz);const am=Math.hypot(ax,az);if(am>amax){ax*=amax/am;az*=amax/am;}
     let rx=0,rz=0;for(const g of prev){if(g===f)continue;const dx=f.x-g.x,dz=f.z-g.z,d=Math.hypot(dx,dz);if(d>=SEP||d<1e-4)continue;const k=KR*(SEP-d)/SEP/d;rx+=dx*k;rz+=dz*k;}
-    const rm=Math.hypot(rx,rz);if(rm>CAMINAR.acelEmpuje){rx*=CAMINAR.acelEmpuje/rm;rz*=CAMINAR.acelEmpuje/rm;}ax+=rx;az+=rz;const at=Math.hypot(ax,az),atop=CAMINAR.acelTope;if(at>atop){ax*=atop/at;az*=atop/at;}
+    const rm=Math.hypot(rx,rz);if(rm>CAMINAR.acelEmpuje){rx*=CAMINAR.acelEmpuje/rm;rz*=CAMINAR.acelEmpuje/rm;}
+    // (2026-11-20: el empujón cede con lo lejos que ya está de su punto —nada a 3 m—. El resorte tiene tope y el empujón
+    // también: en una vereda llena el empujón ganaba cuadro tras cuadro, el personaje se alejaba de su camino a paso firme
+    // y, al llegar a 6 m, «aparecía» de vuelta en su punto: un salto de 6 m a la vista —validar-caminar, ciudades 1 y 2—)
+    {const cede=Math.max(0,1-Math.hypot(tx-f.x,tz-f.z)/3);rx*=cede;rz*=cede;}ax+=rx;az+=rz;const at=Math.hypot(ax,az),atop=CAMINAR.acelTope;if(at>atop){ax*=atop/at;az*=atop/at;}
     const atras=Math.hypot(tx-f.x,tz-f.z);f.vx+=ax*dt;f.vz+=az*dt;const sp=Math.hypot(f.vx,f.vz),vm=o.v*(1.15+.35*Math.min(1,Math.max(0,atras-1)/2));if(sp>vm){f.vx*=vm/sp;f.vz*=vm/sp;}f.x+=f.vx*dt;f.z+=f.vz*dt;f.tx=tx;f.tz=tz;
     if(Math.hypot(f.vx,f.vz)>.25)f.r=Math.atan2(f.vx,f.vz);}
    seguir.set(o.id,f);o.x=f.x;o.z=f.z;o.rumbo=f.r;o.vAnim=Math.hypot(f.vx,f.vz);}

@@ -77,6 +77,7 @@ function balance(front,back,either){let best=null;const pair=k=>/^(cocina|comedo
 // bit 1, el orden de los cuartos de cada franja al revés; bit 2, un cuarto más (EXTRA: un estudio, un cuarto de
 // huéspedes, un medio baño). La escalera queda siempre contra la pared izquierda.
 export const EXTRA={solo:'estudio',pareja:'dormitorio_sencillo',familia:'estudio',familia_grande:'estudio',estudiantes:'medio_bano',abuelos:'dormitorio_sencillo'};
+const DEPOSITO_CASA=['caja','caja?','estante:0.9x0.38?'];
 const PLANS=new Map();
 export function planHogar(kind='familia',opts={}){const v=(opts.variant|0)&3,key=kind+'#'+v;if(!PLANS.has(key)){const P=buildHogar(kind,{...opts,variant:v});P.variant=v;PLANS.set(key,P);}return PLANS.get(key);}
 // Con qué frecuencia vive cada una en el monte.
@@ -150,8 +151,10 @@ function layoutHogar(kind,two,list,rev){const H=HOGARES[kind],keys=[...list];
    if(windows.length===n0&&Math.abs(q.u1-W)<1e-6)add('v',W,q.v0,q.v1,bano?.6:Math.min(1.2,(q.v1-q.v0)-.6));
    if(level===0&&q===sala){const c=(sala.u0+sala.u1)/2,side=(sala.u1-sala.u0)/2;if(side>1.6)add('u',0,c+.6,sala.u1,Math.min(1.2,side-.9));}}
   // Los muebles de cada cuarto (con sus puertas y ventanas), con el motor de la ciudad.
-  const furniture=[];for(const q of rooms){if(!PROGRAMS[q.prog])continue;const open={doors:doors.filter(d=>d.a===q.id||d.b===q.id),windows:windows.filter(w=>w.a===q.id)};
-   furniture.push(...furnishProgram(q,open,PROGRAMS[q.prog].recipe));}
+  // (2026-11-20: el depósito de la casa —lo que sobra de una franja— no tiene programa y quedaba vacío: 232 depósitos sin
+  // un solo mueble en cuatro ciudades. Lleva lo de un depósito: cajas y, si entra, un estante.)
+  const furniture=[];for(const q of rooms){const receta=PROGRAMS[q.prog]?.recipe||(q.type==='deposito'?DEPOSITO_CASA:null);if(!receta)continue;const open={doors:doors.filter(d=>d.a===q.id||d.b===q.id),windows:windows.filter(w=>w.a===q.id)};
+   furniture.push(...furnishProgram(q,open,receta));}
   return {level,rooms,doors,windows,furniture};});
 
  const used=keys.reduce((a,k)=>a+minOf(k)[0]*minOf(k)[1],0);

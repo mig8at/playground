@@ -1,5 +1,7 @@
 // Generado por harness/pruebas/medir-muebles.mjs (2026-10-17): por tipo de mueble del plano,
 // lo que el plano reserva y lo que mide el modelo que lo dibuja, en milímetros (ancho a lo largo de la pared, fondo, alto).
+// (2026-11-20: el plano de la planta y del sillón se calibró a su modelo —blueprint.js ITEMS— y se anotó acá a mano: el
+// script que genera esta tabla no está en el repo)
 export const MUEBLES_MEDIDOS={
  "sofa": {
   "plan": {
@@ -42,8 +44,8 @@ export const MUEBLES_MEDIDOS={
  },
  "planta": {
   "plan": {
-   "ancho": 500,
-   "fondo": 500
+   "ancho": 420,
+   "fondo": 420
   },
   "modelo": {
    "ancho": 419,
@@ -493,8 +495,8 @@ export const MUEBLES_MEDIDOS={
  },
  "sillon": {
   "plan": {
-   "ancho": 1100,
-   "fondo": 980
+   "ancho": 900,
+   "fondo": 800
   },
   "modelo": {
    "ancho": 901,

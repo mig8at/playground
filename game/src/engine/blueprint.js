@@ -380,12 +380,17 @@ function apartments(a,b,v0,v1,corr,r,band,units,gmax=2){
   // (unitPlan) y lo que sobra agranda la sala y después las alcobas. Las ventanas siguen en módulos de 2 m (las piezas
   // de la fachada): un tabique en medio de un módulo lo deja sin ventana, así que el reparto busca que cada alcoba y la
   // sala tengan un módulo entero. Orden: [alcobas sobre (baño | hall)] [sala] [cocina], el hall llega hasta la sala.
+  // (2026-11-20: el baño del estudio iba de punta a punta —2 × 6 m, 12 m², con tres aparatos: 107 en cuatro ciudades—. Con
+  // fondo para las dos cosas, el baño queda del lado del pasillo, sin ventana como en un edificio de verdad, y la parte de
+  // la fachada es la zona de ropas del estudio, con su ventana)
+  const banoEstudio=est=>{if(D>=5){const B=3,alPasillo=Math.abs(hallSide[0]-v0)<1e-6;// (3 m de baño: con los 2,5 de la franja, en uno de cada cinco no entraba la ducha)
+   room('bano',u1-2,u1,alPasillo?v0:v1-B,alPasillo?v0+B:v1,{doorTo:est});room('ropas',u1-2,u1,alPasillo?v0+B:v0,alPasillo?v1:v1-B,{doorTo:est});}else room('bano',u1-2,u1,v0,v1,{doorTo:est});};
   if(D>=5&&W>=7){const f=facade,h=hallSide,P=unitPlan(W,f[1]-f[0],u0,u1,mirror,r()<.25,D,gmax);
    if(P){const {beds,salaW,cocW,bathW}=P.w;let x=u0;const bedR=beds.map(w=>{const r0=[x,x+w];x+=w;return r0;}),uB=x;
     const sala=room(cocW?'sala':'sala_cocina',uB,uB+salaW,v0,v1,{entry:true}),hall=room('hall',u0+bathW,uB,h[0],h[1],{doorTo:sala});
     bedR.forEach(([x0,x1])=>room('dormitorio',x0,x1,f[0],f[1],{doorTo:hall}));room('bano',u0,u0+bathW,h[0],h[1],{doorTo:hall});
     if(cocW)room('cocina',uB+salaW,u1,v0,v1,{doorTo:sala});}
-   else{const est=room('estudio',u0,u1-2,v0,v1,{entry:true});room('bano',u1-2,u1,v0,v1,{doorTo:est});}}
+   else{const est=room('estudio',u0,u1-2,v0,v1,{entry:true});banoEstudio(est);}}
   // (la sala, como mucho MINIMO.proporcion veces su fondo libre —con pasillos de 2 m el fondo bajó a 4 y una sala de 8×4
   // quedaba alargada—; lo que sobra, al dormitorio)
   else if(W>=10&&D>=4){const sw=2,salaMax=Math.floor(((D-MURO.tabique)*MINIMO.proporcion+MURO.tabique)*2+1e-9)/2,salaW=Math.min(W-4-sw,salaMax),dw=W-sw-salaW;
@@ -396,7 +401,7 @@ function apartments(a,b,v0,v1,corr,r,band,units,gmax=2){
   // (con 4 m de fondo, el dormitorio de adelante quedaría de 2 m: ahí mejor un estudio con su baño)
   else if(W>=7&&D>=5){const sw=4;const sala=room('sala_cocina',u0,u1-sw,v0,v1,{entry:true});
    room('dormitorio',u1-sw,u1,facade[0],facade[1],{doorTo:sala});room('bano',u1-sw,u1,hallSide[0],hallSide[1],{doorTo:sala});}
-  else{const est=room('estudio',u0,u1-2,v0,v1,{entry:true});room('bano',u1-2,u1,v0,v1,{doorTo:est});}}
+  else{const est=room('estudio',u0,u1-2,v0,v1,{entry:true});banoEstudio(est);}}
  return out;}
 
 // Habitaciones en suite (los pisos de hotel y de hospital): una franja [a,b] × [v0,v1] con el pasillo del lado «corr»
@@ -532,7 +537,7 @@ function layoutFloor(L,F,level,r,opt={}){
   // —medido en la ciudad 1: nueve edificios de 12 × 12 y 18 × 12 m—. Ahí va lo que un edificio de verdad pone en un fondo
   // sin luz: la zona de ropas del piso y un trastero por módulo, cada uno con su puerta al pasillo. No son habitables: no
   // piden ventana. El tramo corto sigue siendo ensanche.
-  let i=0,nurse=suite==='habitacion_h';for(const [a,b] of gaps)if(b-a>ENSANCHE_MAX&&dark.has(a+'|'+b)&&homes)fill(a,b,TRASTEROS,r,0,Lv-c0-P).forEach(q=>rooms.push({...q,v0:c0+P,v1:Lv,band:'back'}));
+  let i=0,nurse=suite==='habitacion_h';for(const [a,b] of gaps)if(b-a>ENSANCHE_MAX&&dark.has(a+'|'+b)&&homes)fill(a,b,TRASTEROS,r,0,Lv-c0-P).forEach(q=>rooms.push({...q,v0:c0+P,v1:Lv,band:'back',trastero:q.type==='deposito'}));
   else if(b-a>=2&&dark.has(a+'|'+b)&&homes)corr.push({u0:a,v0:c0+P,u1:b,v1:Lv,ensanche:true});
   else if(b-a>=2&&dark.has(a+'|'+b))fill(a,b,SERV,r,i++,Lv-c0-P).forEach(q=>rooms.push({...q,v0:c0+P,v1:Lv,band:'back'}));
   else if(b-a>=2){if(homes)rooms.push(...apartments(a,b,c0+P,Lv,'v0',r,'back',units,gmax));
@@ -659,19 +664,21 @@ function openings(L,F,plan,level,r){// (PC: el ancho de la puerta de calle de es
 // ---------- Etapa 8: muebles (en el marco local) ----------
 // Medidas tomadas de los modelos que los dibujan en 3D (town3d.js), para que nada asome por paredes ni ventanas.
 // [tipo, ancho a lo largo de la pared, fondo, alto?]: «alto» (más de ~85 cm) no va bajo una ventana. «c» = al centro.
-export const ITEMS={sofa:[2.2,.9,0],mesa_centro:[1,1,0,'c'],tv:[1.4,.45,1],planta:[.5,.5],cama:[1.6,2.1],cama_s:[1.05,2.15],litera:[1.15,2.1,1],mesa_noche:[.56,.5],armario:[1.1,.6,1],
+export const ITEMS={sofa:[2.2,.9,0],mesa_centro:[1,1,0,'c'],tv:[1.4,.45,1],planta:[.42,.42],cama:[1.6,2.1],cama_s:[1.05,2.15],litera:[1.15,2.1,1],mesa_noche:[.56,.5],armario:[1.1,.6,1],
  escritorio:[1.56,.73],meson:[2,.6],nevera:[.7,.7,1],estufa:[.55,.6],mesa:[1.02,1.02,0,'c'],inodoro:[.55,.75,1],lavamanos:[.72,.45],ducha:[1,1,1],tina:[.85,2.05],lavadora:[.7,.7],
  archivador:[1.06,.63,1],mesa_reunion:[2.4,1.25,0,'c'],cama_h:[1.05,2.15],mostrador:[2.2,.7,1],pupitre:[.7,.5],tablero:[2.4,.12,1],casillero:[1.2,.45,1],
  caminadora:[.85,1.9,1],bicicleta:[.6,1.2,1],banco:[1.2,1.5,1],mancuernas:[1.5,.5],colchoneta:[1.8,.9],espejo_pared:[2.4,.06,1],// (el gimnasio, 2026-10-17)
- perchero:[1.2,.5,1],maniqui:[.5,.5],estanteria_ropa:[1.6,.45,1],probador:[1,1,1],// (la tienda de ropa, 2026-10-17)estante:[1.12,.42,1],
- mesa_lectura:[2.4,1.25,0,'c'],lampara:[.36,.36,1],sillon:[1.1,.98],comoda:[.95,.65,1],catre:[1.05,2.15],vehiculo:[2.2,5],caja:[.8,.8],buzones:[1.2,.3,1],caja_fuerte:[.8,.8,1],camilla:[.8,1.9],
+ perchero:[1.2,.5,1],maniqui:[.5,.5],estanteria_ropa:[1.6,.45,1],probador:[1,1,1],// (la tienda de ropa, 2026-10-17)
+ estante:[1.12,.42,1],// (2026-11-20: había quedado DENTRO del comentario de arriba desde el 17 de octubre: sin su medida, ningún estante de pared se ponía —el del estudio de las casas, el de los depósitos, el de las oficinas—)
+ mesa_lectura:[2.4,1.25,0,'c'],lampara:[.36,.36,1],sillon:[.9,.8],// (2026-11-20, calibrados contra su modelo —muebles-medidos.js—: la planta reservaba 500 × 500 mm para una maceta de 419, y el sillón 1.100 × 980 para uno de 901 × 791)
+ comoda:[.95,.65,1],catre:[1.05,2.15],vehiculo:[2.2,5],caja:[.8,.8],buzones:[1.2,.3,1],caja_fuerte:[.8,.8,1],camilla:[.8,1.9],
  horno:[1.5,1.1,1],plancha:[1.6,.75,1],repisa:[1.4,.42,1],vitrina:[1.6,.75,1],cajon:[1.2,.7,0]};// (los de los locales con giro: el horno de leña de la pizzería y la plancha de la hamburguesería)
 // ---- Muebles a la medida (2026-10-12, idea de Miguel) ----
 // Lo que se fabrica a medida va con una lista de medidas [ancho, fondo], de la más grande a la más chica: el mueble prueba
 // de la más grande que el azar del intento le da para arriba en la lista, y se queda con la primera que entra sin estorbar
 // (así el mesón llena la pared que le queda, la cama es doble o sencilla según el dormitorio y la mesa del comedor es de
 // dos, cuatro o seis puestos). La mesa (al centro) sólo en las casas; la de los locales sigue redonda.
-const SIZES={meson:[[3,.6],[2.7,.6],[2.4,.6],[2.1,.6],[1.8,.6],[1.5,.6],[1.2,.6],[.9,.6]],escritorio:[[1.6,.73],[1.4,.7],[1.2,.65],[1,.6],[.9,.55]],
+export const SIZES={meson:[[3,.6],[2.7,.6],[2.4,.6],[2.1,.6],[1.8,.6],[1.5,.6],[1.2,.6],[.9,.6]],escritorio:[[1.6,.73],[1.4,.7],[1.2,.65],[1,.6],[.9,.55]],
  estante:[[1.6,.42],[1.12,.42],[.9,.38],[.6,.35]],cama:[[1.6,2.05],[1.4,1.95],[1.2,1.95]],cama_s:[[1.05,2.1],[.9,1.95]],nevera:[[.9,.72],[.7,.7],[.6,.65]],
  sofa:[[2.4,.9],[2.1,.9],[1.8,.85],[1.5,.85],[1.25,.8]],armario:[[2.4,.6],[2,.6],[1.6,.6],[1.2,.6],[.9,.55]],comoda:[[1.4,.5],[1.1,.5],[.8,.45]],
  mostrador:[[3,.7],[2.6,.7],[2.2,.7],[1.8,.7],[1.4,.65]],tv:[[1.6,.45],[1.4,.45],[1.1,.4]],ducha:[[1,1],[.9,.9],[.8,.8]],tina:[[.85,2.05],[.8,1.7]],
@@ -682,7 +689,7 @@ const SUELTO=new Set(['banco','bicicleta','colchoneta','perchero','maniqui']);
 const TABLES=[[1.6,.9],[1.2,.8],[.9,.9],[.8,.8]],HOME=new Set(['cocina','sala_cocina','estudio','comedor_casa','sala']);
 export const RECIPE={
  sala:['sofa','sillon?','tv','mesa_centro','planta','lampara?','escritorio?'],dormitorio:['cama','mesa_noche','armario','comoda?','lampara?','escritorio?'],cocina:['meson','nevera','estufa','lavadora?','mesa'],
- bano:['inodoro','banera','lavamanos'],sanitario_piso:['inodoro','lavamanos'],oficina:['escritorio!','archivador','estante?','lampara?','planta'],abierta:['escritorios!','archivador','planta'],reuniones:['mesa_reunion','tv'],
+ bano:['inodoro','banera','lavamanos'],sanitario_piso:['inodoro','lavamanos'],trastero:['caja','caja'],sanitario_grande:['inodoro','inodoro','lavamanos','lavamanos'],oficina:['escritorio!','archivador','estante?','lampara?','planta'],abierta:['escritorios!','archivador','planta'],reuniones:['mesa_reunion','tv'],
  cocineta:['meson','nevera'],habitacion:['cama_hotel','mesa_noche','comoda?','sillon?','escritorio?','tv','lampara'],dormitorio_b:['litera','litera?','armario','mesa_noche'],habitacion_h:['cama_h','cama_h?','mesa_noche'],enfermeria:['mostrador','escritorio!','camilla'],
  aula:['tablero','escritorio!','casillero?','pupitres'],sala_prof:['mesa_reunion','escritorio!','casillero?'],lectura:['estante','estante','estante','estante','mesa_lectura','mesa_lectura','mesa_lectura','mesa_lectura?','escritorio!','lampara?','planta'],archivo:['estante','estante','caja','caja'],
  estudio:['cama','meson','estufa','nevera','sofa','escritorio?'],sala_cocina:['meson','estufa','nevera','sofa','sillon?','tv','mesa','escritorio?'],
@@ -702,7 +709,7 @@ export const RECIPE={
  sanitario:['inodoro','inodoro','lavamanos','lavamanos'],secretaria:['mostrador','escritorio!','archivador','planta'],comedor:['meson','nevera','mesa','mesa','mesa'],// (el mesón y la nevera primero: puestos después, las mesas les tapaban el frente en un comedor de 4×4)
 
  prestamo:['mostrador','escritorio!','estante','planta'],estanteria:['estantes'],infantil:['estante','sofa','sillon?','mesa','planta'],
- interrogatorio:['mesa','archivador?'],evidencia:['estante','estante','archivador','caja','caja'],vestuario:['armario','armario','armario','armario','armario?'],consultorio:['escritorio!','camilla'],vestibulo:['buzones','planta','caja?'],garaje:['vehiculo','caja','caja'],deposito:['caja','caja','caja','estante']};
+ interrogatorio:['mesa','archivador?'],evidencia:['estante','estante','archivador','caja','caja'],vestuario:['armario','armario','armario','armario','armario?'],consultorio:['escritorio!','camilla'],vestibulo:['buzones','planta','caja?'],garaje:['vehiculo','caja','caja'],deposito:['caja','caja','caja']/* (sin el estante que traía la receta: nunca se puso —su medida estaba dentro de un comentario— y, al volver, en los depósitos de planta baja tapaba el paso a las cajas donde se esconde la bolsa: validar-juego, 18 cajas) */};
 
 // Los nombres de los letreros (inventados).
 const SHOP_NAMES={pizzeria:['Pizzería Napoli','La Fornace','Pizza Roma','Don Peppe','Horno de Leña','Pizzería Vesubio','Mamma Lucia'],
@@ -740,7 +747,7 @@ function catalogFor(q,open,recipe,extra=''){const sig=roomSig(q,open)+extra;let 
  for(let k=0;k<CAT_TRIES;k++){const w2={need:true,pcs:0},its=furnishRoom(q,open,rng(Math.floor(r()*4294967296)),w2,recipe),Q=its.quality;all.push({sc:quality(its),pcs:w2.pcs,its});
   if(!Q)break;if(Q.doors===Q.doorsN&&Q.use===Q.useN){okm++;if(!Q.missing){ok++;if(!Q.win)good++;}}if(good>=VARIANTS||(k>=5&&ok>=VARIANTS)||(k>=11&&okm>=VARIANTS))break;}
  all.sort((x,y)=>y.sc-x.sc);
- C=all.slice(0,VARIANTS).filter((v,i)=>!i||v.sc>=all[0].sc-3).map(v=>({pcs:v.pcs,missing:v.its.quality?.missing||0,full:!!v.its.quality&&v.its.quality.use>=v.its.quality.useN&&v.its.quality.doors>=v.its.quality.doorsN&&(v.its.quality.vent??0)>=(v.its.quality.ventN??0),items:v.its.map(it=>({...it,u0:it.u0-q.u0,u1:it.u1-q.u0,v0:it.v0-q.v0,v1:it.v1-q.v0,room:undefined}))}));
+ C=all.slice(0,VARIANTS).filter((v,i)=>!i||v.sc>=all[0].sc-3).map(v=>({pcs:v.pcs,missing:v.its.quality?.missing||0,win:v.its.quality?.win||0,full:!!v.its.quality&&v.its.quality.use>=v.its.quality.useN&&v.its.quality.doors>=v.its.quality.doorsN&&(v.its.quality.vent??0)>=(v.its.quality.ventN??0),items:v.its.map(it=>({...it,u0:it.u0-q.u0,u1:it.u1-q.u0,v0:it.v0-q.v0,v1:it.v1-q.v0,room:undefined}))}));
  if(CATALOG.size>=CATALOG_MAX)CATALOG.clear();CATALOG.set(sig,C);return C;}
 // ---- El programa de cada cuarto de departamento (2026-10-12: de adentro hacia afuera, en la ciudad) ----
 // Cada cuarto toma el programa más completo que le cabe (la tabla de mínimos, cuartos-minimos.js, en cualquiera de sus
@@ -760,6 +767,7 @@ export const programExtras=(k,t=PROGRAMS[k].type)=>!Object.values(PROG_BY).flat(
 // La receta con que se MIDE el mínimo de un programa (2026-10-15, decisión de Miguel: «el cuarto mínimo cuenta todo lo que
 // se le pone»): el programa más todos sus opcionales, como obligatorios (el escritorio, con su computador).
 export const fullRecipe=(k,t)=>[...PROGRAMS[k].recipe,...programExtras(k,t).map(e=>e.slice(0,-1)==='escritorio'?'escritorio!':e.slice(0,-1))];
+const BANO_JUSTO=['ducha:0.8x0.8','inodoro','lavamanos:0.45x0.36'];
 const fitsMin=(q,k)=>{const w=q.u1-q.u0,d=q.v1-q.v0,M=MINIMOS[k];return !!M&&['hondo','ancho'].some(o=>M[o]&&w*d>=.85*M[o][0]*M[o][1]&&Math.min(w,d)>=Math.min(...M[o])-.3);};
 function furnish(F,plan,open,r,want){const items=[];
  // (en cada departamento, el dormitorio más grande es el principal)
@@ -769,12 +777,21 @@ function furnish(F,plan,open,r,want){const items=[];
   // La cocina angosta (2 m): en línea, sin mesa, y la nevera al final: como no es esencial, va sólo si cabe sin
   // estorbar (con la fachada a lo largo no entran las tres cosas).
   if(q.type==='cocina'&&Math.min(q.u1-q.u0,q.v1-q.v0)<2.5)recipe=RECIPE.cocina_linea;
+  // (el trastero de un piso de departamentos: 2 × 4 m, sólo cajas —con el estante del depósito de siempre, a la del fondo no
+  // se llegaba caminando: validar-juego—)
+  if(q.trastero)recipe=RECIPE.trastero;
   // (2026-11-20: el baño que no es de nadie —sin departamento y sin un cuarto al que se abra: el de un piso de oficinas, el
   // del fondo de un local— es un sanitario: inodoro y lavamanos. Con la receta de siempre, 128 baños de oficina de la
   // ciudad 1 tenían ducha.)
-  if(q.type==='bano'&&!q.unit&&!q.doorTo&&!q.propio)recipe=RECIPE.sanitario_piso;
+  // (y el que mide más de 10 m² —los de 2 × 7,5 m de los lotes hondos— es un sanitario de varios puestos: dos y dos)
+  if(q.type==='bano'&&!q.unit&&!q.doorTo&&!q.propio)recipe=(q.u1-q.u0)*(q.v1-q.v0)>10?RECIPE.sanitario_grande:RECIPE.sanitario_piso;
   let C=null,used=recipe;const lists=q.unit&&PROG_BY[q.type];
-  if(lists)for(const k of (q.type==='dormitorio'&&!first.has(q)?lists[1]:lists[0])){if(k==='*'){const c=catalogFor(q,open,recipe);if(!c[0].missing){C=c;break;}continue;}if(!fitsMin(q,k))continue;
+  if(lists)for(const k of (q.type==='dormitorio'&&!first.has(q)?lists[1]:lists[0])){if(k==='*'){const c=catalogFor(q,open,recipe);if(!c[0].missing){C=c;break;}continue;}
+   // (2026-11-20: antes de dejar el único baño de un departamento sin ducha —medio baño—, una ducha de 80 cm y el lavamanos
+   // chico, en otro orden: la ducha primero, al rincón)
+   // (sólo una distribución entera y en regla: sin nada delante de la ventana —validar-ciudad—; si no la hay, medio baño)
+   if(k==='medio_bano'){const c=catalogFor(q,open,BANO_JUSTO,'|justo'),v=c.find(v=>!v.missing&&v.full&&!v.win);if(v){C=[v];used=BANO_JUSTO;q.prog='bano';break;}}
+   if(!fitsMin(q,k))continue;
    const rec=[...PROGRAMS[k].recipe,...programExtras(k,q.type)];used=rec;
    const c=catalogFor(q,open,rec,'|'+k);if(!c[0].missing){C=c;q.prog=k;break;}used=recipe;}
   // (sin programa, la receta general; en una alcoba más chica que la doble de la norma —INTERIOR.alcobaDoble—, con cama
@@ -782,7 +799,7 @@ function furnish(F,plan,open,r,want){const items=[];
   if(!C&&q.type==='dormitorio'){const a=q.u1-q.u0-MURO.tabique,b=q.v1-q.v0-MURO.tabique,N=INTERIOR.alcobaDoble;if(a*b<N.m2-1e-6||Math.min(a,b)<N.ancho-1e-6){recipe=recipe.map(e=>e==='cama'?'cama_s':e);used=recipe;}}
   // (el catálogo se guarda por la forma del cuarto, no por la receta: el sanitario lleva su marca, o un baño de casa con la
   // misma forma que uno de oficina heredaba el catálogo sin ducha —y al revés—)
-  if(!C)C=catalogFor(q,open,recipe,recipe===RECIPE.sanitario_piso?'|sanitario':'');
+  if(!C)C=catalogFor(q,open,recipe,recipe===RECIPE.sanitario_piso?'|sanitario':recipe===RECIPE.sanitario_grande?'|sanitario2':recipe===RECIPE.trastero?'|trastero':'');
   let V=C[Math.floor(r()*C.length)];
   // (si la distribución no es completa —un mueble sin uso, una puerta que no se alcanza—, se prueba sin los opcionales:
   // lo que no se puede usar no se pone; 2026-10-15)
@@ -929,7 +946,8 @@ function furnishRoom(q,open,r,want,recipe,existing=[]){
   const table=(fixed=null)=>{const long=box.u1-box.u0>=box.v1-box.v0;for(const [w,d] of fixed?[fixed]:pick(TABLES)){const a=center('mesa',long?[w,d]:[d,w]);if(a)return a;}return null;};
   // Escritorio con su silla delante (y computador encima si toca).
   // (el escritorio con computador cuenta como alto: el monitor tapa la ventana)
-  const desk=pc=>{const a=wallFit('escritorio',pc);if(!a)return false;const it=items[items.length-1],s=it.face,cu=(a.u0+a.u1)/2,cv=(a.v0+a.v1)/2;if(pc){it.pc=true;want.pcs++;}
+  const desk=(pc,fixed=null)=>{const a=wallFit('escritorio',pc,fixed);// (fixed: la medida del programa —'escritorio:1.2x0.65'—, que antes se ignoraba)
+  if(!a)return false;const it=items[items.length-1],s=it.face,cu=(a.u0+a.u1)/2,cv=(a.v0+a.v1)/2;if(pc){it.pc=true;want.pcs++;}
    const ch=s==='n'?{u0:cu-.25,u1:cu+.25,v0:a.v1,v1:a.v1+.5}:s==='s'?{u0:cu-.25,u1:cu+.25,v0:a.v0-.5,v1:a.v0}:s==='w'?{u0:a.u1,u1:a.u1+.5,v0:cv-.25,v1:cv+.25}:{u0:a.u0-.5,u1:a.u0,v0:cv-.25,v1:cv+.25};
    if(!hit(ch,keep)&&inside(ch)){put('silla',ch,s);const d=DIR[s];items[items.length-1].dir=[-d[0],-d[1]];}return true;};
   let missing=0;// lo obligatorio de la receta que no encontró lugar (para que el catálogo busque un intento completo)
@@ -970,7 +988,7 @@ function furnishRoom(q,open,r,want,recipe,existing=[]){
    if(entry==='mesa_noche'&&skipNS>0){skipNS--;continue;}
    if((entry==='cama'||entry==='cama_s')&&!skipNS&&bedGroup(entry,fixed))continue;
    if(opt&&r()<.55&&!(entry==='escritorio'&&want.need&&r()<.7))continue;
-   if(entry==='escritorio'){if(!desk(must||r()<.8)&&!opt)missing++;continue;}
+   if(entry==='escritorio'){if(!desk(must||r()<.8,fixed)&&!opt)missing++;continue;}
    // El baño: tina si el cuarto es largo (a veces), si no ducha.
    // Hotel: la mitad de las habitaciones con camarote.
    if(entry==='cama_hotel')entry='cama';
@@ -1001,6 +1019,11 @@ function furnishRoom(q,open,r,want,recipe,existing=[]){
       if(L>=.9)for(const s0 of [-1,1])chs.push(longU?V(cv,s0):U(cu,s0));}
      for(const [ch,d] of chs)if(inside(ch)&&!hit(ch,keep)&&!hit(ch,placed)){put('silla',ch,'c');items[items.length-1].dir=d;}}continue;}
    // (lo que también va suelto en el medio, como en un gimnasio, si contra las paredes no entra)
+   // (2026-11-20: el estante de pared volvió a tener medida, pero sólo se pone el que trae la suya en la receta —los
+   // programas de las casas: 'estante:0.9x0.38'—. El de las recetas de la ciudad (oficinas, locales, ropas) sigue sin
+   // ponerse, como desde el 17 de octubre: al devolverlo, una persona saltaba 140 m de un cuadro a otro —validar-caminar— y
+   // en los depósitos tapaba las cajas. Devolverlo a la ciudad pide recalibrar esos cuartos: queda pendiente.)
+   if(entry==='estante'&&!fixed)continue;
    if(!wallFit(entry,!!spec[2]||WIN_TALL.has(entry),fixed)&&!(SUELTO.has(entry)&&center(entry,fixed))&&!opt)missing++;}
   // Cómo quedó: puertas conectadas, muebles que se pueden usar y cuántos tapan una ventana (para elegir el mejor intento).
   const fl=flow(items,true);items.quality={missing,fill:items.reduce((a,it)=>a+(it.fit?(it.u1-it.u0)*(it.v1-it.v0):0),0)/Math.max(1,(box.u1-box.u0)*(box.v1-box.v0)),free:fl.reach/Math.max(1,fl.cells),doors:fl.doorsOk,doorsN:doorPts.length,use:fl.use.size,useN:items.filter(it=>USE_AT[it.kind]).length,win:items.filter(it=>it.kind!=='silla'&&nearWin(it)).length,tri:triangulo(items),vent:fl.ventanas,ventN:glass.filter(w=>!w.shop).length};
