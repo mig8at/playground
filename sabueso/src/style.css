@@ -1,0 +1,100 @@
+/* EL VOCABULARIO VISUAL DE SABUESO.
+ *
+ * Las mismas capas que las demás herramientas: Tailwind (utilidades, sin preflight), el tema compartido y la base
+ * (`workbench.css`). Abajo, lo propio: las listas por etapa, la barra de etapas, el próximo paso, la bitácora y el
+ * embudo. El semáforo (--status-ok · --status-warn · --status-bad) es el de la base.
+ */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "./theme.css";
+@import "./workbench.css";
+
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--background); color: var(--foreground);
+  font-family: var(--font-sans); font-size: var(--text-base) }
+#app { height: 100% }
+
+/* las listas, a la izquierda */
+.side-search { flex: none; padding: var(--space-2) var(--gutter) }
+.side-search .input { width: 100%; box-sizing: border-box }
+.sidebar .row { text-decoration: none }
+.row-meta.late, .late { color: var(--status-bad) }
+.side-empty { padding: var(--space-3) var(--gutter); font-size: var(--text-sm); color: var(--fg-3); line-height: 1.5 }
+.fit-dot { flex: none; display: inline-block; font-style: normal; width: 8px; height: 8px; border-radius: 50%; margin-right: var(--space-1) }
+.fit-dot.is-high { background: var(--status-ok) }
+.fit-dot.is-mid { background: var(--status-warn) }
+.fit-dot.is-low { background: var(--fg-3) }
+
+/* las pestañas son enlaces: sin subrayado */
+.tabs a { text-decoration: none; color: inherit }
+
+/* la subbanda de una empresa: qué es y la barra de etapas */
+.sub-what { flex: none; font-size: var(--text-sm); color: var(--fg-2) }
+.stage-bar { display: flex; gap: 2px; min-width: 0; overflow-x: auto; margin-left: var(--space-2) }
+.stage { flex: none; height: var(--control-xs); padding: 0 var(--space-2); border: 0; border-radius: var(--radius-control);
+  background: none; color: var(--fg-3); font: inherit; font-size: var(--text-sm); cursor: pointer }
+.stage:hover { background: var(--hover); color: var(--foreground) }
+.stage.on { background: var(--accent); color: var(--accent-foreground); font-weight: 600 }
+
+/* una empresa: avisos, el próximo paso y la bitácora */
+.company { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4) var(--space-6) }
+.company > .alert { width: auto; box-sizing: border-box }
+.inline-form { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: var(--space-2) }
+.inline-form .grow, .composer .grow { flex: 1; min-width: 180px }
+.next-step { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3);
+  border-left: 2px solid var(--primary); background: color-mix(in oklab, var(--primary) 8%, transparent) }
+.next-step .grow { flex: 1; min-width: 0 }
+.next-step.late { border-left-color: var(--status-bad); background: color-mix(in oklab, var(--status-bad) 8%, transparent) }
+.next-step.editing { border-left-color: var(--border); background: none; padding: 0 }
+.next-step.editing .inline-form { margin: 0; width: 100% }
+.empty-step { border: 1px dashed var(--border); background: none; color: var(--fg-2); font: inherit; cursor: pointer; justify-content: flex-start }
+.empty-step:hover { background: var(--hover); color: var(--foreground) }
+.log { list-style: none; margin: 0; padding: 0 }
+.log li { display: grid; grid-template-columns: 56px 16px minmax(0, 1fr); gap: var(--space-2); align-items: start;
+  padding: var(--space-2) 0; border-bottom: 1px solid var(--border) }
+.log li:last-child { border-bottom: 0 }
+.log-when { font-size: var(--text-xs); color: var(--fg-3); font-variant-numeric: tabular-nums; line-height: 20px }
+.log .ui-icon { color: var(--fg-3); margin-top: 2px }
+.log-text { line-height: 1.5; white-space: pre-line }
+.log li.is-stage .log-text, .log li.is-created .log-text { color: var(--fg-2) }
+.composer { flex: none; display: flex; gap: var(--space-2); padding: var(--space-2) var(--space-6) var(--space-3); border-top: 1px solid var(--border) }
+.composer .select { flex: none; width: 130px }
+
+/* el embudo y las páginas del editor */
+.doc { padding: var(--space-4) var(--space-6) var(--space-6) }
+.block { margin-bottom: var(--space-6) }
+.block h2 { margin: 0 0 var(--space-2); font-size: var(--text-title); font-weight: 600 }
+.late-count { margin-left: var(--space-2); font-size: var(--text-sm); font-weight: 400; color: var(--status-bad) }
+.muted { margin: 0 0 var(--space-3); color: var(--fg-2); line-height: 1.5 }
+.funnel { display: flex; flex-wrap: wrap; gap: var(--space-2) }
+.funnel-step { display: flex; align-items: baseline; gap: var(--space-2); padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--card) }
+.funnel-step.zero { color: var(--fg-3) }
+.funnel-n { font-size: var(--text-title); font-weight: 600; font-variant-numeric: tabular-nums }
+.block .row { margin: 0; text-decoration: none }
+.table { width: 100% }
+.table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap }
+.cell-note { font-size: var(--text-xs); color: var(--fg-3); margin-top: 2px; line-height: 1.4 }
+.discover-bar { flex-wrap: wrap; height: auto; min-height: var(--view-head-h); padding-block: var(--space-1) }
+.discover-bar .select { width: 180px }
+.points-input { width: 64px }
+.check { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); color: var(--fg-2) }
+.discover-bar .check { margin-left: auto }
+.new-form { max-width: 720px }
+.new-form .toggle-group { margin-bottom: var(--space-4) }
+.new-form .toggle { text-decoration: none }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4) }
+.form-grid .wide { grid-column: 1 / -1 }
+
+/* la actividad, abajo */
+.console .log-line { text-decoration: none; color: inherit; padding: 0 var(--gutter) }
+.console .log-line:hover { background: var(--hover) }
+
+/* el detalle, a la derecha */
+.props { padding-bottom: var(--space-4) }
+.prop { display: flex; flex-direction: column; gap: 4px; padding: var(--space-1) var(--gutter) }
+.prop label { font-size: var(--text-xs); color: var(--fg-3) }
+.prop .input, .prop .select, .prop .select > select { width: 100%; box-sizing: border-box }
+.prop-check { padding: var(--space-2) var(--gutter) }
+.why { margin: 0; padding: var(--space-1) var(--gutter) var(--space-2) calc(var(--gutter) + 14px); color: var(--fg-2); line-height: 1.6; font-size: var(--text-sm) }
+.prop-note { margin: 0; padding: var(--space-1) var(--gutter); font-size: var(--text-sm); color: var(--fg-2); line-height: 1.5 }
+.prop-actions { padding: var(--space-3) var(--gutter) }

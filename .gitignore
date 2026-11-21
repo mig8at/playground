@@ -86,3 +86,6 @@ knowledge/meetings/raw/
 /pg
 # Respuestas reales de las centrales de riesgo (cédulas y reportes): nunca a GitHub.
 tablero/tasks/*/artifacts/centrales-reales-*/
+
+# sabueso: las empresas que se siguen, su bitácora y lo medido en prod (sabueso/.data) — datos de trabajo, nunca commitear
+/sabueso/.data/

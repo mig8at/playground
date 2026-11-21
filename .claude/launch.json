@@ -400,6 +400,17 @@
         "tools/ui"
       ],
       "port": 5198
+    },
+    {
+      "name": "sabueso",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "cwd": "sabueso",
+      "port": 5244,
+      "autoPort": false
     }
   ]
 }

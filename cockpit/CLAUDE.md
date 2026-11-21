@@ -24,6 +24,7 @@ La lista vive en UN lugar: `APPS`, en `src-tauri/src/main.rs`. `bin/cockpit stat
 | `knowledge` | Knowledge: el vigía de `knowledge/`; mira main y la pone al día sola, paso a paso, como un workflow | `knowledge-flow/` | :5232 · :5233 | `make knowledge-flow`; su API también de fondo (`make knowledge-flow-install`, ver `knowledge-flow/CLAUDE.md`) |
 | `wally` | el asistente y sus agentes, con Claude (el Bedrock de CreditOp) o Gemini por su web (`bin/wally`); manda el numerito de las corridas automáticas que terminaron sin verse | `wally/` | :5228 · :5229 | `make wally` |
 | `news` | News: lo nuevo de Hugging Face cada semana, con lo más innovador, los modelos documentados y los papers en español | `news/` | :5240 · :5241 | `make news` |
+| `sabueso` | Sabueso: comercios y entidades que no trabajan con CreditOp, buscados en el registro mercantil, con su encaje y la relación con cada uno | `sabueso/` | :5244 · :5245 | `make sabueso` |
 | `vault` | el Llavero: tus llaves que no se comparten, en llaveros como tarjetas, cifradas con tu llave personal; exportar e importar para otra máquina | `vault/` | :5236 · :5237 | `make vault` |
 
 En la barra el visor se llama **Designer**; por dentro la carpeta y sus `make` siguen siendo `visor`.

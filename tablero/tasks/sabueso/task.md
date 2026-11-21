@@ -15,7 +15,8 @@ jira_title: ""
 - [x] Medir qué hace bueno a un comercio con los datos propios: sector, ticket, puntos de venta y originación de los comercios activos — en la pila: ser cadena (21+ puntos originan 855 desembolsos por comercio contra 10 a 21 los de 1 a 5) y la concentración (5 comercios, 74 %).
 - [x] Revisar qué guarda `allied_pre_registrations` en prod (cuántas filas, sectores, ticket, % a crédito) — en la pila: unos 55 al mes, casi todos de 1 a 5 puntos, ninguno se volvió comercio.
 - [x] Confirmar el acceso a una fuente pública de comercios (RUES o datos abiertos por CIIU y ciudad) y su costo — en la pila: el registro mercantil de Confecámaras en datos.gov.co, gratis (CC BY-SA 4.0) y sin llave; la consulta de prueba trajo 12 cadenas de motos de 33 a 112 establecimientos, ninguna cliente.
-- [ ] Armar el prototipo local (app de Cockpit en `sabueso/`, con la base de `tools/ui`) con las regiones de la maqueta; termina cuando se abre en Cockpit con datos reales de sectores y una lista de prospectos cargada a mano.
+- [x] Armar el prototipo local (app de Cockpit en `sabueso/`, con la base de `tools/ui`) con las regiones de la maqueta — anda con lo medido en prod y 10 prospectos reales del registro (pila del 2026-11-21).
+- [ ] Poder marcar a mano «ya es cliente» en el registro; termina cuando un cliente que el cruce no ve (Colombiana de Comercio, la sociedad de Alkosto) queda oculto en la próxima búsqueda.
 - [ ] Redactar los correos con las señales de cada comercio y dejarlos listos para enviar a mano; termina cuando un borrador sale de los datos de un prospecto real.
 - [ ] Marcar a quién se le pasa un prospecto («lo retoma <persona>») y que quede en su bitácora; termina cuando un prospecto pasado muestra el dueño nuevo y la fecha.
 - [ ] Evaluar si el envío de correos (y WhatsApp, sólo con aceptación previa) se puede conectar solo; termina cuando la pila dice qué canal se conecta, con qué y qué riesgo tiene.
@@ -28,7 +29,7 @@ Por ahora es **sólo de Miguel**, que orquesta todo desde Cockpit, como el resto
 
 ## Dónde se toca
 
-- `sabueso/` (carpeta nueva, todavía no existe): servidor Go y la interfaz en Vue con `tools/ui`, como las demás apps de Cockpit.
+- `sabueso/`: servidor Go (:5245) y la interfaz en Vue con `tools/ui` (:5244), como las demás apps de Cockpit; cómo funciona, en `sabueso/CLAUDE.md`.
 - Cockpit: su entrada en `APPS` (`cockpit/src-tauri/src/main.rs`) y su ícono (`cockpit/shell/index.html`).
 - **La fuente pública**: el registro mercantil de Confecámaras en datos.gov.co, por la API de Socrata, sin llave: [empresas](https://www.datos.gov.co/d/c82u-588k) (razón social, NIT, CIIU, estado) y [establecimientos](https://www.datos.gov.co/d/nb3d-v3n7) (cada uno con el NIT de su dueño: contarlos da los puntos de venta). Licencia CC BY-SA 4.0. No trae contacto ni municipio, sólo la cámara de comercio.
 - Datos de CreditOp, sólo leyendo: `bin/pg sql --target prod` (Redash). Las tablas que ya sirven: `allieds` (con `allied_industry_id`, `min_amount`, `max_amount`), `allied_industries`, `user_requests` (`amount`, `disbursed_at`, `allied_id`) y `allied_pre_registrations`.

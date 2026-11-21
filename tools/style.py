@@ -29,8 +29,8 @@ mirarse.
 import hashlib, math, pathlib, re, sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-THEMES = ['harness/panel/theme.css', 'tablero/src/theme.css', 'visor/src/theme.css', 'keyring/src/theme.css', 'chat/src/theme.css', 'ecommerce/src/theme.css', 'jarvis/src/theme.css', 'jarvis/extension/theme.css', 'cockpit/shell/theme.css', 'sentinel/src/theme.css', 'goldfish/src/theme.css', 'correo/src/theme.css', 'wally/src/theme.css', 'knowledge-flow/src/theme.css', 'vault/src/theme.css', 'news/src/theme.css']
-WORKSHOPS = ['harness/panel/workbench.css', 'tablero/src/workbench.css', 'visor/src/workbench.css', 'keyring/src/workbench.css', 'chat/src/workbench.css', 'ecommerce/src/workbench.css', 'jarvis/src/workbench.css', 'jarvis/extension/workbench.css', 'cockpit/shell/workbench.css', 'sentinel/src/workbench.css', 'goldfish/src/workbench.css', 'correo/src/workbench.css', 'wally/src/workbench.css', 'knowledge-flow/src/workbench.css', 'vault/src/workbench.css', 'news/src/workbench.css']
+THEMES = ['harness/panel/theme.css', 'tablero/src/theme.css', 'visor/src/theme.css', 'keyring/src/theme.css', 'chat/src/theme.css', 'ecommerce/src/theme.css', 'jarvis/src/theme.css', 'jarvis/extension/theme.css', 'cockpit/shell/theme.css', 'sentinel/src/theme.css', 'goldfish/src/theme.css', 'correo/src/theme.css', 'wally/src/theme.css', 'knowledge-flow/src/theme.css', 'vault/src/theme.css', 'news/src/theme.css', 'sabueso/src/theme.css']
+WORKSHOPS = ['harness/panel/workbench.css', 'tablero/src/workbench.css', 'visor/src/workbench.css', 'keyring/src/workbench.css', 'chat/src/workbench.css', 'ecommerce/src/workbench.css', 'jarvis/src/workbench.css', 'jarvis/extension/workbench.css', 'cockpit/shell/workbench.css', 'sentinel/src/workbench.css', 'goldfish/src/workbench.css', 'correo/src/workbench.css', 'wally/src/workbench.css', 'knowledge-flow/src/workbench.css', 'vault/src/workbench.css', 'news/src/workbench.css', 'sabueso/src/workbench.css']
 REGIONS = ['workbench', 'titlebar', 'banner', 'activitybar', 'sidebar', 'editor',
             'panel', 'auxiliarybar', 'statusbar', 'region-head', 'region-body']
 SHEETS = {
@@ -50,9 +50,10 @@ SHEETS = {
     'knowledge-flow': ['knowledge-flow/src/style.css'],
     'vault': ['vault/src/style.css'],
     'news': ['news/src/style.css'],
+    'sabueso': ['sabueso/src/style.css'],
     'wally': ['wally/src/style.css'],
 }
-TREES = {'tablero': 'tablero/src', 'visor': 'visor/src', 'keyring': 'keyring/src', 'chat': 'chat/src', 'ecommerce': 'ecommerce/src', 'jarvis': 'jarvis/src', 'jarvis-extension': 'jarvis/extension', 'sentinel': 'sentinel/src', 'goldfish': 'goldfish/src', 'correo': 'correo/src', 'wally': 'wally/src', 'knowledge-flow': 'knowledge-flow/src', 'vault': 'vault/src', 'news': 'news/src'}
+TREES = {'tablero': 'tablero/src', 'visor': 'visor/src', 'keyring': 'keyring/src', 'chat': 'chat/src', 'ecommerce': 'ecommerce/src', 'jarvis': 'jarvis/src', 'jarvis-extension': 'jarvis/extension', 'sentinel': 'sentinel/src', 'goldfish': 'goldfish/src', 'correo': 'correo/src', 'wally': 'wally/src', 'knowledge-flow': 'knowledge-flow/src', 'vault': 'vault/src', 'news': 'news/src', 'sabueso': 'sabueso/src'}
 
 # ── color ────────────────────────────────────────────────────────────────────────────────────────
 def _lin(c): return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4

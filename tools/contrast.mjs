@@ -43,6 +43,7 @@ const UIS = [
   { tool: 'knowledge-flow', url: 'http://localhost:5232' },
   { tool: 'vault', url: 'http://localhost:5236' },
   { tool: 'news', url: 'http://localhost:5240' },
+  { tool: 'sabueso', url: 'http://localhost:5244' },
 ];
 
 /* Algunas vistas no existen hasta que alguien toca algo. Lo mínimo para que el barrido vea el

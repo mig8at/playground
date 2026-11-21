@@ -175,3 +175,12 @@ torch
 # de campos secretos que se tapan en un cuerpo (cvv, cvc, apikey, privatekey) y la API de las apps de práctica
 devlog con cvv cvc apikey privatekey practiceapi
 osascript
+# `sabueso` es el nombre propio de la herramienta (sabueso/, 2026-11-21), como `tablero` o `wally`
+sabueso
+# sabueso: NIT (el número tributario de una empresa en Colombia) y CIIU (su código de actividad económica)
+# son siglas oficiales, como `rut`; Socrata es la plataforma de datos.gov.co; `establishments`, inglés común
+nit ciiu socrata establishments
+# los campos del registro mercantil abierto de Confecámaras (datos.gov.co): su contrato, no el nuestro
+json: sabueso/server/sources.go nit_propietario razon_social estado_matricula camara_comercio para de del y la el
+# las palabras que se le quitan a una razón social para compararla (formas jurídicas y artículos): datos, no nombres
+json: sabueso/server/model.go sas s a ltda sa y cia de la el los las bic zomac sigla

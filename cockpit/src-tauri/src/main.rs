@@ -151,6 +151,14 @@ const APPS: &[AppDef] = &[
         ready: &["localhost:5240", "127.0.0.1:5241"],
         start: Start::Make("news"),
     },
+    AppDef {
+        // Sabueso (sabueso/): encontrar comercios y entidades que no trabajan con CreditOp y llevar la relación.
+        id: "sabueso",
+        name: "Sabueso",
+        url: "http://localhost:5244/",
+        ready: &["localhost:5244", "127.0.0.1:5245"],
+        start: Start::Make("sabueso"),
+    },
 ];
 
 fn answers(hostport: &str) -> bool {
