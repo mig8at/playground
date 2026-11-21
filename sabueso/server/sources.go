@@ -304,7 +304,7 @@ func discover(ctx context.Context, s *Sector, minPoints, limit int, st *State, m
 	for _, r := range rows {
 		n := names[r.NIT]
 		pts, _ := strconv.Atoi(r.Points)
-		c := Candidate{NIT: normalizeNIT(r.NIT), Name: strings.TrimSpace(n.name), Points: pts, Region: chamberCity(n.region),
+		c := Candidate{NIT: normalizeNIT(r.NIT), Name: strings.TrimSpace(n.name), Points: pts, Region: cityOf(n.region),
 			CIIU: r.CIIU, Renewed: r.Renewed, Sector: s.ID, Inactive: n.state != "" && !activeState(n.state)}
 		if c.Name == "" {
 			c.Name = "NIT " + c.NIT // está en establecimientos pero no en el conjunto de empresas (persona natural, a veces)
@@ -336,8 +336,8 @@ func titleCase(s string) string {
 	return strings.Join(words, " ")
 }
 
-// chamberCity: la ciudad de una cámara, sin la cola del departamento («MEDELLIN PARA ANTIOQUIA» → «Medellin»).
-func chamberCity(s string) string {
+// cityOf: la ciudad de una cámara de comercio, sin la cola del departamento («MEDELLIN PARA ANTIOQUIA» → «Medellin»).
+func cityOf(s string) string {
 	if i := strings.Index(strings.ToUpper(s), " PARA "); i > 0 {
 		s = s[:i]
 	}
