@@ -519,7 +519,8 @@ export function buildTown(bp,ctx){
      // un florero en las mesas de la casa, la de centro y las de reunión o de lectura (no en las de los locales)
      if(!it.giro&&['mesa','mesa_centro','mesa_reunion','mesa_lectura'].includes(it.kind)&&k<.75)boxes.push(...placeParts(OBJETOS.florero.piezas({variante:['rojas','amarillas','lilas'][Math.floor(k*30)%3],paleta:Math.floor(k*70)}),{x:cx,y:sy,z:cz,ry:k*6},{f}));
      // en la estufa, una olla y una sartén
-     if(it.kind==='estufa'&&furniture?.F_CookingPot_Soup){food('F_CookingPot_Soup',cx-tX*.12,sy,cz-tZ*.12,it.ry,f);food('F_FryingPan',cx+tX*.13,sy,cz+tZ*.13,it.ry+.5,f);}}
+     // (2026-11-21: en una vivienda entregada vacía —bp.entrega, engine/entrega.js— la estufa va limpia; la de un local sigue)
+     if(it.kind==='estufa'&&furniture?.F_CookingPot_Soup&&!(bp.entrega&&!it.giro)){food('F_CookingPot_Soup',cx-tX*.12,sy,cz-tZ*.12,it.ry,f);food('F_FryingPan',cx+tX*.13,sy,cz+tZ*.13,it.ry+.5,f);}}
     // Computador sobre el escritorio: base, pie, monitor y pantalla, mirando a la silla.
     // (el del catálogo de objetos: monitor, teclado y mouse, mirando a la silla)
     if(it.pc)pcs.push({x:cx,z:cz,f});
