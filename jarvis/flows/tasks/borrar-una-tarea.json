@@ -4,6 +4,8 @@
   "start": "/?reset",
   "device": "desktop",
   "created": "2026-11-05T18:23:34.231691479-05:00",
+  "verified": "2026-11-20T14:54:32.314654-05:00",
+  "lastRun": "2026-11-20_14-54-29",
   "steps": [
     {
       "action": "goto",
@@ -17,7 +19,7 @@
       "target": "confirm «¿Eliminar «Revisar inventario»? No se puede deshacer.» → aceptado",
       "value": "accept",
       "instruction": "Aceptá el aviso que aparece: confirm «¿Eliminar «Revisar inventario»? No se puede deshacer.» → aceptado",
-      "code": "page.once('dialog', (d) => d.accept())"
+      "code": "page.once('dialog', (d) =\u003e d.accept())"
     },
     {
       "action": "click",

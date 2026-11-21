@@ -89,3 +89,7 @@ tablero/tasks/*/artifacts/centrales-reales-*/
 
 # sabueso: las empresas que se siguen, su bitácora y lo medido en prod (sabueso/.data) — datos de trabajo, nunca commitear
 /sabueso/.data/
+
+# binarios que deja `go build` en jarvis
+/jarvis/cli/cli
+/jarvis/server/server

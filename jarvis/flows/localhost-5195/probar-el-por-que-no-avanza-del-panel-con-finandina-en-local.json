@@ -1,0 +1,83 @@
+{
+  "name": "Probar el «por qué no avanza» del panel con Finandina en local",
+  "meta": "Probar el «por qué no avanza» del panel con Finandina en local",
+  "start": "http://localhost:5195/local/finandina",
+  "device": "chrome",
+  "created": "2026-11-19T17:00:30.521113-05:00",
+  "verified": "0001-01-01T00:00:00Z",
+  "run": "2026-11-19_16-53-55",
+  "steps": [
+    {
+      "action": "goto",
+      "target": "http://localhost:5195/local/finandina/autogestion?corrida=finandina",
+      "value": "http://localhost:5195/local/finandina/autogestion?corrida=finandina",
+      "instruction": "Abrí http://localhost:5195/local/finandina/autogestion?corrida=finandina",
+      "code": "page.goto('http://localhost:5195/local/finandina/autogestion?corrida=finandina')"
+    },
+    {
+      "action": "click",
+      "target": "Iniciar la corrida de esta pestaña",
+      "instruction": "Hacé clic en «Iniciar la corrida de esta pestaña»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Iniciar la corrida de esta pestaña",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Iniciar la corrida de esta pestaña', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('button', { name: 'Iniciar la corrida de esta pestaña', exact: true }).click()"
+    },
+    {
+      "action": "goto",
+      "target": "http://localhost:5195/local/finandina/autogestion?corrida=finandina",
+      "value": "http://localhost:5195/local/finandina/autogestion?corrida=finandina",
+      "instruction": "Abrí http://localhost:5195/local/finandina/autogestion?corrida=finandina",
+      "code": "page.goto('http://localhost:5195/local/finandina/autogestion?corrida=finandina')"
+    },
+    {
+      "action": "click",
+      "target": "Reiniciar la corrida desde el principio, con el mismo caso",
+      "instruction": "Hacé clic en «Reiniciar la corrida desde el principio, con el mismo caso»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Reiniciar la corrida desde el principio, con el mismo caso",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Reiniciar la corrida desde el principio, con el mismo caso', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('button', { name: 'Reiniciar la corrida desde el principio, con el mismo caso', exact: true }).click()"
+    },
+    {
+      "action": "goto",
+      "target": "http://localhost:5195/local/finandina/autogestion?corrida=finandina",
+      "value": "http://localhost:5195/local/finandina/autogestion?corrida=finandina",
+      "instruction": "Abrí http://localhost:5195/local/finandina/autogestion?corrida=finandina",
+      "code": "page.goto('http://localhost:5195/local/finandina/autogestion?corrida=finandina')"
+    },
+    {
+      "action": "click",
+      "target": "Reiniciar la corrida desde el principio, con el mismo caso",
+      "instruction": "Hacé clic en «Reiniciar la corrida desde el principio, con el mismo caso»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Reiniciar la corrida desde el principio, con el mismo caso",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Reiniciar la corrida desde el principio, con el mismo caso', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('button', { name: 'Reiniciar la corrida desde el principio, con el mismo caso', exact: true }).click()"
+    }
+  ]
+}

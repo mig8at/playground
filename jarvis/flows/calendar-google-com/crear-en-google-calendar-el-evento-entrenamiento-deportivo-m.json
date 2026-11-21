@@ -1,0 +1,37 @@
+{
+  "name": "Crear en Google Calendar el evento «Entrenamiento deportivo» mañana 20/11/2026 de 7:00 a 8:00",
+  "meta": "Crear en Google Calendar el evento «Entrenamiento deportivo» mañana 20/11/2026 de 7:00 a 8:00",
+  "start": "https://calendar.google.com/calendar/r/day/2026/11/20",
+  "device": "chrome",
+  "created": "2026-11-19T19:18:09.668638-05:00",
+  "verified": "0001-01-01T00:00:00Z",
+  "run": "2026-11-19_19-17-36",
+  "steps": [
+    {
+      "action": "goto",
+      "target": "https://calendar.google.com/calendar/r/eventedit?text=Entrenamiento+deportivo\u0026dates=20261120T070000/20261120T080000\u0026ctz=America/Bogota",
+      "value": "https://calendar.google.com/calendar/r/eventedit?text=Entrenamiento+deportivo\u0026dates=20261120T070000/20261120T080000\u0026ctz=America/Bogota",
+      "instruction": "Abrí https://calendar.google.com/calendar/r/eventedit?text=Entrenamiento+deportivo\u0026dates=20261120T070000/20261120T080000\u0026ctz=America/Bogota",
+      "why": "Abro el editor de eventos de Calendar con título y horario ya puestos",
+      "code": "page.goto('https://calendar.google.com/calendar/r/eventedit?text=Entrenamiento+deportivo\u0026dates=20261120T070000/20261120T080000\u0026ctz=America/Bogota')"
+    },
+    {
+      "action": "click",
+      "target": "Guardar",
+      "instruction": "Hacé clic en «Guardar»",
+      "why": "Título y horario están bien: guardo el evento",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Guardar",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Guardar', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('button', { name: 'Guardar', exact: true }).click()"
+    }
+  ]
+}

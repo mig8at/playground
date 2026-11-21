@@ -1,0 +1,91 @@
+{
+  "name": "Correr Finandina por autogestión en el panel del harness, en local y en qa, hasta Autorizada, y anotar qué mejorar",
+  "meta": "Correr Finandina por autogestión en el panel del harness, en local y en qa, hasta Autorizada, y anotar qué mejorar",
+  "start": "http://localhost:5195/local/finandina",
+  "device": "chrome",
+  "created": "2026-11-19T16:16:09.087608-05:00",
+  "verified": "0001-01-01T00:00:00Z",
+  "run": "2026-11-19_16-08-10",
+  "steps": [
+    {
+      "action": "click",
+      "target": "Autogestión",
+      "instruction": "Hacé clic en «Autogestión»",
+      "why": "La pestaña nueva de Finandina pregunta el canal: elijo Autogestión (no necesita asesor de prueba)",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Autogestión",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Autogestión', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('button', { name: 'Autogestión', exact: true }).click()"
+    },
+    {
+      "action": "click",
+      "target": "Iniciar la corrida de esta pestaña",
+      "instruction": "Hacé clic en «Iniciar la corrida de esta pestaña»",
+      "why": "Autogestión elegida. Le doy ▶ al celular del cliente: entra directo a la autogestión de la sucursal de Finandina",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Iniciar la corrida de esta pestaña",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Iniciar la corrida de esta pestaña', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('button', { name: 'Iniciar la corrida de esta pestaña', exact: true }).click()"
+    },
+    {
+      "action": "goto",
+      "target": "http://localhost:5195/qa/finandina",
+      "value": "http://localhost:5195/qa/finandina",
+      "instruction": "Abrí http://localhost:5195/qa/finandina",
+      "why": "Paso a qa: la misma Finandina, ahora contra BUSINESS_FINANDINA en la base compartida",
+      "code": "page.goto('http://localhost:5195/qa/finandina')"
+    },
+    {
+      "action": "click",
+      "target": "Autogestión",
+      "instruction": "Hacé clic en «Autogestión»",
+      "why": "En qa ya se puede elegir el canal sin asesor: Autogestión",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Autogestión",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Autogestión', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('button', { name: 'Autogestión', exact: true }).click()"
+    },
+    {
+      "action": "click",
+      "target": "Iniciar",
+      "instruction": "Hacé clic en «Iniciar»",
+      "why": "Le doy ▶: el celular entra a la autogestión de BUSINESS_FINANDINA en qa",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Iniciar",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Iniciar', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('button', { name: 'Iniciar', exact: true }).click()"
+    }
+  ]
+}

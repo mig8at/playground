@@ -1,0 +1,139 @@
+{
+  "name": "Prueba de Danny (ticket 72090155): sin vista previa, ver qué método Creditop queda activo y comprar en modo de prueba",
+  "meta": "Prueba de Danny (ticket 72090155): sin vista previa, ver qué método Creditop queda activo y comprar en modo de prueba",
+  "start": "https://admin.shopify.com/store/creditop-dev-store/settings/payments",
+  "device": "chrome",
+  "created": "2026-11-19T17:09:23.476173-05:00",
+  "verified": "0001-01-01T00:00:00Z",
+  "run": "2026-11-19_17-03-29",
+  "steps": [
+    {
+      "action": "goto",
+      "target": "https://creditop-dev-store.myshopify.com/cart/58721841053999:1",
+      "value": "https://creditop-dev-store.myshopify.com/cart/58721841053999:1",
+      "instruction": "Abrí https://creditop-dev-store.myshopify.com/cart/58721841053999:1",
+      "why": "Checkout nuevo sin vista previa: ver qué nombre muestra Creditop",
+      "code": "page.goto('https://creditop-dev-store.myshopify.com/cart/58721841053999:1')"
+    },
+    {
+      "action": "goto",
+      "target": "https://creditop-dev-store.myshopify.com/cart/58721841053999:1",
+      "value": "https://creditop-dev-store.myshopify.com/cart/58721841053999:1",
+      "instruction": "Abrí https://creditop-dev-store.myshopify.com/cart/58721841053999:1",
+      "code": "page.goto('https://creditop-dev-store.myshopify.com/cart/58721841053999:1')"
+    },
+    {
+      "action": "fill",
+      "target": "Email o número de teléfono móvil",
+      "value": "shopify-1650215200@creditop.com",
+      "instruction": "Escribí «shopify-1650215200@creditop.com» en «Email o número de teléfono móvil»",
+      "why": "Comprador sintético de siempre; el pago con Creditop (modo de prueba)",
+      "param": "Email o número de teléfono móvil",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Email o número de teléfono móvil",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Email o número de teléfono móvil', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('textbox', { name: 'Email o número de teléfono móvil', exact: true }).fill('shopify-1650215200@creditop.com')"
+    },
+    {
+      "action": "fill",
+      "target": "Nombre (opcional)",
+      "value": "CARLOS",
+      "instruction": "Escribí «CARLOS» en «Nombre (opcional)»",
+      "param": "Nombre (opcional)",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Nombre (opcional)",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Nombre (opcional)', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('textbox', { name: 'Nombre (opcional)', exact: true }).fill('CARLOS')"
+    },
+    {
+      "action": "fill",
+      "target": "Apellidos",
+      "value": "RUIZ",
+      "instruction": "Escribí «RUIZ» en «Apellidos»",
+      "param": "Apellidos",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Apellidos",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Apellidos', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('textbox', { name: 'Apellidos', exact: true }).fill('RUIZ')"
+    },
+    {
+      "action": "fill",
+      "target": "Dirección",
+      "value": "Calle 100 # 10-20",
+      "instruction": "Escribí «Calle 100 # 10-20» en «Dirección»",
+      "param": "Dirección",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Dirección",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Dirección', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('textbox', { name: 'Dirección', exact: true }).fill('Calle 100 # 10-20')"
+    },
+    {
+      "action": "fill",
+      "target": "Ciudad",
+      "value": "Bogotá",
+      "instruction": "Escribí «Bogotá» en «Ciudad»",
+      "param": "Ciudad",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Ciudad",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Ciudad', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('textbox', { name: 'Ciudad', exact: true }).fill('Bogotá')"
+    },
+    {
+      "action": "click",
+      "target": "Pagar ahora $ 800.000,00",
+      "instruction": "Hacé clic en «Pagar ahora $ 800.000,00»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Pagar ahora $ 800.000,00",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Pagar ahora $ 800.000,00', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('button', { name: 'Pagar ahora $ 800.000,00', exact: true }).click()"
+    }
+  ]
+}

@@ -4,6 +4,8 @@
   "start": "/?reset",
   "device": "desktop",
   "created": "2026-11-05T18:23:25.3061442-05:00",
+  "verified": "2026-11-20T17:29:03.205959-05:00",
+  "lastRun": "2026-11-20_17-28-58_s2",
   "steps": [
     {
       "action": "click",

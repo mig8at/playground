@@ -1,16 +1,4 @@
 {
   "follow": false,
-  "hosts": {
-    "localhost:5207": {
-      "mode": "background",
-      "source": "check",
-      "checks": {
-        "focus": true,
-        "frames": true,
-        "timers": true,
-        "visible": true
-      },
-      "updated": "2026-11-20"
-    }
-  }
+  "hosts": {}
 }

@@ -1,0 +1,25 @@
+{
+  "name": "Reenviar a Shopify Payments Partnerships el hilo de Manuela con el borrador listo, sin enviar",
+  "meta": "Reenviar a Shopify Payments Partnerships el hilo de Manuela con el borrador listo, sin enviar",
+  "start": "https://mail.google.com/mail/u/0/#all/1a18463f41850926",
+  "device": "chrome",
+  "created": "2026-11-13T12:39:28.718808-05:00",
+  "verified": "0001-01-01T00:00:00Z",
+  "run": "2026-11-13_12-39-16",
+  "steps": [
+    {
+      "action": "goto",
+      "target": "https://mail.google.com/mail/u/0/#drafts?compose=thread-f:1881765632414159758%2Bmsg-a:r-8480449636874985573",
+      "value": "https://mail.google.com/mail/u/0/#drafts?compose=thread-f:1881765632414159758%2Bmsg-a:r-8480449636874985573",
+      "instruction": "Abrí https://mail.google.com/mail/u/0/#drafts?compose=thread-f:1881765632414159758%2Bmsg-a:r-8480449636874985573",
+      "code": "page.goto('https://mail.google.com/mail/u/0/#drafts?compose=thread-f:1881765632414159758%2Bmsg-a:r-8480449636874985573')"
+    },
+    {
+      "action": "expect",
+      "target": "Creditop-Shopify Payment Partner Application",
+      "value": "Creditop-Shopify Payment Partner Application",
+      "instruction": "Comprobá que se vea «Creditop-Shopify Payment Partner Application»",
+      "code": "expect(page.getByText('Creditop-Shopify Payment Partner Application').filter({ visible: true }).first()).toBeVisible()"
+    }
+  ]
+}
