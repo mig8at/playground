@@ -305,6 +305,9 @@ function fill(a,b,prog,r,start=0,depth=Infinity){const out=[];let u=a,i=start;
   if(w<mn-1e-9){if(out.length){out[out.length-1].u1=b;break;}const alt=prog.find(p=>p[1]<=w+1e-9);out.push({type:alt?alt[0]:'deposito',u0:u,u1:u+w});u+=w;i++;continue;}
   const cap=HABITABLE.has(type)&&isFinite(depth)?2*Math.floor(((depth-MURO.tabique)*MINIMO.proporcion+MURO.tabique)/2+1e-9):Infinity;
   if(w>cap+1e-9){const k=Math.ceil(w/cap-1e-9),pw=2*Math.floor(w/k/2+1e-9);for(let j=0;j<k;j++){const w2=j<k-1?pw:w-pw*(k-1);out.push({type,u0:u,u1:u+w2});u+=w2;}i++;continue;}
+  // (2026-11-20: un baño no se queda con el sobrante del tramo —salían baños de servicio de 4 × 4 m, 16 m², con los
+  // mismos tres aparatos que uno de 2 × 4—: va de su medida y lo que sobra, si da para un cuarto, es un depósito)
+  if(type==='bano'&&w>mx+1e-9&&w-mx>=2-1e-9){out.push({type,u0:u,u1:u+mx},{type:'deposito',u0:u+mx,u1:u+w});u+=w;i++;continue;}
   out.push({type,u0:u,u1:u+w});u+=w;i++;}
  return out;}
 
@@ -536,7 +539,7 @@ function layoutFloor(L,F,level,r,opt={}){
    else if(suite){let a2=a;if(nurse&&b-a>=6){rooms.push({type:'enfermeria',u0:a,u1:a+4,v0:c0+P,v1:Lv,band:'back'});a2=a+4;nurse=false;}if(b-a2>=2)rooms.push(...suites(a2,b,c0+P,Lv,'v0',r,'back',suite));}else fill(a,b,prog.back,r,i++,Lv-c0-P).forEach(q=>rooms.push({...q,v0:c0+P,v1:Lv,band:'back'}));}
    else{const right=solid.find(o=>o.u0===b),left=solid.find(o=>o.u1===a),to=[right,left].find(o=>o&&o===pass)||right||left;if(to===right)right.u0=a;else if(to)left.u1=b;}// (el resto, al paso si lo hay: el núcleo queda de la medida de la escalera)
  }
- for(const q of rooms){q.Lu=Lu;q.Lv=Lv;}// (para descontar el grosor de la fachada al amueblar)
+ for(const q of rooms){q.Lu=Lu;q.Lv=Lv;if(L.type==='casa'&&q.type==='bano')q.propio=true;}// (para descontar el grosor de la fachada al amueblar; propio: el baño de una casa da al pasillo pero es el de la familia: lleva ducha)
  return {rooms,corr,core,lift,units,sw};}
 
 // ---------- Etapa 7: puertas y ventanas (en el marco local) ----------
@@ -679,7 +682,7 @@ const SUELTO=new Set(['banco','bicicleta','colchoneta','perchero','maniqui']);
 const TABLES=[[1.6,.9],[1.2,.8],[.9,.9],[.8,.8]],HOME=new Set(['cocina','sala_cocina','estudio','comedor_casa','sala']);
 export const RECIPE={
  sala:['sofa','sillon?','tv','mesa_centro','planta','lampara?','escritorio?'],dormitorio:['cama','mesa_noche','armario','comoda?','lampara?','escritorio?'],cocina:['meson','nevera','estufa','lavadora?','mesa'],
- bano:['inodoro','banera','lavamanos'],oficina:['escritorio!','archivador','estante?','lampara?','planta'],abierta:['escritorios!','archivador','planta'],reuniones:['mesa_reunion','tv'],
+ bano:['inodoro','banera','lavamanos'],sanitario_piso:['inodoro','lavamanos'],oficina:['escritorio!','archivador','estante?','lampara?','planta'],abierta:['escritorios!','archivador','planta'],reuniones:['mesa_reunion','tv'],
  cocineta:['meson','nevera'],habitacion:['cama_hotel','mesa_noche','comoda?','sillon?','escritorio?','tv','lampara'],dormitorio_b:['litera','litera?','armario','mesa_noche'],habitacion_h:['cama_h','cama_h?','mesa_noche'],enfermeria:['mostrador','escritorio!','camilla'],
  aula:['tablero','escritorio!','casillero?','pupitres'],sala_prof:['mesa_reunion','escritorio!','casillero?'],lectura:['estante','estante','estante','estante','mesa_lectura','mesa_lectura','mesa_lectura','mesa_lectura?','escritorio!','lampara?','planta'],archivo:['estante','estante','caja','caja'],
  estudio:['cama','meson','estufa','nevera','sofa','escritorio?'],sala_cocina:['meson','estufa','nevera','sofa','sillon?','tv','mesa','escritorio?'],
@@ -766,6 +769,10 @@ function furnish(F,plan,open,r,want){const items=[];
   // La cocina angosta (2 m): en línea, sin mesa, y la nevera al final: como no es esencial, va sólo si cabe sin
   // estorbar (con la fachada a lo largo no entran las tres cosas).
   if(q.type==='cocina'&&Math.min(q.u1-q.u0,q.v1-q.v0)<2.5)recipe=RECIPE.cocina_linea;
+  // (2026-11-20: el baño que no es de nadie —sin departamento y sin un cuarto al que se abra: el de un piso de oficinas, el
+  // del fondo de un local— es un sanitario: inodoro y lavamanos. Con la receta de siempre, 128 baños de oficina de la
+  // ciudad 1 tenían ducha.)
+  if(q.type==='bano'&&!q.unit&&!q.doorTo&&!q.propio)recipe=RECIPE.sanitario_piso;
   let C=null,used=recipe;const lists=q.unit&&PROG_BY[q.type];
   if(lists)for(const k of (q.type==='dormitorio'&&!first.has(q)?lists[1]:lists[0])){if(k==='*'){const c=catalogFor(q,open,recipe);if(!c[0].missing){C=c;break;}continue;}if(!fitsMin(q,k))continue;
    const rec=[...PROGRAMS[k].recipe,...programExtras(k,q.type)];used=rec;
@@ -773,7 +780,9 @@ function furnish(F,plan,open,r,want){const items=[];
   // (sin programa, la receta general; en una alcoba más chica que la doble de la norma —INTERIOR.alcobaDoble—, con cama
   // sencilla: la regla de las cortinas dejaba a veces sin programa a una de 8 m² y caía la cama de dos plazas)
   if(!C&&q.type==='dormitorio'){const a=q.u1-q.u0-MURO.tabique,b=q.v1-q.v0-MURO.tabique,N=INTERIOR.alcobaDoble;if(a*b<N.m2-1e-6||Math.min(a,b)<N.ancho-1e-6){recipe=recipe.map(e=>e==='cama'?'cama_s':e);used=recipe;}}
-  if(!C)C=catalogFor(q,open,recipe);
+  // (el catálogo se guarda por la forma del cuarto, no por la receta: el sanitario lleva su marca, o un baño de casa con la
+  // misma forma que uno de oficina heredaba el catálogo sin ducha —y al revés—)
+  if(!C)C=catalogFor(q,open,recipe,recipe===RECIPE.sanitario_piso?'|sanitario':'');
   let V=C[Math.floor(r()*C.length)];
   // (si la distribución no es completa —un mueble sin uso, una puerta que no se alcanza—, se prueba sin los opcionales:
   // lo que no se puede usar no se pone; 2026-10-15)
