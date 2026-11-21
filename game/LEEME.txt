@@ -16,6 +16,11 @@ EL JUEGO
              Diseño (2026-10-18): la ciudad del juego de fondo (public/fondos: capturas del 3D, la noche en el título),
              paneles de vidrio, ámbar los ladrones y azul la policía, títulos en Bungee y texto en Rubik (paquetes de
              @fontsource: sin internet). Lo prueba harness/pruebas/validar-entrada.mjs (nivel 10).
+  /juego?paseo=1   EL PASEO (2026-11-21): la ciudad sola en 3D, sin ronda, sin policía ni ladrones y sin la gente con su
+             rutina (nada de eso se arma ni se carga). Se camina; V despega y aterriza (en el aire: WASD hacia donde se
+             mira, Espacio sube, C baja, Shift acelera); N cambia el día. Arriba a la derecha, el rendimiento: cuadros
+             por segundo, ms por cuadro, el peor cuadro, llamadas de dibujo y triángulos. Es la entrada principal del
+             título («Entrar a la ciudad») y del visor del plano; el juego (las salas) quedó como enlace chico.
   /plano     El plano 2D entero, sin cargar el 3D (2026-11-19; ?ciudad=1&jugadores=3): rueda para acercar, arrastrar
              para moverse, + y − para cambiar de piso (arriba del último, las azoteas), capas que se apagan (pintura de
              vías, mobiliario, árboles, nombres de vías, botines) y clic en un edificio para su piso en grande con sus

@@ -140,8 +140,12 @@ const fmt=n=>n.toLocaleString('es-CO');
    <div class="sirena" aria-hidden="true"><i class="r"></i><i class="a"></i></div>
    <div class="marca"><h1 aria-label="FUGA"><span>F</span><span>U</span><span>G</span><span>A</span></h1><p>Ladrones y policías en una ciudad que vive sola.</p></div>
    <div class="botones-titulo">
-    <button class="cta" @click="paso=cuenta.conectado?'home':'entrar'">{{ cuenta.conectado?`Seguir como ${cuenta.nombre}`:'Entrar' }}<small v-if="cuenta.conectado">a las salas</small></button>
-    <button class="fantasma" @click="verReglas('titulo')">Cómo se juega</button>
+    <!-- (2026-11-21, Miguel: «quitá por el momento el jugar: que aparezca como entrar a la ciudad»): la entrada principal es
+    el paseo —la ciudad sola, para caminarla, sobrevolarla y medir cómo rinde— y el plano 2D; el juego (las salas) queda
+    abajo, chico, hasta que la ciudad esté lista -->
+    <RouterLink class="cta" :to="{path:'/juego',query:{paseo:1,ciudad:1,jugadores:3,vista:'tercera'}}">Entrar a la ciudad<small>caminar y sobrevolar · sin gente ni policía</small></RouterLink>
+    <RouterLink class="fantasma" :to="{path:'/plano',query:{ciudad:1,jugadores:3}}">Ver el plano</RouterLink>
+    <button class="link juego-despues" @click="paso=cuenta.conectado?'home':'entrar'">El juego (salas) →</button>
    </div>
    <small class="ver">prototipo · {{ new Date().getFullYear() }}</small>
   </section>
@@ -494,4 +498,6 @@ h3.sep{margin-top:6px}.chips.prendas{margin-bottom:10px}.pie-panel{display:flex;
  .salas li{grid-template-columns:72px 1fr auto;row-gap:8px}.salas li .cupos{grid-column:2/4}.salas li .ping{grid-column:2}.barra nav{display:none}}
 @media (max-width:600px){.equipos{grid-template-columns:1fr}.fila{grid-template-columns:1fr}.orden{margin-left:0}}
 @media (prefers-reduced-motion:reduce){.fondo.noche,.sirena i,.punto-vivo,.rueda,.equipo li.vacio .avatar{animation:none}.cta,.vidrio,.salas li{transition:none}}
+.botones-titulo a.cta,.botones-titulo a.fantasma{text-decoration:none;display:inline-flex;flex-direction:column;align-items:center;justify-content:center}
+.juego-despues{margin-top:6px;opacity:.7;font-size:12px}
 </style>

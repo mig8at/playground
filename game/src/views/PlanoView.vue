@@ -108,7 +108,7 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
    </div>
    <div class="capas"><label v-for="(n,k) in NOMBRE_CAPA" :key="k" :class="{on:capas[k]}"><input type="checkbox" v-model="capas[k]">{{ n }}</label></div>
    <button class="ajustar" @click="ajustar" title="Ver todo (0)">Ver todo</button>
-   <RouterLink class="jugar" :to="{path:'/juego',query:{ciudad:seed,jugadores:team}}">Jugar esta ciudad</RouterLink>
+   <RouterLink class="jugar" :to="{path:'/juego',query:{paseo:1,ciudad:seed,jugadores:team,vista:'tercera'}}" title="La ciudad sola en 3D: caminar, sobrevolar y ver cómo rinde. Sin gente ni policía.">Entrar a la ciudad</RouterLink>
   </header>
 
   <div ref="host" class="visor" :class="{arrastrando:arrastre}" @wheel="rueda" @pointerdown="baja" @pointermove="mueve" @pointerup="sube" @pointerleave="cursor=null">

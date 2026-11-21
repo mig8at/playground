@@ -69,6 +69,11 @@ const pickCity=t=>{if(!parks)return randomCity(t);for(let i=0;i<200;i++){const s
 // El edificio de prueba (2026-10-18, Miguel: «hagamos un edificio de prueba y te digo cómo me gustaría moverme»):
 // /juego?prueba=edificio dibuja sólo unos lotes de una ciudad (lotes=32,34 de la ciudad 2 —un edificio de vivienda de 4
 // pisos y la casa de al lado—), sin ronda, sin gente y sin las casas del monte; se aparece frente a la puerta del primero.
+// EL PASEO (2026-11-21, Miguel: «quitá por ahora el jugar: que yo entre, camine y sobrevuele la ciudad y vea cómo están
+// los FPS»): /juego?paseo=1 es la ciudad sola. Sin ronda, sin policía ni ladrones, sin la sociedad (la gente con su rutina):
+// nada de eso se arma ni se carga. Se camina, V despega y vuelve a tierra, N cambia el día, y arriba a la derecha va el
+// rendimiento: cuadros por segundo, milisegundos por cuadro, llamadas de dibujo y triángulos.
+const PASEO=route.query.paseo!=null;
 const PRUEBA=route.query.prueba==='edificio',PRUEBA_LOTES=PRUEBA?String(route.query.lotes||'32,34').split(',').map(Number):null;
 const seed=ref(+route.query.ciudad||(PRUEBA?2:pickCity(team.value)));
 // characters: los personajes animados (se cargan una vez al entrar); mientras tanto, «Cargando gente…».
@@ -101,6 +106,7 @@ const nombreCuenta=()=>{try{return JSON.parse(sessionStorage.getItem('fuga:cuent
 let persec=null,persecReloj=0,avisosVistos=0;const policiaVista=ref(null);
 // La carga (2026-11-19): antes eran ~20 s de pantalla negra. `carga.parte` va de 0 a 1 y `lista` la quita.
 const carga=ref({parte:0,etapa:'Trayendo la ciudad…',lista:false});
+const rinde=ref(null);let rindeN=0,rindeT=0,rindeLlamadas=0,rindeTris=0,rindePeor=0;
 const accionTexto=ref(''),accionAlterna=ref(''),aiming=ref(false),hitMark=ref(0),host=ref(null),mini=ref(null),locked=ref(false),sinCaptura=ref(false),night=ref(false),showMap=ref(true),place=ref(''),drone=ref(false),lugar=ref(null);let niebla=null;
 // Modo dron: la cámara vuela libre (sin choques) y el jugador se queda donde estaba, marcado desde arriba.
 const DRONE_SPEED=22,DRONE_FAST=60,DRONE_MIN=-320,DRONE_MAX=260;
@@ -273,7 +279,7 @@ function load(ready=null){
  // (la casa del 3D y la del plano: el 3D sólo arma las que tienen plano de casa; la ronda cuenta en las del plano)
  const conPlano=(plan.isla?.casas||[]).map((c,i)=>c.spec?i:-1).filter(i=>i>=0);
  acciones=createAcciones({plan,world,player,avatar:()=>avatar,viviendas:()=>viviendas,ronda:()=>ronda,enRonda:usarRonda,casaPlan:i=>conPlano[i]});accionTexto.value='';
- ronda=null;rondaVista.value=null;if(!PRUEBA)setTimeout(()=>POLICIA?armarPolicia(conPlano):armarRonda(conPlano),400);// (después de mostrar el mundo: elegir las guaridas toma unos segundos)
+ ronda=null;rondaVista.value=null;if(!PRUEBA&&!PASEO)setTimeout(()=>POLICIA?armarPolicia(conPlano):armarRonda(conPlano),400);// (después de mostrar el mundo: elegir las guaridas toma unos segundos)
  // (2026-10-18, Miguel: «quita el efecto que oculta paredes»: sin aclarado —createAclarado({max:VISIBILIDAD.maximo}) lo
  // volvía a poner— ni muñón de las paredes del lado de la cámara en la vista de arriba)
  aclarado=null;aclPrev=null;
@@ -915,6 +921,14 @@ function drawMini(){
 // __demo.render() con la pestaña oculta, donde el bucle no corre) se pide ya: sin mapa, three r186 ata en
 // directionalShadowMap[0] una textura de profundidad vacía SIN modo de comparación (la ruta de arreglos de samplers no se
 // lo pone) y cada dibujo que recibe sombra falla con GL_INVALID_OPERATION y no se pinta.
+// (el rendimiento: se junta medio segundo y se muestra el promedio; llamadas y triángulos, sumando todas las pasadas del
+// cuadro —la escena, los contornos, el brillo—, por eso el contador del renderizador se pone en cero a mano)
+let rindeUlt=0;
+function medir(){
+ const ahora=performance.now(),dt=rindeUlt?(ahora-rindeUlt)/1000:0;rindeUlt=ahora;if(!dt||dt>1)return;// (el tiempo de verdad entre cuadros: el del bucle va recortado a 50 ms)
+ const I=renderer.info.render;rindeN++;rindeT+=dt;rindeLlamadas+=I.calls;rindeTris+=I.triangles;rindePeor=Math.max(rindePeor,dt);renderer.info.reset();
+ if(rindeT>=.5){rinde.value={fps:Math.round(rindeN/rindeT),ms:(rindeT/rindeN*1000).toFixed(1),peor:Math.round(rindePeor*1000),llamadas:Math.round(rindeLlamadas/rindeN),tris:Math.round(rindeTris/rindeN/1000)};rindeN=rindeT=rindeLlamadas=rindeTris=rindePeor=0;}
+}
 function renderFrame(){
  if((shadowTick=(shadowTick+1)%2)===0||!sun.shadow.map)renderer.shadowMap.needsUpdate=true;
  composer.render();}
@@ -932,7 +946,7 @@ function loop(t){
  {const at=drone.value?null:world.elevatorAt(player.x,player.z,player.feet);lift.value=at?{floor:at.floor,floors:at.floors,roof:at.roof}:null;}
  // Las luces reales van a los postes más cercanos; se reparten de nuevo cada tanto, no en cada cuadro.
  if(luz.n>.5&&(lightClock-=dt)<=0){lightClock=.35;const cp=camera.position,near=[...world.lights,...(island?.lights||[]),...(barrios?.lights||[]),...(viviendas?.lights||[]),...(planoVista?.lights||[])].map(l=>({l,d:(l.x-cp.x)**2+(l.z-cp.z)**2})).sort((a,b)=>a.d-b.d);streetLights.forEach((s,i)=>{const n=near[i];if(n)s.position.set(n.l.x,n.l.y,n.l.z);s.intensity=n?6:0;});}
- renderFrame();drawMini();
+ renderFrame();medir();drawMini();
  if(Math.floor(t/250)!==Math.floor((t-dt*1000)/250)){niebla?.actualizar(camera,scene.fog.far);
   // Dónde estoy (direcciones.js ubicacionDe, validada en validar-ubicacion): la calle y la carrera del punto donde está el
   // jugador o, en el dron, del punto de abajo; y el nombre del lugar (el edificio, el parque, la playa) si dice algo más.
@@ -963,7 +977,7 @@ function onKey(e){
   if(e.code==='KeyN'){night.value=!night.value;applyLight();}
   if(e.code==='Enter'&&muerto.value)revivir();
   if(e.code==='KeyM')showMap.value=!showMap.value;
-  if(e.code==='KeyV'&&LAB)toggleDrone();// (la cámara libre: sólo en el laboratorio, ?lab=1 —2026-10-18: el dron salió del juego—)
+  if(e.code==='KeyV'&&(LAB||PASEO))toggleDrone();// (la cámara libre: sólo en el laboratorio, ?lab=1 —2026-10-18: el dron salió del juego—)
   if(e.code==='KeyT')toggleThird();
   if(e.code==='KeyF')toggleFirst();
   // R: la acción alterna de lo que está cerca (correr la cortina de la ventana, mirar por el visor de una puerta)
@@ -982,7 +996,7 @@ function onWheel(e){if(!enArriba||drone.value)return;e.preventDefault();const z=
 let resize;
 onMounted(async()=>{
  renderer=new THREE.WebGLRenderer({antialias:true});renderer.localClippingEnabled=true;renderer.setPixelRatio(Math.min(1.5,window.devicePixelRatio));// 1,5 y no 2: en pantallas retina casi no se nota y dibuja ~44 % menos píxeles
- renderer.shadowMap.enabled=true;renderer.shadowMap.autoUpdate=false;renderer.shadowMap.type=THREE.PCFShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;
+ renderer.info.autoReset=false;renderer.shadowMap.enabled=true;renderer.shadowMap.autoUpdate=false;renderer.shadowMap.type=THREE.PCFShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;
  host.value.appendChild(renderer.domElement);
  scene=new THREE.Scene();scene.fog=new THREE.Fog(0xcad9e2,45,240);
  camera=new THREE.PerspectiveCamera(72,1,.15,2400);
@@ -1013,7 +1027,7 @@ onMounted(async()=>{
  // El plano, en un worker mientras bajan los modelos (si el worker falla, load() lo arma acá).
  // (el plano: el guardado en IndexedDB —mapasGuardados.js, las salas precargadas— o armado en un worker y guardado)
  const planReady=T('plano',planoDe({seed:seed.value,team:team.value,parks}).then(r=>{tiempos.planoGuardado=r.guardado;return r.plano;}));
- [characters,carModels,buildings,downtown,plants,nature,furniture,policeTemplates,office,nature2,casa2,tienda,animalKit]=await Promise.all([T('gente',loadCharacters().catch(()=>[])),T('autos',loadCars().catch(()=>null)),T('edificios',loadIslandBuildings().catch(()=>null)),T('centro',loadDowntown().catch(()=>null)),T('plantas',loadPlants().catch(()=>null)),T('naturaleza',loadNature().catch(()=>null)),T('muebles',loadHouseKit().catch(()=>null)),T('policía',loadPolice().catch(()=>[])),T('oficina',loadOffice().catch(()=>null)),T('naturaleza2',loadNature2().catch(()=>null)),T('casa2',loadCasa2().catch(()=>null)),T('tienda',loadTienda().catch(()=>null)),T('animales',loadAnimals().catch(()=>null))]);if(casa2)office={...(office||{}),...casa2};if(tienda)office={...(office||{}),...tienda};/* (y la comida de Tienda, F_*; los muebles de Casa2 van con los de oficina, C2_*) */loadingPeople.value=false;
+ [characters,carModels,buildings,downtown,plants,nature,furniture,policeTemplates,office,nature2,casa2,tienda,animalKit]=await Promise.all([T('gente',loadCharacters().catch(()=>[])),T('autos',loadCars().catch(()=>null)),T('edificios',loadIslandBuildings().catch(()=>null)),T('centro',loadDowntown().catch(()=>null)),T('plantas',loadPlants().catch(()=>null)),T('naturaleza',loadNature().catch(()=>null)),T('muebles',loadHouseKit().catch(()=>null)),T('policía',(PASEO?Promise.resolve([]):loadPolice()).catch(()=>[])),T('oficina',loadOffice().catch(()=>null)),T('naturaleza2',loadNature2().catch(()=>null)),T('casa2',loadCasa2().catch(()=>null)),T('tienda',loadTienda().catch(()=>null)),T('animales',loadAnimals().catch(()=>null))]);if(casa2)office={...(office||{}),...casa2};if(tienda)office={...(office||{}),...tienda};/* (y la comida de Tienda, F_*; los muebles de Casa2 van con los de oficina, C2_*) */loadingPeople.value=false;
  carga.value.etapa='Trazando las calles…';
  {const ready=await planReady;carga.value={parte:.82,etapa:'Levantando los edificios…',lista:false};await cuadro();// (armar el mundo ocupa el hilo unos segundos: el texto se pinta antes)
   const a=performance.now();load(ready);tiempos.armarMundo=Math.round(performance.now()-a);}tiempos.total=Math.round(performance.now()-t0);applyLight(true);
@@ -1076,10 +1090,14 @@ onBeforeUnmount(()=>{
     <div class="fin-botones"><button @click="otraRonda">Otra ronda</button><RouterLink to="/?paso=home" class="boton">Volver al inicio</RouterLink></div></div>
    <Transition name="aviso"><div v-if="rondaMsg" class="r-msg" role="status">{{ rondaMsg }}</div></Transition>
    <div v-if="muerto" class="r-muerto" role="alert"><b>Te mataste en la caída</b><span>Quedás fuera de la ronda y perdiste lo que llevabas.</span><small>Enter: volver a la guarida (sólo para probar)</small></div>
+   <div v-if="rinde&&(PASEO||LAB)" class="rinde" aria-live="off" :class="{lento:rinde.fps<40,malo:rinde.fps<25}">
+    <b>{{ rinde.fps }}</b><span>cuadros/s</span>
+    <dl><dt>cuadro</dt><dd>{{ rinde.ms }} ms</dd><dt>el peor</dt><dd>{{ rinde.peor }} ms</dd><dt>dibujos</dt><dd>{{ rinde.llamadas.toLocaleString('es-CO') }}</dd><dt>triángulos</dt><dd>{{ rinde.tris.toLocaleString('es-CO') }} mil</dd></dl>
+   </div>
    <div v-if="velocidad!=null" class="velocimetro" aria-live="off"><b>{{ velocidad }}</b> km/h</div>
    <Transition name="sube"><div v-if="quienVista" class="quien" role="status"><b>{{ quienVista.nombre }}</b><span>{{ quienVista.oficio }}<template v-if="quienVista.edad!=null"> · {{ quienVista.edad }} años</template></span></div></Transition>
    <Transition name="sube"><div v-if="accionTexto" class="accion"><kbd>E</kbd> {{ accionTexto }}<template v-if="accionAlterna"> · <kbd>R</kbd> {{ accionAlterna }}</template></div></Transition>
-   <div class="where"><b>{{ lugar?.titulo }}</b><span v-if="lugar?.sub" class="via">{{ lugar.sub }}</span><small><kbd class="tabk">Tab</kbd> menú<template v-if="LAB"> · Ciudad {{ seed }} · {{ team }} vs {{ team }}</template><template v-if="horaVista"> · {{ horaVista }}</template></small></div>
+   <div class="where"><b>{{ lugar?.titulo }}</b><span v-if="lugar?.sub" class="via">{{ lugar.sub }}</span><small><template v-if="PASEO"><kbd class="tabk">V</kbd> {{ drone?'aterrizar':'volar' }} · <kbd class="tabk">N</kbd> día/noche · <kbd class="tabk">T</kbd> vista</template><template v-else><kbd class="tabk">Tab</kbd> menú</template><template v-if="LAB"> · Ciudad {{ seed }} · {{ team }} vs {{ team }}</template><template v-if="horaVista"> · {{ horaVista }}</template></small></div>
    <!-- (los botones de prueba —tamaño, papel, otra ciudad, vista, dron, día/noche—: sólo con ?lab=1; quedan en la página,
    ocultos, porque las pruebas de pantalla los usan) -->
    <div class="actions" v-show="LAB">
@@ -1110,7 +1128,8 @@ onBeforeUnmount(()=>{
   </Transition>
   <div v-if="carga.lista&&!locked&&!sinCaptura&&!menuAbierto&&!finVista" class="start">
    <div class="card" @click="controls.lock()">
-    <b>{{ loadingPeople?'Cargando gente…':'Clic para caminar' }}</b>
+    <b>{{ PASEO?'Clic para pasear':loadingPeople?'Cargando gente…':'Clic para caminar' }}</b>
+    <p v-if="PASEO" class="paseo-nota">La ciudad sola: sin gente, sin policía y sin ronda. <kbd>V</kbd> despega y aterriza; en el aire se avanza hacia donde se mira con WASD, Espacio sube, C baja y Shift acelera.</p>
     <dl>
      <dt>WASD</dt><dd>moverse</dd><dt>Ratón</dt><dd>mirar</dd><dt>Shift</dt><dd>correr</dd><dt>Espacio</dt><dd>saltar</dd>
      <dt>N</dt><dd>día / noche</dd><dt>M</dt><dd>plano</dd><dt>T · F</dt><dd>vista: arriba o atrás · primera persona</dd><dt>E · Q</dt><dd>en un ascensor: subir · bajar</dd><template v-if="POLICIA"><dt>E</dt><dd>de policía: revisar la cámara de un aviso · atrapar · pedir papeles · subir y bajar de la patrulla</dd><dt>W/S · A/D</dt><dd>en la patrulla: acelerar y frenar · girar</dd></template><dt>E · R</dt><dd>usar lo de cerca (abrir y cerrar puertas, sentarse, asomarse…) · correr la cortina de la ventana</dd><dt>Esc</dt><dd>soltar el ratón</dd>
@@ -1176,6 +1195,10 @@ onBeforeUnmount(()=>{
 .demo{--tx:#f5f2ea;--tx2:#c3cad6;--tx3:#8e97a6;--panel:rgba(14,20,33,.72);--borde:rgba(255,255,255,.12);--ladron:#ffa94d;--ladron2:#ff7a3d;--policia:#5aa9ff;--policia2:#3d7eff;--ok:#45d483;
  --t:'Bungee',Impact,system-ui,sans-serif;--c:'Rubik Variable','Rubik',system-ui,-apple-system,'Segoe UI',sans-serif;color:var(--tx);font:14px/1.4 var(--c)}
 /* (un oscurecido suave en los bordes: junta la imagen y le da aire de cámara; no tapa nada porque no recibe el ratón) */
+.rinde{position:fixed;right:16px;top:14px;z-index:7;background:var(--panel);border:1px solid var(--borde);border-radius:12px;padding:8px 12px;backdrop-filter:blur(12px);display:grid;grid-template-columns:auto auto;align-items:baseline;gap:0 6px;pointer-events:none;font-variant-numeric:tabular-nums}
+.rinde>b{font:400 26px var(--t);color:var(--ok)}.rinde.lento>b{color:var(--ladron)}.rinde.malo>b{color:#ff6b6b}.rinde>span{font-size:11px;color:var(--tx3)}
+.rinde dl{grid-column:1/-1;display:grid;grid-template-columns:auto auto;gap:1px 10px;margin:4px 0 0;font-size:11px}.rinde dt{color:var(--tx3)}.rinde dd{margin:0;text-align:right;color:var(--tx2)}
+.paseo-nota{margin:0 0 12px;max-width:380px;color:var(--tx2);font-size:13px;line-height:1.45}.paseo-nota kbd{background:#f5f2ea;color:#1b2130;border-radius:5px;padding:0 6px;font:600 11px/1.6 var(--c)}
 .vineta{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 46%,transparent 58%,rgba(6,9,16,.34) 100%)}
 .back{font:400 12px var(--t);letter-spacing:.5px;background:linear-gradient(135deg,var(--ladron),var(--ladron2));color:#2a1705;box-shadow:0 6px 18px rgba(255,122,61,.35),inset 0 1px 0 rgba(255,255,255,.35);transition:transform .18s}
 .back:hover{transform:rotate(-4deg) scale(1.06)}
