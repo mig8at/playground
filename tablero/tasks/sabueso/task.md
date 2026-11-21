@@ -12,7 +12,7 @@ jira_title: ""
 
 ## Pendientes
 
-- [ ] Medir qué hace bueno a un comercio con los datos propios: sector, ticket, puntos de venta y originación de los comercios activos; termina cuando la pila tiene la consulta y su resultado.
+- [x] Medir qué hace bueno a un comercio con los datos propios: sector, ticket, puntos de venta y originación de los comercios activos — en la pila: ser cadena (21+ puntos originan 855 desembolsos por comercio contra 10 a 21 los de 1 a 5) y la concentración (5 comercios, 74 %).
 - [ ] Revisar qué guarda `allied_pre_registrations` en prod (cuántas filas, sectores, ticket, % a crédito); termina cuando la pila tiene la medición.
 - [ ] Confirmar el acceso a una fuente pública de comercios (RUES o datos abiertos por CIIU y ciudad) y su costo; termina cuando hay una descarga o una consulta de prueba en la pila.
 - [ ] Armar el prototipo local (app de Cockpit en `sabueso/`, con la base de `tools/ui`) con las regiones de la maqueta; termina cuando se abre en Cockpit con datos reales de sectores y una lista de prospectos cargada a mano.
@@ -37,11 +37,12 @@ Por ahora es **sólo de Miguel**, que orquesta todo desde Cockpit, como el resto
 
 **Lo que encuentra.** Prospectos con señales públicas y su **encaje**, un puntaje que se explica solo:
 
-- se parece a los comercios que hoy originan (sector y ticket medidos en la base propia);
+- **cuántos puntos de venta tiene**: es lo que más pesa. En prod, un comercio con 21 o más puntos origina unas 40 veces más que uno de uno solo, y los de 1 a 5 puntos casi no originan (pila del 2026-11-21). Buscar tiendas chicas de un solo punto rinde poco; la excepción es la venta en línea de ticket alto (Tripleten, educación, con un punto);
+- se parece a los comercios que hoy originan: odontología, celulares, hogar y descanso, salud y óptica, con ticket de 1,4 a 6 M;
 - vende, y no sólo presta un servicio;
-- vende **en línea**, en cualquier plataforma (CreditOp da el soporte de la integración), o en puntos físicos, con enlace y QR;
+- vende **en línea**, en cualquier plataforma (CreditOp da el soporte de la integración), o en puntos físicos, con enlace y QR. En la base propia no se puede medir todavía: ningún punto de venta es de tipo en línea y el campo de tienda en línea del comercio está vacío en los que más originan;
 - no ofrece pago a cuotas, o lo ofrece con una sola entidad;
-- cuántos puntos de venta tiene y en qué ciudad está.
+- en qué ciudad está.
 
 Se excluye a quien ya es comercio, cruzando por NIT. Para las entidades, las listas públicas de vigiladas (Superfinanciera, Supersolidaria).
 
