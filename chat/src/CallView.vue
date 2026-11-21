@@ -712,11 +712,11 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
     <!-- sin voz (sin llave, tope del día, servidor caído): se dice por qué, en vez de una llamada muda sin explicación -->
     <span v-if="voice.why" class="call-novoice" role="status">🔇 sin voz: {{ voice.why }}</span>
     <div class="call-timeline" role="group" aria-label="Línea de tiempo de la conversación">
-      <button type="button" class="tl-btn" title="Desde el primer mensaje" aria-label="Escuchar desde el primer mensaje"
+      <button type="button" class="btn btn-ghost btn-icon btn-sm tl-btn" title="Desde el primer mensaje" aria-label="Escuchar desde el primer mensaje"
               :disabled="!timeline.length" @click="replayFrom(windowStart)">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14M19 5L9 12l10 7z" /></svg>
       </button>
-      <button type="button" class="tl-btn" :title="mode === 'paused' ? 'Seguir' : 'Pausar'" :aria-label="mode === 'paused' ? 'Seguir' : 'Pausar'"
+      <button type="button" class="btn btn-ghost btn-icon btn-sm tl-btn" :title="mode === 'paused' ? 'Seguir' : 'Pausar'" :aria-label="mode === 'paused' ? 'Seguir' : 'Pausar'"
               :disabled="!timeline.length" @click="togglePause">
         <svg v-if="mode === 'paused'" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
         <svg v-else viewBox="0 0 24 24" aria-hidden="true" style="stroke: none"><path d="M6 5h4v14H6zM14 5h4v14h-4z" /></svg>
@@ -741,15 +741,15 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
         <span v-if="syncState?.pending > 0" class="tl-badge">{{ syncState.pending }}</span>
       </span>
       <!-- subtítulos: prendidos o apagados (preferencia de este navegador) -->
-      <button type="button" class="tl-btn tl-cc" :class="{ off: !captionsOn }" :aria-pressed="captionsOn"
+      <button type="button" class="btn btn-ghost btn-icon btn-sm tl-btn tl-cc" :class="{ off: !captionsOn }" :aria-pressed="captionsOn"
               :title="captionsOn ? 'Subtítulos: prendidos' : 'Subtítulos: apagados'"
               :aria-label="captionsOn ? 'Apagar los subtítulos' : 'Prender los subtítulos'" @click="setCaptions(!captionsOn)">CC</button>
       <!-- los efectos de sonido y el murmullo de la oficina (sfx.js) -->
-      <button type="button" class="tl-btn" :class="{ off: !sfx.on }" :aria-pressed="sfx.on" :title="sfx.on ? 'Efectos de sonido: prendidos' : 'Efectos de sonido: apagados'"
+      <button type="button" class="btn btn-ghost btn-icon btn-sm tl-btn" :class="{ off: !sfx.on }" :aria-pressed="sfx.on" :title="sfx.on ? 'Efectos de sonido: prendidos' : 'Efectos de sonido: apagados'"
               :aria-label="sfx.on ? 'Apagar los efectos de sonido' : 'Prender los efectos de sonido'" @click="setSfx(!sfx.on)">
         <svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none"><path d="M9 17.5a2.5 2.5 0 1 1-1.5-2.3V5l10-2v11.5a2.5 2.5 0 1 1-1.5-2.3V7.2L9 8.6z" /></svg>
       </button>
-      <button type="button" class="tl-btn" :class="{ off: !sfx.ambient || !sfx.on }" :aria-pressed="sfx.ambient" :disabled="!sfx.on"
+      <button type="button" class="btn btn-ghost btn-icon btn-sm tl-btn" :class="{ off: !sfx.ambient || !sfx.on }" :aria-pressed="sfx.ambient" :disabled="!sfx.on"
               :title="sfx.ambient ? 'Ambiente de oficina: prendido' : 'Ambiente de oficina: apagado'"
               :aria-label="sfx.ambient ? 'Apagar el ambiente de oficina' : 'Prender el ambiente de oficina'" @click="setAmbient(!sfx.ambient)">
         <svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none"><path d="M4 21V8l8-5 8 5v13h-6v-6h-4v6zM8 11h2v2H8zm6 0h2v2h-2z" /></svg>
@@ -784,7 +784,7 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
   box-shadow: 0 6px 18px rgba(0, 0, 0, .35); }
 .call-tile office-character { display: block; width: 100%; height: 100%; border-radius: 14px; }
 .call-name { position: absolute; left: 8px; bottom: 8px; max-width: calc(100% - 16px); display: flex; gap: 6px; align-items: baseline;
-  padding: 3px 9px; border-radius: 8px; background: #f1e4c7; color: #13323a; font-size: 12px; box-shadow: 0 2px 0 #d9c9a6;
+  padding: 3px 9px; border-radius: 8px; background: #f1e4c7; color: #13323a; font-size: var(--text-sm); box-shadow: 0 2px 0 #d9c9a6;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .call-name b { font-weight: 800; }
 .call-tile { cursor: pointer; transition: box-shadow .15s; }
@@ -824,15 +824,12 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
 @keyframes key-swing { from { transform: rotate(-10deg); } to { transform: rotate(12deg); } }
 @media (prefers-reduced-motion: reduce) { .call-prop, .call-prop.read .lines, .call-prop.key .keyring { animation: none; } }
 .call-novoice { position: absolute; top: 10px; right: 12px; max-width: calc(100% - 24px); display: inline-flex; align-items: center; padding: 4px 9px; border-radius: 8px;
-  background: var(--card); color: var(--foreground); border: 1px solid var(--border); font-size: 12px; font-weight: 700; }
+  background: var(--card); color: var(--foreground); border: 1px solid var(--border); font-size: var(--text-sm); font-weight: 700; }
 /* la línea de tiempo: abajo, como la de un directo */
 .call-timeline { position: absolute; left: 12px; right: 12px; bottom: 8px; height: 38px; display: flex; align-items: center; gap: 8px;
   padding: 0 10px; border-radius: 12px; background: color-mix(in oklab, var(--background) 85%, transparent);
   border: 1px solid var(--border); }
-.tl-btn { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 0; border-radius: 8px;
-  background: transparent; color: var(--foreground); cursor: pointer; }
-.tl-btn:hover { background: var(--hover); }
-.tl-btn:disabled { opacity: .4; cursor: default; }
+.tl-btn { flex: 0 0 auto; color: var(--foreground); }   /* sobre .btn.btn-ghost.btn-icon.btn-sm */
 .tl-btn.off { opacity: .45; }
 .tl-btn svg { width: 16px; height: 16px; fill: currentColor; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
 .tl-track { flex: 1; min-width: 0; height: 100%; position: relative; margin: 0 8px; cursor: pointer; touch-action: none; outline: none; }
@@ -847,7 +844,7 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
 .tl-head.dragging { transition: none; transform: scale(1.2); }
 .tl-head.live { background: var(--primary); }
 .tl-tip { position: absolute; bottom: calc(100% + 6px); transform: translateX(-50%); white-space: nowrap; max-width: 320px; overflow: hidden;
-  text-overflow: ellipsis; padding: 4px 8px; border-radius: 6px; font-size: 12px; background: var(--foreground); color: var(--background);
+  text-overflow: ellipsis; padding: 4px 8px; border-radius: 6px; font-size: var(--text-sm); background: var(--foreground); color: var(--background);
   pointer-events: none; }
 /* preparando la voz: gira con cuántos faltan; si algo falló, en el color de error */
 .tl-sync { position: relative; flex: 0 0 auto; display: inline-flex; width: 22px; height: 22px; align-items: center; justify-content: center; color: var(--primary); }
@@ -866,12 +863,12 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
 .tl-day-label { position: absolute; top: -1px; translate: -50% 0; font-size: 9.5px; line-height: 1; white-space: nowrap; pointer-events: none;
   color: var(--muted-foreground); }
 @media (prefers-reduced-motion: reduce) { .tl-sync.working svg { animation: none; } }
-.tl-live { flex: 0 0 auto; font-size: 12px; font-weight: 800; color: var(--primary); white-space: nowrap; transition: opacity .2s; }
+.tl-live { flex: 0 0 auto; font-size: var(--text-sm); font-weight: 800; color: var(--primary); white-space: nowrap; transition: opacity .2s; }
 .tl-live.off { opacity: .35; filter: grayscale(1); }
 /* la franja de los subtítulos: justo arriba de la línea de tiempo, una sola línea de texto sin cajón */
 .call-caption { position: absolute; left: 50%; bottom: calc(var(--call-bar) + 4px); transform: translateX(-50%); margin: 0;
   max-width: calc(100% - 32px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  padding: 2px 10px; border-radius: 6px; background: var(--call-ink); color: var(--call-cream); font-size: 13px; line-height: 1.5; text-align: center; }
+  padding: 2px 10px; border-radius: 6px; background: var(--call-ink); color: var(--call-cream); font-size: var(--text-base); line-height: 1.5; text-align: center; }
 .call-caption b { color: var(--call-gold); margin-right: 6px; }
 .tl-cc { font-size: 10.5px; font-weight: 800; letter-spacing: .02em; border: 1.5px solid currentColor; width: 26px; height: 18px; border-radius: 4px; margin: 0 2px; }
 .compact .call-name { left: 5px; bottom: 5px; padding: 1px 6px; font-size: 10.5px; border-radius: 6px; }

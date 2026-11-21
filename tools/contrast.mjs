@@ -34,6 +34,15 @@ const UIS = [
   { tool: 'keyring', url: 'http://localhost:5182' },
   { tool: 'ecommerce', url: 'http://localhost:5178' },
   { tool: 'jarvis', url: 'http://localhost:5202' },
+  /* El resto de las apps de Cockpit (2026-11-21): hasta entonces el chequeo medía seis de dieciséis. */
+  { tool: 'chat', url: 'http://localhost:5184' },
+  { tool: 'sentinel', url: 'http://localhost:5210' },
+  { tool: 'goldfish', url: 'http://localhost:5216' },
+  { tool: 'correo', url: 'http://localhost:5224' },
+  { tool: 'wally', url: 'http://localhost:5228' },
+  { tool: 'knowledge-flow', url: 'http://localhost:5232' },
+  { tool: 'vault', url: 'http://localhost:5236' },
+  { tool: 'news', url: 'http://localhost:5240' },
 ];
 
 /* Algunas vistas no existen hasta que alguien toca algo. Lo mínimo para que el barrido vea el

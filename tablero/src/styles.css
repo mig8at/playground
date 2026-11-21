@@ -57,8 +57,8 @@
      clase que pone el botón de tema (`bindThemeToggle`). Un color pensado para fondo oscuro sobre
      blanco no se lee —el ámbar #fbbf24 da 1,7:1—, así que el claro es otro color, no el mismo.
      Los dos juegos se miden con `make style-contrast`. */
-  --ok:   #15803d;
-  --warn: #b45309;
+  --ok:   var(--status-ok);     /* el semáforo es el de la base (workbench.css) */
+  --warn: var(--status-warn);
   /* ⚠ Y una medición que sobrevive a la vista que la motivó, porque es del TEMA y no de ella: el par
      «tinte suave + texto del mismo color» —el patrón de shadcn para las pastillas— con este rojo NO
      llega a 4,5:1 en NINGÚN porcentaje. `--destructive` es #e06666, un rojo medio y desaturado, así
@@ -78,8 +78,6 @@
   --sql-identifier: #92400e;
 }
 .dark {
-  --ok:   #4ade80;
-  --warn: #fbbf24;
   --info: #60a5fa;
   --sql-keyword:    #bd94ff;   /* #b07cff daba 4,48:1 sobre el fondo de un hallazgo vencido */
   --sql-function:   #74c8ff;

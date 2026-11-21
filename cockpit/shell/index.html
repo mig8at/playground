@@ -25,19 +25,17 @@
   /* Los colores de estado son de Cockpit (el tema no los trae, y su «destructivo» en oscuro es un gris verdoso): «terminó
      bien» y «falló o frenado», en claro y en oscuro, los mismos del chat (presencia y mensaje que no salió). */
   :root {
-    --cockpit-ok: #15803d;
     --cockpit-stop: #dc2626;
     --settings-backdrop: rgb(0 0 0 / .45);
     --settings-tint: color-mix(in oklab, var(--primary) 14%, transparent);
     --settings-shadow: 0 1px 2px rgb(0 0 0 / .08), 0 12px 32px -12px rgb(0 0 0 / .3);
   }
   :root.dark {
-    --cockpit-ok: #4ade80;
     --cockpit-stop: #f87171;
   }
   * { box-sizing: border-box }
   html, body { margin: 0; height: 100%; overflow: hidden }
-  body { display: flex; background: var(--canvas); font-family: var(--font-sans, system-ui), -apple-system, sans-serif; font-size: 13px }
+  body { display: flex; background: var(--canvas); font-family: var(--font-sans, system-ui), -apple-system, sans-serif; font-size: var(--text-base) }
   /* La barra va sobre el lienzo, sin fondo propio: es el borde de la ventana, como el pie de cada app. */
   nav { flex: none; width: 48px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding-top: 8px;
     -webkit-user-select: none; user-select: none }
@@ -50,7 +48,7 @@
   .badge { position: absolute; right: 6px; bottom: 6px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px;
     background: var(--primary); color: var(--primary-foreground); font-size: 10px; font-weight: 600; line-height: 16px; text-align: center }
   .tip { position: fixed; left: 52px; padding: 4px 8px; border-radius: 4px; background: var(--popover); color: var(--popover-foreground);
-    border: 1px solid var(--border); font-size: 12px; white-space: nowrap; pointer-events: none; z-index: 10 }
+    border: 1px solid var(--border); font-size: var(--text-sm); white-space: nowrap; pointer-events: none; z-index: 10 }
   main { flex: 1; min-width: 0; position: relative }
   iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: var(--canvas) }
   iframe[hidden] { display: none }
@@ -75,8 +73,8 @@
   .settings-search { position: relative; display: block; margin: 0 4px 12px }
   .settings-search .ui-icon { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); color: var(--fg-3) }
   .settings-search .input { width: 100%; box-sizing: border-box; padding-left: 32px; background: var(--panel-surface, var(--background)) }
-  .settings-group { margin: 0; padding: 8px 12px 4px; font-size: 12px; color: var(--fg-3) }
-  .settings-none { margin: 0; padding: 8px 12px; font-size: 12px; color: var(--fg-3) }
+  .settings-group { margin: 0; padding: 8px 12px 4px; font-size: var(--text-sm); color: var(--fg-3) }
+  .settings-none { margin: 0; padding: 8px 12px; font-size: var(--text-sm); color: var(--fg-3) }
   .settings-nav .section { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 36px; padding: 0 12px; border: 0;
     border-radius: calc(var(--radius) - 2px); background: none; color: var(--fg-2); font: inherit; text-align: left; cursor: pointer }
   .settings-nav .section:hover { background: var(--hover); color: var(--foreground) }
@@ -87,13 +85,13 @@
   .settings .settings-close { position: absolute; top: 12px; right: 12px }
   .settings-head { margin-bottom: 24px }
   .settings-title { margin: 0 0 4px; font-size: 20px; font-weight: 600; letter-spacing: -.02em }
-  .settings-what { margin: 0; color: var(--fg-2); font-size: 12px }
+  .settings-what { margin: 0; color: var(--fg-2); font-size: var(--text-sm) }
   .settings-blocks { display: flex; flex-direction: column; gap: 24px; max-width: 72ch }
   .settings-blocks > section { display: flex; flex-direction: column; gap: 8px }
-  .settings-blocks h3 { margin: 0; font-size: 11px; font-weight: 600; color: var(--fg-3); text-transform: uppercase; letter-spacing: .04em }
+  .settings-blocks h3 { margin: 0; font-size: var(--text-xs); font-weight: 600; color: var(--fg-3); text-transform: uppercase; letter-spacing: .04em }
   .settings-blocks p { margin: 0; line-height: 1.6; color: var(--fg-2) }
   .settings-blocks p b, .settings-blocks li b { color: var(--foreground) }
-  .settings-blocks code { font-family: var(--font-mono); font-size: 12px }
+  .settings-blocks code { font-family: var(--font-mono); font-size: var(--text-sm) }
   /* Una opción: nombre, qué hace, y el ✓ si está elegida (como `.opcion` de canon). */
   .options { display: flex; flex-direction: column; gap: 8px }
   .option { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: center; width: 100%; padding: 12px 16px;
@@ -103,7 +101,7 @@
   .option:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px }
   .option[aria-checked="true"] { border-color: var(--ring); box-shadow: 0 0 0 1px var(--ring) }
   .option-name { font-weight: 600 }
-  .option-what { grid-column: 1; font-size: 12px; color: var(--fg-2) }
+  .option-what { grid-column: 1; font-size: var(--text-sm); color: var(--fg-2) }
   .option .ui-icon { grid-row: 1 / 3; grid-column: 2; visibility: hidden; color: var(--ring) }
   .option[aria-checked="true"] .ui-icon { visibility: visible }
   /* Una caja con filas: cada app con su estado y lo que se hace con ella. */
@@ -112,17 +110,17 @@
   .settings-row + .settings-row { border-top: 1px solid var(--border) }
   .settings-row-text { flex: 1; min-width: 0 }
   .settings-row-name { display: block; font-weight: 600 }
-  .settings-row-what { display: block; font-size: 12px; color: var(--fg-2) }
-  .settings-row .state { flex: none; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--fg-2) }
+  .settings-row-what { display: block; font-size: var(--text-sm); color: var(--fg-2) }
+  .settings-row .state { flex: none; display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-sm); color: var(--fg-2) }
   .settings-row .state::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--fg-3) }
-  .settings-row .state.up::before { background: var(--cockpit-ok) }
+  .settings-row .state.up::before { background: var(--status-ok) }
   .settings-box.padded { padding: 16px }
   /* LAS MUESTRAS de color (como `.paleta-muestra` de canon): cada círculo lleva dos colores FIJOS de su paleta —el
      acento y el lienzo, en claro o en oscuro según su fila—, no var(--primary): con una paleta puesta, un círculo que
      usara el token cambiaría con ella y dejaría de decir qué se elige. */
   .palette-rows { display: flex; flex-direction: column; gap: 12px }
   .palette-row { display: flex; align-items: center; gap: 12px }
-  .palette-row-name { flex: none; width: 56px; font-size: 12px; color: var(--fg-2) }
+  .palette-row-name { flex: none; width: 56px; font-size: var(--text-sm); color: var(--fg-2) }
   .palette-options { display: flex; flex-wrap: wrap; align-items: center; gap: 12px }
   .palette-swatch { width: 28px; height: 28px; padding: 0; flex: none; cursor: pointer; border-radius: 999px;
     border: 1px solid var(--border); background: var(--swatch, var(--muted)) }
@@ -177,7 +175,7 @@
   .act.cmd .tool { flex: none; color: var(--fg-3); font-size: var(--text-xs) }
   .act .state { flex: none; width: 8px; height: 8px; border-radius: 50%; align-self: center; background: var(--fg-3) }
   .act .state.run { background: var(--primary); animation: blink 1s ease-in-out infinite }
-  .act .state.ok { background: var(--cockpit-ok) }
+  .act .state.ok { background: var(--status-ok) }
   .act .state.fail { background: var(--cockpit-stop) }
   .act.open { color: var(--fg-2) }
   @keyframes blink { 50% { opacity: .35 } }
@@ -213,18 +211,18 @@
   .login-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px }
   .login-icon { flex: none; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
     background: color-mix(in oklab, var(--cockpit-stop) 14%, transparent); color: var(--cockpit-stop) }
-  .login-icon.ok { background: color-mix(in oklab, var(--cockpit-ok) 14%, transparent); color: var(--cockpit-ok) }
-  .login-title { margin: 0; font-size: 16px; font-weight: 600 }
-  .login-when { margin: 2px 0 0; font-size: 12px; color: var(--fg-2) }
+  .login-icon.ok { background: color-mix(in oklab, var(--status-ok) 14%, transparent); color: var(--status-ok) }
+  .login-title { margin: 0; font-size: var(--text-title); font-weight: 600 }
+  .login-when { margin: 2px 0 0; font-size: var(--text-sm); color: var(--fg-2) }
   .login-what { margin: 0 0 6px; color: var(--fg-2) }
   .login-list { margin: 0 0 18px; padding-left: 18px; color: var(--foreground); line-height: 1.7 }
   .login-actions { display: flex; justify-content: flex-end; gap: 8px }
-  .login-foot { margin: 12px 0 0; font-size: 12px; color: var(--fg-3) }
+  .login-foot { margin: 12px 0 0; font-size: var(--text-sm); color: var(--fg-3) }
   .login-wait { display: flex; align-items: center; gap: 8px; color: var(--fg-2) }
-  .login-error { margin: 10px 0 0; font-size: 12px; color: var(--cockpit-stop) }
+  .login-error { margin: 10px 0 0; font-size: var(--text-sm); color: var(--cockpit-stop) }
   .session-soon { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 5; display: flex; align-items: center; gap: 10px;
     padding: 6px 8px 6px 14px; border-radius: 999px; border: 1px solid color-mix(in oklab, var(--cockpit-stop) 40%, var(--border));
-    background: var(--panel-surface, var(--background)); color: var(--foreground); box-shadow: var(--settings-shadow); font-size: 12px }
+    background: var(--panel-surface, var(--background)); color: var(--foreground); box-shadow: var(--settings-shadow); font-size: var(--text-sm) }
   .session-soon[hidden] { display: none }
   .session-soon .btn { padding: 2px 10px }
 </style>

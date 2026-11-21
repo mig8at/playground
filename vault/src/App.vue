@@ -292,7 +292,7 @@ onBeforeUnmount(() => {
         <input v-if="route.view === 'group' || ring" v-model="search" class="search" type="search" :placeholder="ring ? 'Buscar una llave' : 'Buscar un llavero o una llave'" aria-label="Buscar">
       </div>
       <div class="region-body">
-        <p v-if="error" class="banner is-bad" role="alert">{{ error }}</p>
+        <p v-if="error" class="alert alert-bad" role="alert">{{ error }}</p>
 
         <!-- los llaveros, como tarjetas -->
         <template v-if="route.view === 'group'">

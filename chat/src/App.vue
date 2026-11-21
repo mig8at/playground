@@ -62,10 +62,10 @@ async function deleteGroup(g) {
   const mine = chat.isMe({ email: g.person.owner || '' })
   const msg = mine || !others
     ? (others
-      ? `¿Eliminar ${g.person.name}? Si el servidor del equipo ya permite borrarlo, se borra también para ${others === 1 ? 'el otro miembro' : `los otros ${others}`}; si no, salís vos y sigue para ell${others === 1 ? 'e' : 'os'}. No se puede deshacer.`
-      : `¿Eliminar ${g.person.name}? Sos el único miembro: se borra para siempre.`)
-    : `¿Salir de ${g.person.name}? Lo creó ${g.person.owner}: sigue existiendo para ${others === 1 ? 'el otro miembro' : `los otros ${others}`}.`
-  if (!window.confirm(msg)) return
+      ? `Si el servidor del equipo ya permite borrarlo, se borra también para ${others === 1 ? 'el otro miembro' : `los otros ${others}`}; si no, salís vos y sigue para ell${others === 1 ? 'e' : 'os'}. No se puede deshacer.`
+      : `Sos el único miembro: se borra para siempre.`)
+    : `Lo creó ${g.person.owner}: sigue existiendo para ${others === 1 ? 'el otro miembro' : `los otros ${others}`}.`
+  if (!(await confirmDialog({ title: mine || !others ? `¿Eliminar ${g.person.name}?` : `¿Salir de ${g.person.name}?`, description: msg, confirm: mine || !others ? "Eliminar" : "Salir", destructive: true }))) return
   groupDeleteError.value = ''
   try {
     if (chat.activeKey === g.person.email) chat.activeKey = ''
@@ -74,8 +74,8 @@ async function deleteGroup(g) {
     if (r?.others) groupDeleteError.value = `Saliste de ${g.person.name}, pero sigue para los demás: borrarlo para todos todavía no está disponible en el servidor del equipo.`
   } catch (e) { groupDeleteError.value = `No se pudo: ${e.message}` }
 }
-function deleteConversation(c) {
-  if (window.confirm(`¿Borrar la conversación con ${c.person.name || c.person.email}? Sólo se borra de este navegador.`)) chat.removeConversation(c.person.email)
+async function deleteConversation(c) {
+  if (await confirmDialog({ title: `¿Borrar la conversación con ${c.person.name || c.person.email}?`, description: "Sólo se borra de este navegador.", confirm: "Borrar", destructive: true })) chat.removeConversation(c.person.email)
 }
 // Tu @ en el chat del equipo: la parte del correo antes de la arroba, como te escriben (`playground send @miguel`).
 const myHandle = computed(() => { const e = chat.state?.session?.email || chat.me?.email || ''; return e ? `@${e.split('@')[0]}` : '' })
@@ -931,7 +931,7 @@ async function setAgentVoice(name, voice) {
   try { await assignVoice(agentVoiceKey(name), voice) } catch (e) { agentVoiceError.value = `No pude cambiarle la voz a ${name}: ${e.message || e}` }
 }
 async function removeAgent(name) {
-  if (!window.confirm(`¿Borrar a ${name}? Sale de tu lista (sus mensajes quedan). Si una sesión vuelve a hablar como ${name}, renace.`)) return
+  if (!(await confirmDialog({ title: `¿Borrar a ${name}?`, description: `Sale de tu lista (sus mensajes quedan). Si una sesión vuelve a hablar como ${name}, renace.`, confirm: "Borrar", destructive: true }))) return
   removeAgentError.value = ''
   try { await chat.removeAgent(name) } catch (e) { removeAgentError.value = e.message }
 }
@@ -1026,12 +1026,12 @@ async function askNext(text) {
   await chat.send(text)
 }
 
-function clearActive() {
+async function clearActive() {
   const c = chat.active
-  if (c && window.confirm(`¿Vaciar la conversación con ${c.person.name || c.person.email}? Se borran sus mensajes de este navegador.`)) chat.clearMessages(c.person.email)
+  if (c && await confirmDialog({ title: `¿Vaciar la conversación con ${c.person.name || c.person.email}?`, description: "Se borran sus mensajes de este navegador.", confirm: "Vaciar", destructive: true })) chat.clearMessages(c.person.email)
 }
-function clearMyChat() {
-  if (window.confirm('¿Vaciar «Mi chat»? Se borran sus mensajes de este navegador.')) chat.clearMessages(chat.meKey)
+async function clearMyChat() {
+  if (await confirmDialog({ title: "¿Vaciar «Mi chat»?", description: "Se borran sus mensajes de este navegador.", confirm: "Vaciar", destructive: true })) chat.clearMessages(chat.meKey)
 }
 // Borrar la conversación, igual que su ✕ del sidebar: sale de la lista y lo ya recibido no vuelve (forget sola la sacaba
 // de la lista, pero `listen` la traía de nuevo con todos sus mensajes).
@@ -1451,7 +1451,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
             <EmojiButton class="composer-emoji" @pick="insertEmoji" />
           </div>
           <DictationButton v-if="showDictation(!draft.trim())" @text="insertDictation" @state="onDictationState" />
-          <button v-else type="submit" class="btn btn-send" :disabled="!draft.trim()" title="Mandar"
+          <button v-else type="submit" class="btn btn-icon btn-send" :disabled="!draft.trim()" title="Mandar"
                   aria-label="Mandar"><span class="ui-icon" data-icon="send" aria-hidden="true"></span></button>
         </div>
       </form>
@@ -1708,7 +1708,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
             <EmojiButton class="composer-emoji" @pick="insertEmoji" />
             </div>
             <DictationButton v-if="showDictation(!canSubmit)" @text="insertDictation" @state="onDictationState" />
-            <button v-else type="submit" class="btn btn-send" :disabled="!canSubmit" :title="sendLabel" :aria-label="sendLabel"><span class="ui-icon" data-icon="send" aria-hidden="true"></span></button>
+            <button v-else type="submit" class="btn btn-icon btn-send" :disabled="!canSubmit" :title="sendLabel" :aria-label="sendLabel"><span class="ui-icon" data-icon="send" aria-hidden="true"></span></button>
           </div>
         </form>
       </template>
@@ -2053,8 +2053,8 @@ code { font-family: var(--font-mono); font-size: .92em }
 .console-empty { margin: 0; color: var(--fg-2); font-size: var(--text-sm) }
 .console .log-text { white-space: pre-wrap; word-break: break-word; min-width: 0; color: var(--fg-2) }
 .console .log-line.is-command .log-text { color: var(--foreground); font-weight: 600 }
-.console .log-line.is-ok .log-text { color: var(--presence-on) }
-.console .log-line.is-bad .log-text { color: var(--send-fail) }
+.console .log-line.is-ok .log-text { color: var(--status-ok) }
+.console .log-line.is-bad .log-text { color: var(--status-bad) }
 .console-step { white-space: nowrap }
 /* El historial de un servicio, como líneas de consola que se pueden cliquear. */
 .service-info dl { margin: var(--space-2) 0 0; padding: 0 var(--gutter); display: grid; grid-template-columns: auto 1fr;
@@ -2064,11 +2064,11 @@ code { font-family: var(--font-mono); font-size: .92em }
 .history-line { width: 100%; border: 0; background: transparent; text-align: left; font: inherit; color: inherit; cursor: pointer }
 .history-line:hover { background: var(--accent) }
 .history-status, .history-method { flex: none; font-family: var(--font-mono); font-size: var(--text-xs); width: 3.5em }
-.history-status.is-ok { color: var(--presence-on) }
-.history-status.is-bad { color: var(--send-fail) }
+.history-status.is-ok { color: var(--status-ok) }
+.history-status.is-bad { color: var(--status-bad) }
 .history-method { color: var(--fg-2); font-weight: 600 }
 .history-ms { flex: none; margin-left: auto; padding-left: var(--space-3); color: var(--fg-3); font-family: var(--font-mono); font-size: var(--text-xs) }
-.bad { color: var(--send-fail) }
+.bad { color: var(--status-bad) }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap }
 
 /* ── el sidebar ── */
@@ -2077,7 +2077,7 @@ code { font-family: var(--font-mono); font-size: .92em }
 .conv-item { position: relative }
 .tab-ring { width: 18px; height: 18px }
 .tab-ring circle { fill: none; stroke-width: 5; stroke-linecap: round }
-.my-agent-voice { width: 104px; flex: 0 0 auto; font-size: 12px; padding: 3px 6px; }
+.my-agent-voice { width: 104px; flex: 0 0 auto; font-size: var(--text-sm); padding: 3px 6px; }
 .my-agents { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px }
 .my-agent { display: flex; align-items: center; gap: var(--space-1); border-radius: var(--radius-md, 8px) }
 .my-agent.on { background: color-mix(in oklab, var(--foreground) 8%, transparent) }
@@ -2099,7 +2099,7 @@ code { font-family: var(--font-mono); font-size: .92em }
   border-radius: var(--radius-control); background: var(--muted); color: var(--fg-2); display: grid; place-items: center;
   cursor: pointer; opacity: 0; transition: opacity .12s }
 .conv-item:hover .conv-del, .conv-del:focus-visible { opacity: 1 }
-.conv-del:hover { color: var(--task-blocked) }
+.conv-del:hover { color: var(--status-warn) }
 .conversations { list-style: none; margin: 0; padding: var(--space-1) 0 }
 /* DESVIACIÓN DECLARADA de la base: las filas del sidebar son de conversación, como en WhatsApp —avatar, nombre, hora y
    el último mensaje en dos renglones— y no las `.row` de 28 de las listas. Un chat se elige por quién es y qué dijo. */
@@ -2118,7 +2118,7 @@ code { font-family: var(--font-mono); font-size: .92em }
 .avatar.svc-playground { background: var(--svc-playground-bg); color: var(--svc-playground-ink) }
 .avatar.svc-tunnel { background: var(--svc-tunnel-bg); color: var(--svc-tunnel-ink) }
 .presence { position: absolute; right: -1px; bottom: -1px; width: 10px; height: 10px; border-radius: 50%;
-  background: var(--presence-on); box-shadow: 0 0 0 2px var(--sidebar) }
+  background: var(--status-ok); box-shadow: 0 0 0 2px var(--sidebar) }
 .avatar.small .presence { width: 8px; height: 8px; box-shadow: 0 0 0 2px var(--background) }
 .conversation-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px }
 .conversation-top, .conversation-bottom { display: flex; align-items: baseline; gap: 8px; min-width: 0 }
@@ -2189,7 +2189,7 @@ code { font-family: var(--font-mono); font-size: .92em }
 .to-bottom:hover { background: var(--accent); color: var(--accent-foreground) }
 .to-bottom:focus-visible { outline: 2px solid var(--ring) }
 .to-bottom-count { position: absolute; top: -6px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
-  background: var(--primary); color: var(--primary-foreground); font-size: 11px; font-weight: 700; line-height: 18px; text-align: center }
+  background: var(--primary); color: var(--primary-foreground); font-size: var(--text-xs); font-weight: 700; line-height: 18px; text-align: center }
 .day { align-self: center; margin: var(--space-3) 0 var(--space-1); padding: 2px 10px; border-radius: 999px; background: var(--muted);
   color: var(--fg-2); font-size: var(--text-xs); text-transform: capitalize }
 
@@ -2216,10 +2216,10 @@ code { font-family: var(--font-mono); font-size: .92em }
 .bubble-row.in:not(.cont) .bubble { border-top-left-radius: 4px }
 .bubble-row.out .bubble { background: var(--bubble-mine) }
 .bubble-row.out:not(.cont) .bubble { border-top-right-radius: 4px }
-.bubble.failed { box-shadow: inset 0 0 0 1px var(--send-fail) }
+.bubble.failed { box-shadow: inset 0 0 0 1px var(--status-bad) }
 .text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--text-body); line-height: 1.45 }
 .meta { align-self: flex-end; color: var(--fg-2); font-size: var(--text-xs); font-variant-numeric: tabular-nums }
-.error { margin: 2px 0 0; color: var(--send-fail); font-size: var(--text-sm) }
+.error { margin: 2px 0 0; color: var(--status-bad); font-size: var(--text-sm) }
 .btn-link { border: 0; padding: 0; background: none; color: inherit; text-decoration: underline; cursor: pointer; font: inherit }
 
 /* MI CHAT: tu bandeja, cada mensaje con su respuesta o la de tu agente. Quién contesta se elige en tu agente (derecha) y en el pie. */
@@ -2243,13 +2243,13 @@ code { font-family: var(--font-mono); font-size: .92em }
 .task { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2); border-radius: var(--radius-control) }
 .task:hover, .task.on { background: var(--hover) }
 .task-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--fg-3) }
-.task.bloqueada .task-dot { background: var(--task-blocked) }
+.task.bloqueada .task-dot { background: var(--status-warn) }
 .task.hecha .task-dot { background: var(--task-done) }
 .task.hecha .task-title { color: var(--fg-3) }
 .task-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px }
 .task-title { font-size: var(--text-base); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .task-meta { font-size: var(--text-xs); color: var(--fg-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-.task.bloqueada .task-meta { color: var(--task-blocked) }
+.task.bloqueada .task-meta { color: var(--status-warn) }
 .task-actions { flex: none; display: flex; align-items: center; gap: var(--space-1) }
 .task-note-label { font-size: var(--text-xs); color: var(--fg-2) }
 .block-owner { flex: 0 1 220px; min-width: 0 }
@@ -2387,7 +2387,7 @@ button.file-tile { cursor: zoom-in }
   background: color-mix(in oklab, var(--background) 88%, transparent); border-top: 1px solid var(--hairline) }
 .file-tile-badge { flex: none; padding: 0 3px; border-radius: 3px; font-size: 9px; font-weight: 700; line-height: 14px;
   background: color-mix(in oklab, var(--kind, var(--fg-2)) 22%, var(--background)); color: color-mix(in oklab, var(--kind, var(--fg-2)) 70%, var(--foreground)) }
-.file-tile-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px }
+.file-tile-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-xs) }
 /* La galería: la imagen ocupa lo que queda, el pie dice de quién y cuándo, y abajo la tira de miniaturas. */
 .gallery { flex: 1; min-height: 0; display: flex; flex-direction: column; background: color-mix(in oklab, var(--muted) 55%, var(--background)) }
 .gallery-stage { position: relative; flex: 1; min-height: 0; display: grid; place-items: center; padding: 14px }
@@ -2426,7 +2426,7 @@ button.file-tile { cursor: zoom-in }
 .composer-field .composer-text { flex: 1; padding-right: 42px }
 .composer-emoji { position: absolute; right: 6px; bottom: 4px }
 .dictation-note { margin: 0; font-size: var(--text-sm); color: var(--fg-2) }
-.dictation-note.error { color: var(--send-fail) }
+.dictation-note.error { color: var(--status-bad) }
 .composer-text { height: auto; min-height: var(--control-md); max-height: 160px; padding-block: 7px; resize: none; line-height: 1.4;
   font: inherit; font-size: var(--text-body); border-radius: 18px; padding-inline: 14px }
 
@@ -2436,5 +2436,5 @@ button.file-tile { cursor: zoom-in }
 
 /* ── el pie ── */
 .status-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--fg-3); margin-right: 6px }
-.status-dot.on { background: var(--presence-on) }
+.status-dot.on { background: var(--status-ok) }
 </style>

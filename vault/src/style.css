@@ -8,15 +8,7 @@
 @import "./theme.css";
 @import "./workbench.css";
 
-/* Propios, como en Sentinel: el «destructivo» del tema en oscuro es un gris verdoso y no dice borrar. */
-:root {
-  --vault-ok: #15803d;
-  --vault-bad: #dc2626;
-}
-.dark {
-  --vault-ok: #4ade80;
-  --vault-bad: #f87171;
-}
+/* El semáforo de estado (--status-ok · --status-warn · --status-bad) es el de la base: workbench.css. */
 
 html, body { margin: 0; height: 100%; overflow: hidden; background: var(--background); color: var(--foreground);
   font-family: var(--font-sans); font-size: var(--text-base) }
@@ -38,13 +30,13 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 .search { margin-left: auto; width: min(320px, 45%); font: inherit; font-size: var(--text-xs); padding: 5px 10px;
   border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--background); color: var(--foreground) }
 
-.banner { margin: var(--space-3) var(--space-6) 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); font-size: var(--text-xs) }
-.banner.is-bad { background: color-mix(in oklab, var(--vault-bad) 12%, transparent); color: var(--vault-bad) }
+/* El error es el .alert.alert-bad de la base; acá, su lugar. */
+.alert-bad[role="alert"] { margin: var(--space-3) var(--space-6) 0; width: auto; box-sizing: border-box }
 
 /* las tarjetas */
 .group { padding: var(--space-4) var(--space-6) 0 }
 .group:last-child { padding-bottom: var(--space-6) }
-.group-title { margin: 0 0 var(--space-3); font-size: 13px; font-weight: 600 }
+.group-title { margin: 0 0 var(--space-3); font-size: var(--text-base); font-weight: 600 }
 .group-title span { font-weight: 400; color: var(--fg-3); margin-left: var(--space-2); font-size: var(--text-xs) }
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: var(--space-3) }
 .card { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); min-height: 104px; text-align: left;
@@ -67,10 +59,10 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 /* botones chicos: un ícono, y el «Borrar» que pide el segundo toque */
 .icon { flex: none; display: inline-flex; border: 0; background: none; color: var(--fg-2); padding: 5px; border-radius: var(--radius-sm); cursor: pointer }
 .icon:hover { background: var(--hover); color: var(--foreground) }
-.icon.danger:hover { color: var(--vault-bad) }
-.confirm { flex: none; border: 1px solid var(--vault-bad); background: none; color: var(--vault-bad); font: inherit; font-size: var(--text-xs);
+.icon.danger:hover { color: var(--status-bad) }
+.confirm { flex: none; border: 1px solid var(--status-bad); background: none; color: var(--status-bad); font: inherit; font-size: var(--text-xs);
   padding: 3px 8px; border-radius: var(--radius-sm); cursor: pointer; white-space: nowrap }
-.confirm:hover { background: color-mix(in oklab, var(--vault-bad) 12%, transparent) }
+.confirm:hover { background: color-mix(in oklab, var(--status-bad) 12%, transparent) }
 
 /* un llavero abierto */
 .ring { padding: var(--space-4) var(--space-6) var(--space-6); max-width: 980px }
@@ -84,29 +76,29 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
   min-height: 42px; padding: 0 var(--space-2) 0 var(--space-3) }
 .key + .key { border-top: 1px solid var(--border) }
 .key:hover { background: var(--hover) }
-.key-name { font-family: var(--font-mono); font-size: 12px; cursor: text; overflow-wrap: break-word }
-.key-value { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; font-family: var(--font-mono); font-size: 12px; color: var(--fg-3) }
+.key-name { font-family: var(--font-mono); font-size: var(--text-sm); cursor: text; overflow-wrap: break-word }
+.key-value { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--fg-3) }
 .key-value .dots { letter-spacing: 1px; white-space: nowrap }
-.key-value .print { flex: none; font-size: 11px }
+.key-value .print { flex: none; font-size: var(--text-xs) }
 .key-value.shown { color: var(--foreground); user-select: all; overflow-wrap: anywhere }
 .tools { display: flex; align-items: center; gap: 2px }
-.key-empty { padding: var(--space-3); font-size: 13px; color: var(--fg-3) }
+.key-empty { padding: var(--space-3); font-size: var(--text-base); color: var(--fg-3) }
 .add { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: var(--space-3); margin-top: var(--space-3) }
 
-input, select { font: inherit; font-size: 12px; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+input, select { font: inherit; font-size: var(--text-sm); padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm);
   background: var(--background); color: var(--foreground); min-width: 0 }
 input.mono { font-family: var(--font-mono) }
 
 /* exportar e importar */
 .xfer { padding: var(--space-4) var(--space-6); max-width: 520px }
 .xfer h1 { margin: 0 0 var(--space-2); font-size: 20px; font-weight: 600 }
-.xfer p { color: var(--fg-2); font-size: 13px; line-height: 1.5; margin: 0 0 var(--space-4) }
+.xfer p { color: var(--fg-2); font-size: var(--text-base); line-height: 1.5; margin: 0 0 var(--space-4) }
 .xfer form { display: flex; flex-direction: column; gap: var(--space-2) }
 .xfer form .btn { align-self: flex-start }
-.xfer .result { color: var(--vault-ok); margin-top: var(--space-3) }
+.xfer .result { color: var(--status-ok); margin-top: var(--space-3) }
 .file { display: flex; align-items: center; gap: var(--space-2); padding: 7px 10px; border: 1px dashed var(--border); border-radius: var(--radius-sm);
-  font-size: 12px; color: var(--fg-2); cursor: pointer; position: relative }
+  font-size: var(--text-sm); color: var(--fg-2); cursor: pointer; position: relative }
 .file:hover { border-color: var(--fg-3); color: var(--foreground) }
 .file input { position: absolute; opacity: 0; width: 1px; height: 1px }
-.check { display: flex; align-items: center; gap: var(--space-2); font-size: 12px; color: var(--fg-2) }
+.check { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); color: var(--fg-2) }
 .check input { width: auto }

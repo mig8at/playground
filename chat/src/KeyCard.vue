@@ -146,28 +146,28 @@ async function copy(text, tag) {
 
     <div class="key-actions">
       <template v-if="kind === 'env'">
-        <button v-if="info.keys.length" type="button" class="key-btn" @click="downloadEnv"><span class="ui-icon" data-icon="download" aria-hidden="true"></span>Descargar .env</button>
+        <button v-if="info.keys.length" type="button" class="btn btn-ghost btn-sm key-btn" @click="downloadEnv"><span class="ui-icon" data-icon="download" aria-hidden="true"></span>Descargar .env</button>
         <template v-if="!mine && info.keys.length">
           <span v-if="!envToSave.length" class="key-meta key-wait"><span class="ui-icon" data-icon="check" aria-hidden="true"></span>En tu llavero</span>
-          <button v-else type="button" class="key-btn" :disabled="busy" @click="saveAll"><span class="ui-icon" data-icon="key" aria-hidden="true"></span>Guardar en mi llavero</button>
+          <button v-else type="button" class="btn btn-ghost btn-sm key-btn" :disabled="busy" @click="saveAll"><span class="ui-icon" data-icon="key" aria-hidden="true"></span>Guardar en mi llavero</button>
         </template>
       </template>
       <template v-else-if="kind === 'key'">
-        <button v-if="!value" type="button" class="key-btn" @click="decrypt"><span class="ui-icon" data-icon="unlock" aria-hidden="true"></span>Desencriptar</button>
+        <button v-if="!value" type="button" class="btn btn-ghost btn-sm key-btn" @click="decrypt"><span class="ui-icon" data-icon="unlock" aria-hidden="true"></span>Desencriptar</button>
         <span v-if="alreadySaved" class="key-meta key-wait"><span class="ui-icon" data-icon="check" aria-hidden="true"></span>En tu llavero</span>
-        <button v-else type="button" class="key-btn" :disabled="busy" @click="save"><span class="ui-icon" data-icon="key" aria-hidden="true"></span>Guardar en mi llavero</button>
+        <button v-else type="button" class="btn btn-ghost btn-sm key-btn" :disabled="busy" @click="save"><span class="ui-icon" data-icon="key" aria-hidden="true"></span>Guardar en mi llavero</button>
       </template>
       <template v-else-if="kind === 'list' && !mine">
         <span v-if="!toPick.length" class="key-meta key-wait"><span class="ui-icon" data-icon="check" aria-hidden="true"></span>{{ info.names.length ? 'Ya las tenés todas' : 'No tiene claves' }}</span>
         <template v-else>
-          <button type="button" class="key-btn" @click="picked = new Set(picked.size === toPick.length ? [] : toPick)">{{ picked.size === toPick.length ? 'Ninguna' : 'Todas' }}</button>
-          <button type="button" class="key-btn" :disabled="!picked.size" @click="emit('ask-keys', [...picked]); picked = new Set()">
+          <button type="button" class="btn btn-ghost btn-sm key-btn" @click="picked = new Set(picked.size === toPick.length ? [] : toPick)">{{ picked.size === toPick.length ? 'Ninguna' : 'Todas' }}</button>
+          <button type="button" class="btn btn-ghost btn-sm key-btn" :disabled="!picked.size" @click="emit('ask-keys', [...picked]); picked = new Set()">
             <span class="ui-icon" data-icon="send" aria-hidden="true"></span>Pedir {{ picked.size || '' }}
           </button>
         </template>
       </template>
       <template v-else-if="kind === 'ask' && !mine && !keyring.autoShare">
-        <button type="button" class="key-btn" @click="emit('send-keys', info.names)"><span class="ui-icon" data-icon="send" aria-hidden="true"></span>Enviarlas</button>
+        <button type="button" class="btn btn-ghost btn-sm key-btn" @click="emit('send-keys', info.names)"><span class="ui-icon" data-icon="send" aria-hidden="true"></span>Enviarlas</button>
       </template>
       <span v-else-if="mine && kind !== 'list' && kind !== 'env'" class="key-meta key-wait"><span class="ui-icon" data-icon="clock" aria-hidden="true"></span>Esperando respuesta</span>
       <span v-else-if="!mine && kind !== 'list' && kind !== 'env'" class="key-meta key-wait"><span class="ui-icon" data-icon="send" aria-hidden="true"></span>Contestado solo</span>
@@ -200,12 +200,7 @@ label.key-pick:hover { background: color-mix(in oklab, var(--foreground) 5%, tra
 .key-error { margin: 0 12px 6px; color: var(--destructive-ink); font-size: var(--text-xs) }
 .key-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-2); padding: 4px 6px; border-top: 1px solid var(--hairline) }
 /* Una acción de la tarjeta: icono y texto, como los botones de un archivo en WhatsApp. */
-.key-btn { display: inline-flex; align-items: center; gap: 6px; height: 28px; white-space: nowrap; padding: 0 10px; border: 0; border-radius: 6px; background: transparent;
-  color: var(--primary-ink, var(--primary)); font: inherit; font-size: var(--text-sm); font-weight: 500; cursor: pointer }
-.key-btn:hover:not(:disabled) { background: color-mix(in oklab, var(--foreground) 6%, transparent) }
-.key-btn:disabled { opacity: .5; cursor: default }
-.key-btn:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px }
-.key-btn .ui-icon { width: 15px; height: 15px }
+.key-btn { color: var(--primary-ink, var(--primary)) }   /* sobre .btn.btn-ghost.btn-sm: sólo el color */
 .key-wait { display: inline-flex; align-items: center; gap: 6px; padding: 0 6px; height: 28px }
 .key-wait .ui-icon { width: 14px; height: 14px }
 </style>

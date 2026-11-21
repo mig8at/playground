@@ -1230,7 +1230,7 @@ onBeforeUnmount(() => {
 /* Lo que la base no da. Bandas, filas, grupos, avisos, tablas, líneas de log y pie son de workbench.css. */
 .theme-toggle { margin-right: var(--space-1) }
 .none { margin: 0; padding: var(--space-2) var(--gutter); color: var(--fg-3); font-size: var(--text-sm) }
-.hot { color: var(--ecommerce-fail) }
+.hot { color: var(--status-bad) }
 .muted { color: var(--fg-3) }
 code { font-family: var(--font-mono); font-size: var(--text-sm) }
 code.wrap { word-break: break-all }
@@ -1244,8 +1244,8 @@ code.wrap { word-break: break-all }
 .sidebar .row .row-meta { max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 /* Los avisos: el de la base con la barra en ámbar (no cuadra) o en el color de la marca (para saber). */
 .warnings { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-2) var(--gutter) }
-.alert[data-level="warn"] { border-left-color: var(--ecommerce-warn); background: color-mix(in oklab, var(--ecommerce-warn) 10%, transparent) }
-.alert[data-level="warn"] .alert-icon { color: var(--ecommerce-warn) }
+.alert[data-level="warn"] { border-left-color: var(--status-warn); background: color-mix(in oklab, var(--status-warn) 10%, transparent) }
+.alert[data-level="warn"] .alert-icon { color: var(--status-warn) }
 .alert-desc p { color: var(--foreground) }
 /* Clave y valor en dos columnas; el valor que contradice a la tienda va en rojo. */
 .kv { display: grid; grid-template-columns: minmax(120px, 180px) 1fr; column-gap: var(--space-3); row-gap: var(--space-1);
@@ -1256,8 +1256,8 @@ code.wrap { word-break: break-all }
 .table .dot { margin-right: var(--space-1) }
 /* El estado es un punto (un <i>: la base estira todo <span> de una fila). */
 .dot { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--fg-3) }
-.dot[data-state="ok"] { background: var(--ecommerce-ok) }
-.dot[data-state="fail"] { background: var(--ecommerce-fail) }
+.dot[data-state="ok"] { background: var(--status-ok) }
+.dot[data-state="fail"] { background: var(--status-bad) }
 .live-tag { display: inline-flex; align-items: center; gap: var(--space-1) }
 .live-tag.warn .dot { background: currentColor }
 .row .dot { margin-right: var(--space-2) }
@@ -1266,7 +1266,7 @@ code.wrap { word-break: break-all }
 .log-line .dot { align-self: center }
 .log-line .status { flex: none; min-width: 200px }
 .log-line .what { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-2) }
-.log-line.ghost .what { font-style: italic; color: var(--ecommerce-warn) }
+.log-line.ghost .what { font-style: italic; color: var(--status-warn) }
 /* Los enlaces y botones de una tienda en el sidebar son filas como las demás. */
 .sidebar a.row { color: inherit; text-decoration: none }
 .sidebar button.row { width: 100%; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer }
@@ -1281,13 +1281,13 @@ code.wrap { word-break: break-all }
 .confirm-dialog .checkbox-row { align-items: flex-start; margin-bottom: var(--space-2) }
 .confirm-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-3) }
 /* El rojo es el de ecommerce, no `--destructive`: en el tema Darkmatter ése es un verde azulado apagado. */
-.btn-danger { background: var(--ecommerce-fail); color: var(--ecommerce-fail-ink) }
-.btn-danger:hover { background: color-mix(in oklab, var(--ecommerce-fail) 88%, transparent) }
+.btn-danger { background: var(--status-bad); color: var(--on-status-bad) }
+.btn-danger:hover { background: color-mix(in oklab, var(--status-bad) 88%, transparent) }
 /* El aviso de lo borrado, arriba del editor, con su ✕. */
 .alert.done { margin: var(--space-2) var(--gutter) 0; width: auto; grid-template-columns: 1fr auto }
 .alert.done .alert-desc { grid-column: 1 }
 .alert.done > .region-action { grid-column: 2; grid-row: 1 }
-.alert[data-level="ok"] { border-left-color: var(--ecommerce-ok); background: color-mix(in oklab, var(--ecommerce-ok) 10%, transparent) }
+.alert[data-level="ok"] { border-left-color: var(--status-ok); background: color-mix(in oklab, var(--status-ok) 10%, transparent) }
 /* Cada tabla de la solicitud: su título (un botón que abre la consulta) y sus filas con todas las columnas.
    Las tablas son anchas (user_requests tiene ~40 columnas): scrollea la tabla, no el editor. */
 .db-table { margin: 0 0 var(--space-3) }
@@ -1314,7 +1314,7 @@ code.wrap { word-break: break-all }
 /* La consulta, en el sidebar derecho: mono, que se corta en renglones y se puede seleccionar. */
 .sql { margin: 0; padding: var(--space-3) var(--gutter); white-space: pre-wrap; word-break: break-word;
   font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.6; user-select: text }
-.ok { color: var(--ecommerce-ok) }
+.ok { color: var(--status-ok) }
 /* Las tablas de la consola: una casilla por tabla, en columnas que se acomodan al ancho. */
 .table-toggle { display: inline-flex; width: 280px; padding: 2px var(--gutter); gap: var(--space-2) }
 .table-toggle code { font-size: var(--text-sm) }
@@ -1330,14 +1330,14 @@ code.wrap { word-break: break-all }
 .profile { align-items: stretch }
 .profile .btn { align-self: flex-start }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2) }
-.warn { color: var(--ecommerce-warn) }
+.warn { color: var(--status-warn) }
 .small { font-size: var(--text-sm) }
 .cell-action { width: 32px; text-align: right }
 /* Los pedidos VTEX con incidencias: una fila por pedido que se despliega con su detalle debajo. */
 .table.incidents tr.incident { cursor: pointer }
 .table.incidents tr.incident td { white-space: nowrap }
 .table.incidents tr.detail td { white-space: normal }
-.dot[data-state="warn"] { background: var(--ecommerce-warn) }
+.dot[data-state="warn"] { background: var(--status-warn) }
 .table.incidents tr.incident:hover td, .table.incidents tr.incident.on td { background: var(--hover) }
 .table.incidents td.what { max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-2) }
 .table.incidents tr.detail > td { padding: 0 0 var(--space-3) }

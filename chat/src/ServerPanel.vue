@@ -66,9 +66,9 @@ async function act(path) {
 .check-detail { color: var(--fg-2); font-family: var(--font-mono); font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .check-how { grid-column: 3; color: var(--fg-3); font-size: var(--text-xs) }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--fg-3); align-self: center }
-.dot[data-state="ok"] { background: var(--presence-on) }
+.dot[data-state="ok"] { background: var(--status-ok) }
 .dot[data-state="busy"] { background: var(--fg-2) }
 .actions { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center }
 .note { margin: 0; color: var(--fg-2); font-size: var(--text-sm) }
-.bad { color: var(--send-fail) }
+.bad { color: var(--status-bad) }
 </style>

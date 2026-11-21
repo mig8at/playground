@@ -694,7 +694,7 @@ onBeforeUnmount(() => {
           <section v-if="lenderReject" class="chart-box lender-reject">
             <div class="chart-head">
               <h3>Rechazo de CreditopX</h3>
-              <button type="button" class="linkish small" @click="pick(lenderReject)">abrir como señal</button>
+              <button type="button" class="btn btn-link btn-xs" @click="pick(lenderReject)">abrir como señal</button>
             </div>
             <p class="verdict" :class="`is-${lenderReject.state}`">
               <i class="dot" :class="`is-${lenderReject.state}`" aria-hidden="true"></i>
@@ -705,7 +705,7 @@ onBeforeUnmount(() => {
           <section v-if="rulesLender" class="chart-box rules-box">
             <div class="chart-head">
               <h3>Qué regla rechaza</h3>
-              <button type="button" class="linkish small" :disabled="rulesBusy" @click="loadRules(rulesLender)">{{ rulesBusy ? 'leyendo…' : shownRules ? 'volver a leer' : 'ver' }}</button>
+              <button type="button" class="btn btn-link btn-xs" :disabled="rulesBusy" @click="loadRules(rulesLender)">{{ rulesBusy ? 'leyendo…' : shownRules ? 'volver a leer' : 'ver' }}</button>
             </div>
             <template v-if="shownRules">
               <table v-if="shownRules.list?.length" class="steps-table">
@@ -726,7 +726,7 @@ onBeforeUnmount(() => {
           <section v-if="EXAMPLE_KINDS.includes(selected.kind)" class="chart-box examples-box">
             <div class="chart-head">
               <h3>Casos de ejemplo</h3>
-              <button type="button" class="linkish small" :disabled="examplesBusy" @click="loadExamples(selected)">{{ examplesBusy ? 'leyendo…' : shownExamples ? 'volver a leer' : 'ver' }}</button>
+              <button type="button" class="btn btn-link btn-xs" :disabled="examplesBusy" @click="loadExamples(selected)">{{ examplesBusy ? 'leyendo…' : shownExamples ? 'volver a leer' : 'ver' }}</button>
             </div>
             <template v-if="shownExamples">
               <ul v-if="shownExamples.list?.length" class="examples">
@@ -745,7 +745,7 @@ onBeforeUnmount(() => {
           <section v-if="selected.kind === 'lender'" class="chart-box lender-errors">
             <div class="chart-head">
               <h3>Errores en los logs que la nombran</h3>
-              <button v-if="lenderErrors" type="button" class="linkish small" @click="pick(lenderErrors)">abrir como señal</button>
+              <button v-if="lenderErrors" type="button" class="btn btn-link btn-xs" @click="pick(lenderErrors)">abrir como señal</button>
             </div>
             <template v-if="lenderErrors">
               <p class="verdict" :class="`is-${lenderErrors.state}`">
@@ -965,7 +965,7 @@ onBeforeUnmount(() => {
       <span v-for="n in sourceNotes" :key="n[0]" class="statusbar-item warn-text" :title="n[1]">⚠ {{ n[0] }}</span>
       <span v-if="loading && data" class="statusbar-item">{{ loading }}</span>
       <span v-else-if="stale" class="statusbar-item">lo guardado de las {{ clock(data.checkedAt) }}; leyendo lo de ahora…</span>
-      <button type="button" class="statusbar-item linkish" :disabled="running" @click="refresh">{{ running ? 'leyendo…' : 'leer ahora' }}</button>
+      <button type="button" class="statusbar-item" :disabled="running" @click="refresh">{{ running ? 'leyendo…' : 'leer ahora' }}</button>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
         <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
         <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Mostrar u ocultar la lista" aria-label="Mostrar u ocultar la lista" @click="toggleSidebar">
@@ -986,20 +986,21 @@ onBeforeUnmount(() => {
 .search { padding: 0 var(--space-3) var(--space-2) }
 .search .input { width: 100%; box-sizing: border-box }
 .none { margin: 0; padding: var(--space-3); color: var(--fg-2); font-size: var(--text-sm) }
-.count.attention { color: var(--sentinel-warn) }
-.count.attention.is-alert { color: var(--sentinel-alert) }
-.source-note.is-alert { border-left-color: var(--sentinel-alert) }
+.count.attention { color: var(--status-warn) }
+.count.attention.is-alert { color: var(--status-bad) }
+.source-note.is-alert { border-left-color: var(--status-bad) }
 .source-note .row-desc { display: block; margin-top: var(--space-1) }
 .row.unsent .unsent-tag { margin-left: var(--space-2); padding: 0 var(--space-1); border-radius: var(--radius-sm, 3px); font-size: var(--text-sm); font-weight: 600;
-  color: var(--foreground); background: color-mix(in oklab, var(--sentinel-alert) 35%, transparent) }
+  color: var(--foreground); background: color-mix(in oklab, var(--status-bad) 35%, transparent) }
 .dot { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--fg-3); margin-right: 6px; vertical-align: 1px }
-.dot.is-alert { background: var(--sentinel-alert) }
-.dot.is-warn { background: var(--sentinel-warn) }
-.dot.is-ok { background: var(--sentinel-ok) }
+.dot.is-alert { background: var(--status-bad) }
+.dot.is-warn { background: var(--status-warn) }
+.dot.is-ok { background: var(--status-ok) }
 .dot.is-quiet { background: color-mix(in oklab, var(--fg-3) 60%, transparent) }
 .subject { display: flex; align-items: center; gap: 2px }
 .subject-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .subject-nums { flex: none; color: var(--fg-3); font-variant-numeric: tabular-nums }
+.on .subject-nums { color: var(--fg-2) }   /* sobre lo elegido, --fg-3 no llega a AA en oscuro */
 .subject.is-quiet .subject-name { color: var(--fg-2) }
 .subject-kind { flex: none; color: var(--fg-3); font-size: var(--text-xs) }
 /* Una fila que se sigue: abrirla es la fila entera; dejar de seguirla, la ✕ que aparece al pasar. */
@@ -1009,8 +1010,8 @@ onBeforeUnmount(() => {
 .followed:hover .unfollow, .followed:focus-within .unfollow { visibility: visible }
 .spark { flex: none; width: 72px; height: 22px }
 .err-badge { flex: none; padding: 0 5px; border-radius: 999px; font-size: var(--text-xs); color: var(--fg-2);
-  background: color-mix(in oklab, var(--sentinel-alert) 14%, transparent) }
-.err-badge.is-warn, .err-badge.is-alert { color: var(--foreground); background: color-mix(in oklab, var(--sentinel-alert) 35%, transparent) }
+  background: color-mix(in oklab, var(--status-bad) 14%, transparent) }
+.err-badge.is-warn, .err-badge.is-alert { color: var(--foreground); background: color-mix(in oklab, var(--status-bad) 35%, transparent) }
 .spark-normal { fill: none; stroke: var(--fg-3); stroke-width: 1; stroke-dasharray: 2 2 }
 .spark-today { fill: none; stroke: var(--primary); stroke-width: 1.5; stroke-linejoin: round }
 
@@ -1033,8 +1034,8 @@ th[aria-sort="descending"] .th-sort::after { content: ' ↓' }
 .view { display: flex; flex-direction: column; gap: var(--space-6); padding: var(--space-6); max-width: 980px }
 .verdict { margin: 0; display: flex; align-items: center; gap: 4px; font-size: var(--text-body); color: var(--fg-2) }
 .verdict b { color: var(--foreground) }
-.verdict.is-alert b { color: var(--sentinel-alert) }
-.verdict.is-warn b { color: var(--sentinel-warn) }
+.verdict.is-alert b { color: var(--status-bad) }
+.verdict.is-warn b { color: var(--status-warn) }
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-3) }
 .card-num { display: flex; flex-direction: column; gap: 2px; padding: var(--space-3) var(--space-4); border: 1px solid var(--border);
   border-radius: calc(var(--radius) + 4px); background: var(--card) }
@@ -1050,7 +1051,7 @@ h3 { margin: 0; font-size: var(--text-xs); font-weight: 600; color: var(--fg-3);
 .sw.today { background: var(--primary) }
 .sw.normal { background: var(--fg-3) }
 .sw.band { height: 10px; background: color-mix(in oklab, var(--fg-3) 25%, transparent) }
-.sw.deploy { width: 2px; height: 10px; background: var(--sentinel-warn) }
+.sw.deploy { width: 2px; height: 10px; background: var(--status-warn) }
 .chart { width: 100%; height: auto; border: 1px solid var(--border); border-radius: calc(var(--radius) + 4px); background: var(--card) }
 .chart .grid line { stroke: var(--border); stroke-width: 1 }
 .chart .grid text { fill: var(--fg-3); font-size: 10px }
@@ -1058,28 +1059,27 @@ h3 { margin: 0; font-size: var(--text-xs); font-weight: 600; color: var(--fg-3);
 .chart .median { fill: none; stroke: var(--fg-3); stroke-width: 1.5; stroke-dasharray: 4 4 }
 .chart .today { fill: none; stroke: var(--primary); stroke-width: 2.5; stroke-linejoin: round }
 .chart .now { fill: var(--card); stroke: var(--primary); stroke-width: 2 }
-.chart .today.errors, .chart .now.errors { stroke: var(--sentinel-alert) }
+.chart .today.errors, .chart .now.errors { stroke: var(--status-bad) }
 .chart-small { max-height: 180px }
 .steps-box { display: flex; flex-direction: column; gap: var(--space-2) }
 .steps tbody tr { cursor: pointer }
 .steps tbody tr:hover td { background: var(--hover) }
 .steps td, .steps th { white-space: nowrap }
-.linkish.small { font-size: var(--text-xs); color: var(--fg-2) }
-.chart .deploy-mark line { stroke: var(--sentinel-warn); stroke-width: 1.5; stroke-dasharray: 2 3 }
-.chart .deploy-mark text { fill: var(--sentinel-warn); font-size: 10px }
+.chart .deploy-mark line { stroke: var(--status-warn); stroke-width: 1.5; stroke-dasharray: 2 3 }
+.chart .deploy-mark text { fill: var(--status-warn); font-size: 10px }
 .examples { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px }
-.examples li { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; font-size: 12px }
+.examples li { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; font-size: var(--text-sm) }
 .examples a { color: var(--primary); font-variant-numeric: tabular-nums }
 .examples .ex-note { color: var(--muted-foreground) }
-.examples code { margin-left: auto; font-size: 11px; color: var(--muted-foreground); user-select: all }
-.rules-box tr.is-up td { color: var(--sentinel-alert) }
+.examples code { margin-left: auto; font-size: var(--text-xs); color: var(--muted-foreground); user-select: all }
+.rules-box tr.is-up td { color: var(--status-bad) }
 .rules-box th:first-child { text-align: left }
 .verdict-box { margin: 4px 8px 10px; padding: 8px 10px; border-radius: 6px; background: color-mix(in oklab, var(--foreground) 5%, transparent) }
 .verdict-head { display: flex; align-items: center; gap: 6px; width: 100%; border: 0; background: none; color: var(--foreground); font: inherit; font-weight: 600; padding: 0; cursor: pointer; text-align: left }
 .verdict-chevron { margin-left: auto; transition: transform .15s }
 .verdict-head[aria-expanded="true"] .verdict-chevron { transform: rotate(180deg) }
-.verdict-lede { margin: 6px 0 0; font-size: 12px; line-height: 1.45 }
-.verdict-rest { display: grid; gap: 4px; margin-top: 6px; font-size: 12px; line-height: 1.45 }
+.verdict-lede { margin: 6px 0 0; font-size: var(--text-sm); line-height: 1.45 }
+.verdict-rest { display: grid; gap: 4px; margin-top: 6px; font-size: var(--text-sm); line-height: 1.45 }
 .verdict-rest p { margin: 0 }
 .verdict-h { font-weight: 600; margin-top: 4px !important }
 .verdict-li { padding-left: 12px; position: relative }
@@ -1103,20 +1103,20 @@ h3 { margin: 0; font-size: var(--text-xs); font-weight: 600; color: var(--fg-3);
 .attention-name { white-space: normal; overflow-wrap: anywhere }
 .attention-kind { display: block; padding-left: calc(var(--space-2) + 8px) }
 .attention-item .ack { flex: none; margin: var(--space-1) var(--space-2) 0 0; font-size: var(--text-sm) }
-.attention-item:not(:hover) .ack { opacity: 0.35 }
+.attention-item:not(:hover, :focus-within) .ack { color: var(--fg-3) }   /* en reposo, apagado por la tinta (con opacity no pasaba AA) */
 .attention-row.known { opacity: 0.75 }
 .region-head.toggle { width: 100%; border: 0; background: none; cursor: pointer; font: inherit; color: inherit; text-align: left }
 .chart .gap { fill: var(--fg-2); opacity: 0.12 }
 .day-line { margin-top: var(--space-4) }
 .timeline .spell { cursor: pointer }
-.timeline .spell rect { fill: var(--sentinel-warn); opacity: 0.7 }
-.timeline .spell.is-alert rect { fill: var(--sentinel-alert) }
+.timeline .spell rect { fill: var(--status-warn); opacity: 0.7 }
+.timeline .spell.is-alert rect { fill: var(--status-bad) }
 .timeline .spell text { fill: var(--fg-2); font-size: 10px }
 .timeline .spell:hover text { fill: var(--foreground) }
-.timeline .notice-mark circle { fill: var(--sentinel-warn) }
-.timeline .notice-mark circle.is-alert { fill: var(--sentinel-alert) }
-.timeline .notice-mark circle.is-ok { fill: var(--sentinel-ok, var(--fg-2)) }
-.over-mark { margin-left: var(--space-1); color: var(--sentinel-warn) }
+.timeline .notice-mark circle { fill: var(--status-warn) }
+.timeline .notice-mark circle.is-alert { fill: var(--status-bad) }
+.timeline .notice-mark circle.is-ok { fill: var(--status-ok, var(--fg-2)) }
+.over-mark { margin-left: var(--space-1); color: var(--status-warn) }
 .msg-text { font-family: var(--font-mono, ui-monospace, monospace); overflow-wrap: anywhere }
 .app-card.compact { padding-block: var(--space-1) }
 .app-inline { margin-left: auto; border: 0; background: none; padding: 0 var(--space-1); color: var(--fg-2); font: inherit; font-size: var(--text-sm); cursor: pointer; white-space: nowrap }
@@ -1126,18 +1126,18 @@ h3 { margin: 0; font-size: var(--text-xs); font-weight: 600; color: var(--fg-3);
 .app-cards { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-1) var(--space-3) var(--space-3) }
 .app-card { display: flex; flex-direction: column; gap: 2px; padding: var(--space-2) var(--space-3); border: 1px solid var(--border);
   border-radius: calc(var(--radius) + 4px); background: var(--card) }
-.app-card.is-alert { border-color: color-mix(in oklab, var(--sentinel-alert) 60%, var(--border)) }
-.app-card.is-warn { border-color: color-mix(in oklab, var(--sentinel-warn) 60%, var(--border)) }
+.app-card.is-alert { border-color: color-mix(in oklab, var(--status-bad) 60%, var(--border)) }
+.app-card.is-warn { border-color: color-mix(in oklab, var(--status-warn) 60%, var(--border)) }
 .app-card.on { box-shadow: inset 2px 0 0 var(--primary) }
 .app-head { display: flex; align-items: center; gap: 2px; min-width: 0 }
 .app-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600 }
 .app-version { flex: none; padding: 0 6px; border-radius: 999px; background: var(--muted); color: var(--foreground);
   font-size: var(--text-xs); font-variant-numeric: tabular-nums; text-decoration: none }
 .app-version:hover { text-decoration: underline }
-.app-version.failed { background: color-mix(in oklab, var(--sentinel-alert) 25%, var(--muted)) }
+.app-version.failed { background: color-mix(in oklab, var(--status-bad) 25%, var(--muted)) }
 .app-when { color: var(--fg-3); font-size: var(--text-xs) }
 .app-silent { align-self: flex-start; margin-top: 2px; padding: 1px 6px; border-radius: var(--radius-control); font-size: var(--text-xs);
-  color: var(--foreground); background: color-mix(in oklab, var(--sentinel-alert) 22%, transparent) }
+  color: var(--foreground); background: color-mix(in oklab, var(--status-bad) 22%, transparent) }
 .app-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); margin-top: var(--space-1) }
 .metric { display: flex; flex-direction: column; align-items: flex-start; gap: 0; min-width: 0; padding: 4px 6px; border: 0;
   border-radius: var(--radius-control); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer }
@@ -1150,18 +1150,16 @@ h3 { margin: 0; font-size: var(--text-xs); font-weight: 600; color: var(--fg-3);
 .metric .spark { width: 100%; height: 18px }
 /* Una fuente que no contestó (Loki, PostHog, los despliegues): el aviso de la base —barra de color a la izquierda y un
    tinte, cuadrado, sin marco— sobre el grupo al que le faltan datos. El texto del error puede ser largo: se parte. */
-.source-note { margin: 0; padding: var(--space-2) var(--space-3); border-left: 3px solid var(--sentinel-warn);
-  background: color-mix(in oklab, var(--sentinel-warn) 12%, transparent); color: var(--foreground); font-size: var(--text-sm); overflow-wrap: anywhere }
+.source-note { margin: 0; padding: var(--space-2) var(--space-3); border-left: 3px solid var(--status-warn);
+  background: color-mix(in oklab, var(--status-warn) 12%, transparent); color: var(--foreground); font-size: var(--text-sm); overflow-wrap: anywhere }
 .auxiliarybar .source-note { margin: var(--space-1) var(--space-3) }
-.warn-text { color: var(--sentinel-warn) }
+.warn-text { color: var(--status-warn) }
 /* Una tarjeta con datos viejos: borde punteado y los números atenuados (el nombre y la versión, que no salen de esa
    fuente, quedan enteros). */
 .app-card.is-old { border-style: dashed }
 .app-card.is-old .app-metrics { opacity: .6 }
 .note { margin: calc(var(--space-3) * -1) 0 0; font-size: var(--text-sm); color: var(--fg-2) }
 .muted { color: var(--fg-3) }
-.linkish { border: 0; background: none; color: inherit; font: inherit; cursor: pointer; text-decoration: underline }
-.linkish:disabled { cursor: default; text-decoration: none; color: var(--fg-3) }
 .empty-state { padding: var(--space-6) }
 .empty-title { margin: 0 0 var(--space-2); font-size: var(--text-title); font-weight: 600 }
 </style>

@@ -78,15 +78,15 @@ const time = (d) => (d || '').replace('T', ' ').slice(0, 19)
 .kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere }
 code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .muted { color: var(--fg-3) }
-.hot { color: var(--ecommerce-fail) }
-.warn { color: var(--ecommerce-warn) }
-.ok { color: var(--ecommerce-ok) }
+.hot { color: var(--status-bad) }
+.warn { color: var(--status-warn) }
+.ok { color: var(--status-ok) }
 .none { margin: 0; padding: var(--space-1) var(--gutter); font-size: var(--text-sm) }
 .findings { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-1) var(--gutter) var(--space-2) }
-.alert[data-level="fail"] { border-left-color: var(--ecommerce-fail); background: color-mix(in oklab, var(--ecommerce-fail) 10%, transparent) }
-.alert[data-level="fail"] .alert-icon { color: var(--ecommerce-fail) }
-.alert[data-level="warn"] { border-left-color: var(--ecommerce-warn); background: color-mix(in oklab, var(--ecommerce-warn) 10%, transparent) }
-.alert[data-level="warn"] .alert-icon { color: var(--ecommerce-warn) }
+.alert[data-level="fail"] { border-left-color: var(--status-bad); background: color-mix(in oklab, var(--status-bad) 10%, transparent) }
+.alert[data-level="fail"] .alert-icon { color: var(--status-bad) }
+.alert[data-level="warn"] { border-left-color: var(--status-warn); background: color-mix(in oklab, var(--status-warn) 10%, transparent) }
+.alert[data-level="warn"] .alert-icon { color: var(--status-warn) }
 .alert-desc p { color: var(--foreground) }
 .timeline { margin: 0 var(--gutter) }
 .timeline .log-line { padding: 0 }

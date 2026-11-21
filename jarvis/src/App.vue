@@ -859,7 +859,7 @@ const status = computed(() => {
           </div>
         </header>
 
-        <div v-if="flowRepairs.length" class="alert alert-ask" role="status">
+        <div v-if="flowRepairs.length" class="alert alert-warn" role="status">
           <span class="alert-icon ui-icon" data-icon="alert" aria-hidden="true"></span>
           <div class="alert-title">{{ flowRepairs.length === 1 ? 'Un arreglo propuesto' : `${flowRepairs.length} arreglos propuestos` }}</div>
           <div class="alert-desc">
@@ -930,7 +930,7 @@ const status = computed(() => {
           <p v-else-if="e.k === 'answer'" class="ev-answer">› {{ e.t }}</p>
           <p v-else class="ev-note">{{ e.t }}</p>
         </template>
-        <div v-if="askState.waiting" class="alert alert-ask ask-card" role="status">
+        <div v-if="askState.waiting" class="alert alert-warn ask-card" role="status">
           <span class="alert-icon ui-icon" data-icon="help" aria-hidden="true"></span>
           <div class="alert-title">{{ askKeyword === 'CONFIRMAR' ? 'Te pide confirmar' : 'Te pregunta' }}</div>
           <div class="alert-desc">
@@ -1045,8 +1045,8 @@ const status = computed(() => {
 code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .check { display: inline-flex; align-items: center; gap: var(--space-1); white-space: nowrap }
 .kw { flex: none }
-.kw-ok { background: var(--kw-ok); color: var(--kw-ink) }
-.kw-bad { background: var(--kw-bad); color: var(--kw-ink) }
+.kw-ok { background: var(--status-ok); color: var(--kw-ink) }
+.kw-bad { background: var(--status-bad); color: var(--kw-ink) }
 .kw-ask { background: var(--kw-ask); color: var(--kw-ink) }
 .kw-none { background: var(--hover); color: var(--fg-2) }
 
@@ -1075,13 +1075,11 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .tree-row:hover > .node-flag, .tree-row.on > .node-flag { display: none }
 .tree-row.leaf .node-flag { font-variant-numeric: tabular-nums }
 .leaf-mark { flex: none; width: 8px; height: 8px; margin: 0 4px; border-radius: 2px; border: 1.5px solid var(--fg-3) }
-.leaf-mark.ok { background: var(--kw-ok); border-color: var(--kw-ok) }
+.leaf-mark.ok { background: var(--status-ok); border-color: var(--status-ok) }
 .leaf-mark.fix { background: var(--kw-ask); border-color: var(--kw-ask) }
 .node-fix { flex: none; font-size: var(--text-xs, 11px); color: var(--kw-ask); white-space: nowrap }
 .step-fix { color: var(--kw-ask) }
 /* El aviso de la base (.alert) en ámbar: espera a la persona. El color semántico va en la hoja de Jarvis, no en la base. */
-.alert-ask { border-left-color: var(--kw-ask); background: color-mix(in oklab, var(--kw-ask) 8%, transparent) }
-.alert-ask .alert-icon { color: var(--kw-ask) }
 .repair-list { margin: 0; padding-left: var(--space-4); display: grid; gap: var(--space-1) }
 .step-icon { vertical-align: -3px }
 .run-dot { flex: none; width: 8px; height: 8px; margin: 0 4px; border-radius: 50% }
@@ -1101,11 +1099,11 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 /* en vivo */
 /* La URL en el pie: casi imperceptible hasta que se la toca. Hereda el tamaño y el color del pie. */
 .sb-state { flex: none; white-space: nowrap; margin-left: var(--space-1) }
-.sb-dot-btn { flex: none; display: grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 0; border-radius: var(--radius-control);
+.sb-dot-btn { flex: none; display: grid; place-items: center; width: var(--control-xs); height: var(--control-xs); padding: 0; border: 0; border-radius: var(--radius-control);
   background: none; color: var(--fg-2); cursor: pointer }
 .sb-dot-btn > * { grid-area: 1 / 1 }
 .sb-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--fg-3) }
-.sb-dot-btn.on .sb-dot { background: var(--kw-ok-ink) }
+.sb-dot-btn.on .sb-dot { background: var(--status-ok) }
 .sb-dot-btn .ui-icon { visibility: hidden }
 .sb-dot-btn:hover, .sb-dot-btn:focus-visible { background: var(--hover); color: var(--foreground) }
 .sb-dot-btn:hover .sb-dot, .sb-dot-btn:focus-visible .sb-dot { visibility: hidden }
@@ -1157,7 +1155,7 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .grid-attention .ui-icon { vertical-align: -3px; margin-right: var(--space-1) }
 .grid-attention { font-size: var(--text-sm); font-weight: 600; color: var(--destructive-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .tab-attention { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--destructive-ink) }
-.follow-dot-btn { flex: none; display: grid; place-items: center; width: 22px; height: 22px; margin-left: var(--space-1); padding: 0; border: 0;
+.follow-dot-btn { flex: none; display: grid; place-items: center; width: var(--control-xs); height: var(--control-xs); margin-left: var(--space-1); padding: 0; border: 0;
   border-radius: var(--radius-control); background: none; cursor: pointer }
 .follow-dot-btn:hover, .follow-dot-btn:focus-visible { background: var(--hover) }
 .follow-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--fg-3) }

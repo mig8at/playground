@@ -126,8 +126,8 @@ async function copySchema() {
   border-radius: var(--radius-md); background: var(--muted) }
 .share-box code { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: var(--text-xs) }
 .health { margin: 0; padding: var(--space-2) var(--gutter); display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm) }
-.health .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--presence-on) }
-.health[data-kind="bad"] .dot { background: var(--send-fail) }
+.health .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--status-ok) }
+.health[data-kind="bad"] .dot { background: var(--status-bad) }
 .m { flex: none; width: 44px; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--fg-2) }
 .label { font-family: var(--font-mono); font-size: var(--text-sm) }
 .route-row { gap: var(--space-2) }

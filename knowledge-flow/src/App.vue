@@ -220,8 +220,8 @@ onBeforeUnmount(() => {
         <template v-for="g in pastByDay" :key="g.label">
           <div class="group-label">{{ g.label }}</div>
           <button v-for="r in g.runs" :key="r.id" type="button" class="run-row" :class="{ on: run?.id === r.id }" @click="pick(r.id)">
-            <svg v-if="r.state === 'passed'" class="st" viewBox="0 0 16 16" aria-label="al día"><circle cx="8" cy="8" r="7" fill="var(--kf-ok)"/><path d="M4.5 8.2l2.2 2.2 4.8-4.8" stroke="#123" stroke-width="1.8" fill="none"/></svg>
-            <svg v-else class="st" viewBox="0 0 16 16" :aria-label="STATE_TEXT[r.state]"><circle cx="8" cy="8" r="7" :fill="r.state === 'stopped' ? 'var(--kf-warn)' : 'var(--kf-bad)'"/><path d="M5.5 5.5l5 5M10.5 5.5l-5 5" stroke="#123" stroke-width="1.8"/></svg>
+            <svg v-if="r.state === 'passed'" class="st" viewBox="0 0 16 16" aria-label="al día"><circle cx="8" cy="8" r="7" fill="var(--status-ok)"/><path d="M4.5 8.2l2.2 2.2 4.8-4.8" stroke="#123" stroke-width="1.8" fill="none"/></svg>
+            <svg v-else class="st" viewBox="0 0 16 16" :aria-label="STATE_TEXT[r.state]"><circle cx="8" cy="8" r="7" :fill="r.state === 'stopped' ? 'var(--status-warn)' : 'var(--status-bad)'"/><path d="M5.5 5.5l5 5M10.5 5.5l-5 5" stroke="#123" stroke-width="1.8"/></svg>
             <span class="run-title">#{{ r.id }} · {{ r.title }}<span v-if="r.resumed" class="tag" title="Se retomó desde el paso donde cayó, cuando el modelo volvió"> retomada</span><span v-if="r.superseded" class="tag"> superada</span></span><span class="run-time">{{ runDur(r) }}</span>
             <span class="run-desc">{{ r.result }}</span>
           </button>
@@ -232,7 +232,7 @@ onBeforeUnmount(() => {
         <button v-if="hiddenCount" type="button" class="run-row more" :class="{ asking: confirming === 'clean' }" @click="cleanSuperseded">
           <span class="run-title">{{ confirming === 'clean' ? `¿Borrar las ${hiddenCount}? Tocá de nuevo para confirmar` : `Borrar las superadas (${hiddenCount})` }}</span>
         </button>
-        <p v-if="deleteError" class="banner is-stop" style="margin: var(--space-2)">{{ deleteError }}</p>
+        <p v-if="deleteError" class="alert alert-bad" style="margin: var(--space-2)">{{ deleteError }}</p>
         <div v-if="state && !runs.length" class="empty">
           <div class="empty-head">
             <div class="empty-title">Sin corridas</div>
@@ -263,17 +263,17 @@ onBeforeUnmount(() => {
             Arrancó el {{ dayLabel(run.startedAt).toLowerCase() }} a las <b>{{ clock(run.startedAt) }}</b> porque cambiaron <b>{{ run.changes.length }} {{ run.changes.length === 1 ? 'fuente' : 'fuentes' }}</b> en main:
             <b>{{ run.topics.join(', ') }}</b><template v-if="run.model"> · modelo <b>{{ ({ claude: 'Claude', gemini: 'Gemini' })[run.model] || run.model }}</b></template><template v-if="run.commit"> · commit <b>{{ run.commit }}</b></template>
           </div>
-          <div v-if="run.state === 'running' && queuedTopics.length" class="banner is-queue">
+          <div v-if="run.state === 'running' && queuedTopics.length" class="alert alert-warn">
             Mientras corre entraron {{ look.queued.length }} {{ look.queued.length === 1 ? 'cambio' : 'cambios' }} más. No se mezclan con esta corrida: arrancan en otra cuando termine.
           </div>
-          <div v-if="run.state === 'stopped' || run.state === 'failed'" class="banner is-stop">{{ run.result }}</div>
+          <div v-if="run.state === 'stopped' || run.state === 'failed'" class="alert alert-bad">{{ run.result }}</div>
           <div class="steps">
             <div v-for="(s, i) in run.steps" :key="s.id" class="step" :class="`is-${s.state}`">
               <div class="step-row">
                 <span class="step-n">{{ i + 1 }}</span>
                 <svg v-if="s.state === 'running'" class="st st-spin" viewBox="0 0 16 16" aria-label="corriendo"><circle cx="8" cy="8" r="6" fill="none" stroke="var(--primary)" stroke-width="2" stroke-dasharray="26 12"/></svg>
-                <svg v-else-if="s.state === 'done'" class="st" viewBox="0 0 16 16" aria-label="listo"><circle cx="8" cy="8" r="7" fill="var(--kf-ok)"/><path d="M4.5 8.2l2.2 2.2 4.8-4.8" stroke="#123" stroke-width="1.8" fill="none"/></svg>
-                <svg v-else-if="s.state === 'stopped' || s.state === 'failed'" class="st" viewBox="0 0 16 16" :aria-label="s.state"><circle cx="8" cy="8" r="7" :fill="s.state === 'stopped' ? 'var(--kf-warn)' : 'var(--kf-bad)'"/><path d="M5.5 5.5l5 5M10.5 5.5l-5 5" stroke="#123" stroke-width="1.8"/></svg>
+                <svg v-else-if="s.state === 'done'" class="st" viewBox="0 0 16 16" aria-label="listo"><circle cx="8" cy="8" r="7" fill="var(--status-ok)"/><path d="M4.5 8.2l2.2 2.2 4.8-4.8" stroke="#123" stroke-width="1.8" fill="none"/></svg>
+                <svg v-else-if="s.state === 'stopped' || s.state === 'failed'" class="st" viewBox="0 0 16 16" :aria-label="s.state"><circle cx="8" cy="8" r="7" :fill="s.state === 'stopped' ? 'var(--status-warn)' : 'var(--status-bad)'"/><path d="M5.5 5.5l5 5M10.5 5.5l-5 5" stroke="#123" stroke-width="1.8"/></svg>
                 <svg v-else-if="s.state === 'skipped'" class="st" viewBox="0 0 16 16" aria-label="no hizo falta"><circle cx="8" cy="8" r="6" fill="none" stroke="var(--fg-3)" stroke-width="2"/><path d="M5 8h6" stroke="var(--fg-3)" stroke-width="2"/></svg>
                 <svg v-else class="st" viewBox="0 0 16 16" aria-label="en espera"><circle cx="8" cy="8" r="6" fill="none" stroke="var(--fg-3)" stroke-width="2"/></svg>
                 <span>{{ s.label }}</span>
@@ -311,8 +311,8 @@ onBeforeUnmount(() => {
           <div class="lib-big">{{ !look.at && look.looking ? 'Mirando main…' : staleTopics.length ? `${staleTopics.length} de ${look.topics || '…'} temas viejos` : `${look.topics || '…'} temas al día` }}</div>
           <div class="run-time">{{ fresh.toLocaleString('es-CO') }} de {{ (look.sources || 0).toLocaleString('es-CO') }} fuentes al día con main</div>
         </div>
-        <p v-if="look.waiting" class="banner is-stop" style="margin: 0 var(--space-2) var(--space-2)">{{ look.waiting }}</p>
-        <p v-if="look.error" class="banner is-stop" style="margin: 0 var(--space-2) var(--space-2)">{{ look.error }}</p>
+        <p v-if="look.waiting" class="alert alert-bad" style="margin: 0 var(--space-2) var(--space-2)">{{ look.waiting }}</p>
+        <p v-if="look.error" class="alert alert-bad" style="margin: 0 var(--space-2) var(--space-2)">{{ look.error }}</p>
         <div class="group-label">El vigía</div>
         <div class="kv"><span>Mira main</span><span>cada {{ state?.every || 30 }} min</span></div>
         <div class="kv"><span>Última mirada</span><span>{{ look.looking ? 'mirando…' : clock(look.at) || '—' }}</span></div>

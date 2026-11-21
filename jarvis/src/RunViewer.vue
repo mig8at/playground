@@ -243,11 +243,11 @@ watch(cur, async () => {
 .run-title h1 { margin: 0; font-size: var(--text-title); font-weight: 600 }
 .run-result-wrap h2 { margin: 0 0 var(--space-2); font-weight: 600 }
 .run-result { white-space: pre-wrap; font-size: var(--text-body); line-height: 1.6; padding: var(--space-3) var(--space-4); border-left: 2px solid var(--border); background: var(--hover) }
-.muted { color: var(--fg-3) }
+.muted { color: var(--fg-2) }   /* sobre la tarjeta (--muted), --fg-3 no llega a AA en oscuro */
 .small { font-size: var(--text-sm) }
 .kw { flex: none }
-.kw-ok { background: var(--kw-ok); color: var(--kw-ink) }
-.kw-bad { background: var(--kw-bad); color: var(--kw-ink) }
+.kw-ok { background: var(--status-ok); color: var(--kw-ink) }
+.kw-bad { background: var(--status-bad); color: var(--kw-ink) }
 .kw-ask { background: var(--kw-ask); color: var(--kw-ink) }
 .kw-none { background: var(--hover); color: var(--fg-2) }
 
@@ -267,7 +267,7 @@ watch(cur, async () => {
 .subs { position: absolute; left: 50%; bottom: var(--space-4); transform: translateX(-50%); max-width: 88%; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; pointer-events: none; z-index: 3 }
 .subs span { background: var(--subs-bg); color: var(--subs-ink); padding: 3px 10px; border-radius: 4px; line-height: 1.35 }
 .subs-what { font-size: 15px; font-weight: 600 }
-.subs-why { font-size: 13px; color: var(--subs-ink-2) }
+.subs-why { font-size: var(--text-base); color: var(--subs-ink-2) }
 .ctl-tog { font-size: var(--text-sm); padding: 0 var(--space-2) }
 .ctl-tog[aria-pressed="false"] { opacity: .55 }
 .replay-btn { margin-left: auto; flex: none }
@@ -295,7 +295,7 @@ watch(cur, async () => {
 .caption { display: flex; flex-direction: column; gap: 4px; padding: var(--space-2) var(--space-3); border-left: 2px solid var(--primary); background: var(--hover); min-width: 0 }
 .caption.bad { border-left-color: var(--status-bad) }
 .caption-what { font-weight: 600 }
-.caption .mark { color: var(--kw-ok-ink) }
+.caption .mark { color: var(--status-ok) }
 .caption.bad .mark, .caption-err { color: var(--status-bad) }
 .caption-err { font-size: var(--text-sm) }
 .caption-code { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--fg-2); overflow-wrap: anywhere }
@@ -308,5 +308,5 @@ watch(cur, async () => {
 .thumb.on img, .thumb:hover img { opacity: 1 }
 .thumb.bad { border-color: color-mix(in srgb, var(--status-bad) 60%, transparent) }
 .thumb.bad.on { border-color: var(--status-bad) }
-.thumb-n { position: absolute; left: 4px; bottom: 4px; font-size: 11px; line-height: 1; padding: 2px 5px; border-radius: 3px; background: var(--stage-chip); color: var(--stage-ink) }
+.thumb-n { position: absolute; left: 4px; bottom: 4px; font-size: var(--text-xs); line-height: 1; padding: 2px 5px; border-radius: 3px; background: var(--stage-chip); color: var(--stage-ink) }
 </style>

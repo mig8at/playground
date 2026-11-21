@@ -416,7 +416,7 @@ onBeforeUnmount(() => {
 /* Lo que la base no da. Todo lo demás —bandas, filas, pestañas, grupos, estado vacío, líneas, pie— es de workbench.css. */
 .theme-toggle { margin-right: var(--space-1) }
 .none { margin: 0; padding: var(--space-2) var(--gutter); color: var(--fg-3); font-size: var(--text-sm) }
-.hot { color: var(--access-fail) }
+.hot { color: var(--status-bad) }
 code { font-family: var(--font-mono); font-size: var(--text-sm) }
 /* El selector de perfil es lo que más importa del pie: no se encoge; lo que sobra se corta en los demás. */
 .env { flex: none }
@@ -432,23 +432,23 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .badges { flex: none; display: flex; gap: var(--space-1) }
 /* La marca de acceso: un rótulo mono de ancho fijo, así las columnas de los perfiles quedan alineadas. */
 .badge-access { min-width: 22px; text-align: center; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--fg-3) }
-.badge-access[data-badge="RW"] { color: var(--access-ok); font-weight: 600 }
-.badge-access[data-badge="R"] { color: var(--access-ok) }
-.badge-access[data-badge="W"], .badge-access[data-badge="?"] { color: var(--access-warn) }
+.badge-access[data-badge="RW"] { color: var(--status-ok); font-weight: 600 }
+.badge-access[data-badge="R"] { color: var(--status-ok) }
+.badge-access[data-badge="W"], .badge-access[data-badge="?"] { color: var(--status-warn) }
 .row.on .badge-access { color: var(--accent-foreground) }
 /* El editor: por perfil, dos renglones —lectura y escritura— y de dónde sale cada uno. */
 .access-list { margin: 0; padding: var(--space-2) var(--gutter) }
 .access-row { display: grid; grid-template-columns: 96px 120px 1fr; align-items: baseline; gap: var(--space-2); min-height: var(--row-h) }
 .access-row dt { color: var(--fg-2) }
 .access-row dd { margin: 0 }
-.access-row[data-value="yes"] dd:not(.source) { color: var(--access-ok); font-weight: 600 }
-.access-row[data-value="unreliable"] dd:not(.source), .access-row[data-value="error"] dd:not(.source) { color: var(--access-warn) }
+.access-row[data-value="yes"] dd:not(.source) { color: var(--status-ok); font-weight: 600 }
+.access-row[data-value="unreliable"] dd:not(.source), .access-row[data-value="error"] dd:not(.source) { color: var(--status-warn) }
 .access-row .source { color: var(--fg-3); font-size: var(--text-sm) }
 /* El estado es un punto (un <i>: la base estira todo <span> de una fila); el texto de al lado lo dice para quien no lo ve. */
 .dot { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%; margin-right: var(--space-1); background: var(--access-off) }
-.dot[data-v="yes"], .dot[data-state="ok"] { background: var(--access-ok) }
-.dot[data-v="unreliable"], .dot[data-v="error"], .dot[data-state="warn"] { background: var(--access-warn) }
-.dot[data-state="fail"] { background: var(--access-fail) }
+.dot[data-v="yes"], .dot[data-state="ok"] { background: var(--status-ok) }
+.dot[data-v="unreliable"], .dot[data-v="error"], .dot[data-state="warn"] { background: var(--status-warn) }
+.dot[data-state="fail"] { background: var(--status-bad) }
 .dot[data-state="pending"] { background: transparent; box-shadow: inset 0 0 0 1px var(--access-off) }
 /* La consola */
 .log-line { display: flex; gap: var(--space-2); align-items: baseline }
@@ -457,5 +457,5 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .log-line .state { min-width: 80px; color: var(--fg-3) }
 .log-line .what { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-2) }
 .log-line[data-state="off"] .name { color: var(--fg-3) }
-.log-line[data-state="fail"] .state { color: var(--access-fail) }
+.log-line[data-state="fail"] .state { color: var(--status-bad) }
 </style>

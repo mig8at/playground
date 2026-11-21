@@ -59,7 +59,7 @@ watch(() => props.rows.extras, (extras) => {
 .kv-table .key { height: 36px; padding: 0 var(--space-3); background: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
 .kv-table .key code { font-family: var(--font-mono); color: var(--foreground) }
 .kv-table .key code.described { text-decoration: underline dotted var(--fg-3); text-underline-offset: 3px; cursor: help }
-.kv-table .req { margin-left: 2px; color: var(--send-fail) }
+.kv-table .req { margin-left: 2px; color: var(--status-bad) }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap }
 /* Las celdas que se escriben: el campo ocupa la celda entera y el foco la marca por dentro. */
 .kv-table .cell { padding: 0 }

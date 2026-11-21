@@ -10,17 +10,7 @@
 @import "./workbench.css";
 
 /* El semáforo: en alerta (no entró nada), para mirar (se salió de lo normal), bien, y poco volumen para comparar.
-   Propios de Sentinel: el «destructivo» del tema en oscuro es un gris verdoso y no dice alerta. */
-:root {
-  --sentinel-alert: #dc2626;
-  --sentinel-warn: #b45309;
-  --sentinel-ok: #15803d;
-}
-.dark {
-  --sentinel-alert: #f87171;
-  --sentinel-warn: #fbbf24;
-  --sentinel-ok: #4ade80;
-}
+   Son el semáforo de la base (workbench.css): la alerta es --status-bad. */
 
 /* El contrato de la base: la página ocupa la ventana y no scrollea; scrollea cada región. */
 html, body { margin: 0; height: 100%; overflow: hidden; background: var(--background); color: var(--foreground);

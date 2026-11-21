@@ -93,6 +93,14 @@
   --motion-fast: 120ms;
   --motion-base: 200ms;
   --ease-out: cubic-bezier(.2, .8, .2, 1);
+  /* El semáforo de estado: al día, espera que lo mires, falló (2026-11-21). Nueve herramientas tenían el suyo
+     (--kf-bad, --ecommerce-fail, --sentinel-ok…) con casi los mismos valores. No sale del tema: el «destructivo»
+     de Darkmatter en oscuro es un gris verdoso que no dice falla. Se usan como tinta (texto, ícono, punto) o como
+     fondo; sobre --status-bad, el texto va en --on-status-bad. */
+  --status-ok: #15803d;
+  --status-warn: #b45309;
+  --status-bad: #b91c1c;
+  --on-status-bad: #fff;
   --hover: color-mix(in oklab, var(--foreground) 8%, transparent); /* fondo al pasar: fantasma, icono, fila */
   /* El primario cuando lleva TEXTO (un enlace, un botón, un contador filtrado). El primario del tema en
      claro (Darkmatter, #d87943) no llega a 4,5:1 ni como texto sobre blanco ni con texto blanco encima
@@ -168,6 +176,14 @@
 .workbench > .auxiliarybar { width: var(--auxiliarybar-w) }
 .workbench > .panel        { height: var(--panel-h) }
 
+/* El semáforo en oscuro: los mismos tres, aclarados para leerse sobre el fondo oscuro. */
+.dark {
+  --status-ok: #4ade80;
+  --status-warn: #fbbf24;
+  --status-bad: #f87171;
+  --on-status-bad: #1f0a0a;
+}
+
 /* ── EL ESTILO: cómo se separan los bloques ───────────────────────────────────────────────────────
    `data-style` en el <html> (workbench.js, `STYLES`). Sin atributo es `flat`: las regiones pegadas con su línea de
    1px, como VS Code. `panels`: cada región es un panel apoyado sobre un LIENZO, con aire alrededor y esquinas
@@ -194,6 +210,10 @@
 :root.dark[data-style="panels"] {
   --canvas: color-mix(in oklab, var(--background) 40%, black);
   --panel-surface: color-mix(in oklab, var(--background) 93%, white);
+  /* La rampa de tinta se midió sobre el fondo plano. Sobre el panel, que sube un tono, el 74 % y el 70 % quedaban en
+     4,25:1 y 3,83:1 (medido con make style-contrast en Jarvis y el panel del harness, 2026-11-21): sube con él. */
+  --fg-2: color-mix(in oklab, var(--foreground) 84%, var(--background));
+  --fg-3: color-mix(in oklab, var(--foreground) 80%, var(--background));
   --panel-border: color-mix(in oklab, var(--border) 50%, transparent);
   /* Y lo que va DENTRO de un panel (tarjetas, el modal) sube otro tono: si quedara del color de antes, se leería
      hundido en vez de encima. */
@@ -729,8 +749,9 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 /* ── AVISO ──────────────────────────────────────────────────────────────────────────────────────
    Una grilla de dos columnas —icono y texto— para que el título y la descripción queden alineados
    entre sí aunque el icono mida distinto. Sin icono, la primera columna es 0 y no deja hueco.
-   ⚠ Sólo las dos variantes del original. El ámbar y el verde NO van acá: son color SEMÁNTICO, que
-   vive en la hoja de cada herramienta (el export del tema no los trae y pegarlo los borraría). */
+   Las dos variantes del original (primario y destructivo) y dos del semáforo de la base (2026-11-21): `alert-warn`
+   (espera que lo mires) y `alert-bad` (falló). El destructivo es para lo que BORRA; una falla es `alert-bad`, porque
+   el destructivo de Darkmatter en oscuro es un gris verdoso que no dice falla. */
 .alert {
   /* Un aviso de la base: una barra de 2 a la izquierda y un tinte, cuadrado. Ni marco ni radio. */
   position: relative; display: grid; grid-template-columns: 0 1fr; align-items: start;
@@ -748,6 +769,11 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 .alert-desc p { margin: 0; line-height: 1.6 }
 .alert-destructive { border-left-color: var(--destructive); background: color-mix(in oklab, var(--destructive) 8%, transparent) }
 .alert-destructive .alert-desc { color: var(--destructive-ink) }
+.alert-warn { border-left-color: var(--status-warn); background: color-mix(in oklab, var(--status-warn) 8%, transparent) }
+.alert-bad { border-left-color: var(--status-bad); background: color-mix(in oklab, var(--status-bad) 8%, transparent) }
+:is(.alert-warn, .alert-bad) .alert-desc { color: var(--foreground) }
+.alert-warn .alert-icon { color: var(--status-warn) }
+.alert-bad .alert-icon { color: var(--status-bad) }
 
 /* ── MIGAS ──────────────────────────────────────────────────────────────────────────────────────
    El camino hasta lo que estás mirando. La página ACTUAL no es un enlace y va en el color del
@@ -1014,6 +1040,8 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 
 /* El contador de una banda o una vista. Con un filtro puesto se delata: «9 / 16» en el color de acción. */
 .count { flex: none; font-size: var(--text-xs); font-weight: 400; color: var(--fg-3); font-variant-numeric: tabular-nums }
+/* Sobre lo elegido (el fondo --accent) el --fg-3 no llega a 4,5:1 en oscuro (4,45, medido en Llavero y News). */
+.on .count:not(.filtered) { color: var(--fg-2) }
 .count.filtered { color: var(--primary-ink); font-weight: 600 }
 
 /* La tabla: una línea por fila y ninguna grilla; los números a la derecha. */

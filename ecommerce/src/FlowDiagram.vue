@@ -78,12 +78,12 @@ const height = computed(() => {
 .flow svg { display: block; width: 100%; min-width: 720px; height: auto; font-family: inherit }
 .lifeline { stroke: var(--border); stroke-dasharray: 4 4 }
 .actor { fill: var(--muted); stroke: var(--border) }
-.actor-name { fill: var(--foreground); font-size: 13px; font-weight: 600 }
+.actor-name { fill: var(--foreground); font-size: var(--text-base); font-weight: 600 }
 .actor-sub, .msg-sub { fill: var(--muted-foreground); font-size: 10.5px }
 .phase-rule { stroke: var(--border) }
-.phase { fill: var(--muted-foreground); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em }
+.phase { fill: var(--muted-foreground); font-size: var(--text-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em }
 .note { fill: color-mix(in oklab, var(--primary) 14%, var(--background)); stroke: var(--primary) }
-.msg { fill: var(--foreground); font-size: 13px }
+.msg { fill: var(--foreground); font-size: var(--text-base) }
 /* Un halo del color del fondo: las líneas de vida no cortan el texto que las cruza. */
 .msg, .msg-sub { paint-order: stroke; stroke: var(--background); stroke-width: 4px; stroke-linejoin: round }
 .msg-line { stroke: var(--foreground); stroke-width: 1.25 }

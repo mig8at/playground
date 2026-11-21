@@ -2815,10 +2815,10 @@ function documentAction(id) {
       <span v-if="!loadingWide">{{ visible }} tarea{{ visible === 1 ? '' : 's' }} a la vista</span>
       <span v-if="jiraSyncing" class="sync-state" role="status">actualizando Jira…</span>
       <!-- El estado ES el botón de reintento: dice de cuándo es lo que se ve y, si falló, por qué. -->
-      <button v-else-if="syncError" type="button" class="sync-state sync-button sync-error" :title="syncTitle" @click="syncJira">
+      <button v-else-if="syncError" type="button" class="statusbar-item sync-state sync-error" :title="syncTitle" @click="syncJira">
         <span>Jira sin actualizar<template v-if="syncAgo"> ({{ syncAgo }})</template></span><span class="sync-detail">&nbsp;· {{ syncError }}</span>
       </button>
-      <button v-else-if="syncAgo" type="button" class="sync-state sync-button" :title="syncTitle" @click="syncJira">Jira {{ syncAgo }}</button>
+      <button v-else-if="syncAgo" type="button" class="statusbar-item sync-state" :title="syncTitle" @click="syncJira">Jira {{ syncAgo }}</button>
       <span v-if="active && !active._local" class="sb-act">{{ active.Key }}</span>
       <div class="layout-controls" role="group" aria-label="Regiones visibles">
         <!-- El tema, antes de los botones de disposición y separado 8: los de disposición van al final
@@ -2967,9 +2967,7 @@ function documentAction(id) {
 .sync-state { color: var(--mut); font-size: var(--text-xs) }
 .sync-error { color: var(--warn) }
 .sync-state + .sb-act { margin-left: 0 }
-/* El estado de Jira como botón: sin caja, con el alto del pie. El motivo del error se recorta; entero va en el title. */
-.sync-button { display: inline-flex; min-width: 0; padding: 0; border: 0; background: none; font-family: inherit; cursor: pointer }
-.sync-button:hover, .sync-button:focus-visible { text-decoration: underline }
+/* El estado de Jira es un .statusbar-item de la base (el botón de reintento). El motivo del error se recorta; entero va en el title. */
 .sync-detail { max-width: 36ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .theme-toggle { margin-right: 6px }
 
@@ -3058,17 +3056,17 @@ function documentAction(id) {
 .agenda { container-type: inline-size; width: 100%; box-sizing: border-box } /* con contención de ancho, sin esto mide 0 */
 /* PARA LA DAILY: el texto para decir en voz alta, a lo ancho de lectura; las viñetas con un guion, sin marco. */
 .daily-body { padding: 4px 12px 12px }
-.daily-text { max-width: 72ch; display: grid; gap: 6px; font-size: 14px; line-height: 1.5 }
+.daily-text { max-width: 72ch; display: grid; gap: 6px; font-size: var(--text-body); line-height: 1.5 }
 .daily-lede { margin: 0; font-weight: 600 }
 .daily-item { margin: 0; padding-left: 16px; position: relative }
 .daily-item::before { content: '–'; position: absolute; left: 2px; color: var(--muted-foreground) }
 .daily-item.blocked { color: var(--warn) } /* el ámbar de los pendientes: algo espera, no algo roto */
 .daily-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 12px; flex-wrap: wrap }
 .daily-days { display: flex; gap: 4px; flex-wrap: wrap }
-.daily-day { border: 0; background: none; color: var(--muted-foreground); font: inherit; font-size: 12px; padding: 2px 8px; border-radius: 4px; cursor: pointer }
+.daily-day { border: 0; background: none; color: var(--muted-foreground); font: inherit; font-size: var(--text-sm); padding: 2px 8px; border-radius: 4px; cursor: pointer }
 .daily-day::first-letter { text-transform: uppercase }
 .daily-day[aria-checked="true"] { background: var(--sel); color: var(--foreground) }
-.daily-source { margin: 8px 0 0; font-size: 12px; color: var(--muted-foreground) }
+.daily-source { margin: 8px 0 0; font-size: var(--text-sm); color: var(--muted-foreground) }
 .agenda-cols { display: flex; flex-direction: column; gap: 18px }
 .agenda-k { margin: 0 0 8px; font-size: var(--text-xs); font-weight: 600; color: var(--mut) }
 .agenda-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px }

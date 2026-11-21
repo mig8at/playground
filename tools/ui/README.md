@@ -213,7 +213,9 @@ Un solo juego: **Lucide** (`lucide-static`, la biblioteca de shadcn), en la vers
 </script>
 ```
 
-⚠ **Una herramienta muestra el botón recién cuando sus colores funcionan en los dos temas.** Los colores de estado de su hoja propia (`--ok`, `--warn`, los carriles, los semáforos) se definen para claro y para oscuro, no se fija `color-scheme: dark` a mano en un control, y `make style-contrast` pasa en los dos. Un color pensado para fondo oscuro sobre blanco no se lee.
+**El semáforo de estado es de la base** (2026-11-21): `--status-ok` (al día, pasó), `--status-warn` (espera que lo mires) y `--status-bad` (falló), con `--on-status-bad` para el texto sobre un relleno rojo, en `workbench.css` y para los dos temas. Nueve herramientas tenían el suyo (`--kf-bad`, `--ecommerce-fail`, `--sentinel-ok`…) con casi los mismos valores; ahora no se declara otro. El tablero y el panel del harness conservan `--ok` y `--warn` como alias. No sale de `--destructive`: el de Darkmatter en oscuro es un gris verdoso que no dice falla. Un aviso de ese color es `.alert.alert-warn` o `.alert.alert-bad`; `.alert-destructive` queda para lo que borra.
+
+⚠ **Una herramienta muestra el botón recién cuando sus colores funcionan en los dos temas.** Los colores propios de su hoja (los carriles, las categorías) se definen para claro y para oscuro, no se fija `color-scheme: dark` a mano en un control, y `make style-contrast` pasa en los dos. Un color pensado para fondo oscuro sobre blanco no se lee.
 
 **El teclado llega a todo.** En una manija enfocada, las flechas ajustan 16 px y la que cruza el mínimo pliega; Shift más flecha, 48 px; Home pliega; End amplía; Enter alterna y reabre en la última medida. El arrastre sigue al puntero y se cancela limpio ante `pointercancel` o si se pierde la captura.
 

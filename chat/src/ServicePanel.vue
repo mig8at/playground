@@ -249,11 +249,11 @@ code, pre, .code { font-family: var(--font-mono) }
 .timing { flex: none; white-space: nowrap }
 .url { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0 }
 .badge { flex: none; padding: 2px var(--space-2); border-radius: 999px; font-size: var(--text-xs); font-weight: 600; font-family: var(--font-mono) }
-.badge[data-kind="ok"] { background: color-mix(in oklab, var(--presence-on) 18%, transparent); color: var(--foreground) }
-.badge[data-kind="warn"] { background: color-mix(in oklab, var(--task-blocked) 18%, transparent); color: var(--foreground) }
-.badge[data-kind="bad"] { background: color-mix(in oklab, var(--send-fail) 18%, transparent); color: var(--foreground) }
+.badge[data-kind="ok"] { background: color-mix(in oklab, var(--status-ok) 18%, transparent); color: var(--foreground) }
+.badge[data-kind="warn"] { background: color-mix(in oklab, var(--status-warn) 18%, transparent); color: var(--foreground) }
+.badge[data-kind="bad"] { background: color-mix(in oklab, var(--status-bad) 18%, transparent); color: var(--foreground) }
 .out { margin: 0; font-family: var(--font-mono); font-size: var(--text-sm); white-space: pre-wrap; word-break: break-word }
 .out.headers { display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3) }
 .note { margin: 0; color: var(--fg-2); font-size: var(--text-sm) }
-.bad { margin: 0; color: var(--send-fail) }
+.bad { margin: 0; color: var(--status-bad) }
 </style>

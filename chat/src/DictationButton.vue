@@ -77,7 +77,7 @@ onBeforeUnmount(() => stop(true))
 </script>
 
 <template>
-  <button type="button" class="btn btn-send dictation" :class="phase" :disabled="phase === 'working'"
+  <button type="button" class="btn btn-icon btn-send dictation" :class="phase" :disabled="phase === 'working'"
           :aria-pressed="phase === 'recording'"
           :title="phase === 'recording' ? 'Terminar y transcribir (Esc cancela)' : phase === 'working' ? 'Transcribiendo…' : 'Dictar'"
           :aria-label="phase === 'recording' ? 'Terminar de dictar' : 'Dictar un mensaje'" @click="toggle">
@@ -86,7 +86,7 @@ onBeforeUnmount(() => stop(true))
 </template>
 
 <style scoped>
-.dictation.recording { background: var(--send-fail); color: var(--background); border-color: transparent }
+.dictation.recording { background: var(--status-bad); color: var(--background); border-color: transparent }
 .dictation.working .ui-icon { animation: dictation-pulse 1s ease-in-out infinite }
 @keyframes dictation-pulse { 50% { opacity: .35 } }
 </style>

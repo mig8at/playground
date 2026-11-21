@@ -9,22 +9,10 @@
 @import "./theme.css";
 @import "./workbench.css";
 
-/* El estado de un acceso. El verde y el ámbar son los del trazador y el tablero, uno por tema, porque el
- * ámbar para fondo oscuro sobre blanco no se lee (1,7:1).
- * ⚠ La falla NO sale de `--destructive`: en el tema Darkmatter es un verde azulado apagado
- * (oklch 0.59 0.04 196), y derivada de ahí se pintaba casi igual al gris de «no aplica» — medido en el
- * navegador, 125,152,152 contra la rampa. Acá lo único que importa es separar «falla» de «no aplica»,
- * así que es un rojo declarado, por tema, como los otros dos. */
+/* El estado de un acceso: el semáforo de la base (--status-ok · --status-warn · --status-bad, en workbench.css) y el
+ * gris de «no aplica». La falla no sale de `--destructive`: en Darkmatter oscuro se confunde con ese gris. */
 :root {
-  --access-ok: #15803d;
-  --access-warn: #b45309;
-  --access-fail: #b91c1c;
   --access-off: var(--fg-3);
-}
-.dark {
-  --access-ok: #4ade80;
-  --access-warn: #fbbf24;
-  --access-fail: #f87171;
 }
 
 /* La página no scrollea: scrollea cada región (el contrato de `.workbench`). La letra es la de la base. */
