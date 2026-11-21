@@ -1,0 +1,240 @@
+package main
+
+// EL CONTACTO PARA LA PROPUESTA: Claude busca en internet, con `claude -p` y SÓLO dos herramientas (WebSearch y
+// WebFetch), el canal por el que la empresa recibe propuestas de un proveedor —alianzas, compras, comercial— y, si no
+// existe, el comercial general. Cada dato viene con la URL donde aparece. Es Claude Code de consola con la sesión de
+// Miguel (como el resumen de Correo): gasta el asiento del plan; medido el 2026-11-21, entre 80 y 95 s y el equivalente
+// a US$0,40–0,48 por empresa.
+//
+// Corre desde una carpeta neutra (sin el CLAUDE.md ni los hooks de my-tools), sin MCP, y sin las variables de una
+// sesión de Claude Code anfitriona (con ellas el hijo se cree parte de esa sesión y falla la autenticación).
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"time"
+)
+
+// Contact: un canal de la empresa, con a qué área llega y dónde se vio.
+type Contact struct {
+	Channel string `json:"channel"` // email · phone · whatsapp · form
+	Value   string `json:"value"`
+	Area    string `json:"area"`
+	Fit     string `json:"fit"`    // proposals (recibe propuestas de aliados) · commercial · general
+	Source  string `json:"source"` // la URL exacta
+}
+
+// Research: lo que devolvió una búsqueda.
+type Research struct {
+	Matched  bool      `json:"matched"`
+	Website  string    `json:"website"`
+	Summary  string    `json:"summary"`
+	Contacts []Contact `json:"contacts"`
+	At       string    `json:"at"`
+	Seconds  int       `json:"seconds"`
+	CostUSD  float64   `json:"costUsd"`
+}
+
+const researchSchema = `{"type":"object","properties":{
+ "matched":{"type":"boolean","description":"si encontraste la empresa y es la misma"},
+ "website":{"type":"string","description":"el sitio oficial, o vacío si no tiene"},
+ "summary":{"type":"string","description":"en español, 1 a 3 frases: qué es la empresa y qué canal conviene usar para la propuesta"},
+ "contacts":{"type":"array","items":{"type":"object","properties":{
+   "channel":{"type":"string","enum":["email","phone","whatsapp","form"]},
+   "value":{"type":"string"},
+   "area":{"type":"string","description":"a qué área llega: alianzas, compras, comercial, servicio al cliente, general..."},
+   "fit":{"type":"string","enum":["proposals","commercial","general"],"description":"proposals: el área que recibe propuestas de aliados o proveedores; commercial: ventas o comercial; general: contacto general"},
+   "source":{"type":"string","description":"la URL exacta donde aparece"}
+ },"required":["channel","value","area","fit","source"]}}
+},"required":["matched","website","summary","contacts"]}`
+
+func researchPrompt(c *Company) string {
+	var b strings.Builder
+	b.WriteString("Investigá en internet esta empresa colombiana y encontrá el canal oficial por el que recibe propuestas comerciales B2B de un proveedor (una fintech que ofrece financiación a crédito para sus clientes en el punto de venta y en línea).\n\n")
+	fmt.Fprintf(&b, "Empresa: %s\n", c.Name)
+	if c.NIT != "" {
+		fmt.Fprintf(&b, "NIT: %s\n", c.NIT)
+	}
+	if s := sectorByID(c.Sector); s != nil {
+		fmt.Fprintf(&b, "Sector: %s (CIIU %s)\n", s.Name, strings.Join(s.CIIU, ", "))
+	}
+	if c.Points > 0 {
+		fmt.Fprintf(&b, "Establecimientos activos: %d\n", c.Points)
+	}
+	if c.Region != "" {
+		fmt.Fprintf(&b, "Ciudad de la cámara de comercio: %s\n", c.Region)
+	}
+	if c.Website != "" {
+		fmt.Fprintf(&b, "Sitio conocido: %s\n", c.Website)
+	}
+	b.WriteString(`
+Lo que busco, en este orden de preferencia:
+1. El correo o teléfono del área que recibe propuestas de aliados o proveedores: alianzas, convenios, compras, comercial corporativo, mercadeo, gerencia comercial, o "proveedores / trabaja con nosotros".
+2. Si no existe, el canal comercial general de la empresa (ventas@, contacto@, el WhatsApp o la línea que publica).
+
+Reglas:
+- Sólo fuentes oficiales de la empresa (su sitio web, sus redes verificadas) o directorios empresariales públicos. Cada dato con la URL exacta donde lo viste.
+- No inventes nada. Si no lo encontraste, no lo pongas.
+- No uses el correo de notificación judicial del registro mercantil.
+- No pongas correos o celulares personales de empleados salvo que la empresa los publique como contacto comercial.
+- Revisá las páginas de contacto, sedes, post-venta y el pie de página del sitio: los enlaces de WhatsApp (wa.me) y los mailto suelen estar ahí.
+- El valor de cada canal es el dato exacto: un correo completo o un número con todos sus dígitos. Un usuario de Instagram o una red social no es un canal.
+- Confirmá que la empresa es la misma (nombre, ciudad, actividad).
+`)
+	return b.String()
+}
+
+// claudeBinary: SABUESO_CLAUDE, `claude` en el PATH, o los lugares de siempre (un LaunchAgent no trae el PATH).
+func claudeBinary() (string, error) {
+	if p := os.Getenv("SABUESO_CLAUDE"); p != "" {
+		return p, nil
+	}
+	if p, err := exec.LookPath("claude"); err == nil {
+		return p, nil
+	}
+	home, _ := os.UserHomeDir()
+	for _, p := range []string{filepath.Join(home, ".local", "bin", "claude"), "/opt/homebrew/bin/claude", "/usr/local/bin/claude"} {
+		if st, err := os.Stat(p); err == nil && !st.IsDir() {
+			return p, nil
+		}
+	}
+	return "", errors.New("no encuentro Claude Code (`claude`): instalalo o indicá el binario con SABUESO_CLAUDE")
+}
+
+// research corre la búsqueda. Puede tardar un par de minutos.
+var research = func(ctx context.Context, c *Company) (*Research, error) {
+	bin, err := claudeBinary()
+	if err != nil {
+		return nil, err
+	}
+	dir := filepath.Join(os.TempDir(), "sabueso-claude")
+	_ = os.MkdirAll(dir, 0o700)
+	ctx, cancel := context.WithTimeout(ctx, 6*time.Minute)
+	defer cancel()
+	model := os.Getenv("SABUESO_CLAUDE_MODEL")
+	if model == "" {
+		model = "sonnet"
+	}
+	cmd := exec.CommandContext(ctx, bin, "-p", "--output-format", "json", "--model", model,
+		"--tools", "WebSearch", "WebFetch", "--allowedTools", "WebSearch", "WebFetch",
+		"--strict-mcp-config", "--disable-slash-commands", "--json-schema", researchSchema)
+	cmd.Dir = dir
+	cmd.Stdin = strings.NewReader(researchPrompt(c))
+	for _, kv := range os.Environ() {
+		k := kv[:strings.IndexByte(kv, '=')]
+		if (strings.HasPrefix(k, "CLAUDE_CODE_") || k == "CLAUDECODE" || k == "CLAUDE_AGENT_SDK_VERSION" || k == "ANTHROPIC_BASE_URL") && k != "CLAUDE_CODE_OAUTH_TOKEN" {
+			continue
+		}
+		cmd.Env = append(cmd.Env, kv)
+	}
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	start := time.Now()
+	if err := cmd.Run(); err != nil {
+		msg := strings.TrimSpace(stderr.String())
+		if msg == "" {
+			msg = strings.TrimSpace(stdout.String())
+		}
+		return nil, fmt.Errorf("claude -p: %v %.300s", err, msg)
+	}
+	var out struct {
+		IsError    bool            `json:"is_error"`
+		Result     string          `json:"result"`
+		Structured json.RawMessage `json:"structured_output"`
+		Cost       float64         `json:"total_cost_usd"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &out); err != nil {
+		return nil, fmt.Errorf("claude -p devolvió algo que no es JSON: %.200s", stdout.String())
+	}
+	if out.IsError {
+		return nil, fmt.Errorf("claude -p: %s", out.Result)
+	}
+	raw := out.Structured
+	if len(raw) == 0 {
+		raw = json.RawMessage(out.Result)
+	}
+	var r Research
+	if err := json.Unmarshal(raw, &r); err != nil {
+		return nil, fmt.Errorf("la respuesta no trae el JSON pedido: %.200s", string(raw))
+	}
+	r.At, r.Seconds, r.CostUSD = now(), int(time.Since(start).Seconds()), out.Cost
+	r.Website = cleanWebsite(r.Website)
+	var clean []Contact
+	for _, ct := range r.Contacts {
+		ct.Value = strings.TrimSpace(ct.Value)
+		if validContact(ct) {
+			clean = append(clean, ct)
+		}
+	}
+	// Lo que el sitio publica como enlace, leído sin modelo, va primero: es exacto.
+	site := r.Website
+	if site == "" {
+		site = c.Website
+	}
+	r.Contacts = mergeContacts(readSite(ctx, site), clean)
+	if r.Contacts == nil {
+		r.Contacts = []Contact{}
+	}
+	return &r, nil
+}
+
+func cleanWebsite(s string) string {
+	s = strings.TrimSpace(s)
+	low := strings.ToLower(s)
+	if s == "" || strings.Contains(low, "no encontr") || strings.Contains(low, "no tiene") || !strings.Contains(s, ".") {
+		return ""
+	}
+	return s
+}
+
+var fitRank = map[string]int{"proposals": 0, "commercial": 1, "general": 2}
+
+// best: el canal a usar primero: el del área de propuestas, después el comercial, después el general; a igual
+// nivel, correo antes que WhatsApp, teléfono y formulario.
+func best(cs []Contact) *Contact {
+	chRank := map[string]int{"email": 0, "whatsapp": 1, "phone": 2, "form": 3}
+	var b *Contact
+	for i := range cs {
+		c := &cs[i]
+		if b == nil || fitRank[c.Fit] < fitRank[b.Fit] || (fitRank[c.Fit] == fitRank[b.Fit] && chRank[c.Channel] < chRank[b.Channel]) {
+			b = c
+		}
+	}
+	return b
+}
+
+var channelName = map[string]string{"email": "Correo", "phone": "Teléfono", "whatsapp": "WhatsApp", "form": "Formulario"}
+
+// applyResearch guarda lo encontrado en la empresa y lo deja en su bitácora.
+func applyResearch(c *Company, r *Research) {
+	c.Research = r
+	if r.Website != "" && c.Website == "" {
+		c.Website = r.Website
+	}
+	for _, ct := range r.Contacts {
+		switch ct.Channel {
+		case "email":
+			if c.Email == "" {
+				c.Email = ct.Value
+			}
+		case "phone", "whatsapp":
+			if c.Phone == "" {
+				c.Phone = ct.Value
+			}
+		}
+	}
+	if b := best(r.Contacts); b != nil {
+		c.log("research", fmt.Sprintf("Contacto para la propuesta: %s %s (%s). %s", strings.ToLower(channelName[b.Channel]), b.Value, b.Area, r.Summary))
+	} else if !r.Matched {
+		c.log("research", "No encontró la empresa en internet. "+r.Summary)
+	} else {
+		c.log("research", "Sin canal público para la propuesta. "+r.Summary)
+	}
+}

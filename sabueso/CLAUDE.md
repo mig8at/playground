@@ -7,7 +7,36 @@ ni login y no reemplaza el CRM del equipo. El planteamiento, lo descartado y lo 
 (`tablero/tasks/sabueso`).
 
 `make sabueso` (UI :5244 · API :5245) o la app **Sabueso** de Cockpit. Rutas: `#/` (embudo), `#/registro`, `#/nueva`,
-`#/c/<id>`.
+`#/c/<id>`. **Por consola, `bin/sabueso`** (lo que más usa Miguel): habla con la misma API, así que lo que hace se ve en
+la app.
+
+    bin/sabueso hunt --sector motorcycles [--count 1] [--tries 3] [--min 5]   encontrar y conseguir el contacto
+    bin/sabueso contact <nombre|id>                                            el contacto de uno que ya está
+    bin/sabueso find --sector dental                                           los del registro, sin agregar nada
+    bin/sabueso list · sectors
+
+**Por ahora sólo comercios** (Miguel, 2026-11-21: «empecemos por comercio; oculta, no elimines»): las entidades están
+ocultas en la interfaz con `SHOW_LENDERS = false` (`src/App.vue`); el servidor y los datos las siguen sabiendo llevar.
+
+## El contacto para la propuesta
+
+Lo que importa de un prospecto es **por dónde recibe una propuesta**: el correo o el teléfono del área de alianzas,
+proveedores, compras o comercial, no un contacto cualquiera. Lo busca `server/contact.go` en dos capas:
+
+1. **Claude por internet**: `claude -p` desde una carpeta neutra, con SÓLO WebSearch y WebFetch y salida en JSON
+   (`--json-schema`): cada canal con su área, si recibe propuestas (`proposals`), es comercial o general, y la URL donde
+   está. Prohibido: inventar, el correo de notificación judicial, celulares personales. Es la sesión de Miguel: **gasta el
+   asiento del plan**, entre 80 y 130 s y el equivalente a US$0,40–0,48 por empresa (medido el 2026-11-21).
+2. **El sitio de la empresa, leído sin modelo** (`server/site.go`): la página de inicio y hasta 6 de contacto, sedes o
+   proveedores del mismo dominio, de donde salen los `mailto:`, `wa.me` / `api.whatsapp.com` (también dentro del JSON de
+   un plugin, con las barras escapadas) y `tel:`. Es exacto y gratis, y va primero. Hizo falta: dos búsquedas de
+   Claude sobre Dismerca dieron resultados distintos (una trajo el WhatsApp comercial, la otra un usuario de Instagram).
+
+Lo que trae Claude se valida (`validContact`): un correo tiene que ser un correo y un teléfono tener dígitos; lo que no
+pasa se descarta. El mejor canal (`best`): el de propuestas, después el comercial, después el general; a igual nivel,
+correo, WhatsApp, teléfono y formulario. Queda en la bitácora y en el secundario, con sus fuentes. Una empresa sin sitio
+ni canal publicado (Todomotos VS, el 2026-11-21) queda «sin canal público»: `hunt` sigue con la siguiente y no repite
+una que ya se buscó.
 
 ## Qué hay en la pantalla
 
@@ -41,7 +70,7 @@ ni login y no reemplaza el CRM del equipo. El planteamiento, lo descartado y lo 
 
 ## Lo que NO hace
 
-- Escribirle a nadie: el correo lo redacta (pendiente de la tarea) y lo envía Miguel, a mano.
+- Escribirle a nadie: encuentra el canal; el mensaje lo manda Miguel, a mano.
 - Escribir en una base de CreditOp: prod se lee.
 - Guardar datos personales en masa: el correo y la línea son los públicos de la empresa (ventas@, contacto@).
 
@@ -54,5 +83,8 @@ ni login y no reemplaza el CRM del equipo. El planteamiento, lo descartado y lo 
 | las empresas, las etapas y la bitácora | `server/model.go` |
 | los sectores y el encaje | `server/fit.go` |
 | prod (por `bin/pg`) y el registro mercantil | `server/sources.go` |
+| el contacto: Claude por internet y el mejor canal | `server/contact.go` |
+| el sitio de la empresa, leído sin modelo | `server/site.go` (`SABUESO_LIVE=1 go test -run Live` va a internet) |
+| la consola | `sabueso/cli` (`bin/sabueso`, compilado en `~/.cache/my-tools/sabueso`) |
 | la API | `server/main.go` (encabezado `X-Sabueso: 1` y Host local, como el Llavero) |
 | la interfaz | `src/App.vue`, con la base de `tools/ui` (`make style-sync`) |

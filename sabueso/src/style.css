@@ -98,3 +98,15 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 .why { margin: 0; padding: var(--space-1) var(--gutter) var(--space-2) calc(var(--gutter) + 14px); color: var(--fg-2); line-height: 1.6; font-size: var(--text-sm) }
 .prop-note { margin: 0; padding: var(--space-1) var(--gutter); font-size: var(--text-sm); color: var(--fg-2); line-height: 1.5 }
 .prop-actions { padding: var(--space-3) var(--gutter) }
+
+/* el contacto para la propuesta, en el detalle */
+.reach { flex: none; color: var(--status-ok) }
+.reach.none { color: var(--fg-3) }
+.contact { display: flex; align-items: center; gap: var(--space-2); margin: 0 var(--space-1); padding: var(--space-2); border-radius: var(--radius-control);
+  color: inherit; text-decoration: none }
+.contact:hover { background: var(--hover) }
+.contact .ui-icon { color: var(--fg-2) }
+.contact-body { flex: 1; min-width: 0; display: flex; flex-direction: column }
+.contact-value { font-weight: 600; overflow-wrap: anywhere }
+.contact-area { font-size: var(--text-xs); color: var(--fg-3) }
+.sources a { color: var(--primary-ink) }

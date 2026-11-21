@@ -3,10 +3,24 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
+
+func newReq(method, path string, body io.Reader) *http.Request {
+	req := httptest.NewRequest(method, path, body)
+	req.Host = "127.0.0.1:5245"
+	req.Header.Set("X-Sabueso", "1")
+	return req
+}
+
+func do(h http.Handler, req *http.Request) *httptest.ResponseRecorder {
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	return rec
+}
 
 func TestFit(t *testing.T) {
 	chain, _ := computeFit(&Company{Kind: KindMerchant, Points: 40, Sector: "dental"})

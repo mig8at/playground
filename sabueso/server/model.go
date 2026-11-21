@@ -57,7 +57,7 @@ func stageName(kind, id string) string {
 type Activity struct {
 	ID   string `json:"id"`
 	At   string `json:"at"`   // RFC3339
-	Kind string `json:"kind"` // note · call · email · meeting · stage · handoff · created · client
+	Kind string `json:"kind"` // note · call · email · meeting · stage · handoff · created · research
 	Text string `json:"text"`
 }
 
@@ -93,6 +93,8 @@ type Company struct {
 	// Derivados al leer (no se guardan como verdad: se recalculan).
 	Fit    int      `json:"fit"`
 	FitWhy []string `json:"fitWhy"`
+	// La última búsqueda del contacto para la propuesta (contact.go), con cada canal y su fuente.
+	Research *Research `json:"research,omitempty"`
 	// La bitácora, de la más vieja a la más nueva.
 	Activities []Activity `json:"activities"`
 }

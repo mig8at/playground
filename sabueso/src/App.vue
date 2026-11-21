@@ -79,6 +79,11 @@ const money = (n) => (n >= 1e6 ? `${(n / 1e6).toLocaleString('es-CO', { maximumF
 const stageName = (kind, id) => stages.value[kind]?.find((s) => s.id === id)?.name || id
 const sectorName = (id) => sectors.value.find((s) => s.id === id)?.name || ''
 
+// ── LAS ENTIDADES, OCULTAS por ahora (Miguel, 2026-11-21: «empecemos por comercio; oculta, no elimines»). El código
+//    sigue: con true vuelven la vista, el embudo y el alta de entidades. ──
+const SHOW_LENDERS = false
+const KINDS = SHOW_LENDERS ? ['merchant', 'lender'] : ['merchant']
+
 // ── el sidebar: las dos vistas, por etapa ──
 const search = ref('')
 const matches = (c) => { const q = search.value.trim().toLowerCase(); return !q || c.name.toLowerCase().includes(q) || (c.nit || '').includes(q) }
@@ -218,8 +223,28 @@ function saveField(c, field, value) {
   if ((c[field] ?? '') === v) return
   patchCompany(c, { [field]: v })
 }
-const ACT_ICON = { note: 'comment', call: 'audio', email: 'send', meeting: 'video', stage: 'chevron', handoff: 'move', created: 'plus', client: 'check' }
+// ── el contacto para la propuesta: lo busca Claude por internet (server/contact.go) ──
+const CHANNEL = { email: 'Correo', phone: 'Teléfono', whatsapp: 'WhatsApp', form: 'Formulario' }
+const FIT = { proposals: 'recibe propuestas', commercial: 'comercial', general: 'general' }
+const CH_ICON = { email: 'send', phone: 'audio', whatsapp: 'comment', form: 'edit' }
+const FIT_RANK = { proposals: 0, commercial: 1, general: 2 }
+const CH_RANK = { email: 0, whatsapp: 1, phone: 2, form: 3 }
+const sortedContacts = (c) => [...(c.research?.contacts || [])].sort((a, b) => FIT_RANK[a.fit] - FIT_RANK[b.fit] || CH_RANK[a.channel] - CH_RANK[b.channel])
+const reachIcon = (c) => (c.research?.contacts.length ? CH_ICON[sortedContacts(c)[0].channel] : 'eye-off')
+const reachTitle = (c) => { const b = sortedContacts(c)[0]; return b ? `${CHANNEL[b.channel]} ${b.value} · ${FIT[b.fit]}` : 'Sin canal público' }
+// Un formulario: su URL si la trae el valor; si no, la página donde está.
+const formUrl = (ct) => (ct.value.match(/https?:\/\/\S+/) || [ct.source])[0].replace(/[)'.,]+$/, '')
+const contactHref = (ct) => ct.channel === 'form' ? formUrl(ct) : ({ email: `mailto:${ct.value}`, phone: `tel:${ct.value.replace(/[^+\d]/g, '')}`, whatsapp: `https://wa.me/${ct.value.replace(/\D/g, '')}` }[ct.channel] || ct.source)
+const searching = ref('')
+async function searchContact(c) {
+  searching.value = c.id
+  toast('Buscando el contacto con Claude', { description: 'Por internet, en el sitio de la empresa y directorios públicos. Tarda un minuto y medio, más o menos.' })
+  await act(() => api(`/api/companies/${c.id}/contact`, { method: 'POST', body: {} }), 'Búsqueda terminada')
+  searching.value = ''
+}
+const ACT_ICON = { research: 'search', note: 'comment', call: 'audio', email: 'send', meeting: 'video', stage: 'chevron', handoff: 'move', created: 'plus', client: 'check' }
 const ACT_KINDS = [['call', 'Llamada'], ['email', 'Correo'], ['meeting', 'Reunión'], ['note', 'Nota']]
+const hostOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, '') } catch { return u } }
 const logOf = (c) => [...c.activities].reverse()
 
 // ── el panel: la actividad de todas ──
@@ -301,7 +326,7 @@ onBeforeUnmount(() => {
         </div>
       </div>
       <div class="side-search"><input v-model="search" class="input" type="search" placeholder="Filtrar por nombre o NIT" aria-label="Filtrar"></div>
-      <section v-for="kind in ['merchant', 'lender']" :key="kind" class="view" :class="{ open: views[kind] }">
+      <section v-for="kind in KINDS" :key="kind" class="view" :class="{ open: views[kind] }">
         <div class="region-head">
           <button type="button" class="view-tog" :aria-expanded="views[kind]" @click="toggleView(kind)">
             <span class="ui-icon chev" data-icon="chevron" aria-hidden="true"></span><span>{{ kind === 'merchant' ? 'Comercios' : 'Entidades' }}</span>
@@ -314,6 +339,7 @@ onBeforeUnmount(() => {
             <a v-for="c in g.items" :key="c.id" class="row" :class="{ on: company?.id === c.id }" :href="`#/c/${c.id}`" @dblclick="pin(c.id)">
               <i v-if="kind === 'merchant' && c.stage === 'prospect'" class="fit-dot" :class="c.fit >= 70 ? 'is-high' : c.fit >= 40 ? 'is-mid' : 'is-low'" aria-hidden="true"></i>
               <span :title="c.name">{{ pretty(c.name) }}</span>
+              <span v-if="c.research" class="ui-icon reach" :class="{ none: !c.research.contacts.length }" :data-icon="reachIcon(c)" :title="reachTitle(c)" aria-hidden="true"></span>
               <span class="row-meta" :class="{ late: overdue(c) }">{{ rowMeta(c) }}</span>
             </a>
           </template>
@@ -401,7 +427,7 @@ onBeforeUnmount(() => {
       <!-- el embudo -->
       <div v-else-if="route.view === 'funnel'" class="region-body doc">
         <div v-if="apiError" class="alert alert-bad"><div class="alert-desc">{{ apiError }}</div></div>
-        <section v-for="kind in ['merchant', 'lender']" :key="kind" class="block">
+        <section v-for="kind in KINDS" :key="kind" class="block">
           <h2>{{ kind === 'merchant' ? 'Comercios' : 'Entidades' }}</h2>
           <div class="funnel">
             <div v-for="s in funnelOf(kind)" :key="s.id" class="funnel-step" :class="{ zero: !s.n }"><span class="funnel-n">{{ s.n }}</span><span>{{ s.name }}</span></div>
@@ -478,7 +504,7 @@ onBeforeUnmount(() => {
       <div v-else-if="route.view === 'new'" class="region-body doc">
         <section class="block new-form">
           <h2>Agregar {{ draft.kind === 'lender' ? 'una entidad' : 'un comercio' }} a mano</h2>
-          <div class="toggle-group toggle-outline toggle-joined" role="radiogroup" aria-label="Tipo">
+          <div v-if="SHOW_LENDERS" class="toggle-group toggle-outline toggle-joined" role="radiogroup" aria-label="Tipo">
             <a class="toggle" role="radio" :aria-checked="draft.kind === 'merchant'" :aria-pressed="draft.kind === 'merchant'" href="#/nueva">Comercio</a>
             <a class="toggle" role="radio" :aria-checked="draft.kind === 'lender'" :aria-pressed="draft.kind === 'lender'" href="#/nueva-lender">Entidad</a>
           </div>
@@ -533,6 +559,20 @@ onBeforeUnmount(() => {
           <div class="region-head group"><span>Encaje</span><span class="count">{{ detail.fit }}</span></div>
           <ul class="why"><li v-for="w in detail.fitWhy" :key="w">{{ w }}</li></ul>
         </template>
+        <div class="region-head group"><span>Contacto para la propuesta</span>
+          <button type="button" class="region-action" :disabled="searching === detail.id" :title="detail.research ? 'Buscar de nuevo con Claude' : 'Buscar con Claude por internet'" :aria-label="detail.research ? 'Buscar de nuevo' : 'Buscar el contacto'" @click="searchContact(detail)"><span class="ui-icon" :data-icon="detail.research ? 'refresh' : 'search'" aria-hidden="true"></span></button></div>
+        <div v-if="searching === detail.id" class="region-progress" aria-hidden="true"></div>
+        <p v-if="searching === detail.id" class="prop-note">Claude está buscando en internet…</p>
+        <template v-else-if="detail.research">
+          <a v-for="ct in sortedContacts(detail)" :key="ct.channel + ct.value" class="contact" :href="contactHref(ct)" target="_blank" rel="noopener">
+            <span class="ui-icon" :data-icon="CH_ICON[ct.channel]" aria-hidden="true"></span>
+            <span class="contact-body"><span class="contact-value">{{ ct.channel === 'form' ? `Formulario · ${hostOf(formUrl(ct))}` : ct.value }}</span><span class="contact-area">{{ CHANNEL[ct.channel] }} · {{ ct.area }}</span></span>
+            <span class="badge badge-xs" :class="ct.fit === 'proposals' ? '' : 'badge-outline'">{{ FIT[ct.fit] }}</span>
+          </a>
+          <p class="prop-note">{{ detail.research.contacts.length ? '' : 'Sin canal público. ' }}{{ detail.research.summary }}</p>
+          <p class="prop-note sources">Fuentes: <template v-for="(ct, i) in sortedContacts(detail)" :key="i"><a :href="ct.source" target="_blank" rel="noopener">{{ hostOf(ct.source) }}</a>{{ i < detail.research.contacts.length - 1 ? ' · ' : '' }}</template><template v-if="!detail.research.contacts.length">ninguna</template>. Buscado el {{ shortDate(detail.research.at) }}.</p>
+        </template>
+        <p v-else class="prop-note">Todavía no se buscó. Claude busca en internet el canal por el que la empresa recibe propuestas (alianzas, compras, comercial) y, si no hay, el comercial general.</p>
         <div class="region-head group"><span>Contacto público</span></div>
         <div class="prop"><label for="d-web">Sitio web</label><input id="d-web" class="input" :value="detail.website" @change="saveField(detail, 'website', $event.target.value)"></div>
         <div class="prop"><label for="d-email">Correo de la empresa</label><input id="d-email" class="input" :value="detail.email" @change="saveField(detail, 'email', $event.target.value)"></div>
@@ -545,7 +585,7 @@ onBeforeUnmount(() => {
     </aside>
 
     <footer class="statusbar">
-      <span>{{ apiError || `${plural(count('merchant'), 'comercio', 'comercios')} · ${plural(count('lender'), 'entidad', 'entidades')}` }}</span>
+      <span>{{ apiError || (SHOW_LENDERS ? `${plural(count('merchant'), 'comercio', 'comercios')} · ${plural(count('lender'), 'entidad', 'entidades')}` : plural(count('merchant'), 'comercio', 'comercios')) }}</span>
       <span v-if="overdueCount" class="late">{{ plural(overdueCount, 'paso vencido', 'pasos vencidos') }}</span>
       <span v-if="sellingCount">{{ sellingCount }} vendiendo o en producción</span>
       <span v-if="clientCount">{{ clientCount }} clientes de CreditOp descartados al buscar</span>

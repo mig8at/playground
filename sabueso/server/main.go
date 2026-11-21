@@ -342,6 +342,40 @@ func routes() *http.ServeMux {
 		reply(w, err)
 	})
 
+	// Buscar en internet, con Claude, el contacto para la propuesta (un par de minutos; contact.go).
+	mux.HandleFunc("POST /api/companies/{id}/contact", func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		st, err := loadState()
+		mu.Unlock()
+		if err != nil {
+			writeErr(w, 500, err)
+			return
+		}
+		c := find(st, r.PathValue("id"))
+		if c == nil {
+			writeErr(w, 404, errNotFound)
+			return
+		}
+		res, err := research(r.Context(), c)
+		if err != nil {
+			writeErr(w, 502, err)
+			return
+		}
+		_, err = withState(func(st *State) error {
+			c := find(st, r.PathValue("id"))
+			if c == nil {
+				return errNotFound
+			}
+			applyResearch(c, res)
+			return nil
+		})
+		if err != nil {
+			writeErr(w, 500, err)
+			return
+		}
+		writeJSON(w, 200, res)
+	})
+
 	// Una línea de la bitácora: una llamada, un correo, una reunión o una nota.
 	mux.HandleFunc("POST /api/companies/{id}/activities", func(w http.ResponseWriter, r *http.Request) {
 		var in struct{ Kind, Text string }
