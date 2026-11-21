@@ -14,10 +14,10 @@
 // del muro hacia arriba. Para el 3D: c (el centro, en el plano), n (hacia quien lo mira), y0 (la altura del pie, sin la
 // del edificio) y sale (cuánto por delante de la línea del muro va lo pintado, para no quedar metido en la pared).
 // Las casas del monte todavía no: su plano está en otras coordenadas (hogar.js).
-import {ALTURA} from './medidas.js';
+import {ALTURA,esVidriera} from './medidas.js';
 import {fachadaMedida,VANO} from './fachada-medida.js';
-import {RAISE} from './fachada.js';
-import {paredesDe,vanosDe} from './colocar.js';
+import {RAISE,facadeStyle,WINDOWS,VIDRIO_PIEZA,VIDRIO_VENTANAL} from './fachada.js';
+import {paredesDe} from './colocar.js';
 import {GRAFITI,lienzoDe,vacio,aTexto,deTexto} from './grafiti.js';
 
 const r3=v=>Math.round(v*1000)/1000,NORMAL={N:[0,-1],S:[0,1],E:[1,0],W:[-1,0]};
@@ -25,17 +25,51 @@ export const SALE={exterior:.07,tabique:.075,medianera:.145,fachada:.265};// (m:
 // de u (a lo largo del muro) a un punto del plano
 export const puntoDe=(m,u)=>{const ry=Math.atan2(m.n[0],m.n[1]),k=u-m.ancho/2;return {x:r3(m.c.x+Math.cos(ry)*k),z:r3(m.c.z-Math.sin(ry)*k)};};
 
-export function muroExterior(L,lado){const F=fachadaMedida(L,lado),a=F.punto(0),b=F.punto(F.ancho),huecos=F.pisos.flatMap(P=>P.vanos.map(v=>({u0:v.u0,u1:v.u1,y0:v.y0,y1:v.y1,clase:v.clase})));
+// LO QUE NO ES PARED EN UNA FACHADA (2026-11-21, Miguel, al ver el 3D: «el pixel art está sobre puertas y ventanas: las
+// paredes ya deben saber dónde están y sólo permitir pintar sobre pared»). El plano guarda de cada vano sólo su tramo;
+// lo que el 3D pone ahí es una PIEZA más grande que ese tramo: el vidrio de cada modelo de ventana (fachada.js
+// VIDRIO_PIEZA), su marco, su alféizar y su dintel; la puerta con su marco y su banderola, que ocupa el módulo entero; la
+// vidriera con su toldo; el balcón; la ventana doble. Acá cada vano se agranda a lo que de verdad ocupa su pieza —y, donde
+// el 3D elige entre varias, a la mayor—, y la franja del zócalo de la planta baja tampoco es pared. Así lo pintable es
+// sólo muro liso, en el plano y en el 3D.
+const MOD=2,CERCO=.16;// (m: el módulo de fachada; y lo que rodea al vidrio: marco de 8 cm, alféizar y dintel)
+const estiloDe=L=>{try{return facadeStyle(L.fachada||{estilo:'casona'});}catch{return facadeStyle({estilo:'casona'});}};
+// El vidrio de la pieza de una ventana del plano: [x0, x1, y0, y1] desde el centro de su módulo y desde su piso.
+function vidrioDe(fs,w,nivel,len){if(w.pieza==='ventanal')return [VIDRIO_VENTANAL];const P=w.pieza&&WINDOWS[w.pieza]?[WINDOWS[w.pieza].p]:nivel<=1&&len>=1?[fs.win1,fs.win]:[fs.win,fs.win1];
+ return P.map(p=>VIDRIO_PIEZA[p]).filter(Boolean);}
+// Lo que ocupa un vano de fachada, alrededor de su centro c (a lo largo) y desde `base` (su piso): rectángulos en metros.
+function ocupaVano(L,fs,v,nivel,base,sube,cercaDeCalle){const c=(v.u0+v.u1)/2,m0=Math.floor(c/MOD+1e-6)*MOD,m1=m0+MOD,out=[];
+ if(v.clase==='puerta'){out.push({u0:Math.min(m0,v.u0-.2),u1:Math.max(m1,v.u1+.2),y0:0,y1:sube+3,clase:'puerta'});return out;}
+ // (en la planta baja de lo que no es vivienda —oficinas, hoteles, lo público— toda ventana es una vidriera: medidas.js esVidriera)
+ if(v.clase==='vidriera'||nivel===0&&esVidriera(L.type,{shop:false})){out.push({u0:m0,u1:m1,y0:0,y1:sube+3.25,clase:'vidriera'});return out;}// (con su toldo, que asoma sobre el piso de arriba)
+ for(const G of vidrioDe(fs,v,nivel,v.u1-v.u0))out.push({u0:c+G[0]-CERCO,u1:c+G[1]+CERCO,y0:base+G[2]-CERCO-.08,y1:base+G[3]+CERCO+.1,clase:'ventana'});
+ if(!out.length)out.push({u0:v.u0-CERCO,u1:v.u1+CERCO,y0:base+.3,y1:base+2.8,clase:'ventana'});
+ // (el balcón —de la segunda planta para arriba— es una puerta con su losa y sus barandas; la doble une dos módulos)
+ if(fs.balconies&&nivel>=2)out.push({u0:m0-.1,u1:m1+.1,y0:base-.3,y1:base+3,clase:'balcon'});
+ if(fs.double&&nivel>=1)out.push({u0:m0,u1:m1,y0:base,y1:base+2.65,clase:'doble'});
+ return out;}
+export const ZOCALO_ALTO=.8;
+function huecosDeFachada(L,F){const fs=estiloDe(L),out=[{u0:0,u1:F.ancho,y0:0,y1:F.sube+ZOCALO_ALTO,clase:'zocalo'}];
+ for(const P of F.pisos)for(const v of P.vanos)out.push(...ocupaVano(L,fs,v,P.nivel,P.base,F.sube));
+ return out.map(h=>({u0:r3(Math.max(0,h.u0)),u1:r3(Math.min(F.ancho,h.u1)),y0:r3(Math.max(0,h.y0)),y1:r3(Math.min(F.alto,h.y1)),clase:h.clase})).filter(h=>h.u1-h.u0>.01&&h.y1-h.y0>.01);}
+
+export function muroExterior(L,lado){const F=fachadaMedida(L,lado),a=F.punto(0),b=F.punto(F.ancho),huecos=huecosDeFachada(L,F);
  return {id:`L${L.id}-${lado}`,clase:'exterior',lote:L.id,lado,ancho:F.ancho,alto:F.alto,huecos,c:{x:r3((a.x+b.x)/2),z:r3((a.z+b.z)/2)},n:NORMAL[lado],y0:0,sale:SALE.exterior,color:L.colores?.fachada||null,nombre:`Fachada ${({N:'norte',S:'sur',E:'este',W:'oeste'})[lado]}`};}
 
 // Las cuatro paredes de un cuarto. dentroDelLote(x, z): para saber si del otro lado de la pared hay edificio (un tabique)
 // o es la fachada (más gruesa hacia adentro).
 // enOtroLote(x, z): si ese punto es de otro edificio (entonces la pared es una medianera, no la fachada).
-export function murosDeCuarto(L,nivel,q,enOtroLote=null){const sube=L.fachada?.escalinata?RAISE:0,lv=L.levels[nivel],dentro=(x,z)=>(L.parts||[]).some(p=>x>p.x&&x<p.x+p.w&&z>p.y&&z<p.y+p.h),H=ALTURA.cieloRaso,out=[];
+export function murosDeCuarto(L,nivel,q,enOtroLote=null){const fs=estiloDe(L),sube=L.fachada?.escalinata?RAISE:0,lv=L.levels[nivel],dentro=(x,z)=>(L.parts||[]).some(p=>x>p.x&&x<p.x+p.w&&z>p.y&&z<p.y+p.h),H=ALTURA.cieloRaso,out=[];
  for(const P of paredesDe(q)){const ancho=r3(P.a1-P.a0),n=P.hacia,ry=Math.atan2(n[0],n[1]),dir=P.horiz?Math.cos(ry):-Math.sin(ry);// (dir: +1 si u crece con la coordenada a lo largo de la pared)
   const c=P.horiz?{x:r3((P.a0+P.a1)/2),z:P.fija}:{x:P.fija,z:r3((P.a0+P.a1)/2)},aU=t=>dir>0?t-P.a0:P.a1-t;
-  const huecos=vanosDe(lv,P).map(v=>{const p=Math.max(P.a0,v.p),qq=Math.min(P.a1,v.q),u0=r3(Math.min(aU(p),aU(qq))),u1=r3(Math.max(aU(p),aU(qq))),[y0,y1]=v.clase==='puerta'?VANO.puerta:VANO.comun;return {u0,u1,y0,y1:v.clase==='puerta'?y1:Math.min(H,y1+.4),clase:v.clase};}).filter(h=>h.u1-h.u0>.01);
-  // (la ventana, generosa hacia arriba: adentro el vano de una vidriera o de un ventanal llega más alto que el de una común)
+  // (los vanos de esta pared, con lo que de verdad ocupan: una puerta de adentro, su hoja y su marco; una puerta de
+  // calle o una vidriera, su módulo entero; una ventana, el vidrio de su pieza —la misma cuenta que por afuera—)
+  const crudos=[...(lv.doors||[]).map(d=>({d,puerta:true})),...(lv.windows||[]).map(d=>({d}))].filter(({d})=>P.horiz?Math.abs(d.y0-P.fija)<.2&&Math.abs(d.y1-P.fija)<.2:Math.abs(d.x0-P.fija)<.2&&Math.abs(d.x1-P.fija)<.2),huecos=[];
+  for(const {d,puerta} of crudos){const p=P.horiz?Math.min(d.x0,d.x1):Math.min(d.y0,d.y1),qq=P.horiz?Math.max(d.x0,d.x1):Math.max(d.y0,d.y1);if(qq<=P.a0+.01||p>=P.a1-.01)continue;const cu=aU((p+qq)/2),len=qq-p,pon=(a,b,y0,y1,clase)=>huecos.push({u0:r3(Math.max(0,a)),u1:r3(Math.min(ancho,b)),y0:r3(Math.max(0,y0)),y1:r3(Math.min(H,y1)),clase});
+   if(puerta){if(d.street)pon(cu-Math.max(1,len/2+.2),cu+Math.max(1,len/2+.2),0,H,'puerta');else pon(cu-len/2-.1,cu+len/2+.1,0,2.3,'puerta');}
+   else if(d.shop||nivel===0&&esVidriera(L.type,d))pon(cu-1,cu+1,0,H,'vidriera');
+   else{const Gs=vidrioDe(fs,d,nivel,len);if(!Gs.length)pon(cu-len/2-CERCO,cu+len/2+CERCO,.3,2.8,'ventana');for(const G of Gs)pon(cu+G[0]-CERCO,cu+G[1]+CERCO,G[2]-CERCO-.08,G[3]+CERCO+.1,'ventana');if(fs.balconies&&nivel>=2||fs.double&&nivel>=1)pon(cu-1,cu+1,0,H,'ventana');}}
+  for(let i=huecos.length-1;i>=0;i--)if(huecos[i].u1-huecos[i].u0<=.01||huecos[i].y1-huecos[i].y0<=.01)huecos.splice(i,1);
   const ox=c.x-n[0]*.3,oz=c.z-n[1]*.3,sale=dentro(ox,oz)?SALE.tabique:enOtroLote?.(ox,oz)?SALE.medianera:SALE.fachada;
   out.push({id:`L${L.id}-P${nivel}-C${q.id}-${P.lado}`,clase:'interior',lote:L.id,nivel,cuarto:q.id,lado:P.lado,ancho,alto:H,huecos,c,n,y0:r3(sube+nivel*ALTURA.piso+.02),sale,color:L.colores?.cuartos?.[nivel+':'+q.id]||null,nombre:`Pared ${({N:'norte',S:'sur',E:'este',W:'oeste'})[P.lado]}`});}
  return out;}

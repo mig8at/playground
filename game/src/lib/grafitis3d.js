@@ -4,11 +4,13 @@
 // Dónde va cada uno sale del plano (engine/muros.js muroDe) y la grilla, de engine/grafiti.js.
 import * as THREE from 'three';
 import {muroDe} from '../engine/muros.js';
-import {GRAFITI,lienzoDe,deTexto,valido} from '../engine/grafiti.js';
+import {GRAFITI,lienzoDe,deTexto,mascaraDe} from '../engine/grafiti.js';
 
 const RGB=GRAFITI.paleta.map(c=>c?[parseInt(c.slice(1,3),16),parseInt(c.slice(3,5),16),parseInt(c.slice(5,7),16)]:null);
 export function createGrafitis(plan,guardados={}){const group=new THREE.Group(),own=[];group.name='grafitis';let n=0;
- for(const [id,s] of Object.entries(guardados||{})){const M=muroDe(plan,id);if(!M||!s?.t)continue;const L=lienzoDe(M),g=s.cols===L.cols&&s.rows===L.rows?deTexto(s.t,L.cols,L.rows):null;if(!g||!valido(g,M).ok)continue;
+ for(const [id,s] of Object.entries(guardados||{})){const M=muroDe(plan,id);if(!M||!s?.t)continue;const L=lienzoDe(M),g=s.cols===L.cols&&s.rows===L.rows?deTexto(s.t,L.cols,L.rows):null;if(!g)continue;
+  // (sólo sobre pared: lo que haya quedado guardado encima de una ventana o de una puerta no se dibuja)
+  const mk=mascaraDe(M);for(let i=0;i<g.d.length;i++)if(!mk[i])g.d[i]=0;
   const c=document.createElement('canvas');c.width=L.cols;c.height=L.rows;const x=c.getContext('2d'),I=x.createImageData(L.cols,L.rows);let hay=false;
   for(let i=0;i<g.d.length;i++){const k=RGB[g.d[i]];if(!k)continue;I.data[i*4]=k[0];I.data[i*4+1]=k[1];I.data[i*4+2]=k[2];I.data[i*4+3]=255;hay=true;}
   if(!hay)continue;x.putImageData(I,0,0);

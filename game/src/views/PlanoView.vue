@@ -72,7 +72,7 @@ const grafitiGuardado=m=>{const L=lienzoDe(m),s=deEstaCiudad()[m.id];return s&&s
 // de sus paredes y al guardar se reparte. m.paredes: las de esa fachada, para dibujar dónde corta cada una)
 const fachadaGuardada=(L,lado)=>{const G=deEstaCiudad(),v=G[`L${L.id}-${lado}`];// (lo de antes, guardado como un solo lienzo)
  if(v?.t){const Z=lienzoDe(muroExterior(L,lado));if(v.cols===Z.cols&&v.rows===Z.rows)return deTexto(v.t,Z.cols,Z.rows);}return componerFachada(L,lado,G);};
-function abrirMuro(m){muro.value=m;eligePared.value=false;if(!m){graf=mascara=Lz=null;return;}Lz=lienzoDe(m);graf=(m.paredes?fachadaGuardada(elegido.value,m.lado):grafitiGuardado(m))||vacio(Lz.cols,Lz.rows);mascara=mascaraDe(m);pintadosAca.value=pintados(graf);
+function abrirMuro(m){muro.value=m;eligePared.value=false;if(!m){graf=mascara=Lz=null;return;}Lz=lienzoDe(m);graf=(m.paredes?fachadaGuardada(elegido.value,m.lado):grafitiGuardado(m))||vacio(Lz.cols,Lz.rows);mascara=mascaraDe(m);for(let i=0;i<graf.d.length;i++)if(!mascara[i])graf.d[i]=0;/* (lo guardado encima de un vano, de antes de medirlos bien, se limpia) */pintadosAca.value=pintados(graf);
  nextTick(()=>{const w=lienzoGraf.value?.parentElement.clientWidth||400;zoomG.value=Math.max(2,Math.min(12,Math.floor(w/Lz.cols)));dibujarGraf();});}
 function alzadoClic(){const L=elegido.value;if(!L)return;const lado=ladoAlzado.value||L.front;abrirMuro({...muroExterior(L,lado),paredes:paredesDeFachada(L,lado)});}
 function paredClic(e){const L=elegido.value,lv=L.levels[fichaNivel.value],p=aPiso(e),q=cuartoEn(lv,p.x,p.z);if(!q)return;abrirMuro(muroCerca(L,fichaNivel.value,q,p.x,p.z,otroLoteDe(planoEntero,L)));}
