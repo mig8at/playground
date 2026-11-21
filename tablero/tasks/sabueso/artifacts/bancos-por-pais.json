@@ -1,0 +1,493 @@
+{
+ "about": "Grupos bancarios con presencia en varios países de América Latina y el Caribe, y si tienen financiación en el punto de venta en cada uno. Lo buscó Claude por internet (claude -p con WebSearch y WebFetch) el 2026-11-21; cada país trae su fuente. Revisado a mano: la compra de CrediScotia por Santander en Perú se sostiene (Indecopi); la fuente de la salida de Itaú de Colombia da 404: sin confirmar.",
+ "banks": [
+  {
+   "name": "BBVA",
+   "what": "Grupo financiero español, uno de los bancos más grandes de América Latina por activos y beneficios, con banca universal consolidada en México (su mercado más rentable) y en varios países de Sudamérica.",
+   "countries": [
+    {
+     "country": "México",
+     "status": "operating",
+     "brand": "BBVA México",
+     "consumerCredit": true,
+     "posFinancing": "Difiere/Pasar a Meses y Meses Sin Intereses: compras a plazos con tarjeta de crédito en comercios afiliados, más Anticipo de Facturación TPV para comercios",
+     "source": "https://www.bbva.mx/personas/productos/tarjetas-de-credito/difiere-tus-compras-a-meses.html"
+    },
+    {
+     "country": "Perú",
+     "status": "operating",
+     "brand": "BBVA Perú",
+     "consumerCredit": true,
+     "posFinancing": "",
+     "source": "https://shareholdersandinvestors.bbva.com/informes/4q25-report-business-areas-south-america/"
+    },
+    {
+     "country": "Colombia",
+     "status": "operating",
+     "brand": "BBVA Colombia",
+     "consumerCredit": true,
+     "posFinancing": "",
+     "source": "https://shareholdersandinvestors.bbva.com/informes/4q25-report-business-areas-south-america/"
+    },
+    {
+     "country": "Argentina",
+     "status": "operating",
+     "brand": "BBVA Argentina",
+     "consumerCredit": true,
+     "posFinancing": "",
+     "source": "https://shareholdersandinvestors.bbva.com/informes/4q25-report-business-areas-south-america/"
+    },
+    {
+     "country": "Uruguay",
+     "status": "operating",
+     "brand": "BBVA Uruguay",
+     "consumerCredit": true,
+     "posFinancing": "",
+     "source": "https://www.bbva.com/es/especiales/bbva-uruguay/"
+    },
+    {
+     "country": "Paraguay",
+     "status": "operating",
+     "brand": "BBVA Paraguay",
+     "consumerCredit": true,
+     "posFinancing": "",
+     "source": "https://www.bbva.com/es/especiales/bbva-paraguay/"
+    },
+    {
+     "country": "Venezuela",
+     "status": "operating",
+     "brand": "BBVA Provincial",
+     "consumerCredit": true,
+     "posFinancing": "",
+     "source": "https://www.elimparcial.com/dinero/2026/02/05/bbva-se-mantiene-en-venezuela-como-el-unico-banco-internacional-con-operaciones-en-el-pais-y-apuesta-a-una-recuperacion-economica-que-tomara-tiempo/"
+    },
+    {
+     "country": "Chile",
+     "status": "exited",
+     "brand": "BBVA Chile (vendido a Scotiabank en 2018)",
+     "consumerCredit": false,
+     "posFinancing": "",
+     "source": "https://www.bbva.com/es/bbva-completa-venta-su-franquicia-chile/"
+    }
+   ]
+  },
+  {
+   "name": "Banco Santander",
+   "what": "Grupo financiero español, el banco europeo con mayor presencia de banca universal en América Latina: fuerte en Brasil, México, Chile, Argentina y Uruguay, y con operaciones de nicho (banca corporativa y financiamiento de consumo) en Perú y Colombia.",
+   "countries": [
+    {
+     "country": "Brasil",
+     "status": "operating",
+     "brand": "Santander Brasil",
+     "consumerCredit": true,
+     "posFinancing": "CDC-I (Crédito Direto ao Consumidor com Interveniência) y Santander Financiamentos: financiamiento en el punto de venta para compras a plazos en comercios/lojas",
+     "source": "https://www.santander.com.br/creditos-e-financiamentos-para-empresas/expansao-de-negocios/cdc-i"
+    },
+    {
+     "country": "México",
+     "status": "operating",
+     "brand": "Santander México",
+     "consumerCredit": true,
+     "posFinancing": "Meses sin intereses con tarjeta de crédito en tiendas y comercios participantes",
+     "source": "https://www.santander.com.mx/cashback/assets/pdf/tyc-cbb-mayo-2026.pdf.pdf"
+    },
+    {
+     "country": "Chile",
+     "status": "operating",
+     "brand": "Santander Chile / Santander Consumer Chile",
+     "consumerCredit": true,
+     "posFinancing": "Santander Consumer Chile: financiamiento automotriz en el punto de venta (concesionarios), segundo lugar del mercado",
+     "source": "https://www.df.cl/mercados/banca-fintech/ceo-de-santander-consumer-tras-compra-de-mundo-credito-nuestro"
+    },
+    {
+     "country": "Argentina",
+     "status": "operating",
+     "brand": "Santander Argentina",
+     "consumerCredit": true,
+     "posFinancing": "",
+     "source": "https://www.santander.com/es/sobre-nosotros/donde-estamos/santander-argentina"
+    },
+    {
+     "country": "Uruguay",
+     "status": "operating",
+     "brand": "Santander Uruguay",
+     "consumerCredit": true,
+     "posFinancing": "",
+     "source": "https://www.santander.com/es/sala-de-comunicacion/especiales/la-fuerza-del-nearshoring-en-las-americas/santander-impulsa-el-crecimiento-en-america-del-sur-sobre-la-base-de-las-fortalezas-del-grupo"
+    },
+    {
+     "country": "Perú",
+     "status": "operating",
+     "brand": "Santander Perú (banca corporativa) y Santander Consumer Bank, ex CrediScotia Financiera",
+     "consumerCredit": true,
+     "posFinancing": "Santander Consumer Bank (ex CrediScotia): financiamiento de consumo originado también vía comercios y tiendas afiliadas",
+     "source": "https://www.peru-retail.com/santander-adquiere-crediscotia-y-acelera-su-expansion-en-peru/"
+    },
+    {
+     "country": "Colombia",
+     "status": "operating",
+     "brand": "Santander Colombia (banca corporativa) y Santander Consumer Colombia S.A. Compañía de Financiamiento",
+     "consumerCredit": true,
+     "posFinancing": "Santander Consumer Colombia: financiamiento de vehículos en el punto de venta (concesionarios)",
+     "source": "https://www.santanderconsumer.co/wp-content/uploads/2024/04/SCCF_Informe_de_gestion_y_EEFF_Diciembre_2023.pdf"
+    }
+   ]
+  },
+  {
+   "name": "Scotiabank",
+   "what": "Grupo bancario canadiense (Bank of Nova Scotia), con fuerte presencia de banca universal en México, Perú y Chile (Alianza del Pacífico) y en el Caribe anglófono/República Dominicana, tras salir del negocio minorista en Colombia, Costa Rica y Panamá a fines de 2025.",
+   "countries": [
+    {
+     "country": "México",
+     "status": "operating",
+     "brand": "Scotiabank México",
+     "consumerCredit": true,
+     "posFinancing": "",
+     "source": "https://www.riotimesonline.com/brazil-news/rio-business/chile-consolidates-as-the-main-market-for-scotiabank-after-canada/"
+    },
+    {
+     "country": "Perú",
+     "status": "operating",
+     "brand": "Scotiabank Perú",
+     "consumerCredit": true,
+     "posFinancing": "",
+     "source": "https://www.peru-retail.com/banco-santander-concreta-la-compra-de-crediscotia-financiera/"
+    },
+    {
+     "country": "Chile",
+     "status": "operating",
+     "brand": "Scotiabank Chile",
+     "consumerCredit": true,
+     "posFinancing": "",
+     "source": "https://blog.investchile.gob.cl/en/2026/scotiabanks-strategic-priorities-chile-2026"
+    },
+    {
+     "country": "Colombia",
+     "status": "exited",
+     "brand": "Scotiabank Colombia (operaciones transferidas a Davivienda/DAVIbank)",
+     "consumerCredit": false,
+     "posFinancing": "",
+     "source": "https://www.newswire.ca/news-releases/scotiabank-and-davivienda-close-previously-announced-transaction-to-transfer-scotiabank-s-banking-operations-in-colombia-costa-rica-and-panama-889770837.html"
+    },
+    {
+     "country": "Costa Rica",
+     "status": "exited",
+     "brand": "Scotiabank Costa Rica (operaciones transferidas a Davivienda/DAVIbank)",
+     "consumerCredit": false,
+     "posFinancing": "",
+     "source": "https://www.newswire.ca/news-releases/scotiabank-and-davivienda-close-previously-announced-transaction-to-transfer-scotiabank-s-banking-operations-in-colombia-costa-rica-and-panama-889770837.html"
+    },
+    {
+     "country": "Panamá",
+     "status": "exited",
+     "brand": "Scotiabank Panamá (operaciones transferidas a Davivienda)",
+     "consumerCredit": false,
+     "posFinancing": "",
+     "source": "https://www.newswire.ca/news-releases/scotiabank-and-davivienda-close-previously-announced-transaction-to-transfer-scotiabank-s-banking-operations-in-colombia-costa-rica-and-panama-889770837.html"
+    },
+    {
+     "country": "República Dominicana",
+     "status": "operating",
+     "brand": "Scotiabank República Dominicana (sede regional para el Caribe y Centroamérica)",
+     "consumerCredit": true,
+     "posFinancing": "",
+     "source": "https://revistamercado.do/empresas/executive-news/scotiabank-nombra-a-jabar-singh-lider-para-rd-y-el-caribe/"
+    },
+    {
+     "country": "Jamaica",
+     "status": "operating",
+     "brand": "Scotiabank Jamaica",
+     "consumerCredit": true,
+     "posFinancing": "",
+     "source": "https://jamaica-gleaner.com/index%2ephp/article/business/20260902/bns-flags-rising-caribbean-mortgage-write-downs-parent-posts-record"
+    },
+    {
+     "country": "Trinidad y Tobago",
+     "status": "operating",
+     "brand": "Scotiabank Trinidad & Tobago",
+     "consumerCredit": true,
+     "posFinancing": "",
+     "source": "https://revistamercado.do/empresas/executive-news/scotiabank-nombra-a-jabar-singh-lider-para-rd-y-el-caribe/"
+    },
+    {
+     "country": "Bahamas",
+     "status": "operating",
+     "brand": "Scotiabank Bahamas",
+     "consumerCredit": true,
+     "posFinancing": "",
+     "source": "https://revistamercado.do/empresas/executive-news/scotiabank-nombra-a-jabar-singh-lider-para-rd-y-el-caribe/"
+    },
+    {
+     "country": "Barbados",
+     "status": "operating",
+     "brand": "Scotiabank Barbados",
+     "consumerCredit": true,
+     "posFinancing": "",
+     "source": "https://revistamercado.do/empresas/executive-news/scotiabank-nombra-a-jabar-singh-lider-para-rd-y-el-caribe/"
+    },
+    {
+     "country": "Guyana",
+     "status": "operating",
+     "brand": "Scotiabank Guyana",
+     "consumerCredit": true,
+     "posFinancing": "",
+     "source": "https://revistamercado.do/empresas/executive-news/scotiabank-nombra-a-jabar-singh-lider-para-rd-y-el-caribe/"
+    }
+   ]
+  },
+  {
+   "name": "Itaú Unibanco",
+   "what": "Mayor banco privado de Brasil y de América Latina por activos; fuera de Brasil mantiene banca universal en el Cono Sur (Chile, Uruguay, Paraguay), pero vendió sus negocios minoristas en Argentina (2023) y, más recientemente, en Colombia y Panamá (2026).",
+   "countries": [
+    {
+     "country": "Chile",
+     "status": "operating",
+     "brand": "Itaú Chile",
+     "consumerCredit": true,
+     "posFinancing": "",
+     "source": "https://www.riotimesonline.com/itau-sells-colombia-and-panama-retail-banks-to-banco-de-bogota-for-us490-million/"
+    },
+    {
+     "country": "Paraguay",
+     "status": "operating",
+     "brand": "Itaú Paraguay",
+     "consumerCredit": true,
+     "posFinancing": "",
+     "source": "https://www.lanacion.com.py/negocios_edicion_impresa/2026/03/13/itau-lidera-el-mercado-de-creditos-personales-y-para-vivienda/"
+    },
+    {
+     "country": "Uruguay",
+     "status": "operating",
+     "brand": "Itaú Uruguay",
+     "consumerCredit": true,
+     "posFinancing": "",
+     "source": "https://www.sec.gov/Archives/edgar/data/0001132597/000113259726000164/managementdiscussionanal.htm"
+    },
+    {
+     "country": "Colombia",
+     "status": "exited",
+     "brand": "Itaú Colombia (banca de personas vendida a Banco de Bogotá, julio 2026; mantiene solo banca corporativa)",
+     "consumerCredit": false,
+     "posFinancing": "",
+     "source": "https://www.riotimesonline.com/itau-sells-colombia-and-panama-retail-banks-to-banco-de-bogota-for-us490-million/"
+    },
+    {
+     "country": "Panamá",
+     "status": "exited",
+     "brand": "Itaú Panamá (banca de personas vendida a Banco de Bogotá, julio 2026)",
+     "consumerCredit": false,
+     "posFinancing": "",
+     "source": "https://www.riotimesonline.com/itau-sells-colombia-and-panama-retail-banks-to-banco-de-bogota-for-us490-million/"
+    },
+    {
+     "country": "Argentina",
+     "status": "exited",
+     "brand": "Itaú Argentina (vendido a Banco Macro, operación completada en noviembre 2023)",
+     "consumerCredit": false,
+     "posFinancing": "",
+     "source": "https://batimes.com.ar/news/amp/economy/brazils-itau-sells-argentine-unit-for-us50-million-to-banco-macro.phtml"
+    }
+   ]
+  },
+  {
+   "name": "Credicorp (BCP, Mibanco)",
+   "what": "Mayor grupo financiero de Perú, con banca universal (BCP), microfinanzas (Mibanco) y un neobanco (Tenpo); expande Mibanco y su brazo fintech Krealo hacia otros países de la región.",
+   "countries": [
+    {
+     "country": "Perú",
+     "status": "operating",
+     "brand": "BCP / Mibanco",
+     "consumerCredit": true,
+     "posFinancing": "Cuotéalo: crédito personal del BCP para financiar compras en comercios afiliados (Mi Store, Plaza Vea, Real Plaza, Entel, Carsa, etc.) a cuotas",
+     "source": "https://www.viabcp.com/canalesoficiales/mistore"
+    },
+    {
+     "country": "Colombia",
+     "status": "operating",
+     "brand": "Mibanco Colombia",
+     "consumerCredit": true,
+     "posFinancing": "",
+     "source": "https://www.valoraanalitik.com/entrevista-credicorp-creditos-negocios-colombia/"
+    },
+    {
+     "country": "Bolivia",
+     "status": "operating",
+     "brand": "BCP Bolivia (Banco de Crédito de Bolivia)",
+     "consumerCredit": true,
+     "posFinancing": "",
+     "source": "https://www.bcp.com.bo/Personas/CreditoATuMedida"
+    },
+    {
+     "country": "Chile",
+     "status": "operating",
+     "brand": "Tenpo (neobanco 100% del Grupo Credicorp)",
+     "consumerCredit": true,
+     "posFinancing": "",
+     "source": "https://www.df.cl/mercados/banca-fintech/credicorp-detalla-la-hoja-de-ruta-para-convertir-a-tenpo-en-el-primer"
+    }
+   ]
+  },
+  {
+   "name": "Banco Pichincha",
+   "what": "Mayor banco privado de Ecuador, con operaciones de banca universal en varios países de la región y marca digital Pibank.",
+   "countries": [
+    {
+     "country": "Ecuador",
+     "status": "operating",
+     "brand": "Banco Pichincha",
+     "consumerCredit": true,
+     "posFinancing": "Tarjetas de crédito con compras en modalidad diferida (con o sin interés) en comercios afiliados",
+     "source": "https://www.pichincha.com/sites/default/files/documents/2026-03/contrato-tarjetas-credito-bp.pdf"
+    },
+    {
+     "country": "Colombia",
+     "status": "operating",
+     "brand": "Banco Pichincha Colombia / Pibank",
+     "consumerCredit": true,
+     "posFinancing": "Solicitud de tarjeta de crédito y compras a crédito en comercios aliados sin tarjeta física, usando el cupo en el punto de venta",
+     "source": "https://www.larepublica.co/finanzas/pibank-del-banco-pichincha-anuncia-la-apertura-de-su-primer-producto-de-credito-3785574"
+    },
+    {
+     "country": "Panamá",
+     "status": "operating",
+     "brand": "Banco Pichincha Panamá",
+     "consumerCredit": true,
+     "posFinancing": "",
+     "source": "https://www.superbancos.gob.pa/documentos/informacion_general_bancos/generales_de_bancos/Generales-de-Bancos-en-Pichincha.pdf"
+    },
+    {
+     "country": "Perú",
+     "status": "operating",
+     "brand": "Banco Pichincha / Pibank Perú",
+     "consumerCredit": true,
+     "posFinancing": "",
+     "source": "https://forbes.pe/negocios/2026-09-28/banco-pichincha-lanzo-su-modelo-de-banca-directa-totalmente-digital-en-peru/"
+    }
+   ]
+  },
+  {
+   "name": "BAC Credomatic",
+   "what": "Mayor grupo financiero de Centroamérica y Panamá, con el mayor negocio de tarjetas y pagos de la región.",
+   "countries": [
+    {
+     "country": "Guatemala",
+     "status": "operating",
+     "brand": "BAC",
+     "consumerCredit": true,
+     "posFinancing": "Programa de Cuotas/Mini Cuotas y Extrafinanciamiento: compras a cuotas con tarjeta BAC en comercios afiliados (ej. CompraClick)",
+     "source": "https://www.baccredomatic.com/sites/default/files/2021-09/gt_manual_uso_cuotas_compraclick_sep_2021.pdf"
+    },
+    {
+     "country": "El Salvador",
+     "status": "operating",
+     "brand": "BAC",
+     "consumerCredit": true,
+     "posFinancing": "Compra en Cuotas: compras a 0% de interés hasta 12 meses en comercios afiliados con tarjeta BAC",
+     "source": "https://www.baccredomatic.com/sites/default/files/2023-02/traslado_de_compras_a_minicuotas_en_banca_en_linea_nuevo.pdf"
+    },
+    {
+     "country": "Honduras",
+     "status": "operating",
+     "brand": "BAC",
+     "consumerCredit": true,
+     "posFinancing": "Programa \"Extra o Cuotas 0% de interés\" para compras a plazos en comercios afiliados con tarjeta BAC",
+     "source": "https://www.baccredomatic.com/es-hn/personas/landing/extra-o-cuotas-0-de-interes"
+    },
+    {
+     "country": "Nicaragua",
+     "status": "operating",
+     "brand": "BAC",
+     "consumerCredit": true,
+     "posFinancing": "Reglamento del Programa CUOTAS: compras a cuotas sin intereses en comercios afiliados con tarjeta BAC",
+     "source": "https://www.baccredomatic.com/sites/default/files/2026-08/NI-reglamentodelprogramaCUOTAS%20%282%29.pdf"
+    },
+    {
+     "country": "Costa Rica",
+     "status": "operating",
+     "brand": "BAC",
+     "consumerCredit": true,
+     "posFinancing": "Tasa Cero: compras en cuotas fijas sin interés hasta 24 meses, según convenio con el comercio afiliado",
+     "source": "https://www.baccredomatic.com/es-cr/personas/tasa-cero"
+    },
+    {
+     "country": "Panamá",
+     "status": "operating",
+     "brand": "BAC",
+     "consumerCredit": true,
+     "posFinancing": "Programa de Minicuotas: traslado de compras a cuotas con tarjeta de crédito BAC en comercios afiliados",
+     "source": "https://www.baccredomatic.com/sites/default/files/2025-12/PAN_Minicuotas_Comision_TerminosyCondiciones.pdf"
+    }
+   ]
+  },
+  {
+   "name": "Grupo Promerica",
+   "what": "Grupo financiero multibanco con holding Promerica Financial Corporation, presente en Centroamérica, Panamá, República Dominicana y Ecuador.",
+   "countries": [
+    {
+     "country": "Guatemala",
+     "status": "operating",
+     "brand": "Banco Promerica Guatemala",
+     "consumerCredit": true,
+     "posFinancing": "Promerica Pay (billetera/pagos en comercios afiliados)",
+     "source": "https://www.bancopromerica.com.gt/media/770642/infografia_promerica_pay_030621.pdf"
+    },
+    {
+     "country": "El Salvador",
+     "status": "operating",
+     "brand": "Banco Promerica El Salvador",
+     "consumerCredit": true,
+     "posFinancing": "Compras en Cuota: financiamiento a plazos en comercios afiliados con tarjeta de crédito Promerica",
+     "source": "https://www.promerica.com.sv/media/592407/compras-en-cuota-may-2023.pdf"
+    },
+    {
+     "country": "Honduras",
+     "status": "operating",
+     "brand": "Banco Promerica Honduras",
+     "consumerCredit": true,
+     "posFinancing": "Tarjeta de crédito co-branded Promerica Más Visa con Farmacias del Ahorro (descuentos y financiamiento en el comercio)",
+     "source": "https://www.elheraldo.hn/brandedcontent/deinteres/farmacias-ahorro-promerica-lanzan-tarjeta-cuidar-salud-salud-economia-GJ26857111"
+    },
+    {
+     "country": "Nicaragua",
+     "status": "operating",
+     "brand": "BANPRO - Grupo Promerica",
+     "consumerCredit": true,
+     "posFinancing": "",
+     "source": "https://connectamericas.com/es/banks/banco-promerica"
+    },
+    {
+     "country": "Costa Rica",
+     "status": "operating",
+     "brand": "Banco Promerica Costa Rica",
+     "consumerCredit": true,
+     "posFinancing": "",
+     "source": "https://promerica.fi.cr/media/kdfgnaco/270325_reglamento-credito-personal.pdf"
+    },
+    {
+     "country": "Panamá",
+     "status": "operating",
+     "brand": "St. Georges Bank - Grupo Promerica",
+     "consumerCredit": true,
+     "posFinancing": "",
+     "source": "https://www.stgeorgesbank.com"
+    },
+    {
+     "country": "República Dominicana",
+     "status": "operating",
+     "brand": "Banco Múltiple Promerica",
+     "consumerCredit": true,
+     "posFinancing": "Promerica Pay: pagos y financiamiento en comercios afiliados",
+     "source": "https://www.promerica.com.do/media/462275/t%C3%A9rminos-y-condiciones-promerica-pay.pdf"
+    },
+    {
+     "country": "Ecuador",
+     "status": "operating",
+     "brand": "Produbanco - Grupo Promerica",
+     "consumerCredit": true,
+     "posFinancing": "Tarjetas de crédito Produbanco con programas de fidelidad y bonos en comercios aliados (ej. Supermaxi)",
+     "source": "https://www.produbanco.com.ec/media/707163/terminos-y-condiciones-bono-supermaxi-produbanco.pdf"
+    }
+   ]
+  }
+ ]
+}

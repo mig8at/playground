@@ -24,6 +24,7 @@ var (
 	reWAConfig = regexp.MustCompile(`(?i)whatsapp[a-z_]*(?:phone|number|numero)[a-z_]*"\s*:\s*"\+?(\d{8,15})"`)
 	reTel      = regexp.MustCompile(`(?i)tel:\+?([\d\s().\-]{7,20})`)
 	reContact  = regexp.MustCompile(`(?i)contact|visit|nosotros|aliad|proveed|trabaja|servicio|atencion|sedes|tiendas|post-?venta`)
+	reStores   = regexp.MustCompile(`(?i)tienda|sede|taller|local|sucursal|concesionari|red-de|puntos`)
 	reEmail    = regexp.MustCompile(`^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}$`)
 )
 
@@ -98,6 +99,7 @@ func readSite(ctx context.Context, site string) []Contact {
 		}
 	}
 	var out []Contact
+	phones := 0
 	have := map[string]bool{}
 	add := func(c Contact) {
 		key := c.Channel + ":" + strings.ToLower(strings.Map(func(r rune) rune {
@@ -119,10 +121,19 @@ func readSite(ctx context.Context, site string) []Contact {
 		for _, m := range append(reWhatsApp.FindAllStringSubmatch(p.body, -1), reWAConfig.FindAllStringSubmatch(p.body, -1)...) {
 			add(Contact{Channel: "whatsapp", Value: "+" + m[1], Area: "WhatsApp enlazado en el sitio", Fit: "commercial", Source: p.url})
 		}
+		// Los teléfonos, sólo de la página de inicio y las de contacto: una página de tiendas o talleres trae el de cada
+		// local (Derco, el 2026-11-21: doce números) y no son el canal para una propuesta. Hasta tres.
+		if reStores.MatchString(p.url) {
+			continue
+		}
 		for _, m := range reTel.FindAllStringSubmatch(p.body, -1) {
-			v := strings.TrimSpace(m[1])
-			if digits(v) >= 7 {
+			v := strings.TrimRight(strings.TrimSpace(m[1]), " ()-.")
+			if digits(v) >= 7 && phones < 3 {
+				before := len(out)
 				add(Contact{Channel: "phone", Value: v, Area: "teléfono enlazado en el sitio", Fit: "general", Source: p.url})
+				if len(out) > before {
+					phones++
+				}
 			}
 		}
 	}
