@@ -7,7 +7,7 @@ import {ALTURA,CALLE} from '../engine/medidas.js';
 import {PAQUETES,textura} from './texturas2d.js';
 import {DE_OBRA,modeloDeObra} from '../engine/entrega.js';
 import {fachadaMedida,texturaDeMuro,PINTABLE,VANO} from '../engine/fachada-medida.js';
-import {lienzoDe,colorEn} from '../engine/grafiti.js';
+import {GRAFITI,lienzoDe} from '../engine/grafiti.js';
 // (cada textura del 3D, con la que la dibuja en el 2D)
 const TEX_2D={ladrillo:'ladrillo',ladrillo_pintado:'ladrillo',sillar:'sillar',estuco:'estuco',panel:'panel',hormigon:'hormigon',tablilla:'tabla'};
 const K=City.K;
@@ -427,7 +427,7 @@ function drawExterior(g,bp,{level=0,px=1,capas=CAPAS}){
 // Una ventana está CORRIDA si pisa a una de abajo sin compartir su eje: eso desordena la fachada y se marca en naranja.
 // Una que cae SOBRE MURO (abajo no hay vano en ese tramo) es normal —el piso que ya pasa al vecino abre ventanas donde
 // abajo hay medianera— y sólo se cuenta. Medido en la ciudad 1: 3.334 ventanas de pisos altos, 0 corridas, 244 sobre muro.
-export function drawElevation(canvas,L,{width=560,lado=null,paquete='liso',pintables=false,grafitis=null,elegido=null}={}){
+export function drawElevation(canvas,L,{width=560,lado=null,paquete='liso',pintables=false,grafiti=null}={}){
  const PQ=PAQUETES[paquete]||PAQUETES.liso,relleno=(nombre,x,y,w,h,ox=x,oy=y)=>{if(!nombre)return;g.beginPath();g.rect(x,y,w,h);textura(g,nombre,m,ox,oy);};
  const f=lado||L.front,r=L.rect,H=ALTURA.piso,horiz=f==='N'||f==='S',ancho=horiz?r.w:r.h,sube=L.fachada?.escalinata?RAISE:0,manz=L.fachada?.techo==='mansarda';
  const alto=L.floors*H+sube,techo=manz?H*.9:.9,dpr=window.devicePixelRatio||1,pad=34,m=Math.min(30,(width-2*pad)/ancho),hgt=(alto+techo)*m+2*pad+10;
@@ -476,16 +476,10 @@ export function drawElevation(canvas,L,{width=560,lado=null,paquete='liso',pinta
   g.fillStyle=marco;for(const w of (L.levels[L.floors-1].windows.filter(enLado).map(tramo))){const c=(w[0]+w[1])/2;g.fillRect(X(c-.45),Y(alto+techo*.78),.9*m,techo*.5*m);g.fillStyle='#a9cfe2';g.fillRect(X(c-.33),Y(alto+techo*.72),.66*m,techo*.38*m);g.fillStyle=marco;}}
  else{g.fillStyle=muro;g.fillRect(X(0),Y(alto+techo),ancho*m,(techo-.3)*m);g.fillStyle=mold;g.fillRect(X(0),Y(alto+techo),ancho*m,.12*m);}
  g.strokeStyle='rgba(30,34,38,.55)';g.lineWidth=1;g.strokeRect(X(0)+.5,Y(alto)+.5,ancho*m-1,alto*m-1);
- // (los paños pintables de la planta baja —engine/fachada-medida.js—: el muro entre vano y vano, del zócalo al dintel)
- if(pintables){const FM=fachadaMedida(L,f);medido.pintables=[];g.setLineDash([5,3]);g.lineWidth=1.5;g.strokeStyle='#18a06a';g.fillStyle='rgba(24,160,106,.18)';
-  for(const p of FM.pisos[0].panios){if(p.u1-p.u0<PINTABLE.anchoMin)continue;const y0=FM.sube+PINTABLE.y0,y1=FM.sube+PINTABLE.y1,id=`L${L.id}-${f}-${Math.round(p.u0*100)}`,P={id,u0:p.u0,u1:p.u1,y0,y1,ancho:+(p.u1-p.u0).toFixed(3),alto:+(y1-y0).toFixed(3)},gr=grafitis?.[id];
-   // (el grafiti guardado en este paño —engine/grafiti.js—: cada píxel, en su lugar y a su medida)
-   if(gr){const Lz=lienzoDe(P);g.setLineDash([]);for(let fi=0;fi<Lz.rows;fi++)for(let ci=0;ci<Lz.cols;ci++){const col=colorEn(gr,ci,fi);if(!col)continue;g.fillStyle=col;g.fillRect(X(p.u0+Lz.du+ci*Lz.px),Y(y1-Lz.dy-fi*Lz.px),Lz.px*m+.5,Lz.px*m+.5);}g.setLineDash([5,3]);g.fillStyle='rgba(24,160,106,.18)';}
-   else g.fillRect(X(p.u0),Y(y1),(p.u1-p.u0)*m,(y1-y0)*m);
-   g.strokeStyle=id===elegido?'#ffd166':'#18a06a';g.lineWidth=id===elegido?2.5:1.5;g.strokeRect(X(p.u0),Y(y1),(p.u1-p.u0)*m,(y1-y0)*m);
-   // (caja: dónde quedó dibujado, en píxeles del lienzo, para saber en cuál se hizo clic)
-   medido.pintables.push({...P,caja:[X(p.u0),Y(y1),(p.u1-p.u0)*m,(y1-y0)*m]});}
-  g.setLineDash([]);medido.textura=FM.textura;medido.hiladas=FM.hiladasPorPiso;medido.modulos=FM.modulos;}
+ // (el grafiti de esta fachada —engine/grafiti.js—: el muro entero es el lienzo; cada píxel pintado, en su lugar)
+ {const FM=fachadaMedida(L,f);medido.textura=FM.textura;medido.hiladas=FM.hiladasPorPiso;medido.modulos=FM.modulos;
+  if(grafiti){const Lz=lienzoDe({ancho,alto}),d=grafiti.d;if(grafiti.cols===Lz.cols&&grafiti.rows===Lz.rows)for(let fi=0;fi<Lz.rows;fi++)for(let ci=0;ci<Lz.cols;ci++){const v=d[fi*Lz.cols+ci];if(!v)continue;g.fillStyle=GRAFITI.paleta[v];g.fillRect(X(Lz.du+ci*Lz.px),Y(alto-Lz.dy-fi*Lz.px),Lz.px*m+.4,Lz.px*m+.4);}}
+  if(pintables){g.setLineDash([5,3]);g.lineWidth=1.5;g.strokeStyle='#18a06a';g.strokeRect(X(0)+1,Y(alto)+1,ancho*m-2,alto*m-2);g.setLineDash([]);}}
  // las cotas: el ancho abajo y el alto y cada piso a la izquierda
  g.fillStyle='#5d6670';g.font='11px system-ui,sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(`${ancho} m · fachada ${({N:'norte',S:'sur',E:'este',W:'oeste'})[f]}`,width/2,suelo+16);
  g.textAlign='right';for(let i=0;i<L.floors;i++)g.fillText(i===0?'PB':String(i),X(0)-8,Y(sube+i*H+H/2));

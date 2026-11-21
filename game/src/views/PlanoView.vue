@@ -15,7 +15,9 @@ import {colocar,OBJETOS,GRILLA} from '../engine/colocar.js';
 import {entregaDe} from '../engine/entrega.js';
 import {sitiosDe,aparecerEn,cupoDe,poblar,RADIO} from '../engine/aparecer.js';
 import {propiedadesDe,resumenDe,CLASE} from '../engine/propiedades.js';
-import {GRAFITI,lienzoDe,vacio,pintar,colorEn,pintados,claveCiudad} from '../engine/grafiti.js';
+import {GRAFITI,lienzoDe,vacio,pintar,pintados,mascaraDe,aTexto,deTexto,claveCiudad} from '../engine/grafiti.js';
+import {muroExterior,muroCerca,otroLoteDe} from '../engine/muros.js';
+import {cuartoEn} from '../engine/colocar.js';
 import {CELL,TYPES} from '../engine/blueprint.js';
 import {PAQUETES} from '../lib/texturas2d.js';
 
@@ -57,25 +59,34 @@ const TAMANOS=[{team:2,nombre:'Mínima',m:'222 × 168 m'},{team:3,nombre:'Chica'
 const NOMBRE_CAPA={pintura:'Pintura de vías',equipo:'Mobiliario',arboles:'Árboles',nombres:'Nombres de vías',botines:'Botines'};
 const TIPO={vivienda:'Vivienda',oficinas:'Oficinas',comercio:'Comercio',hotel:'Hotel',casa:'Casa',local:'Local',colegio:'Colegio',comisaria:'Comisaría',biblioteca:'Biblioteca',hospital:'Hospital',objetivo:'Objetivo',residencial:'Residencial'};
 
-// EL GRAFITI (engine/grafiti.js): se toca un paño verde del alzado y se pinta, píxel a píxel (10 cm), con la paleta.
-// Queda guardado en el navegador ('fuga.grafitis', por ciudad) y el paseo en 3D lo muestra en esa pared.
-const leerGrafitis=()=>{try{return JSON.parse(localStorage.getItem('fuga.grafitis')||'{}');}catch{return {};}};
-const grafitis=ref({}),panio=ref(null),tinta=ref(3),lienzoGraf=ref(null);let pintando=false;
+// EL GRAFITI (engine/grafiti.js, engine/muros.js): el lienzo es un muro entero —una fachada, o una pared de un cuarto—,
+// en píxeles de 5 cm, sin sus ventanas ni sus puertas. Se toca la fachada del alzado, o «Pintar una pared» y una pared del
+// plano del piso, y se pinta. Queda guardado en el navegador ('fuga.grafitis', por ciudad) y el paseo 3D lo muestra ahí.
+// (lo guardado con la grilla vieja —por paño, sin `t`— no sirve más: se descarta al leer)
+const leerGrafitis=()=>{try{const o=JSON.parse(localStorage.getItem('fuga.grafitis')||'{}');for(const k of Object.keys(o))for(const id of Object.keys(o[k]||{}))if(!o[k][id]?.t)delete o[k][id];return o;}catch{return {};}};
+const grafitis=ref({}),muro=ref(null),tinta=ref(3),pincel=ref(1),zoomG=ref(4),lienzoGraf=ref(null),eligePared=ref(false),pintadosAca=ref(0);let pintando=false,graf=null,mascara=null,Lz=null;
 const deEstaCiudad=()=>grafitis.value[claveCiudad(seed.value,team.value)]||{};
 const guardarGrafitis=()=>{try{localStorage.setItem('fuga.grafitis',JSON.stringify(grafitis.value));}catch{}};
-const grafitiDe=p=>{const L=lienzoDe(p),g=deEstaCiudad()[p.id];return g&&g.cols===L.cols&&g.rows===L.rows?g:vacio(L.cols,L.rows);};
-const pintadosAca=computed(()=>panio.value?pintados(grafitiDe(panio.value)):0);
-function alzadoClic(e){const r=alzado.value.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top,p=(medidoAlzado.value?.pintables||[]).find(q=>x>=q.caja[0]&&x<=q.caja[0]+q.caja[2]&&y>=q.caja[1]&&y<=q.caja[1]+q.caja[3]);panio.value=p||null;dibujarPiso();nextTick(dibujarGraf);}
-function dibujarGraf(){const c=lienzoGraf.value,p=panio.value;if(!c||!p)return;const L=lienzoDe(p),g=grafitiDe(p),dpr=window.devicePixelRatio||1,s=Math.max(4,Math.min(16,Math.floor((c.parentElement.clientWidth-2)/L.cols)));
- c.width=Math.round(L.cols*s*dpr);c.height=Math.round(L.rows*s*dpr);c.style.width=L.cols*s+'px';c.style.height=L.rows*s+'px';c.dataset.s=s;const x=c.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);
- x.fillStyle=elegido.value?.colores?.fachada||'#d9cdb8';x.fillRect(0,0,L.cols*s,L.rows*s);
- for(let f=0;f<L.rows;f++)for(let i=0;i<L.cols;i++){const col=colorEn(g,i,f);if(col){x.fillStyle=col;x.fillRect(i*s,f*s,s,s);}}
- x.strokeStyle='rgba(0,0,0,.13)';x.lineWidth=1;x.beginPath();for(let i=0;i<=L.cols;i++){x.moveTo(i*s+.5,0);x.lineTo(i*s+.5,L.rows*s);}for(let f=0;f<=L.rows;f++){x.moveTo(0,f*s+.5);x.lineTo(L.cols*s,f*s+.5);}x.stroke();}
-function grafPunto(e){const c=lienzoGraf.value,p=panio.value;if(!c||!p)return;const r=c.getBoundingClientRect(),s=+c.dataset.s,i=Math.floor((e.clientX-r.left)/s),f=Math.floor((e.clientY-r.top)/s),g=grafitiDe(p),n=pintar(g,i,f,tinta.value);if(n===g)return;
- const k=claveCiudad(seed.value,team.value);grafitis.value={...grafitis.value,[k]:{...deEstaCiudad(),[p.id]:n}};dibujarGraf();}
-function grafBaja(e){pintando=true;e.target.setPointerCapture?.(e.pointerId);grafPunto(e);}
-function grafSube(){if(!pintando)return;pintando=false;guardarGrafitis();dibujarPiso();}
-function grafLimpiar(){const p=panio.value;if(!p)return;const k=claveCiudad(seed.value,team.value),m={...deEstaCiudad()};delete m[p.id];grafitis.value={...grafitis.value,[k]:m};guardarGrafitis();dibujarGraf();dibujarPiso();}
+const grafitiGuardado=m=>{const L=lienzoDe(m),s=deEstaCiudad()[m.id];return s&&s.cols===L.cols&&s.rows===L.rows?deTexto(s.t,L.cols,L.rows):null;};
+function abrirMuro(m){muro.value=m;eligePared.value=false;if(!m){graf=mascara=Lz=null;return;}Lz=lienzoDe(m);graf=grafitiGuardado(m)||vacio(Lz.cols,Lz.rows);mascara=mascaraDe(m);pintadosAca.value=pintados(graf);
+ nextTick(()=>{const w=lienzoGraf.value?.parentElement.clientWidth||400;zoomG.value=Math.max(2,Math.min(12,Math.floor(w/Lz.cols)));dibujarGraf();});}
+function alzadoClic(){const L=elegido.value;if(!L)return;abrirMuro(muroExterior(L,ladoAlzado.value||L.front));}
+function paredClic(e){const L=elegido.value,lv=L.levels[fichaNivel.value],p=aPiso(e),q=cuartoEn(lv,p.x,p.z);if(!q)return;abrirMuro(muroCerca(L,fichaNivel.value,q,p.x,p.z,otroLoteDe(planoEntero,L)));}
+const fondoG=()=>muro.value?.color||elegido.value?.colores?.fachada||'#d9cdb8';
+function celdaG(x,c,f){const s=zoomG.value,i=f*Lz.cols+c,v=graf.d[i];x.fillStyle=!mascara[i]?'#2a303a':v?GRAFITI.paleta[v]:fondoG();x.fillRect(c*s,f*s,s,s);if(!mascara[i]&&s>=3&&(c+f)%2===0){x.fillStyle='#3a424f';x.fillRect(c*s,f*s,s,s);}
+ if(s>=7){x.strokeStyle='rgba(0,0,0,.12)';x.lineWidth=1;x.strokeRect(c*s+.5,f*s+.5,s,s);}}
+function dibujarGraf(){const c=lienzoGraf.value;if(!c||!muro.value||!Lz)return;const s=zoomG.value;c.width=Lz.cols*s;c.height=Lz.rows*s;c.style.width=Lz.cols*s+'px';c.style.height=Lz.rows*s+'px';const x=c.getContext('2d');
+ for(let f=0;f<Lz.rows;f++)for(let i=0;i<Lz.cols;i++)celdaG(x,i,f);
+ // (una línea cada metro, para ubicarse en una pared grande)
+ x.strokeStyle='rgba(0,0,0,.28)';x.lineWidth=1;x.beginPath();const k=Math.round(1/Lz.px);for(let i=k;i<Lz.cols;i+=k){x.moveTo(i*s+.5,0);x.lineTo(i*s+.5,Lz.rows*s);}for(let f=Lz.rows-k;f>0;f-=k){x.moveTo(0,f*s+.5);x.lineTo(Lz.cols*s,f*s+.5);}x.stroke();}
+function grafPunto(e){const c=lienzoGraf.value;if(!c||!graf)return;const r=c.getBoundingClientRect(),s=zoomG.value,b=pincel.value,c0=Math.floor((e.clientX-r.left)/s)-Math.floor((b-1)/2),f0=Math.floor((e.clientY-r.top)/s)-Math.floor((b-1)/2),x=c.getContext('2d');
+ for(let df=0;df<b;df++)for(let dc=0;dc<b;dc++)if(pintar(graf,c0+dc,f0+df,tinta.value,mascara))celdaG(x,c0+dc,f0+df);}
+function grafBaja(e){if(e.button)return;pintando=true;e.target.setPointerCapture?.(e.pointerId);grafPunto(e);}
+function guardarMuro(){const m=muro.value;if(!m||!graf)return;pintadosAca.value=pintados(graf);const k=claveCiudad(seed.value,team.value),todos={...deEstaCiudad()};if(pintadosAca.value)todos[m.id]={cols:graf.cols,rows:graf.rows,t:aTexto(graf)};else delete todos[m.id];grafitis.value={...grafitis.value,[k]:todos};guardarGrafitis();dibujarPiso();}
+function grafSube(){if(!pintando)return;pintando=false;guardarMuro();}
+function grafLimpiar(){if(!graf)return;graf.d.fill(0);dibujarGraf();guardarMuro();}
+function zoomGraf(d){zoomG.value=Math.max(1,Math.min(16,zoomG.value+d));dibujarGraf();}
+const murosPintados=computed(()=>Object.keys(grafitis.value[claveCiudad(seed.value,team.value)]||{}).length);
 const alzado=ref(null),ladoAlzado=ref(null),medidoAlzado=ref(null),NOMBRE_TEX={ladrillo:'ladrillo a la vista',ladrillo_pintado:'ladrillo pintado',sillar:'sillar de piedra',estuco:'estuco',panel:'panel',hormigon:'hormigón a la vista',tablilla:'tablilla'};
 // (el paquete de texturas de las fachadas: se recuerda en este navegador)
 const guardado=(()=>{try{return localStorage.getItem('fuga.paquete');}catch{return null;}})(),paquete=ref(PAQUETES[guardado]?guardado:'ciudad');// (sin nada guardado: «Como el 3D»)
@@ -93,7 +104,7 @@ const deEstePiso=computed(()=>colocados.value[claveCol.value]||[]);
 const guardarCol=()=>{try{localStorage.setItem('fuga.colocados',JSON.stringify(colocados.value));}catch{}};
 function aPiso(e){const L=elegido.value,c=piso.value,r=c.getBoundingClientRect(),{m,ox,oy}=marcoPiso(L,c.clientWidth);return {x:(e.clientX-r.left)/m+ox,z:(e.clientY-r.top)/m+oy};}
 function pisoMueve(e){if(!objeto.value||!elegido.value)return;fantasma.value=colocar(elegido.value.levels[fichaNivel.value],aPiso(e),objeto.value,deEstePiso.value,giroObj.value);pintarPiso();}
-function pisoClic(e){if(!objeto.value||!elegido.value)return;const r=colocar(elegido.value.levels[fichaNivel.value],aPiso(e),objeto.value,deEstePiso.value,giroObj.value);fantasma.value=r;if(!r.ok){pintarPiso();return;}
+function pisoClic(e){if(eligePared.value&&elegido.value){paredClic(e);return;}if(!objeto.value||!elegido.value)return;const r=colocar(elegido.value.levels[fichaNivel.value],aPiso(e),objeto.value,deEstePiso.value,giroObj.value);fantasma.value=r;if(!r.ok){pintarPiso();return;}
  colocados.value={...colocados.value,[claveCol.value]:[...deEstePiso.value,r]};guardarCol();fantasma.value=null;pintarPiso();}
 function quitarCol(i){const l=[...deEstePiso.value];l.splice(i,1);colocados.value={...colocados.value,[claveCol.value]:l};guardarCol();pintarPiso();}
 function pintarPiso(){const L=elegido.value;if(!L||!piso.value)return;const w=piso.value.parentElement.clientWidth;drawFloorPlan(piso.value,L,{level:fichaNivel.value,stage:9,width:w});drawColocados(piso.value,L,deEstePiso.value,fantasma.value,OBJETOS,{width:w});}// (maxPisos: el plano no es reactivo —es enorme—, así que se anota al cargar)
@@ -147,9 +158,7 @@ const casaNivel=computed(()=>casa.value?Math.min(nivel.value,casa.value.spec.hog
 const casaCuartos=computed(()=>{const c=casa.value;if(!c)return [];return c.spec.hogar.levels[casaNivel.value].rooms.filter(q=>q.type!=='hall').map(q=>({nombre:q.label||ROOM_LABEL[q.type]||q.type,medida:`${(q.u1-q.u0).toFixed(1)} × ${(q.v1-q.v0).toFixed(1)} m`}));});
 async function dibujarPiso(){await nextTick();if(casa.value&&piso.value){drawHogar(piso.value,casa.value.spec.hogar,{level:casaNivel.value,width:piso.value.parentElement.clientWidth,vacia:vacias.value});return;}
  const L=elegido.value;if(!L||!piso.value)return;
- if(alzado.value){const lado=ladosAbiertos.value.includes(ladoAlzado.value)?ladoAlzado.value:L.front;ladoAlzado.value=lado;medidoAlzado.value=drawElevation(alzado.value,L,{width:alzado.value.parentElement.clientWidth,lado,paquete:paquete.value,pintables:true,grafitis:deEstaCiudad(),elegido:panio.value?.id||null});
-  // (el paño elegido, con la medida de este dibujo; si se cambió de lado o de edificio, se suelta)
-  if(panio.value){panio.value=medidoAlzado.value.pintables.find(q=>q.id===panio.value.id)||null;}}
+ if(alzado.value){const lado=ladosAbiertos.value.includes(ladoAlzado.value)?ladoAlzado.value:L.front;ladoAlzado.value=lado;medidoAlzado.value=drawElevation(alzado.value,L,{width:alzado.value.parentElement.clientWidth,lado,paquete:paquete.value,pintables:true,grafiti:muro.value?.id===`L${L.id}-${lado}`&&graf?graf:grafitiGuardado(muroExterior(L,lado))});}
  pintarPiso();}
 
 async function cargar(){
@@ -168,7 +177,7 @@ watch(vista,pedirNitido);
 watch([vista,verGente],dibujarGente,{deep:true});
 watch(vacias,v=>{if(!planoEntero)return;plano=v?entregaDe(planoEntero):planoEntero;if(elegido.value)elegido.value=plano.lots.find(L=>L.id===elegido.value.id)||null;dibujar();dibujarPiso();pedirNitido();});
 watch([elegido,casa,grande,ladoAlzado,paquete],dibujarPiso);
-watch(elegido,()=>{ladoAlzado.value=null;fantasma.value=null;panio.value=null;});
+watch(elegido,()=>{ladoAlzado.value=null;fantasma.value=null;abrirMuro(null);});
 let obs;
 onMounted(()=>{grafitis.value=leerGrafitis();cargar();window.addEventListener('keydown',tecla);obs=new ResizeObserver(()=>{if(!plano||arrastre)return;if(!tocado)ajustar();dibujarPiso();pedirNitido();dibujarGente();});obs.observe(host.value);});
 onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydown',tecla);obs?.disconnect();});
@@ -248,18 +257,19 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
    <div class="alzado-cab"><b>La fachada</b>
     <div class="lados" role="group" aria-label="Lado de la fachada"><button v-for="l in ladosAbiertos" :key="l" :class="{on:l===ladoAlzado}" @click="ladoAlzado=l">{{ LADO[l] }}<small v-if="l===elegido.front"> · frente</small></button></div></div>
    <div class="paquetes" role="group" aria-label="Paquete de texturas"><span>Texturas</span><button v-for="(P,k) in PAQUETES" :key="k" :class="{on:k===paquete}" :title="P.nota" @click="paquete=k">{{ P.nombre }}</button><small>{{ PAQUETES[paquete].nota }}</small></div>
-   <div class="ficha-piso" :class="{pintable:medidoAlzado?.pintables?.length}"><canvas ref="alzado" @click="alzadoClic"></canvas></div>
-   <div v-if="panio" class="grafiti">
-    <b>Pixel art en este paño · {{ lienzoDe(panio).cols }} × {{ lienzoDe(panio).rows }} píxeles de 10 cm<small> · {{ panio.ancho.toFixed(1) }} × {{ panio.alto.toFixed(1) }} m · {{ pintadosAca }} pintados</small></b>
+   <div class="ficha-piso pintable"><canvas ref="alzado" @click="alzadoClic"></canvas></div>
+   <p class="alzado-med">Tocá la fachada para pintarla entera (menos sus ventanas y puertas), o <button class="enlace" :class="{on:eligePared}" @click="eligePared=!eligePared;objeto=null">{{ eligePared?'tocá ahora una pared en el plano del piso…':'pintá una pared de adentro' }}</button>. <template v-if="murosPintados">{{ murosPintados }} {{ murosPintados===1?'muro pintado':'muros pintados' }} en esta ciudad.</template></p>
+   <div v-if="muro" class="grafiti">
+    <b>Pixel art · {{ muro.nombre }}<template v-if="muro.clase==='interior'"> del cuarto {{ muro.cuarto }}, piso {{ muro.nivel }}</template> · {{ lienzoDe(muro).cols }} × {{ lienzoDe(muro).rows }} píxeles de 5 cm<small> · {{ muro.ancho.toFixed(1) }} × {{ muro.alto.toFixed(1) }} m · {{ pintadosAca.toLocaleString('es-CO') }} pintados</small></b>
     <div class="tintas"><button v-for="(c,i) in GRAFITI.paleta" :key="i" :class="{on:tinta===i,goma:!c}" :style="c?{background:c}:{}" :title="c?c:'Borrar píxeles'" @click="tinta=i">{{ c?'':'×' }}</button>
-     <button class="texto" @click="grafLimpiar" :disabled="!pintadosAca">Borrar todo</button><button class="texto" @click="panio=null;dibujarPiso()">Cerrar</button></div>
+     <span class="sep"></span><button v-for="b in [1,2,4,8]" :key="'b'+b" class="texto" :class="{on:pincel===b}" :title="`Pincel de ${b} × ${b} píxeles (${b*5} cm)`" @click="pincel=b">{{ b }}</button>
+     <span class="sep"></span><button class="texto" @click="zoomGraf(-1)" title="Alejar">−</button><button class="texto" @click="zoomGraf(1)" title="Acercar">+</button>
+     <button class="texto" @click="grafLimpiar" :disabled="!pintadosAca">Borrar todo</button><button class="texto" @click="abrirMuro(null);dibujarPiso()">Cerrar</button></div>
     <div class="graf-lienzo"><canvas ref="lienzoGraf" @pointerdown="grafBaja" @pointermove="pintando&&grafPunto($event)" @pointerup="grafSube" @pointerleave="grafSube"></canvas></div>
-    <small>Arrastrá para pintar. Queda guardado en este navegador y se ve en esa pared al entrar en 3D.</small>
+    <small>Arrastrá para pintar. Lo gris son ventanas y puertas: ahí no se pinta. Las líneas marcan cada metro. Queda guardado en este navegador y se ve en esa pared al entrar en 3D. «Ampliar» (arriba) da más lugar.</small>
    </div>
-   <p v-else-if="medidoAlzado?.pintables?.length" class="alzado-med">Tocá un paño verde para pintarlo.</p>
    <p class="alzado-mat">{{ {ladrillo:'Ladrillo',piedra:'Piedra',metal:'Metal y concreto'}[elegido.fachada?.familia]||'—' }} · pintura {{ elegido.fachada?.pintura||'natural' }} · moldura {{ elegido.fachada?.moldura||'—' }} · techo {{ elegido.fachada?.techo==='mansarda'?'de mansarda':'plano' }}<template v-if="elegido.fachada?.balcones"> · balcones</template><template v-if="elegido.fachada?.toldos&&elegido.fachada.toldos!=='no'"> · toldos {{ elegido.fachada.toldos }}</template></p>
-   <p v-if="medidoAlzado?.textura" class="alzado-med">Muro de <b>{{ NOMBRE_TEX[medidoAlzado.textura]||medidoAlzado.textura }}</b> en el 3D<template v-if="medidoAlzado.hiladas"> · {{ medidoAlzado.hiladas }} hiladas por piso</template> · {{ medidoAlzado.modulos }} módulos de 2 m ·
-    <template v-if="medidoAlzado.pintables.length"><b style="color:#48dba0">{{ medidoAlzado.pintables.length }} {{ medidoAlzado.pintables.length===1?'paño pintable':'paños pintables' }}</b> (en verde): {{ medidoAlzado.pintables.map(p=>p.ancho+' × '+p.alto+' m').join(', ') }}</template><template v-else>sin paños pintables de este lado</template></p>
+   <p v-if="medidoAlzado?.textura" class="alzado-med">Muro de <b>{{ NOMBRE_TEX[medidoAlzado.textura]||medidoAlzado.textura }}</b> en el 3D<template v-if="medidoAlzado.hiladas"> · {{ medidoAlzado.hiladas }} hiladas por piso</template> · {{ medidoAlzado.modulos }} módulos de 2 m</p>
    <p v-if="medidoAlzado" class="alzado-med">
     <template v-if="medidoAlzado.ventanas">{{ medidoAlzado.ventanas }} ventanas arriba de la planta baja: <b :class="{alerta:medidoAlzado.corridas}">{{ medidoAlzado.corridas }} corridas</b><template v-if="medidoAlzado.corridas"> (con borde naranja)</template><template v-if="medidoAlzado.sobreMuro">, {{ medidoAlzado.sobreMuro }} sobre muro</template> · </template>
     vidrio por piso: <span v-for="(v,i) in medidoAlzado.vano" :key="i">{{ i===0?'PB':i }} {{ v }} %<template v-if="i<medidoAlzado.vano.length-1">, </template></span> · alto {{ medidoAlzado.alto }} m</p>
@@ -317,9 +327,11 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
 .tintas{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;align-items:center}
 .tintas button{width:24px;height:24px;border-radius:6px;border:2px solid rgba(255,255,255,.25);cursor:pointer;color:var(--tx);font:inherit;font-size:13px;line-height:1;padding:0;background:transparent}
 .tintas button.on{border-color:#ffd166;transform:scale(1.15)}
-.tintas button.texto{width:auto;padding:0 9px;font-size:12px;border-width:1px}
+.tintas button.texto{width:auto;min-width:24px;padding:0 8px;font-size:12px;border-width:1px}
+.tintas .sep{width:1px;height:20px;background:var(--borde);margin:0 3px}
+.enlace{background:none;border:0;padding:0;color:#48dba0;font:inherit;cursor:pointer;text-decoration:underline}.enlace.on{color:#ffd166}
 .tintas button:disabled{opacity:.4;cursor:default}
-.graf-lienzo{overflow:auto;background:#0d1320;border-radius:6px;padding:1px}
+.graf-lienzo{overflow:auto;max-height:70vh;background:#0d1320;border-radius:6px;padding:1px}
 .graf-lienzo canvas{display:block;cursor:crosshair;touch-action:none}
 .capa-gente{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .capas label{padding:5px 10px;border-radius:99px;border:1px solid var(--borde);cursor:pointer;color:var(--tx3);gap:0}

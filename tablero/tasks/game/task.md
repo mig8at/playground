@@ -20,7 +20,8 @@ jira_title: ""
 - [x] Dar textura a las fachadas en el 3D: siete texturas dibujadas (ladrillo, ladrillo pintado, sillar, estuco, panel, hormigón, tablilla), la misma en el alzado 2D y en el 3D.
 - [x] Dar textura también a los techos y al zócalo en el 3D: mansardas de pizarra, azotea con membrana y gravilla, zócalo de piedra.
 - [ ] Pintar grafitis desde adentro del 3D y guardarlos en un servidor: termina cuando lo que pinta una persona lo ve otra.
-- [ ] Decidir quién puede pintar un paño. Depende de: Miguel — el dueño del edificio, cualquiera, o pagando con la moneda.
+- [ ] Decidir quién puede pintar un muro. Depende de: Miguel — adentro, el dueño; afuera, el dueño del edificio, cualquiera, o pagando con la moneda.
+- [ ] Permitir pintar las paredes de las casas del monte: termina cuando una pared de una casa del monte se pinta en el plano y se ve en el 3D.
 - [ ] Decidir si se usan texturas de foto bajadas de internet. Depende de: Miguel — hoy todas están dibujadas en el código, del mismo estilo; las de foto (libres, de Poly Haven o ambientCG) se verían más reales y menos «de dibujo», y pesan más.
 - [x] Listar las propiedades de una ciudad (departamentos, locales, casas) con área y precio base: la misma semilla da el mismo listado y se ve en el visor.
 - [ ] Revisar la fórmula del precio base. Depende de: Miguel — los factores (clase, centro, piso, parque) son propuesta de Claude.
@@ -78,7 +79,7 @@ Es interpretación mía de lo que pidió, para discutir; nada de esto está cons
 | dónde aparece quien entra, y el cupo | `game/src/engine/aparecer.js` |
 | la fachada medida: vanos, paños, textura y paños pintables | `game/src/engine/fachada-medida.js` |
 | las texturas de muro del 3D | `game/src/lib/texturas3d.js` |
-| el grafiti: la grilla de pixel art de un paño · su capa 3D | `game/src/engine/grafiti.js` · `game/src/lib/grafitis3d.js` |
+| el grafiti: la grilla de pixel art de un muro · los muros pintables · su capa 3D | `game/src/engine/grafiti.js` · `game/src/engine/muros.js` · `game/src/lib/grafitis3d.js` |
 | el listado de lo que se vende, con área y precio | `game/src/engine/propiedades.js` |
 | dónde va cada contenedor de basura | `game/src/engine/contenedores.js` |
 | el dibujo del plano 2D, el alzado y las texturas | `game/src/lib/drawPlan.js`, `texturas2d.js` |
@@ -133,9 +134,9 @@ Cada uno con su condición de cierre. Los hechos pasan a la pila como bloque.
 
 **Qué**: pintar píxeles sobre los paños de muro de la planta baja.
 **Hecho**: del plano sale la lista de paños pintables (edificio, lado, tramo, alto, y sus dos puntas en la ciudad): el muro de la planta baja entre vano y vano, del zócalo (0,8 m) al dintel (2,6 m), de 1 m de ancho o más. El alzado de cada edificio los marca en verde.
-**Hecho también**: pintar. Cada paño es una grilla de píxeles de 10 cm con una paleta de 15 colores; se pinta en el alzado del plano, queda guardado en el navegador y el paseo en 3D lo muestra en esa pared.
-**Falta**: pintar desde adentro del 3D; guardarlo en un servidor para que lo vean otros; quién puede pintar cada paño (dueño, cualquiera, pagando).
-**Cierre**: una persona pinta un paño y otra lo ve al pasar.
+**Hecho también**: pintar. Lo que se pinta es el **muro entero** (decisión de Miguel, 2026-11-21): una fachada completa o una pared de un cuarto, sin sus ventanas ni sus puertas; afuera y adentro, para decorar la casa. La grilla es de píxeles de 5 cm (una fachada de 12 × 6 m son 240 × 120), con 15 colores, pincel de 1 a 8 píxeles y acercar. Se pinta en el plano, queda guardado en el navegador y el paseo en 3D lo muestra en esa pared.
+**Falta**: las casas del monte (su plano está en otras coordenadas); pintar desde adentro del 3D; guardarlo en un servidor para que lo vean otros; quién puede pintar cada muro (el dueño adentro; afuera, por decidir).
+**Cierre**: una persona pinta un muro y otra lo ve al pasar.
 
 ### 7. Mundos por idioma o país — sin empezar
 
