@@ -35,6 +35,27 @@ var stages = map[string][]Stage{
 	},
 }
 
+// Los países que Sabueso sabe buscar. Colombia, por el registro mercantil abierto; Perú, con Claude por internet (no
+// hay un registro abierto con la actividad y los locales de cada empresa: el padrón de SUNAT es una descarga masiva sin
+// la actividad).
+type Country struct {
+	ID, Name, Adjective, TaxID string
+}
+
+var countries = []Country{
+	{"CO", "Colombia", "colombiana", "NIT"},
+	{"PE", "Perú", "peruana", "RUC"},
+}
+
+func countryOf(id string) Country {
+	for _, c := range countries {
+		if c.ID == id {
+			return c
+		}
+	}
+	return countries[0]
+}
+
 func validStage(kind, id string) bool {
 	for _, s := range stages[kind] {
 		if s.ID == id {
@@ -74,8 +95,9 @@ type Company struct {
 	ID       string `json:"id"`
 	Kind     string `json:"kind"`
 	Name     string `json:"name"`
-	NIT      string `json:"nit,omitempty"`
-	Sector   string `json:"sector,omitempty"` // id de `sectors`
+	NIT      string `json:"nit,omitempty"`     // el número tributario: el NIT en Colombia, el RUC en Perú
+	Country  string `json:"country,omitempty"` // CO (si falta) · PE`
+	Sector   string `json:"sector,omitempty"`  // id de `sectors`
 	CIIU     string `json:"ciiu,omitempty"`
 	Region   string `json:"region,omitempty"` // la cámara de comercio o la ciudad
 	Points   int    `json:"points"`           // puntos de venta (establecimientos activos)
@@ -168,6 +190,12 @@ func validateCompany(c *Company) error {
 	}
 	if c.Stage == "" {
 		c.Stage = "prospect"
+	}
+	if c.Country == "" {
+		c.Country = "CO"
+	}
+	if countryOf(c.Country).ID != c.Country {
+		return fmt.Errorf("el país %q no está: CO o PE", c.Country)
 	}
 	if !validStage(c.Kind, c.Stage) {
 		return fmt.Errorf("la etapa %q no existe para %s", c.Stage, c.Kind)

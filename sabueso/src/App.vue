@@ -252,6 +252,10 @@ const hostOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, '') }
 // Los comercios que tienen al menos un canal, del que más encaja al que menos; el elegido es el de la ruta o el primero.
 const reachable = computed(() => companies.value.filter((c) => c.kind === 'merchant' && c.research?.contacts?.length).sort((a, b) => b.fit - a.fit || a.name.localeCompare(b.name, 'es')))
 const picked = computed(() => (route.value.view === 'company' && reachable.value.find((c) => c.id === route.value.id)) || reachable.value[0] || null)
+// Los países, en el orden del sidebar. Colombia sale del registro mercantil; Perú, de lo que encuentra Claude.
+const COUNTRIES = [{ id: 'CO', name: 'Colombia', tax: 'NIT' }, { id: 'PE', name: 'Perú', tax: 'RUC' }]
+const countryOf = (c) => COUNTRIES.find((x) => x.id === (c.country || 'CO')) || COUNTRIES[0]
+const byCountry = (id) => reachable.value.filter((c) => (c.country || 'CO') === id)
 const logOf = (c) => [...c.activities].reverse()
 
 // ── el panel: la actividad de todas ──
@@ -327,12 +331,15 @@ onBeforeUnmount(() => {
       <div class="rsz rsz-edge-right" v-resize="sidebarResize"></div>
       <div class="region-head"><span>Comercios</span><span class="count">{{ reachable.length }}</span></div>
       <div class="region-body">
-        <a v-for="c in reachable" :key="c.id" class="row" :class="{ on: picked?.id === c.id }" :href="`#/c/${c.id}`" :title="reachTitle(c)">
-          <span class="ui-icon" :data-icon="reachIcon(c)" aria-hidden="true"></span>
-          <span>{{ pretty(c.name) }}</span>
-          <span class="row-meta">{{ sectorName(c.sector) }}</span>
-        </a>
-        <div v-if="loaded && !reachable.length" class="side-empty">Todavía ninguno con un canal para contactarlo. Se buscan por consola: <code>bin/sabueso hunt --sector motorcycles</code>.</div>
+        <template v-for="co in COUNTRIES" :key="co.id">
+          <div class="region-head group"><span>{{ co.name }}</span><span class="count">{{ byCountry(co.id).length }}</span></div>
+          <a v-for="c in byCountry(co.id)" :key="c.id" class="row" :class="{ on: picked?.id === c.id }" :href="`#/c/${c.id}`" :title="reachTitle(c)">
+            <span class="ui-icon" :data-icon="reachIcon(c)" aria-hidden="true"></span>
+            <span>{{ pretty(c.name) }}</span>
+            <span class="row-meta">{{ sectorName(c.sector) }}</span>
+          </a>
+          <div v-if="loaded && !byCountry(co.id).length" class="side-empty">Ninguno con canal todavía: <code>bin/sabueso hunt --country {{ co.id }}</code>.</div>
+        </template>
         <div v-if="apiError" class="side-empty late">{{ apiError }}</div>
       </div>
     </aside>
@@ -341,16 +348,17 @@ onBeforeUnmount(() => {
       <div class="region-head"><span>{{ picked ? pretty(picked.name) : 'Sabueso' }}</span></div>
       <div v-if="picked" class="region-body doc profile">
         <h1>{{ pretty(picked.name) }}</h1>
-        <p class="profile-legal">{{ picked.name }}<template v-if="picked.nit"> · NIT {{ picked.nit }}</template></p>
+        <p class="profile-legal">{{ picked.name }}<template v-if="picked.nit"> · {{ countryOf(picked).tax }} {{ picked.nit }}</template></p>
         <p v-if="picked.research?.summary" class="profile-summary">{{ picked.research.summary }}</p>
         <dl class="facts">
           <template v-if="picked.sector"><dt>Sector</dt><dd>{{ sectorName(picked.sector) }}</dd></template>
+          <dt>País</dt><dd>{{ countryOf(picked).name }}</dd>
           <template v-if="picked.region"><dt>Ciudad</dt><dd>{{ picked.region }}</dd></template>
-          <template v-if="picked.points"><dt>Puntos de venta</dt><dd>{{ picked.points }} establecimientos activos en el registro mercantil</dd></template>
+          <template v-if="picked.points"><dt>Puntos de venta</dt><dd>{{ picked.points }} {{ picked.source === 'web' ? 'locales, según lo que encontró Claude' : 'establecimientos activos en el registro mercantil' }}</dd></template>
           <template v-if="picked.website"><dt>Sitio web</dt><dd><a :href="picked.website.startsWith('http') ? picked.website : `https://${picked.website}`" target="_blank" rel="noopener">{{ hostOf(picked.website.startsWith('http') ? picked.website : `https://${picked.website}`) }}</a></dd></template>
           <template v-if="picked.fitWhy?.length"><dt>Por qué encaja</dt><dd>{{ picked.fitWhy.join(' · ') }}</dd></template>
         </dl>
-        <p class="muted small">Del registro mercantil de Confecámaras<template v-if="picked.research"> · contacto buscado por Claude el {{ shortDate(picked.research.at) }}</template>.</p>
+        <p class="muted small">{{ picked.source === 'web' ? 'Encontrado por Claude en internet' : 'Del registro mercantil de Confecámaras' }}<template v-if="picked.research"> · contacto buscado por Claude el {{ shortDate(picked.research.at) }}</template>.</p>
       </div>
       <div v-else class="region-body"><div class="empty"><div class="empty-head">
         <div class="empty-title">Sin comercios todavía</div>

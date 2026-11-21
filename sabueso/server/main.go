@@ -124,6 +124,9 @@ func find(st *State, id string) *Company {
 // enrich recalcula lo derivado de cada empresa antes de devolverla.
 func enrich(st *State) {
 	for _, c := range st.Companies {
+		if c.Country == "" {
+			c.Country = "CO"
+		}
 		c.Fit, c.FitWhy = computeFit(c)
 		if c.FitWhy == nil {
 			c.FitWhy = []string{}
@@ -221,6 +224,54 @@ func routes() *http.ServeMux {
 		writeJSON(w, 200, map[string]any{"candidates": list, "sector": s.ID, "source": "Registro mercantil · Confecámaras (datos.gov.co, CC BY-SA 4.0)"})
 	})
 
+	// Buscar con Claude por internet los comercios de un sector en un país sin registro abierto (Perú).
+	mux.HandleFunc("POST /api/discover-web", func(w http.ResponseWriter, r *http.Request) {
+		var in struct {
+			Country string `json:"country"`
+			Sector  string `json:"sector"`
+			Limit   int    `json:"limit"`
+		}
+		if !decode(w, r, &in) {
+			return
+		}
+		s := sectorByID(in.Sector)
+		if s == nil {
+			writeErr(w, 400, errors.New("el sector no existe"))
+			return
+		}
+		co := countryOf(in.Country)
+		if co.ID != in.Country {
+			writeErr(w, 400, errors.New("el país no está: CO o PE"))
+			return
+		}
+		if in.Limit < 1 || in.Limit > 15 {
+			in.Limit = 8
+		}
+		mu.Lock()
+		st, err := loadState()
+		mu.Unlock()
+		if err != nil {
+			writeErr(w, 500, err)
+			return
+		}
+		var skip []string
+		for _, c := range st.Companies {
+			if c.Country == co.ID {
+				skip = append(skip, c.Name)
+			}
+		}
+		for _, d := range st.NoChannel {
+			skip = append(skip, d.Name)
+		}
+		list, cost, err := webFind(r.Context(), co, s, in.Limit, skip)
+		if err != nil {
+			writeErr(w, 502, err)
+			return
+		}
+		markWeb(list, st, loadMeasured(r.Context(), false))
+		writeJSON(w, 200, map[string]any{"candidates": list, "costUsd": cost})
+	})
+
 	// Una empresa nueva: a mano, o desde el registro.
 	mux.HandleFunc("POST /api/companies", func(w http.ResponseWriter, r *http.Request) {
 		var c Company
@@ -241,7 +292,7 @@ func routes() *http.ServeMux {
 				}
 			}
 			c.ID, c.Created, c.Updated, c.Activities = newID("co"), now(), now(), nil
-			from := map[string]string{"manual": "a mano", "registry": "desde el registro mercantil"}[c.Source]
+			from := map[string]string{"manual": "a mano", "registry": "desde el registro mercantil", "web": "encontrada por Claude en internet"}[c.Source]
 			c.log("created", "Entró como "+strings.ToLower(stageName(c.Kind, c.Stage))+" "+from)
 			st.Companies = append(st.Companies, &c)
 			return nil

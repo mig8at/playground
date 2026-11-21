@@ -22,13 +22,15 @@ const api = "http://127.0.0.1:5245"
 
 const usage = `bin/sabueso — encontrar comercios que no trabajan con CreditOp y su contacto para la propuesta
 
-  bin/sabueso hunt [--sector motorcycles] [--count 1] [--tries 3] [--min 5]
+  bin/sabueso hunt [--country CO|PE] [--sector motorcycles] [--count 1] [--tries 3] [--min 5]
         busca en el registro mercantil los comercios del sector que encajan y no son clientes, los agrega y le
         pide a Claude (claude -p, por internet) el canal por el que reciben propuestas; sigue con el siguiente
-        hasta tener --count con contacto (o --tries intentos). Cada búsqueda: ~1,5 min y gasta el asiento del plan
+        hasta tener --count con contacto (o --tries intentos). Cada búsqueda: ~1,5 min y gasta el asiento del plan.
+        En Perú (--country PE) no hay registro abierto: los comercios también los encuentra Claude por internet
         Los que quedan sin canal salen de Sabueso y no se vuelven a buscar.
   bin/sabueso contact <nombre|id>    busca el contacto de un comercio que ya está en Sabueso
-  bin/sabueso find [--sector S] [--min 5]   los del registro, sin agregar nada (segundos)
+  bin/sabueso find [--country CO|PE] [--sector S] [--min 5]   los candidatos, sin agregar nada (en CO, segundos;
+        en PE, una búsqueda de Claude)
   bin/sabueso list [--json]          los comercios que se siguen, con su contacto
   bin/sabueso sectors                los sectores que sabe buscar
 
@@ -172,8 +174,20 @@ func findCmd(args []string) error {
 	fs := flag.NewFlagSet("find", flag.ContinueOnError)
 	sector := fs.String("sector", "motorcycles", "")
 	min := fs.Int("min", 5, "")
+	country := fs.String("country", "CO", "")
 	if err := fs.Parse(args); err != nil {
 		return err
+	}
+	if *country != "CO" {
+		list, cost, err := discoverWeb(*country, *sector)
+		if err != nil {
+			return err
+		}
+		for _, c := range list {
+			fmt.Printf("%4d locales  %-40s %-14s %s\n", c.Points, trim(c.Name, 40), c.City, webMark(c))
+		}
+		fmt.Printf("\n%d empresas · encontradas por Claude en internet (US$%.2f equivalentes)\n", len(list), cost)
+		return nil
 	}
 	list, err := discover(*sector, *min)
 	if err != nil {
@@ -197,6 +211,34 @@ func findCmd(args []string) error {
 	return nil
 }
 
+type webCandidate struct {
+	Name, LegalName, TaxID, City, Website, What, Source, Country, Sector, Client, Tracked string
+	Points, Fit                                                                           int
+	NoChannel                                                                             bool
+}
+
+func webMark(c webCandidate) string {
+	switch {
+	case c.Client != "":
+		return "ya es cliente (" + c.Client + ")"
+	case c.Tracked != "":
+		return "ya en Sabueso"
+	case c.NoChannel:
+		return "ya se buscó: sin canal público"
+	}
+	return c.What
+}
+
+func discoverWeb(country, sector string) ([]webCandidate, float64, error) {
+	var out struct {
+		Candidates []webCandidate
+		CostUSD    float64
+	}
+	fmt.Fprintf(os.Stderr, "sabueso: Claude busca comercios de %s en %s por internet…\n", sector, country)
+	err := call("POST", "/api/discover-web", map[string]any{"country": country, "sector": sector, "limit": 8}, &out, 9*time.Minute)
+	return out.Candidates, out.CostUSD, err
+}
+
 func discover(sector string, min int) ([]candidate, error) {
 	var out struct{ Candidates []candidate }
 	err := call("POST", "/api/discover", map[string]any{"sector": sector, "minPoints": min}, &out, 3*time.Minute)
@@ -209,8 +251,12 @@ func hunt(args []string) error {
 	count := fs.Int("count", 1, "")
 	tries := fs.Int("tries", 3, "")
 	min := fs.Int("min", 5, "")
+	country := fs.String("country", "CO", "")
 	if err := fs.Parse(args); err != nil {
 		return err
+	}
+	if *country != "CO" {
+		return huntWeb(*country, *sector, *count, *tries)
 	}
 	list, err := discover(*sector, *min)
 	if err != nil {
@@ -370,4 +416,42 @@ func trim(s string, n int) string {
 		return string(r[:n-1]) + "…"
 	}
 	return s
+}
+
+// huntWeb: como hunt, para un país sin registro abierto: los candidatos los encuentra Claude por internet.
+func huntWeb(country, sector string, count, tries int) error {
+	list, _, err := discoverWeb(country, sector)
+	if err != nil {
+		return err
+	}
+	found, tried := 0, 0
+	for _, c := range list {
+		if found >= count || tried >= tries {
+			break
+		}
+		if c.Client != "" || c.NoChannel || c.Tracked != "" {
+			continue
+		}
+		var out struct{ ID string }
+		body := map[string]any{"kind": "merchant", "name": c.Name, "nit": c.TaxID, "sector": c.Sector, "country": c.Country,
+			"region": c.City, "points": c.Points, "website": c.Website, "source": "web"}
+		if err := call("POST", "/api/companies", body, &out, time.Minute); err != nil {
+			fmt.Fprintf(os.Stderr, "  no pude agregar %s: %v\n", c.Name, err)
+			continue
+		}
+		tried++
+		fmt.Printf("→ %s (%d locales, %s): buscando el contacto con Claude…\n", c.Name, c.Points, c.City)
+		ok, err := contactByID(out.ID)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "  no pude: %v\n", err)
+			continue
+		}
+		if ok {
+			found++
+		} else if err := call("POST", "/api/companies/"+out.ID+"/drop", map[string]any{}, nil, time.Minute); err == nil {
+			fmt.Println("  sin canal: sale de Sabueso (queda anotada para no volver a buscarla)")
+		}
+	}
+	fmt.Printf("\n%d de %d con contacto. Se ven en Sabueso (Cockpit) y con bin/sabueso list.\n", found, tried)
+	return nil
 }

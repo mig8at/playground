@@ -67,7 +67,7 @@ func computeFit(c *Company) (int, []string) {
 		why = append(why, "sin dato de puntos de venta")
 	}
 	if s := sectorByID(c.Sector); s != nil {
-		if s.Ticket == "high" {
+		if ticketFor(c.Country, s) == "high" {
 			score += 30
 			why = append(why, fmt.Sprintf("%s: el ticket entra en lo que se presta", s.Name))
 		} else {
@@ -89,4 +89,13 @@ func computeFit(c *Company) (int, []string) {
 		score = 100
 	}
 	return score, why
+}
+
+// ticketFor: el encaje del ticket de un sector en un país. En Perú, BCP Vehicular financia el vehículo entero, así que
+// carros encaja del todo (en Colombia, el monto de hoy no cubre un carro).
+func ticketFor(country string, s *Sector) string {
+	if country == "PE" && s.ID == "cars" {
+		return "high"
+	}
+	return s.Ticket
 }

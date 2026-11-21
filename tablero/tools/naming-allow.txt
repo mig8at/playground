@@ -180,6 +180,8 @@ sabueso
 # sabueso: NIT (el número tributario de una empresa en Colombia) y CIIU (su código de actividad económica)
 # son siglas oficiales, como `rut`; Socrata es la plataforma de datos.gov.co; `establishments`, inglés común
 nit ciiu socrata establishments
+# los ids de los sectores de Sabueso y el gentilicio de un país, en inglés común
+adjective dental appliances motorcycles
 # los campos del registro mercantil abierto de Confecámaras (datos.gov.co): su contrato, no el nuestro
 json: sabueso/server/sources.go nit_propietario razon_social estado_matricula camara_comercio para de del y la el
 # las palabras que se le quitan a una razón social para compararla (formas jurídicas y artículos): datos, no nombres

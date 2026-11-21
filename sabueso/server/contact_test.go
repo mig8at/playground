@@ -109,3 +109,24 @@ func TestDropRoute(t *testing.T) {
 		t.Errorf("sale de la lista y queda anotada: %+v", st)
 	}
 }
+
+func TestCountry(t *testing.T) {
+	co, _ := computeFit(&Company{Kind: KindMerchant, Country: "CO", Points: 30, Sector: "cars"})
+	pe, _ := computeFit(&Company{Kind: KindMerchant, Country: "PE", Points: 30, Sector: "cars"})
+	if pe <= co {
+		t.Errorf("en Perú (BCP Vehicular) carros encaja del todo: PE %d, CO %d", pe, co)
+	}
+	m := &Measured{Clients: []Client{{Name: "Ferronor SAC"}}}
+	m.index()
+	st := &State{Companies: []*Company{{ID: "co_1", Name: "Autos del Pacífico"}}, NoChannel: []Dropped{{Name: "Motor Sur SAC"}}}
+	list := []WebCandidate{{Name: "Ferronor", LegalName: "FERRONOR SAC", Country: "PE", Sector: "home"}, {Name: "Autos del Pacífico", Country: "PE", Sector: "cars"},
+		{Name: "Motor Sur", LegalName: "Motor Sur SAC", Country: "PE", Sector: "cars"}, {Name: "Nueva", Country: "PE", Sector: "cars", Points: 12}}
+	markWeb(list, st, m)
+	if list[0].Client == "" || list[1].Tracked == "" || !list[2].NoChannel || list[3].Client != "" || list[3].Fit == 0 {
+		t.Errorf("marcas: %+v", list)
+	}
+	c := &Company{Name: "X", Kind: KindMerchant, Country: "AR"}
+	if validateCompany(c) == nil {
+		t.Error("un país que no está se rechaza")
+	}
+}

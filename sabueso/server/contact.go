@@ -57,19 +57,20 @@ const researchSchema = `{"type":"object","properties":{
 
 func researchPrompt(c *Company) string {
 	var b strings.Builder
-	b.WriteString("Investigá en internet esta empresa colombiana y encontrá el canal oficial por el que recibe propuestas comerciales B2B de un proveedor (una fintech que ofrece financiación a crédito para sus clientes en el punto de venta y en línea).\n\n")
-	fmt.Fprintf(&b, "Empresa: %s\n", c.Name)
+	co := countryOf(c.Country)
+	fmt.Fprintf(&b, "Investigá en internet esta empresa %s y encontrá el canal oficial por el que recibe propuestas comerciales B2B de un proveedor (una fintech que ofrece financiación a crédito para sus clientes en el punto de venta y en línea).\n\n", co.Adjective)
+	fmt.Fprintf(&b, "Empresa: %s\nPaís: %s\n", c.Name, co.Name)
 	if c.NIT != "" {
-		fmt.Fprintf(&b, "NIT: %s\n", c.NIT)
+		fmt.Fprintf(&b, "%s: %s\n", co.TaxID, c.NIT)
 	}
 	if s := sectorByID(c.Sector); s != nil {
-		fmt.Fprintf(&b, "Sector: %s (CIIU %s)\n", s.Name, strings.Join(s.CIIU, ", "))
+		fmt.Fprintf(&b, "Sector: %s\n", s.Name)
 	}
 	if c.Points > 0 {
 		fmt.Fprintf(&b, "Establecimientos activos: %d\n", c.Points)
 	}
 	if c.Region != "" {
-		fmt.Fprintf(&b, "Ciudad de la cámara de comercio: %s\n", c.Region)
+		fmt.Fprintf(&b, "Ciudad: %s\n", c.Region)
 	}
 	if c.Website != "" {
 		fmt.Fprintf(&b, "Sitio conocido: %s\n", c.Website)
@@ -82,7 +83,7 @@ Lo que busco, en este orden de preferencia:
 Reglas:
 - Sólo fuentes oficiales de la empresa (su sitio web, sus redes verificadas) o directorios empresariales públicos. Cada dato con la URL exacta donde lo viste.
 - No inventes nada. Si no lo encontraste, no lo pongas.
-- No uses el correo de notificación judicial del registro mercantil.
+- No uses el correo de notificación judicial del registro mercantil ni el de la entidad tributaria.
 - No pongas correos o celulares personales de empleados salvo que la empresa los publique como contacto comercial.
 - Revisá las páginas de contacto, sedes, post-venta y el pie de página del sitio: los enlaces de WhatsApp (wa.me) y los mailto suelen estar ahí.
 - El valor de cada canal es el dato exacto: un correo completo o un número con todos sus dígitos. Un usuario de Instagram o una red social no es un canal.
@@ -108,15 +109,16 @@ func claudeBinary() (string, error) {
 	return "", errors.New("no encuentro Claude Code (`claude`): instalalo o indicá el binario con SABUESO_CLAUDE")
 }
 
-// research corre la búsqueda. Puede tardar un par de minutos.
-var research = func(ctx context.Context, c *Company) (*Research, error) {
+// runClaude corre `claude -p` con sólo WebSearch y WebFetch, la instrucción por stdin y la salida atada a un esquema
+// JSON. Devuelve el JSON, cuánto costó (equivalente) y cuánto tardó.
+func runClaude(ctx context.Context, prompt, schema string) (json.RawMessage, float64, int, error) {
 	bin, err := claudeBinary()
 	if err != nil {
-		return nil, err
+		return nil, 0, 0, err
 	}
 	dir := filepath.Join(os.TempDir(), "sabueso-claude")
 	_ = os.MkdirAll(dir, 0o700)
-	ctx, cancel := context.WithTimeout(ctx, 6*time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, 8*time.Minute)
 	defer cancel()
 	model := os.Getenv("SABUESO_CLAUDE_MODEL")
 	if model == "" {
@@ -124,9 +126,9 @@ var research = func(ctx context.Context, c *Company) (*Research, error) {
 	}
 	cmd := exec.CommandContext(ctx, bin, "-p", "--output-format", "json", "--model", model,
 		"--tools", "WebSearch", "WebFetch", "--allowedTools", "WebSearch", "WebFetch",
-		"--strict-mcp-config", "--disable-slash-commands", "--json-schema", researchSchema)
+		"--strict-mcp-config", "--disable-slash-commands", "--json-schema", schema)
 	cmd.Dir = dir
-	cmd.Stdin = strings.NewReader(researchPrompt(c))
+	cmd.Stdin = strings.NewReader(prompt)
 	for _, kv := range os.Environ() {
 		k := kv[:strings.IndexByte(kv, '=')]
 		if (strings.HasPrefix(k, "CLAUDE_CODE_") || k == "CLAUDECODE" || k == "CLAUDE_AGENT_SDK_VERSION" || k == "ANTHROPIC_BASE_URL") && k != "CLAUDE_CODE_OAUTH_TOKEN" {
@@ -142,7 +144,7 @@ var research = func(ctx context.Context, c *Company) (*Research, error) {
 		if msg == "" {
 			msg = strings.TrimSpace(stdout.String())
 		}
-		return nil, fmt.Errorf("claude -p: %v %.300s", err, msg)
+		return nil, 0, 0, fmt.Errorf("claude -p: %v %.300s", err, msg)
 	}
 	var out struct {
 		IsError    bool            `json:"is_error"`
@@ -151,20 +153,29 @@ var research = func(ctx context.Context, c *Company) (*Research, error) {
 		Cost       float64         `json:"total_cost_usd"`
 	}
 	if err := json.Unmarshal(stdout.Bytes(), &out); err != nil {
-		return nil, fmt.Errorf("claude -p devolvió algo que no es JSON: %.200s", stdout.String())
+		return nil, 0, 0, fmt.Errorf("claude -p devolvió algo que no es JSON: %.200s", stdout.String())
 	}
 	if out.IsError {
-		return nil, fmt.Errorf("claude -p: %s", out.Result)
+		return nil, 0, 0, fmt.Errorf("claude -p: %s", out.Result)
 	}
 	raw := out.Structured
 	if len(raw) == 0 {
 		raw = json.RawMessage(out.Result)
 	}
+	return raw, out.Cost, int(time.Since(start).Seconds()), nil
+}
+
+// research corre la búsqueda del contacto. Puede tardar un par de minutos.
+var research = func(ctx context.Context, c *Company) (*Research, error) {
+	raw, cost, secs, err := runClaude(ctx, researchPrompt(c), researchSchema)
+	if err != nil {
+		return nil, err
+	}
 	var r Research
 	if err := json.Unmarshal(raw, &r); err != nil {
 		return nil, fmt.Errorf("la respuesta no trae el JSON pedido: %.200s", string(raw))
 	}
-	r.At, r.Seconds, r.CostUSD = now(), int(time.Since(start).Seconds()), out.Cost
+	r.At, r.Seconds, r.CostUSD = now(), secs, cost
 	r.Website = cleanWebsite(r.Website)
 	var clean []Contact
 	for _, ct := range r.Contacts {

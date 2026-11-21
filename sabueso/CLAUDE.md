@@ -15,6 +15,14 @@ la app.
     bin/sabueso find --sector dental                                           los del registro, sin agregar nada
     bin/sabueso list · sectors
 
+**Por país** (Miguel, 2026-11-21): el sidebar va en secciones, Colombia y Perú (`COUNTRIES` en `src/App.vue`, `countries`
+en `server/model.go`). En **Colombia** los comercios salen del registro mercantil abierto (exacto y gratis). En **Perú**
+no hay un registro abierto con la actividad y los locales (el padrón de SUNAT es una descarga masiva sin la actividad),
+así que los encuentra **Claude por internet** (`server/web_find.go`, `bin/sabueso hunt --country PE --sector cars`): las
+cadenas del sector con sus locales y la fuente; cada búsqueda gasta el asiento del plan. En Perú carros encaja del todo
+(BCP Vehicular financia el vehículo entero; `ticketFor` en `server/fit.go`). Las entidades de CreditOp Colombia que
+operan en otros países: `tablero/tasks/sabueso/artifacts/entidades-por-pais.json`.
+
 **Por ahora sólo comercios** (Miguel, 2026-11-21: «empecemos por comercio; oculta, no elimines»): las entidades están
 ocultas en la interfaz con `SHOW_LENDERS = false` (`src/App.vue`); el servidor y los datos las siguen sabiendo llevar.
 
@@ -95,7 +103,8 @@ La vista completa sigue en el código (con `SIMPLE = false`):
 | las empresas, las etapas y la bitácora | `server/model.go` |
 | los sectores y el encaje | `server/fit.go` |
 | prod (por `bin/pg`) y el registro mercantil | `server/sources.go` |
-| el contacto: Claude por internet y el mejor canal | `server/contact.go` |
+| el contacto: Claude por internet y el mejor canal | `server/contact.go` (y `runClaude`, la llamada compartida) |
+| encontrar comercios en un país sin registro abierto | `server/web_find.go` |
 | el sitio de la empresa, leído sin modelo | `server/site.go` (`SABUESO_LIVE=1 go test -run Live` va a internet) |
 | la consola | `sabueso/cli` (`bin/sabueso`, compilado en `~/.cache/my-tools/sabueso`) |
 | la API | `server/main.go` (encabezado `X-Sabueso: 1` y Host local, como el Llavero) |
