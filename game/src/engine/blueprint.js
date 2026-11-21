@@ -691,7 +691,7 @@ export const RECIPE={
  sala:['sofa','sillon?','tv','mesa_centro','planta','lampara?','escritorio?'],dormitorio:['cama','mesa_noche','armario','comoda?','lampara?','escritorio?'],cocina:['meson','nevera','estufa','lavadora?','mesa'],
  bano:['inodoro','banera','lavamanos'],sanitario_piso:['inodoro','lavamanos'],trastero:['caja','caja'],sanitario_grande:['inodoro','inodoro','lavamanos','lavamanos'],oficina:['escritorio!','archivador','estante?','lampara?','planta'],abierta:['escritorios!','archivador','planta'],reuniones:['mesa_reunion','tv'],
  cocineta:['meson','nevera'],habitacion:['cama_hotel','mesa_noche','comoda?','sillon?','escritorio?','tv','lampara'],dormitorio_b:['litera','litera?','armario','mesa_noche'],habitacion_h:['cama_h','cama_h?','mesa_noche'],enfermeria:['mostrador','escritorio!','camilla'],
- aula:['tablero','escritorio!','casillero?','pupitres'],sala_prof:['mesa_reunion','escritorio!','casillero?'],lectura:['estante','estante','estante','estante','mesa_lectura','mesa_lectura','mesa_lectura','mesa_lectura?','escritorio!','lampara?','planta'],archivo:['estante','estante','caja','caja'],
+ aula:['tablero','escritorio!','casillero?','pupitres'],sala_prof:['mesa_reunion','escritorio!','casillero?'],lectura:['estante','estante','estante','estante','mesa_lectura','mesa_lectura','mesa_lectura','mesa_lectura?','escritorio!','lampara?','planta'],archivo:['estante','estante','archivador','archivador','caja'],
  estudio:['cama','meson','estufa','nevera','sofa','escritorio?'],sala_cocina:['meson','estufa','nevera','sofa','sillon?','tv','mesa','escritorio?'],
  celda:['catre','inodoro'],boveda:['caja_fuerte','caja_fuerte','caja'],local:['estante','estante','mostrador','escritorio!','caja'],
  // Locales con giro (2026-10-12): el mostrador, la cocina a la vista y mesas con dos sillas.
@@ -709,7 +709,7 @@ export const RECIPE={
  sanitario:['inodoro','inodoro','lavamanos','lavamanos'],secretaria:['mostrador','escritorio!','archivador','planta'],comedor:['meson','nevera','mesa','mesa','mesa'],// (el mesón y la nevera primero: puestos después, las mesas les tapaban el frente en un comedor de 4×4)
 
  prestamo:['mostrador','escritorio!','estante','planta'],estanteria:['estantes'],infantil:['estante','sofa','sillon?','mesa','planta'],
- interrogatorio:['mesa','archivador?'],evidencia:['estante','estante','archivador','caja','caja'],vestuario:['armario','armario','armario','armario','armario?'],consultorio:['escritorio!','camilla'],vestibulo:['buzones','planta','caja?'],garaje:['vehiculo','caja','caja'],deposito:['caja','caja','caja']/* (sin el estante que traía la receta: nunca se puso —su medida estaba dentro de un comentario— y, al volver, en los depósitos de planta baja tapaba el paso a las cajas donde se esconde la bolsa: validar-juego, 18 cajas) */};
+ interrogatorio:['mesa','archivador?'],evidencia:['estante','estante','archivador','casillero','caja'],vestuario:['armario','armario','armario','armario','armario?'],consultorio:['escritorio!','camilla'],vestibulo:['buzones','planta','sillon?'],garaje:['vehiculo','caja','caja'],deposito:['caja','caja','caja']/* (sin el estante que traía la receta: nunca se puso —su medida estaba dentro de un comentario— y, al volver, en los depósitos de planta baja tapaba el paso a las cajas donde se esconde la bolsa: validar-juego, 18 cajas) */};
 
 // Los nombres de los letreros (inventados).
 const SHOP_NAMES={pizzeria:['Pizzería Napoli','La Fornace','Pizza Roma','Don Peppe','Horno de Leña','Pizzería Vesubio','Mamma Lucia'],
@@ -767,6 +767,8 @@ export const programExtras=(k,t=PROGRAMS[k].type)=>!Object.values(PROG_BY).flat(
 // La receta con que se MIDE el mínimo de un programa (2026-10-15, decisión de Miguel: «el cuarto mínimo cuenta todo lo que
 // se le pone»): el programa más todos sus opcionales, como obligatorios (el escritorio, con su computador).
 export const fullRecipe=(k,t)=>[...PROGRAMS[k].recipe,...programExtras(k,t).map(e=>e.slice(0,-1)==='escritorio'?'escritorio!':e.slice(0,-1))];
+const DEPOSITO_CLASES=[['caja','caja','armario'],['archivador','archivador','caja'],['casillero','caja','caja'],['perchero','armario','caja'],['comoda','caja','caja']],
+ TRASTERO_CLASES=[['armario','caja'],['casillero','caja'],['comoda','caja'],['caja','caja']];
 const BANO_JUSTO=['ducha:0.8x0.8','inodoro','lavamanos:0.45x0.36'];
 const fitsMin=(q,k)=>{const w=q.u1-q.u0,d=q.v1-q.v0,M=MINIMOS[k];return !!M&&['hondo','ancho'].some(o=>M[o]&&w*d>=.85*M[o][0]*M[o][1]&&Math.min(w,d)>=Math.min(...M[o])-.3);};
 function furnish(F,plan,open,r,want){const items=[];
@@ -779,7 +781,13 @@ function furnish(F,plan,open,r,want){const items=[];
   if(q.type==='cocina'&&Math.min(q.u1-q.u0,q.v1-q.v0)<2.5)recipe=RECIPE.cocina_linea;
   // (el trastero de un piso de departamentos: 2 × 4 m, sólo cajas —con el estante del depósito de siempre, a la del fondo no
   // se llegaba caminando: validar-juego—)
-  if(q.trastero)recipe=RECIPE.trastero;
+  // LO QUE SE GUARDA (2026-11-21, Miguel: «hay muchas partes donde hay cajas que deberían ser otro tipo de muebles»): todo
+  // depósito llevaba tres cajas —610 de las 687 cajas de la ciudad 1— y todo trastero, dos. Ahora cada uno es de una clase,
+  // siempre la misma para ese cuarto (sale de dónde está, sin gastar azar: lo demás de la ciudad no se mueve): bodega con
+  // armario, archivo muerto, casilleros, ropero o cómoda. Todos conservan al menos una caja: en planta baja es donde se
+  // esconde la bolsa. Sólo muebles que ya tienen su modelo y su regla de choque.
+  let variante='';
+  if(q.trastero||q.type==='deposito'&&!q.giro){const L=q.trastero?TRASTERO_CLASES:DEPOSITO_CLASES,i=Math.abs(Math.round(q.u0*31+q.v0*17+(q.Lu||0)*5+(q.Lv||0)*3+(q.u1-q.u0)*7))%L.length;recipe=L[i];variante=(q.trastero?'|trastero':'|deposito')+i;}
   // (2026-11-20: el baño que no es de nadie —sin departamento y sin un cuarto al que se abra: el de un piso de oficinas, el
   // del fondo de un local— es un sanitario: inodoro y lavamanos. Con la receta de siempre, 128 baños de oficina de la
   // ciudad 1 tenían ducha.)
@@ -799,7 +807,7 @@ function furnish(F,plan,open,r,want){const items=[];
   if(!C&&q.type==='dormitorio'){const a=q.u1-q.u0-MURO.tabique,b=q.v1-q.v0-MURO.tabique,N=INTERIOR.alcobaDoble;if(a*b<N.m2-1e-6||Math.min(a,b)<N.ancho-1e-6){recipe=recipe.map(e=>e==='cama'?'cama_s':e);used=recipe;}}
   // (el catálogo se guarda por la forma del cuarto, no por la receta: el sanitario lleva su marca, o un baño de casa con la
   // misma forma que uno de oficina heredaba el catálogo sin ducha —y al revés—)
-  if(!C)C=catalogFor(q,open,recipe,recipe===RECIPE.sanitario_piso?'|sanitario':recipe===RECIPE.sanitario_grande?'|sanitario2':recipe===RECIPE.trastero?'|trastero':'');
+  if(!C)C=catalogFor(q,open,recipe,recipe===RECIPE.sanitario_piso?'|sanitario':recipe===RECIPE.sanitario_grande?'|sanitario2':variante);
   let V=C[Math.floor(r()*C.length)];
   // (si la distribución no es completa —un mueble sin uso, una puerta que no se alcanza—, se prueba sin los opcionales:
   // lo que no se puede usar no se pone; 2026-10-15)
