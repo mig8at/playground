@@ -157,6 +157,21 @@ function drawLevel(g,lv,{m,stage,small=false,ox=0,oy=0,labels=false}){
 }
 
 // El plano grande de un piso del edificio L (centrado en el canvas, con escala en metros).
+// El marco del plano de un piso: cuántos píxeles mide un metro y dónde cae el origen. Lo usan drawFloorPlan y quien
+// necesite pasar de un clic a metros (colocar objetos: PlanoView).
+export const marcoPiso=(L,width)=>{const pad=26,r=L.rect,m=Math.min(42,(width-2*pad)/r.w);return {m,ox:r.x-(width/m-r.w)/2,oy:r.y-pad/m};};
+// Lo colocado a mano sobre el plano de un piso (engine/colocar.js), encima de lo que dibujó drawFloorPlan, y el
+// «fantasma» —dónde quedaría lo que se está por poner: verde si se puede, rojo si no—.
+export function drawColocados(canvas,L,lista,fantasma,OBJETOS,{width}){const {m,ox,oy}=marcoPiso(L,width),g=canvas.getContext('2d'),X=v=>(v-ox)*m,Y=v=>(v-oy)*m;
+ const uno=(o,fant)=>{const O=OBJETOS[o.tipo];if(!O||!o.rect)return;g.save();if(fant)g.globalAlpha=.75;
+  if(o.modo==='pared'){const R=o.rect,grueso=Math.max(4,.09*m),horiz=R.w>R.h,adentro=o.lado==='N'||o.lado==='W'?1:-1;
+   // (colgado: una barra del color del objeto pegada a la pared, del lado de adentro, con su marco)
+   g.fillStyle=O.color||'#8b6a4e';const x=horiz?X(R.x):(adentro>0?X(R.x):X(R.x+R.w)-grueso),y=horiz?(adentro>0?Y(R.y):Y(R.y+R.h)-grueso):Y(R.y),w=horiz?R.w*m:grueso,h=horiz?grueso:R.h*m;
+   g.fillRect(x,y,w,h);g.strokeStyle=fant?(o.ok?'#1f9d55':'#d0412f'):'rgba(0,0,0,.55)';g.lineWidth=fant?2.5:1;g.strokeRect(x,y,w,h);}
+  else{g.translate(X(o.x),Y(o.z));g.rotate(o.giro||0);const girado=Math.abs(Math.sin(o.giro||0))>.5,w=(girado?o.d:o.w)*m,d=(girado?o.w:o.d)*m;glyph(g,O.mueble||'caja',w,d,m);
+   if(fant){g.strokeStyle=o.ok?'#1f9d55':'#d0412f';g.lineWidth=2.5;g.strokeRect(-w/2-2,-d/2-2,w+4,d+4);}}
+  g.restore();};
+ for(const o of lista)uno(o,false);if(fantasma)uno(fantasma,true);}
 export function drawFloorPlan(canvas,L,{level,stage,width}){
  const dpr=window.devicePixelRatio||1,pad=26,r=L.rect,m=Math.min(42,(width-2*pad)/r.w),hgt=r.h*m+2*pad;
  canvas.width=Math.round(width*dpr);canvas.height=Math.round(hgt*dpr);canvas.style.height=hgt+'px';

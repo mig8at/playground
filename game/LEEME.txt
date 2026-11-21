@@ -16,6 +16,12 @@ EL JUEGO
              Diseño (2026-10-18): la ciudad del juego de fondo (public/fondos: capturas del 3D, la noche en el título),
              paneles de vidrio, ámbar los ladrones y azul la policía, títulos en Bungee y texto en Rubik (paquetes de
              @fontsource: sin internet). Lo prueba harness/pruebas/validar-entrada.mjs (nivel 10).
+  COLOCAR    (2026-11-21, engine/colocar.js): una persona dice «acá» y el plano contesta dónde queda exactamente y si se
+             puede, con la razón. De pared (cuadro, espejo, reloj, repisa): se pega a la pared más cercana, a la grilla
+             de 5 cm; no pisa puertas ni ventanas ni otro colgado, ni queda detrás de un mueble alto. De piso (planta,
+             lámpara, sillón, mesa, cómoda): grilla de 10 cm; no pisa muebles ni tapa el paso de una puerta; R lo gira.
+             En el visor: clic en un edificio → «Colocar», debajo del plano del piso. Lo colocado se guarda en este
+             navegador. Lo prueba validar-colocar (nivel 4): 285.540 intentos en dos ciudades, 0 fallas.
   /catalogo  EL CATÁLOGO (2026-11-21; ?seccion=muebles|fachadas|texturas): lo que el plano usa, de a una pieza y sin el
              mapa. Muebles: cada uno con su símbolo, lo que el plano le reserva, lo que mide su modelo 3D y en qué
              cuartos va. Fachadas: el alzado de todos los edificios de una ciudad con el paquete elegido. Texturas: cada

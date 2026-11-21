@@ -10,7 +10,8 @@ import {useRoute,useRouter} from 'vue-router';
 import '@fontsource/bungee/400.css';
 import '@fontsource-variable/rubik';
 import {planoDe} from '../lib/mapasGuardados.js';
-import {drawWorldStage,drawFloorPlan,drawHogar,drawElevation,CAPAS,ROOM_LABEL} from '../lib/drawPlan.js';
+import {drawWorldStage,drawFloorPlan,drawHogar,drawElevation,drawColocados,marcoPiso,CAPAS,ROOM_LABEL} from '../lib/drawPlan.js';
+import {colocar,OBJETOS,GRILLA} from '../engine/colocar.js';
 import {CELL,TYPES} from '../engine/blueprint.js';
 import {PAQUETES} from '../lib/texturas2d.js';
 
@@ -33,7 +34,20 @@ watch(paquete,v=>{try{localStorage.setItem('fuga.paquete',v);}catch{}});
 const LADO={N:'Norte',S:'Sur',E:'Este',W:'Oeste'};
 // (los lados del edificio que dan a algo abierto: una medianera no tiene fachada)
 const ladosAbiertos=computed(()=>elegido.value?Object.entries(elegido.value.sides||{}).filter(([,v])=>v!=='medianera'&&v!=='interior').map(([k])=>k):[]);
-const maxPisos=ref(0),grande=ref(false);// (maxPisos: el plano no es reactivo —es enorme—, así que se anota al cargar)
+const maxPisos=ref(0),grande=ref(false);
+// COLOCAR OBJETOS (engine/colocar.js): se elige uno, se mueve el ratón sobre el plano del piso y el plano dice dónde
+// quedaría —ya acomodado a la grilla y a la pared— y si se puede. Clic lo deja; R gira los de piso. Lo colocado se guarda
+// en este navegador, por ciudad, edificio y piso.
+const objeto=ref(null),fantasma=ref(null),giroObj=ref(0),colocados=ref((()=>{try{return JSON.parse(localStorage.getItem('fuga.colocados')||'{}');}catch{return {};}})());
+const claveCol=computed(()=>elegido.value?`${seed.value}|${team.value}|L${elegido.value.id}|${fichaNivel.value}`:'');
+const deEstePiso=computed(()=>colocados.value[claveCol.value]||[]);
+const guardarCol=()=>{try{localStorage.setItem('fuga.colocados',JSON.stringify(colocados.value));}catch{}};
+function aPiso(e){const L=elegido.value,c=piso.value,r=c.getBoundingClientRect(),{m,ox,oy}=marcoPiso(L,c.clientWidth);return {x:(e.clientX-r.left)/m+ox,z:(e.clientY-r.top)/m+oy};}
+function pisoMueve(e){if(!objeto.value||!elegido.value)return;fantasma.value=colocar(elegido.value.levels[fichaNivel.value],aPiso(e),objeto.value,deEstePiso.value,giroObj.value);pintarPiso();}
+function pisoClic(e){if(!objeto.value||!elegido.value)return;const r=colocar(elegido.value.levels[fichaNivel.value],aPiso(e),objeto.value,deEstePiso.value,giroObj.value);fantasma.value=r;if(!r.ok){pintarPiso();return;}
+ colocados.value={...colocados.value,[claveCol.value]:[...deEstePiso.value,r]};guardarCol();fantasma.value=null;pintarPiso();}
+function quitarCol(i){const l=[...deEstePiso.value];l.splice(i,1);colocados.value={...colocados.value,[claveCol.value]:l};guardarCol();pintarPiso();}
+function pintarPiso(){const L=elegido.value;if(!L||!piso.value)return;const w=piso.value.parentElement.clientWidth;drawFloorPlan(piso.value,L,{level:fichaNivel.value,stage:9,width:w});drawColocados(piso.value,L,deEstePiso.value,fantasma.value,OBJETOS,{width:w});}// (maxPisos: el plano no es reactivo —es enorme—, así que se anota al cargar)
 const resumen=ref(null);
 
 function dibujar(){
@@ -68,7 +82,8 @@ function baja(e){arrastre={x:e.clientX,y:e.clientY,vx:vista.x,vy:vista.y,movio:f
 function mueve(e){if(plano){const p=aMetros(e);cursor.value={x:p.x.toFixed(1),z:p.z.toFixed(1)};}
  if(!arrastre)return;const dx=e.clientX-arrastre.x,dy=e.clientY-arrastre.y;if(Math.abs(dx)+Math.abs(dy)>4)arrastre.movio=tocado=true;vista.x=arrastre.vx+dx;vista.y=arrastre.vy+dy;}
 function sube(e){const a=arrastre;arrastre=null;if(!a||a.movio||!plano)return;const p=aMetros(e),L=loteEn(p.x,p.z);elegido.value=L;casa.value=L?null:casaEn(p.x,p.z);dibujar();pedirNitido();}
-function tecla(e){if(e.target.tagName==='INPUT')return;if(e.key==='+'||e.key==='=')nivel.value=Math.min(maxPisos.value,nivel.value+1);else if(e.key==='-')nivel.value=Math.max(0,nivel.value-1);else if(e.key==='0')ajustar();else if(e.key==='Escape')elegido.value=casa.value=null;}
+function tecla(e){if(e.target.tagName==='INPUT')return;if(e.key==='+'||e.key==='=')nivel.value=Math.min(maxPisos.value,nivel.value+1);else if(e.key==='-')nivel.value=Math.max(0,nivel.value-1);else if(e.key==='0')ajustar();else if(e.key==='Escape'){if(objeto.value){objeto.value=null;fantasma.value=null;pintarPiso();}else elegido.value=casa.value=null;}
+ else if((e.key==='r'||e.key==='R')&&objeto.value){giroObj.value=giroObj.value?0:GRILLA.giro;pintarPiso();}}
 
 const fichaNivel=computed(()=>elegido.value?Math.min(nivel.value,elegido.value.floors-1):0);
 const cuartos=computed(()=>{const L=elegido.value;if(!L)return [];const lv=L.levels[fichaNivel.value],n={};for(const q of lv.rooms){const t=ROOM_LABEL[q.type]||q.type;n[t]=(n[t]||0)+1;}return Object.entries(n).sort((a,b)=>b[1]-a[1]);});
@@ -79,7 +94,7 @@ const casaCuartos=computed(()=>{const c=casa.value;if(!c)return [];return c.spec
 async function dibujarPiso(){await nextTick();if(casa.value&&piso.value){drawHogar(piso.value,casa.value.spec.hogar,{level:casaNivel.value,width:piso.value.parentElement.clientWidth});return;}
  const L=elegido.value;if(!L||!piso.value)return;
  if(alzado.value){const lado=ladosAbiertos.value.includes(ladoAlzado.value)?ladoAlzado.value:L.front;ladoAlzado.value=lado;medidoAlzado.value=drawElevation(alzado.value,L,{width:alzado.value.parentElement.clientWidth,lado,paquete:paquete.value});}
- drawFloorPlan(piso.value,L,{level:fichaNivel.value,stage:9,width:piso.value.parentElement.clientWidth});}
+ pintarPiso();}
 
 async function cargar(){
  estado.value='Armando el plano…';elegido.value=null;casa.value=null;plano=null;resumen.value=null;
@@ -94,7 +109,7 @@ async function cargar(){
 watch([nivel,capas,paquete],()=>{dibujar();dibujarPiso();pedirNitido();});
 watch(vista,pedirNitido);
 watch([elegido,casa,grande,ladoAlzado,paquete],dibujarPiso);
-watch(elegido,()=>{ladoAlzado.value=null;});
+watch(elegido,()=>{ladoAlzado.value=null;fantasma.value=null;});
 let obs;
 onMounted(()=>{cargar();window.addEventListener('keydown',tecla);obs=new ResizeObserver(()=>{if(!plano||arrastre)return;if(!tocado)ajustar();dibujarPiso();pedirNitido();});obs.observe(host.value);});
 onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydown',tecla);obs?.disconnect();});
@@ -139,7 +154,16 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
    <small>{{ TIPO[elegido.type]||TYPES[elegido.type]?.label||elegido.kind||elegido.type }} · lote {{ elegido.id }}</small>
    <b>{{ elegido.shopName||elegido.name||'Edificio' }}</b>
    <p>{{ elegido.floors }} {{ elegido.floors===1?'piso':'pisos' }} · {{ elegido.rect.w }} × {{ elegido.rect.h }} m · frente al {{ {N:'norte',S:'sur',E:'este',W:'oeste'}[elegido.front]||'—' }}</p>
-   <div class="ficha-piso"><canvas ref="piso"></canvas></div>
+   <div class="ficha-piso" :class="{colocando:objeto}"><canvas ref="piso" @pointermove="pisoMueve" @pointerdown="pisoClic" @pointerleave="fantasma=null;pintarPiso()"></canvas></div>
+   <div class="colocar">
+    <b>Colocar</b>
+    <div class="paleta"><button v-for="(O,k) in OBJETOS" :key="k" :class="{on:objeto===k}" :title="O.modo==='pared'?`De pared · ${O.ancho} × ${O.alto} m`:`De piso · ${O.w} × ${O.d} m`" @click="objeto=objeto===k?null:k;fantasma=null;pintarPiso()">{{ O.nombre }}<small>{{ O.modo==='pared'?'pared':'piso' }}</small></button></div>
+    <p v-if="objeto" class="guia" :class="{mal:fantasma&&!fantasma.ok,bien:fantasma&&fantasma.ok}">
+     <template v-if="!fantasma">Mové el ratón sobre el plano: {{ OBJETOS[objeto].modo==='pared'?'se pega a la pared más cercana':'se acomoda a la grilla de 10 cm' }}.<template v-if="OBJETOS[objeto].modo==='piso'"> <kbd>R</kbd> lo gira.</template> <kbd>Esc</kbd> lo suelta.</template>
+     <template v-else-if="fantasma.ok">Se puede: clic para dejarlo<template v-if="fantasma.modo==='pared'"> en la pared {{ {N:'norte',S:'sur',E:'este',W:'oeste'}[fantasma.lado] }}, de {{ fantasma.t0.toFixed(2) }} a {{ fantasma.t1.toFixed(2) }} m, a {{ fantasma.altura }} m de alto</template><template v-else> en x {{ fantasma.x.toFixed(2) }} · z {{ fantasma.z.toFixed(2) }} m</template>.</template>
+     <template v-else>No se puede: {{ fantasma.razon }}</template></p>
+    <ul v-if="deEstePiso.length" class="puestos"><li v-for="(o,i) in deEstePiso" :key="i"><span>{{ OBJETOS[o.tipo]?.nombre }}</span><small>{{ o.modo==='pared'?'pared '+({N:'norte',S:'sur',E:'este',W:'oeste'}[o.lado]):'x '+o.x.toFixed(2)+' · z '+o.z.toFixed(2) }}</small><button @click="quitarCol(i)" :aria-label="'Quitar '+OBJETOS[o.tipo]?.nombre">quitar</button></li></ul>
+   </div>
    <p class="nivel">{{ fichaNivel===0?'Planta baja':'Piso '+fichaNivel }}<template v-if="nivel>=elegido.floors"> (el último: el visor está en la azotea)</template></p>
    <dl v-if="medidas"><dt>Área</dt><dd>{{ medidas.area }} m²</dd><dt>Pasillo</dt><dd :class="{alerta:medidas.pasillo>30}">{{ medidas.pasillo }} %</dd><template v-if="medidas.ensanche"><dt>Ensanche</dt><dd :class="{alerta:medidas.ensanche>25}" title="El tramo sin luz de un piso de departamentos: es más pasillo, decorado, y no cuartos">{{ medidas.ensanche }} %</dd></template><dt>Muebles</dt><dd>{{ medidas.muebles }}</dd><dt>Puertas</dt><dd>{{ medidas.puertas }}</dd><dt>Ventanas</dt><dd>{{ medidas.ventanas }}</dd></dl>
    <ul class="cuartos"><li v-for="[t,n] in cuartos" :key="t"><span>{{ t }}</span><b>{{ n }}</b></li></ul>
@@ -211,6 +235,15 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
 .ficha dd{margin:0;font-weight:600;font-variant-numeric:tabular-nums;grid-row:2}
 .ficha dd.alerta{color:var(--ladron)}
 .cuartos{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:4px 14px}
+.ficha-piso.colocando canvas{cursor:crosshair}
+.colocar{margin:10px 0 4px}.colocar>b{font:400 14px var(--t)}
+.paleta{display:flex;gap:5px;flex-wrap:wrap;margin:6px 0}
+.paleta button{background:rgba(255,255,255,.08);border:1px solid var(--borde);border-radius:8px;color:var(--tx2);padding:4px 9px;font:inherit;font-size:12px;cursor:pointer;display:flex;gap:6px;align-items:baseline}
+.paleta button small{color:var(--tx3);font-size:10px;text-transform:uppercase;letter-spacing:.5px}.paleta button.on{background:rgba(255,169,77,.18);border-color:rgba(255,169,77,.55);color:var(--tx)}
+.guia{margin:0 0 8px!important;font-size:12.5px;color:var(--tx2)!important}.guia.bien{color:#5fd68f!important}.guia.mal{color:#ff8a7a!important}
+.guia kbd{background:#f5f2ea;color:#1b2130;border-radius:5px;padding:0 5px;font:600 11px/1.5 var(--c)}
+.puestos{list-style:none;margin:0 0 8px;padding:0;display:grid;gap:3px;font-size:12px}.puestos li{display:flex;gap:8px;align-items:baseline}.puestos small{color:var(--tx3);flex:1}
+.puestos button{background:none;border:0;color:var(--tx3);cursor:pointer;font:inherit;text-decoration:underline;padding:0}
 .alzado-cab{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:16px 0 8px}.alzado-cab>b{font:400 14px var(--t)}
 .lados{display:flex;gap:4px;flex-wrap:wrap}.lados button{background:rgba(255,255,255,.08);border:1px solid var(--borde);border-radius:8px;color:var(--tx2);padding:3px 9px;font:inherit;font-size:12px;cursor:pointer}
 .lados button.on{background:rgba(255,169,77,.18);border-color:rgba(255,169,77,.5);color:var(--tx)}.lados small{color:var(--tx3)}
