@@ -15,7 +15,8 @@
 // del edificio) y sale (cuánto por delante de la línea del muro va lo pintado, para no quedar metido en la pared).
 // Las casas del monte todavía no: su plano está en otras coordenadas (hogar.js).
 import {ALTURA,esVidriera} from './medidas.js';
-import {fachadaMedida,VANO} from './fachada-medida.js';
+import {fachadaMedida,VANO,ladosDeCalle} from './fachada-medida.js';
+export const ladosDeCalleDe=ladosDeCalle;
 import {RAISE,facadeStyle,WINDOWS,VIDRIO_PIEZA,VIDRIO_VENTANAL} from './fachada.js';
 import {paredesDe} from './colocar.js';
 import {GRAFITI,lienzoDe,vacio,aTexto,deTexto} from './grafiti.js';
@@ -148,3 +149,10 @@ export function paredDeNumero(bp,numero){const t=String(numero);if(!/^\d{10}$/.t
  const L=bp.lots.find(o=>o.levels?.length&&M.c.get(o.block)===c&&M.e.get(o.id)===e);return L?paredesPintables(bp,L).find(w=>w.numero===t)||null:null;}
 // Las de una ciudad entera.
 export const paredesDeLaCiudad=bp=>bp.lots.filter(L=>L.levels?.length).flatMap(L=>paredesPintables(bp,L));
+
+// LA FACHADA, CON LO QUE SE PINTA Y LO QUE NO (2026-11-21, Miguel: «quiero ver cómo queda una fachada con las paredes que
+// se pintan de un color: blanco lo que sí, gris lo que no»). Devuelve el muro entero de ese lado con, como huecos, todo lo
+// que no se pinta —los vanos, el zócalo y las paredes enteras que tienen algún vano o están tapadas— y la lista de sus
+// paredes pintables con su número. mascaraDe(muro) da el mapa píxel por píxel (1: se pinta).
+export function fachadaPintable(bp,L,lado){const M=muroExterior(L,lado),paredes=paredesPintables(bp,L).filter(w=>w.clase==='exterior'&&w.lado===lado),ids=new Set(paredes.map(w=>w.id));
+ return {...M,huecos:[...M.huecos,...paredesDeFachada(L,lado).filter(w=>!ids.has(w.id)).map(w=>({u0:w.u0,u1:w.u1,y0:w.y0,y1:r3(w.y0+w.alto),clase:'con vanos'}))],paredes};}

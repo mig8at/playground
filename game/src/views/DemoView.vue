@@ -53,7 +53,7 @@ import {rng} from '../engine/veredas.js';
 import {mapaDeJuego} from '../engine/juego/mapa.js';
 import {entregaDe,entregaCasa} from '../engine/entrega.js';
 import {sitiosDe,aparecerEn} from '../engine/aparecer.js';
-import {createGrafitis} from '../lib/grafitis3d.js';
+import {createGrafitis,createMapaPintable} from '../lib/grafitis3d.js';
 import {claveCiudad} from '../engine/grafiti.js';
 import {RELOJ,MODO_BOTIN,PATRULLA} from '../engine/medidas.js';
 
@@ -147,7 +147,7 @@ function ride(d){const at=world.elevatorAt(player.x,player.z,player.feet);if(!at
 const CIUDAD_LIMPIA=true;
 const INERCIA={arranca:14,frena:18};// (1/s: qué tan rápido la velocidad del jugador alcanza a la que piden las teclas)
 const SIN_ANIMAR=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
-const tiempos={};let grafitis=null,planoVista=null,shadowTick=0,animalKit=null,animals=null,casas=null,viviendas=null,barrios=null,edgePass=null,renderer,composer,bloom,scene,camera,controls,world,crowd,traffic,island,folk,city,plan=null,streetLights=[],lightClock=0,sky,stars,sun,hemi,frame=0,last=0,baseMap=null,mapOff={x:0,y:0};
+const tiempos={};let mapaPint=null,grafitis=null,planoVista=null,shadowTick=0,animalKit=null,animals=null,casas=null,viviendas=null,barrios=null,edgePass=null,renderer,composer,bloom,scene,camera,controls,world,crowd,traffic,island,folk,city,plan=null,streetLights=[],lightClock=0,sky,stars,sun,hemi,frame=0,last=0,baseMap=null,mapOff={x:0,y:0};
 // (esJugador: las puertas no se le abren solas —2026-10-18, Miguel: «que toque abrir y cerrar con E»—; a la gente, sí)
 const keys=new Set(),player={x:0,z:0,feet:0,vy:0,ground:true,bob:0,esJugador:true};
 const euler=new THREE.Euler(0,0,0,'YXZ');
@@ -304,6 +304,8 @@ function load(ready=null){
  // hay gente de verdad, así que es el más cercano al centro; cuando la haya, se le pasa acá)
  if(PASEO&&!PRUEBA){const a=aparecerEn(plan,[],{sitios:sitiosDe(plan)});if(a.ok)world.spawn={...world.spawn,x:a.x,z:a.z};}
  Object.assign(player,{x:world.spawn.x,z:world.spawn.z,feet:world.groundAt(world.spawn.x,world.spawn.z),vy:0});
+ // (?pintables=1: sobre las fachadas cercanas, blanco lo que se pinta y gris lo que no —lib/grafitis3d.js—)
+ mapaPint?.dispose();mapaPint=null;if(route.query.pintables!=null){mapaPint=createMapaPintable(plan,{x:player.x,z:player.z,radio:+route.query.pintables>1?+route.query.pintables:90});world.group.add(mapaPint.group);}
  if(PRUEBA){const L=plan.lots[0],d=L?.levels?.[0]?.doors?.find(d=>d.street);
   if(d){const mx=(d.x0+d.x1)/2,mz=(d.y0+d.y1)/2,h=Math.abs(d.y1-d.y0)<1e-6,adentro=L.parts.some(p=>(h?mx:mx+.5)>p.x&&(h?mx:mx+.5)<p.x+p.w&&(h?mz+.5:mz)>p.y&&(h?mz+.5:mz)<p.y+p.h),s=adentro?-1:1,
    ox=h?0:s,oz=h?s:0;world.spawn={x:mx+ox*2.5,z:mz+oz*2.5,yaw:Math.atan2(ox,oz)};Object.assign(player,{x:world.spawn.x,z:world.spawn.z,feet:world.groundAt(world.spawn.x,world.spawn.z)});}}

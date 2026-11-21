@@ -427,7 +427,7 @@ function drawExterior(g,bp,{level=0,px=1,capas=CAPAS}){
 // Una ventana está CORRIDA si pisa a una de abajo sin compartir su eje: eso desordena la fachada y se marca en naranja.
 // Una que cae SOBRE MURO (abajo no hay vano en ese tramo) es normal —el piso que ya pasa al vecino abre ventanas donde
 // abajo hay medianera— y sólo se cuenta. Medido en la ciudad 1: 3.334 ventanas de pisos altos, 0 corridas, 244 sobre muro.
-export function drawElevation(canvas,L,{width=560,lado=null,paquete='liso',pintables=false,grafiti=null}={}){
+export function drawElevation(canvas,L,{width=560,lado=null,paquete='liso',pintables=false,grafiti=null,mapa=null}={}){
  const PQ=PAQUETES[paquete]||PAQUETES.liso,relleno=(nombre,x,y,w,h,ox=x,oy=y)=>{if(!nombre)return;g.beginPath();g.rect(x,y,w,h);textura(g,nombre,m,ox,oy);};
  const f=lado||L.front,r=L.rect,H=ALTURA.piso,horiz=f==='N'||f==='S',ancho=horiz?r.w:r.h,sube=L.fachada?.escalinata?RAISE:0,manz=L.fachada?.techo==='mansarda';
  const alto=L.floors*H+sube,techo=manz?H*.9:.9,dpr=window.devicePixelRatio||1,pad=34,m=Math.min(30,(width-2*pad)/ancho),hgt=(alto+techo)*m+2*pad+10;
@@ -479,6 +479,12 @@ export function drawElevation(canvas,L,{width=560,lado=null,paquete='liso',pinta
  // (el grafiti de esta fachada —engine/grafiti.js—: el muro entero es el lienzo; cada píxel pintado, en su lugar)
  {const FM=fachadaMedida(L,f);medido.textura=FM.textura;medido.hiladas=FM.hiladasPorPiso;medido.modulos=FM.modulos;
   if(grafiti){const Lz=lienzoDe({ancho,alto}),d=grafiti.d;if(grafiti.cols===Lz.cols&&grafiti.rows===Lz.rows)for(let fi=0;fi<Lz.rows;fi++)for(let ci=0;ci<Lz.cols;ci++){const v=d[fi*Lz.cols+ci];if(!v)continue;g.fillStyle=GRAFITI.paleta[v];g.fillRect(X(Lz.du+ci*Lz.px),Y(alto-Lz.dy-fi*Lz.px),Lz.px*m+.4,Lz.px*m+.4);}}
+  // (el mapa de lo pintable —engine/muros.js fachadaPintable—: gris lo que no se pinta, blanco lo que sí, y el número de
+  // cada pared pintable: sus tres últimas cifras, las de la pared dentro del piso)
+  if(mapa){g.fillStyle='rgba(96,104,116,.88)';g.fillRect(X(0),Y(alto),ancho*m,alto*m);g.fillStyle='#ffffff';
+   for(const w of mapa.paredes){const y0=Math.max(w.y0,...(w.huecos||[]).filter(h=>h.clase==='zocalo').map(h=>w.y0+h.y1)),y1=w.y0+w.alto;g.fillRect(X(w.u0),Y(y1),(w.u1-w.u0)*m,(y1-y0)*m);g.strokeStyle='#18a06a';g.lineWidth=1.5;g.strokeRect(X(w.u0)+.75,Y(y1)+.75,(w.u1-w.u0)*m-1.5,(y1-y0)*m-1.5);
+    if((w.u1-w.u0)*m>26){g.fillStyle='#1d2530';g.font=`600 ${Math.max(9,Math.min(13,m*.5))}px system-ui,sans-serif`;g.textAlign='center';g.textBaseline='middle';g.fillText(w.numero.slice(7),X((w.u0+w.u1)/2),(Y(y1)+Y(y0))/2);g.fillStyle='#ffffff';}}
+   medido.pintablesN=mapa.paredes.length;}
   if(pintables){g.setLineDash([5,3]);g.lineWidth=1.5;g.strokeStyle='#18a06a';g.strokeRect(X(0)+1,Y(alto)+1,ancho*m-2,alto*m-2);g.setLineDash([]);}}
  // las cotas: el ancho abajo y el alto y cada piso a la izquierda
  g.fillStyle='#5d6670';g.font='11px system-ui,sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(`${ancho} m · fachada ${({N:'norte',S:'sur',E:'este',W:'oeste'})[f]}`,width/2,suelo+16);
