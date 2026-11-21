@@ -405,6 +405,14 @@ function editStepText(i, el) {
 function removeStep(i) {
   if (confirm(`¿Sacar el paso ${i + 1} del flujo? «${flowSteps.value[i].instruction || flowSteps.value[i].action}»`)) saveFlowStep(i, { delete: true })
 }
+// Los arreglos que propuso una repetición (server/repair.go): un elemento había cambiado y se siguió con uno
+// parecido. No se escriben solos en el flujo: se aplican o se descartan acá (o con bin/jarvis flows repairs).
+const flowRepairs = computed(() => flowData.value?.flow.repairs || [])
+const repairOf = (i) => flowRepairs.value.find((r) => r.step === i)
+async function resolveRepairs(action) {
+  viewError.value = ''
+  try { await api(`/api/flows/${view.value.app}/${view.value.id}/repairs`, { method: 'POST', body: JSON.stringify({ action }) }) } catch (e) { viewError.value = e.message }
+}
 async function playFlow(m) {
   viewError.value = ''
   try { await api(`/api/flows/${view.value.app}/${view.value.id}/replay`, { method: 'POST', body: JSON.stringify({ mode: m }) }); go({ kind: 'live' }) } catch (e) { viewError.value = e.message }
@@ -610,8 +618,9 @@ const status = computed(() => {
           <template v-if="isOpen(g.app)">
             <!-- sus flujos -->
             <div v-for="f in g.list" :key="f.id" class="tree-row leaf" role="treeitem" :class="{ on: view.kind === 'flow' && view.app === f.app && view.id === f.id }" :title="f.meta" @click="go({ kind: 'flow', app: f.app, id: f.id })">
-              <span class="leaf-mark" :class="{ ok: fmtDate(f.verified) }" aria-hidden="true"></span>
+              <span class="leaf-mark" :class="{ ok: fmtDate(f.verified) && !f.repairs, fix: f.repairs }" aria-hidden="true"></span>
               <span class="node-name">{{ f.name }}</span>
+              <span v-if="f.repairs" class="node-fix" :title="`${f.repairs} arreglo(s) propuesto(s): un elemento había cambiado`">{{ f.repairs }} arreglo{{ f.repairs > 1 ? 's' : '' }}</span>
               <span class="node-flag">{{ f.steps }}</span>
               <span class="node-actions">
                 <button type="button" class="region-action" title="Reproducir: los campos se llenan solos, los botones los tocás vos" aria-label="Reproducir" @click.stop="playFlowOf(f, 'fill')"><span class="ui-icon" data-icon="play" aria-hidden="true"></span></button>
@@ -824,6 +833,21 @@ const status = computed(() => {
           </div>
         </header>
 
+        <section v-if="flowRepairs.length" class="flow-repairs" role="status">
+          <h2>{{ flowRepairs.length === 1 ? 'Un arreglo propuesto' : `${flowRepairs.length} arreglos propuestos` }}</h2>
+          <p class="muted small">Al repetir el flujo, un elemento ya no estaba y Jarvis siguió con uno parecido. El flujo no cambió: aplicalo si es el correcto.</p>
+          <ul>
+            <li v-for="r in flowRepairs" :key="r.step">
+              <span class="flow-n">{{ r.step + 1 }}</span>
+              <span>«{{ r.old }}» → <strong>«{{ r.new }}»</strong> <span class="muted small">· parecido {{ Math.round(r.score * 100) }} %<template v-if="r.run"> · <a :href="`#/corrida/${r.run}`">ver la repetición</a></template></span></span>
+            </li>
+          </ul>
+          <div class="flow-actions">
+            <button type="button" class="btn btn-sm" title="Los pasos usan los elementos nuevos desde la próxima repetición" @click="resolveRepairs('apply')">Aplicar</button>
+            <button type="button" class="btn btn-sm btn-ghost" title="El flujo queda como estaba" @click="resolveRepairs('discard')">Descartar</button>
+          </div>
+        </section>
+
         <section v-if="flowParams.length" class="flow-data">
           <h2>Datos del flujo</h2>
           <p class="muted small">Al reproducir se escriben solos y los botones los tocás vos. Cambialos acá; marcá «lo escribo yo» para que pare y lo escribas vos.</p>
@@ -842,6 +866,7 @@ const status = computed(() => {
               <div class="flow-step-body">
                 <div class="flow-what editable" contenteditable="plaintext-only" spellcheck="false" title="Clic para cambiar el texto del paso" @keydown.enter.prevent="$event.target.blur()" @blur="editStepText(i, $event.target)">{{ s.instruction || s.action }}</div>
                 <div v-if="s.why" class="muted small">{{ s.why }}</div>
+                <div v-if="repairOf(i)" class="step-fix small">arreglo propuesto: «{{ repairOf(i).new }}»</div>
               </div>
               <label v-if="!s.param && !s.secret && ['click', 'dblclick', 'check', 'uncheck', 'select', 'press'].includes(s.action)" class="check small" title="Que pare acá y lo haga la persona">
                 <input type="checkbox" :checked="s.pause" @change="saveFlowStep(i, { pause: $event.target.checked })" /> lo hago yo
@@ -1022,6 +1047,12 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .tree-row.leaf .node-flag { font-variant-numeric: tabular-nums }
 .leaf-mark { flex: none; width: 8px; height: 8px; margin: 0 4px; border-radius: 2px; border: 1.5px solid var(--fg-3) }
 .leaf-mark.ok { background: var(--kw-ok); border-color: var(--kw-ok) }
+.leaf-mark.fix { background: var(--kw-ask); border-color: var(--kw-ask) }
+.node-fix { flex: none; font-size: var(--text-xs, 11px); color: var(--kw-ask); white-space: nowrap }
+.flow-repairs { border-left: 3px solid var(--kw-ask); padding-left: 10px }
+.flow-repairs ul { list-style: none; margin: 6px 0; padding: 0; display: grid; gap: 4px }
+.flow-repairs li { display: flex; gap: 8px; align-items: baseline }
+.step-fix { color: var(--kw-ask) }
 .run-dot { flex: none; width: 8px; height: 8px; margin: 0 4px; border-radius: 50% }
 .tree-none { padding-left: calc(var(--gutter) + 22px) }
 /* la portada de un proyecto */

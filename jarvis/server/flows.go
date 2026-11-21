@@ -68,6 +68,7 @@ type FlowSummary struct {
 	Device   string    `json:"device,omitempty"`
 	Params   int       `json:"params"`
 	Photo    string    `json:"photo,omitempty"` // la última foto de su corrida (la tarjeta de la galería)
+	Repairs  int       `json:"repairs,omitempty"` // arreglos propuestos que esperan que la persona los apruebe (repair.go)
 }
 
 // envFirst devuelve la primera variable que esté puesta (la nueva y, después, su nombre de antes).
@@ -143,7 +144,7 @@ func listFlows() []FlowSummary {
 		if err != nil {
 			continue
 		}
-		sum := FlowSummary{App: fl.App, ID: fl.ID, Name: fl.Name, Goal: fl.Goal, Steps: len(fl.Steps), Created: fl.Created, Verified: fl.Verified, Source: fl.Source, Device: fl.Device}
+		sum := FlowSummary{App: fl.App, ID: fl.ID, Name: fl.Name, Goal: fl.Goal, Steps: len(fl.Steps), Created: fl.Created, Verified: fl.Verified, Source: fl.Source, Device: fl.Device, Repairs: len(fl.Repairs)}
 		for _, st := range fl.Steps {
 			if st.Param != "" {
 				sum.Params++
