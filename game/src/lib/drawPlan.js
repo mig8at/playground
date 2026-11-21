@@ -3,7 +3,7 @@ import {CELL,TYPES} from '../engine/blueprint.js';
 import {City} from '../engine/index.js';
 import {planHouse,FURN_SIZE,FLOOR0,FH} from '../engine/vivienda.js';
 import {AWNINGS,RAISE} from '../engine/fachada.js';
-import {ALTURA} from '../engine/medidas.js';
+import {ALTURA,CALLE} from '../engine/medidas.js';
 const K=City.K;
 const css=name=>getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
@@ -18,7 +18,7 @@ const ROOM_COLOR={hall:'#efe9df',ropas:'#e2eef0',sala:'#f3e6cf',dormitorio:'#e8e
  boveda:'#f2e3a6',local:'#f6ddd0',recepcion:'#e2ecf3',urgencias:'#f8dcdc',consultorio:'#f5e6e6',vestibulo:'#efede6',garaje:'#e2e2e2',deposito:'#e6dfd2',sala_cocina:'#f3e6cf',estudio:'#efe2d6',dormitorio_b:'#e8e0f0',
  entrada:'#efe9df',secretaria:'#e2ecf3',comedor:'#f4e7cc',sanitario:'#d9ecf2',interrogatorio:'#d9dbe2',prestamo:'#ece4d4',estanteria:'#e6dcc6',infantil:'#f6e6ee'};
 // Las calles y los patios, también claros en modo oscuro (los del tema cambian).
-const PAPER={street:'#fbfaf6',avenue:'#f0eee6',alley:'#f5eee1',courtyard:'#e9e3d0',border:'#7f877f',kiosk:'#97b596'};
+const PAPER={asfalto:'#d7d4cb',cordon:'rgba(110,106,96,.6)',street:'#fbfaf6',avenue:'#f0eee6',alley:'#f5eee1',courtyard:'#e9e3d0',border:'#7f877f',kiosk:'#97b596'};
 const USE_COLOR={edificios:'#d3d8cf',parque:'#cfe2c8',plaza:'#e2eedd',patio:'#ece6d3',comisaria:'#b9cfe6'};
 const ITEM_COLOR={sofa:'#b88b6a',cama:'#9c86b8',cama_s:'#9c86b8',litera:'#7a5a3a',cama_h:'#ffffff',catre:'#8a8f96',camilla:'#ffffff',armario:'#8b6a4e',estante:'#8b6a4e',archivador:'#7d8790',casillero:'#4f7fa8',caminadora:'#3a3e43',bicicleta:'#3a3e43',banco:'#24262a',mancuernas:'#5d6266',colchoneta:'#2f6f8f',espejo_pared:'#cfe3ea',perchero:'#8d969d',maniqui:'#e9e4dc',estanteria_ropa:'#c39a6b',probador:'#8a3b4a',
  escritorio:'#a7825f',pupitre:'#a7825f',mesa:'#b0906c',mesa_centro:'#b0906c',mesa_reunion:'#9a7b5b',mesa_lectura:'#a7825f',mostrador:'#8d7360',meson:'#c9c3b8',
@@ -56,6 +56,21 @@ export function drawCityStage(canvas,bp,{cell,stage,level=0,selected=-1,fronts=t
  for(const b of bp.blocks){g.fillStyle=USE_COLOR[b.use];g.fillRect(b.x0*cell,b.y0*cell,b.w*cell,b.h*cell);
   if(b.use==='plaza'||b.use==='parque'){for(let y=b.y0;y<=b.y1;y++)for(let x=b.x0;x<=b.x1;x++)if(kind[y*W+x]===K.kiosk){g.fillStyle=PAPER.kiosk;g.beginPath();g.arc((x+.5)*cell,(y+.5)*cell,cell*.32,0,7);g.fill();}}
   if(stage>=3)for(let y=b.y0;y<=b.y1;y++)for(let x=b.x0;x<=b.x1;x++)if(kind[y*W+x]===K.alley){g.fillStyle=PAPER.alley;g.fillRect(x*cell,y*cell,cell+.5,cell+.5);}}
+ // LA CALZADA Y LA VEREDA (2026-11-21): la calle era una sola franja clara. Con las medidas de CALLE —vereda de 3 m a cada
+ // lado, carriles de 3— se pinta el asfalto en gris y, contra cada manzana, la vereda con su cordón; en las esquinas, el
+ // cuadro de vereda que las une. Así la pintura de vías (cebras, líneas de carril) cae sobre asfalto, como en la calle.
+ if(stage>=3&&m>=1.2){const via=(x,y)=>x>=0&&y>=0&&x<W&&y<H&&(kind[y*W+x]===K.street||kind[y*W+x]===K.avenue),v=CALLE.vereda*m,cordon=Math.max(.6,Math.min(1.6,m*.12));
+  g.fillStyle=PAPER.asfalto;for(let y=0;y<H;y++)for(let x=0;x<W;x++)if(via(x,y))g.fillRect(x*cell,y*cell,cell+.5,cell+.5);
+  g.fillStyle=PAPER.street;g.strokeStyle=PAPER.cordon;g.lineWidth=cordon;g.beginPath();
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){if(!via(x,y))continue;const X0=x*cell,Y0=y*cell,n=!via(x,y-1),s2=!via(x,y+1),w=!via(x-1,y),e=!via(x+1,y);
+   if(n){g.fillRect(X0,Y0,cell+.5,v);g.moveTo(X0+(w?v:0),Y0+v);g.lineTo(X0+cell-(e?v:0),Y0+v);}
+   if(s2){g.fillRect(X0,Y0+cell-v,cell+.5,v+.5);g.moveTo(X0+(w?v:0),Y0+cell-v);g.lineTo(X0+cell-(e?v:0),Y0+cell-v);}
+   if(w){g.fillRect(X0,Y0,v,cell+.5);g.moveTo(X0+v,Y0+(n?v:0));g.lineTo(X0+v,Y0+cell-(s2?v:0));}
+   if(e){g.fillRect(X0+cell-v,Y0,v+.5,cell+.5);g.moveTo(X0+cell-v,Y0+(n?v:0));g.lineTo(X0+cell-v,Y0+cell-(s2?v:0));}
+   // (la esquina de una manzana que toca esta casilla sólo en diagonal: su cuadro de vereda, con el cordón en L)
+   for(const [dx,dy] of [[-1,-1],[1,-1],[-1,1],[1,1]]){if(via(x+dx,y+dy)||!via(x+dx,y)||!via(x,y+dy))continue;const cx=dx<0?X0:X0+cell-v,cy=dy<0?Y0:Y0+cell-v;g.fillRect(cx,cy,v+.5,v+.5);
+    const ix=dx<0?X0+v:X0+cell-v,iy=dy<0?Y0+v:Y0+cell-v;g.moveTo(ix,dy<0?Y0:Y0+cell);g.lineTo(ix,iy);g.lineTo(dx<0?X0:X0+cell,iy);}}
+  g.stroke();}
  if(stage===2){g.strokeStyle='rgba(0,0,0,.25)';g.lineWidth=1;for(const b of bp.blocks)g.strokeRect(b.x0*cell+.5,b.y0*cell+.5,b.w*cell-1,b.h*cell-1);return;}
  // Etapa 3: lotes por tipo; patios de manzana.
  for(const c of bp.courts){g.fillStyle=PAPER.courtyard;g.fillRect(c.x0*cell,c.y0*cell,(c.x1-c.x0+1)*cell,(c.y1-c.y0+1)*cell);}
@@ -302,7 +317,7 @@ const AZOTEA={tanque:'#7f97a8',antena:'#4a4f55',matera:'#6f9f5e',tendedero:'#c9c
 export const CAPAS={pintura:true,equipo:true,arboles:true,nombres:true,botines:true};
 function drawExterior(g,bp,{level=0,px=1,capas=CAPAS}){
  const girado=(x,z,ang,f)=>{g.save();g.translate(x,z);g.rotate(ang||0);f();g.restore();};
- if(capas.pintura&&px>=1.5)for(const p of bp.pintura||[]){g.fillStyle=p.tipo==='amarilla'?'#e0b84a':p.tipo==='cebra'?'#c7c3b8':'#d2cec4';
+ if(capas.pintura&&px>=1.5)for(const p of bp.pintura||[]){g.fillStyle=p.tipo==='amarilla'?'#e8b93c':'#ffffff';// (blanca sobre el asfalto gris)
   // (el largo va a lo largo del ángulo: una raya de cebra, un tramo de la línea de carril)
   girado(p.x,p.z,-p.ang,()=>g.fillRect(-p.largo/2,-p.ancho/2,p.largo,p.ancho));}
  if(capas.equipo&&px>=2.5)for(const e of bp.equipamiento||[]){const c=EQUIPO[e.tipo];if(!c)continue;g.fillStyle=c;
