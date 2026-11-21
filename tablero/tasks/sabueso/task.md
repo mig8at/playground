@@ -13,7 +13,7 @@ jira_title: ""
 ## Pendientes
 
 - [x] Medir qué hace bueno a un comercio con los datos propios: sector, ticket, puntos de venta y originación de los comercios activos — en la pila: ser cadena (21+ puntos originan 855 desembolsos por comercio contra 10 a 21 los de 1 a 5) y la concentración (5 comercios, 74 %).
-- [ ] Revisar qué guarda `allied_pre_registrations` en prod (cuántas filas, sectores, ticket, % a crédito); termina cuando la pila tiene la medición.
+- [x] Revisar qué guarda `allied_pre_registrations` en prod (cuántas filas, sectores, ticket, % a crédito) — en la pila: unos 55 al mes, casi todos de 1 a 5 puntos, ninguno se volvió comercio.
 - [ ] Confirmar el acceso a una fuente pública de comercios (RUES o datos abiertos por CIIU y ciudad) y su costo; termina cuando hay una descarga o una consulta de prueba en la pila.
 - [ ] Armar el prototipo local (app de Cockpit en `sabueso/`, con la base de `tools/ui`) con las regiones de la maqueta; termina cuando se abre en Cockpit con datos reales de sectores y una lista de prospectos cargada a mano.
 - [ ] Redactar los correos con las señales de cada comercio y dejarlos listos para enviar a mano; termina cuando un borrador sale de los datos de un prospecto real.
@@ -44,7 +44,7 @@ Por ahora es **sólo de Miguel**, que orquesta todo desde Cockpit, como el resto
 - no ofrece pago a cuotas, o lo ofrece con una sola entidad;
 - en qué ciudad está.
 
-Se excluye a quien ya es comercio, cruzando por NIT. Para las entidades, las listas públicas de vigiladas (Superfinanciera, Supersolidaria).
+Se excluye a quien ya es comercio, cruzando por NIT. **Los prerregistros** (unos 55 al mes en prod) entran como una fuente más, en el segmento «Se prerregistró»: ya mostraron interés, pero casi todos tienen 1 a 5 puntos y ninguno se volvió comercio; los que más originan, las cadenas, no llegan solos. Para las entidades, las listas públicas de vigiladas (Superfinanciera, Supersolidaria).
 
 **El encaje del ticket por sector** sale de lo medido en prod (pila del 2026-11-21): odontología, celulares, hogar y descanso y movilidad (motos) encajan. **Carros encaja con variación**: el monto que se presta hoy no cubre un carro entero (en movilidad casi todo va de 5 a 15 M y el máximo fue 24,8 M), así que sirve para usados económicos, accesorios, cuota inicial o con una entidad vehicular.
 
