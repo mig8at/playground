@@ -922,7 +922,10 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
  }
  // Los escondites (contenedores) los pone el motor; si en el 3D uno cae frente a una puerta, se corre a lo largo de la
  // fachada hasta un lugar libre (en el 2D sigue donde estaba).
- for(const h of map.hideouts){let x=h.x*S,z=h.y*S;
+ // (2026-11-21: si el plano ya dice dónde va cada uno —engine/contenedores.js: sobre el andén, contra la fachada y
+ // paralelo a ella—, va ahí tal cual; lo de abajo queda para un mapa sin plano)
+ if(plan?.contenedores?.length){for(const c of plan.contenedores){dumpsters.push({x:c.x,z:c.z,ry:c.ang});addCollider(c.x,c.z,.9);}}
+ else for(const h of map.hideouts){let x=h.x*S,z=h.y*S;
   if(inDoor(x,z,.9)){const d=doorFronts.find(d=>{const ax=x-d.x,az=z-d.z;return Math.abs(ax*d.nz-az*d.nx)<d.half+1.2&&ax*d.nx+az*d.nz<3.6;});
    if(d)for(const off of [2.6,-2.6,3.4,-3.4,4.2,-4.2]){const nx=x+d.nz*off,nz=z-d.nx*off;const cx2=Math.floor(nx/S),cy2=Math.floor(nz/S),k2=at(cx2,cy2),wallNear=(walls.get(cy2*W+cx2)||[]).some(([a0,b0,a1,b1])=>nx>a0-.9&&nx<a1+.9&&nz>b0-.9&&nz<b1+.9);
     if(!inDoor(nx,nz,.9)&&OPEN.has(k2)&&!wallNear){x=nx;z=nz;break;}}}

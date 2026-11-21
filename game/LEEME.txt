@@ -20,6 +20,10 @@ EL JUEGO
              mapa. Muebles: cada uno con su símbolo, lo que el plano le reserva, lo que mide su modelo 3D y en qué
              cuartos va. Fachadas: el alzado de todos los edificios de una ciudad con el paquete elegido. Texturas: cada
              una sobre seis colores y la tabla de qué pone cada paquete.
+  CONTENEDORES  (2026-11-21, engine/contenedores.js → plano.contenedores): el motor elige la casilla de cada contenedor
+             de basura; el plano decide su lugar exacto en metros: sobre el andén, a CALLE.fachada + medio fondo de la
+             línea de edificación, paralelo a la fachada, corrido si cae frente a una puerta, sobre un árbol o una pieza,
+             y llevado al andén más cercano si el motor lo puso en un cruce. El 3D lo usa tal cual y el plano lo dibuja.
   /juego?paseo=1   EL PASEO (2026-11-21): la ciudad sola en 3D, sin ronda, sin policía ni ladrones y sin la gente con su
              rutina (nada de eso se arma ni se carga). Se camina; V despega y aterriza (en el aire: WASD hacia donde se
              mira, Espacio sube, C baja, Shift acelera); N cambia el día. Arriba a la derecha, el rendimiento: cuadros

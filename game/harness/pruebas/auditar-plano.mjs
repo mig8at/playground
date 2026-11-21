@@ -76,6 +76,7 @@ for(let s=S0;s<S0+N;s++){const t0=Date.now(),bp=generateBlueprint({seed:s,team:T
  const lotes=[...bp.lots,...(bp.isla.lots||[])],enLote=(x,z,m=.1)=>lotes.some(L=>L.parts.some(P=>x>P.x+m&&x<P.x+P.w-m&&z>P.y+m&&z<P.y+P.h-m)),E=(bp.equipamiento||[]).filter(e=>e.tipo!=='cebra');
  for(let i=0;i<E.length;i++){if(enLote(E[i].x,E[i].z))anota('afuera','una pieza de mobiliario dentro de un edificio',`ciudad ${s}: ${E[i].tipo}`);
   for(let j=i+1;j<E.length;j++)if(Math.hypot(E[i].x-E[j].x,E[i].z-E[j].z)<.8)anota('afuera','dos piezas de mobiliario encimadas',`ciudad ${s}: ${E[i].tipo} y ${E[j].tipo}`);}
+ for(const c of bp.contenedores||[]){if(c.sinAnden)anota('afuera','un contenedor de basura sin andén (en la calle)',`ciudad ${s}: ${c.id} en ${c.x},${c.z}`);if(c.estorba)anota('afuera','un contenedor encima de un árbol, una pieza o frente a un vano',`ciudad ${s}: ${c.id} en ${c.x},${c.z}`);}
  const A=[...(bp.vegetacion?.arboles||[]),...(bp.vegetacion?.palmeras||[])];
  for(const a of A){if(enLote(a.x,a.z))anota('afuera','un tronco dentro de un edificio',`ciudad ${s}: ${a.tipo}`);if(a.tipo==='bosque')continue;
   const e=a.eje||0,ce=Math.cos(e),se=Math.sin(e);let toca=false;for(let k=0;k<32&&!toca;k++){const t=k/32*Math.PI*2,u=Math.cos(t)*a.r,v=Math.sin(t)*(a.ra??a.r);toca=enLote(a.x+u*ce-v*se,a.z+u*se+v*ce,.05);}

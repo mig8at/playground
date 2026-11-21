@@ -20,6 +20,7 @@ import {JUEGO_PASO,PUERTA,ESCALERA,PASILLO,MURO,ERGO,mm,FRANJA,MINIMO,VIDRIO,VEN
 import {USOS} from './usos.js';
 import {islaDe,mascaraRebaje} from './isla.js';
 import {randomHouse,planHouse} from './vivienda.js';
+import {contenedoresDe} from './contenedores.js';
 import {planHogar,HOGAR_PESO} from './hogar.js';
 import {MINIMOS} from './cuartos-minimos.js';
 import {plantar} from './vegetacion.js';
@@ -1131,7 +1132,7 @@ export function generateBlueprint({seed=1,team=3,parks=JUEGO.parques}={}){
 
  // (la vegetación y la playa, y el equipamiento urbano, 2026-10-15: vegetacion.js y equipamiento.js, cada uno con su
  // propio azar, sobre el plano ya armado)
- const bp={seed,team,map,blocks,lots,courts,stats,isla};bp.vegetacion=plantar(bp);bp.equipamiento=equipar(bp);bp.pintura=pinturaDe(bp);bp.botines=repartir(bp);pintar(bp);marcarEntradas(bp);marcarMansardas(bp);amoblarAzoteas(bp);marcarHojas(bp);numerar(bp);cerrarCortinas(bp);return bp;
+ const bp={seed,team,map,blocks,lots,courts,stats,isla};bp.vegetacion=plantar(bp);bp.equipamiento=equipar(bp);bp.contenedores=contenedoresDe(bp);bp.pintura=pinturaDe(bp);bp.botines=repartir(bp);pintar(bp);marcarEntradas(bp);marcarMansardas(bp);amoblarAzoteas(bp);marcarHojas(bp);numerar(bp);cerrarCortinas(bp);return bp;
 }
 // ---------- Etapa 9: la isla ----------
 // Las casillas de 6 m de la isla (fuera de la ciudad) con su zona, su altura y lo disparejo que es el terreno; las

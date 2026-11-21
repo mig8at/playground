@@ -371,6 +371,8 @@ function drawExterior(g,bp,{level=0,px=1,capas=CAPAS}){
   else if(e.tipo==='farol'){g.beginPath();g.arc(e.x,e.z,.28,0,7);g.fill();g.strokeStyle='rgba(240,190,90,.55)';g.lineWidth=.12;g.beginPath();g.arc(e.x,e.z,1.1,0,7);g.stroke();}
   else if(e.tipo==='semaforo'){g.fillRect(e.x-.3,e.z-.3,.6,.6);g.fillStyle='#e23b2e';g.beginPath();g.arc(e.x,e.z,.16,0,7);g.fill();}
   else{g.beginPath();g.arc(e.x,e.z,e.tipo==='salvavidas'?.6:.32,0,7);g.fill();}}
+ // (los contenedores de basura: 1,8 × 1,05 m, sobre el andén y paralelos a la fachada —engine/contenedores.js—)
+ if(capas.equipo&&px>=2)for(const c of bp.contenedores||[]){girado(c.x,c.z,c.ang||0,()=>{g.fillStyle=c.sinAnden?'#c0392b':'#2f6b4f';g.fillRect(-.9,-.525,1.8,1.05);g.fillStyle='rgba(255,255,255,.28)';g.fillRect(-.9,-.525,1.8,.22);g.strokeStyle='rgba(0,0,0,.4)';g.lineWidth=.06;g.strokeRect(-.9,-.525,1.8,1.05);});}
  // (los botines: un rombo dorado donde está la pieza, sólo en la planta baja)
  if(capas.botines&&level===0)for(const b of bp.botines||[]){if(b.x==null)continue;const r=Math.max(.7,5/px);g.fillStyle='#e9b23a';g.strokeStyle='#5a3d08';g.lineWidth=r*.22;g.beginPath();g.moveTo(b.x,b.z-r);g.lineTo(b.x+r,b.z);g.lineTo(b.x,b.z+r);g.lineTo(b.x-r,b.z);g.closePath();g.fill();g.stroke();}
  // (las azoteas: en el piso que ya es techo de cada edificio)
