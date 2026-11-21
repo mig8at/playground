@@ -22,6 +22,10 @@ EL JUEGO
   APARECER   (2026-11-21, engine/aparecer.js): una persona es un punto. sitiosDe da los lugares del andén donde se puede
              aparecer; aparecerEn elige el menos poblado (gente a 30 m, pesada por distancia); cupoDe, el tope: una
              persona por vivienda. En /plano: los puntos amarillos, el punto verde y «Entra una». Prueba: validar-aparecer.
+  PROPIEDADES (2026-11-21, engine/propiedades.js): cada departamento, local y casa como algo que se vende: identificador
+             que no cambia, dirección, área y precio base (área × 1.000 × clase × centro × piso × parque; todo sale
+             de PRECIO). En /plano: el total al pie y, en la ficha de un edificio, lo que se vende ahí. Prueba:
+             validar-propiedades.
   COLOCAR    (2026-11-21, engine/colocar.js): una persona dice «acá» y el plano contesta dónde queda exactamente y si se
              puede, con la razón. De pared (cuadro, espejo, reloj, repisa): se pega a la pared más cercana, a la grilla
              de 5 cm; no pisa puertas ni ventanas ni otro colgado, ni queda detrás de un mueble alto. De piso (planta,

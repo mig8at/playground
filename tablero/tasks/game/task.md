@@ -18,7 +18,9 @@ jira_title: ""
 - [x] Caminar Colombia (720 m) en 3D con la primera imagen en menos de 15 s: abre en 14 s y rinde 60–74 cuadros por segundo, sin cargar por zonas.
 - [ ] Decidir si hace falta cargar el 3D por zonas. Depende de: Miguel — hoy no hace falta para 720 m; haría falta para una ciudad bastante más grande o para una máquina más lenta que este PC.
 - [ ] Aplicar las texturas de fachada y techo en el 3D: termina cuando el paseo muestra el paquete elegido en el visor.
-- [ ] Listar las propiedades de una ciudad (departamentos, locales, casas) con área y precio base: termina cuando la misma semilla da siempre el mismo listado y se ve en el visor.
+- [x] Listar las propiedades de una ciudad (departamentos, locales, casas) con área y precio base: la misma semilla da el mismo listado y se ve en el visor.
+- [ ] Revisar la fórmula del precio base. Depende de: Miguel — los factores (clase, centro, piso, parque) son propuesta de Claude.
+- [ ] Dar dueño a una propiedad: termina cuando una propiedad se puede marcar como comprada por alguien y el listado lo muestra.
 - [ ] Listar los paños de muro pintables de la planta baja, para los grafitis: termina cuando cada paño sale con edificio, lado, tramo y alto.
 - [ ] Permitir colocar objetos en las casas del monte y verlos en el 3D: termina cuando un cuadro colgado en el plano aparece en el paseo.
 - [ ] Bajar las carreteras del monte a menos de 15 % de pendiente (hoy hasta 32 %): termina cuando la auditoría lo mide y no lo lista.
@@ -69,6 +71,7 @@ Es interpretación mía de lo que pidió, para discutir; nada de esto está cons
 | colocar un objeto a mano (pared y piso) | `game/src/engine/colocar.js` |
 | la vivienda vacía (sólo baño y cocina) | `game/src/engine/entrega.js` |
 | dónde aparece quien entra, y el cupo | `game/src/engine/aparecer.js` |
+| el listado de lo que se vende, con área y precio | `game/src/engine/propiedades.js` |
 | dónde va cada contenedor de basura | `game/src/engine/contenedores.js` |
 | el dibujo del plano 2D, el alzado y las texturas | `game/src/lib/drawPlan.js`, `texturas2d.js` |
 | el visor del plano · el catálogo · el paseo en 3D | `/plano` · `/catalogo` · `/juego?paseo=1` |
@@ -104,11 +107,12 @@ Cada uno con su condición de cierre. Los hechos pasan a la pila como bloque.
 **Falta**: 14 baños de departamento sin ducha (la ventana no deja); la cómoda (su modelo no cabe: pide otro modelo); el archivador (el plano reserva el doble); regenerar las dos tablas de medidas, cuyos scripts no están en el repo.
 **Cierre**: `node harness/pruebas/auditar-plano.mjs 4` no lista ningún renglón que sea un defecto.
 
-### 4. Propiedades — sin empezar
+### 4. Propiedades — empezado
 
-**Qué**: que cada unidad del plano (departamento, local, casa) sea una propiedad con identificador estable, área, precio base calculado y dueño.
-**Primer paso que no depende de nada**: el listado de propiedades de una ciudad, con su área y un precio por m² según zona y piso, visible en el visor.
-**Cierre**: un listado de propiedades por ciudad, estable entre corridas (la misma semilla da las mismas propiedades).
+**Hecho**: el listado sale del plano, sin azar. Cuatro clases: departamento (una unidad de un edificio), local (cada cuarto de comercio), casa (un lote de casa en la ciudad) y casa del monte. Cada una con identificador estable, dirección, área y precio base. En Colombia: 3.583 propiedades (2.373 departamentos, 957 locales, 55 casas, 198 casas del monte), 211.744 m².
+**El precio base** (propuesta de Claude): área × 1.000 × clase × centro × piso × parque. Local ×1,6, casa ×1,25, casa del monte ×1,1; hasta +50 % en el centro; +3 % por piso hasta +24 %; +10 % a menos de 12 m de un parque.
+**Falta**: dueño y compra; oficinas, hoteles y públicos no se venden por ahora; la moneda.
+**Cierre**: una propiedad cambia de dueño y el listado lo muestra.
 
 ### 5. Comprar y colocar — empezado
 

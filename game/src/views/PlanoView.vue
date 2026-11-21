@@ -14,6 +14,7 @@ import {drawWorldStage,drawFloorPlan,drawHogar,drawElevation,drawColocados,marco
 import {colocar,OBJETOS,GRILLA} from '../engine/colocar.js';
 import {entregaDe} from '../engine/entrega.js';
 import {sitiosDe,aparecerEn,cupoDe,poblar,RADIO} from '../engine/aparecer.js';
+import {propiedadesDe,resumenDe,CLASE} from '../engine/propiedades.js';
 import {CELL,TYPES} from '../engine/blueprint.js';
 import {PAQUETES} from '../lib/texturas2d.js';
 
@@ -30,6 +31,10 @@ let relojNitido=0;
 const vacias=ref(true),entrega=ref(null);let planoEntero=null;
 // (la gente, como puntos, y dónde aparece el próximo —engine/aparecer.js—: el sitio menos poblado. «Entra una persona»
 // la suma ahí y recalcula; el cupo es una persona por vivienda)
+// (las propiedades —engine/propiedades.js—: cada departamento, local y casa con su área y su precio base)
+const propResumen=ref(null);let propiedades=[];const plata=v=>'$ '+Math.round(v).toLocaleString('es-CO');
+const propsEdificio=computed(()=>elegido.value&&propResumen.value?propiedades.filter(p=>p.lote===elegido.value.id):[]);
+const propCasa=computed(()=>{if(!casa.value||!propResumen.value)return null;const i=planoEntero?.isla?.casas?.indexOf(casa.value);return propiedades.find(p=>p.casa===i)||propiedades.find(p=>p.clase==='casa_monte'&&p.direccion&&p.direccion===casa.value.direccion?.texto)||null;});
 const cuanta=ref(0),cupo=ref(0),aparicion=ref(null),verGente=ref(true),capaGente=ref(null);let sitios=[],gente=[];
 // (la gente va en su propia capa, en píxeles de pantalla: así un punto se ve igual con la ciudad entera que de cerca, y
 // moverla no redibuja el plano)
@@ -43,6 +48,7 @@ function ponerGente(){if(!planoEntero)return;const a=aparecerEn(planoEntero,gent
 function poblarCon(n){if(!planoEntero)return;gente=poblar(planoEntero,Math.max(0,Math.min(cupo.value,n)),seed.value,sitios);ponerGente();}
 function entra(n=1){for(let i=0;i<n;i++){const a=aparecerEn(planoEntero,gente,{sitios,cupo:cupo.value});if(!a.ok)break;gente=[...gente,{x:a.x,z:a.z}];}ponerGente();}
 function irAparicion(){const a=aparicion.value;if(!a?.ok||!host.value)return;const k=Math.max(vista.k,6/celda*6),w=host.value.clientWidth,h=host.value.clientHeight;vista.k=k;vista.x=w/2-(a.x/CELL-origen.x0)*celda*k;vista.y=h/2-(a.z/CELL-origen.y0)*celda*k;tocado=true;pedirNitido();}
+let topeLienzo=0;// (la celda más grande que este navegador pintó bien, si hubo que achicar)
 let plano=null,origen={x0:0,y0:0},celda=20,arrastre=null,tocado=false;// (tocado: ya acercó o movió; mientras no, el plano se reajusta al cambiar el tamaño de la ventana)
 const vista=reactive({x:0,y:0,k:1});// (la posición y el zoom del lienzo dentro del visor, en píxeles de pantalla)
 // (los tamaños de ciudad —engine/ciudad.js SIZES—: los cuatro del juego y dos más grandes, para pasear y para otros juegos)
@@ -76,8 +82,13 @@ const resumen=ref(null);
 function dibujar(){
  if(!plano||!lienzo.value)return;const t0=performance.now(),dpr=window.devicePixelRatio||1,B=plano.isla.bounds;
  // (la celda más grande que deja el lienzo por debajo de ~4.600 px de lado: más que eso algunos navegadores no lo pintan)
- celda=Math.max(8,Math.min(36,Math.floor(4600/(Math.max(B.x1-B.x0,B.y1-B.y0)*dpr))));
- origen=drawWorldStage(lienzo.value,plano,{cell:celda,stage:9,level:nivel.value,dim:false,paquete:paquete.value,capas:{...capas},selected:elegido.value?.id??-1});
+ // (2026-11-21, medido: con la ciudad de 720 m el lienzo de 4.590 px salía sólo con el fondo —sin error—, y uno de 3.240
+ // se pintaba bien; el tope bajó a 3.200. Y por si otra máquina aguanta menos: si lo dibujado sale de un solo color, se
+ // achica y se vuelve a dibujar. De cerca la nitidez la pone la otra capa, no este lienzo)
+ const lado=Math.max(B.x1-B.x0,B.y1-B.y0)*dpr,pinta=()=>{origen=drawWorldStage(lienzo.value,plano,{cell:celda,stage:9,level:nivel.value,dim:false,paquete:paquete.value,capas:{...capas},selected:elegido.value?.id??-1});};
+ const enBlanco=()=>{try{const c=lienzo.value,g=c.getContext('2d'),vistos=new Set();for(let i=1;i<12;i++)vistos.add(g.getImageData(Math.floor(c.width*i/12),Math.floor(c.height*(i*5%12+.5)/12),1,1).data.join(','));return vistos.size<2;}catch{return false;}};
+ celda=Math.max(4,Math.min(36,topeLienzo?Math.min(topeLienzo,Math.floor(3200/lado)):Math.floor(3200/lado)));pinta();
+ while(celda>4&&enBlanco()){celda=Math.max(4,Math.floor(celda*.75));topeLienzo=celda;pinta();}
  lienzo.value.style.width=lienzo.value.width/dpr+'px';lienzo.value.style.height=lienzo.value.height/dpr+'px';
  tardo.value=Math.round(performance.now()-t0);
 }
@@ -127,7 +138,7 @@ async function cargar(){
  planoEntero=r.plano;const pe=entregaDe(planoEntero);entrega.value=pe.entrega;plano=vacias.value?pe:planoEntero;maxPisos.value=Math.max(...plano.lots.map(L=>L.floors));const V=plano.vegetacion||{};
  resumen.value={edificios:plano.lots.length,casas:plano.isla.casas?.length||0,arboles:(V.arboles?.length||0)+(V.palmeras?.length||0),mobiliario:plano.equipamiento?.length||0,
   muebles:plano.lots.reduce((a,L)=>a+L.levels.slice(0,L.floors).reduce((b,lv)=>b+lv.furniture.length,0),0),ms:Math.round(performance.now()-t0),guardado:r.guardado};
- sitios=sitiosDe(planoEntero);cupo.value=cupoDe(planoEntero).cupo;
+ sitios=sitiosDe(planoEntero);cupo.value=cupoDe(planoEntero).cupo;propiedades=propiedadesDe(planoEntero);propResumen.value=resumenDe(propiedades);
  nivel.value=0;estado.value='';await nextTick();dibujar();ajustar();poblarCon(Math.round(cupo.value*.15));// (de arranque, la ciudad al 15 % de su cupo)
 }
 watch([nivel,capas,paquete],()=>{dibujar();dibujarPiso();pedirNitido();});
@@ -137,7 +148,7 @@ watch(vacias,v=>{if(!planoEntero)return;plano=v?entregaDe(planoEntero):planoEnte
 watch([elegido,casa,grande,ladoAlzado,paquete],dibujarPiso);
 watch(elegido,()=>{ladoAlzado.value=null;fantasma.value=null;});
 let obs;
-onMounted(()=>{cargar();window.addEventListener('keydown',tecla);obs=new ResizeObserver(()=>{if(!plano||arrastre)return;if(!tocado)ajustar();dibujarPiso();pedirNitido();});obs.observe(host.value);});
+onMounted(()=>{cargar();window.addEventListener('keydown',tecla);obs=new ResizeObserver(()=>{if(!plano||arrastre)return;if(!tocado)ajustar();dibujarPiso();pedirNitido();dibujarGente();});obs.observe(host.value);});
 onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydown',tecla);obs?.disconnect();});
 </script>
 
@@ -180,6 +191,7 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
     <span v-if="escala">{{ escala.toFixed(1) }} px por metro</span>
     <span v-if="resumen">{{ resumen.edificios }} edificios · {{ resumen.casas }} casas · {{ resumen.muebles.toLocaleString('es-CO') }} muebles · {{ resumen.arboles.toLocaleString('es-CO') }} árboles · {{ resumen.mobiliario }} de mobiliario</span>
     <span v-if="entrega&&vacias">{{ entrega.viviendas.toLocaleString('es-CO') }} viviendas vacías · {{ entrega.sacados.toLocaleString('es-CO') }} muebles afuera · quedan {{ entrega.quedan.toLocaleString('es-CO') }} de baño y cocina</span>
+    <span v-if="propResumen" :title="Object.entries(propResumen.por).map(([c,v])=>`${CLASE[c]}: ${v.n}, de ${plata(v.min)} a ${plata(v.max)}`).join(' · ')">{{ propResumen.n.toLocaleString('es-CO') }} propiedades · {{ propResumen.area.toLocaleString('es-CO') }} m² · {{ plata(propResumen.valor) }}</span>
     <span v-if="aparicion?.ok">aparece en x {{ aparicion.x }} · z {{ aparicion.z }} m{{ aparicion.cerca!=null?' · la persona más cercana, a '+aparicion.cerca+' m':'' }}</span>
     <span v-else-if="aparicion">{{ aparicion.razon }}</span>
     <span v-if="resumen">plano {{ resumen.guardado?'guardado':'armado' }} en {{ (resumen.ms/1000).toFixed(1) }} s · dibujo {{ tardo }} ms</span>
@@ -203,6 +215,11 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
      <template v-else>No se puede: {{ fantasma.razon }}</template></p>
     <ul v-if="deEstePiso.length" class="puestos"><li v-for="(o,i) in deEstePiso" :key="i"><span>{{ OBJETOS[o.tipo]?.nombre }}</span><small>{{ o.modo==='pared'?'pared '+({N:'norte',S:'sur',E:'este',W:'oeste'}[o.lado]):'x '+o.x.toFixed(2)+' · z '+o.z.toFixed(2) }}</small><button @click="quitarCol(i)" :aria-label="'Quitar '+OBJETOS[o.tipo]?.nombre">quitar</button></li></ul>
    </div>
+   <div v-if="propsEdificio.length" class="props">
+    <b>En venta acá · {{ propsEdificio.length }} {{ propsEdificio.length===1?'propiedad':'propiedades' }} · {{ plata(propsEdificio.reduce((a,p)=>a+p.precio,0)) }}</b>
+    <ul><li v-for="p in propsEdificio" :key="p.id" :class="{on:p.piso===fichaNivel}" :title="`${p.id} · clase ×${p.factores.clase} · centro ×${p.factores.centro} · piso ×${p.factores.piso} · parque ×${p.factores.parque}`"><span>{{ p.nombre }}<small>{{ p.piso===0?'planta baja':'piso '+p.piso }}<template v-if="p.dormitorios"> · {{ p.dormitorios }} dorm.</template></small></span><i>{{ p.area.toFixed(1) }} m²</i><b>{{ plata(p.precio) }}</b></li></ul>
+    <small v-if="propsEdificio[0].direccion">{{ propsEdificio[0].direccion }} · precio base: área × 1.000 × clase × centro × piso × parque</small>
+   </div>
    <p class="nivel">{{ fichaNivel===0?'Planta baja':'Piso '+fichaNivel }}<template v-if="nivel>=elegido.floors"> (el último: el visor está en la azotea)</template></p>
    <dl v-if="medidas"><dt>Área</dt><dd>{{ medidas.area }} m²</dd><dt>Pasillo</dt><dd :class="{alerta:medidas.pasillo>30}">{{ medidas.pasillo }} %</dd><template v-if="medidas.ensanche"><dt>Ensanche</dt><dd :class="{alerta:medidas.ensanche>25}" title="El tramo sin luz de un piso de departamentos: es más pasillo, decorado, y no cuartos">{{ medidas.ensanche }} %</dd></template><dt>Muebles</dt><dd>{{ medidas.muebles }}</dd><dt>Puertas</dt><dd>{{ medidas.puertas }}</dd><dt>Ventanas</dt><dd>{{ medidas.ventanas }}</dd></dl>
    <ul class="cuartos"><li v-for="[t,n] in cuartos" :key="t"><span>{{ t }}</span><b>{{ n }}</b></li></ul>
@@ -221,6 +238,7 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
    <small>Casa del monte · {{ casa.spec.hogar.label||'vivienda' }}</small>
    <b>{{ casa.direccion?.texto||'Casa' }}</b>
    <p>{{ casa.spec.hogar.levels.length }} {{ casa.spec.hogar.levels.length===1?'piso':'pisos' }} · {{ casa.spec.hogar.W.toFixed(1) }} × {{ casa.spec.hogar.D.toFixed(1) }} m · {{ Math.round(casa.spec.hogar.area) }} m²</p>
+   <p v-if="propCasa" class="precio-casa" :title="propCasa.id">En venta · <b>{{ plata(propCasa.precio) }}</b> · {{ propCasa.area.toFixed(0) }} m² · {{ propCasa.cuartos }} cuartos</p>
    <div class="ficha-piso"><canvas ref="piso"></canvas></div>
    <p class="nivel">{{ casaNivel===0?'Planta baja':'Piso '+casaNivel }}</p>
    <ul class="cuartos uno"><li v-for="(q,i) in casaCuartos" :key="i"><span>{{ q.nombre }}</span><b>{{ q.medida }}</b></li></ul>
@@ -251,6 +269,15 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
 .gente span{color:var(--tx3);font-size:13px}.gente b{color:#ffd166}
 .gente button{padding:5px 9px;border-radius:8px;border:1px solid var(--borde);background:transparent;color:var(--tx);cursor:pointer;font:inherit;font-size:13px}
 .gente button:disabled{opacity:.4;cursor:default}
+.props{margin:10px 0;padding:10px;border:1px solid rgba(255,209,102,.3);border-radius:10px;background:rgba(255,209,102,.05)}
+.props>b{display:block;margin-bottom:6px;color:#ffd166;font-size:13px}
+.props ul{list-style:none;margin:0;padding:0;max-height:210px;overflow:auto}
+.props li{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:baseline;padding:3px 4px;border-radius:6px;font-size:13px}
+.props li.on{background:rgba(255,255,255,.07)}
+.props li small{color:var(--tx3);margin-left:6px}
+.props li i{font-style:normal;color:var(--tx2)}
+.props>small{display:block;margin-top:6px;color:var(--tx3);font-size:11px}
+.precio-casa{color:var(--tx2)}.precio-casa b{color:#ffd166}
 .capa-gente{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .capas label{padding:5px 10px;border-radius:99px;border:1px solid var(--borde);cursor:pointer;color:var(--tx3);gap:0}
 .capas label.on{background:rgba(255,169,77,.16);border-color:rgba(255,169,77,.5);color:var(--tx)}
