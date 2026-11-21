@@ -13,7 +13,7 @@ import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import {FACADE_PIECES} from '../engine/fachada.js';
-import {TEXTURAS3D,texturaPared,texturaDe,uvDelMundo} from './texturas3d.js';
+import {TEXTURAS3D,TEXTURA_FIJA,texturaPared,texturaDe,uvDelMundo} from './texturas3d.js';
 import {ACABADO,ES_DE_FACHADA,piezaLowPoly,medidasDePartes,PARED,PUERTA_DOBLE,puertaDobleLowPoly,MARQUESINA,marquesinaLowPoly,VENTANAL,ventanalLowPoly} from './fachada3d.js';
 import {VIDRIO_VENTANAL} from '../engine/fachada.js';
 import {PUERTA} from '../engine/medidas.js';
@@ -126,7 +126,7 @@ export function buildDowntown(kit,items,leaves=[]){
  const tex=textures(),mats=new Map(),buckets=new Map(),group=new THREE.Group(),own=[],litMats=[],bounce=[];
  const material=(name,color,tint,lit,pared=false,textura=null)=>{
   // (pared: la capa de afuera de un muro; con TEXTURAS3D lleva la textura que le toca a su material y su color)
-  const tx=pared&&TEXTURAS3D.on&&LOWPOLY.on?(textura||texturaDe(name,tint)):null;// (textura: la que trae el edificio del plano)
+  const tx=TEXTURAS3D.on&&LOWPOLY.on?(pared?(textura||texturaDe(name,tint)):TEXTURA_FIJA[name]||null):null;// (textura: la que trae el edificio del plano)
   const key=name+'|'+(tint||'')+'|'+(name==='MI_Glass'?lit>=0:'')+(tx?'|T:'+tx:'');if(mats.has(key))return key;
   let m;
   if(name==='MI_Glass'){m=new THREE.MeshStandardMaterial({color:'#9fb4c2',transparent:true,opacity:.22,roughness:.05,metalness:.1,depthWrite:false,emissive:new THREE.Color(0)});if(lit>=0)litMats.push(m);}

@@ -18,7 +18,8 @@ jira_title: ""
 - [x] Caminar Colombia (720 m) en 3D con la primera imagen en menos de 15 s: abre en 14 s y rinde 60–74 cuadros por segundo, sin cargar por zonas.
 - [ ] Decidir si hace falta cargar el 3D por zonas. Depende de: Miguel — hoy no hace falta para 720 m; haría falta para una ciudad bastante más grande o para una máquina más lenta que este PC.
 - [x] Dar textura a las fachadas en el 3D: siete texturas dibujadas (ladrillo, ladrillo pintado, sillar, estuco, panel, hormigón, tablilla), la misma en el alzado 2D y en el 3D.
-- [ ] Dar textura también a los techos y al zócalo en el 3D: termina cuando el paseo los muestra con su material.
+- [x] Dar textura también a los techos y al zócalo en el 3D: mansardas de pizarra, azotea con membrana y gravilla, zócalo de piedra.
+- [ ] Decidir si se usan texturas de foto bajadas de internet. Depende de: Miguel — hoy todas están dibujadas en el código, del mismo estilo; las de foto (libres, de Poly Haven o ambientCG) se verían más reales y menos «de dibujo», y pesan más.
 - [x] Listar las propiedades de una ciudad (departamentos, locales, casas) con área y precio base: la misma semilla da el mismo listado y se ve en el visor.
 - [ ] Revisar la fórmula del precio base. Depende de: Miguel — los factores (clase, centro, piso, parque) son propuesta de Claude.
 - [ ] Dar dueño a una propiedad: termina cuando una propiedad se puede marcar como comprada por alguien y el listado lo muestra.
@@ -103,7 +104,7 @@ Cada uno con su condición de cierre. Los hechos pasan a la pila como bloque.
 
 **Hecho**: veredas, cordones y asfalto; sombras; techos; nombres; texturas de fachada y techo en seis paquetes; alzado de cada edificio; paños de muro en la planta baja de los locales.
 **Hecho el 2026-11-21**: textura en las fachadas del 3D y color parejo por barrio (cada barrio usa sólo tradiciones de pared pareja: piedra crema, encalado, ladrillo oscuro, concreto; las de muchos colores quedan guardadas en `tradicionesVariadas`).
-**Falta**: textura en techos y zócalos del 3D; costa con contorno curvo; puentes y muelle; carreteras del monte de menos de 15 % (hoy hasta 32 %).
+**Falta**: la azotea plana casi no se nota desde lejos; costa con contorno curvo; puentes y muelle; carreteras del monte de menos de 15 % (hoy hasta 32 %).
 **Cierre**: Miguel mira el catálogo de fachadas y el paseo y dice que la ciudad «se vende sola».
 
 ### 3. Todo calculado en el 2D — en curso

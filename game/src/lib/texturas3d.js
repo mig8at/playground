@@ -29,6 +29,13 @@ const DIBUJOS={
  hormigon(g,P,r){g.fillStyle=gris(.93);g.fillRect(0,0,P,P);const h=P/8;for(let j=0;j<8;j++){g.fillStyle=gris(.9+r()*.08);g.fillRect(0,j*h+1,P,h-1);g.fillStyle=gris(.8);g.fillRect(0,j*h,P,1);}g.fillStyle=gris(.7);for(const x of [.25,.75])for(const y of [.25,.75]){g.beginPath();g.arc(x*P,y*P,2.2,0,7);g.fill();}grano(g,P,r,1800,.1);},
  // tablilla: tablas horizontales de 16,7 cm solapadas; la de arriba le hace sombra a la de abajo
  tablilla(g,P,r){const h=P/12;for(let j=0;j<12;j++){const G=g.createLinearGradient(0,j*h,0,(j+1)*h),v=.93+r()*.06;G.addColorStop(0,gris(.72));G.addColorStop(.14,gris(v));G.addColorStop(1,gris(v-.05));g.fillStyle=G;g.fillRect(0,j*h,P,h);}grano(g,P,r,700,.06);},
+ // ---- techos y zócalo (2026-11-21, «que la ciudad se vea bien bonita») ----
+ // pizarra: escamas de 25 × 20 cm en hiladas trabadas, cada una con su tono y la sombra de la de arriba
+ pizarra(g,P,r){g.fillStyle=gris(.7);g.fillRect(0,0,P,P);const h=P/10,w=P/8;for(let j=0;j<10;j++)for(let i=-1;i<8;i++){const x=i*w+(j%2?w/2:0),v=.84+r()*.16;g.fillStyle=gris(v);g.fillRect(x+1,j*h+1,w-1.5,h-1);g.fillStyle=gris(.66);g.globalAlpha=.55;g.fillRect(x+1,j*h+1,w-1.5,2.5);g.globalAlpha=1;}grano(g,P,r,700,.1);},
+ // azotea: la membrana en rollos de 1 m, con la junta apenas marcada, y gravilla
+ azotea(g,P,r){g.fillStyle=gris(.92);g.fillRect(0,0,P,P);for(let i=0;i<2;i++){g.fillStyle=gris(.88+r()*.1);g.fillRect(i*P/2+2,0,P/2-2,P);g.fillStyle=gris(.7);g.fillRect(i*P/2,0,2,P);}for(let i=0;i<7000;i++){g.fillStyle=gris(.74+r()*.26);g.fillRect(r()*P,r()*P,1.6,1.6);}},
+ // zócalo: piedra en bloques desiguales, en hiladas de 20 cm, con la junta honda
+ zocalo(g,P,r){g.fillStyle=gris(.62);g.fillRect(0,0,P,P);const h=P/10;for(let j=0;j<10;j++){let x=-r()*P/8;while(x<P){const w=P/10+r()*P/7;g.fillStyle=gris(.84+r()*.16);g.fillRect(x+1.5,j*h+1.5,w-3,h-3);g.fillStyle=gris(1);g.globalAlpha=.22;g.fillRect(x+1.5,j*h+1.5,w-3,2);g.globalAlpha=1;x+=w;}}grano(g,P,r,1500,.14);},
 };
 export const NOMBRES_TEXTURA=Object.keys(DIBUJOS);
 
@@ -40,6 +47,9 @@ export function texturaPared(nombre){if(hechas.has(nombre))return hechas.get(nom
 // para que dos edificios de la misma familia no sean siempre iguales. Sin azar: el mismo edificio, la misma textura.
 const POR_MATERIAL={MI_RedBrick:['ladrillo','ladrillo','ladrillo_pintado','estuco'],MI_RedBrick_Pale:['ladrillo','estuco','tablilla','ladrillo_pintado'],MI_Concrete:['sillar','sillar','hormigon','estuco'],MI_Trim_MetalConcrete:['panel','hormigon','panel','tablilla'],MI_Trim:['estuco','sillar','ladrillo_pintado']};
 export function texturaDe(material,color){const L=POR_MATERIAL[material];if(!L)return null;let h=2166136261;for(const ch of String(color||''))h=Math.imul(h^ch.charCodeAt(0),16777619);return L[(h>>>0)%L.length];}
+
+// Los materiales que llevan siempre la misma textura, en todas sus piezas: la mansarda, la azotea y el zócalo.
+export const TEXTURA_FIJA={MI_Roof_Slate:'pizarra',MI_Asphalt:'azotea',MI_Zocalo:'zocalo'};
 
 // Las coordenadas de textura de una malla ya puesta en su lugar: por metros del mundo. En una pared, a lo largo de ella y
 // hacia arriba; en una cara horizontal, en planta. Así el dibujo no se estira y sigue de una pieza a la de al lado.
