@@ -71,7 +71,7 @@ export function murosDeCuarto(L,nivel,q,enOtroLote=null){const fs=estiloDe(L),su
    else{const Gs=vidrioDe(fs,d,nivel,len);if(!Gs.length)pon(cu-len/2-CERCO,cu+len/2+CERCO,.3,2.8,'ventana');for(const G of Gs)pon(cu+G[0]-CERCO,cu+G[1]+CERCO,G[2]-CERCO-.08,G[3]+CERCO+.1,'ventana');if(fs.balconies&&nivel>=2||fs.double&&nivel>=1)pon(cu-1,cu+1,0,H,'ventana');}}
   for(let i=huecos.length-1;i>=0;i--)if(huecos[i].u1-huecos[i].u0<=.01||huecos[i].y1-huecos[i].y0<=.01)huecos.splice(i,1);
   const ox=c.x-n[0]*.3,oz=c.z-n[1]*.3,sale=dentro(ox,oz)?SALE.tabique:enOtroLote?.(ox,oz)?SALE.medianera:SALE.fachada;
-  out.push({id:`L${L.id}-P${nivel}-C${q.id}-${P.lado}`,clase:'interior',lote:L.id,nivel,cuarto:q.id,lado:P.lado,ancho,alto:H,huecos,c,n,y0:r3(sube+nivel*ALTURA.piso+.02),sale,color:L.colores?.cuartos?.[nivel+':'+q.id]||null,nombre:`Pared ${({N:'norte',S:'sur',E:'este',W:'oeste'})[P.lado]}`});}
+  out.push({id:`L${L.id}-P${nivel}-C${q.id}-${P.lado}`,clase:'interior',tipo:q.type,lote:L.id,nivel,cuarto:q.id,lado:P.lado,ancho,alto:H,huecos,c,n,y0:r3(sube+nivel*ALTURA.piso+.02),sale,color:L.colores?.cuartos?.[nivel+':'+q.id]||null,nombre:`Pared ${({N:'norte',S:'sur',E:'este',W:'oeste'})[P.lado]}`});}
  return out;}
 
 // LAS PAREDES DE UNA FACHADA. Los cortes a lo ancho son los bordes de lo que hay detrás en ese piso (cuartos, pasillos,
@@ -99,17 +99,52 @@ export function paredesDelEdificio(bp,L){const otro=otroLoteDe(bp,L),out=['N','S
 // La fachada entera como UN lienzo armado con lo guardado en cada una de sus paredes, y al revés: lo pintado de corrido,
 // repartido en sus paredes. guardados: {id: {cols, rows, t}}. componer devuelve null si no hay nada pintado.
 const cajaDe=(F,Z,P)=>{const c0=Math.round(P.u0/Z.px),c1=Math.round(P.u1/Z.px),f0=Z.rows-Math.round((P.y0+P.alto)/Z.px),f1=Z.rows-Math.round(P.y0/Z.px);return {c0,c1,f0:Math.max(0,f0),f1:Math.min(Z.rows,f1)};};
-export function componerFachada(L,lado,guardados){const F=muroExterior(L,lado),Z=lienzoDe(F),g=vacio(Z.cols,Z.rows);let hay=false;
- for(const P of paredesDeFachada(L,lado)){const s=guardados?.[P.id];if(!s?.t)continue;const B=cajaDe(F,Z,P),w=B.c1-B.c0,h=B.f1-B.f0;if(s.cols!==w||s.rows!==h)continue;const p=deTexto(s.t,w,h);if(!p)continue;for(let f=0;f<h;f++)g.d.set(p.d.subarray(f*w,(f+1)*w),(B.f0+f)*Z.cols+B.c0);hay=true;}
+export function componerFachada(L,lado,guardados,paredes=paredesDeFachada(L,lado)){const F=muroExterior(L,lado),Z=lienzoDe(F),g=vacio(Z.cols,Z.rows);let hay=false;
+ for(const P of paredes){const s=guardados?.[P.numero||P.id];if(!s?.t)continue;const B=cajaDe(F,Z,P),w=B.c1-B.c0,h=B.f1-B.f0;if(s.cols!==w||s.rows!==h)continue;const p=deTexto(s.t,w,h);if(!p)continue;for(let f=0;f<h;f++)g.d.set(p.d.subarray(f*w,(f+1)*w),(B.f0+f)*Z.cols+B.c0);hay=true;}
  return hay?g:null;}
-export function partirFachada(L,lado,g){const F=muroExterior(L,lado),Z=lienzoDe(F),out={};
- for(const P of paredesDeFachada(L,lado)){const B=cajaDe(F,Z,P),w=B.c1-B.c0,h=B.f1-B.f0,p=vacio(w,h);let n=0;for(let f=0;f<h;f++){const fila=g.d.subarray((B.f0+f)*Z.cols+B.c0,(B.f0+f)*Z.cols+B.c1);p.d.set(fila,f*w);for(const v of fila)if(v)n++;}out[P.id]=n?{cols:w,rows:h,t:aTexto(p)}:null;}
+export function partirFachada(L,lado,g,paredes=paredesDeFachada(L,lado)){const F=muroExterior(L,lado),Z=lienzoDe(F),out={};
+ for(const P of paredes){const B=cajaDe(F,Z,P),w=B.c1-B.c0,h=B.f1-B.f0,p=vacio(w,h);let n=0;for(let f=0;f<h;f++){const fila=g.d.subarray((B.f0+f)*Z.cols+B.c0,(B.f0+f)*Z.cols+B.c1);p.d.set(fila,f*w);for(const v of fila)if(v)n++;}out[P.numero||P.id]=n?{cols:w,rows:h,t:aTexto(p)}:null;}
  return out;}
 
 // El muro de un identificador (lo que guarda un grafiti), o null si esa ciudad no lo tiene.
-export function muroDe(bp,id){const m=/^L(\d+)-(?:([NSEW])(?:-P(\d+)-T(\d+))?|P(\d+)-C(\d+)-([NSEW]))$/.exec(id);if(!m)return null;const L=bp.lots[+m[1]];if(!L?.levels?.length)return null;
+export function muroDe(bp,id){if(/^\d{10}$/.test(String(id)))return paredDeNumero(bp,String(id));const m=/^L(\d+)-(?:([NSEW])(?:-P(\d+)-T(\d+))?|P(\d+)-C(\d+)-([NSEW]))$/.exec(id);if(!m)return null;const L=bp.lots[+m[1]];if(!L?.levels?.length)return null;
  if(m[2])return m[3]!=null?paredesDeFachada(L,m[2]).find(P=>P.nivel===+m[3]&&P.tramo===+m[4])||null:muroExterior(L,m[2]);m[3]=m[5];m[4]=m[6];m[5]=m[7];const nivel=+m[3],q=L.levels[nivel]?.rooms.find(q=>q.id===+m[4]);return q?murosDeCuarto(L,nivel,q,otroLoteDe(bp,L)).find(w=>w.lado===m[5])||null:null;}
 // ¿Ese punto del plano es de otro edificio que no sea L?
 export const otroLoteDe=(bp,L)=>(x,z)=>bp.lots.some(o=>o!==L&&o.id!==L.id&&(o.parts||[]).some(p=>x>p.x&&x<p.x+p.w&&z>p.y&&z<p.y+p.h));
 // La pared de un cuarto más cercana a un punto del plano de ese piso (para elegirla con un clic).
 export function muroCerca(L,nivel,q,x,z,enOtroLote=null){const P=paredesDe(q).map(P=>({P,d:Math.abs((P.horiz?z:x)-P.fija)})).sort((a,b)=>a.d-b.d)[0].P;return murosDeCuarto(L,nivel,q,enOtroLote).find(w=>w.lado===P.lado);}
+
+// LAS PAREDES QUE SE PINTAN, CON SU NÚMERO (2026-11-21, Miguel: «la que vale la pena es sólo la pared que no tiene
+// puertas ni ventanas», «sin baños», y «un identificador número de varias cifras: la cuadra, el edificio o casa, el piso
+// y las paredes»).
+//   Pintable: una pared sin ningún vano (el zócalo de la planta baja no cuenta: se pinta de ahí para arriba), que no es
+//   la cara de adentro de un baño ni una pared de fachada tapada por el edificio de al lado.
+//   El número, de 10 cifras: CCC EE PP WWW
+//     CCC la cuadra (1…: las manzanas de la ciudad que tienen edificios, en su orden);
+//     EE  el edificio dentro de su cuadra (1…, en el orden de sus lotes);
+//     PP  el piso (00 la planta baja);
+//     WWW la pared dentro de ese piso (1…): primero las de fachada —norte, este, sur, oeste, de izquierda a derecha— y
+//         después las caras de cada cuarto, por cuarto y en ese mismo orden de lados.
+//   Sale sólo del plano, siempre en el mismo orden: la misma ciudad da los mismos números. Si cambia el generador, la
+//   ciudad cambia y sus paredes se renumeran: lo guardado tiene que llevar de qué versión de la ciudad es.
+//   Medido en la ciudad de 720 m: 83 cuadras, hasta 22 edificios por cuadra, 8 pisos y 82 paredes pintables por piso.
+// Las casas del monte todavía no entran (sus manzanas irían después de las de la ciudad).
+export const BANOS=new Set(['bano','sanitario']),ORDEN_LADO={N:0,E:1,S:2,W:3};
+export const esPintable=w=>!(w.huecos||[]).some(h=>h.clase!=='zocalo')&&!(w.clase==='interior'&&BANOS.has(w.tipo));
+const cuadras=new WeakMap();
+const cuadraDe=(bp,L)=>{let M=cuadras.get(bp);if(!M){const ids=[...new Set(bp.lots.filter(o=>o.levels?.length).map(o=>o.block))].sort((a,b)=>a-b);M={c:new Map(ids.map((b,i)=>[b,i+1])),e:new Map()};for(const b of ids)bp.lots.filter(o=>o.block===b&&o.levels?.length).sort((x,y)=>x.id-y.id).forEach((o,i)=>M.e.set(o.id,i+1));cuadras.set(bp,M);}return {cuadra:M.c.get(L.block),edificio:M.e.get(L.id),M};};
+const dos=(n,k)=>String(n).padStart(k,'0');
+// Las paredes pintables de un edificio, cada una con su `numero` (y cuadra, edificio, piso, pared, por separado).
+export function paredesPintables(bp,L){const {cuadra,edificio}=cuadraDe(bp,L);if(!cuadra)return [];const out=[],porPiso=new Map();
+ // (una pared de fachada pegada a otro edificio que llega a ese piso —una medianera— no se ve: no cuenta; la que asoma
+ // por encima de un vecino más bajo, sí)
+ const tapada=w=>{if(w.clase!=='exterior')return false;const x=w.c.x+w.n[0]*.3,z=w.c.z+w.n[1]*.3;return bp.lots.some(o=>o.id!==L.id&&o.floors>w.nivel&&(o.parts||[]).some(p=>x>p.x&&x<p.x+p.w&&z>p.y&&z<p.y+p.h));};
+ for(const w of paredesDelEdificio(bp,L)){if(!esPintable(w)||tapada(w))continue;(porPiso.get(w.nivel)||porPiso.set(w.nivel,[]).get(w.nivel)).push(w);}
+ for(const [nivel,ws] of [...porPiso].sort((a,b)=>a[0]-b[0])){ws.sort((a,b)=>(a.clase==='exterior'?0:1)-(b.clase==='exterior'?0:1)||(a.clase==='exterior'?ORDEN_LADO[a.lado]-ORDEN_LADO[b.lado]||a.tramo-b.tramo:a.cuarto-b.cuarto||ORDEN_LADO[a.lado]-ORDEN_LADO[b.lado]));
+  ws.forEach((w,i)=>out.push({...w,cuadra,edificio,piso:nivel,pared:i+1,numero:dos(cuadra,3)+dos(edificio,2)+dos(nivel,2)+dos(i+1,3)}));}
+ return out;}
+// De un número a su pared (o null): se busca el edificio por su cuadra y su lugar, y la pared entre las suyas.
+export function paredDeNumero(bp,numero){const t=String(numero);if(!/^\d{10}$/.test(t))return null;const c=+t.slice(0,3),e=+t.slice(3,5);cuadraDe(bp,bp.lots.find(o=>o.levels?.length)||bp.lots[0]);const M=cuadras.get(bp);if(!M)return null;
+ const L=bp.lots.find(o=>o.levels?.length&&M.c.get(o.block)===c&&M.e.get(o.id)===e);return L?paredesPintables(bp,L).find(w=>w.numero===t)||null:null;}
+// Las de una ciudad entera.
+export const paredesDeLaCiudad=bp=>bp.lots.filter(L=>L.levels?.length).flatMap(L=>paredesPintables(bp,L));
