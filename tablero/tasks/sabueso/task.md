@@ -17,6 +17,7 @@ jira_title: ""
 - [x] Confirmar el acceso a una fuente pública de comercios (RUES o datos abiertos por CIIU y ciudad) y su costo — en la pila: el registro mercantil de Confecámaras en datos.gov.co, gratis (CC BY-SA 4.0) y sin llave; la consulta de prueba trajo 12 cadenas de motos de 33 a 112 establecimientos, ninguna cliente.
 - [x] Armar el prototipo local (app de Cockpit en `sabueso/`, con la base de `tools/ui`) con las regiones de la maqueta — anda con lo medido en prod y 10 prospectos reales del registro (pila del 2026-11-21).
 - [ ] Poder marcar a mano «ya es cliente» en el registro; termina cuando un cliente que el cruce no ve (Colombiana de Comercio, la sociedad de Alkosto) queda oculto en la próxima búsqueda.
+- [x] Rescatar el canal por el que un comercio real recibe propuestas, con Claude por internet y por consola (`bin/sabueso hunt|contact`) — Dismerca: WhatsApp comercial +57 333 033 4551, verificado en su sitio (pila del 2026-11-21).
 - [ ] Redactar los correos con las señales de cada comercio y dejarlos listos para enviar a mano; termina cuando un borrador sale de los datos de un prospecto real.
 - [ ] Marcar a quién se le pasa un prospecto («lo retoma <persona>») y que quede en su bitácora; termina cuando un prospecto pasado muestra el dueño nuevo y la fecha.
 - [ ] Evaluar si el envío de correos (y WhatsApp, sólo con aceptación previa) se puede conectar solo; termina cuando la pila dice qué canal se conecta, con qué y qué riesgo tiene.
