@@ -1032,6 +1032,10 @@ func main() {
 		// Sentinel al tocarlo, y su permiso es lo que se pierde (sin él, Sentinel estuvo mudo del 14 al 18/11/2026).
 		via, err := systemNotice("Sentinel · prueba", "Así llega un aviso de Sentinel. Tocalo y abre Sentinel.", "", false)
 		exitOn(err)
+		if strings.HasPrefix(via, "callado: ") {
+			fmt.Println("sentinel: el aviso no sonó: Cockpit lo calló (" + strings.TrimPrefix(via, "callado: ") + "); quedó en su campana")
+			return
+		}
 		fmt.Println("sentinel: el aviso salió por " + via)
 		if strings.HasPrefix(via, "osascript (") {
 			fmt.Println("⚠ el avisador de Cockpit no tiene permiso: bin/cockpit notify --test lo pide (o Ajustes del Sistema → Notificaciones → «Cockpit»)")
