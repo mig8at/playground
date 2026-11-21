@@ -93,3 +93,19 @@ func TestValidAndMerge(t *testing.T) {
 		t.Errorf("info@ es general: %s", f)
 	}
 }
+
+func TestDropRoute(t *testing.T) {
+	dataDir, root = t.TempDir(), t.TempDir()
+	st := &State{Companies: []*Company{{ID: "co_1", Kind: KindMerchant, Name: "Todomotos VS", NIT: "830506750", Stage: "prospect",
+		Research: &Research{Matched: true, Summary: "Sin sitio ni canal."}}}}
+	if err := saveState(st); err != nil {
+		t.Fatal(err)
+	}
+	if rec := do(guard(routes()), newReq("POST", "/api/companies/co_1/drop", strings.NewReader("{}"))); rec.Code != 200 {
+		t.Fatalf("drop: %d %s", rec.Code, rec.Body.String())
+	}
+	st, _ = loadState()
+	if len(st.Companies) != 0 || len(st.NoChannel) != 1 || st.NoChannel[0].NIT != "830506750" || st.NoChannel[0].Summary != "Sin sitio ni canal." {
+		t.Errorf("sale de la lista y queda anotada: %+v", st)
+	}
+}

@@ -225,17 +225,18 @@ func socrata(ctx context.Context, base string, params url.Values, out any) error
 
 // Candidate: una empresa del registro que podría ser comercio.
 type Candidate struct {
-	NIT      string `json:"nit"`
-	Name     string `json:"name"`
-	Points   int    `json:"points"`
-	Region   string `json:"region"`
-	CIIU     string `json:"ciiu"`
-	Renewed  string `json:"renewed"`
-	Client   string `json:"client,omitempty"`  // ya es comercio de CreditOp (con ese nombre)
-	Tracked  string `json:"tracked,omitempty"` // ya está en Sabueso (su id)
-	Fit      int    `json:"fit"`
-	Sector   string `json:"sector"`
-	Inactive bool   `json:"inactive,omitempty"` // la empresa no está activa en el registro
+	NIT       string `json:"nit"`
+	Name      string `json:"name"`
+	Points    int    `json:"points"`
+	Region    string `json:"region"`
+	CIIU      string `json:"ciiu"`
+	Renewed   string `json:"renewed"`
+	Client    string `json:"client,omitempty"`  // ya es comercio de CreditOp (con ese nombre)
+	Tracked   string `json:"tracked,omitempty"` // ya está en Sabueso (su id)
+	Fit       int    `json:"fit"`
+	Sector    string `json:"sector"`
+	Inactive  bool   `json:"inactive,omitempty"`  // la empresa no está activa en el registro
+	NoChannel bool   `json:"noChannel,omitempty"` // ya se buscó y no tiene canal público: hunt la salta
 }
 
 // discover: las empresas del sector con más establecimientos activos en el registro mercantil.
@@ -293,6 +294,13 @@ func discover(ctx context.Context, s *Sector, minPoints, limit int, st *State, m
 			names[n.NIT] = struct{ name, state, region string }{n.Name, n.State, n.Region}
 		}
 	}
+	noChannel := map[string]bool{}
+	for _, d := range st.NoChannel {
+		if d.NIT != "" {
+			noChannel[d.NIT] = true
+		}
+		noChannel["name:"+normalizeName(d.Name)] = true
+	}
 	tracked := map[string]string{}
 	for _, c := range st.Companies {
 		if c.NIT != "" {
@@ -315,6 +323,7 @@ func discover(ctx context.Context, s *Sector, minPoints, limit int, st *State, m
 		} else if id, ok := tracked["name:"+normalizeName(c.Name)]; ok {
 			c.Tracked = id
 		}
+		c.NoChannel = noChannel[c.NIT] || noChannel["name:"+normalizeName(c.Name)]
 		c.Fit, _ = computeFit(&Company{Kind: KindMerchant, Points: pts, Sector: s.ID})
 		out = append(out, c)
 	}

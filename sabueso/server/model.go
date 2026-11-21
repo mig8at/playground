@@ -102,6 +102,17 @@ type Company struct {
 // State: el archivo entero.
 type State struct {
 	Companies []*Company `json:"companies"`
+	// NoChannel: las empresas que se buscaron y no tienen un canal público para la propuesta. Salen de Sabueso, pero
+	// quedan acá para que `hunt` no gaste otra búsqueda en ellas (Miguel, 2026-11-21: «dejemos sólo los que lograste»).
+	NoChannel []Dropped `json:"noChannel,omitempty"`
+}
+
+// Dropped: una empresa que se sacó porque no tiene canal.
+type Dropped struct {
+	NIT     string `json:"nit,omitempty"`
+	Name    string `json:"name"`
+	At      string `json:"at"`
+	Summary string `json:"summary,omitempty"`
 }
 
 func newID(prefix string) string {

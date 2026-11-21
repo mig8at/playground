@@ -40,6 +40,18 @@ una que ya se buscó.
 
 ## Qué hay en la pantalla
 
+**Hoy, la vista simple** (Miguel, 2026-11-21: «hagamos lo simple»; `SIMPLE = true` en `src/App.vue`): a la izquierda
+**sólo los comercios que tienen por dónde contactarlos** (teléfono, WhatsApp, correo o formulario), al centro **de qué
+es** el comercio (lo que dijo Claude, sector, ciudad, puntos, sitio y por qué encaja) y a la derecha **cómo
+contactarlo**, cada canal con su área y su fuente. **Sólo se lee**: no hay campos para escribir; lo que cambia lo hace la
+consola (`bin/sabueso`) con Claude y la app lo muestra. Un comercio que se buscó y no tiene canal sale de Sabueso y
+queda en `noChannel` (el estado), para que `hunt` no lo vuelva a buscar; el registro lo marca «ya se buscó».
+
+Más adelante (idea de Miguel, sin hacer): si una empresa sólo tiene un formulario, Jarvis lo llena y queda registrado
+el camino —formulario, correo, llamada—, sin suponer que siempre es el mismo.
+
+La vista completa sigue en el código (con `SIMPLE = false`):
+
 - **Sidebar:** Comercios y Entidades, vistas apiladas, agrupadas por etapa en el orden del embudo. Prospectos por encaje;
   en negociación, por próximo paso (lo vencido arriba, en rojo); entidades, por días en su etapa. Si se la pasaste a
   alguien, la fila dice a quién.

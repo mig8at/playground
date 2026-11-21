@@ -329,6 +329,27 @@ func routes() *http.ServeMux {
 		reply(w, err)
 	})
 
+	// Sacarla porque no tiene canal: sale de la lista y queda anotada para que hunt no la vuelva a buscar.
+	mux.HandleFunc("POST /api/companies/{id}/drop", func(w http.ResponseWriter, r *http.Request) {
+		var in struct{ Summary string }
+		_ = json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&in)
+		_, err := withState(func(st *State) error {
+			for i, c := range st.Companies {
+				if c.ID == r.PathValue("id") {
+					sum := in.Summary
+					if sum == "" && c.Research != nil {
+						sum = c.Research.Summary
+					}
+					st.NoChannel = append(st.NoChannel, Dropped{NIT: c.NIT, Name: c.Name, At: now(), Summary: sum})
+					st.Companies = append(st.Companies[:i], st.Companies[i+1:]...)
+					return nil
+				}
+			}
+			return errNotFound
+		})
+		reply(w, err)
+	})
+
 	mux.HandleFunc("DELETE /api/companies/{id}", func(w http.ResponseWriter, r *http.Request) {
 		_, err := withState(func(st *State) error {
 			for i, c := range st.Companies {

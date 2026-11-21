@@ -26,6 +26,7 @@ const usage = `bin/sabueso — encontrar comercios que no trabajan con CreditOp 
         busca en el registro mercantil los comercios del sector que encajan y no son clientes, los agrega y le
         pide a Claude (claude -p, por internet) el canal por el que reciben propuestas; sigue con el siguiente
         hasta tener --count con contacto (o --tries intentos). Cada búsqueda: ~1,5 min y gasta el asiento del plan
+        Los que quedan sin canal salen de Sabueso y no se vuelven a buscar.
   bin/sabueso contact <nombre|id>    busca el contacto de un comercio que ya está en Sabueso
   bin/sabueso find [--sector S] [--min 5]   los del registro, sin agregar nada (segundos)
   bin/sabueso list [--json]          los comercios que se siguen, con su contacto
@@ -157,7 +158,7 @@ type state struct {
 type candidate struct {
 	NIT, Name, Region, CIIU, Renewed, Client, Tracked, Sector string
 	Points, Fit                                               int
-	Inactive                                                  bool
+	Inactive, NoChannel                                       bool
 }
 
 func load() (*state, error) {
@@ -187,6 +188,8 @@ func findCmd(args []string) error {
 			mark = "ya en Sabueso"
 		case c.Inactive:
 			mark = "la empresa no está activa"
+		case c.NoChannel:
+			mark = "ya se buscó: sin canal público"
 		}
 		fmt.Printf("%4d puntos  %-48s %-14s %s\n", c.Points, trim(c.Name, 48), c.Region, mark)
 	}
@@ -218,7 +221,7 @@ func hunt(args []string) error {
 		if found >= *count || tried >= *tries {
 			break
 		}
-		if c.Client != "" || c.Inactive || strings.HasPrefix(c.Name, "NIT ") {
+		if c.Client != "" || c.Inactive || c.NoChannel || strings.HasPrefix(c.Name, "NIT ") {
 			continue
 		}
 		id := c.Tracked
@@ -248,6 +251,8 @@ func hunt(args []string) error {
 		}
 		if ok {
 			found++
+		} else if err := call("POST", "/api/companies/"+id+"/drop", map[string]any{}, nil, time.Minute); err == nil {
+			fmt.Println("  sin canal: sale de Sabueso (queda anotada para no volver a buscarla)")
 		}
 	}
 	fmt.Printf("\n%d de %d con contacto. Se ven en Sabueso (Cockpit) y con bin/sabueso list.\n", found, tried)

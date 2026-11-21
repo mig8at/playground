@@ -82,6 +82,10 @@ const sectorName = (id) => sectors.value.find((s) => s.id === id)?.name || ''
 // ── LAS ENTIDADES, OCULTAS por ahora (Miguel, 2026-11-21: «empecemos por comercio; oculta, no elimines»). El código
 //    sigue: con true vuelven la vista, el embudo y el alta de entidades. ──
 const SHOW_LENDERS = false
+// ── LA VISTA SIMPLE (Miguel, 2026-11-21: «hagamos lo simple»): a la izquierda los comercios que tienen por dónde
+//    contactarlos, al centro de qué es el comercio, a la derecha cómo contactarlo. Sólo se lee: lo actualiza la consola
+//    (bin/sabueso) con Claude. Con false vuelve la vista completa (embudo, registro, etapas, bitácora), que sigue acá. ──
+const SIMPLE = true
 const KINDS = SHOW_LENDERS ? ['merchant', 'lender'] : ['merchant']
 
 // ── el sidebar: las dos vistas, por etapa ──
@@ -245,6 +249,9 @@ async function searchContact(c) {
 const ACT_ICON = { research: 'search', note: 'comment', call: 'audio', email: 'send', meeting: 'video', stage: 'chevron', handoff: 'move', created: 'plus', client: 'check' }
 const ACT_KINDS = [['call', 'Llamada'], ['email', 'Correo'], ['meeting', 'Reunión'], ['note', 'Nota']]
 const hostOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, '') } catch { return u } }
+// Los comercios que tienen al menos un canal, del que más encaja al que menos; el elegido es el de la ruta o el primero.
+const reachable = computed(() => companies.value.filter((c) => c.kind === 'merchant' && c.research?.contacts?.length).sort((a, b) => b.fit - a.fit || a.name.localeCompare(b.name, 'es')))
+const picked = computed(() => (route.value.view === 'company' && reachable.value.find((c) => c.id === route.value.id)) || reachable.value[0] || null)
 const logOf = (c) => [...c.activities].reverse()
 
 // ── el panel: la actividad de todas ──
@@ -314,7 +321,71 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="workbench" :style="layoutVars">
+  <!-- ── la vista simple ── -->
+  <div v-if="SIMPLE" class="workbench simple" :style="layoutVars">
+    <aside v-show="shown.sidebar" class="sidebar" aria-label="Comercios">
+      <div class="rsz rsz-edge-right" v-resize="sidebarResize"></div>
+      <div class="region-head"><span>Comercios</span><span class="count">{{ reachable.length }}</span></div>
+      <div class="region-body">
+        <a v-for="c in reachable" :key="c.id" class="row" :class="{ on: picked?.id === c.id }" :href="`#/c/${c.id}`" :title="reachTitle(c)">
+          <span class="ui-icon" :data-icon="reachIcon(c)" aria-hidden="true"></span>
+          <span>{{ pretty(c.name) }}</span>
+          <span class="row-meta">{{ sectorName(c.sector) }}</span>
+        </a>
+        <div v-if="loaded && !reachable.length" class="side-empty">Todavía ninguno con un canal para contactarlo. Se buscan por consola: <code>bin/sabueso hunt --sector motorcycles</code>.</div>
+        <div v-if="apiError" class="side-empty late">{{ apiError }}</div>
+      </div>
+    </aside>
+
+    <main class="editor">
+      <div class="region-head"><span>{{ picked ? pretty(picked.name) : 'Sabueso' }}</span></div>
+      <div v-if="picked" class="region-body doc profile">
+        <h1>{{ pretty(picked.name) }}</h1>
+        <p class="profile-legal">{{ picked.name }}<template v-if="picked.nit"> · NIT {{ picked.nit }}</template></p>
+        <p v-if="picked.research?.summary" class="profile-summary">{{ picked.research.summary }}</p>
+        <dl class="facts">
+          <template v-if="picked.sector"><dt>Sector</dt><dd>{{ sectorName(picked.sector) }}</dd></template>
+          <template v-if="picked.region"><dt>Ciudad</dt><dd>{{ picked.region }}</dd></template>
+          <template v-if="picked.points"><dt>Puntos de venta</dt><dd>{{ picked.points }} establecimientos activos en el registro mercantil</dd></template>
+          <template v-if="picked.website"><dt>Sitio web</dt><dd><a :href="picked.website.startsWith('http') ? picked.website : `https://${picked.website}`" target="_blank" rel="noopener">{{ hostOf(picked.website.startsWith('http') ? picked.website : `https://${picked.website}`) }}</a></dd></template>
+          <template v-if="picked.fitWhy?.length"><dt>Por qué encaja</dt><dd>{{ picked.fitWhy.join(' · ') }}</dd></template>
+        </dl>
+        <p class="muted small">Del registro mercantil de Confecámaras<template v-if="picked.research"> · contacto buscado por Claude el {{ shortDate(picked.research.at) }}</template>.</p>
+      </div>
+      <div v-else class="region-body"><div class="empty"><div class="empty-head">
+        <div class="empty-title">Sin comercios todavía</div>
+        <div class="empty-desc">Los busca la consola con Claude: <code>bin/sabueso hunt --sector motorcycles</code>. Acá aparecen los que tienen por dónde contactarlos.</div>
+      </div></div></div>
+    </main>
+
+    <aside v-show="shown.aux" class="auxiliarybar" aria-label="Cómo contactarlo">
+      <div class="rsz rsz-edge-left" v-resize="auxResize"></div>
+      <div class="region-head"><span>Cómo contactarlo</span></div>
+      <div v-if="picked" :key="picked.id" class="region-body">
+        <a v-for="ct in sortedContacts(picked)" :key="ct.channel + ct.value" class="contact" :href="contactHref(ct)" target="_blank" rel="noopener">
+          <span class="ui-icon" :data-icon="CH_ICON[ct.channel]" aria-hidden="true"></span>
+          <span class="contact-body">
+            <span class="contact-value">{{ ct.channel === 'form' ? `Formulario · ${hostOf(formUrl(ct))}` : ct.value }}</span>
+            <span class="contact-area">{{ CHANNEL[ct.channel] }} · {{ ct.area }}</span>
+            <span class="contact-source">{{ hostOf(ct.source) }}</span>
+          </span>
+          <span class="badge badge-xs" :class="ct.fit === 'proposals' ? '' : 'badge-outline'">{{ FIT[ct.fit] }}</span>
+        </a>
+      </div>
+    </aside>
+
+    <footer class="statusbar">
+      <span>{{ apiError || plural(reachable.length, 'comercio con canal', 'comercios con canal') }}</span>
+      <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
+        <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
+        <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Mostrar u ocultar los comercios" aria-label="Mostrar u ocultar los comercios" @click="toggle('sidebar', sidebarOpen)"><span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span></button>
+        <button type="button" class="region-action" :aria-pressed="!!shown.aux" title="Mostrar u ocultar cómo contactarlo" aria-label="Mostrar u ocultar cómo contactarlo" @click="toggle('aux', auxOpen)"><span class="ui-icon" data-icon="detail" aria-hidden="true"></span></button>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ── la vista completa (oculta por ahora: SIMPLE) ── -->
+  <div v-else class="workbench" :style="layoutVars">
     <!-- ── las listas ── -->
     <aside v-show="shown.sidebar" class="sidebar" aria-label="Comercios y entidades">
       <div class="rsz rsz-edge-right" v-resize="sidebarResize"></div>
