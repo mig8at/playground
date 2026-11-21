@@ -647,7 +647,9 @@ export const OBJETOS={
 };
 // (2026-10-16: ninguna pieza con una cara en el mismo plano que otra de otro color —titilan al mover la cámara—:
 // engine/titileo.js las corrige al armarlas; lo comprueba validar-titileo)
-for(const o of Object.values(OBJETOS))if(o.piezas){const f=o.piezas;o.piezas=x=>piezasSinTitilar(f(x));}
+// (2026-11-21: con memoria. La misma silla con las mismas opciones se pedía —y se corregía— miles de veces al armar una
+// ciudad; las piezas de un objeto salen sólo de sus opciones, y quien las usa las copia al ubicarlas —placeParts—)
+for(const o of Object.values(OBJETOS))if(o.piezas){const f=o.piezas,memo=new Map();o.piezas=x=>{let k;try{k=JSON.stringify(x)??'';}catch{return piezasSinTitilar(f(x));}let r=memo.get(k);if(!r){r=piezasSinTitilar(f(x));if(memo.size<4000)memo.set(k,r);}return r;};}
 
 // Las paletas de las alfombras (las de costumbre: persas rojas y azules, de lana cruda, verdes y grises).
 const RUGS=[{base:'#7a2b2b',borde:'#e3c79a',campo:'#9c3a35',acento:'#2f4a6b',fleco:'#efe6d6'},{base:'#2f4a6b',borde:'#e3c79a',campo:'#3c5d84',acento:'#9c3a35',fleco:'#efe6d6'},

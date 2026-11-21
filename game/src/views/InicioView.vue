@@ -144,7 +144,7 @@ const fmt=n=>n.toLocaleString('es-CO');
     el paseo —la ciudad sola, para caminarla, sobrevolarla y medir cómo rinde— y el plano 2D; el juego (las salas) queda
     abajo, chico, hasta que la ciudad esté lista -->
     <RouterLink class="cta" :to="{path:'/plano'}">Colombia<small>el plano de la ciudad · 720 × 492 m · 743 edificios</small></RouterLink>
-    <RouterLink class="fantasma" :to="{path:'/ciudad',query:{ciudad:1,jugadores:3,vista:'tercera'}}">Entrar a un barrio en 3D<small>la ciudad chica: la grande todavía no carga en 3D</small></RouterLink>
+    <RouterLink class="fantasma" :to="{path:'/ciudad',query:{ciudad:1,jugadores:16,vista:'tercera'}}">Entrar a Colombia en 3D<small>la ciudad entera: caminar y sobrevolar</small></RouterLink>
     <RouterLink class="fantasma" :to="{path:'/catalogo'}">Catálogo: muebles, fachadas y texturas</RouterLink>
     <!-- (el juego de policías y ladrones salió de la entrada el 2026-11-21: queda en /juego?fuga=1 hasta que se mude a game/fuga/) -->
    </div>

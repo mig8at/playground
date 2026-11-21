@@ -14,7 +14,8 @@ jira_title: ""
 - [x] Sacar policías y ladrones a `game/fuga/`: la pantalla de la ciudad no pide ningún archivo de esa carpeta y el probador (48 pruebas) pasa sin el juego viejo.
 - [ ] Limpiar de `DemoView.vue` el código dormido del juego viejo: termina cuando el archivo no nombra la ronda ni la persecución fuera de `cargarFuga`.
 - [ ] Llevar la vivienda vacía y el punto de aparición al 3D: termina cuando el paseo abre sin muebles en las viviendas y la persona aparece en el sitio que da el plano.
-- [ ] Cargar el 3D por zonas, según por dónde camina la persona: termina cuando la ciudad de 720 m («Colombia») se puede caminar en 3D y la primera imagen sale en menos de 15 s.
+- [x] Caminar Colombia (720 m) en 3D con la primera imagen en menos de 15 s: abre en 14 s y rinde 60–74 cuadros por segundo, sin cargar por zonas.
+- [ ] Decidir si hace falta cargar el 3D por zonas. Depende de: Miguel — hoy no hace falta para 720 m; haría falta para una ciudad bastante más grande o para una máquina más lenta que este PC.
 - [ ] Aplicar las texturas de fachada y techo en el 3D: termina cuando el paseo muestra el paquete elegido en el visor.
 - [ ] Listar las propiedades de una ciudad (departamentos, locales, casas) con área y precio base: termina cuando la misma semilla da siempre el mismo listado y se ve en el visor.
 - [ ] Listar los paños de muro pintables de la planta baja, para los grafitis: termina cuando cada paño sale con edificio, lado, tramo y alto.
@@ -83,12 +84,12 @@ Cada uno con su condición de cierre. Los hechos pasan a la pila como bloque.
 **Falta**: `DemoView.vue` todavía tiene el código del juego viejo, dormido; el título conserva las pantallas de salas.
 **Cierre**: el del pendiente de arriba.
 
-### 1b. Cargar el 3D por zonas — sin empezar
+### 1b. Colombia en 3D — hecho sin cargar por zonas
 
-**El problema, medido**: el 3D arma la ciudad entera de una vez, en un solo paso que ocupa la máquina. La chica (276 m, 75 edificios) tarda 13 s; la de 444 m no había terminado a los 2 minutos; la de 720 m, a los 4. El plano 2D de esa misma ciudad se arma en 30 s la primera vez y abre al instante después.
-**La idea de Miguel**: el 2D es rápido y define todo; el 3D debería armar sólo lo que rodea a la persona mientras camina. Es lo que hace GTA V con la carga por zonas y las versiones lejanas baratas.
-**Cómo**: partir la ciudad en zonas (una manzana o una grilla de ~60 m), armar al entrar las que rodean al jugador y, de las demás, sólo una caja con su color y su techo; soltar las que quedan lejos. El plano ya sabe qué hay en cada zona.
-**Cierre**: el de la casilla de arriba.
+**Lo que se creía y era falso**: que el 3D no podía con las ciudades grandes («la de 444 m no terminó en 2 minutos, la de 720 m en 4»). Era un error de medición de Claude: se probaba en una pestaña de fondo, y ahí el navegador pausa el paso que arranca el armado. Con la pestaña al frente la de 720 m abría en 35 s.
+**Lo que sí tardaba**: de los 22 s de armar la ciudad, 21 eran una sola función, la que corrige caras superpuestas (`engine/titileo.js`), por cómo anotaba los pares ya vistos. Acelerada, con resultado idéntico al de antes.
+**Cómo quedó**: Colombia abre en 14 s y rinde 60–74 cuadros por segundo con 6,7 millones de triángulos, en el PC con Linux.
+**Cargar por zonas** (la idea de Miguel, como GTA) queda como opción para una ciudad más grande o una máquina más lenta: hoy toda la ciudad está en memoria y se dibuja entera.
 
 ### 2. La ciudad bonita — en curso
 
@@ -138,7 +139,7 @@ Todo el trabajo está en la rama `game/visual` de `mig8at/playground`, PR 6 (abi
 ## Lo que no está verificado
 
 - Nada de lo hecho se probó en la Mac: todo en el PC con Linux.
-- Las ciudades grandes (576 m y 720 m) no se abrieron en 3D ni pasaron por el probador, que sólo mira la de 3 por equipo.
+- Las ciudades grandes (576 m y 720 m) no pasan por el probador, que sólo mira la de 3 por equipo. La de 720 m se abrió en 3D y se miró una esquina; no se recorrió entera.
 - Las texturas, los objetos colocados, la vivienda vacía y el punto de aparición no se ven en el 3D: sólo en el plano.
 - Después de la vivienda vacía y el punto de aparición no se corrió el probador entero, sólo la prueba nueva (`validar-aparecer`).
 - El probador que se corre es el rápido, de una ciudad; el completo de cuatro no se corrió.

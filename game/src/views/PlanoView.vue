@@ -167,7 +167,7 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
    <button class="techos" :class="{on:nivel>=maxPisos}" @click="nivel=nivel>=maxPisos?0:maxPisos" title="Ver la ciudad desde arriba, con sus techos (o volver a la planta baja)">Techos</button>
    <button class="ajustar" @click="ajustar" title="Ver todo (0)">Ver todo</button>
    <RouterLink class="catalogo" :to="{path:'/catalogo',query:{seccion:'fachadas',ciudad:seed}}" title="Los muebles, las fachadas y las texturas, de a uno">Catálogo</RouterLink>
-   <RouterLink class="jugar" :to="{path:'/ciudad',query:{ciudad:seed,jugadores:Math.min(team,3),vista:'tercera'}}" :title="team>3?'El 3D arma hoy la ciudad entera de una vez: la de 444 m tardó más de 2 minutos y la de 720 m más de 4 sin terminar. Por ahora entra a la versión chica de esta misma semilla.':'La ciudad sola en 3D: caminar, sobrevolar y ver cómo rinde.'">{{ team>3?'Entrar a un barrio en 3D':'Entrar a la ciudad' }}</RouterLink>
+   <RouterLink class="jugar" :to="{path:'/ciudad',query:{ciudad:seed,jugadores:team,vista:'tercera'}}" title="Esta misma ciudad en 3D: caminar, sobrevolar y ver cómo rinde. La de 720 m abre en unos 14 s.">Entrar en 3D</RouterLink>
   </header>
 
   <div ref="host" class="visor" :class="{arrastrando:arrastre}" @wheel="rueda" @pointerdown="baja" @pointermove="mueve" @pointerup="sube" @pointerleave="cursor=null">
