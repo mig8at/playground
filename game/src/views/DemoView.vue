@@ -4,7 +4,7 @@ const LAB=new URLSearchParams(location.search).has('lab');
 /* /demo: caminar la ciudad en primera persona. Por ahora es sólo lo visual (sin reglas ni otros jugadores): la misma
    ciudad que juega el motor, a escala de persona, como base para llevar el juego a multijugador.
    ?jugadores=3&ciudad=1234 */
-import {ref,onMounted,onBeforeUnmount} from 'vue';
+import {ref,onMounted,onBeforeUnmount,defineAsyncComponent} from 'vue';
 import '@fontsource/bungee/400.css';
 import '@fontsource-variable/rubik';
 import {useRoute,useRouter} from 'vue-router';
@@ -14,8 +14,6 @@ import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
 import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
 import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';
 import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
-import {createViewmodel,ViewmodelPass} from '../lib/viewmodel3d.js';
-import {createShooting} from '../lib/disparo3d.js';
 import {COLORS} from '../engine/vestuario.js';
 import {EdgePass} from '../lib/edges3d.js';
 import {City} from '../engine/index.js';
@@ -32,7 +30,6 @@ import {createHouses} from '../lib/vivienda3d.js';
 import {buildIsland,loadIslandBuildings,ISLAND_MARGIN,CLIFF,ISLA3D} from '../lib/island3d.js';
 import {dibujarPlano,revisarContrato,revisarSuelo,revisarAndenes} from '../lib/plano3d.js';
 import {loadCharacters,loadPolice,LOD_CAM,makeCharacter,moveCharacter,vestirPlantilla,plantillaJugador,uniformeDe} from '../lib/characters3d.js';
-import MenuJuego from '../components/MenuJuego.vue';
 import {describirRopa,etiqueta} from '../lib/ropaTexto.js';
 import {GARMENTS,PALETTE} from '../lib/vestier3d.js';
 import {buildWorld,CELL,EYE,FLOOR,WORLD_TIMES} from '../lib/world3d.js';
@@ -49,11 +46,8 @@ import {paredesAClarar,VISIBILIDAD} from '../engine/visibilidad.js';
 import {visiblesDesde} from '../engine/visibles.js';
 import {createAclarado} from '../lib/aclarado3d.js';
 import {createAcciones} from '../lib/acciones3d.js';
-import {crearRonda,robar,guardar,sacar,incautar,perseguido,precio,gano,hayGente,empezarForzar,tickForzar,trancada,puertaTrancadaEn,robadoEn} from '../engine/juego/ronda.js';
 import {placeParts,partsMesh,OBJETOS} from '../lib/objetos3d.js';
-import {createPersecucion,rasgosDe} from '../lib/persecucion3d.js';
 import {createSociedad3d} from '../lib/sociedad3d.js';
-import {createPatrullas} from '../lib/patrulla3d.js';
 import {sociedadDe,puertasDeLugares,abierto,horaTexto,ocupacionSociedad,direccionHogar} from '../engine/sociedad.js';
 import {rng} from '../engine/veredas.js';
 import {mapaDeJuego} from '../engine/juego/mapa.js';
@@ -76,8 +70,14 @@ const pickCity=t=>{if(!parks)return randomCity(t);for(let i=0;i<200;i++){const s
 // rendimiento: cuadros por segundo, milisegundos por cuadro, llamadas de dibujo y triángulos.
 // (2026-11-21, Miguel: «quitemos todo lo que sea lógica de policías y ladrones… dejá sólo lo de la ciudad»): el paseo es
 // ahora el modo de /juego y de /ciudad. El juego viejo sólo arranca con ?fuga=1, o en /demo, que es la ruta que usan sus
-// pruebas de pantalla. Su código sigue en el árbol: sacarlo a game/fuga/ es el frente 1 de la tarea Game.
+// pruebas de pantalla.
+// EL JUEGO VIEJO VIVE EN game/fuga/ (2026-11-21): la ronda, la persecución, las patrullas, las armas y el menú se mudaron
+// allá. Esta pantalla ya no los importa: sus funciones son estas variables, que quedan sin definir en la ciudad —nadie
+// las llama, porque la ronda no se arma— y se llenan con cargarFuga() sólo cuando se pide el juego viejo.
 const PASEO=route.query.paseo!=null||(route.name!=='demo'&&route.query.fuga==null);
+let createViewmodel,ViewmodelPass,createShooting,crearRonda,robar,guardar,sacar,incautar,perseguido,precio,gano,hayGente,empezarForzar,tickForzar,trancada,puertaTrancadaEn,robadoEn,usosRonda,createPersecucion,rasgosDe,createPatrullas;
+async function cargarFuga(){({createViewmodel,ViewmodelPass,createShooting,crearRonda,robar,guardar,sacar,incautar,perseguido,precio,gano,hayGente,empezarForzar,tickForzar,trancada,puertaTrancadaEn,robadoEn,usosRonda,createPersecucion,rasgosDe,createPatrullas}=await import('../../fuga/index.js'));}
+const MenuJuego=defineAsyncComponent(()=>import('../../fuga/components/MenuJuego.vue'));
 const PRUEBA=route.query.prueba==='edificio',PRUEBA_LOTES=PRUEBA?String(route.query.lotes||'32,34').split(',').map(Number):null;
 const seed=ref(+route.query.ciudad||(PRUEBA?2:pickCity(team.value)));
 // characters: los personajes animados (se cargan una vez al entrar); mientras tanto, «Cargando gente…».
@@ -277,12 +277,12 @@ function load(ready=null){
  patrol=createCitizens(world,{count:!CIUDAD_LIMPIA&&policeTemplates.length?4+team.value*2:0,seed:seed.value+101,templates:policeTemplates,home:world.station?.doors||null,homeBias:.25,startHome:.5,speed:[1.05,1.3],seats:world.benchSeats});world.group.add(patrol.group);lap('patrulla');
  scene.add(world.group);
  makeAvatar();lap('muñeco');muñecoDelPerfil();
- patrullas=createPatrullas({scene:world.group,plan,models:carModels,equipo:team.value,suelo:(x,z,y)=>groundHere(x,z,y??0),bloquea:bloqueaAuto,gente:()=>[...(soc?.personas()||[]),...patrol.positions(),...folk.positions(),...(persec?.P?.agentes.filter(a=>!a.humano&&a.estado==='libre')||[])]});lap('patrullas');
+ patrullas=PASEO?null:createPatrullas({scene:world.group,plan,models:carModels,equipo:team.value,suelo:(x,z,y)=>groundHere(x,z,y??0),bloquea:bloqueaAuto,gente:()=>[...(soc?.personas()||[]),...patrol.positions(),...folk.positions(),...(persec?.P?.agentes.filter(a=>!a.humano&&a.estado==='libre')||[])]});lap('patrullas');
  if(cut){patchCut();for(const t of [...characters,...policeTemplates])cut.patchTree(t.scene);lap('corte');}
  // (las paredes que se aclaran: los edificios y las casas, no la gente ni los autos)
  // (la casa del 3D y la del plano: el 3D sólo arma las que tienen plano de casa; la ronda cuenta en las del plano)
  const conPlano=(plan.isla?.casas||[]).map((c,i)=>c.spec?i:-1).filter(i=>i>=0);
- acciones=createAcciones({plan,world,player,avatar:()=>avatar,viviendas:()=>viviendas,ronda:()=>ronda,enRonda:usarRonda,casaPlan:i=>conPlano[i]});accionTexto.value='';
+ acciones=createAcciones({plan,world,player,avatar:()=>avatar,viviendas:()=>viviendas,ronda:()=>ronda,enRonda:usarRonda,casaPlan:i=>conPlano[i],usosRonda:(...a)=>usosRonda(...a)});accionTexto.value='';
  ronda=null;rondaVista.value=null;if(!PRUEBA&&!PASEO)setTimeout(()=>POLICIA?armarPolicia(conPlano):armarRonda(conPlano),400);// (después de mostrar el mundo: elegir las guaridas toma unos segundos)
  // (2026-10-18, Miguel: «quita el efecto que oculta paredes»: sin aclarado —createAclarado({max:VISIBILIDAD.maximo}) lo
  // volvía a poner— ni muñón de las paredes del lado de la cámara en la vista de arriba)
@@ -999,6 +999,7 @@ function onWheel(e){if(!enArriba||drone.value)return;e.preventDefault();const z=
 
 let resize;
 onMounted(async()=>{
+ if(!PASEO)await cargarFuga();// (el juego viejo: sólo con ?fuga=1 o en /demo)
  renderer=new THREE.WebGLRenderer({antialias:true});renderer.localClippingEnabled=true;renderer.setPixelRatio(Math.min(1.5,window.devicePixelRatio));// 1,5 y no 2: en pantallas retina casi no se nota y dibuja ~44 % menos píxeles
  renderer.info.autoReset=false;renderer.shadowMap.enabled=true;renderer.shadowMap.autoUpdate=false;renderer.shadowMap.type=THREE.PCFShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;
  host.value.appendChild(renderer.domElement);

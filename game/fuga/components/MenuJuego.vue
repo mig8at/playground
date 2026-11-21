@@ -11,9 +11,9 @@
 // Prototipo: los datos llegan por props (datos) y lo que hace el jugador sale por eventos (accion); el juego lo conecta
 // después. props: papel ('ladron' | 'policia'), datos, abierto. Emite cerrar y accion ({tipo, …}).
 import {ref,computed,watch} from 'vue';
-import MunecoVista from './MunecoVista.vue';
+import MunecoVista from '../../src/components/MunecoVista.vue';
 import MapaJuego from './MapaJuego.vue';
-import {PALETTE} from '../lib/vestier3d.js';
+import {PALETTE} from '../../src/lib/vestier3d.js';
 
 const props=defineProps({papel:{type:String,default:'ladron'},datos:{type:Object,required:true},abierto:{type:Boolean,default:true},plano:{type:Object,default:null}});
 const emit=defineEmits(['cerrar','accion']);

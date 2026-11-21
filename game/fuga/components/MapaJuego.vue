@@ -7,9 +7,9 @@
 // la zona amarilla de dónde se vio a cada ladrón por última vez y la guarida delatada con la cuenta de la orden.
 // props: plano (el plano de la ciudad), datos (persec.mapa()), yo ({cuerpo, ropa}: el muñeco del jugador).
 import {ref,computed,onMounted,onBeforeUnmount,nextTick,watch} from 'vue';
-import MunecoVista from './MunecoVista.vue';
-import {drawWorldStage} from '../lib/drawPlan.js';
-import {RASTRO,ALLANAMIENTO} from '../engine/medidas.js';
+import MunecoVista from '../../src/components/MunecoVista.vue';
+import {drawWorldStage} from '../../src/lib/drawPlan.js';
+import {RASTRO,ALLANAMIENTO} from '../../src/engine/medidas.js';
 const props=defineProps({plano:{type:Object,required:true},datos:{type:Object,required:true},yo:{type:Object,default:null}});
 const D=computed(()=>props.datos),papel=computed(()=>props.datos.papel);
 const plata=v=>'$'+Math.round((v||0)*1e6).toLocaleString('es-CO');

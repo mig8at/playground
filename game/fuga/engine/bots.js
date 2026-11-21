@@ -11,7 +11,7 @@
    de largo hasta perderla— y no usa guaridas cerradas; si una guarida con botín quedó delatada, el ladrón libre y sin
    nada encima más cercano va a sacarlo antes de la orden. La policía: el libre más cercano a una guarida delatada va a
    su puerta, la vigila y, con la orden, la allana. */
-import {MODO_BOTIN as M} from '../medidas.js';
+import {MODO_BOTIN as M} from '../../src/engine/medidas.js';
 import {campoDe,empezar,irA,irAPunto,libres,pedirPapeles,seguido,allanar,puertaCerca} from './partida.js';
 
 export const BOT={umbral:3,decide:1,amenaza:30,riesgo:50,ocupadaRecuerdo:60};

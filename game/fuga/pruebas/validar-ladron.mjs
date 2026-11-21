@@ -7,7 +7,7 @@
 // · sin botín: detenido un rato (y después libre);
 // · al llegar a la meta: el cartel del final («Ganaste») y «Volver al inicio» lleva a las salas (/?paso=home).
 // Uso: node scripts/validar-ladron.mjs [ciudad=1] [carpeta=/tmp] (con el servidor en 5181)
-import {abrirNavegador} from './navegador.mjs';
+import {abrirNavegador} from '../../harness/pruebas/navegador.mjs';
 import {writeFileSync} from 'node:fs';
 import {join} from 'node:path';
 const [ciudad=1,OUT='/tmp']=process.argv.slice(2);const base='http://localhost:5181';

@@ -14,10 +14,10 @@
 //    policía bot va a su puerta y, pasada la espera (no antes), la allana: incauta lo guardado, la cierra y descuenta.
 // Uso: node scripts/validar-allanamiento.mjs [ciudades=2] [semilla0=1]
 import {generateBlueprint} from '../../src/engine/blueprint.js';
-import {crearRonda,robar,guardar,allanar,sacar,huirPapeles,perseguido,usosRonda} from '../../src/engine/juego/ronda.js';
+import {crearRonda,robar,guardar,allanar,sacar,huirPapeles,perseguido,usosRonda} from '../engine/ronda.js';
 import {RASTRO,ALLANAMIENTO,MODO_BOTIN as MB} from '../../src/engine/medidas.js';
-import {prepararCiudad,crearPartida,paso,empezar} from '../../src/engine/juego/partida.js';
-import {decidir} from '../../src/engine/juego/bots.js';
+import {prepararCiudad,crearPartida,paso,empezar} from '../engine/partida.js';
+import {decidir} from '../engine/bots.js';
 const A=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=+(A[0]||2),S0=+(A[1]||1);
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};
 const E=ALLANAMIENTO.espera;let casos=0,incautado=0;

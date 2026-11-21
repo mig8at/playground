@@ -4,7 +4,7 @@
 // la puerta trancada de un apartamento ajeno: ofrece forzar y el visor, el visor contesta, la puerta frena el paso hasta
 // forzarla y forzarla toma su tiempo. Captura en el robo, en la caja y en la puerta.
 // Uso: node scripts/validar-ronda.mjs [ciudad=1] [carpeta=/tmp] (con el servidor en 5181)
-import {abrirNavegador} from './navegador.mjs';
+import {abrirNavegador} from '../../harness/pruebas/navegador.mjs';
 import {writeFileSync} from 'node:fs';
 import {join} from 'node:path';
 const [ciudad=1,OUT='/tmp']=process.argv.slice(2);const base='http://localhost:5181';

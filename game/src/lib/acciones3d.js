@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import {usosDePiso,miradoresDePiso,miradoresDeCasa,USOS} from '../engine/usos.js';
 import {cuartoDeVentana} from '../engine/cortinas.js';
-import {usosRonda} from '../engine/juego/ronda.js';
+// (usosRonda —lo que la ronda del juego viejo deja hacer en un lugar— llega de quien arma las acciones: game/fuga/)
 import {CHOQUE_MUEBLE,CORTINA} from '../engine/medidas.js';
 import {makeSitter,liftFor,FWD,ease} from './sitting3d.js';
 import {moveCharacter} from './characters3d.js';
@@ -18,7 +18,7 @@ const CU=new Set(CORTINA.cuartos);
 // ronda (2026-10-17, REGLAS.md): la ronda jugable (engine/juego/ronda.js), si hay: robar lo que está al alcance y guardar
 // en la caja de la guarida; enRonda(uso) lo hace (el 3D lleva la cuenta y lo muestra).
 // casaPlan: el índice en el plano (plan.isla.casas) de la casa i del 3D (que sólo arma las que tienen plano de casa).
-export function createAcciones({plan,world,player,avatar,viviendas=()=>null,ronda=()=>null,enRonda=()=>{},casaPlan=i=>i}){
+export function createAcciones({plan,world,player,avatar,viviendas=()=>null,ronda=()=>null,enRonda=()=>{},casaPlan=i=>i,usosRonda=()=>[]}){
  const cache=new Map();let cur=null,sitter=null;
  // los usos de un piso, en el mundo: los muebles del plano y las ventanas de los cuartos con cortina (con su clave)
  const usosDe=(lote,nivel)=>{const k=lote+':'+nivel;if(cache.has(k))return cache.get(k);const L=plan.lots.find(l=>l.id===lote),lv=L?.levels?.find(l=>l.level===nivel);if(!lv){cache.set(k,[]);return [];}

@@ -3,8 +3,8 @@
 // llamadas, cámaras). Con esto se calibra MODO_BOTIN (la meta, la duración…). Uso:
 // node scripts/medir-botin.mjs [ciudades=2] [rondas=20] [equipos=2,3,5,8] [semilla0=1] [--metas=4,6,8] (la meta por ladrón a probar)
 import {generateBlueprint} from '../../src/engine/blueprint.js';
-import {prepararCiudad,crearPartida,paso} from '../../src/engine/juego/partida.js';
-import {decidir} from '../../src/engine/juego/bots.js';
+import {prepararCiudad,crearPartida,paso} from '../engine/partida.js';
+import {decidir} from '../engine/bots.js';
 import {MODO_BOTIN as M} from '../../src/engine/medidas.js';
 const A=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=+(A[0]||2),R=+(A[1]||20),EQ=(A[2]||'2,3,5,8').split(',').map(Number),S0=+(A[3]||1);
 const METAS=(process.argv.find(a=>a.startsWith('--metas='))?.slice(8)||String(M.meta)).split(',').map(Number),res={};const t0=Date.now();

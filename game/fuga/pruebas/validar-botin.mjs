@@ -9,8 +9,8 @@
 //  · la gente camina sólo por donde se camina; el que pide papeles no se mueve. (Los drones se sacaron el 2026-10-18.)
 // Uso: node scripts/validar-botin.mjs [ciudades=1] [semilla0=1] [rondas=3]
 import {generateBlueprint} from '../../src/engine/blueprint.js';
-import {prepararCiudad,crearPartida,paso} from '../../src/engine/juego/partida.js';
-import {decidir} from '../../src/engine/juego/bots.js';
+import {prepararCiudad,crearPartida,paso} from '../engine/partida.js';
+import {decidir} from '../engine/bots.js';
 import {MODO_BOTIN as M} from '../../src/engine/medidas.js';
 const A=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=+(A[0]||1),S0=+(A[1]||1),R=+(A[2]||3);
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};

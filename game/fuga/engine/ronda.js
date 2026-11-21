@@ -17,10 +17,10 @@
      descuenta de R.botin y va a R.incautado); la guarida queda cerrada. sacar(R, id, t): antes de eso, la banda puede
      volver a llevarse lo guardado a la mochila. Cada guarida lleva lo suyo (g.guardado).
    · precio(valor): en pesos. */
-import {MODO_BOTIN as M,VIVIENDA as V,RASTRO,ALLANAMIENTO} from '../medidas.js';
-import {guaridasDe} from '../guaridas.js';
-import {viviendasDe,enCasa} from '../viviendas.js';
-import {sociedadDe,ocupacionSociedad,inicioRonda} from '../sociedad.js';
+import {MODO_BOTIN as M,VIVIENDA as V,RASTRO,ALLANAMIENTO} from '../../src/engine/medidas.js';
+import {guaridasDe} from '../../src/engine/guaridas.js';
+import {viviendasDe,enCasa} from '../../src/engine/viviendas.js';
+import {sociedadDe,ocupacionSociedad,inicioRonda} from '../../src/engine/sociedad.js';
 
 export const PESOS=1e6;// (un punto de valor del botín: un millón de pesos)
 export const ALCANCE=1.6;// m al centro de lo que se usa

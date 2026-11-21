@@ -8,7 +8,7 @@
 // · al llegar los ladrones a la meta, el cartel del final.
 // Captura en la cámara, al atrapar y en el final.
 // Uso: node scripts/validar-policia.mjs [ciudad=1] [carpeta=/tmp] (con el servidor en 5181)
-import {abrirNavegador} from './navegador.mjs';
+import {abrirNavegador} from '../../harness/pruebas/navegador.mjs';
 import {writeFileSync} from 'node:fs';
 import {join} from 'node:path';
 const [ciudad=1,OUT='/tmp']=process.argv.slice(2);const base='http://localhost:5181';

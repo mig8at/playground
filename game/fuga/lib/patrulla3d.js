@@ -7,10 +7,10 @@
    manejar(dt, adelante, giro), manejando, posiciones(), dispose}
    · suelo(x, z, y): la altura del piso; bloquea(x, z, y): ¿choca ahí?; gente(): [{x, z}] a no atropellar. */
 import * as THREE from 'three';
-import {buildVehicle} from './traffic3d.js';
-import {PATRULLA as PA} from '../engine/medidas.js';
-import {entradasLote} from '../engine/guaridas.js';
-import {rng} from '../engine/veredas.js';
+import {buildVehicle} from '../../src/lib/traffic3d.js';
+import {PATRULLA as PA} from '../../src/engine/medidas.js';
+import {entradasLote} from '../../src/engine/guaridas.js';
+import {rng} from '../../src/engine/veredas.js';
 
 export function createPatrullas({scene,plan,models,equipo=3,suelo,bloquea,gente=()=>[]}){
  const group=new THREE.Group();group.name='patrullas';scene.add(group);const r=rng(plan.seed*13+5),cars=[];let cur=null;

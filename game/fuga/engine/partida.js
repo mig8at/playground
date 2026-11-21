@@ -21,12 +21,12 @@
    Un lugar (guarida, objetivo, vivienda, comisaría) se usa desde sus puertas (sus puntos de afuera); adentro se cuenta el
    tiempo. Las viviendas y las guaridas son privadas (la policía no entra: el que está adentro no se ve ni se toca); un
    objetivo no (un policía en su puerta alcanza al que está adentro). */
-import {MODO_BOTIN as M,VIVIENDA as V,RASTRO,ALLANAMIENTO} from '../medidas.js';
-import {mapaDeJuego} from './mapa.js';
-import {prepararGuaridas,guaridasDe,entradasLote,entradasCasa} from '../guaridas.js';
-import {viviendasDe,enCasa} from '../viviendas.js';
-import {sociedadDe,ocupacionSociedad,inicioRonda} from '../sociedad.js';
-import {rng,mix} from '../veredas.js';
+import {MODO_BOTIN as M,VIVIENDA as V,RASTRO,ALLANAMIENTO} from '../../src/engine/medidas.js';
+import {mapaDeJuego} from '../../src/engine/juego/mapa.js';
+import {prepararGuaridas,guaridasDe,entradasLote,entradasCasa} from '../../src/engine/guaridas.js';
+import {viviendasDe,enCasa} from '../../src/engine/viviendas.js';
+import {sociedadDe,ocupacionSociedad,inicioRonda} from '../../src/engine/sociedad.js';
+import {rng,mix} from '../../src/engine/veredas.js';
 
 export function prepararCiudad(bp){const mapa=mapaDeJuego(bp),prep=prepararGuaridas(bp),est=bp.lots.find(L=>L.type==='comisaria');
  const pL=li=>entradasLote(bp.lots[li]),pC=ci=>entradasCasa(bp.isla.casas[ci]);

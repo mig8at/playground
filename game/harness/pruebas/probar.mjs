@@ -53,8 +53,7 @@ const NIVELES=[
   {n:'vegetación',f:'validar-vegetacion.mjs',a:[N,S0],fallas:F,res:/^3-30-300/},
   {n:'equipamiento',f:'validar-equipamiento.mjs',a:[N,S0],fallas:F,res:/^cobertura/},
   {n:'pintura',f:'validar-pintura.mjs',a:[N,S0],fallas:F,res:/^pintura/},
-  {n:'color',f:'validar-color.mjs',a:[N,S0],fallas:F,res:/^color/,lento:true},
-  {n:'botín',f:'validar-botin.mjs',a:[N,S0,'--equipos=3,8'],fallas:F,res:/^reparto:/,node:grande,lento:true}]},
+  {n:'color',f:'validar-color.mjs',a:[N,S0],fallas:F,res:/^color/,lento:true}]},
  {n:6,t:'Geometría sin pantalla',d:'lo que se dibuja contra el plano: piezas en su lugar, caras que no titilan, sin huecos ni triángulos que nunca se ven, empalmes al milímetro y objetos que no se tapan',p:[
   {n:'titileo',f:'validar-titileo.mjs',a:[1,S0],fallas:F,res:/^titileo/},
   {n:'contrato 3D',f:'validar-contrato.mjs',a:[N,S0],fallas:F,res:/entradas del contrato/,lento:true},
@@ -77,28 +76,22 @@ const NIVELES=[
   {n:'cuerpo',f:'validar-cuerpo.mjs',a:[],fallas:F,res:/^cuerpo/},
   {n:'guaridas',f:'validar-guaridas.mjs',a:[N,S0],fallas:F,res:/^guaridas/},
   {n:'viviendas',f:'validar-viviendas.mjs',a:[N,S0],fallas:F,res:/^viviendas/},
-  {n:'motor botín',f:'validar-botin.mjs',a:[N,S0,3],fallas:F,res:/^motor/},
   {n:'sociedad',f:'validar-sociedad.mjs',a:[N,S0,14],fallas:F,res:/^sociedad/},
   {n:'caminar',f:'validar-caminar.mjs',a:[S0],fallas:F,res:/^caminar a las 15/},
   {n:'descanso',f:'validar-descanso.mjs',a:[Math.min(N,2),S0],fallas:F,res:/^descanso · ciudad/},
   {n:'identidad',f:'validar-identidad.mjs',a:[Math.min(N,2),S0],fallas:F,res:/^identidad · ciudad/},
-  {n:'allanamiento',f:'validar-allanamiento.mjs',a:[Math.min(N,3),S0],fallas:F,res:/^allanamiento ·/,node:grande},
   {n:'rutina',f:'validar-rutina.mjs',a:[N,S0],fallas:F,res:/^rutina/}]},
  {n:10,t:'Pantalla',d:'el 3D de verdad en un navegador sin ventana: costo de cada cuadro, capturas, errores, asomarse por una ventana, la ronda del ladrón y la del policía',p:[
   {n:'3d',f:'validar-3d.mjs',a:[S0],fallas:F,res:/^3d/,lento:true},
   {n:'asomarse',f:'validar-asomarse.mjs',a:[S0],fallas:F,res:/^asomarse/,lento:true},
-  {n:'ronda',f:'validar-ronda.mjs',a:[S0],fallas:F,res:/^ronda/,lento:true},
-  {n:'allanar 3d',f:'validar-allanar3d.mjs',a:[S0],fallas:F,res:/^allanar ·/,lento:true},
   {n:'tránsito 3d',f:'validar-transito3d.mjs',a:[S0],fallas:F,res:/^tránsito 3d/,lento:true},
   {n:'caídas',f:'validar-caidas.mjs',a:[S0],fallas:F,res:/^caídas/,lento:true},
   {n:'salto',f:'validar-salto.mjs',a:[S0],fallas:F,res:/^salto/,lento:true},
   {n:'entrada',f:'validar-entrada.mjs',a:[],fallas:F,res:/^entrada/},
-  {n:'policía',f:'validar-policia.mjs',a:[S0],fallas:F,res:/^policía/,lento:true},
   {n:'gente',f:'validar-gente.mjs',a:[S0],fallas:F,res:/^gente/,lento:true},
   {n:'fluidez',f:'validar-fluidez.mjs',a:[S0],fallas:F,res:/^fluidez/,lento:true},
   {n:'patrulla',f:'validar-patrulla.mjs',a:[S0],fallas:F,res:/^patrulla/,lento:true},
-  {n:'menú',f:'validar-menu.mjs',a:[S0],fallas:F,res:/^menú/,lento:true},
-  {n:'ladrón',f:'validar-ladron.mjs',a:[S0],fallas:F,res:/^ladrón/,lento:true}]}]
+  {n:'menú',f:'validar-menu.mjs',a:[S0],fallas:F,res:/^menú/,lento:true}]}]
  .filter(L=>L.n>=NV0&&L.n<=NV1).map(L=>({...L,p:L.p.filter(p=>(!solo.length||solo.some(s=>p.n.startsWith(s)))&&!(RAP&&p.lento&&!solo.length))})).filter(L=>L.p.length);
 // Para el panel del harness (2026-10-30): --lista imprime los niveles y sus pruebas («LISTA {json}») y termina; --eventos,
 // además, una línea «PRUEBA {json}» al terminar cada una. La salida de siempre (la tabla) no cambia.

@@ -1,7 +1,7 @@
 /* Copia en módulo ES de lab/game.js (FUGA, 2026-10-06); la lógica es la misma, sólo cambia cómo se exporta.
    Motor determinista compartido por el navegador y las pruebas sin interfaz. */
-import CityModule from './ciudad.js';
-import {planMap} from './plano.js';
+import CityModule from '../../src/engine/ciudad.js';
+import {planMap} from '../../src/engine/plano.js';
 const Lab=(function(City){
 'use strict';
 // Tamaño de los mapas fijos; cada mapa trae el suyo (map.W, map.H), y las ciudades son más grandes o más chicas.

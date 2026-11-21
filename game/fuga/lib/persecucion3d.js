@@ -26,15 +26,15 @@
      papeles, quieto. onEstado(estado) avisa cada cambio.
    createPersecucion(...) → {iniciar, update(dt), cerca(), usar(c), estado(), quieto(), dispose}. */
 import * as THREE from 'three';
-import {prepararCiudad,crearPartida,paso,requisa,pedirPapeles,registrar,allanar,puertaCerca} from '../engine/juego/partida.js';
-import {decidir} from '../engine/juego/bots.js';
-import {MODO_BOTIN as M,ALLANAMIENTO,RASTRO} from '../engine/medidas.js';
-import {makeCharacter,moveCharacter} from './characters3d.js';
-import {rng} from '../engine/veredas.js';
-import {sociedadDe,nombreAlAzar,apellidoAlAzar,oficioAlAzar,enCenso,direccionHogar,horaTexto} from '../engine/sociedad.js';
-import {aspectoDe,cartelDe,identidadFalsa} from '../engine/juego/identidad.js';
-import {describirRopa} from './ropaTexto.js';
-import {RELOJ} from '../engine/medidas.js';
+import {prepararCiudad,crearPartida,paso,requisa,pedirPapeles,registrar,allanar,puertaCerca} from '../engine/partida.js';
+import {decidir} from '../engine/bots.js';
+import {MODO_BOTIN as M,ALLANAMIENTO,RASTRO} from '../../src/engine/medidas.js';
+import {makeCharacter,moveCharacter} from '../../src/lib/characters3d.js';
+import {rng} from '../../src/engine/veredas.js';
+import {sociedadDe,nombreAlAzar,apellidoAlAzar,oficioAlAzar,enCenso,direccionHogar,horaTexto} from '../../src/engine/sociedad.js';
+import {aspectoDe,cartelDe,identidadFalsa} from '../../src/engine/juego/identidad.js';
+import {describirRopa} from '../../src/lib/ropaTexto.js';
+import {RELOJ} from '../../src/engine/medidas.js';
 
 export const PERSECUCION={alcance:1.6,camara:8,vista:45,marca:2.35,persigue:30,reciente:4,caja:2.2,reconoce:12,cadaVecino:20};// m: para atrapar, para revisar la cámara de un aviso, para ver la marca; alto de la marca
 // persigue, reciente: si el ladrón se mete a su guarida con el policía a menos de «persigue» m, que lo vio hace menos de

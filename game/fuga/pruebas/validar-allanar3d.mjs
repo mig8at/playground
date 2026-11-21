@@ -6,7 +6,7 @@
 //    motor de los bots (la misma, por su índice); la policía bot va y, pasada la espera, la allana: la ronda del jugador
 //    pierde lo guardado ahí y la guarida ya no ofrece guardar.
 // Uso: node scripts/validar-allanar3d.mjs [ciudad=1] [carpeta=/tmp] (con el servidor en 5181)
-import {abrirNavegador} from './navegador.mjs';
+import {abrirNavegador} from '../../harness/pruebas/navegador.mjs';
 import {writeFileSync} from 'node:fs';
 import {join} from 'node:path';
 const [ciudad=1,OUT='/tmp']=process.argv.slice(2);const base='http://localhost:5181';
