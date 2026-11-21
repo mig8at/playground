@@ -265,7 +265,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 /* «Semana» es la navegación principal: es la que MENOS se achica (sus temas son lo que más se toca). */
 .sidebar.en-bloques .view.open.week { flex-shrink: .2 }
 .sidebar.en-bloques .view.open > .region-body { padding-bottom: 16px;
-  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 16px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 16px), transparent) }
+  -webkit-mask-image: linear-gradient(to bottom, var(--foreground) calc(100% - 16px), transparent); mask-image: linear-gradient(to bottom, var(--foreground) calc(100% - 16px), transparent) }
 
 /* LA CONSOLA: renglones de log de la base. El color del renglón sale de su tipo (un tinte de tinta, no una caja); las
    claves de «Esta máquina» y «Avisos» van en una columna de ancho fijo para que el texto quede alineado. */
