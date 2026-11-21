@@ -20,7 +20,8 @@ jira_title: ""
 - [x] Dar textura a las fachadas en el 3D: siete texturas dibujadas (ladrillo, ladrillo pintado, sillar, estuco, panel, hormigón, tablilla), la misma en el alzado 2D y en el 3D.
 - [x] Dar textura también a los techos y al zócalo en el 3D: mansardas de pizarra, azotea con membrana y gravilla, zócalo de piedra.
 - [ ] Pintar grafitis desde adentro del 3D y guardarlos en un servidor: termina cuando lo que pinta una persona lo ve otra.
-- [ ] Hacer que el plano decida la pieza exacta de cada módulo de fachada y que el 3D la lea de ahí: termina cuando una prueba compara las piezas que arma el 3D con las del plano y no hay diferencias.
+- [x] Hacer que el plano decida la pieza exacta de cada módulo de fachada y que el 3D la lea de ahí: una prueba compara lo que arma el 3D con el plano, módulo por módulo, sin diferencias.
+- [ ] Medir el vano exacto de cada puerta de calle (hoy ocupa su módulo entero de 2 × 3 m): termina cuando la vista de fachadas muestra la puerta con su medida y el muro a los lados se puede pintar.
 - [ ] Decidir si las fachadas de calle deben tener más pared pintable. Depende de: Miguel — hoy 20 de 132 fachadas de la ciudad chica tienen alguna; se podría pintar el muro entre ventanas, o hacer que el generador deje paños ciegos.
 - [ ] Guardar junto a cada número de pared la versión de la ciudad: termina cuando lo pintado sobre una ciudad vieja no se carga en una pared que cambió de número.
 - [ ] Numerar también las casas del monte (sus manzanas, después de las de la ciudad): termina cuando una pared de una casa del monte tiene su número de 10 cifras.
@@ -84,6 +85,7 @@ Es interpretación mía de lo que pidió, para discutir; nada de esto está cons
 | dónde aparece quien entra, y el cupo | `game/src/engine/aparecer.js` |
 | la fachada medida: vanos, paños, textura y paños pintables | `game/src/engine/fachada-medida.js` |
 | las texturas de muro del 3D | `game/src/lib/texturas3d.js` |
+| qué pieza va en cada módulo de cada fachada (lo lee el 3D) | `game/src/engine/fachada-piezas.js` |
 | la vista técnica de fachadas | `/fachadas` · `game/src/lib/drawFachada.js` |
 | el grafiti: la grilla de pixel art de un muro · los muros pintables · su capa 3D | `game/src/engine/grafiti.js` · `game/src/engine/muros.js` · `game/src/lib/grafitis3d.js` |
 | el listado de lo que se vende, con área y precio | `game/src/engine/propiedades.js` |
@@ -127,9 +129,10 @@ Cada uno con su condición de cierre. Los hechos pasan a la pila como bloque.
 
 **La idea de Miguel (2026-11-21)**: una vista de fachadas que funcione como el mapa 2D: los cálculos exactos de puertas y ventanas de toda una fachada, sin los adornos del edificio, para validar todo antes de verlo en 3D, incluso dónde las paredes internas cortan la fachada.
 **Hecho**: la vista `/fachadas`, por cuadra: cada edificio con sus lados en dibujo técnico —muro, pisos, módulos de 2 m, cada hueco con la medida que ocupa, la línea roja donde corta una pared interna, y las paredes que se pintan en blanco con su número—, lo medido al lado y si cuadra.
-**Lo que la vista deja a la vista**: el plano todavía no sabe qué pieza exacta pone el 3D en cada módulo; donde hay varias posibles toma la mayor (los módulos violetas de 2,00 × 2,65 en casi todos los pisos de un edificio con ventana doble). El 3D decide por su cuenta en `town3d.js`.
-**Falta**: que el plano decida la pieza de cada módulo (una sola cuenta) y el 3D la lea de ahí, en vez de decidirla él; una prueba que compare lo que arma el 3D con lo que dice el plano.
-**Cierre**: lo que muestra `/fachadas` es exactamente lo que arma el 3D, comprobado por una prueba.
+**El plano decide la pieza de cada módulo** (2026-11-21): cada lado de casilla que da afuera tiene 3 módulos de 2 m y, en cada piso, cada módulo lleva una cosa —muro, ventana con su modelo, ventanal, vidriera, puerta, puerta doble, portón, balcón o media ventana doble—. Lo calcula `engine/fachada-piezas.js` con las reglas que antes estaban dentro del 3D, queda guardado en el plano (`L.modulos`) y el 3D lo lee. De la pieza sale su vidrio exacto, y de ahí los huecos de cada pared, sin adivinar.
+**La grilla**: casilla de 6 m = 3 módulos de 2 m; piso de 3 m; píxel de 5 cm (un módulo son 40 × 60 píxeles). Todo en enteros.
+**Falta**: las puertas todavía ocupan su módulo entero (no su vano exacto); los lados de un edificio que no son un rectángulo simple se miden por su rectángulo; los barrios del monte calculan sus módulos al armarse, no los traen guardados.
+**Cierre**: lo que muestra `/fachadas` es exactamente lo que arma el 3D, comprobado por una prueba. Para las piezas de cada módulo ya se cumple (`validar-fachada-piezas`).
 
 ### 4. Propiedades — empezado
 

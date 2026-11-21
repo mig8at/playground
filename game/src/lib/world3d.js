@@ -400,7 +400,7 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
  // centrado en (x,z) que corre a lo largo de (tx,tz): para que ninguna valla quede metida en la pared de un vecino.
  const builtH=(px,pz)=>{const cx=Math.floor(px/S),cy=Math.floor(pz/S),k=at(cx,cy);return OPEN.has(k)||k===K.border?0:info(cx,cy).h;};
  const clearance=(x,z,tx,tz,half,nx,nz)=>{let m=0;for(let t=-half-.3;t<=half+.3;t+=.4)for(const d of [-.35,0,.35])m=Math.max(m,builtH(x+tx*t+nx*d,z+tz*t+nz*d));return m;};
- let adPlan=null;const blank=new Set(); // «x,y,dx,dy,piso»: tramos de fachada sin ventanas (detrás de un cartel)
+ let fachadaArmada_=null;let adPlan=null;const blank=new Set(); // «x,y,dx,dy,piso»: tramos de fachada sin ventanas (detrás de un cartel)
  const blankOut=(faces,y0,y1)=>{for(const f of faces)for(let fl=Math.max(1,Math.floor(y0/FLOOR));fl<=Math.floor((y1-.01)/FLOOR);fl++)blank.add(`${f.x},${f.y},${f.dx},${f.dy},${fl}`);};
  // El frente de cada puerta (y de cada portón): ahí no se pone nada que estorbe el paso (ver inDoor).
  const doorFronts=[],doorFrames=[];
@@ -434,7 +434,7 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
      for(let cy=Math.floor(z0/S);cy<=Math.floor(z1/S);cy++)for(let cx=Math.floor(x0/S);cx<=Math.floor(x1/S);cx++)addWall(cx,cy,x0,z0,x1,z1,y,y+.56);}
     ps.push(...placeParts(OBJETOS.mesa_noche.piezas({}),{x:mx,y,z:mz,ry}),...placeParts(OBJETOS.florero.piezas({variante:['rojas','amarillas','lilas'][Math.floor(hs(3)*3)],paleta:Math.floor(hs(4)*3)}),{x:mx,y:y+OBJETOS.mesa_noche.alto({}),z:mz,ry}));}}});
    if(ps.length){const g=partsMesh(ps);g.name='pasillo:adornos';group.add(g);g.traverse(o=>{if(o.isInstancedMesh)own.push(o);});}}
-  doorFronts.push(...T.doorFronts);stairsByLot=T.stairs;for(const [k,v] of T.lotFurniture)lotFurniture.set(k,v);stationInfo=T.stationInfo;civicFronts.push(...T.civicFronts);
+  fachadaArmada_=T.fachadaArmada;doorFronts.push(...T.doorFronts);stairsByLot=T.stairs;for(const [k,v] of T.lotFurniture)lotFurniture.set(k,v);stationInfo=T.stationInfo;civicFronts.push(...T.civicFronts);
   setElevatorDoors=buildCabins(elevators,{FLOOR,group,own,instanced,base,addWall,S,W,H});
   // Las cortinas cerradas (town3d T.cortinas): siempre, con la fachada —no con los muebles, que sólo se dibujan de cerca—.
   if(T.cortinas.length){const cm=new THREE.MeshStandardMaterial({roughness:.95,flatShading:true}),cg=base(new THREE.BoxGeometry(1,1,1));own.push(cm,cg);cortinaMesh=instanced(group,cg,cm,T.cortinas,{cast:false});
@@ -1197,7 +1197,7 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
  const glassMat=new THREE.MeshStandardMaterial({color:'#bcd6e2',transparent:true,opacity:.28,roughness:.05,metalness:.1,depthWrite:false});own.push(glassMat);
  const bedBox=base(new THREE.BoxGeometry(1,1,1));own.push(bedBox);
  WORLD_TIMES.lap("fin");
- return {group,doorFronts,station:stationInfo,updateAds,updateInteriors,lots:lotFurniture,
+ return {group,doorFronts,station:stationInfo,updateAds,updateInteriors,lots:lotFurniture,fachadaArmada:fachadaArmada_,
   // Las bancas de parques y plazas: dos puestos por banca, para la gente de la calle (se sientan mirando hacia ry).
   setOcultos:fn=>{ocultoFn=fn;activeKey=null;clock=0;},setTrancadas:fn=>{trancadaFn=fn;},refrescarInteriores:()=>{activeKey=null;clock=0;},get lotFurniture(){return lotFurniture;},
   benchSeats:benches.flatMap(b=>[-.42,.42].map(o=>({x:b.x+Math.cos(b.ry||0)*o,y:0,z:b.z-Math.sin(b.ry||0)*o,yaw:b.ry||0,lift:.24,ap:.45,by:null}))),roofBoards,clearance,floorAt,curbAt:(x,z)=>curbAt(Math.floor(x/SW),Math.floor(z/SW)),kindAt:(x,z)=>at(Math.floor(x/S),Math.floor(z/S)),elevatorAt,updateElevators,buildings:town,// las puertas cerca de (x, z) a la altura y —las de los cuartos y las de calle—: para abrirlas y cerrarlas con E y para

@@ -12,6 +12,7 @@ import {OBJETOS,placeParts,RUG_COUNT,kitModel,REEMPLAZOS} from './objetos3d.js';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import {LOWPOLY} from './downtown3d.js';
 import {texturaDeMuro} from '../engine/fachada-medida.js';
+import {modulosDeFachada,VENTANAL as VENTANAL_PLANO} from '../engine/fachada-piezas.js';
 import {PUERTA_DOBLE,MARQUESINA,VENTANAL} from './fachada3d.js';
 import {pendienteEn} from '../engine/techos.js';
 import {ALTURA,COLUMNA,CHOQUE_MUEBLE,CORTINA,AZOTEA,MANSARDA,esVidriera} from '../engine/medidas.js';
@@ -139,6 +140,9 @@ export function stairOf(sd,floors,FLOOR){
 
 export function buildTown(bp,ctx){
  const {S,FLOOR,CEIL,W,H,lots,lotOf,hash,seed,blank,addWall,furniture,clearance,CIVIC,group,own,instanced,base}=ctx;
+ // (armada: lo que de verdad se puso en cada módulo de fachada —lote, casilla, lado, módulo, piso, tipo y pieza—, para
+ // comparar con lo que dice el plano: engine/fachada-piezas.js, validar-fachada-piezas)
+ const armada=[];
  const roofProps=[],items=[],leaves=[],doorFronts=[],plaques=[],lotFurniture=new Map(),civics=[],civicFronts=[],awnings=[],stoops=[],balconies=[],cortinas=[],superficies=[],panios=[];let stationInfo=null;
  const columns=new Set(),stairs=new Map();
  // Un rectángulo menos otro (los dos alineados a los ejes): hasta cuatro pedazos.
@@ -182,6 +186,8 @@ export function buildTown(bp,ctx){
   // de 4,5 millones de triángulos y el juego se arrastraba (medido el 2026-10-10).
   const winBig=fs.win1,winLight=fs.win;
   const lines=B.levels.map(lv=>({w:byLine(lv.windows),d:byLine(lv.doors.filter(d=>d.street))}));
+  // (los barrios del monte llegan como un plano chico, sin mapa ni módulos guardados: se calculan acá, con su lista de lotes)
+  const modDe=new Map((B.modulos||modulosDeFachada({map:{W,H},lots:P},B)).map(m=>[`${m.x},${m.y},${m.dx},${m.dy},${m.k},${m.f}`,m]));
   const lit=f=>hash(id*7+f,f*3+1,seed+67)<(f?.5:.8)?0:-1;
   // (la mansarda del 2D —techos.js—: su cubierta plana, a MANSARDA.alto, en los rectángulos que da el plano; la física la
   // lee de L.mansarda —world3d floorAt—)
@@ -216,19 +222,9 @@ export function buildTown(bp,ctx){
     if(O.floors>=L.floors){// con mansarda, por encima del vecino asoma el muro de la mansarda (3 m)
      if(fs.mansard&&O.floors===L.floors&&!(O.fs?.mansard))for(let k=0;k<3;k++){const c=-S/2+1+2*k;items.push({piece:fs.plain,x:ex+tx*c,y:L.h,z:ez+tz*c,ry,tint});}
      continue;}f0=O.floors;}
-   // Ventanas de 4 m (fs.double): en cada piso de arriba, si dos módulos seguidos son ventana, una sola pieza doble
-   // centrada entre los dos (primero los de la izquierda).
-   const winMod=(k,f)=>{const c=-S/2+1+2*k,coord=h?ex+tx*c:ez+tz*c,hit=list=>(list||[]).some(s=>{const [a,b]=along(s,h);return coord>a-.01&&coord<b+.01;});
-    return f>0&&hit(lines[f].w.get(lineKey))&&!blank.has(`${x},${y},${dx},${dy},${f}`);};
-   // Los tabiques que llegan a esta fachada en el piso f (su coordenada a lo largo): una ventana doble no se pone sobre
-   // uno (quedaría con la pared divisoria en el medio).
-   const line=h?ez:ex,partsAt=f=>{const lv=B.levels[f],out=[];for(const q of [...lv.rooms,...lv.corridor,lv.core].filter(Boolean)){
-     const touch=h?Math.abs(q.y-line)<.05||Math.abs(q.y+q.h-line)<.05:Math.abs(q.x-line)<.05||Math.abs(q.x+q.w-line)<.05;if(touch)out.push(...(h?[q.x,q.x+q.w]:[q.y,q.y+q.h]));}return out;};
-   const freeEdge=(f,k)=>{const cb=-S/2+2+2*k,at=h?ex+tx*cb:ez+tz*cb;return !partsAt(f).some(p=>Math.abs(p-at)<.35);};
-   // Balcón (fs.balconies): frente a la ventana del medio, del segundo piso para arriba y sólo hacia afuera; ese módulo
-   // pasa a ser una puerta (y en ese piso no hay ventana doble).
-   const balconyAt=f=>fs.balconies&&f>=2&&other<0&&winMod(1,f);
-   const pairOf=[];for(let f=0;f<L.floors;f++)pairOf[f]=fs.double&&f>=Math.max(1,f0)&&!balconyAt(f)?(winMod(0,f)&&winMod(1,f)&&freeEdge(f,0)?0:winMod(1,f)&&winMod(2,f)&&freeEdge(f,1)?1:-1):-1;
+   // (2026-11-21: qué va en cada módulo —muro, ventana y cuál, vidriera, balcón, ventana doble— ya no se decide acá: lo
+   // trae el plano, B.modulos —engine/fachada-piezas.js—, con las mismas reglas con las que se decidía; validar-fachada-piezas
+   // compara lo que se arma con lo que dice el plano)
    for(let k=0;k<3;k++){const c=-S/2+1+2*k,mx=ex+tx*c,mz=ez+tz*c,m0=c-1,m1=c+1,coord=h?mx:mz;
     const hitSeg=list=>(list||[]).find(s=>{const [a,b]=along(s,h);return coord>a-.01&&coord<b+.01;});
     // Choques del módulo: muro entero, salvo la puerta o el portón (libres abajo, pared desde 2,5 m).
@@ -242,7 +238,8 @@ export function buildTown(bp,ctx){
     // en la coordenada de la línea; la pieza mira hacia afuera y su x local va hacia (tx, tz))
     const vidrio=(pz,px_,pz_,cur)=>{const g=VIDRIO_PIEZA[pz]||(pz.startsWith('LP_Ventanal_')?VIDRIO_VENTANAL:null);if(!g)return;const c=h?px_:pz_,sg=h?tx:tz;vidrios.push({f:cur,h,at:h?ez:ex,c,x0:Math.min(g[0]*sg,g[1]*sg),x1:Math.max(g[0]*sg,g[1]*sg),y0:g[2],y1:g[3],pieza:pz});};
     for(let f=f0;f<L.floors;f++){const yb=f*FLOOR,lv=lines[f],win=hitSeg(lv.w.get(lineKey)),door=f===0?hitSeg(lv.d.get(lineKey)):null;
-     if(door&&door.bay){// portón: dos columnas, sin pared (el vehículo lo pone civic3d)
+     const anota=(tipo,pieza=null)=>armada.push({lote:id,x,y,dx,dy,k,f,tipo,pieza});
+     if(door&&door.bay){anota('porton');// portón: dos columnas, sin pared (el vehículo lo pone civic3d)
       items.push({piece:fs.column,x:ex+tx*m0,y:0,z:ez+tz*m0,tint},{piece:fs.column,x:ex+tx*m1,y:0,z:ez+tz*m1,tint});wseg(m0,m1,2.5);
       if(!streetDoors.some(d=>d.bay&&Math.hypot(d.x-((door.x0+door.x1)/2),d.z-((door.y0+door.y1)/2))<.1))streetDoors.push({x:(door.x0+door.x1)/2,z:(door.y0+door.y1)/2,nx:dx,nz:dy,bay:true,len:Math.hypot(door.x1-door.x0,door.y1-door.y0)});
       doorFronts.push({x:mx,z:mz,nx:dx,nz:dy,half:1.2});continue;}
@@ -254,11 +251,11 @@ export function buildTown(bp,ctx){
      // (la marquesina de la entrada principal del hospital y del hotel —blueprint marcarEntradas—, sobre la puerta)
      if(door?.entrada)items.push({piece:MARQUESINA(door.entrada),x:mx,y:0,z:mz,ry,tint});
      if(door&&doble){const tienda=['comercio','local'].includes(B.type)||B.levels[0].rooms.some(q=>q.type==='local'&&q.id===door.a),hoja=tienda?'Door_2':fs.leaf,h2=dw/2;
-      items.push({piece:PUERTA_DOBLE((fs.paintOn||[])[0]||'MI_RedBrick'),x:mx,y:0,z:mz,ry,tint,lit:lit(0)});
+      anota('puerta_doble');items.push({piece:PUERTA_DOBLE((fs.paintOn||[])[0]||'MI_RedBrick'),x:mx,y:0,z:mz,ry,tint,lit:lit(0)});
       leaves.push({piece:hoja,x:mx+tx*h2-dx*.12,y:0,z:mz+tz*h2-dy*.12,ry,sx:h2,cx:mx,cz:mz,tint},{piece:hoja,x:mx-tx*h2-dx*.12,y:0,z:mz-tz*h2-dy*.12,ry:ry+Math.PI,sx:h2,dir:-1,cx:mx,cz:mz,tint});
       gaps.push([-1e3,2.5]);hg=h2+.02;doorFronts.push({x:mx,z:mz,nx:dx,nz:dy,half:h2+.4});streetDoors.push({x:mx,z:mz,nx:dx,nz:dy,w:dw});
       if(!plaqueDone){plaques.push({x:mx+dx*.08,z:mz+dy*.08,ry,name:L.bname});plaqueDone=true;}continue;}
-     if(door){items.push({piece:fs.door,x:mx,y:0,z:mz,ry,tint,lit:lit(0)});
+     if(door){anota('puerta',fs.door);items.push({piece:fs.door,x:mx,y:0,z:mz,ry,tint,lit:lit(0)});
       leaves.push({piece:fs.leaf,x:mx+tx*.5-dx*.12,y:0,z:mz+tz*.5-dy*.12,ry,cx:mx,cz:mz,tint});
       gaps.push([-1e3,2.5]);doorFronts.push({x:mx,z:mz,nx:dx,nz:dy,half:1});streetDoors.push({x:mx,z:mz,nx:dx,nz:dy});
       if(!plaqueDone){plaques.push({x:mx+dx*.08,z:mz+dy*.08,ry,name:L.bname});plaqueDone=true;}continue;}
@@ -268,20 +265,21 @@ export function buildTown(bp,ctx){
      // (2026-10-18, FACHADAS.md A1: la vidriera, sólo donde el plano dice local —win.shop—; en la planta baja de una casa,
      // una oficina o un hotel, la ventana de su familia: antes toda ventana de planta baja era vidriera y desde la calle se
      // veían el dormitorio y la cocina)
-     const vidriera=f===0&&win&&esVidriera(B.type,win);
+     const D=modDe.get(`${x},${y},${dx},${dy},${k},${f}`)||{tipo:'muro',pieza:fs.plain},vidriera=D.tipo==='vidriera';
      if(vidriera&&B.giro)signAt.push({x:mx+dx*.12,z:mz+dy*.12,ry});
-     const len=win?Math.hypot(win.x1-win.x0,win.y1-win.y0):0,piece=f===0&&!(win&&!vidriera)?(win?fs.shop:fs.wall):(win&&!bl?(win.pieza==='ventanal'?VENTANAL((fs.paintOn||[])[0]||'MI_RedBrick'):win.pieza&&WINDOWS[win.pieza]?WINDOWS[win.pieza].p:f<=1&&len>=1?winBig:winLight):fs.plain);// (win.pieza: la que eligió el plano para que el cuarto tenga luz)
-     const bal=k===1&&balconyAt(f);
+     const piece=D.pieza===VENTANAL_PLANO?VENTANAL((fs.paintOn||[])[0]||'MI_RedBrick'):D.pieza||fs.plain;
+     const bal=D.tipo==='balcon';
      if(bal){// el balcón: puerta (marco y hoja de la de calle, que se abre al acercarse en ese piso), la losa de concreto (la
       // entrada del paquete, de 15 cm), las barandas de los costados (las de una escalera recta) y adelante la baranda baja.
       // Se pisa (balconies) y sus barandas frenan (paredes de 1,1 m).
-      items.push({piece:fs.door,x:mx,y:yb,z:mz,ry,tint,lit:lit(f)});leaves.push({piece:fs.leaf,x:mx+tx*.5-dx*.12,y:yb,z:mz+tz*.5-dy*.12,ry,cx:mx,cz:mz,cy:yb,tint});
+      anota('balcon',fs.door);items.push({piece:fs.door,x:mx,y:yb,z:mz,ry,tint,lit:lit(f)});leaves.push({piece:fs.leaf,x:mx+tx*.5-dx*.12,y:yb,z:mz+tz*.5-dy*.12,ry,cx:mx,cz:mz,cy:yb,tint});
       items.push({piece:'Entrance_Concrete_2x1',x:mx,y:yb-.15,z:mz,ry,sy:.15},{piece:'Stairs_Rails_Metal_Straight_1',x:mx,y:yb-.97,z:mz,ry,tint:tint&&{zones:[tint.zones?.[2]||[null,[]]]}},{piece:'Trim_Wall_Guard',x:mx+dx*.88,y:yb,z:mz+dy*.88,ry,sy:1.5,tint:tint&&{zones:[tint.zones?.[2]||[null,[]]]}});
       gaps.push([yb-.3,yb+2.5]);balconies.push({x:mx,z:mz,nx:dx,nz:dy,w:2,d:1,y:yb+R});
       const bw=(a0,b0,a1,b1)=>wallAny(Math.min(a0,a1),Math.min(b0,b1),Math.max(a0,a1),Math.max(b0,b1),yb,yb+1.1);
       bw(mx-tx*1+dx*.9,mz-tz*1+dy*.9,mx+tx*1+dx*1,mz+tz*1+dy*1);bw(mx-tx*1,mz-tz*1,mx-tx*.9+dx*1,mz-tz*.9+dy*1);bw(mx+tx*.9,mz+tz*.9,mx+tx*1+dx*1,mz+tz*1+dy*1);}
-     else if(pairOf[f]===k){items.push({piece:fs.double,x:mx+tx,y:yb,z:mz+tz,ry,tint,lit:lit(f)});vidrio(fs.double,mx+tx,mz+tz,f);}// la doble, entre este módulo y el siguiente
-     else if(pairOf[f]<0||pairOf[f]!==k-1){items.push({piece,x:mx,y:yb,z:mz,ry,tint:other>=0&&!win&&f>0?tintCul:tint,lit:win?lit(f):-1});if((f>0||!vidriera)&&win&&!bl)vidrio(piece,mx,mz,f);}
+     else if(D.tipo==='doble'){anota('doble',fs.double);items.push({piece:fs.double,x:mx+tx,y:yb,z:mz+tz,ry,tint,lit:lit(f)});vidrio(fs.double,mx+tx,mz+tz,f);}// la doble, entre este módulo y el siguiente
+     else if(D.tipo!=='doble2'){anota(vidriera?'vidriera':win&&!bl&&(f>0||!vidriera)&&piece!==fs.plain&&piece!==fs.wall?'ventana':'muro',piece);items.push({piece,x:mx,y:yb,z:mz,ry,tint:other>=0&&!win&&f>0?tintCul:tint,lit:win?lit(f):-1});if((f>0||!vidriera)&&win&&!bl)vidrio(piece,mx,mz,f);}
+     else anota('doble2');
      // Toldo (fs.awnings) sobre la vidriera de la planta baja.
      if(fs.awnings&&vidriera&&other<0)awnings.push({x:mx+dx*.02,y:2.97,z:mz+dy*.02,ry,color:fs.awningColor});// arriba de la vidriera (el vidrio llega a 2,94 m)
      // Las columnas de la vidriera (planta baja) y la banda sobre la planta baja.
@@ -633,7 +631,7 @@ export function buildTown(bp,ctx){
   const val=new THREE.BoxGeometry(2,.24,.03);val.translate(0,fy-.1,fz);const geo=mergeGeometries([top,val]);top.dispose();val.dispose();
   // (LOWPOLY: la lona lisa, del color de su edificio —sin las rayas pintadas—)
   const mat=new THREE.MeshStandardMaterial(LOWPOLY.on?{roughness:.9,flatShading:true}:{map:tex,roughness:.9});own.push(geo,mat,tex);ctx.instanced(group,geo,mat,awnings);}
- return {roofProps,items,leaves,doorFronts,plaques,lotFurniture,civics,civicFronts,stationInfo,stairs,stoops,balconies,cortinas,superficies,panios};
+ return {fachadaArmada:armada,roofProps,items,leaves,doorFronts,plaques,lotFurniture,civics,civicFronts,stationInfo,stairs,stoops,balconies,cortinas,superficies,panios};
 }
 
 // Las cabinas de los ascensores: paredes de metal, techo con luz y botonera, puertas corredizas (se abren cuando el

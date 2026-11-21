@@ -29,6 +29,7 @@ import {repartir} from './botin.js';
 import {pintar} from './color.js';
 import {marcarHojas} from './puertas.js';
 import {numerar} from './direcciones.js';
+import {modulosDeFachada} from './fachada-piezas.js';
 import {pinturaDe} from './pintura.js';
 import {cerrarCortinas} from './cortinas.js';
 import {equipar} from './equipamiento.js';
@@ -1143,7 +1144,10 @@ export function generateBlueprint({seed=1,team=3,parks=JUEGO.parques}={}){
 
  // (la vegetación y la playa, y el equipamiento urbano, 2026-10-15: vegetacion.js y equipamiento.js, cada uno con su
  // propio azar, sobre el plano ya armado)
- const bp={seed,team,map,blocks,lots,courts,stats,isla};bp.vegetacion=plantar(bp);bp.equipamiento=equipar(bp);bp.contenedores=contenedoresDe(bp);bp.pintura=pinturaDe(bp);bp.botines=repartir(bp);pintar(bp);marcarEntradas(bp);marcarMansardas(bp);amoblarAzoteas(bp);marcarHojas(bp);numerar(bp);cerrarCortinas(bp);return bp;
+ const bp={seed,team,map,blocks,lots,courts,stats,isla};bp.vegetacion=plantar(bp);bp.equipamiento=equipar(bp);bp.contenedores=contenedoresDe(bp);bp.pintura=pinturaDe(bp);bp.botines=repartir(bp);pintar(bp);marcarEntradas(bp);marcarMansardas(bp);amoblarAzoteas(bp);marcarHojas(bp);numerar(bp);cerrarCortinas(bp);
+ // (2026-11-21: el plano lleva decidido qué va en cada módulo de cada fachada —engine/fachada-piezas.js—; el 3D lo lee)
+ for(const L of lots)L.modulos=modulosDeFachada(bp,L);
+ return bp;
 }
 // ---------- Etapa 9: la isla ----------
 // Las casillas de 6 m de la isla (fuera de la ciudad) con su zona, su altura y lo disparejo que es el terreno; las

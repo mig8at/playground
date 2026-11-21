@@ -51,7 +51,7 @@ onMounted(cargar);
     <div class="fila">
      <figure v-for="l in e.lados" :key="l">
       <canvas :ref="c=>{if(c)lienzos[e.L.id+'-'+l]=c;}"></canvas>
-      <figcaption v-if="medidos[e.L.id+'-'+l]"><b>{{ LADO[l] }}<template v-if="l===e.L.front"> · frente</template></b> · {{ medidos[e.L.id+'-'+l].modulos }} módulos × {{ medidos[e.L.id+'-'+l].pisos }} pisos · {{ medidos[e.L.id+'-'+l].paredes }} paredes ({{ medidos[e.L.id+'-'+l].cortes }} cortes de pared interna) · {{ medidos[e.L.id+'-'+l].vanos }} vanos, {{ medidos[e.L.id+'-'+l].areaVanos }} m² ·
+      <figcaption v-if="medidos[e.L.id+'-'+l]"><b>{{ LADO[l] }}<template v-if="l===e.L.front"> · frente</template></b> · grilla de {{ medidos[e.L.id+'-'+l].modulos }} × {{ medidos[e.L.id+'-'+l].pisos }} módulos de 2 × 3 m = {{ Math.round(medidos[e.L.id+'-'+l].ancho*20) }} × {{ Math.round(medidos[e.L.id+'-'+l].alto*20) }} píxeles de 5 cm · {{ medidos[e.L.id+'-'+l].paredes }} paredes ({{ medidos[e.L.id+'-'+l].cortes }} cortes de pared interna) · {{ medidos[e.L.id+'-'+l].vanos }} vanos, {{ medidos[e.L.id+'-'+l].areaVanos }} m² ·
        <b class="si">{{ medidos[e.L.id+'-'+l].pintables }} se pintan</b><template v-if="medidos[e.L.id+'-'+l].pintables">, {{ medidos[e.L.id+'-'+l].areaPintable }} m²: <code>{{ medidos[e.L.id+'-'+l].numeros.join(' · ') }}</code></template> ·
        <b :class="medidos[e.L.id+'-'+l].cuadra?'bien':'mal'">{{ medidos[e.L.id+'-'+l].cuadra?'cuadra':'NO cuadra' }}</b></figcaption>
      </figure>

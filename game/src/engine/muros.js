@@ -20,6 +20,7 @@ export const ladosDeCalleDe=ladosDeCalle;
 import {RAISE,facadeStyle,WINDOWS,VIDRIO_PIEZA,VIDRIO_VENTANAL} from './fachada.js';
 import {paredesDe} from './colocar.js';
 import {GRAFITI,lienzoDe,vacio,aTexto,deTexto} from './grafiti.js';
+import {vidrioDeModulo} from './fachada-piezas.js';
 
 const r3=v=>Math.round(v*1000)/1000,NORMAL={N:[0,-1],S:[0,1],E:[1,0],W:[-1,0]};
 export const SALE={exterior:.07,tabique:.075,medianera:.145,fachada:.265};// (m: el zócalo sale 5 cm; un tabique mide 12 de espesor y se ve la mitad; la medianera, 12 de este lado; la fachada, 25 hacia adentro)
@@ -50,8 +51,24 @@ function ocupaVano(L,fs,v,nivel,base,sube,cercaDeCalle){const c=(v.u0+v.u1)/2,m0
  if(fs.double&&nivel>=1)out.push({u0:m0,u1:m1,y0:base,y1:base+2.65,clase:'doble'});
  return out;}
 export const ZOCALO_ALTO=.8;
+// LO QUE OCUPA CADA MÓDULO, EXACTO (2026-11-21): el plano ya trae qué va en cada módulo de cada fachada (L.modulos,
+// engine/fachada-piezas.js: lo mismo que arma el 3D, comprobado por validar-fachada-piezas). De ahí sale cada hueco sin
+// adivinar: el vidrio de ESA pieza con su cerco; el módulo entero si es puerta, vidriera o balcón; la doble, centrada en
+// la junta de sus dos módulos. huecosDeLinea da los de una línea de fachada en un piso: {t0, t1 (a lo largo de la línea,
+// en metros del plano), y0, y1 (desde ese piso), clase}.
+const CELDA=6;
+export function huecosDeLinea(L,horiz,linea,nivel){const out=[];for(const m of L.modulos||[]){if(m.f!==nivel||(m.dy!==0)!==horiz)continue;const ex=(m.x+.5+m.dx*.5)*CELDA,ez=(m.y+.5+m.dy*.5)*CELDA;if(Math.abs((horiz?ez:ex)-linea)>.01)continue;
+  const tx=m.dy,tz=-m.dx,c=-CELDA/2+1+2*m.k,c0=horiz?ex+tx*c:ez+tz*c,sg=horiz?tx:tz,pon=(a,b,y0,y1,clase)=>out.push({t0:Math.min(a,b),t1:Math.max(a,b),y0,y1,clase});
+  if(m.tipo==='ventana'||m.tipo==='doble'){const g=vidrioDeModulo(m);if(g)pon(c0+g[0]*sg-CERCO*sg,c0+g[1]*sg+CERCO*sg,g[2]-CERCO-.08,g[3]+CERCO+.1,m.tipo==='doble'?'doble':'ventana');else pon(c0-1,c0+1,.3,2.8,'ventana');}
+  else if(m.tipo==='balcon')pon(c0-1.1,c0+1.1,-.3,3,'balcon');
+  else if(m.tipo==='vidriera')pon(c0-1,c0+1,0,3.25,'vidriera');
+  else if(m.tipo==='puerta'||m.tipo==='puerta_doble'||m.tipo==='porton')pon(c0-1,c0+1,0,3,'puerta');}
+ return out;}
 function huecosDeFachada(L,F){const fs=estiloDe(L),out=[{u0:0,u1:F.ancho,y0:0,y1:F.sube+ZOCALO_ALTO,clase:'zocalo'}];
- for(const P of F.pisos)for(const v of P.vanos)out.push(...ocupaVano(L,fs,v,P.nivel,P.base,F.sube));
+ if(L.modulos){const r=L.rect,horiz=F.lado==='N'||F.lado==='S',inv=F.lado==='N'||F.lado==='E',linea=F.lado==='N'?r.y:F.lado==='S'?r.y+r.h:F.lado==='W'?r.x:r.x+r.w,o=horiz?r.x:r.y;
+  for(const P of F.pisos)for(const q of huecosDeLinea(L,horiz,linea,P.nivel)){const a=q.t0-o,b=q.t1-o,suelo=P.nivel===0&&(q.clase==='puerta'||q.clase==='vidriera');out.push({u0:inv?F.ancho-b:a,u1:inv?F.ancho-a:b,y0:suelo?0:P.base+q.y0,y1:P.base+q.y1,clase:q.clase});}}
+ // (un plano de antes, sin L.modulos: lo de siempre, tomando la pieza mayor)
+ else for(const P of F.pisos)for(const v of P.vanos)out.push(...ocupaVano(L,fs,v,P.nivel,P.base,F.sube));
  return out.map(h=>({u0:r3(Math.max(0,h.u0)),u1:r3(Math.min(F.ancho,h.u1)),y0:r3(Math.max(0,h.y0)),y1:r3(Math.min(F.alto,h.y1)),clase:h.clase})).filter(h=>h.u1-h.u0>.01&&h.y1-h.y0>.01);}
 
 export function muroExterior(L,lado){const F=fachadaMedida(L,lado),a=F.punto(0),b=F.punto(F.ancho),huecos=huecosDeFachada(L,F);
@@ -66,7 +83,11 @@ export function murosDeCuarto(L,nivel,q,enOtroLote=null){const fs=estiloDe(L),su
   // (los vanos de esta pared, con lo que de verdad ocupan: una puerta de adentro, su hoja y su marco; una puerta de
   // calle o una vidriera, su módulo entero; una ventana, el vidrio de su pieza —la misma cuenta que por afuera—)
   const crudos=[...(lv.doors||[]).map(d=>({d,puerta:true})),...(lv.windows||[]).map(d=>({d}))].filter(({d})=>P.horiz?Math.abs(d.y0-P.fija)<.2&&Math.abs(d.y1-P.fija)<.2:Math.abs(d.x0-P.fija)<.2&&Math.abs(d.x1-P.fija)<.2),huecos=[];
-  for(const {d,puerta} of crudos){const p=P.horiz?Math.min(d.x0,d.x1):Math.min(d.y0,d.y1),qq=P.horiz?Math.max(d.x0,d.x1):Math.max(d.y0,d.y1);if(qq<=P.a0+.01||p>=P.a1-.01)continue;const cu=aU((p+qq)/2),len=qq-p,pon=(a,b,y0,y1,clase)=>huecos.push({u0:r3(Math.max(0,a)),u1:r3(Math.min(ancho,b)),y0:r3(Math.max(0,y0)),y1:r3(Math.min(H,y1)),clase});
+  // (si esta pared es de fachada y el plano trae sus módulos: los huecos exactos de esa línea; las puertas de adentro siguen)
+  const deLinea=L.modulos?huecosDeLinea(L,P.horiz,P.fija,nivel).filter(q=>q.t1>P.a0+.01&&q.t0<P.a1-.01):[];
+  for(const q of deLinea){const a=aU(Math.max(P.a0,q.t0)),b=aU(Math.min(P.a1,q.t1));huecos.push({u0:r3(Math.max(0,Math.min(a,b))),u1:r3(Math.min(ancho,Math.max(a,b))),y0:r3(Math.max(0,q.y0)),y1:r3(Math.min(H,q.y1)),clase:q.clase});}
+  const esDeFachada=L.modulos&&(L.modulos.some(m=>(m.dy!==0)===P.horiz&&Math.abs((P.horiz?(m.y+.5+m.dy*.5):(m.x+.5+m.dx*.5))*CELDA-P.fija)<.01));
+  for(const {d,puerta} of crudos){if(esDeFachada&&(!puerta||d.street))continue;const p=P.horiz?Math.min(d.x0,d.x1):Math.min(d.y0,d.y1),qq=P.horiz?Math.max(d.x0,d.x1):Math.max(d.y0,d.y1);if(qq<=P.a0+.01||p>=P.a1-.01)continue;const cu=aU((p+qq)/2),len=qq-p,pon=(a,b,y0,y1,clase)=>huecos.push({u0:r3(Math.max(0,a)),u1:r3(Math.min(ancho,b)),y0:r3(Math.max(0,y0)),y1:r3(Math.min(H,y1)),clase});
    if(puerta){if(d.street)pon(cu-Math.max(1,len/2+.2),cu+Math.max(1,len/2+.2),0,H,'puerta');else pon(cu-len/2-.1,cu+len/2+.1,0,2.3,'puerta');}
    else if(d.shop||nivel===0&&esVidriera(L.type,d))pon(cu-1,cu+1,0,H,'vidriera');
    else{const Gs=vidrioDe(fs,d,nivel,len);if(!Gs.length)pon(cu-len/2-CERCO,cu+len/2+CERCO,.3,2.8,'ventana');for(const G of Gs)pon(cu+G[0]-CERCO,cu+G[1]+CERCO,G[2]-CERCO-.08,G[3]+CERCO+.1,'ventana');if(fs.balconies&&nivel>=2||fs.double&&nivel>=1)pon(cu-1,cu+1,0,H,'ventana');}}
