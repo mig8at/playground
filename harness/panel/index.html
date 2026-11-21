@@ -1397,6 +1397,20 @@
   <script>
     const $ = (id) => document.getElementById(id);
 
+    // Los avisos y las confirmaciones son los de la base (tools/ui: `toast` y `confirmDialog`, que el módulo de abajo deja
+    // en `window`). `alert()` y `confirm()` del navegador NO aparecen dentro de Cockpit (un WKWebView sin diálogos):
+    // `confirm` contestaba «no» en silencio y el botón no hacía nada. Si el módulo todavía no cargó, vuelve a los del navegador.
+    function notify(text) {
+      const [title, ...rest] = String(text).split('\n');
+      const bad = /^✗|no respondió|no se pudo|no pude|no se guardó|error/i.test(text);
+      if (!window.toast) return alert(text);
+      window.toast(title.replace(/^[✓✗]\s*/, '').trim(), { description: rest.join(' ').replace(/\s+/g, ' ').trim(), icon: bad ? 'alert' : 'check', kind: bad ? 'destructive' : '', timeout: bad ? 0 : undefined });
+    }
+    function ask(options) {
+      if (!window.confirmDialog) return Promise.resolve(confirm([options.title, options.description].filter(Boolean).join('\n\n')));
+      return window.confirmDialog(options);
+    }
+
     // LOS COMERCIOS DE LA BARRA salen del registro (`harness/harness.json`, por `/api/registry`): sus entradas con
     // `panel: true`, en el orden del archivo, con su país y su nota (lo que ejercita cada uno: Motai el RTO, Alkosto el QR,
     // CeluRD el IMEI…, que antes eran comentarios acá). Se agregan y se asocian por consola: `make harness-merchants`.
@@ -1939,9 +1953,9 @@
     async function favApi(body) {
       try {
         const r = await (await fetch('/api/fav', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })).json();
-        if (!r.ok) alert(r.msg || 'No se guardó el cambio del comercio y el panel no dijo por qué. El detalle queda en la terminal donde corre el panel (npm run dev en harness).');
+        if (!r.ok) notify(r.msg || 'No se guardó el cambio del comercio y el panel no dijo por qué. El detalle queda en la terminal donde corre el panel (npm run dev en harness).');
         return r;
-      } catch { alert('No se guardó el cambio del comercio: el panel no respondió. Revisá que siga corriendo (npm run dev en harness) y volvé a intentarlo.'); return { ok: false }; }
+      } catch { notify('No se guardó el cambio del comercio: el panel no respondió. Revisá que siga corriendo (npm run dev en harness) y volvé a intentarlo.'); return { ok: false }; }
     }
 
     /** Renombrar EN LA FILA: el nombre se vuelve un campo; Enter (o salir) guarda, Escape cancela. */
@@ -1976,7 +1990,7 @@
     }
 
     async function removeFav(m) {
-      if (!confirm(`¿Quitar «${m.alias || m.name}» de la barra?\n\nSigue en harness/harness.json (con sus sucursales, para correr por consola) y la base no se toca. Para volver a ponerla: make harness-merchants A="add ${m.bases?.local?.allied_slug || m.bases?.shared?.allied_slug || m.slug}"`)) return;
+      if (!(await ask({ title: `¿Quitar «${m.alias || m.name}» de la barra?`, description: `Sigue en harness/harness.json (con sus sucursales, para correr por consola) y la base no se toca. Para volver a ponerla: make harness-merchants A="add ${m.bases?.local?.allied_slug || m.bases?.shared?.allied_slug || m.slug}"`, confirm: 'Quitar', destructive: true }))) return;
       const r = await favApi({ accion: 'remove', slug: m.slug });
       if (r.ok) { if (sel && sel.slug === m.slug) { sel = null; ensureAssignUI(); } await loadRegistry(); refresh(); loadLenders(); routeChanged(); }
     }
@@ -1988,16 +2002,16 @@
       const post = async (apply) => (await fetch('/api/test-advisor', { method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ target, allied: alliedId, apply }) })).json();
       let pre;
-      try { pre = await post(false); } catch { alert('El panel no respondió.'); return false; }
-      if (!pre.ok) { alert(`No se puede crear el asesor de prueba de ${name}:\n\n${pre.text}`); return false; }
+      try { pre = await post(false); } catch { notify('El panel no respondió.'); return false; }
+      if (!pre.ok) { notify(`No se puede crear el asesor de prueba de ${name}:\n\n${pre.text}`); return false; }
       // El conector ya mira si existe: entonces no hay nada que confirmar, sólo refrescar lo que el panel tenía.
-      if (/no hay nada que crear/i.test(pre.text)) { alert(pre.text); await enrichMerchants(); return true; }
+      if (/no hay nada que crear/i.test(pre.text)) { notify(pre.text); await enrichMerchants(); return true; }
       const shared = pre.target !== 'local';
       const preview = pre.text.split('\n').filter((l) => !/--apply/.test(l)).join('\n').trim();
-      if (!confirm(`${preview}\n\n${shared ? `⚠ Es la base COMPARTIDA (${pre.target}): lo ve el equipo.\n\n` : ''}¿Lo creo?`)) return false;
+      if (!(await ask({ title: `¿Creo el asesor de prueba de ${name}?`, description: `${preview}${shared ? `\n\nEs la base COMPARTIDA (${pre.target}): lo ve el equipo.` : ''}`, confirm: 'Crear', destructive: shared }))) return false;
       let r;
-      try { r = await post(true); } catch { alert('El panel no respondió.'); return false; }
-      alert(`${r.ok ? '✓' : '✗'} ${r.text}`);
+      try { r = await post(true); } catch { notify('El panel no respondió.'); return false; }
+      notify(`${r.ok ? '✓' : '✗'} ${r.text}`);
       // Se espera la medición del ambiente: quien llama vuelve a dibujar con el asesor ya visto (la pregunta del canal).
       if (r.ok) await enrichMerchants();
       return !!r.ok;
@@ -2663,7 +2677,7 @@
           method: 'POST', headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ slug: sel.slug, target, flag, value }),
         })).json();
-        if (!r.ok) { alert(r.msg || 'no se pudo cambiar el flag del comercio'); }
+        if (!r.ok) { notify(r.msg || 'no se pudo cambiar el flag del comercio'); }
         else {
           merchantFlags.flags[flag] = !!r.value;
           merchantFlagChangedAt = Date.now();
@@ -2675,7 +2689,7 @@
             if (Date.now() > merchantFlagChangedAt + ADVISOR_PROFILE_CACHE_MS) clearInterval(merchantFlagTimer);
           }, 1000);
         }
-      } catch { alert('error de red al cambiar el flag del comercio'); }
+      } catch { notify('error de red al cambiar el flag del comercio'); }
       renderMerchantView();
     }
 
@@ -3133,8 +3147,8 @@
           if (l) { l.lender_status = status ? 1 : 0; renderTrain(); }
           paintEntity(id);
         }
-        else alert((r && r.msg) || `No se pudo ${status ? 'prender' : 'apagar'} la entidad ${id} en ${target} y el panel no dijo por qué. El detalle queda en la terminal donde corre el panel (npm run dev en harness).`);
-      } catch { alert(`No se pudo ${status ? 'prender' : 'apagar'} la entidad ${id}: el panel no respondió. Revisá que siga corriendo (npm run dev en harness) y volvé a intentarlo.`); }
+        else notify((r && r.msg) || `No se pudo ${status ? 'prender' : 'apagar'} la entidad ${id} en ${target} y el panel no dijo por qué. El detalle queda en la terminal donde corre el panel (npm run dev en harness).`);
+      } catch { notify(`No se pudo ${status ? 'prender' : 'apagar'} la entidad ${id}: el panel no respondió. Revisá que siga corriendo (npm run dev en harness) y volvé a intentarlo.`); }
     }
 
     // drag para reordenar lenders → guarda lenders_by_allieds.sort (se respeta en /lenders dentro de cada bucket de probabilidad).
@@ -4091,7 +4105,7 @@
       } catch { /* el panel no respondió */ }
     }
     async function startProdRun(apply) {
-      if (apply && !confirm('Esto crea una solicitud REAL en producción con tus datos y consulta las centrales (se cobran). ¿Seguir?')) return;
+      if (apply && !(await ask({ title: '¿Crear una solicitud REAL en producción?', description: 'Usa tus datos y consulta las centrales de riesgo, que se cobran.', confirm: 'Crear en producción', destructive: true }))) return;
       if (!apply) prodChecked = false;
       const r = await (await fetch('/api/prod-run', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ apply }) })).json();
       if (!r.ok) { $('prodStatus').textContent = '✗ ' + (r.detail || 'no se pudo lanzar'); return; }
@@ -4824,7 +4838,7 @@
       const own = laneOfTab(t);
       if (own && laneBusy(own)) {
         const l = tabLabel(t);
-        if (!confirm(`«${l.name} · ${l.chan}» tiene los celulares del carril ${own.toUpperCase()} abiertos. ¿Los cierro?`)) return;
+        if (!(await ask({ title: `¿Cierro los celulares del carril ${own.toUpperCase()}?`, description: `«${l.name} · ${l.chan}» los tiene abiertos.`, confirm: 'Cerrar', destructive: true }))) return;
         await closeLane(own);
       }
       if (t.kind === 'admin' && !$('adminLive').hidden) $('adminClose').click();
@@ -4865,7 +4879,7 @@
         const ot = runTabs.find((x) => x.id === o.id);
         const e1 = entryOf(t.slug), e2 = ot && entryOf(ot.slug);
         if (e1 && e2 && e1.allied_id && e1.allied_id === e2.allied_id && e1.hash && e2.hash && e1.hash !== e2.hash) {
-          alert(`${ownerLabel(other)} ya corre este comercio en otra sucursal. Su asesor de prueba es uno solo y está en UNA sucursal: abrir ésta lo movería y la otra corrida seguiría contra la sucursal equivocada. Cerrá esa corrida o usá la misma sucursal.`);
+          notify(`${ownerLabel(other)} ya corre este comercio en otra sucursal. Su asesor de prueba es uno solo y está en UNA sucursal: abrir ésta lo movería y la otra corrida seguiría contra la sucursal equivocada. Cerrá esa corrida o usá la misma sucursal.`);
           return false;
         }
       }
@@ -5702,7 +5716,7 @@
         $('go').disabled = true; setGoLabel('Logueando…');
         await warmSession(target);
         if (sessionState[target] !== 'valid') {
-          alert(`No pude autenticar en ${target} — revisá las credenciales de .env.${target} o el estado de Cognito. No lanzo, para no caer en /solicitar.`);
+          notify(`No pude autenticar en ${target} — revisá las credenciales de .env.${target} o el estado de Cognito. No lanzo, para no caer en /solicitar.`);
           updateGo(); return;
         }
       }
@@ -5735,7 +5749,7 @@
         $('runSummary').innerHTML = `logueando en <b>${target}</b> (headless) antes de lanzar…`;
         await warmSession(target);
         if (sessionState[target] !== 'valid' && sessionState[target] !== 'unreachable') {
-          alert(`no se pudo autenticar en ${target} — revisá las credenciales del .env.${target}`);
+          notify(`no se pudo autenticar en ${target} — revisá las credenciales del .env.${target}`);
           setGoLabel('Preparar + Lanzar'); updateGo(); return;
         }
       }
@@ -6620,7 +6634,7 @@
         if (ssr.trim()) text = `── CONSOLA DE LA CORRIDA ──\n${text}\n\n── SSR DEL WIZARD ──\n${ssr}`;
       } catch { }
       try { await navigator.clipboard.writeText(text); const icon = $('copyLog').querySelector('.ui-icon'); icon.dataset.icon = 'check'; $('copyLog').setAttribute('aria-label', 'Consola copiada'); setTimeout(() => { icon.dataset.icon = 'copy'; $('copyLog').setAttribute('aria-label', 'Copiar ambas consolas completas'); }, 1200); }
-      catch { alert('No pude copiar al portapapeles.'); }
+      catch { notify('No pude copiar al portapapeles.'); }
     };
     // SOLO los .copy con data-copy (copian el texto de otro elemento). El selector `.copy` a secas PISABA el
     // onclick de #copyLog y #logToggle —que usan la misma clase por ESTILO— y reventaba con `$(undefined)`.
@@ -6700,9 +6714,9 @@
           method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ruta: '/aliados', target })
         })).json();
         btnAdmin.title = r.msg || '';
-        if (!r.ok) alert(r.msg || 'no se pudo abrir el admin');
+        if (!r.ok) notify(r.msg || 'no se pudo abrir el admin');
       } catch (e) {
-        alert('no se pudo abrir el admin: ' + e);
+        notify('no se pudo abrir el admin: ' + e);
       }
       // La ventana tarda en aparecer (levanta el server si hace falta): se deja un rato antes de rehabilitar
       // para que nadie apriete dos veces y termine con dos navegadores.
@@ -7550,6 +7564,8 @@ export function bindCommandPalette({ shortcut = 'mod+k' } = {}) {
 }
 
 // </workbench-shared>
+// El resto del panel es un script clásico: le deja a mano el aviso y la confirmación de la base (ver `notify` y `ask`).
+window.toast = toast; window.confirmDialog = confirmDialog;
     const root = document.documentElement;
     const configs = [
       { id: 'rszL', button: 'toggleSidebar', region: 'sideLeft', css: '--sidebar-w', key: 'panel.wLeft', lastKey: 'panel.wLeft.last-open', min: () => cssSize('--sidebar-min', 240), limit: 560, initial: 300, sign: 1, label: 'Ancho de comercios' },

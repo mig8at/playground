@@ -873,7 +873,7 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 .ui-dialog::backdrop { background: color-mix(in oklab, var(--background) 70%, transparent) }
 .ui-dialog[open] { animation: dialog-in var(--motion-base) var(--ease-out) }
 .dialog-title { margin: 0; font-size: var(--text-title); font-weight: 600; line-height: 24px }
-.dialog-desc { margin: 0; color: var(--fg-2); line-height: 1.6 }
+.dialog-desc { margin: 0; color: var(--fg-2); line-height: 1.6; white-space: pre-line; overflow-wrap: anywhere } /* respeta los saltos de una descripción (un comando, una lista) */
 .dialog-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-4) }
 @keyframes dialog-in { from { opacity: 0; transform: scale(.98) } }
 

@@ -7,7 +7,7 @@
  * Sólo lee: «visto» es de esta herramienta, no toca Gmail. La ruta es `#/w/<seguimiento>[/<id de correo o de hilo>]`:
  * el aviso al tocarlo trae el id del correo (Cockpit lleva el iframe a esa ruta) y abre su conversación. */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle } from './workbench.js'
+import { vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle, confirmDialog, toast } from './workbench.js'
 
 const data = ref(null)
 const apiError = ref('')
@@ -195,8 +195,9 @@ async function addWatch() {
   } catch (e) { formError.value = e.message }
 }
 async function removeWatch(w) {
-  if (!confirm(`¿Dejar de seguir «${w.name}»? Lo guardado de ese seguimiento se olvida; Gmail no se toca.`)) return
-  try { take(await api(`/api/watches?id=${encodeURIComponent(w.id)}`, { method: 'DELETE' })); go(watches.value[0]?.id || '') } catch (e) { apiError.value = e.message }
+  // confirmDialog y no confirm(): dentro de Cockpit el del navegador no aparece y contesta «no» en silencio.
+  if (!(await confirmDialog({ title: `¿Dejar de seguir «${w.name}»?`, description: 'Lo guardado de ese seguimiento se olvida; Gmail no se toca.', confirm: 'Dejar de seguir', destructive: true }))) return
+  try { take(await api(`/api/watches?id=${encodeURIComponent(w.id)}`, { method: 'DELETE' })); go(watches.value[0]?.id || ''); toast('Seguimiento quitado', { icon: 'check', description: w.name }) } catch (e) { apiError.value = e.message }
 }
 
 const isSet = (iso) => !!iso && new Date(iso).getFullYear() > 2000

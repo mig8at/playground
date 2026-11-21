@@ -37,7 +37,7 @@ import ServicePanel from './ServicePanel.vue'
 import ServiceSide from './ServiceSide.vue'
 import { forget as forgetHistory, historyFor, pick as pickHistory } from './stores/service-history.js'
 import {
-  vResize, readSize, saveSize, readPref, savePref, fitRegions, cssSize, bindThemeToggle, bindPanelMaximize, readHashRoute, hashRoute, setRoute,
+  vResize, readSize, saveSize, readPref, savePref, fitRegions, cssSize, bindThemeToggle, bindPanelMaximize, readHashRoute, hashRoute, setRoute, confirmDialog,
 } from './workbench.js'
 
 /* Lo pesado se baja sólo cuando se usa: el lector de PDF (pdf.js) al abrir un PDF o al mostrar su miniatura. Así
@@ -863,7 +863,8 @@ async function submitCuadrilla(text) {
   await chat.noteTask(task, kind, text, owner)
 }
 async function markDone(task) {
-  if (!confirm(`¿Marcar hecha «${task.titulo}»?`)) return
+  // confirmDialog y no confirm(): dentro de Cockpit el del navegador no aparece y contesta «no» en silencio.
+  if (!(await confirmDialog({ title: `¿Marcar hecha «${task.titulo}»?`, confirm: 'Marcar hecha' }))) return
   await chat.doneTask(task)
 }
 const taskState = (t) => (t.bloqueo ? 'bloqueada' : t.hecha ? 'hecha' : 'curso')

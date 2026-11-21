@@ -4,6 +4,7 @@
    todos; se abre también con openssl). */
 import { computed, onMounted, ref } from 'vue'
 import { newTeamKey, open, seal } from './keyring.js'
+import { confirmDialog } from './workbench.js'
 import { keyring, loadKeyring, setAutoShare } from './keyringStore.js'
 
 const teamKey = ref('')
@@ -40,7 +41,8 @@ async function keysCall(path, options) {
 }
 
 async function setTeamKey(k) {
-  if (teamKey.value && k !== teamKey.value && !confirm('Lo que ya mandaste encriptado sólo se abre con la llave anterior. ¿Cambiarla?')) return
+  // confirmDialog y no confirm(): dentro de Cockpit el del navegador no aparece y contesta «no» en silencio.
+  if (teamKey.value && k !== teamKey.value && !(await confirmDialog({ title: '¿Cambiar la llave del equipo?', description: 'Lo que ya mandaste encriptado sólo se abre con la llave anterior.', confirm: 'Cambiarla', destructive: true }))) return
   const r = await fetch('/api/keyring', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ teamKey: k }) })
   if (!r.ok) { error.value = (await r.json().catch(() => ({}))).error || r.statusText; return }
   teamKey.value = k; pastedKey.value = ''; changingKey.value = false; error.value = ''
@@ -56,7 +58,7 @@ async function toggleShown(k) {
   try { shown.value = { ...shown.value, [k.name]: await open(teamKey.value, k.sealed) } } catch { shown.value = { ...shown.value, [k.name]: '✗ no abre con esta llave' } }
 }
 async function removeSaved(k) {
-  if (!confirm(`¿Borrar «${k.name}» de las guardadas?`)) return
+  if (!(await confirmDialog({ title: `¿Borrar «${k.name}» de las guardadas?`, confirm: 'Borrar', destructive: true }))) return
   await keysCall(`/api/keyring/keys/${encodeURIComponent(k.name)}`, { method: 'DELETE' })
 }
 const when = (iso) => { try { return new Date(iso).toLocaleString([], { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) } catch { return '' } }
