@@ -116,6 +116,12 @@ func claudeBinary() (string, error) {
 // runClaude corre `claude -p` con sólo WebSearch y WebFetch, la instrucción por stdin y la salida atada a un esquema
 // JSON. Devuelve el JSON, cuánto costó (equivalente) y cuánto tardó.
 func runClaude(ctx context.Context, prompt, schema string) (json.RawMessage, float64, int, error) {
+	return runClaudeWith(ctx, prompt, schema)
+}
+
+// runClaudeWith: como runClaude, con reglas de permiso que niegan herramientas o dominios
+// («WebFetch(domain:linkedin.com)»): las niega el permiso, no la instrucción.
+func runClaudeWith(ctx context.Context, prompt, schema string, deny ...string) (json.RawMessage, float64, int, error) {
 	bin, err := claudeBinary()
 	if err != nil {
 		return nil, 0, 0, err
@@ -131,6 +137,9 @@ func runClaude(ctx context.Context, prompt, schema string) (json.RawMessage, flo
 	cmd := exec.CommandContext(ctx, bin, "-p", "--output-format", "json", "--model", model,
 		"--tools", "WebSearch", "WebFetch", "--allowedTools", "WebSearch", "WebFetch",
 		"--strict-mcp-config", "--disable-slash-commands", "--json-schema", schema)
+	if len(deny) > 0 {
+		cmd.Args = append(cmd.Args, append([]string{"--disallowedTools"}, deny...)...)
+	}
 	cmd.Dir = dir
 	cmd.Stdin = strings.NewReader(prompt)
 	for _, kv := range os.Environ() {

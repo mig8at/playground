@@ -130,3 +130,8 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 .row.lender { cursor: default; color: var(--foreground) }
 .row.lender:hover { background: none }
 .row.lender.missing, .row.lender.missing .row-meta, .row.lender.missing .ui-icon { color: var(--fg-3) }
+
+/* quién decide, arriba del contacto */
+.person { display: flex; align-items: center; gap: var(--space-2); margin: 0 var(--space-1); padding: var(--space-2) }
+.person .ui-icon { color: var(--fg-2) }
+.contact-source a { color: var(--primary-ink) }

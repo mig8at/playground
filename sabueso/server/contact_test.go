@@ -163,3 +163,33 @@ func TestClientByBrand(t *testing.T) {
 		t.Errorf("una que no es cliente: %q", got)
 	}
 }
+
+func TestPeopleRoute(t *testing.T) {
+	dataDir, root = t.TempDir(), t.TempDir()
+	legalRep = func(context.Context, *Company) (*Person, error) { return nil, nil }
+	findPeople = func(_ context.Context, c *Company, _ *Person) (*PeopleResearch, error) {
+		return &PeopleResearch{Summary: "A la gerencia comercial.", People: []Person{{Name: "Ana Pérez", Role: "Gerente comercial", Area: "comercial", Fit: "decides", Source: "https://x.co/equipo", Evidence: "Ana Pérez, gerente comercial"}}}, nil
+	}
+	if err := saveState(&State{Companies: []*Company{{ID: "co_1", Kind: KindMerchant, Name: "X", Stage: "prospect"}}}); err != nil {
+		t.Fatal(err)
+	}
+	if rec := do(guard(routes()), newReq("POST", "/api/companies/co_1/people", nil)); rec.Code != 200 {
+		t.Fatalf("people: %d %s", rec.Code, rec.Body.String())
+	}
+	st, _ := loadState()
+	c := st.Companies[0]
+	if c.People == nil || len(c.People.People) != 1 || !strings.Contains(c.Activities[len(c.Activities)-1].Text, "Ana Pérez (Gerente comercial)") {
+		t.Errorf("quedó: %+v", c)
+	}
+}
+
+func TestMergePeople(t *testing.T) {
+	rep := &Person{Name: "Sergio Gonzalo Restrepo Taborda", Role: "Representante legal", Fit: "decides"}
+	got := mergePeople(rep, []Person{{Name: "SERGIO GONZALO RESTREPO TABORDA", Role: "Gerente general", Profile: "https://co.linkedin.com/in/x"}, {Name: "Ana", Role: "Gerente comercial"}})
+	if len(got) != 2 || got[0].Role != "Gerente general (representante legal)" || got[0].Profile == "" || got[1].Name != "Ana" {
+		t.Errorf("el del registro primero y confirmado por Claude, sin repetir: %+v", got)
+	}
+	if len(mergePeople(nil, nil)) != 0 {
+		t.Error("sin nadie, vacío")
+	}
+}

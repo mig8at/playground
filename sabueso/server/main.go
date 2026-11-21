@@ -463,6 +463,62 @@ func routes() *http.ServeMux {
 		writeJSON(w, 200, res)
 	})
 
+	// Buscar con Claude quién decide en la empresa, sólo con lo público y sin abrir LinkedIn (people.go).
+	mux.HandleFunc("POST /api/companies/{id}/people", func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		st, err := loadState()
+		mu.Unlock()
+		if err != nil {
+			writeErr(w, 500, err)
+			return
+		}
+		c := find(st, r.PathValue("id"))
+		if c == nil {
+			writeErr(w, 404, errNotFound)
+			return
+		}
+		// El representante legal del registro (gratis) primero; con ?free=1, sólo eso, sin Claude.
+		rep, _ := legalRep(r.Context(), c)
+		var res *PeopleResearch
+		if r.URL.Query().Get("free") == "1" {
+			res = &PeopleResearch{People: []Person{}, At: now(), Summary: "Sólo el registro mercantil, sin búsqueda en internet."}
+			if rep == nil {
+				res.Summary = "El registro mercantil no trae representante legal para esta empresa."
+			}
+		} else {
+			res, err = findPeople(r.Context(), c, rep)
+			if err != nil {
+				writeErr(w, 502, err)
+				return
+			}
+		}
+		res.People = mergePeople(rep, res.People)
+		_, err = withState(func(st *State) error {
+			c := find(st, r.PathValue("id"))
+			if c == nil {
+				return errNotFound
+			}
+			c.People = res
+			names := []string{}
+			for _, p := range res.People {
+				if p.Fit == "decides" {
+					names = append(names, p.Name+" ("+p.Role+")")
+				}
+			}
+			if len(names) > 0 {
+				c.log("research", "Quién decide: "+strings.Join(names, ", ")+". "+res.Summary)
+			} else {
+				c.log("research", "Quién decide: no apareció nadie con fuente pública. "+res.Summary)
+			}
+			return nil
+		})
+		if err != nil {
+			writeErr(w, 500, err)
+			return
+		}
+		writeJSON(w, 200, res)
+	})
+
 	// Una línea de la bitácora: una llamada, un correo, una reunión o una nota.
 	mux.HandleFunc("POST /api/companies/{id}/activities", func(w http.ResponseWriter, r *http.Request) {
 		var in struct{ Kind, Text string }

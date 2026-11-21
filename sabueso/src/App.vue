@@ -262,6 +262,8 @@ const byCountry = (id) => reachable.value.filter((c) => (c.country || 'CO') === 
 const lenderTitle = (l) => [l.have ? 'Ya trabaja con CreditOp' : 'Todavía no trabaja con CreditOp',
   l.activates.length ? `Activaría: ${l.activates.join(', ')}` : 'No activa países nuevos',
   `Opera en: ${l.countries.map((c) => c.country + (c.unconfirmed ? ' (sin confirmar)' : '')).join(', ')}`].join('\n')
+const PERSON_FIT = { decides: 'decide', influences: 'influye', other: 'otro' }
+const sortedPeople = (c) => [...(c.people?.people || [])].sort((a, b) => ['decides', 'influences', 'other'].indexOf(a.fit) - ['decides', 'influences', 'other'].indexOf(b.fit))
 const logOf = (c) => [...c.activities].reverse()
 
 // ── el panel: la actividad de todas ──
@@ -384,8 +386,22 @@ onBeforeUnmount(() => {
 
     <aside v-show="shown.aux" class="auxiliarybar" aria-label="Cómo contactarlo">
       <div class="rsz rsz-edge-left" v-resize="auxResize"></div>
-      <div class="region-head"><span>Cómo contactarlo</span></div>
+      <div class="region-head"><span>Contacto</span></div>
       <div v-if="picked" :key="picked.id" class="region-body">
+        <!-- Quién decide (server/people.go): nombres y cargos públicos, con su fuente; sin abrir LinkedIn. -->
+        <template v-if="picked.people?.people?.length">
+          <div class="region-head group"><span>Quién decide</span><span class="count">{{ picked.people.people.length }}</span></div>
+          <div v-for="p in sortedPeople(picked)" :key="p.name" class="person" :title="p.evidence">
+            <span class="ui-icon" data-icon="person" aria-hidden="true"></span>
+            <span class="contact-body">
+              <span class="contact-value">{{ p.name }}</span>
+              <span class="contact-area">{{ p.role }}</span>
+              <span class="contact-source"><a :href="p.source" target="_blank" rel="noopener">{{ hostOf(p.source) }}</a><template v-if="p.profile"> · <a :href="p.profile" target="_blank" rel="noopener">perfil</a></template></span>
+            </span>
+            <span class="badge badge-xs" :class="p.fit === 'decides' ? '' : 'badge-outline'">{{ PERSON_FIT[p.fit] || p.fit }}</span>
+          </div>
+        </template>
+        <div class="region-head group"><span>Cómo contactarlo</span><span class="count">{{ picked.research?.contacts?.length || 0 }}</span></div>
         <a v-for="ct in sortedContacts(picked)" :key="ct.channel + ct.value" class="contact" :href="contactHref(ct)" target="_blank" rel="noopener">
           <span class="ui-icon" :data-icon="CH_ICON[ct.channel]" aria-hidden="true"></span>
           <span class="contact-body">

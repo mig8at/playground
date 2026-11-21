@@ -70,6 +70,7 @@
     "box": "box",
     "paper": "file-text",
     "popular": "flame",
-    "star": "star"
+    "star": "star",
+    "person": "user"
   }
 }

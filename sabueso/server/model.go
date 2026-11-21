@@ -117,6 +117,8 @@ type Company struct {
 	FitWhy []string `json:"fitWhy"`
 	// La última búsqueda del contacto para la propuesta (contact.go), con cada canal y su fuente.
 	Research *Research `json:"research,omitempty"`
+	// Quién decide (people.go): nombres y cargos públicos, con su fuente.
+	People *PeopleResearch `json:"people,omitempty"`
 	// La bitácora, de la más vieja a la más nueva.
 	Activities []Activity `json:"activities"`
 }

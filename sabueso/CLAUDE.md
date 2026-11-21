@@ -53,6 +53,25 @@ correo, WhatsApp, teléfono y formulario. Queda en la bitácora y en el secundar
 ni canal publicado (Todomotos VS, el 2026-11-21) queda «sin canal público»: `hunt` sigue con la siguiente y no repite
 una que ya se buscó.
 
+## Quién decide
+
+`bin/sabueso people <nombre> [--free]` (`server/people.go`): el nombre y el cargo de quien decidiría sobre la propuesta
+(comercial, financiero, canales, alianzas, gerencia general), con la fuente y la frase que lo respalda. **Sin escribirle a
+nadie.**
+
+1. **En Colombia, el representante legal del registro mercantil abierto** (`legalRep`): público por ley y gratis; en una
+   empresa mediana suele ser el gerente general. `--free` trae sólo eso, sin Claude.
+2. **Claude, sólo con lo público** (el sitio de la empresa, noticias, directorios y los resultados del buscador), con el
+   representante legal como pista. **No abre linkedin.com**: lo niega el permiso (`--disallowedTools
+   "WebFetch(domain:linkedin.com)"…`, comprobado en `permission_denials`), no sólo la instrucción, porque las condiciones
+   de LinkedIn prohíben el acceso automatizado y una cuenta personal no se arriesga. De un perfil público toma el nombre,
+   el cargo y el enlace tal como salen en el buscador.
+
+Sólo se guarda lo que la persona publica profesionalmente; nunca correos o celulares personales. ⚠ Los directorios de
+terceros (RocketReach, por ejemplo) pueden estar desactualizados: por eso la fuente se ve junto a cada nombre. Medido
+con Dismerca el 2026-11-21: sin la pista no encontró a nadie (96 s, US$0,75); con el registro, el representante legal
+gratis, y Claude sumó un gerente financiero y dos jefes comerciales de RocketReach (140 s, US$0,70).
+
 ## Qué hay en la pantalla
 
 **Hoy, la vista simple** (Miguel, 2026-11-21: «hagamos lo simple»; `SIMPLE = true` en `src/App.vue`): a la izquierda
@@ -118,6 +137,7 @@ La vista completa sigue en el código (con `SIMPLE = false`):
 | encontrar comercios en un país sin registro abierto | `server/web_find.go` |
 | las entidades que activarían otros países | `lenders.json` (los datos) y `server/lenders.go` |
 | el sitio de la empresa, leído sin modelo | `server/site.go` (`SABUESO_LIVE=1 go test -run Live` va a internet) |
+| quién decide: el registro y Claude, sin abrir LinkedIn | `server/people.go` |
 | la consola | `sabueso/cli` (`bin/sabueso`, compilado en `~/.cache/my-tools/sabueso`) |
 | la API | `server/main.go` (encabezado `X-Sabueso: 1` y Host local, como el Llavero) |
 | la interfaz | `src/App.vue`, con la base de `tools/ui` (`make style-sync`) |

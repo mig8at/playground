@@ -29,6 +29,9 @@ const usage = `bin/sabueso — encontrar comercios que no trabajan con CreditOp 
         En Perú (--country PE) no hay registro abierto: los comercios también los encuentra Claude por internet
         Los que quedan sin canal salen de Sabueso y no se vuelven a buscar.
   bin/sabueso contact <nombre|id>    busca el contacto de un comercio que ya está en Sabueso
+  bin/sabueso people <nombre|id> [--free]   quién decide (cargo y nombre públicos, con su fuente), sin abrir
+        LinkedIn; en Colombia, primero el representante legal del registro mercantil. --free: sólo el registro
+        (gratis, sin Claude). No le escribe a nadie
   bin/sabueso find [--country CO|PE] [--sector S] [--min 5]   los candidatos, sin agregar nada (en CO, segundos;
         en PE, una búsqueda de Claude)
   bin/sabueso list [--json]          los comercios que se siguen, con su contacto
@@ -45,7 +48,7 @@ func run(args []string) int {
 		return 0
 	}
 	switch args[0] {
-	case "hunt", "contact", "find", "list", "sectors":
+	case "hunt", "contact", "people", "find", "list", "sectors":
 	default:
 		fmt.Fprintf(os.Stderr, "sabueso: no conozco %q (bin/sabueso help)\n", args[0])
 		return 2
@@ -64,6 +67,21 @@ func run(args []string) int {
 			return 2
 		}
 		err = contact(strings.Join(args[1:], " "))
+	case "people":
+		if len(args) < 2 {
+			fmt.Fprintln(os.Stderr, "bin/sabueso people <nombre|id>")
+			return 2
+		}
+		free := false
+		var rest []string
+		for _, a := range args[1:] {
+			if a == "--free" {
+				free = true
+			} else {
+				rest = append(rest, a)
+			}
+		}
+		err = people(strings.Join(rest, " "), free)
 	case "find":
 		err = findCmd(args[1:])
 	case "list":
@@ -458,5 +476,55 @@ func huntWeb(country, sector string, count, tries int) error {
 		}
 	}
 	fmt.Printf("\n%d de %d con contacto. Se ven en Sabueso (Cockpit) y con bin/sabueso list.\n", found, tried)
+	return nil
+}
+
+var personFit = map[string]string{"decides": "decide", "influences": "influye", "other": "otro"}
+
+// people: quién decide en un comercio que ya está en Sabueso.
+func people(q string, free bool) error {
+	st, err := load()
+	if err != nil {
+		return err
+	}
+	var hit *company
+	ql := strings.ToLower(q)
+	for i := range st.Companies {
+		c := &st.Companies[i]
+		if c.ID == q || strings.Contains(strings.ToLower(c.Name), ql) {
+			hit = c
+			break
+		}
+	}
+	if hit == nil {
+		return fmt.Errorf("«%s» no está en Sabueso: bin/sabueso list", q)
+	}
+	path := "/api/companies/" + hit.ID + "/people"
+	if free {
+		path += "?free=1"
+		fmt.Printf("→ %s: el representante legal del registro mercantil (sin Claude)…\n", hit.Name)
+	} else {
+		fmt.Printf("→ %s: buscando quién decide con Claude (sólo lo público, sin abrir LinkedIn)…\n", hit.Name)
+	}
+	var r struct {
+		People  []struct{ Name, Role, Area, Fit, Profile, Source, Evidence string }
+		Summary string
+		Seconds int
+		CostUSD float64
+	}
+	if err := call("POST", path, map[string]any{}, &r, 9*time.Minute); err != nil {
+		return err
+	}
+	for _, p := range r.People {
+		fmt.Printf("  %-28s %s · %s (%s)\n", p.Name, p.Role, p.Area, personFit[p.Fit])
+		fmt.Printf("  %-28s «%s»\n  %-28s %s\n", "", trim(p.Evidence, 110), "", p.Source)
+		if p.Profile != "" {
+			fmt.Printf("  %-28s perfil: %s\n", "", p.Profile)
+		}
+	}
+	if len(r.People) == 0 {
+		fmt.Println("  nadie con fuente pública")
+	}
+	fmt.Printf("  %s\n  (%d s · US$%.2f equivalentes)\n", r.Summary, r.Seconds, r.CostUSD)
 	return nil
 }
