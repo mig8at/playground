@@ -21,7 +21,8 @@ jira_title: ""
 - [x] Dar textura también a los techos y al zócalo en el 3D: mansardas de pizarra, azotea con membrana y gravilla, zócalo de piedra.
 - [ ] Pintar grafitis desde adentro del 3D y guardarlos en un servidor: termina cuando lo que pinta una persona lo ve otra.
 - [x] Hacer que el plano decida la pieza exacta de cada módulo de fachada y que el 3D la lea de ahí: una prueba compara lo que arma el 3D con el plano, módulo por módulo, sin diferencias.
-- [ ] Medir el vano exacto de cada puerta de calle (hoy ocupa su módulo entero de 2 × 3 m): termina cuando la vista de fachadas muestra la puerta con su medida y el muro a los lados se puede pintar.
+- [x] Medir el vano exacto de cada puerta de calle: la vista de fachadas muestra cada puerta con su medida, comprobada contra la pieza del 3D.
+- [ ] Medir las fachadas de los edificios que no son un rectángulo simple (en L, con patio): termina cuando cada tramo de fachada tiene su dibujo y sus paredes, no sólo los cuatro lados del rectángulo.
 - [ ] Decidir si las fachadas de calle deben tener más pared pintable. Depende de: Miguel — hoy 20 de 132 fachadas de la ciudad chica tienen alguna; se podría pintar el muro entre ventanas, o hacer que el generador deje paños ciegos.
 - [ ] Guardar junto a cada número de pared la versión de la ciudad: termina cuando lo pintado sobre una ciudad vieja no se carga en una pared que cambió de número.
 - [ ] Numerar también las casas del monte (sus manzanas, después de las de la ciudad): termina cuando una pared de una casa del monte tiene su número de 10 cifras.
@@ -131,7 +132,8 @@ Cada uno con su condición de cierre. Los hechos pasan a la pila como bloque.
 **Hecho**: la vista `/fachadas`, por cuadra: cada edificio con sus lados en dibujo técnico —muro, pisos, módulos de 2 m, cada hueco con la medida que ocupa, la línea roja donde corta una pared interna, y las paredes que se pintan en blanco con su número—, lo medido al lado y si cuadra.
 **El plano decide la pieza de cada módulo** (2026-11-21): cada lado de casilla que da afuera tiene 3 módulos de 2 m y, en cada piso, cada módulo lleva una cosa —muro, ventana con su modelo, ventanal, vidriera, puerta, puerta doble, portón, balcón o media ventana doble—. Lo calcula `engine/fachada-piezas.js` con las reglas que antes estaban dentro del 3D, queda guardado en el plano (`L.modulos`) y el 3D lo lee. De la pieza sale su vidrio exacto, y de ahí los huecos de cada pared, sin adivinar.
 **La grilla**: casilla de 6 m = 3 módulos de 2 m; piso de 3 m; píxel de 5 cm (un módulo son 40 × 60 píxeles). Todo en enteros.
-**Falta**: las puertas todavía ocupan su módulo entero (no su vano exacto); los lados de un edificio que no son un rectángulo simple se miden por su rectángulo; los barrios del monte calculan sus módulos al armarse, no los traen guardados.
+**Afinado el 2026-11-21**: cada módulo mide lo que ocupa de verdad en una sola cuenta (`vanoDeModulo`): la ventana, su vidrio y su marco sin salirse del módulo; la puerta, el vano de su marco (la de piedra 1,36 × 2,96 m; la de metal 1,14 × 2,93; la de madera, el módulo); la puerta doble, hasta 2,60 m; la vidriera, su módulo y su piso. Se comprueba que ninguna pared interna corta un vano (5.118 cortes en dos ciudades, ninguno). El marco de la puerta de madera salía 15 cm de cada lado de su módulo en el 3D: se recortó a la grilla.
+**Falta**: los lados de un edificio que no son un rectángulo simple se miden por su rectángulo; los barrios del monte calculan sus módulos al armarse, no los traen guardados.
 **Cierre**: lo que muestra `/fachadas` es exactamente lo que arma el 3D, comprobado por una prueba. Para las piezas de cada módulo ya se cumple (`validar-fachada-piezas`).
 
 ### 4. Propiedades — empezado

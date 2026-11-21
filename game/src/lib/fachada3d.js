@@ -49,7 +49,9 @@ function sinTitilar(C){const ejes=[['x','y','z'],['y','x','z'],['z','x','y']];
   if(!cambios)break;}
  for(const c of C)delete c.muro;return C;}
 export function piezaLowPoly(nombre,M){return sinTitilar(piezaBase(nombre,M));}
-function piezaBase(nombre,M){const out=[],X=M.__x||[-1,1],Y=M.__y||[0,3],pared=paredDe(M),A=ACABADO,mol='MI_Trim',g=M.MI_Glass;
+// (2026-11-21, lo encontró validar-fachada-piezas: el marco de madera del paquete mide 2,30 m y la pieza salía 15 cm de
+// cada lado de su módulo de 2 m, sobre los vecinos. Un marco de puerta va en UN módulo: su huella se recorta a ±1 m)
+function piezaBase(nombre,M){const out=[],X0=M.__x||[-1,1],X=/DoorFrame/.test(nombre)?[Math.max(-1,X0[0]),Math.min(1,X0[1])]:X0,Y=M.__y||[0,3],pared=paredDe(M),A=ACABADO,mol='MI_Trim',g=M.MI_Glass;
  const x0=X[0],x1=X[1],y0=Y[0],y1=Y[1];
  // (la caja de toda la pieza original, en z también)
  const Zs=Object.entries(M).filter(([k])=>!k.startsWith('__')).map(([,v])=>v),z0=Math.min(...Zs.map(v=>v.min[2])),z1=Math.max(...Zs.map(v=>v.max[2]));

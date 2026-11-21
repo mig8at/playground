@@ -49,7 +49,7 @@ export function modulosDeFachada(bp,B){const S=CELL,de=loteEn(bp),id=B.id,fs=est
   for(let k=0;k<3;k++){const coord=coordDe(k);
    for(let f=f0;f<floors;f++){const win=hit(lines[f].w.get(lineKey),coord),door=f===0?hit(lines[f].d.get(lineKey),coord):null,pon=(tipo,pieza=null)=>out.push({lote:id,x,y,dx,dy,k,f,tipo,pieza});
     if(door&&door.bay){pon('porton');continue;}
-    if(door){const dw=Math.hypot(door.x1-door.x0,door.y1-door.y0);if(dw>=1.6)pon('puerta_doble');else pon('puerta',fs.door);continue;}
+    if(door){const dw=Math.hypot(door.x1-door.x0,door.y1-door.y0);if(dw>=1.6){pon('puerta_doble');out[out.length-1].ancho=+dw.toFixed(2);}else pon('puerta',fs.door);continue;}
     const vidriera=f===0&&!!win&&esVidriera(B.type,win),len=win?Math.hypot(win.x1-win.x0,win.y1-win.y0):0;
     const pieza=f===0&&!(win&&!vidriera)?(win?fs.shop:fs.wall):(win?(win.pieza==='ventanal'?VENTANAL:win.pieza&&WINDOWS[win.pieza]?WINDOWS[win.pieza].p:f<=1&&len>=1?fs.win1:fs.win):fs.plain);
     if(k===1&&balconyAt(f))pon('balcon',fs.door);
@@ -60,4 +60,22 @@ export function modulosDeFachada(bp,B){const S=CELL,de=loteEn(bp),id=B.id,fs=est
 
 // El vidrio exacto de un módulo, dentro de su rectángulo de 2 × 3 m: [x0, x1, y0, y1] desde el centro del módulo y desde
 // su piso; null si es muro. La doble va centrada en la junta con el módulo siguiente (su vidrio pasa a ese módulo).
+// LO QUE OCUPA CADA MÓDULO, CON SU MARCO (2026-11-21): el rectángulo que no es muro, [x0, x1, y0, y1] desde el centro del
+// módulo y desde su piso; null si el módulo es muro (o la segunda mitad de una doble).
+//   · ventana: su vidrio más el CERCO (marco de 8 cm, alféizar y dintel), sin salirse de su módulo;
+//   · doble: lo mismo, sobre sus dos módulos;
+//   · puerta: el vano de su marco, con el marco y el dintel (PUERTA_VANO: medido de las tres piezas del paquete como las
+//     arma fachada3d.js —la de madera ocupa el módulo entero; la de piedra y la de metal, menos—);
+//   · puerta doble: el ancho que dice el plano más su marco, hasta 2,6 m (encima queda un paño de muro de 40 cm);
+//   · vidriera y portón: el módulo entero; balcón: el módulo, desde su losa.
+export const CERCO={lado:.16,abajo:.24,arriba:.26};
+export const PUERTA_VANO={DoorFrame_Wooden:[-1,1,0,3],DoorFrame_Trim:[-.68,.68,0,2.96],DoorFrame_Metal_Single:[-.57,.57,0,2.93]};
+export const PUERTA_DOBLE_ALTO=2.6;
+export function vanoDeModulo(m){const cl=(v,a,b)=>Math.max(a,Math.min(b,v));
+ if(m.tipo==='ventana'||m.tipo==='doble'){const g=vidrioDeModulo(m),x1=m.tipo==='doble'?3:1;return g?[cl(g[0]-CERCO.lado,-1,x1),cl(g[1]+CERCO.lado,-1,x1),cl(g[2]-CERCO.abajo,0,3),cl(g[3]+CERCO.arriba,0,3)]:[-1,x1,.3,2.8];}
+ if(m.tipo==='puerta')return PUERTA_VANO[m.pieza]||[-1,1,0,3];
+ if(m.tipo==='puerta_doble'){const a=cl((m.ancho||1.8)/2+.16,0,1);return [-a,a,0,PUERTA_DOBLE_ALTO];}
+ if(m.tipo==='vidriera'||m.tipo==='porton')return [-1,1,0,3];
+ if(m.tipo==='balcon')return [-1,1,-.15,3];
+ return null;}
 export function vidrioDeModulo(m){if(m.tipo==='ventana')return m.pieza===VENTANAL?VIDRIO_VENTANAL:VIDRIO_PIEZA[m.pieza]||null;if(m.tipo==='doble'){const g=VIDRIO_PIEZA[m.pieza];return g?[g[0]+1,g[1]+1,g[2],g[3]]:null;}return null;}

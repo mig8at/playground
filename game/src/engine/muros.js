@@ -20,7 +20,7 @@ export const ladosDeCalleDe=ladosDeCalle;
 import {RAISE,facadeStyle,WINDOWS,VIDRIO_PIEZA,VIDRIO_VENTANAL} from './fachada.js';
 import {paredesDe} from './colocar.js';
 import {GRAFITI,lienzoDe,vacio,aTexto,deTexto} from './grafiti.js';
-import {vidrioDeModulo} from './fachada-piezas.js';
+import {vanoDeModulo} from './fachada-piezas.js';
 
 const r3=v=>Math.round(v*1000)/1000,NORMAL={N:[0,-1],S:[0,1],E:[1,0],W:[-1,0]};
 export const SALE={exterior:.07,tabique:.075,medianera:.145,fachada:.265};// (m: el zócalo sale 5 cm; un tabique mide 12 de espesor y se ve la mitad; la medianera, 12 de este lado; la fachada, 25 hacia adentro)
@@ -59,12 +59,8 @@ export const ZOCALO_ALTO=.8;
 const CELDA=6;
 export function huecosDeLinea(L,horiz,linea,nivel){const out=[];for(const m of L.modulos||[]){if(m.f!==nivel||(m.dy!==0)!==horiz)continue;const ex=(m.x+.5+m.dx*.5)*CELDA,ez=(m.y+.5+m.dy*.5)*CELDA;if(Math.abs((horiz?ez:ex)-linea)>.01)continue;
   const tx=m.dy,tz=-m.dx,c=-CELDA/2+1+2*m.k,c0=horiz?ex+tx*c:ez+tz*c,sg=horiz?tx:tz,pon=(a,b,y0,y1,clase)=>out.push({t0:Math.min(a,b),t1:Math.max(a,b),y0,y1,clase});
-  if(m.tipo==='ventana'||m.tipo==='doble'){const g=vidrioDeModulo(m);if(g)pon(c0+g[0]*sg-CERCO*sg,c0+g[1]*sg+CERCO*sg,g[2]-CERCO-.08,g[3]+CERCO+.1,m.tipo==='doble'?'doble':'ventana');else pon(c0-1,c0+1,.3,2.8,'ventana');}
-  else if(m.tipo==='balcon')pon(c0-1.1,c0+1.1,-.3,3,'balcon');
-  // (la vidriera, su módulo y su piso, ni un centímetro más: el toldo cuelga de 2,97 m hacia abajo, no sube al piso de
-  // arriba —hasta el 2026-11-21 se le sumaban 25 cm «por el toldo» y en la vista de fachadas parecía más alta que el piso—)
-  else if(m.tipo==='vidriera')pon(c0-1,c0+1,0,3,'vidriera');
-  else if(m.tipo==='puerta'||m.tipo==='puerta_doble'||m.tipo==='porton')pon(c0-1,c0+1,0,3,'puerta');}
+  // (lo que ocupa: engine/fachada-piezas.js vanoDeModulo, la única cuenta; acá sólo se lleva a la línea de la fachada)
+  const v=vanoDeModulo(m);if(v)pon(c0+v[0]*sg,c0+v[1]*sg,v[2],v[3],m.tipo==='puerta_doble'||m.tipo==='porton'?'puerta':m.tipo);}
  return out;}
 function huecosDeFachada(L,F){const fs=estiloDe(L),out=[{u0:0,u1:F.ancho,y0:0,y1:F.sube+ZOCALO_ALTO,clase:'zocalo'}];
  if(L.modulos){const r=L.rect,horiz=F.lado==='N'||F.lado==='S',inv=F.lado==='N'||F.lado==='E',linea=F.lado==='N'?r.y:F.lado==='S'?r.y+r.h:F.lado==='W'?r.x:r.x+r.w,o=horiz?r.x:r.y;
