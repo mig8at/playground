@@ -74,6 +74,9 @@ export function drawCityStage(canvas,bp,{cell,stage,level=0,selected=-1,fronts=t
  if(stage===2){g.strokeStyle='rgba(0,0,0,.25)';g.lineWidth=1;for(const b of bp.blocks)g.strokeRect(b.x0*cell+.5,b.y0*cell+.5,b.w*cell-1,b.h*cell-1);return;}
  // Etapa 3: lotes por tipo; patios de manzana.
  for(const c of bp.courts){g.fillStyle=PAPER.courtyard;g.fillRect(c.x0*cell,c.y0*cell,(c.x1-c.x0+1)*cell,(c.y1-c.y0+1)*cell);}
+ // (la sombra de cada edificio, corrida hacia abajo a la derecha según sus pisos —hasta 5 m—: da el relieve de la ciudad sin
+ // el 3D; en el piso que se mira, sólo los que llegan hasta ahí)
+ if(m>=1.2){g.fillStyle='rgba(38,42,54,.17)';for(const L of bp.lots){if(level>=L.floors)continue;const d=Math.min(5,(L.floors-level)*ALTURA.piso*.3)*m;for(const P of L.parts)g.fillRect(P.x*m+d,P.y*m+d,P.w*m,P.h*m);}}
  for(const L of bp.lots){g.fillStyle=TYPES[L.type].color;for(const P of L.parts)g.fillRect(P.x*m,P.y*m,P.w*m,P.h*m);}
  // Etapas 5–8: el piso elegido de cada edificio, en chico.
  if(stage>=5)for(const L of bp.lots){const lv=L.levels[Math.min(level,L.levels.length-1)];if(level>=L.floors)continue;drawLevel(g,lv,{m,stage,small:m<10,labels:m>=16});}
@@ -176,6 +179,7 @@ const MODELO={Bed_King:'cama',Bed_Single:'cama_s',C2_Bed:'cama_s',Couch_Medium2:
 // px: los píxeles por metro a los que se está dibujando (el contexto viene en metros): desde 4 los muebles van con su
 // símbolo y desde 16 cada cuarto lleva su nombre.
 export function drawHouse(g,c,{stage,level,px=1}){let P=houseCache.get(c);if(!P){P=planHouse(c.spec);houseCache.set(c,P);}
+ if(px>=1.2){g.fillStyle='rgba(38,42,54,.17)';g.save();g.translate(c.x+1.2,c.z+1.2);g.rotate(-(c.ry||0));g.fillRect(-P.w/2,-P.d/2,P.w,P.d);g.restore();}
  g.save();g.translate(c.x,c.z);g.rotate(-(c.ry||0));
  g.fillStyle='#efe2c4';g.fillRect(-P.w/2,-P.d/2,P.w,P.d);
  if(stage>=6){const two=P.rooms.length>1&&P.rooms.some(r=>r.y0>1),lv=two&&level>=1?1:0,y0=lv?FLOOR0+FH:FLOOR0;
@@ -211,7 +215,16 @@ export function drawIslaStage(canvas,bp,{cell,stage=9,level=0,selected=-1,fronts
  else{const city=document.createElement('canvas');drawCityStage(city,bp,{cell,stage:Math.min(stage,8),level,selected,fronts});g.drawImage(city,-B.x0*cell*dpr,-B.y0*cell*dpr);}
  g.setTransform(dpr*m,0,0,dpr*m,-B.x0*cell*dpr,-B.y0*cell*dpr);g.globalAlpha=dim&&level>0?.5:1;
  // 1: el terreno; desde la 2, las terrazas del monte (el suelo aplanado de cada manzana) con el borde de cada manzana
- for(const q of I.cells){g.fillStyle=q.plaza!=null?'#e6dfcd':stage>=2&&q.terraza!=null?'#dccfae':q.zona==='montaña'?`hsl(${80-Math.min(40,q.h/3)},${Math.max(8,28-q.h/4)}%,${Math.min(78,52+q.h/4)}%)`:ISLA_COL[q.zona];g.fillRect(q.x*CELL,q.y*CELL,CELL+.05,CELL+.05);
+ // EL TERRENO SUAVE (2026-11-21): cada casilla de 6 m se pintaba como un cuadrado y la costa y el monte salían en
+ // escalera. Lo natural —agua, playa, pradera, montaña— se pinta primero en una imagen de un píxel por casilla y se estira
+ // con suavizado: los colores se funden de una casilla a la otra, como una acuarela. Lo construido (plazas, terrazas) va
+ // encima, nítido. Al acercar mucho el fundido mide una casilla: no inventa detalle, sólo quita la escalera.
+ {const bw=B.x1-B.x0,bh=B.y1-B.y0,low=document.createElement('canvas');low.width=bw;low.height=bh;const lg=low.getContext('2d');
+  for(const q of I.cells){lg.fillStyle=q.zona==='montaña'?`hsl(${80-Math.min(40,q.h/3)},${Math.max(8,28-q.h/4)}%,${Math.min(78,52+q.h/4)}%)`:ISLA_COL[q.zona]||'#b9cf8e';lg.fillRect(q.x-B.x0,q.y-B.y0,1,1);}
+  // (sin pisar la ciudad, que ya está dibujada: el fundido se recorta en su borde)
+  g.save();g.beginPath();g.rect(B.x0*CELL,B.y0*CELL,bw*CELL,bh*CELL);g.rect(0,0,bp.map.W*CELL,bp.map.H*CELL);g.clip('evenodd');
+  g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';g.drawImage(low,B.x0*CELL,B.y0*CELL,bw*CELL,bh*CELL);g.restore();}
+ for(const q of I.cells){if(q.plaza==null&&!(stage>=2&&q.terraza!=null))continue;g.fillStyle=q.plaza!=null?'#e6dfcd':'#dccfae';g.fillRect(q.x*CELL,q.y*CELL,CELL+.05,CELL+.05);
   if(q.plaza!=null){g.strokeStyle='rgba(120,100,70,.35)';g.lineWidth=.2;g.strokeRect(q.x*CELL+.5,q.y*CELL+.5,CELL-1,CELL-1);}}
  if(stage>=2){const mz=new Map();for(const q of I.cells)if(q.manzana)mz.set(q.x+','+q.y,q.manzana);g.strokeStyle='rgba(90,70,40,.7)';g.lineWidth=.45;g.beginPath();
   for(const [k,id] of mz){const [x,y]=k.split(',').map(Number);for(const [dx,dy,x0,y0,x1,y1] of [[1,0,1,0,1,1],[-1,0,0,0,0,1],[0,1,0,1,1,1],[0,-1,0,0,1,0]])if(mz.get((x+dx)+','+(y+dy))!==id){g.moveTo((x+x0)*CELL,(y+y0)*CELL);g.lineTo((x+x1)*CELL,(y+y1)*CELL);}}g.stroke();}
@@ -336,6 +349,7 @@ function drawExterior(g,bp,{level=0,px=1,capas=CAPAS}){
   // (la copa translúcida —lo de abajo se sigue viendo— con su borde, y el tronco: es donde está plantado)
   // (un árbol de calle junto a una fachada va PODADO en óvalo —vegetacion.js, V.poda—: `ra` hacia el edificio y `r` a lo largo
   // de la calle, con el eje en `eje`. Dibujado como círculo de radio r parecía metido en el edificio, y no lo está.)
+  if(px>=2){g.globalAlpha=.1;g.fillStyle='#1e2430';for(const a of [...(V.arboles||[]),...(V.palmeras||[])]){g.beginPath();if(a.ra!=null)g.ellipse(a.x+.9,a.z+.9,a.r,a.ra,a.eje||0,0,7);else g.arc(a.x+.9,a.z+.9,a.r,0,7);g.fill();}}
   for(const a of [...(V.arboles||[]),...(V.palmeras||[])]){g.globalAlpha=.26;g.fillStyle=a.follaje||'#5c8f40';g.beginPath();if(a.ra!=null)g.ellipse(a.x,a.z,a.r,a.ra,a.eje||0,0,7);else g.arc(a.x,a.z,a.r,0,7);g.fill();
    g.globalAlpha=.6;g.strokeStyle=a.color&&a.color!==a.follaje?a.color:'#3f6a2c';g.lineWidth=Math.min(.22,a.r*.08);g.stroke();
    if(px>=3){g.fillStyle='#5a4028';g.beginPath();g.arc(a.x,a.z,.22,0,7);g.fill();}}
