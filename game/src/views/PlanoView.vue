@@ -12,6 +12,7 @@ import '@fontsource-variable/rubik';
 import {planoDe} from '../lib/mapasGuardados.js';
 import {drawWorldStage,drawFloorPlan,drawHogar,drawElevation,CAPAS,ROOM_LABEL} from '../lib/drawPlan.js';
 import {CELL,TYPES} from '../engine/blueprint.js';
+import {PAQUETES} from '../lib/texturas2d.js';
 
 const route=useRoute(),router=useRouter();
 const seed=ref(Math.max(1,Number(route.query.ciudad)||1)),team=ref(Math.max(2,Number(route.query.jugadores)||3));
@@ -24,6 +25,9 @@ const NOMBRE_CAPA={pintura:'Pintura de vías',equipo:'Mobiliario',arboles:'Árbo
 const TIPO={vivienda:'Vivienda',oficinas:'Oficinas',comercio:'Comercio',hotel:'Hotel',casa:'Casa',local:'Local',colegio:'Colegio',comisaria:'Comisaría',biblioteca:'Biblioteca',hospital:'Hospital',objetivo:'Objetivo',residencial:'Residencial'};
 
 const alzado=ref(null),ladoAlzado=ref(null),medidoAlzado=ref(null);
+// (el paquete de texturas de las fachadas: se recuerda en este navegador)
+const guardado=(()=>{try{return localStorage.getItem('fuga.paquete');}catch{return null;}})(),paquete=ref(PAQUETES[guardado]?guardado:'clasico');
+watch(paquete,v=>{try{localStorage.setItem('fuga.paquete',v);}catch{}});
 const LADO={N:'Norte',S:'Sur',E:'Este',W:'Oeste'};
 // (los lados del edificio que dan a algo abierto: una medianera no tiene fachada)
 const ladosAbiertos=computed(()=>elegido.value?Object.entries(elegido.value.sides||{}).filter(([,v])=>v!=='medianera'&&v!=='interior').map(([k])=>k):[]);
@@ -72,7 +76,7 @@ const casaNivel=computed(()=>casa.value?Math.min(nivel.value,casa.value.spec.hog
 const casaCuartos=computed(()=>{const c=casa.value;if(!c)return [];return c.spec.hogar.levels[casaNivel.value].rooms.filter(q=>q.type!=='hall').map(q=>({nombre:q.label||ROOM_LABEL[q.type]||q.type,medida:`${(q.u1-q.u0).toFixed(1)} × ${(q.v1-q.v0).toFixed(1)} m`}));});
 async function dibujarPiso(){await nextTick();if(casa.value&&piso.value){drawHogar(piso.value,casa.value.spec.hogar,{level:casaNivel.value,width:piso.value.parentElement.clientWidth});return;}
  const L=elegido.value;if(!L||!piso.value)return;
- if(alzado.value){const lado=ladosAbiertos.value.includes(ladoAlzado.value)?ladoAlzado.value:L.front;ladoAlzado.value=lado;medidoAlzado.value=drawElevation(alzado.value,L,{width:alzado.value.parentElement.clientWidth,lado});}
+ if(alzado.value){const lado=ladosAbiertos.value.includes(ladoAlzado.value)?ladoAlzado.value:L.front;ladoAlzado.value=lado;medidoAlzado.value=drawElevation(alzado.value,L,{width:alzado.value.parentElement.clientWidth,lado,paquete:paquete.value});}
  drawFloorPlan(piso.value,L,{level:fichaNivel.value,stage:9,width:piso.value.parentElement.clientWidth});}
 
 async function cargar(){
@@ -87,7 +91,7 @@ async function cargar(){
 }
 watch([nivel,capas],()=>{dibujar();dibujarPiso();pedirNitido();});
 watch(vista,pedirNitido);
-watch([elegido,casa,grande,ladoAlzado],dibujarPiso);
+watch([elegido,casa,grande,ladoAlzado,paquete],dibujarPiso);
 watch(elegido,()=>{ladoAlzado.value=null;});
 let obs;
 onMounted(()=>{cargar();window.addEventListener('keydown',tecla);obs=new ResizeObserver(()=>{if(!plano||arrastre)return;if(!tocado)ajustar();dibujarPiso();pedirNitido();});obs.observe(host.value);});
@@ -136,7 +140,9 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
    <ul class="cuartos"><li v-for="[t,n] in cuartos" :key="t"><span>{{ t }}</span><b>{{ n }}</b></li></ul>
    <div class="alzado-cab"><b>La fachada</b>
     <div class="lados" role="group" aria-label="Lado de la fachada"><button v-for="l in ladosAbiertos" :key="l" :class="{on:l===ladoAlzado}" @click="ladoAlzado=l">{{ LADO[l] }}<small v-if="l===elegido.front"> · frente</small></button></div></div>
+   <div class="paquetes" role="group" aria-label="Paquete de texturas"><span>Texturas</span><button v-for="(P,k) in PAQUETES" :key="k" :class="{on:k===paquete}" :title="P.nota" @click="paquete=k">{{ P.nombre }}</button><small>{{ PAQUETES[paquete].nota }}</small></div>
    <div class="ficha-piso"><canvas ref="alzado"></canvas></div>
+   <p class="alzado-mat">{{ {ladrillo:'Ladrillo',piedra:'Piedra',metal:'Metal y concreto'}[elegido.fachada?.familia]||'—' }} · pintura {{ elegido.fachada?.pintura||'natural' }} · moldura {{ elegido.fachada?.moldura||'—' }} · techo {{ elegido.fachada?.techo==='mansarda'?'de mansarda':'plano' }}<template v-if="elegido.fachada?.balcones"> · balcones</template><template v-if="elegido.fachada?.toldos&&elegido.fachada.toldos!=='no'"> · toldos {{ elegido.fachada.toldos }}</template></p>
    <p v-if="medidoAlzado" class="alzado-med">
     <template v-if="medidoAlzado.ventanas">{{ medidoAlzado.ventanas }} ventanas arriba de la planta baja: <b :class="{alerta:medidoAlzado.corridas}">{{ medidoAlzado.corridas }} corridas</b><template v-if="medidoAlzado.corridas"> (con borde naranja)</template><template v-if="medidoAlzado.sobreMuro">, {{ medidoAlzado.sobreMuro }} sobre muro</template> · </template>
     vidrio por piso: <span v-for="(v,i) in medidoAlzado.vano" :key="i">{{ i===0?'PB':i }} {{ v }} %<template v-if="i<medidoAlzado.vano.length-1">, </template></span> · alto {{ medidoAlzado.alto }} m</p>
@@ -199,6 +205,9 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
 .alzado-cab{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:16px 0 8px}.alzado-cab>b{font:400 14px var(--t)}
 .lados{display:flex;gap:4px;flex-wrap:wrap}.lados button{background:rgba(255,255,255,.08);border:1px solid var(--borde);border-radius:8px;color:var(--tx2);padding:3px 9px;font:inherit;font-size:12px;cursor:pointer}
 .lados button.on{background:rgba(255,169,77,.18);border-color:rgba(255,169,77,.5);color:var(--tx)}.lados small{color:var(--tx3)}
+.paquetes{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:0 0 8px;font-size:12px}.paquetes span{color:var(--tx3);text-transform:uppercase;letter-spacing:.7px;font-size:10px;margin-right:2px}
+.paquetes button{background:rgba(255,255,255,.08);border:1px solid var(--borde);border-radius:8px;color:var(--tx2);padding:3px 10px;font:inherit;cursor:pointer}.paquetes button.on{background:rgba(255,169,77,.18);border-color:rgba(255,169,77,.5);color:var(--tx)}
+.paquetes small{color:var(--tx3);flex-basis:100%}.alzado-mat{margin:6px 0 0!important;font-size:12px;color:var(--tx3)!important}
 .alzado-med{margin-top:8px!important;font-size:12px}.alzado-med b.alerta{color:var(--ladron)}
 .cuartos.uno{grid-template-columns:1fr}
 .cuartos li{display:flex;justify-content:space-between;color:var(--tx2)}.cuartos b{color:var(--tx)}

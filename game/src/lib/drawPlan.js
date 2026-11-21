@@ -4,6 +4,7 @@ import {City} from '../engine/index.js';
 import {planHouse,FURN_SIZE,FLOOR0,FH} from '../engine/vivienda.js';
 import {AWNINGS,RAISE} from '../engine/fachada.js';
 import {ALTURA,CALLE} from '../engine/medidas.js';
+import {PAQUETES,textura} from './texturas2d.js';
 const K=City.K;
 const css=name=>getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
@@ -390,7 +391,8 @@ function drawExterior(g,bp,{level=0,px=1,capas=CAPAS}){
 // Una que cae SOBRE MURO (abajo no hay vano en ese tramo) es normal —el piso que ya pasa al vecino abre ventanas donde
 // abajo hay medianera— y sólo se cuenta. Medido en la ciudad 1: 3.334 ventanas de pisos altos, 0 corridas, 244 sobre muro.
 const VANO={comun:[.9,2.2],ventanal:[.9,2.7],vidriera:[.35,2.6],puerta:[0,2.2]};// (antepecho y dintel, en metros sobre el piso)
-export function drawElevation(canvas,L,{width=560,lado=null}={}){
+export function drawElevation(canvas,L,{width=560,lado=null,paquete='liso'}={}){
+ const PQ=PAQUETES[paquete]||PAQUETES.liso,relleno=(nombre,x,y,w,h,ox=x,oy=y)=>{if(!nombre)return;g.beginPath();g.rect(x,y,w,h);textura(g,nombre,m,ox,oy);};
  const f=lado||L.front,r=L.rect,H=ALTURA.piso,horiz=f==='N'||f==='S',ancho=horiz?r.w:r.h,sube=L.fachada?.escalinata?RAISE:0,manz=L.fachada?.techo==='mansarda';
  const alto=L.floors*H+sube,techo=manz?H*.9:.9,dpr=window.devicePixelRatio||1,pad=34,m=Math.min(30,(width-2*pad)/ancho),hgt=(alto+techo)*m+2*pad+10;
  canvas.width=Math.round(width*dpr);canvas.height=Math.round(hgt*dpr);canvas.style.width=width+'px';canvas.style.height=hgt+'px';
@@ -403,8 +405,10 @@ export function drawElevation(canvas,L,{width=560,lado=null}={}){
  // el cielo de papel, el suelo y la sombra del edificio
  g.fillStyle='#eef3f6';g.fillRect(0,0,width,suelo);g.fillStyle='#d9d5c8';g.fillRect(0,suelo,width,hgt-suelo);
  g.fillStyle=muro;g.fillRect(X(0),Y(alto),ancho*m,alto*m);
+ // (la textura del muro, según la familia del edificio y el paquete: encima del color, anclada abajo a la izquierda)
+ relleno(PQ.muro[F.familia],X(0),Y(alto),ancho*m,alto*m,X(0),suelo);
  // el zócalo (y, si el edificio va subido, la base de la escalinata)
- g.fillStyle=zoc;g.fillRect(X(0),Y(sube+.55),ancho*m,(sube+.55)*m);
+ g.fillStyle=zoc;g.fillRect(X(0),Y(sube+.55),ancho*m,(sube+.55)*m);relleno(PQ.zocalo,X(0),Y(sube+.55),ancho*m,(sube+.55)*m,X(0),suelo);
  // las esquinas de piedra
  if(F.esquinas&&F.esquinas!=='no'){g.fillStyle=mold;let k=0;for(let y=sube+.55;y<alto-.45;y+=.6,k++){const w=k%2?.36:.26;g.fillRect(X(0),Y(y+.48),w*m,.42*m);g.fillRect(X(ancho-w),Y(y+.48),w*m,.42*m);}}
  const medido={ancho,alto:+alto.toFixed(1),ventanas:0,corridas:0,sobreMuro:0,vano:[]};let abajo=null;
@@ -432,7 +436,7 @@ export function drawElevation(canvas,L,{width=560,lado=null}={}){
   medido.vano.push(+(vidrio/(ancho*H)*100).toFixed(0));abajo=[...vs,...ps];}
  // el remate: la cornisa y el techo
  g.fillStyle=mold;g.fillRect(X(0)-m*.15,Y(alto+.05),ancho*m+m*.3,.32*m);
- if(manz){g.fillStyle=C.techo||'#4b5560';g.beginPath();g.moveTo(X(0),Y(alto+.3));g.lineTo(X(ancho),Y(alto+.3));g.lineTo(X(ancho)-m*.7,Y(alto+techo));g.lineTo(X(0)+m*.7,Y(alto+techo));g.closePath();g.fill();
+ if(manz){g.fillStyle=C.techo||'#4b5560';g.beginPath();g.moveTo(X(0),Y(alto+.3));g.lineTo(X(ancho),Y(alto+.3));g.lineTo(X(ancho)-m*.7,Y(alto+techo));g.lineTo(X(0)+m*.7,Y(alto+techo));g.closePath();g.fill();if(PQ.mansarda)textura(g,PQ.mansarda,m,X(0),Y(alto+.3));
   g.fillStyle=marco;for(const w of (L.levels[L.floors-1].windows.filter(enLado).map(tramo))){const c=(w[0]+w[1])/2;g.fillRect(X(c-.45),Y(alto+techo*.78),.9*m,techo*.5*m);g.fillStyle='#a9cfe2';g.fillRect(X(c-.33),Y(alto+techo*.72),.66*m,techo*.38*m);g.fillStyle=marco;}}
  else{g.fillStyle=muro;g.fillRect(X(0),Y(alto+techo),ancho*m,(techo-.3)*m);g.fillStyle=mold;g.fillRect(X(0),Y(alto+techo),ancho*m,.12*m);}
  g.strokeStyle='rgba(30,34,38,.55)';g.lineWidth=1;g.strokeRect(X(0)+.5,Y(alto)+.5,ancho*m-1,alto*m-1);

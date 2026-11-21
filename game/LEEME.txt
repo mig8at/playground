@@ -33,6 +33,11 @@ EL JUEGO
              La ficha de un edificio trae su ALZADO (drawElevation): la fachada de frente, a escala, por cualquier
              lado abierto, con los colores, el zócalo, la banda, la cornisa, los toldos, los balcones y el techo que
              decide el plano; marca en naranja la ventana que no cae sobre la de abajo y dice cuánto vidrio hay por piso.
+             LAS TEXTURAS (2026-11-21, lib/texturas2d.js): baldosas chicas dibujadas en código, transparentes —sólo
+             juntas, sombras y brillos— y en metros, que van encima del color de cada edificio: ladrillo, sillar,
+             estuco, revoque, panel, hormigón, pizarra, teja, losa y piedra bola. Un PAQUETE (Liso, Clásico,
+             Rústico) dice cuál va en el muro de cada familia, en el zócalo y en la mansarda; se elige en la ficha,
+             sobre el alzado. Sumar un paquete es un renglón en PAQUETES; una textura, una función en TEXTURAS.
   /juego     La partida (?ciudad=1&jugadores=3&papel=policia). /demo es lo mismo (lo usan las pruebas de pantalla).
              Lo visual (2026-11-19): pantalla de carga con barra mientras se arma la ciudad; el HUD con el diseño de la
              entrada (vidrio, Bungee y Rubik); el día, el atardecer y la noche se mezclan de a poco (PAL y pasoLuz en
