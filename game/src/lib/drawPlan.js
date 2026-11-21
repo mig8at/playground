@@ -43,7 +43,8 @@ function outline(g,parts,X,Y){g.beginPath();
 // fronts: la raya en el frente de cada lote (el minimapa del demo la apaga: a esa escala ensucia).
 // (sobre: {g, x, y} dibuja la ciudad en un contexto ajeno, corrida a ese punto en píxeles del dispositivo, en vez de en su
 // propio lienzo: lo usa la región del visor —abajo, drawIslaStage—, donde un lienzo de la ciudad entera no cabría)
-export function drawCityStage(canvas,bp,{cell,stage,level=0,selected=-1,fronts=true,sobre=null}){
+export function drawCityStage(canvas,bp,{cell,stage,level=0,selected=-1,fronts=true,sobre=null,paquete='liso'}){
+ const PQ=PAQUETES[paquete]||PAQUETES.liso;
  const {map}=bp,{W,H,kind}=map,dpr=window.devicePixelRatio||1,m=cell/CELL;// px por metro
  if(!sobre){canvas.width=Math.round(W*cell*dpr);canvas.height=Math.round(H*cell*dpr);}
  const g=sobre?sobre.g:canvas.getContext('2d');g.setTransform(dpr,0,0,dpr,sobre?.x||0,sobre?.y||0);
@@ -93,6 +94,8 @@ export function drawCityStage(canvas,bp,{cell,stage,level=0,selected=-1,fronts=t
   // azotea (tanques, antenas, materas) lo pone encima drawExterior.
   if(level>=L.floors&&stage>=5){const C=L.colores||{},manz=L.fachada?.techo==='mansarda',base=manz?(C.techo||'#4b5560'):'#cfcbc2',pret=Math.max(1,.35*m);
    for(const P of L.parts){const x=P.x*m,y=P.y*m,w=P.w*m,h=P.h*m;g.fillStyle=C.moldura||'#e9e6de';g.fillRect(x,y,w,h);g.fillStyle=base;g.fillRect(x+pret,y+pret,w-2*pret,h-2*pret);
+    // (la textura del techo, según el paquete: la losa en los planos y la pizarra, la teja o el zinc en las mansardas)
+    {const tx=manz?PQ.mansarda:PQ.losa;if(tx){g.beginPath();g.rect(x+pret,y+pret,w-2*pret,h-2*pret);textura(g,tx,m,x,y);}}
     if(manz&&m>=1.5){const f=Math.min(w,h)*.22;g.fillStyle='rgba(255,255,255,.14)';g.fillRect(x+pret+f,y+pret+f,w-2*(pret+f),h-2*(pret+f));g.strokeStyle='rgba(0,0,0,.28)';g.lineWidth=Math.max(.6,m*.06);g.beginPath();
      for(const [cx,cy] of [[x+pret,y+pret],[x+w-pret,y+pret],[x+pret,y+h-pret],[x+w-pret,y+h-pret]]){g.moveTo(cx,cy);g.lineTo(cx<x+w/2?cx+f:cx-f,cy<y+h/2?cy+f:cy-f);}g.strokeRect(x+pret+f,y+pret+f,w-2*(pret+f),h-2*(pret+f));g.stroke();}
     else if(m>=3){g.strokeStyle='rgba(0,0,0,.07)';g.lineWidth=1;g.beginPath();for(let u=2;u<P.w;u+=2){g.moveTo(x+u*m,y+pret);g.lineTo(x+u*m,y+h-pret);}g.stroke();}}}
@@ -223,13 +226,13 @@ export function drawHouse(g,c,{stage,level,px=1}){let P=houseCache.get(c);if(!P)
 // sólo ese recorte, en un lienzo de ese tamaño. Es lo que deja acercar el plano y verlo nítido: a 40 px por metro la
 // imagen entera mediría decenas de miles de píxeles de lado. Todo el dibujo fija su transformación en absoluto, así que
 // alcanza con correr cada setTransform del contexto lo que mide el recorte.
-export function drawIslaStage(canvas,bp,{cell,stage=9,level=0,selected=-1,fronts=true,dim=true,capas=CAPAS,region=null}){
+export function drawIslaStage(canvas,bp,{cell,stage=9,level=0,selected=-1,fronts=true,dim=true,capas=CAPAS,region=null,paquete='liso'}){
  const I=bp.isla,B=I.bounds,dpr=window.devicePixelRatio||1,m=cell/CELL;
  canvas.width=region?Math.round(region.w):Math.round((B.x1-B.x0)*cell*dpr);canvas.height=region?Math.round(region.h):Math.round((B.y1-B.y0)*cell*dpr);const g=canvas.getContext('2d');
  const rx=region?.x||0,ry=region?.y||0;if(region){const fija=g.setTransform.bind(g);g.setTransform=(a,b,c,d,e,f)=>fija(a,b,c,d,e-rx,f-ry);}
  g.setTransform(1,0,0,1,0,0);g.fillStyle='#2b3a44';g.fillRect(rx,ry,canvas.width,canvas.height);
- if(region){g.save();drawCityStage(null,bp,{cell,stage:Math.min(stage,8),level,selected,fronts,sobre:{g,x:-B.x0*cell*dpr,y:-B.y0*cell*dpr}});g.restore();}
- else{const city=document.createElement('canvas');drawCityStage(city,bp,{cell,stage:Math.min(stage,8),level,selected,fronts});g.drawImage(city,-B.x0*cell*dpr,-B.y0*cell*dpr);}
+ if(region){g.save();drawCityStage(null,bp,{cell,stage:Math.min(stage,8),level,selected,fronts,paquete,sobre:{g,x:-B.x0*cell*dpr,y:-B.y0*cell*dpr}});g.restore();}
+ else{const city=document.createElement('canvas');drawCityStage(city,bp,{cell,stage:Math.min(stage,8),level,selected,fronts,paquete});g.drawImage(city,-B.x0*cell*dpr,-B.y0*cell*dpr);}
  g.setTransform(dpr*m,0,0,dpr*m,-B.x0*cell*dpr,-B.y0*cell*dpr);g.globalAlpha=dim&&level>0?.5:1;
  // 1: el terreno; desde la 2, las terrazas del monte (el suelo aplanado de cada manzana) con el borde de cada manzana
  // EL TERRENO SUAVE (2026-11-21): cada casilla de 6 m se pintaba como un cuadrado y la costa y el monte salían en

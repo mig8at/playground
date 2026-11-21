@@ -45,6 +45,12 @@ export const TEXTURAS={
  // la losa de azotea: baldosas de 60 cm con la junta fina y un grano de gravilla
  losa:{w:.6,h:.6,nombre:'Losa de azotea',pinta(g,W,H){const j=Math.max(1.5,PPM*.012);g.fillStyle='rgba(0,0,0,.12)';g.fillRect(0,0,W,j);g.fillRect(0,0,j,H);
   for(let k=0;k<26;k++){g.fillStyle=azar(k,31)<.5?'rgba(0,0,0,.06)':'rgba(255,255,255,.08)';g.fillRect(azar(k,32)*W,azar(k,33)*H,3,3);}}},
+ // las tablas: entablado horizontal de 15 cm con la sombra del solape y alguna tabla más clara u oscura
+ tabla:{w:2.4,h:.6,nombre:'Entablado',pinta(g,W,H){const bh=H/4;for(let f=0;f<4;f++){const t=azar(f,51);g.fillStyle=`rgba(${t<.5?'0,0,0':'255,255,255'},${Math.abs(t-.5)*.12})`;g.fillRect(0,f*bh,W,bh);
+   g.fillStyle='rgba(0,0,0,.2)';g.fillRect(0,f*bh+bh-PPM*.018,W,PPM*.018);g.fillStyle=LUZ;g.fillRect(0,f*bh,W,PPM*.012);g.fillStyle='rgba(0,0,0,.14)';g.fillRect(W*(.2+azar(f,52)*.6),f*bh,PPM*.012,bh);}}},
+ // el zinc: chapa acanalada, una onda cada 20 cm, con el solape de las chapas cada 2 m
+ zinc:{w:.2,h:2,nombre:'Chapa de zinc',pinta(g,W,H){const gr=g.createLinearGradient(0,0,W,0);gr.addColorStop(0,'rgba(0,0,0,.2)');gr.addColorStop(.5,'rgba(255,255,255,.2)');gr.addColorStop(1,'rgba(0,0,0,.2)');g.fillStyle=gr;g.fillRect(0,0,W,H);
+  g.fillStyle='rgba(0,0,0,.22)';g.fillRect(0,H-PPM*.03,W,PPM*.03);}},
  // la piedra bola del zócalo: piedras irregulares
  piedra_bola:{w:.8,h:.5,nombre:'Zócalo de piedra',pinta(g,W,H){for(let k=0;k<9;k++){const x=(k%3+.5+(Math.floor(k/3)%2?.5:0))*W/3,y=(Math.floor(k/3)+.5)*H/3,t=azar(k,41);
    g.fillStyle=`rgba(${t<.5?'0,0,0':'255,255,255'},${.06+Math.abs(t-.5)*.2})`;g.strokeStyle='rgba(0,0,0,.22)';g.lineWidth=PPM*.014;g.beginPath();g.ellipse(x%W,y,W/6.6,H/6.6,t*2,0,7);g.fill();g.stroke();}}},
@@ -54,6 +60,9 @@ export const TEXTURAS={
 export const PAQUETES={
  liso:{nombre:'Liso',nota:'Sin texturas: sólo los colores del plano.',muro:{},zocalo:null,mansarda:null,losa:null},
  clasico:{nombre:'Clásico',nota:'Ladrillo a soga, sillar de piedra y panel metálico; mansardas de pizarra.',muro:{ladrillo:'ladrillo',piedra:'sillar',metal:'panel'},zocalo:'sillar',mansarda:'pizarra',losa:'losa'},
+ colonial:{nombre:'Colonial',nota:'Muros encalados, zócalo de piedra y teja de barro en todo techo inclinado.',muro:{ladrillo:'revoque',piedra:'revoque',metal:'estuco'},zocalo:'piedra_bola',mansarda:'teja',losa:'losa'},
+ moderno:{nombre:'Moderno',nota:'Hormigón a la vista, panel y estuco liso; techos de pizarra.',muro:{ladrillo:'hormigon',piedra:'estuco',metal:'panel'},zocalo:'hormigon',mansarda:'pizarra',losa:'losa'},
+ costero:{nombre:'Costero',nota:'Entablado de madera pintada, estuco y techos de chapa de zinc.',muro:{ladrillo:'tabla',piedra:'estuco',metal:'panel'},zocalo:'hormigon',mansarda:'zinc',losa:'losa'},
  rustico:{nombre:'Rústico',nota:'Revoque a mano y estuco; zócalo de piedra bola y teja de barro.',muro:{ladrillo:'revoque',piedra:'estuco',metal:'hormigon'},zocalo:'piedra_bola',mansarda:'teja',losa:'losa'},
 };
 

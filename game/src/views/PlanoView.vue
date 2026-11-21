@@ -38,7 +38,7 @@ function dibujar(){
  if(!plano||!lienzo.value)return;const t0=performance.now(),dpr=window.devicePixelRatio||1,B=plano.isla.bounds;
  // (la celda más grande que deja el lienzo por debajo de ~4.600 px de lado: más que eso algunos navegadores no lo pintan)
  celda=Math.max(8,Math.min(36,Math.floor(4600/(Math.max(B.x1-B.x0,B.y1-B.y0)*dpr))));
- origen=drawWorldStage(lienzo.value,plano,{cell:celda,stage:9,level:nivel.value,dim:false,capas:{...capas},selected:elegido.value?.id??-1});
+ origen=drawWorldStage(lienzo.value,plano,{cell:celda,stage:9,level:nivel.value,dim:false,paquete:paquete.value,capas:{...capas},selected:elegido.value?.id??-1});
  lienzo.value.style.width=lienzo.value.width/dpr+'px';lienzo.value.style.height=lienzo.value.height/dpr+'px';
  tardo.value=Math.round(performance.now()-t0);
 }
@@ -48,7 +48,7 @@ function dibujar(){
 function pedirNitido(){nitidoListo.value=false;clearTimeout(relojNitido);if(!plano)return;escala.value=celda/CELL*vista.k;relojNitido=setTimeout(dibujarNitido,140);}
 function dibujarNitido(){
  if(!plano||!host.value||!nitido.value||vista.k<=1.05)return;const t0=performance.now(),dpr=window.devicePixelRatio||1,w=host.value.clientWidth,h=host.value.clientHeight;
- drawWorldStage(nitido.value,plano,{cell:celda*vista.k,stage:9,level:nivel.value,dim:false,capas:{...capas},selected:elegido.value?.id??-1,region:{x:-vista.x*dpr,y:-vista.y*dpr,w:w*dpr,h:h*dpr}});
+ drawWorldStage(nitido.value,plano,{cell:celda*vista.k,stage:9,level:nivel.value,dim:false,paquete:paquete.value,capas:{...capas},selected:elegido.value?.id??-1,region:{x:-vista.x*dpr,y:-vista.y*dpr,w:w*dpr,h:h*dpr}});
  nitido.value.style.width=w+'px';nitido.value.style.height=h+'px';nitidoListo.value=true;tardo.value=Math.round(performance.now()-t0);
 }
 function ajustar(){
@@ -89,7 +89,7 @@ async function cargar(){
   muebles:plano.lots.reduce((a,L)=>a+L.levels.slice(0,L.floors).reduce((b,lv)=>b+lv.furniture.length,0),0),ms:Math.round(performance.now()-t0),guardado:r.guardado};
  nivel.value=0;estado.value='';await nextTick();dibujar();ajustar();
 }
-watch([nivel,capas],()=>{dibujar();dibujarPiso();pedirNitido();});
+watch([nivel,capas,paquete],()=>{dibujar();dibujarPiso();pedirNitido();});
 watch(vista,pedirNitido);
 watch([elegido,casa,grande,ladoAlzado,paquete],dibujarPiso);
 watch(elegido,()=>{ladoAlzado.value=null;});
@@ -111,6 +111,8 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
     <button :disabled="nivel>=maxPisos" @click="nivel++" title="Subir un piso (+): arriba del último se ven las azoteas">+</button>
    </div>
    <div class="capas"><label v-for="(n,k) in NOMBRE_CAPA" :key="k" :class="{on:capas[k]}"><input type="checkbox" v-model="capas[k]">{{ n }}</label></div>
+   <label class="sel-paquete" title="El paquete de texturas de fachadas y techos">Texturas <select v-model="paquete"><option v-for="(P,k) in PAQUETES" :key="k" :value="k">{{ P.nombre }}</option></select></label>
+   <button class="techos" :class="{on:nivel>=maxPisos}" @click="nivel=nivel>=maxPisos?0:maxPisos" title="Ver la ciudad desde arriba, con sus techos (o volver a la planta baja)">Techos</button>
    <button class="ajustar" @click="ajustar" title="Ver todo (0)">Ver todo</button>
    <RouterLink class="jugar" :to="{path:'/juego',query:{paseo:1,ciudad:seed,jugadores:team,vista:'tercera'}}" title="La ciudad sola en 3D: caminar, sobrevolar y ver cómo rinde. Sin gente ni policía.">Entrar a la ciudad</RouterLink>
   </header>
@@ -169,6 +171,8 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
 .titulo{font:400 16px var(--t);letter-spacing:.5px}
 .barra label{display:flex;align-items:center;gap:6px;color:var(--tx2)}
 .barra input[type=number]{width:74px;background:rgba(255,255,255,.08);border:1px solid var(--borde);border-radius:8px;color:var(--tx);padding:5px 8px}
+.sel-paquete select{background:rgba(255,255,255,.08);border:1px solid var(--borde);border-radius:8px;color:var(--tx);padding:5px 8px;font:inherit}.sel-paquete option{color:#1b2130}
+.barra button.techos.on{background:rgba(255,169,77,.18);border-color:rgba(255,169,77,.5)}
 .barra button,.jugar{background:rgba(255,255,255,.08);border:1px solid var(--borde);border-radius:8px;color:var(--tx);padding:6px 12px;font:inherit;text-decoration:none;cursor:pointer}
 .barra button:hover:not(:disabled),.jugar:hover{background:rgba(255,255,255,.16)}
 .barra button:disabled{opacity:.4;cursor:default}
