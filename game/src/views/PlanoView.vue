@@ -229,6 +229,7 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
    </div>
    <button class="techos" :class="{on:nivel>=maxPisos}" @click="nivel=nivel>=maxPisos?0:maxPisos" title="Ver la ciudad desde arriba, con sus techos (o volver a la planta baja)">Techos</button>
    <button class="ajustar" @click="ajustar" title="Ver todo (0)">Ver todo</button>
+   <RouterLink class="catalogo" :to="{path:'/fachadas',query:{ciudad:seed,jugadores:team}}" title="Las fachadas en técnico, por cuadra: muro, vanos, cortes de pared y qué se pinta">Fachadas</RouterLink>
    <RouterLink class="catalogo" :to="{path:'/catalogo',query:{seccion:'fachadas',ciudad:seed}}" title="Los muebles, las fachadas y las texturas, de a uno">Catálogo</RouterLink>
    <RouterLink class="jugar" :to="{path:'/ciudad',query:{ciudad:seed,jugadores:team,vista:'tercera'}}" title="Esta misma ciudad en 3D: caminar, sobrevolar y ver cómo rinde. La de 720 m abre en unos 14 s.">Entrar en 3D</RouterLink>
   </header>

@@ -64,6 +64,9 @@ EL JUEGO
              Las dos grandes tienen JERARQUÍA (ciudad.js GRANDE): los dos primeros cortes son avenidas —una cruz que
              ordena la ciudad—, la manzana más cercana al centro es el parque central y los parques se reparten en más
              zonas. Las cuatro del juego no cambian. En el plano, las esquinas de vereda van redondeadas.
+  /fachadas  Las fachadas en técnico, por cuadra (2026-11-21; ?ciudad=1&jugadores=16&cuadra=2): cada lado de cada
+             edificio sin adornos: muro, pisos, módulos, huecos con su medida, cortes de pared interna y las paredes
+             que se pintan con su número. Para validar la fachada antes del 3D.
   /plano     El plano 2D entero, sin cargar el 3D (2026-11-19; ?ciudad=1&jugadores=3): rueda para acercar, arrastrar
              para moverse, + y − para cambiar de piso (arriba del último, las azoteas), capas que se apagan (pintura de
              vías, mobiliario, árboles, nombres de vías, botines) y clic en un edificio para su piso en grande con sus
