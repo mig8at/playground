@@ -27,7 +27,7 @@ jira_title: ""
 - [x] Calibrar las franjas de los departamentos a 4 y 2 m (módulos enteros): hecho; el baño de 3 × 2 m funciona sin ventana en su pared corta.
 - [x] Dejar en 0 las dos pruebas que quedaron fuera de margen con la calibración: corregidas en su causa, sin tocar los topes; el probador entero pasa.
 - [ ] Bajar la gente encimada a la salida del colegio (5,2 % por cuadro, a menos de medio metro): termina cuando la prueba de sociedad la mide por debajo de 3 %, como a las 11.
-- [ ] Calibrar las suites de hotel y hospital (baño de 2,5 m, habitación de 3,5): termina cuando sus tabiques llegan a la fachada en línea de módulo sin que la auditoría empeore.
+- [ ] Calibrar las suites de hotel y hospital: termina cuando sus tabiques llegan a la fachada en línea de módulo sin que la auditoría empeore. Se midió con 2 m de fondo: el baño de 2,5 × 2 m queda sin ducha en 26 casos; hace falta una suite de 6 m de frente (baño de 3 × 2) o un baño compacto que entre.
 - [ ] Decidir si las fachadas de calle deben tener más pared pintable. Depende de: Miguel — hoy 20 de 132 fachadas de la ciudad chica tienen alguna; se podría pintar el muro entre ventanas, o hacer que el generador deje paños ciegos.
 - [ ] Guardar junto a cada número de pared la versión de la ciudad: termina cuando lo pintado sobre una ciudad vieja no se carga en una pared que cambió de número.
 - [ ] Numerar también las casas del monte (sus manzanas, después de las de la ciudad): termina cuando una pared de una casa del monte tiene su número de 10 cifras.
@@ -153,7 +153,7 @@ El alzado con adornos de la ficha del plano y el editor de pixel art también va
 **Resultado** (tres ciudades chicas): los tabiques que llegan a la fachada en un metro entero pasan de 91 a 94 %, con las mismas 727 viviendas y 685 dormitorios; la auditoría del plano baja de 10 casos a 4 (desaparecen los 6 baños sin ducha). En la ciudad de 720 m: 91 % de los cortes en línea de módulo (antes 88 %), toda la ciudad cuadra y las paredes pintables de fachada pasan de 2.115 a 4.577.
 **Lo que se evaluó y NO se eligió**: tabiques de los departamentos cada 1 m (casi no mejora, 2 % menos de viviendas y, junto con las franjas nuevas, 135 fallas de usos); cada 2 m (16 % menos de dormitorios).
 **Las dos pruebas que habían quedado fuera de margen, corregidas en su causa** (sin tocar los topes): la pared que parpadeaba se apagaba y se prendía en 20 cm al pasar de un espacio a otro; ahora una pared recién apagada no vuelve a prenderse hasta 0,6 m, salvo que tape al jugador. La de la gente encimada contaba como encimados a un chico y quien lo lleva, que van juntos a propósito; se cuentan aparte (0,8 % a la salida del colegio) y lo demás queda en 5,2 % contra el tope de 6 %. El probador entero pasa: 53 pruebas en 0.
-**Falta**: las suites de hotel y de hospital siguen con baño de 2,5 m y habitación de 3,5.
+**Las suites de hotel y hospital, medidas y sin calibrar**: con su franja del lado del pasillo en 2 m (habitación de 4 m de fondo) el 97 % de los tabiques llega a la fachada en un metro entero y el 92 % en línea de módulo, pero su baño queda de 2,5 × 2 m y en 26 casos de dos ciudades no entra la ducha, ni con la ducha chica de 80 cm; con el baño de 2 m de ancho en las suites de fondo corto, 43 más. Siguen con baño de 2,5 m y habitación de 3,5.
 **Cierre**: el probador entero en 0 con las franjas calibradas.
 
 ### 4. Propiedades — empezado
