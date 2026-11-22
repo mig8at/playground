@@ -462,19 +462,6 @@ export const OBJETOS={
     p(0,1.98,D/2-.03,W-.02,.03,.03,al),...[-1,1].map(s=>p(s*(W/2-.02),.1,D/2-.03,.025,1.9,.03,al)),p(W/2-.12,1.0,D/2,.02,.25,.03,al),// el marco y la manija
     p(-W/4,.9,-D/2+.04,.025,1.15,.025,al),p(-W/4,1.98,-D/2+.12,.025,.025,.18,al),p(-W/4,1.92,-D/2+.21,.14,.03,.14,al,{cyl:true}),// el caño y la regadera
     p(-W/4,1.05,-D/2+.04,.1,.1,.05,al)];}},// la llave
- cortina:{nombre:'Cortinas',grupo:'Decoración',medida:[1.3,.12],alto:o=>o.h||2.5,variantes:['crema','azul','verde','terracota'],
-  antes:()=>[],
-  // (frente a una ventana de ancho o.w: el barral a o.h de alto y los dos paños, plegados, a los costados; la espalda en
-  // z=0, contra la pared; o.bajo: hasta dónde llegan)
-  // (o.cerrada: un color —engine/cortinas.js— y la tela corrida de lado a lado, 15 cm más ancha que la ventana por lado,
-  // con dos pliegues; tapa el cuarto desde la calle)
-  piezas:o=>{const W=o.w||1.3,H=o.h||2.5,B=o.bajo??.1,c={crema:['#efe6d6','#e2d6c0'],azul:['#7b98b8','#6a87a6'],verde:['#9fb89a','#8aa685'],terracota:['#c98a6a','#b77a5c']}[o.variante||'crema'];
-   const pl=o.pliegues||3,rb=.06+.09*(pl-1)+.08;// (el barral, hasta pasar el último pliegue)
-   const out=[p(0,H,.07,W+2*rb,.03,.03,C.maderaOscura),...[-1,1].map(s=>p(s*(W/2+rb-.03),H-.02,.07,.07,.07,.07,C.maderaOscura))];// (el barral, una caja: las casas no giran piezas)
-   if(o.cerrada){const t=o.cerrada,d='#'+[1,3,5].map(i=>Math.round(parseInt(t.slice(i,i+2),16)*.82).toString(16).padStart(2,'0')).join('');
-    out.push(p(0,B,.04,W+.3,H-B-.02,.03,t));for(const s of [-1,1])out.push(p(s*(W+.3)/6,B,.065,.12,H-B-.06,.02,d));return out;}
-   const np=o.pliegues||3;for(const s of [-1,1])for(let k=0;k<np;k++)out.push(p(s*(W/2+.06+k*.09),B,.04+(k%2)*.025,.1,H-B-.02,.02,c[k%2]));// tres pliegues por paño (o.pliegues: menos, si la pared no da)
-   return out;}},
 
  // La biblioteca (2026-10-12): reemplaza a las del paquete, con libros (C2_BookCaseBooks 1.456 triángulos,
  // C2_BookCaseLargeBooks 3.500, Bookcase_Books de Oficina 10.948) y vacías. Cuatro tablas; en cada una, una fila de

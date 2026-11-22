@@ -1,11 +1,7 @@
-/* Las casas de las manzanas de la montaña (FUGA, 2026-10-11): las del «Simple Buildings Pack» de Quaternius
-   (public/models/edificios: cinco casas y cuatro paletas de color de techo) en las mitades de manzana, de frente a su
-   calle (plan.isla.casas, del plano), con un jardín de árboles alrededor. Una InstancedMesh por pieza de cada modelo: pocas llamadas de dibujo.
-   Adentro: la isla arma en cada una una casa con interior (island3d, casaIdx), un poco más chica que el modelo; con la
-   cámara adentro, el modelo de esa casa se oculta (adentro()) y se ve la casa armada.
-   El frente de cada modelo mira a +z. */
+/* El jardín de las casas de las manzanas de la montaña (FUGA, 2026-10-11): cercas, buzones, caminitos, árboles y piedras
+   alrededor de cada casa (plan.isla.casas, del plano), y sus choques. Las casas mismas las arma vivienda3d.js desde su plano
+   (vivienda.js). (2026-11-22: los modelos del «Simple Buildings Pack» que iban antes en su lugar, fuera: ya no se usaban) */
 import * as THREE from 'three';
-import {loadIslandBuildings} from './island3d.js';
 import {lodInstances} from './lod3d.js';
 import {planHouse,houseColor} from '../engine/vivienda.js';
 
@@ -82,20 +78,6 @@ export function createCasas(plan,{nature=null,nature2=null,rampaEn=null}={}){
  // Las piedras del caminito: un cilindro bajo de 7 lados, en instancias.
  if(piedras.length){const g=new THREE.CylinderGeometry(.32,.36,.06,7),m=new THREE.MeshStandardMaterial({color:'#a59c8e',roughness:.95,flatShading:true}),im=new THREE.InstancedMesh(g,m,piedras.length),o=new THREE.Object3D();
   piedras.forEach((p,i)=>{o.position.set(p.x,p.y,p.z);o.rotation.set(0,p.ry,0);o.scale.set(1,1,.85);o.updateMatrix();im.setMatrixAt(i,o.matrix);});im.receiveShadow=true;group.add(im);own.push(g,m);}
- // Las casas, cuando están los modelos (los del «Simple Buildings Pack», que ya carga la isla: loadIslandBuildings).
- // Una InstancedMesh por pieza de cada modelo y paleta.
- const mats=new Map(),matDe=(tex,T)=>{if(!mats.has(tex)){const m=new THREE.MeshStandardMaterial({map:T,roughness:.85});mats.set(tex,m);own.push(m);}return mats.get(tex);};
- loadIslandBuildings().then(B=>{if(!B)return;const q=new THREE.Quaternion(),Y=new THREE.Vector3(0,1,0),esc=new THREE.Vector3(ESCALA,ESCALA,ESCALA);
-  const grupos=new Map();casas.forEach((c,i)=>{const k=c.modelo+'|'+c.paleta;(grupos.get(k)||grupos.set(k,[]).get(k)).push(i);});
-  for(const [k,idx] of grupos){const [n,tex]=k.split('|'),obj=B.models[n],T=B.textures[tex];if(!obj||!T)continue;
-   const b=new THREE.Box3().setFromObject(obj),centro=new THREE.Matrix4().makeTranslation(-(b.min.x+b.max.x)/2,-b.min.y,-(b.min.z+b.max.z)/2);
-   const ms=idx.map(i=>{const c=casas[i];return new THREE.Matrix4().compose(new THREE.Vector3(c.x,c.nivel+.05,c.z),q.setFromAxisAngle(Y,c.ry),esc).multiply(centro);});
-   const piezas=[];obj.traverse(o=>{if(o.isMesh)piezas.push(o);});
-   const ims=piezas.map(p=>{const im=new THREE.InstancedMesh(p.geometry,matDe(tex,T),idx.length);ms.forEach((m,j)=>im.setMatrixAt(j,m));im.castShadow=true;im.receiveShadow=true;im.computeBoundingSphere();group.add(im);return im;});
-   idx.forEach((i,j)=>{instancia[i]={ims,i:j,m:ms[j]};});}});
- // La casa con alguien adentro: su modelo (la cáscara de afuera) se oculta y se ve la casa armada de la isla.
- const instancia=[],cero=new THREE.Matrix4().makeScale(0,0,0);let oculta=null;
- const ver=(idx,si)=>{const I=instancia[idx];if(!I)return;for(const im of I.ims){im.setMatrixAt(I.i,si?I.m:cero);im.instanceMatrix.needsUpdate=true;}};
  // Troncos y cercas por casillas de 8 m (las consultas son muchas: la gente de la isla las usa para buscar caminos).
  const CK=8,grid=new Map(),cel=(i,j)=>i+','+j,add=(o,x0,z0,x1,z1)=>{for(let i=Math.floor(x0/CK);i<=Math.floor(x1/CK);i++)for(let j=Math.floor(z0/CK);j<=Math.floor(z1/CK);j++){const k=cel(i,j);(grid.get(k)||grid.set(k,[]).get(k)).push(o);}};
  for(const t of troncos)add({t},t.x-1,t.z-1,t.x+1,t.z+1);
@@ -119,7 +101,5 @@ export function createCasas(plan,{nature=null,nature2=null,rampaEn=null}={}){
    for(let k=0;k<10&&cerca.length;k++){const l=cerca[Math.floor(r()*cerca.length)],lx=-l.L+.8+r()*(2*l.L-1.6),lz=l.front+.95+r()*Math.max(.1,l.zf-l.front-1.55);
     if(Math.abs(lx-l.door)<.9)continue;const q=l.at(lx,lz);if(!collide(q.x,q.z,.4))return {x:q.x,z:q.z};}return null;},
   portal(from,to){const A=loteDe(from.x,from.z),B=loteDe(to.x,to.z);if(A===B)return null;const out=[];if(A)out.push(A.pin,A.pout);if(B)out.push(B.pout,B.pin);return out;},
-  // idx: la casa con la cámara adentro (island.casaDentro), o null.
-  adentro(idx){if(idx===oculta)return;if(oculta!=null)ver(oculta,true);oculta=idx;if(idx!=null)ver(idx,false);},
   dispose(){for(const o of own)o.dispose?.();}};
 }

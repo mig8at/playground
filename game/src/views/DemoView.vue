@@ -774,7 +774,7 @@ function loop(t){
  step(dt);pasoLuz(dt,t);actualizarVisibles();shooting?.update(dt);
  // (los interiores —muebles del piso, casa armada— se eligen por donde está el muñeco, no la cámara: desde arriba la
  // cámara queda dos pisos más alta)
- const eye=third.value&&!drone.value?{x:player.x,y:player.feet+1.7,z:player.z}:camera.position;island.update(t/1000);const people=[...crowd.positions(),...patrol.positions(),...(soc?.personas()||[])];crowd.update(dt,player);LOD_CAM.x=camera.position.x;LOD_CAM.y=camera.position.y;LOD_CAM.z=camera.position.z;folk.update(dt,player);animals?.update(dt,camera.position);indoor.update(dt,camera.position);const adentro=island.insideHouse(eye.x,eye.z);casas?.adentro(island.casaDentro?.(eye.x,eye.z)??null);island.setEdges(adentro);
+ const eye=third.value&&!drone.value?{x:player.x,y:player.feet+1.7,z:player.z}:camera.position;island.update(t/1000);const people=[...crowd.positions(),...patrol.positions(),...(soc?.personas()||[])];crowd.update(dt,player);LOD_CAM.x=camera.position.x;LOD_CAM.y=camera.position.y;LOD_CAM.z=camera.position.z;folk.update(dt,player);animals?.update(dt,camera.position);indoor.update(dt,camera.position);const adentro=island.insideHouse(eye.x,eye.z);island.setEdges(adentro);
  // Los contornos sólo delinean paredes interiores: afuera no se ven y el paso costaba más de la mitad del cuadro.
  // (en cada cuadro, antes de dibujar: lo que se arma al acercarse —un interior— nunca llega a verse con su color. Medido:
  // 0,12 ms recorrer las 3.831 piezas de la ciudad chica)

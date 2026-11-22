@@ -40,25 +40,5 @@ export function peliculaCerrada(c,yb,cara){const P=CORTINA.panio,m=(c.u+c.v)/2,u
  const caja=c.h?{x:mu,y:y0,z:at,sx:L,sy:y1-y0,sz:PELICULA.espesor,color:PELICULA.color}:{x:at,y:y0,z:mu,sx:PELICULA.espesor,sy:y1-y0,sz:L,color:PELICULA.color};
  return {cajas:[caja],u0,u1,y0,y1};}
 
-// La cortina abierta de una ventana DIBUJADA (2026-10-16, Miguel: «reubicá y organizá las cortinas para que estén bien en
-// las ventanas»: iban una por ventana del plano, medidas con su largo; donde el 3D dibuja una ventana doble para dos del
-// plano quedaban dos juegos con los paños en el medio del vidrio). v: {c (centro a lo largo), x0, x1, y0, y1 (el vidrio,
-// relativo al centro y al piso)}; [a, b]: la pared del cuarto a lo largo. Los paños, a los costados del vidrio (más
-// el marco); el barral, sobre el vidrio. null si no caben los paños dentro de la pared del cuarto.
-// (los paños: tres pliegues de 9 cm; si la pared no da, dos o uno —lo que ocupa cada lado, panio(n), con el barral—)
-export const CORTINA_ABIERTA={marco:.08,sobre:.18,techo:2.82,bajo:.12,solapa:.3,panio:n=>.06+.09*(n-1)+.08};
-export function cortinaAbierta(v,a,b){const K=CORTINA_ABIERTA,w=v.x1-v.x0+2*K.marco,m=v.c+(v.x0+v.x1)/2;
- for(const n of [3,2,1]){const pa=K.panio(n);if(m-w/2-pa>=a+.02&&m+w/2+pa<=b-.02)return {m,w,h:Math.min(K.techo,v.y1+K.sobre),bajo:K.bajo,u0:m-w/2,u1:m+w/2,paño:pa,pliegues:n};}
- // (el vidrio casi tan ancho como la pared —las de metal de vidrio entero, 1,8 m en 2—: de pared a pared, con los paños
- // sobre los bordes del vidrio, hasta K.solapa por lado, como en una casa de verdad)
- const pa=K.panio(3),u0=Math.max(a+.02,m-w/2-pa)+pa,u1=Math.min(b-.02,m+w/2+pa)-pa;
- if(u1-u0>.4&&v.c+v.x0-u0<=0&&(v.c+v.x0)-(u0)>=-K.solapa-1e-6&&u1-(v.c+v.x1)>=-K.solapa-1e-6)return {m:(u0+u1)/2,w:u1-u0,h:Math.min(K.techo,v.y1+K.sobre),bajo:K.bajo,u0,u1,paño:pa,pliegues:3,solapa:true};
- return null;}
-// Las cortinas de una misma pared que se pisarían (dos ventanas vecinas): un solo juego, de la primera a la última, con
-// los pliegues del que menos tenía. ks: las de una pared, ordenadas a lo largo.
-export function juntarCortinas(ks){const out=[];for(const k of ks){const p=out.at(-1);
-  if(p&&k.u0-k.paño<p.u1+p.paño+.01){const n=Math.min(p.pliegues,k.pliegues),pa=CORTINA_ABIERTA.panio(n);Object.assign(p,{u0:p.u0,u1:k.u1,w:k.u1-p.u0,m:(p.u0+k.u1)/2,h:Math.max(p.h,k.h),pliegues:n,paño:pa});}
-  else out.push({...k});}return out;}
-
 // (LA PERSIANA CERRADA de las viviendas sin dueño —2026-11-22, «las casas y apartamentos que no estén vendidos, con las
 // ventanas cerradas»— es ahora la misma película, opaca: peliculaCerrada)

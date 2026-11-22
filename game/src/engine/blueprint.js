@@ -1292,33 +1292,8 @@ const CASA_MODERNA={estilo:'moderna',techo:'plano',tejado:'liso',revestimiento:'
 // se alisa el terreno para medir la pendiente (0: el terreno tal cual).
 // Qué se genera afuera de la ciudad (perillas): casas (pueblos, fincas, cabañas, casas sueltas) y senderos. Por ahora
 // nada: la isla queda con su terreno y las vías (ver CARRETERA.modo 'anillo').
-export const ISLA_GEN={casas:false,senderos:false,residencial:true,casasMonte:true,
- // casasArmadas: en las manzanas, casas armadas (vivienda.js: se entra, se sube, se ve por las ventanas) en lugar de
- // los modelos del pack.
- casasArmadas:true};
-// Las casas de las manzanas de la montaña: las del «Simple Buildings Pack» (public/models/edificios, escala 5; el
-// mismo que ya cargaba la isla). w: ancho del frente, d: fondo, en metros ya escalados; pisos: los del interior; el
-// frente del modelo mira a +z. Cada casa con una de las cuatro paletas (el color del techo: anaranjado, rojo, azul
-// oscuro o beige).
-// interior: el cuerpo de la casa medido en el modelo (las paredes, cortadas a 1,2 y 1,8 m): su centro (dx, dz) desde el
-// centro de la caja del modelo, sus medidas (w, d) y la puerta (desde el centro del interior, a lo largo del frente).
-// La de porche (House) tiene el cuerpo 1 m atrás; la House5 es en L: el interior es el ala de la puerta (la otra es el
-// garaje); en la House4 la puerta está 2 m a la derecha (a la izquierda, el garaje).
-export const CASAS_MONTE=[
- {m:'House',w:6.1,d:8.6,pisos:1,interior:{dx:0,dz:-.97,w:5.42,d:5.76,puerta:0}},
- {m:'House2',w:6.3,d:7.2,pisos:1,interior:{dx:.02,dz:.04,w:5.46,d:6.38,puerta:-.02}},
- // La de dos pisos: el de arriba es más chico y está retirado (4,3 × 4,65 m), y la escalera de la casa armada caería
- // en el techo de abajo: por ahora sólo se entra a la planta baja.
- {m:'House3',w:6.3,d:7.2,pisos:1,interior:{dx:.02,dz:.05,w:5.46,d:6.38,puerta:-.02}},
- {m:'House4',w:10.8,d:7.2,pisos:1,interior:{dx:.02,dz:-.065,w:10,d:6.25,puerta:2.28}},
- {m:'House5',w:10.8,d:11,pisos:1,interior:{dx:2.3,dz:.06,w:5.43,d:9.85,puerta:-.1}},
- // La tienda (con su textura propia) y los dos edificios de departamentos (15,8 m): se entra a la planta baja. Flat2
- // tiene un porche de 4 m adelante. Puerta al centro en los tres. Pesan menos que las casas y va uno por mitad, como mucho.
- // (El templo, Bank, y el hospital, no por ahora.)
- {m:'Shop',w:12.4,d:9,pisos:1,otro:true,peso:1,paletas:['Shop'],interior:{dx:0,dz:.05,w:10,d:6.78,puerta:0}},
- {m:'Flat',w:10.9,d:10.8,pisos:1,otro:true,peso:1,interior:{dx:0,dz:-.63,w:9.86,d:8.6,puerta:0}},
- {m:'Flat2',w:10.9,d:9.5,pisos:1,otro:true,peso:1,interior:{dx:0,dz:-2.02,w:9.86,d:4.56,puerta:0}}];
-export const CASAS_PALETAS=['HouseTexture1','HouseTexture2','HouseTexture3','HouseTexture4'];
+// (2026-11-22: las casas de las manzanas son siempre armadas —vivienda.js—; los modelos del pack y su opción, fuera)
+export const ISLA_GEN={casas:false,senderos:false,residencial:true,casasMonte:true};
 export const CARRETERA={modo:'grilla',grilla:{paso:42,gradoMax:14,corte:5,chaflan:0,margen:8,rellenoMax:12},conAnillo:false,salidaMax:150,salidaCorte:3,anillo:[22,58],pendienteAnillo:.07,salidas:3,carreraMin:.3,monteMin:.35,rotonda:{R:8,asf:7,isla:2.5},rotondaAv:{R:12,asf:11,isla:4.5},giro:46,liso:0,pendiente:.09,horquilla:10,corte:6,banquina:8,banquinaMax:.84,sinFranjaMax:30,separa:22,separaPropia:16,lado:1.3,cola:45};
 // (el paso de la grilla del monte, 2026-10-15: la calle de la ciudad + dos medias manzanas —MANZANA.monte: retiro, la
 // casa más honda y el patio, en casillas—: 12 + 2·18 = 48 m; antes 42 a ojo)
@@ -1769,9 +1744,8 @@ const angC=CL.map(c=>angOf(c.x,c.y));
    // deja la otra mitad—; con «fondo − 3», dos casas de 14,25 m quedaban a 2,5 m: validar-mundo, 2026-10-17)
    const fondoMax=fondo-2.5-gap/2;
    for(const [s0,s1] of tramos){if(s1-s0<7)continue;const elegidas=[];let libre=s1-s0;
-    if(ISLA_GEN.casasArmadas){for(let k=0;k<4;k++){let c=null;for(let t=0;t<10&&!c;t++){const sp=randomHouse(r3,{...CASA_MODERNA,hogar:planHogar(familia(),{variant:Math.floor(r3()*4)}),garaje:'no'}),pl=planHouse(sp);if(pl.w<=libre-(elegidas.length?3:0)&&pl.d<=fondoMax)c={spec:pl.spec,w:pl.w,d:pl.d};}
+    {for(let k=0;k<4;k++){let c=null;for(let t=0;t<10&&!c;t++){const sp=randomHouse(r3,{...CASA_MODERNA,hogar:planHogar(familia(),{variant:Math.floor(r3()*4)}),garaje:'no'}),pl=planHouse(sp);if(pl.w<=libre-(elegidas.length?3:0)&&pl.d<=fondoMax)c={spec:pl.spec,w:pl.w,d:pl.d};}
       if(!c)break;elegidas.push(c);libre-=c.w+(elegidas.length>1?3:0);if(r3()<.15)break;}}
-    else for(let k=0;k<4;k++){const caben=CASAS_MONTE.filter(c=>c.w<=libre-(elegidas.length?3:0)&&c.d<=fondoMax&&!(c.otro&&elegidas.some(e=>e.otro)));if(!caben.length)break;let tiro=r3()*caben.reduce((a,c)=>a+(c.peso??3),0),c=caben[0];for(const k of caben){tiro-=k.peso??3;if(tiro<0){c=k;break;}}elegidas.push(c);libre-=c.w+(elegidas.length>1?3:0);if(r3()<.15)break;}
     if(!elegidas.length)continue;const total=elegidas.reduce((a,c)=>a+c.w,0)+gap*(elegidas.length-1);let u=s0+(s1-s0-total)/2;
     for(const c of elegidas){const along=u+c.w/2,depth=borde+hacia*(2.5+c.d/2);casas.push(c.spec?{spec:c.spec,x:vert?along:depth,z:vert?depth:along,ry,nivel:M.lv,w:c.w,d:c.d,manzana:M.key,frente:M.front}:{modelo:c.m,interior:c.interior,paleta:(c.paletas||CASAS_PALETAS)[Math.floor(r3()*(c.paletas||CASAS_PALETAS).length)],pisos:c.pisos,x:vert?along:depth,z:vert?depth:along,ry,nivel:M.lv,w:c.w,d:c.d,manzana:M.key,frente:M.front});u+=c.w+gap;}}}
   // ---- El eje que sube (2026-10-15) ----

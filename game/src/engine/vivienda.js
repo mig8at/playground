@@ -19,7 +19,7 @@ import {CHOQUE_MUEBLE} from './medidas.js';
 export const MOD=3,FH=2.8,T=.2,TI=.12,FLOOR0=.15;
 // Los vanos de afuera (2026-10-18; validar-vanos): lo mínimo de pared entre dos vanos y entre un vano y la esquina.
 export const VANO={hueco:.25,esquina:.3};
-export const EJE={corre:1.7,angosta:.75};// (las ventanas de arriba, sobre los ejes de abajo: hogarWalls)
+export const EJE={corre:1.7,angosta:.75,angostaModerna:.5};// (la moderna, de ventanales anchos: para caer en el eje puede angostarse hasta la mitad —2026-11-22—)// (las ventanas de arriba, sobre los ejes de abajo: hogarWalls)
 // La escalera (medidas reales, 2026-10-15; antes 1 m y 14 peldaños de 20 × 25 cm): 1,2 m de ancho, 16 peldaños de
 // 17,5 cm de alto y 28 de huella (4,48 m); el descanso de arriba, 1,2 m. En una casa corta el tramo se acorta lo justo
 // para dejar 1 m libre al pie (la huella baja hasta 22 cm): stairRun(D).
@@ -67,14 +67,10 @@ export const houseColor=(cat,v)=>HOUSE_COLORS[cat]?.[v]??(typeof v==='string'&&v
 export const BASE={estilo:null,ancho:3,fondo:2,pisos:2,arriba:'igual',garaje:'no',porche:false,techo:'dos_aguas',tejado:'barro',pendiente:.6,chimenea:true,
  puerta:'Door_1',puertaModulo:null,ventana:'grande',ventanaArriba:'chica',postigos:true,revestimiento:'tablas',
  pared:'crema',techoColor:'rojo',marco:'blanco',puertaColor:'verde',zocalo:'piedra',interior:'crema',maceteros:true,flores:'rojas',hastial:'ojo',canaletas:true};
-// Estilos: puntos de partida (después cada opción se cambia suelta).
+// Estilos: puntos de partida (después cada opción se cambia suelta). (2026-11-22, Miguel: las casas del monte son dúplex
+// modernas: quedó sólo la moderna; la cabaña, la clásica, la familiar, el chalet y la casita, fuera)
 export const STYLES={
- cabana:{t:'Cabaña',tejado:'madera',ancho:2,fondo:2,pisos:1,porche:true,techo:'dos_aguas',pendiente:.8,garaje:'no',chimenea:true,revestimiento:'tablas',pared:'madera',techoColor:'cedro',marco:'café',puertaColor:'café',ventana:'chica2',postigos:false,zocalo:'piedra',puerta:'Door_9'},
- clasica:{t:'Clásica',hastial:'rejilla',tejado:'madera',ancho:3,fondo:2,pisos:2,arriba:'igual',techo:'dos_aguas',pendiente:.6,porche:false,garaje:'no',chimenea:true,revestimiento:'tablas',pared:'crema',techoColor:'rojo',marco:'blanco',puertaColor:'verde',ventana:'grande2',ventanaArriba:'grande2',postigos:true,puerta:'Door_1'},
- moderna:{t:'Moderna',maceteros:false,canaletas:false,tejado:'liso',ancho:3,fondo:3,pisos:2,arriba:'retirado',techo:'plano',porche:false,garaje:'der',chimenea:false,revestimiento:'liso',pared:'blanca',techoColor:'gris',marco:'negro',puertaColor:'negra',ventana:'grande',ventanaArriba:'grande',postigos:false,zocalo:'gris',puerta:'Door_7'},
- familiar:{t:'Familiar',tejado:'madera',ancho:4,fondo:2,pisos:2,arriba:'igual',techo:'cuatro_aguas',pendiente:.55,porche:true,garaje:'izq',chimenea:false,revestimiento:'tablas',pared:'celeste',techoColor:'azul',marco:'blanco',puertaColor:'roja',ventana:'grande2',ventanaArriba:'chica2',postigos:true,puerta:'Door_2'},
- chalet:{t:'Chalet',tejado:'barro',ancho:3,fondo:3,pisos:2,arriba:'retirado',techo:'dos_aguas',pendiente:.95,porche:false,garaje:'izq',chimenea:true,revestimiento:'liso',pared:'blanca',techoColor:'barro',marco:'café',puertaColor:'café',ventana:'arco2',ventanaArriba:'arco',postigos:true,zocalo:'piedra',puerta:'Door_3'},
- casita:{t:'Casita',tejado:'barro',ancho:2,fondo:2,pisos:1,techo:'cuatro_aguas',pendiente:.55,porche:false,garaje:'der',chimenea:false,revestimiento:'liso',pared:'durazno',techoColor:'anaranjado',marco:'blanco',puertaColor:'azul',ventana:'grande',postigos:true,zocalo:'arena',puerta:'Door_5'}};
+ moderna:{t:'Moderna',maceteros:false,canaletas:false,tejado:'liso',ancho:3,fondo:3,pisos:2,arriba:'retirado',techo:'plano',porche:false,garaje:'der',chimenea:false,revestimiento:'liso',pared:'blanca',techoColor:'gris',marco:'negro',puertaColor:'negra',ventana:'grande',ventanaArriba:'grande',postigos:false,zocalo:'gris',puerta:'Door_7'},};
 
 // Las opciones de la casa, con sus valores (para el editor y para el azar).
 export const OPTIONS={ancho:[2,3,4,5],fondo:[2,3],pisos:[1,2],arriba:['igual','retirado'],garaje:['no','izq','der'],techo:['dos_aguas','cuatro_aguas','plano'],
@@ -266,7 +262,7 @@ export function planHouse(input){
    if(lv){const cerca=(ejes.get(ejeK(w.axis,w.at))||[]).filter(e=>Math.abs(e-c)<=EJE.corre).sort((a,b)=>Math.abs(a-c)-Math.abs(b-c));
     for(const e of cerca){const medioE=Math.min(e-tr[0],tr[1]-e);if(medioE<=0)continue;
      if(ext<=medioE+1e-6)return {w,ww,sinP,c:e};
-     const w2=Math.min(ww,2*(medioE-.08));if(w2>=Math.max(.5,ww*EJE.angosta))return {w,ww:w2,sinP:true,c:e};}}
+     const w2=Math.min(ww,2*(medioE-.08));if(w2>=Math.max(.5,ww*(s.estilo==='moderna'?EJE.angostaModerna:EJE.angosta)))return {w,ww:w2,sinP:true,c:e};}}
    return {w,ww,sinP,c};};
   for(const w0 of L.windows){const q=L.rooms.find(r=>r.id===w0.a),K=ROOM_WIN[q?.type]||ROOM_WIN.otro;if(!q)continue;
    const unica=L.windows.filter(o=>o.a===q.id).length===1,costados=unica&&w0.axis==='u'?[q.u0<.01?{axis:'v',at:0}:null,Math.abs(q.u1-W)<.01?{axis:'v',at:W}:null].filter(Boolean).map(o=>({...o,from:q.v0+.3,len:q.v1-q.v0-.6,a:q.id})):[];
