@@ -85,8 +85,12 @@ export const PUERTA_DOBLE_ALTO=2.6;
 // (la terraza del dúplex: el paso, el marco metálico de una puerta sin hoja; los costados, paños de vidrio entero)
 export const TERRAZA={fondo:1.4,paso:'DoorFrame_Metal_Single',vidrio:'Metal_FullWindow',baranda:1.05};
 export const BALCON_MARCO='DoorFrame_Trim',BALCON_DELANTE=new Set(['dormitorio','sala','sala_cocina','estudio','habitacion','habitacion_h','oficina','abierta','reuniones','comedor']);
-export function vanoDeModulo(m){const cl=(v,a,b)=>Math.max(a,Math.min(b,v));
- if(m.tipo==='ventana'||m.tipo==='doble'){const g=vidrioDeModulo(m),x1=m.tipo==='doble'?3:1;return g?[cl(g[0]-CERCO.lado,-1,x1),cl(g[1]+CERCO.lado,-1,x1),cl(g[2]-CERCO.abajo,0,3),cl(g[3]+CERCO.arriba,0,3)]:[-1,x1,.3,2.8];}
+// (el módulo RECORTADO por un muro de 25 cm que llega en la esquina —engine/grafo-muros.js recortarModulos—: su vano y su pieza
+// van en los 2 − r m que sobran, del lado contrario al muro: x' = d + x·e, con e = (2 − r)/2 y d = −lado·r/2)
+export const RECORTE=m=>m.recorte?{e:(2-m.recorte.r)/2,d:-m.recorte.lado*m.recorte.r/2}:null;
+export function vanoDeModulo(m){const v=vanoSinRecorte(m),R=RECORTE(m);return v&&R?[R.d+v[0]*R.e,R.d+v[1]*R.e,v[2],v[3]]:v;}
+function vanoSinRecorte(m){const cl=(v,a,b)=>Math.max(a,Math.min(b,v));
+ if(m.tipo==='ventana'||m.tipo==='doble'){const g=vidrioCrudo(m),x1=m.tipo==='doble'?3:1;return g?[cl(g[0]-CERCO.lado,-1,x1),cl(g[1]+CERCO.lado,-1,x1),cl(g[2]-CERCO.abajo,0,3),cl(g[3]+CERCO.arriba,0,3)]:[-1,x1,.3,2.8];}
  if(m.tipo==='puerta')return PUERTA_VANO[m.pieza]||[-1,1,0,3];
  if(m.tipo==='puerta_doble'){const a=cl((m.ancho||1.8)/2+.16,0,1);return [-a,a,0,PUERTA_DOBLE_ALTO];}
  if(m.tipo==='vidriera'||m.tipo==='porton')return [-1,1,0,3];
@@ -99,4 +103,5 @@ export function vanoDeModulo(m){const cl=(v,a,b)=>Math.max(a,Math.min(b,v));
  // (la terraza: el paso, su marco; los costados, el paño de vidrio con su cerco)
  if(m.tipo==='terraza'){if(m.pieza===TERRAZA.paso)return PUERTA_VANO[TERRAZA.paso];const g=VIDRIO_PIEZA[m.pieza];return g?[cl(g[0]-CERCO.lado,-1,1),cl(g[1]+CERCO.lado,-1,1),cl(g[2]-CERCO.abajo,0,3),cl(g[3]+CERCO.arriba,0,3)]:[-1,1,0,3];}
  return null;}
-export function vidrioDeModulo(m){if(m.tipo==='terraza'&&m.pieza!==TERRAZA.paso)return VIDRIO_PIEZA[m.pieza]||null;if(m.tipo==='ventana')return m.pieza===VENTANAL?VIDRIO_VENTANAL:VIDRIO_PIEZA[m.pieza]||null;if(m.tipo==='doble'){const g=VIDRIO_PIEZA[m.pieza];return g?[g[0]+1,g[1]+1,g[2],g[3]]:null;}return null;}
+export function vidrioDeModulo(m){const g=vidrioCrudo(m),R=RECORTE(m);return g&&R?[R.d+g[0]*R.e,R.d+g[1]*R.e,g[2],g[3]]:g;}
+function vidrioCrudo(m){if(m.tipo==='terraza'&&m.pieza!==TERRAZA.paso)return VIDRIO_PIEZA[m.pieza]||null;if(m.tipo==='ventana')return m.pieza===VENTANAL?VIDRIO_VENTANAL:VIDRIO_PIEZA[m.pieza]||null;if(m.tipo==='doble'){const g=VIDRIO_PIEZA[m.pieza];return g?[g[0]+1,g[1]+1,g[2],g[3]]:null;}return null;}

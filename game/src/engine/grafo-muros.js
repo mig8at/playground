@@ -158,3 +158,37 @@ export function juntasDe(g,muros=murosConEspesor(g)){const pisan=[],abiertas=[];
   fuera:for(const a of nodosEn(t))for(let u=Math.max(t.a0,a-R)+.004;u<Math.min(t.a1,a+R);u+=.01)for(let c=c0+.004;c<c1;c+=.01){const [x,z]=t.h?[u,c]:[c,u];if(!en(x,z)){hueco={x:r3(x),z:r3(z)};break fuera;}}
   if(hueco){let ancho=0;for(let u=t.a0+.005;u<t.a1;u+=.01)for(let c=c0+.005;c<c1;c+=.01){const [x,z]=t.h?[u,c]:[c,u];if(!en(x,z))ancho++;}abiertas.push({tramo:t.id,...hueco,cm2:ancho});}}
  return {pisan,abiertas};}
+
+// LOS VANOS DE FACHADA CONTRA LOS MUROS DE ADENTRO (2026-11-22, Miguel: «arranca así», sobre la propuesta: «el tabique, parante
+// en la junta; la fachada o medianera en la esquina, muro liso ahí»). Un muro que llega a la fachada desde adentro:
+// - de 12 cm (tabique, núcleo): cae centrado en la junta de dos módulos, como el parante entre dos paños —nunca a mitad de un
+//   vano: eso lo cuenta huecosTapados—;
+// - de 25 cm (fachada, medianera, en una esquina): cae entero dentro de un módulo y, si ese módulo tiene vano, el vidrio lo
+//   taparía. El módulo se RECORTA: m.recorte={lado, r} —lado +1/−1 hacia su x local (tx, tz), r lo que ocupa el muro desde el
+//   borde del módulo—; su vano y su pieza quedan en los 2 − r m que sobran, y los r m del lado del muro son muro liso
+//   (vanoDeModulo y el 3D leen ese recorte).
+export const PARANTE={junta:.01,recorteMax:.5};
+const MODULO=2,CASILLA=6;
+// (los muros perpendiculares que tocan la línea de fachada de un módulo, en su piso: [{s0, s1, clase, tramo}] a lo largo)
+function murosQueLlegan(g,M,h,linea){return M.filter(m=>{const o=g.tramos.find(x=>x.id===m.tramo);if(!o||o.h===h)return false;const [n0,n1]=h?[m.y,m.y+m.h]:[m.x,m.x+m.w];return n1>linea-ESPESOR.fachada-.02&&n0<linea+ESPESOR.fachada+.02;})
+ .map(m=>({s0:h?m.x:m.y,s1:h?m.x+m.w:m.y+m.h,clase:m.clase,tramo:m.tramo,id:m.id,linea:g.tramos.find(x=>x.id===m.tramo).f}));}
+const ejeDeModulo=m=>{const h=m.dy!==0,ex=(m.x+.5+m.dx*.5)*CASILLA,ez=(m.y+.5+m.dy*.5)*CASILLA,c=-CASILLA/2+1+2*m.k,sg=h?m.dy:-m.dx;return {h,linea:h?ez:ex,c0:(h?ex:ez)+sg*c,sg};};
+export function recortarModulos(bp,vanoDe){let recortados=0;
+ for(const L of bp.lots){if(!L.levels?.length||!L.modulos?.length)continue;const G=grafoDeLote(bp,L),Ms=G.map(g=>murosConEspesor(g));
+  for(const m of L.modulos){delete m.recorte;if(m.tipo==='doble'||m.tipo==='doble2'||m.tipo==='muro')continue;const v=vanoDe(m),g=G[m.f];if(!v||!g)continue;
+   const {h,linea,c0,sg}=ejeDeModulo(m),a=c0-MODULO/2,b=c0+MODULO/2,t0=Math.min(c0+v[0]*sg,c0+v[1]*sg),t1=Math.max(c0+v[0]*sg,c0+v[1]*sg);
+   for(const w of murosQueLlegan(g,Ms[m.f],h,linea)){if(w.clase!==CLASE.fachada&&w.clase!==CLASE.medianera)continue;
+    if(Math.min(t1,w.s1)-Math.max(t0,w.s0)<=.001)continue;// (no toca el vano: nada que recortar)
+    const o0=Math.max(a,w.s0),o1=Math.min(b,w.s1);if(o1-o0<=.001)continue;
+    // (desde qué borde del módulo entra el muro, en la coordenada del plano; y hacia qué lado local es)
+    const desdeA=w.s0<=a+.001,r=desdeA?o1-a:b-o0;if(!(desdeA||w.s1>=b-.001)||r>PARANTE.recorteMax)continue;
+    const ladoPlano=desdeA?-1:1,lado=ladoPlano*sg;m.recorte={lado,r:r3(Math.max(m.recorte?.lado===lado?m.recorte.r:0,r))};recortados++;}}}
+ return {recortados};}
+// Los vanos de fachada que tapa un muro de adentro: el de 12 cm fuera de una junta de módulos y el de 25 cm que se mete en el
+// vano (con el recorte ya puesto). Devuelve [{lote, f, modulo, muro, clase, cm}] —cm: cuánto se mete—.
+export function huecosTapados(bp,L,vanoDe){const out=[];if(!L.levels?.length||!L.modulos?.length)return out;const G=grafoDeLote(bp,L),Ms=G.map(g=>murosConEspesor(g));
+ for(const m of L.modulos){const v=vanoDe(m),g=G[m.f];if(!v||!g)continue;const {h,linea,c0,sg}=ejeDeModulo(m),t0=Math.min(c0+v[0]*sg,c0+v[1]*sg),t1=Math.max(c0+v[0]*sg,c0+v[1]*sg);
+  for(const w of murosQueLlegan(g,Ms[m.f],h,linea)){const o=Math.min(t1,w.s1)-Math.max(t0,w.s0);if(o<=.001)continue;
+   if(w.clase===CLASE.tabique||w.clase===CLASE.nucleo){const centro=w.linea,junta=Math.round(centro/MODULO)*MODULO;if(Math.abs(centro-junta)<PARANTE.junta)continue;}
+   out.push({lote:L.id,f:m.f,modulo:`${m.x},${m.y},${m.dx},${m.dy},${m.k}`,tipo:m.tipo,pieza:m.pieza,muro:w.id,clase:w.clase,cm:Math.round(o*100)});}}
+ return out;}

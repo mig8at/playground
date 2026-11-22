@@ -100,6 +100,16 @@ export const STAIRS={
  granito:[{body:'#c9c4ba',tread:'#d9d4cb',nose:'#6b6f73',rail:'#5a6066',post:'#5a6066'},{body:'#c3c7c4',tread:'#cfd4d0',nose:'#4c6a5a',rail:'#4f5a60',post:'#4f5a60'}],
  concreto:[{body:'#a9a69f',tread:'#bdbab3',nose:'#3a3e43',rail:'#a9b2b8',post:'#a9b2b8'},{body:'#b3b0aa',tread:'#c6c3bc',nose:'#2f3337',rail:'#2f3337',post:'#2f3337'}],
  acero:[{body:'#4a4e52',tread:'#5c6166',nose:'#c99a2e',rail:'#2f3337',post:'#2f3337'}]};
+// EL MÓDULO RECORTADO (2026-11-22, Miguel: «arranca así» —en la esquina donde llega una fachada o medianera de 25 cm, muro liso
+// ahí—): el plano ya trae m.recorte={lado, r} —engine/grafo-muros.js recortarModulos— y su vano —fachada-piezas vanoDeModulo—.
+// Acá sólo se dibuja eso: lo que se puso en el módulo (su pieza, sus hojas, la losa y la baranda de la terraza) se corre y se
+// angosta a los 2 − r m que sobran —x' = d + x·e, la misma cuenta del plano—, y del lado del muro va un paño de muro liso de r.
+function recortarModulo3d(items,leaves,i0,l0,{Rc,mx,mz,tx,tz,ry,yb,band,muro,tint}){const e=(2-Rc.r)/2,d=-Rc.lado*Rc.r/2;
+ const correr=(it,escala)=>{const u=(it.x-mx)*tx+(it.z-mz)*tz,du=d+u*e-u;it.x+=tx*du;it.z+=tz*du;if(it.cx!=null){it.cx+=tx*d;it.cz+=tz*d;}if(escala)it.sx=(it.sx??1)*e;};
+ for(let i=i0;i<items.length;i++){const it=items[i];if(it.piece===band)continue;correr(it,Math.abs((it.ry??0)-ry)<1e-6);}
+ for(let i=l0;i<leaves.length;i++)correr(leaves[i],true);
+ const c=Rc.lado*(1-Rc.r/2);items.push({piece:muro,x:mx+tx*c,y:yb,z:mz+tz*c,ry,sx:Rc.r/2,tint});}
+
 export function stairKind(type,fs){const e=fs?.spec?.estilo,fam=fs?.spec?.familia;
  if(['hospital','colegio','biblioteca','comisaria','puesto','bomberos','objetivo'].includes(type))return 'granito';
  if(e==='industrial')return 'acero';
@@ -250,7 +260,7 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
     // (cada ventana que se dibuja, con su vidrio —VIDRIO_PIEZA—, para las cortinas: el vidrio a lo largo de la fachada,
     // en la coordenada de la línea; la pieza mira hacia afuera y su x local va hacia (tx, tz))
     const vidrio=(pz,px_,pz_,cur)=>{const g=VIDRIO_PIEZA[pz]||(pz.startsWith('LP_Ventanal_')?VIDRIO_VENTANAL:null);if(!g)return;const c=h?px_:pz_,sg=h?tx:tz;vidrios.push({f:cur,h,at:h?ez:ex,c,x0:Math.min(g[0]*sg,g[1]*sg),x1:Math.max(g[0]*sg,g[1]*sg),y0:g[2],y1:g[3],pieza:pz});};
-    for(let f=f0;f<L.floors;f++){const yb=f*FLOOR,lv=lines[f],win=hitSeg(lv.w.get(lineKey)),door=f===0?hitSeg(lv.d.get(lineKey)):null;
+    for(let f=f0;f<L.floors;f++){const i0=items.length,l0=leaves.length,Rc=modDe.get(`${x},${y},${dx},${dy},${k},${f}`)?.recorte;try{const yb=f*FLOOR,lv=lines[f],win=hitSeg(lv.w.get(lineKey)),door=f===0?hitSeg(lv.d.get(lineKey)):null;
      const anota=(tipo,pieza=null)=>armada.push({lote:id,x,y,dx,dy,k,f,tipo,pieza});
      if(door&&door.bay){anota('porton');// portón: dos columnas, sin pared (el vehículo lo pone civic3d)
       items.push({piece:fs.column,x:ex+tx*m0,y:0,z:ez+tz*m0,tint},{piece:fs.column,x:ex+tx*m1,y:0,z:ez+tz*m1,tint});wseg(m0,m1,2.5);
@@ -315,7 +325,7 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
      if(fs.awnings&&vidriera&&other<0)awnings.push({x:mx+dx*.02,y:2.97,z:mz+dy*.02,ry,color:fs.awningColor});// arriba de la vidriera (el vidrio llega a 2,94 m)
      // Las columnas de la vidriera (planta baja) y la banda sobre la planta baja.
      if(vidriera&&fs.shopColumns)items.push({piece:'Trim_FirstFloor_Window_Columns',x:mx,y:0,z:mz,ry,tint});
-     if(f===1&&fs.band)items.push({piece:fs.band,x:mx,y:FLOOR,z:mz,ry,tint});}
+     if(f===1&&fs.band)items.push({piece:fs.band,x:mx,y:FLOOR,z:mz,ry,tint});}finally{if(Rc)recortarModulo3d(items,leaves,i0,l0,{Rc,mx,mz,tx,tz,ry,yb:f*FLOOR,band:fs.band,muro:f===0&&fs.wall||fs.plain,tint});}}
     // muro entero en los módulos sin puerta (todos los pisos)
     // (con vanos: los costados enteros y, en el medio, pared salvo en los vanos)
     if(!f0){if(!gaps.length)wseg(m0,m1);else{wseg(m0,c-hg);wseg(c+hg,m1);gaps.sort((p,q)=>p[0]-q[0]);let y0=-1e3;
