@@ -23,7 +23,7 @@ jira_title: ""
 - [x] Hacer que el plano decida la pieza exacta de cada módulo de fachada y que el 3D la lea de ahí: una prueba compara lo que arma el 3D con el plano, módulo por módulo, sin diferencias.
 - [x] Medir el vano exacto de cada puerta de calle: la vista de fachadas muestra cada puerta con su medida, comprobada contra la pieza del 3D.
 - [x] Medir las fachadas de los edificios que no son un rectángulo simple: cada tramo del contorno tiene su dibujo y sus paredes (un edificio en L, seis tramos).
-- [ ] Pasar el alzado de la ficha del plano a tramos: termina cuando en un edificio en L el alzado y el editor de pixel art muestran el mismo tramo.
+- [x] Pasar el alzado de la ficha del plano a tramos: en un edificio en L el alzado y el editor de pixel art muestran el mismo tramo.
 - [ ] Decidir si las fachadas de calle deben tener más pared pintable. Depende de: Miguel — hoy 20 de 132 fachadas de la ciudad chica tienen alguna; se podría pintar el muro entre ventanas, o hacer que el generador deje paños ciegos.
 - [ ] Guardar junto a cada número de pared la versión de la ciudad: termina cuando lo pintado sobre una ciudad vieja no se carga en una pared que cambió de número.
 - [ ] Numerar también las casas del monte (sus manzanas, después de las de la ciudad): termina cuando una pared de una casa del monte tiene su número de 10 cifras.
@@ -135,7 +135,8 @@ Cada uno con su condición de cierre. Los hechos pasan a la pila como bloque.
 **La grilla**: casilla de 6 m = 3 módulos de 2 m; piso de 3 m; píxel de 5 cm (un módulo son 40 × 60 píxeles). Todo en enteros.
 **Afinado el 2026-11-21**: cada módulo mide lo que ocupa de verdad en una sola cuenta (`vanoDeModulo`): la ventana, su vidrio y su marco sin salirse del módulo; la puerta, el vano de su marco (la de piedra 1,36 × 2,96 m; la de metal 1,14 × 2,93; la de madera, el módulo); la puerta doble, hasta 2,60 m; la vidriera, su módulo y su piso. Se comprueba que ninguna pared interna corta un vano (5.118 cortes en dos ciudades, ninguno). El marco de la puerta de madera salía 15 cm de cada lado de su módulo en el 3D: se recortó a la grilla.
 **Tramos (2026-11-21)**: la fachada ya no se mide por los cuatro lados del rectángulo que envuelve al edificio sino por TRAMOS: cada recta de su contorno, con código de lado y número (N0, E0, S0, S1…). Un edificio en L tiene seis. Antes, en una L, se daba por fachada un tramo donde no hay edificio y se salteaba el rincón. La vista dibuja cada tramo, y rayados los pisos que tapa el edificio de al lado.
-**Falta**: el alzado con adornos de la ficha del plano sigue midiendo por el rectángulo (en un edificio en L no coincide con el tramo); los barrios del monte calculan sus módulos al armarse, no los traen guardados.
+El alzado con adornos de la ficha del plano y el editor de pixel art también van por tramo (un edificio en L ofrece sus seis).
+**Falta**: los barrios del monte calculan sus módulos al armarse, no los traen guardados.
 **Cierre**: lo que muestra `/fachadas` es exactamente lo que arma el 3D, comprobado por una prueba. Para las piezas de cada módulo ya se cumple (`validar-fachada-piezas`).
 
 ### 4. Propiedades — empezado

@@ -6,7 +6,7 @@ import {AWNINGS,RAISE} from '../engine/fachada.js';
 import {ALTURA,CALLE} from '../engine/medidas.js';
 import {PAQUETES,textura} from './texturas2d.js';
 import {DE_OBRA,modeloDeObra} from '../engine/entrega.js';
-import {fachadaMedida,texturaDeMuro,PINTABLE,VANO} from '../engine/fachada-medida.js';
+import {fachadaMedida,texturaDeMuro,PINTABLE,VANO,ejeDe} from '../engine/fachada-medida.js';
 import {GRAFITI,lienzoDe} from '../engine/grafiti.js';
 // (cada textura del 3D, con la que la dibuja en el 2D)
 const TEX_2D={ladrillo:'ladrillo',ladrillo_pintado:'ladrillo',sillar:'sillar',estuco:'estuco',panel:'panel',hormigon:'hormigon',tablilla:'tabla'};
@@ -429,15 +429,17 @@ function drawExterior(g,bp,{level=0,px=1,capas=CAPAS}){
 // abajo hay medianera— y sólo se cuenta. Medido en la ciudad 1: 3.334 ventanas de pisos altos, 0 corridas, 244 sobre muro.
 export function drawElevation(canvas,L,{width=560,lado=null,paquete='liso',pintables=false,grafiti=null,mapa=null}={}){
  const PQ=PAQUETES[paquete]||PAQUETES.liso,relleno=(nombre,x,y,w,h,ox=x,oy=y)=>{if(!nombre)return;g.beginPath();g.rect(x,y,w,h);textura(g,nombre,m,ox,oy);};
- const f=lado||L.front,r=L.rect,H=ALTURA.piso,horiz=f==='N'||f==='S',ancho=horiz?r.w:r.h,sube=L.fachada?.escalinata?RAISE:0,manz=L.fachada?.techo==='mansarda';
+ // (2026-11-21: por TRAMO del contorno —engine/fachada-medida.js ejeDe—, no por el lado del rectángulo que envuelve al
+ // edificio: en uno en L cada recta es su fachada. `lado`: un código de tramo (N0, S1…) o sólo la letra, el más largo)
+ const EJ=ejeDe(L,lado||L.front),f=EJ.lado,H=ALTURA.piso,horiz=EJ.horiz,ancho=EJ.ancho,sube=L.fachada?.escalinata?RAISE:0,manz=L.fachada?.techo==='mansarda';
  const alto=L.floors*H+sube,techo=manz?H*.9:.9,dpr=window.devicePixelRatio||1,pad=34,m=Math.min(30,(width-2*pad)/ancho),hgt=(alto+techo)*m+2*pad+10;
  canvas.width=Math.round(width*dpr);canvas.height=Math.round(hgt*dpr);canvas.style.width=width+'px';canvas.style.height=hgt+'px';
  const g=canvas.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,width,hgt);
  const C=L.colores||{},F=L.fachada||{},muro=C.fachada||TYPES[L.type]?.color||'#d9cdb8',mold=C.moldura||'#f2efe6',acento=C.acento||'#3a3d40',marco=C.marco||mold,zoc=C.zocalo||muro;
  const x0=(width-ancho*m)/2,suelo=hgt-pad,X=u=>x0+u*m,Y=y=>suelo-y*m;
  // (de frente: lo que en el plano va de oeste a este se ve de izquierda a derecha mirando al norte; del otro lado, al revés)
- const linea=f==='N'?r.y:f==='S'?r.y+r.h:f==='W'?r.x:r.x+r.w,enLado=w=>horiz?Math.abs(w.y0-linea)<.3&&Math.abs(w.y1-linea)<.3:Math.abs(w.x0-linea)<.3&&Math.abs(w.x1-linea)<.3;
- const tramo=w=>{const a=horiz?w.x0-r.x:w.y0-r.y,b=horiz?w.x1-r.x:w.y1-r.y,inv=f==='N'||f==='E';const u0=Math.min(a,b),u1=Math.max(a,b);return inv?[ancho-u1,ancho-u0]:[u0,u1];};
+ const linea=EJ.linea,enLado=w=>{const c=horiz?(w.x0+w.x1)/2:(w.y0+w.y1)/2;return c>EJ.o-.01&&c<EJ.o+ancho+.01&&(horiz?Math.abs(w.y0-linea)<.3&&Math.abs(w.y1-linea)<.3:Math.abs(w.x0-linea)<.3&&Math.abs(w.x1-linea)<.3);};
+ const tramo=w=>{const a=(horiz?w.x0:w.y0)-EJ.o,b=(horiz?w.x1:w.y1)-EJ.o,inv=EJ.inv;const u0=Math.max(0,Math.min(a,b)),u1=Math.min(ancho,Math.max(a,b));return inv?[ancho-u1,ancho-u0]:[u0,u1];};
  // el cielo de papel, el suelo y la sombra del edificio
  g.fillStyle='#eef3f6';g.fillRect(0,0,width,suelo);g.fillStyle='#d9d5c8';g.fillRect(0,suelo,width,hgt-suelo);
  g.fillStyle=muro;g.fillRect(X(0),Y(alto),ancho*m,alto*m);
@@ -477,7 +479,7 @@ export function drawElevation(canvas,L,{width=560,lado=null,paquete='liso',pinta
  else{g.fillStyle=muro;g.fillRect(X(0),Y(alto+techo),ancho*m,(techo-.3)*m);g.fillStyle=mold;g.fillRect(X(0),Y(alto+techo),ancho*m,.12*m);}
  g.strokeStyle='rgba(30,34,38,.55)';g.lineWidth=1;g.strokeRect(X(0)+.5,Y(alto)+.5,ancho*m-1,alto*m-1);
  // (el grafiti de esta fachada —engine/grafiti.js—: el muro entero es el lienzo; cada píxel pintado, en su lugar)
- {const FM=fachadaMedida(L,f);medido.textura=FM.textura;medido.hiladas=FM.hiladasPorPiso;medido.modulos=FM.modulos;
+ {const FM=fachadaMedida(L,EJ.codigo);medido.codigo=EJ.codigo;medido.textura=FM.textura;medido.hiladas=FM.hiladasPorPiso;medido.modulos=FM.modulos;
   if(grafiti){const Lz=lienzoDe({ancho,alto}),d=grafiti.d;if(grafiti.cols===Lz.cols&&grafiti.rows===Lz.rows)for(let fi=0;fi<Lz.rows;fi++)for(let ci=0;ci<Lz.cols;ci++){const v=d[fi*Lz.cols+ci];if(!v)continue;g.fillStyle=GRAFITI.paleta[v];g.fillRect(X(Lz.du+ci*Lz.px),Y(alto-Lz.dy-fi*Lz.px),Lz.px*m+.4,Lz.px*m+.4);}}
   // (el mapa de lo pintable —engine/muros.js fachadaPintable—: gris lo que no se pinta, blanco lo que sí, y el número de
   // cada pared pintable: sus tres últimas cifras, las de la pared dentro del piso)

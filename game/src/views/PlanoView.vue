@@ -19,6 +19,7 @@ import {GRAFITI,lienzoDe,vacio,pintar,pintados,mascaraDe,aTexto,deTexto,claveCiu
 import {muroExterior,muroCerca,otroLoteDe,paredesDeFachada,paredesPintables,componerFachada,partirFachada,fachadaPintable} from '../engine/muros.js';
 import {cuartoEn} from '../engine/colocar.js';
 import {BANOS} from '../engine/muros.js';
+import {tramosDe,ejeDe} from '../engine/fachada-medida.js';
 import {CELL,TYPES} from '../engine/blueprint.js';
 import {PAQUETES} from '../lib/texturas2d.js';
 
@@ -75,7 +76,7 @@ const grafitiGuardado=m=>{const L=lienzoDe(m),s=deEstaCiudad()[m.numero||m.id];r
 // una con su número de 10 cifras: cuadra, edificio, piso y pared; así se guardan)
 const pintablesDe=(L,lado)=>{const cod=muroExterior(L,lado).codigo;return paredesPintables(planoEntero,L).filter(w=>w.clase==='exterior'&&w.codigo===cod);};
 const fachadaGuardada=(L,lado)=>componerFachada(L,lado,deEstaCiudad(),pintablesDe(L,lado));
-function abrirMuro(m){muro.value=m;eligePared.value=false;if(!m){graf=mascara=Lz=null;return;}Lz=lienzoDe(m);graf=(m.paredes?fachadaGuardada(elegido.value,m.lado):grafitiGuardado(m))||vacio(Lz.cols,Lz.rows);mascara=mascaraDe(m);for(let i=0;i<graf.d.length;i++)if(!mascara[i])graf.d[i]=0;/* (lo guardado encima de un vano, de antes de medirlos bien, se limpia) */pintadosAca.value=pintados(graf);
+function abrirMuro(m){muro.value=m;eligePared.value=false;if(!m){graf=mascara=Lz=null;return;}Lz=lienzoDe(m);graf=(m.paredes?fachadaGuardada(elegido.value,m.codigo):grafitiGuardado(m))||vacio(Lz.cols,Lz.rows);mascara=mascaraDe(m);for(let i=0;i<graf.d.length;i++)if(!mascara[i])graf.d[i]=0;/* (lo guardado encima de un vano, de antes de medirlos bien, se limpia) */pintadosAca.value=pintados(graf);
  nextTick(()=>{const w=lienzoGraf.value?.parentElement.clientWidth||400;zoomG.value=Math.max(2,Math.min(12,Math.floor(w/Lz.cols)));dibujarGraf();});}
 const avisoPared=ref(''),verMapa=ref(false);
 function alzadoClic(){const L=elegido.value;if(!L)return;const lado=ladoAlzado.value||L.front,M=muroExterior(L,lado),paredes=pintablesDe(L,lado),ids=new Set(paredes.map(w=>w.id));avisoPared.value=paredes.length?'':'Esta fachada no tiene ninguna pared sin puertas ni ventanas.';
@@ -96,14 +97,14 @@ function grafPunto(e){const c=lienzoGraf.value;if(!c||!graf)return;const r=c.get
  for(let df=0;df<b;df++)for(let dc=0;dc<b;dc++)if(pintar(graf,c0+dc,f0+df,tinta.value,mascara))celdaG(x,c0+dc,f0+df);}
 function grafBaja(e){if(e.button)return;pintando=true;e.target.setPointerCapture?.(e.pointerId);grafPunto(e);}
 function guardarMuro(){const m=muro.value;if(!m||!graf)return;pintadosAca.value=pintados(graf);const k=claveCiudad(seed.value,team.value),todos={...deEstaCiudad()};
- if(m.paredes){for(const [id,v] of Object.entries(partirFachada(elegido.value,m.lado,graf,m.paredes))){if(v)todos[id]=v;else delete todos[id];}}
+ if(m.paredes){for(const [id,v] of Object.entries(partirFachada(elegido.value,m.codigo,graf,m.paredes))){if(v)todos[id]=v;else delete todos[id];}}
  else if(pintadosAca.value)todos[m.numero]={cols:graf.cols,rows:graf.rows,t:aTexto(graf)};else delete todos[m.numero];grafitis.value={...grafitis.value,[k]:todos};guardarGrafitis();dibujarPiso();}
 function grafSube(){if(!pintando)return;pintando=false;guardarMuro();}
 function grafLimpiar(){if(!graf)return;graf.d.fill(0);dibujarGraf();guardarMuro();}
 function zoomGraf(d){zoomG.value=Math.max(1,Math.min(16,zoomG.value+d));dibujarGraf();}
 // (las paredes del edificio, enumeradas —engine/muros.js paredesDelEdificio—: lo que listaría una base de datos)
 const verParedes=ref(false),paredesEdif=computed(()=>{const L=elegido.value;if(!L||!verParedes.value||!planoEntero)return [];const G=grafitis.value[claveCiudad(seed.value,team.value)]||{};return paredesPintables(planoEntero,L).map(P=>{const Z=lienzoDe(P);return {id:P.numero,clase:P.clase,nivel:P.nivel,cuarto:P.cuarto,lado:P.lado,medida:`${P.ancho.toFixed(1)} × ${P.alto.toFixed(1)} m`,px:`${Z.cols} × ${Z.rows}`,pintada:!!G[P.numero]?.t,P};});});
-function abrirPared(f){if(f.clase==='exterior'){ladoAlzado.value=f.P.lado;nextTick(()=>{dibujarPiso();alzadoClic();});}else{nivel.value=Math.min(maxPisos.value,f.P.nivel);nextTick(()=>abrirMuro(f.P));}}
+function abrirPared(f){if(f.clase==='exterior'){ladoAlzado.value=f.P.codigo;nextTick(()=>{dibujarPiso();alzadoClic();});}else{nivel.value=Math.min(maxPisos.value,f.P.nivel);nextTick(()=>abrirMuro(f.P));}}
 const murosPintados=computed(()=>Object.keys(grafitis.value[claveCiudad(seed.value,team.value)]||{}).length);
 const alzado=ref(null),ladoAlzado=ref(null),medidoAlzado=ref(null),NOMBRE_TEX={ladrillo:'ladrillo a la vista',ladrillo_pintado:'ladrillo pintado',sillar:'sillar de piedra',estuco:'estuco',panel:'panel',hormigon:'hormigón a la vista',tablilla:'tablilla'};
 // (el paquete de texturas de las fachadas: se recuerda en este navegador)
@@ -111,7 +112,10 @@ const guardado=(()=>{try{return localStorage.getItem('fuga.paquete');}catch{retu
 watch(paquete,v=>{try{localStorage.setItem('fuga.paquete',v);}catch{}});
 const LADO={N:'Norte',S:'Sur',E:'Este',W:'Oeste'};
 // (los lados del edificio que dan a algo abierto: una medianera no tiene fachada)
-const ladosAbiertos=computed(()=>elegido.value?Object.entries(elegido.value.sides||{}).filter(([,v])=>v!=='medianera'&&v!=='interior').map(([k])=>k):[]);
+// (los tramos del contorno del edificio —engine/fachada-medida.js tramosDe—: sus códigos, N0, S1…; se ofrecen los de los
+// lados que no son medianera. En un edificio en L hay más de uno por lado)
+const ladosAbiertos=computed(()=>{const L=elegido.value;if(!L)return [];const abiertos=new Set(Object.entries(L.sides||{}).filter(([,v])=>v!=='medianera'&&v!=='interior').map(([k])=>k)),T=tramosDe(L).filter(t=>abiertos.has(t.lado)||!Object.keys(L.sides||{}).length);return (T.length?T:tramosDe(L)).map(t=>t.codigo);});
+const nombreTramo=c=>LADO[c[0]]+(+c.slice(1)?' '+(+c.slice(1)+1):'');
 const maxPisos=ref(0),grande=ref(false);
 // COLOCAR OBJETOS (engine/colocar.js): se elige uno, se mueve el ratón sobre el plano del piso y el plano dice dónde
 // quedaría —ya acomodado a la grilla y a la pared— y si se puede. Clic lo deja; R gira los de piso. Lo colocado se guarda
@@ -176,7 +180,7 @@ const casaNivel=computed(()=>casa.value?Math.min(nivel.value,casa.value.spec.hog
 const casaCuartos=computed(()=>{const c=casa.value;if(!c)return [];return c.spec.hogar.levels[casaNivel.value].rooms.filter(q=>q.type!=='hall').map(q=>({nombre:q.label||ROOM_LABEL[q.type]||q.type,medida:`${(q.u1-q.u0).toFixed(1)} × ${(q.v1-q.v0).toFixed(1)} m`}));});
 async function dibujarPiso(){await nextTick();if(casa.value&&piso.value){drawHogar(piso.value,casa.value.spec.hogar,{level:casaNivel.value,width:piso.value.parentElement.clientWidth,vacia:vacias.value});return;}
  const L=elegido.value;if(!L||!piso.value)return;
- if(alzado.value){const lado=ladosAbiertos.value.includes(ladoAlzado.value)?ladoAlzado.value:L.front;ladoAlzado.value=lado;medidoAlzado.value=drawElevation(alzado.value,L,{width:alzado.value.parentElement.clientWidth,lado,paquete:paquete.value,pintables:true,grafiti:muro.value?.paredes&&muro.value.lado===lado&&graf?graf:fachadaGuardada(L,lado),mapa:verMapa.value?fachadaPintable(planoEntero,L,lado):null});}
+ if(alzado.value){const lado=ladosAbiertos.value.includes(ladoAlzado.value)?ladoAlzado.value:ejeDe(L,ladoAlzado.value||L.front).codigo;ladoAlzado.value=lado;medidoAlzado.value=drawElevation(alzado.value,L,{width:alzado.value.parentElement.clientWidth,lado,paquete:paquete.value,pintables:true,grafiti:muro.value?.paredes&&muro.value.codigo===lado&&graf?graf:fachadaGuardada(L,lado),mapa:verMapa.value?fachadaPintable(planoEntero,L,lado):null});}
  pintarPiso();}
 
 // (?lote=33&lado=N&mapa=1 abre ese edificio, ese lado de su fachada y el mapa de lo pintable: para llegar con un enlace)
@@ -277,7 +281,7 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
    <dl v-if="medidas"><dt>Área</dt><dd>{{ medidas.area }} m²</dd><dt>Pasillo</dt><dd :class="{alerta:medidas.pasillo>30}">{{ medidas.pasillo }} %</dd><template v-if="medidas.ensanche"><dt>Ensanche</dt><dd :class="{alerta:medidas.ensanche>25}" title="El tramo sin luz de un piso de departamentos: es más pasillo, decorado, y no cuartos">{{ medidas.ensanche }} %</dd></template><dt>Muebles</dt><dd>{{ medidas.muebles }}</dd><dt>Puertas</dt><dd>{{ medidas.puertas }}</dd><dt>Ventanas</dt><dd>{{ medidas.ventanas }}</dd></dl>
    <ul class="cuartos"><li v-for="[t,n] in cuartos" :key="t"><span>{{ t }}</span><b>{{ n }}</b></li></ul>
    <div class="alzado-cab"><b>La fachada</b>
-    <div class="lados" role="group" aria-label="Lado de la fachada"><button v-for="l in ladosAbiertos" :key="l" :class="{on:l===ladoAlzado}" @click="ladoAlzado=l">{{ LADO[l] }}<small v-if="l===elegido.front"> · frente</small></button></div></div>
+    <div class="lados" role="group" aria-label="Lado de la fachada"><button v-for="l in ladosAbiertos" :key="l" :class="{on:l===ladoAlzado}" @click="ladoAlzado=l">{{ nombreTramo(l) }}<small v-if="l===elegido.front+'0'"> · frente</small></button></div></div>
    <div class="paquetes" role="group" aria-label="Paquete de texturas"><span>Texturas</span><button v-for="(P,k) in PAQUETES" :key="k" :class="{on:k===paquete}" :title="P.nota" @click="paquete=k">{{ P.nombre }}</button><small>{{ PAQUETES[paquete].nota }}</small></div>
    <div class="ficha-piso pintable"><canvas ref="alzado" @click="alzadoClic"></canvas></div>
    <p class="alzado-med">Se pintan las paredes sin puertas ni ventanas (y no las de los baños). Tocá la fachada para pintar las suyas, o <button class="enlace" :class="{on:eligePared}" @click="eligePared=!eligePared;objeto=null">{{ eligePared?'tocá ahora una pared en el plano del piso…':'pintá una pared de adentro' }}</button>. <template v-if="murosPintados">{{ murosPintados }} {{ murosPintados===1?'muro pintado':'muros pintados' }} en esta ciudad.</template></p>
@@ -286,7 +290,7 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
    <div class="paredes">
     <button class="enlace" @click="verParedes=!verParedes">{{ verParedes?'Ocultar las paredes':'Ver las paredes pintables del edificio, con su número' }}</button>
     <template v-if="verParedes"><small>{{ paredesEdif.length }} paredes pintables (sin puertas ni ventanas, sin baños): {{ paredesEdif.filter(f=>f.clase==='exterior').length }} de fachada y {{ paredesEdif.filter(f=>f.clase==='interior').length }} de cuartos · {{ paredesEdif.filter(f=>f.pintada).length }} pintadas. El número: cuadra (3) · edificio (2) · piso (2) · pared (3). Tocá una para pintarla.</small>
-     <ul><li v-for="f in paredesEdif" :key="f.id" :class="{on:f.pintada}" @click="abrirPared(f)"><code>{{ f.id.slice(0,3) }} {{ f.id.slice(3,5) }} {{ f.id.slice(5,7) }} {{ f.id.slice(7) }}</code><span>{{ f.clase==='exterior'?'fachada '+LADO[f.lado]:'cuarto '+f.cuarto+', pared '+LADO[f.lado] }} · piso {{ f.nivel }}</span><i>{{ f.medida }}</i><i>{{ f.px }} px</i><b>{{ f.pintada?'pintada':'' }}</b></li></ul></template>
+     <ul><li v-for="f in paredesEdif" :key="f.id" :class="{on:f.pintada}" @click="abrirPared(f)"><code>{{ f.id.slice(0,3) }} {{ f.id.slice(3,5) }} {{ f.id.slice(5,7) }} {{ f.id.slice(7) }}</code><span>{{ f.clase==='exterior'?'fachada '+nombreTramo(f.P.codigo):'cuarto '+f.cuarto+', pared '+LADO[f.lado] }} · piso {{ f.nivel }}</span><i>{{ f.medida }}</i><i>{{ f.px }} px</i><b>{{ f.pintada?'pintada':'' }}</b></li></ul></template>
    </div>
    <div v-if="muro" class="grafiti">
     <b>Pixel art · {{ muro.nombre }}<template v-if="muro.clase==='interior'"> del cuarto {{ muro.cuarto }}, piso {{ muro.nivel }}</template><template v-if="muro.paredes">: {{ muro.paredes.length }} paredes pintables (línea verde), cada una se guarda con su número</template><template v-else> · n.º <code>{{ muro.numero }}</code></template> · {{ lienzoDe(muro).cols }} × {{ lienzoDe(muro).rows }} píxeles de 5 cm<small> · {{ muro.ancho.toFixed(1) }} × {{ muro.alto.toFixed(1) }} m · {{ pintadosAca.toLocaleString('es-CO') }} pintados</small></b>
