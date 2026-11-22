@@ -41,6 +41,7 @@ jira_title: ""
 - [ ] Comprar una vivienda: termina cuando al comprarla se abre su puerta, se suben sus persianas y se arma su interior. Depende de: Miguel — cómo se compra (precio, dinero del jugador, servidor). Ojo: el id de un apartamento (`L<lote>:<unidad>`) se repite en cada piso; hay que sumarle el piso antes de guardar dueños.
 - [ ] La escalera de mano como objeto del juego, para pintar desde afuera hasta 8 m: termina cuando en el 3D se puede apoyar, subir y pintar una pared de fachada del primer piso.
 - [ ] Darle vidriera al local de esquina del lote 593 de la ciudad de 720 m (armado desde el otro frente): termina cuando `auditar-plano.mjs 1 1 --equipo=16` no tiene renglones de coherencia.
+- [ ] Decidir si se quita también el dron (V). Depende de: Miguel — hoy queda como primera persona en el aire, útil para mirar fachadas altas.
 - [ ] Mostrar y recuperar las paredes huérfanas: termina cuando desde el plano se ve qué quedó apartado y se puede volver a poner en una pared de la misma medida.
 - [ ] Numerar también las casas del monte (sus manzanas, después de las de la ciudad): termina cuando una pared de una casa del monte tiene su número de 10 cifras.
 - [ ] Unir las dos caras de un tabique en una sola pared con dos caras. Depende de: Miguel — hoy cada cara es una pared aparte (una por cuarto); decidir si la base de datos las quiere así o como una pared con dos lados.
