@@ -116,6 +116,8 @@ export const STAIR_SOFF=.18,STAIR_TH=.045;
 // El canto de la losa en el hueco: de Y−0,13 a Y+0,03 (tapa el cielo raso en Y−0,1 y el muro de abajo, que llega a
 // Y−0,12) y 4 cm de espesor detrás de la cara de cada pared. El cuadro del rincón: su borde de abajo a 1,2 m.
 export const STAIR_CANTO={y0:-.13,y1:.03,e:.04},STAIR_CUADRO=1.2;
+// La caseta de la escalera en la azotea (m): alto de sus muros, espesor y ancho del vano de la puerta.
+export const CASETA={alto:2.6,muro:.15,puerta:.95,dintel:2.15};
 export function stairOf(sd,floors,FLOOR){
  const FR=sd.fr,BK=sd.bk,run=sd.d-FR-BK,W=sd.w||2,HW=W/2,P=(a,b)=>[sd.x+sd.ux*a+sd.vx*b,sd.z+sd.uz*a+sd.vz*b],local=(x,z)=>{const dx=x-sd.x,dz=z-sd.z;return [dx*sd.ux+dz*sd.uz,dx*sd.vx+dz*sd.vz];};
  const rect=(a0,b0,a1,b1)=>{const [x0,z0]=P(a0,b0),[x1,z1]=P(a1,b1);return {x:Math.min(x0,x1),z:Math.min(z0,z1),w:Math.abs(x1-x0),h:Math.abs(z1-z0)};};
@@ -197,15 +199,25 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
   L.mansarda=B.mansarda||null;if(fs.mansard&&B.mansarda)for(const c of B.mansarda.cubierta)items.push({piece:'Roof_4x4',x:(c.x0+c.x1)/2,y:L.h+MANSARDA.alto+.2,z:(c.z0+c.z1)/2,sx:(c.x1-c.x0)/4,sz:(c.z1-c.z0)/4});
   let plaqueDone=false;const signAt=[];const streetDoors=[],vidrios=[];
   const cells=[];for(const p of B.parts)for(let y=p.y/S;y<(p.y+p.h)/S;y++)for(let x=p.x/S;x<(p.x+p.w)/S;x++)cells.push([x,y]);
-  const ST=B.levels[0].stair&&L.floors>=2?stairOf(B.levels[0].stair,L.floors,FLOOR):null;if(ST)stairs.set(id,ST);
+  // (2026-11-22, Miguel: «que las escaleras lleguen a la terraza»: con techo plano, la azotea cuenta como un piso más de la
+  // escalera —un tramo más, del último piso al techo, y el hueco en la losa del techo— y arriba una caseta cubre la llegada)
+  const alAzotea=!!B.levels[0].stair&&L.floors>=2&&!fs.mansard;
+  const ST=B.levels[0].stair&&L.floors>=2?stairOf(B.levels[0].stair,L.floors+(alAzotea?1:0),FLOOR):null;if(ST){ST.azotea=alAzotea;stairs.set(id,ST);}
   // ---------- Pisos, cielo raso y techo (por casilla) ----------
   for(const [x,y] of cells){const cx=(x+.5)*S,cz=(y+.5)*S,fs4=S/4;
    for(let f=0;f<L.floors;f++){const hole=ST?.hole(f),C={x:x*S,z:y*S,w:S,h:S};
     // La losa de cada piso, menos el hueco de la escalera (en rectángulos: la pieza de piso del paquete se estira).
     for(const q of hole?minus(C,hole):[C])items.push({piece:'Floor_4x4',x:q.x+q.w/2,y:f?f*FLOOR:.02,z:q.z+q.h/2,sx:q.w/4,sz:q.h/4});}
-   items.push({piece:'Floor_4x4',x:cx,y:L.h-.03,z:cz,sx:fs4,sz:fs4});if(!fs.mansard)items.push({piece:'Roof_4x4',x:cx,y:L.h+.2,z:cz,sx:fs4,sz:fs4});
+   // (el techo, menos el hueco de la escalera si sube a la azotea)
+   {const C={x:x*S,z:y*S,w:S,h:S},hr=ST?.azotea?ST.hole(L.floors):null;for(const q of hr?minus(C,hr):[C]){items.push({piece:'Floor_4x4',x:q.x+q.w/2,y:L.h-.03,z:q.z+q.h/2,sx:q.w/4,sz:q.h/4});if(!fs.mansard)items.push({piece:'Roof_4x4',x:q.x+q.w/2,y:L.h+.2,z:q.z+q.h/2,sx:q.w/4,sz:q.h/4});}}
    // (la mansarda: su cubierta, abajo, sólo donde el 2D la pone —techos.js—; antes la losa iba en toda la casilla y tapaba la pizarra)
   }
+  // LA CASETA DE LA ESCALERA en la azotea: cubre los tramos y el hueco, con un vano de puerta sin hoja hacia la terraza del
+  // lado del vano de la escalera (por donde se llega). Se dibuja siempre, como lo demás de la azotea, y sus muros chocan.
+  if(ST?.azotea){const {sd,P}=ST,Wc=ST.W,D=sd.d,[mx,mz]=P(Wc/2,D/2),c=CASETA,ry=Math.atan2(sd.vx,sd.vz);
+   roofProps.push({modelo:'caseta_escalera',x:mx,y:L.h+R,z:mz,ry,o:{w:Wc,d:D}});
+   const muro=(a0,b0,a1,b1)=>{const [x0,z0]=P(a0,b0),[x1,z1]=P(a1,b1);wallAny(Math.min(x0,x1),Math.min(z0,z1),Math.max(x0,x1),Math.max(z0,z1),L.h,L.h+c.alto);};
+   const t=c.muro,dw=c.puerta/2;muro(-t,D,Wc+t,D+t);muro(-t,-t,0,D+t);muro(Wc,-t,Wc+t,D+t);muro(-t,-t,Wc/2-dw,0);muro(Wc/2+dw,-t,Wc+t,0);}
   // Lo de la azotea (engine/azoteas.js —el 2D lo reparte con la pista del borde libre—): el tanque, la antena, el tendedero y
   // las materas, del catálogo (world3d los dibuja juntos: roofProps), y los equipos de aire, del paquete; todo choca hasta
   // su alto. (Antes el 3D ponía equipos de aire al azar, sin choque.)
@@ -600,7 +612,7 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
    // se metían 4 cm en el muro del medio y los pasamanos rozaban la pared).
    const side=(a,b=FR+run/2)=>{const [x,z]=P(a,b),o=lotAtCell(Math.floor(x/S),Math.floor(z/S));return o<0?FACE:o!==id?THIN+.01:THIN/2+.01;};
    const W=ST.W,A0=side(-.15),A1=W-side(W+.15),BD=sd.d-side(W/2,sd.d+.15);
-   stairBoxes(ST,M,{floors:L.floors,FLOOR,hallC,A0,A1,BD,box,boxes,wallAny,deco:Math.floor(hash(id*19,7,seed+143)*16)});}
+   stairBoxes(ST,M,{floors:ST.floors,FLOOR,hallC,A0,A1,BD,box,boxes,wallAny,deco:Math.floor(hash(id*19,7,seed+143)*16)});}
   // ---------- Sin caras que titilen (2026-10-16): las cajas del lote —muebles, marcos, escalera, decoración— con una
   // cara en el mismo plano que otra de otro color se alternan al mover la cámara; la más chica se retira 3 mm ----------
   {const ok=piezasSinTitilar(boxes,{suelos:Array.from({length:L.floors+1},(_,f)=>[f*FLOOR,f*FLOOR+.02]).flat()});for(let i=0;i<ok.length;i++)boxes[i]=ok[i];}

@@ -1112,7 +1112,8 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
   const id=lotOf[cy*W+cx],L=lots[id],st=stairsByLot.get(id),R=L.raise||0,fe=feet-R;let g=0;
   // La azotea (se llega en ascensor): el techo plano, o el de arriba de la mansarda.
   // (la mansarda: su pendiente desde cada fachada y la cubierta arriba —techos.js, la misma altura que mide el 2D—)
-  const roof=L.h+(L.mansarda?alturaMansarda(L.mansarda,px,pz):0);if(fe>=roof-.45)return roof+R;
+  // (sobre el hueco de la escalera que sube a la azotea no hay techo: se sigue por los peldaños)
+  const roof=L.h+(L.mansarda?alturaMansarda(L.mansarda,px,pz):0);if(fe>=roof-.45&&!(st?.azotea&&st.inHole(px,pz,L.floors)))return roof+R;
   for(let f=L.floors-1;f>0;f--)if(f*FLOOR<=fe+.45&&!(st&&st.inHole(px,pz,f))){g=f*FLOOR;break;}
   // (la planta baja se dibuja 2 cm arriba del suelo, para que no titile con él —town3d yb, piezasSinTitilar—: se pisa ahí.
   // 2026-10-16, medido sin pantalla —validar-pisos—: los pies quedaban 2 cm dentro del piso en toda planta baja)

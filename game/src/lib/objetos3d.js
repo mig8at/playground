@@ -546,6 +546,14 @@ export const OBJETOS={
     p(0,.48,0,.32,.16,.32,g,{ry:.4}),p(.03,.6,-.02,.26,.14,.26,g2,{ry:1.1}),p(-.02,.71,.02,.18,.1,.18,g,{ry:.2})];}},// el follaje en tres capas giradas
  // ---------- Azoteas (2026-10-18, engine/azoteas.js: lo reparte el 2D) ----------
  // El tanque de agua de 1.000 l de las azoteas colombianas: negro, de polietileno, sobre su base de concreto.
+ // La caseta de la escalera (2026-11-22, la escalera llega a la azotea): muros alrededor de los tramos —o.w × o.d, adentro
+ // libre—, el vano de la puerta sin hoja en el frente (−z), el dintel y la losa de arriba. Las medidas, town3d CASETA.
+ caseta_escalera:{nombre:'Caseta de la escalera',grupo:'Azoteas',medida:[2.3,5.3],alto:()=>2.72,
+  antes:()=>[],
+  piezas:({w=2,d=5}={})=>{const A=2.6,t=.15,dw=.95,dh=2.15,col='#d8d2c4',lado=(w+2*t-dw)/2;return [
+   p(0,0,d/2+t/2,w+2*t,A,t,col),p(-(w/2+t/2),0,0,t,A,d,col),p(w/2+t/2,0,0,t,A,d,col),// el fondo y los costados
+   p(-(dw/2+lado/2),0,-(d/2+t/2),lado,A,t,col),p(dw/2+lado/2,0,-(d/2+t/2),lado,A,t,col),p(0,dh,-(d/2+t/2),dw,A-dh,t,col),// el frente, con el vano
+   p(0,A,0,w+2*t+.2,.12,d+2*t+.2,'#c9c3b5')]}},// la losa
  tanque_agua:{nombre:'Tanque de agua',grupo:'Azoteas',medida:[1.2,1.2],alto:()=>1.5,
   antes:()=>[],
   piezas:()=>[p(0,0,0,1.2,.16,1.2,C.piedra),// la base

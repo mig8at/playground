@@ -22,7 +22,8 @@ export const cajaDe=o=>({x0:o.x-o.w/2,x1:o.x+o.w/2,z0:o.z-o.d/2,z1:o.z+o.d/2});
 export function amoblarAzoteas(bp){for(const [li,L] of bp.lots.entries()){delete L.azotea;if(!L.parts?.length||L.fachada?.techo==='mansarda'||(L.floors||0)<2)continue;
  const r=rng(mix(bp.seed,bp.team||0,li,7717)),B=O().borde,objs=[],libre=[];
  // la salida del ascensor, libre
- const core=L.levels?.find(l=>l.core?.lift)?.core;if(core)libre.push({x0:core.x-O().salida,x1:core.x+core.w+O().salida,z0:core.y-O().salida,z1:core.y+core.h+O().salida});
+ // (y la de la escalera: desde el 2026-11-22 sube a la azotea en todo techo plano de dos pisos o más —town3d, la caseta—)
+ const core=L.levels?.find(l=>l.core?.lift)?.core||(L.floors>=2&&!L.mansarda?L.levels?.find(l=>l.core)?.core:null);if(core)libre.push({x0:core.x-O().salida,x1:core.x+core.w+O().salida,z0:core.y-O().salida,z1:core.y+core.h+O().salida});
  const area=L.parts.reduce((a,p)=>a+p.w*p.h,0);let ocupa=0;
  const poner=(o,margen)=>{const c=cajaDe(o);if(!dentro(L.parts,c.x0,c.z0,c.x1,c.z1,margen))return false;if(libre.some(q=>choca(c,q))||objs.some(q=>choca(c,cajaDe(q),O().paso)))return false;
   if(ocupa+o.w*o.d>area*O().ocupa)return false;objs.push(o);ocupa+=o.w*o.d;return true;};

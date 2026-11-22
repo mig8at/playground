@@ -712,6 +712,8 @@ function droneStep(dt){
 // las casas (dronAdentro). La regla del aterrizaje (aterrizaje.js) queda en el motor, sin uso en el 3D.
 let zonaAterrizaje=null,despegue=null;
 const CASA_ALTO=7;// m: las casas armadas como modelo (casas3d) no dicen su alto; el dron pasa por encima de eso
+// (adentro de algo: un edificio, un barrio, una casa, o contra un muro —lo usa el dron para no meterse—)
+const insideAny=(x,z,y)=>!!(world.dentro?.(x,z,y)||barrios.dentro(x,z,y)||viviendas.dentro(x,z,y)||world.collide(x,z,.05,false,y-1.2));
 const dronAdentro=(x,z,y)=>insideAny(x,z,y)||world.collide(x,z,.4,false,y-1.2)||(casas.collide(x,z,.4)&&y<island.ground(x,z)+CASA_ALTO);
 function toggleDrone(){
  if(acciones?.activa)return;// (sentado o acostado no se despega: primero hay que levantarse)

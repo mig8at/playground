@@ -69,6 +69,7 @@ const NIVELES=[
   {n:'oclusión',f:'validar-oclusion.mjs',a:[RAP?1:2,S0],fallas:F,res:/^oclusión/,node:['--max-old-space-size=12000']}]},
  {n:7,t:'Física',d:'por dónde se pasa, qué frena y que el suelo que se pisa sea el que se ve, y las azoteas: saltar de un techo a otro y lo que duele caer',p:[
   {n:'azoteas',f:'validar-azoteas.mjs',a:[N,S0],fallas:F,res:/^azoteas/},
+  {n:'escalera a la azotea',f:'validar-escalera-azotea.mjs',a:[N,S0],fallas:F,res:/^escalera a la azotea/},// (2026-11-22: se sube caminando del último piso a la azotea)
   {n:'mansarda',f:'validar-mansarda.mjs',a:[N,S0],fallas:F,res:/^mansarda/},
   {n:'azoteas con objetos',f:'validar-azoteas-objetos.mjs',a:[N,S0],fallas:F,res:/^azoteas con objetos/},
   {n:'colisiones',f:'validar-colisiones.mjs',a:[N,S0],fallas:F,res:/^paso libre/,node:grande},
