@@ -52,7 +52,9 @@ function band(keys){let best=null;const opts=keys.map(k=>[minOf(k),minOf(k,true)
   if(!ok)continue;const W=rooms.reduce((a,r)=>a+r.w,0);if(!best||W*Dc<best.W*best.D)best={W,D:Dc,rooms};}
  return {D:best.D,rooms:best.rooms};}
 // Las anchuras de una franja estiradas a W (lo que sobra, repartido en proporción).
-function stretch(rooms,W){const sum=rooms.reduce((a,r)=>a+r.w,0),k=W/sum;let u=0;return rooms.map(r=>{const w=r.w*k,o={...r,u0:u,u1:u+w};u+=w;return o;});}
+// (al milímetro —2026-11-22: los bordes salían en 9,9999 en vez de 10 y el contorno de la casa no los juntaba—; el último
+// cuarto cierra justo en W)
+function stretch(rooms,W){const sum=rooms.reduce((a,r)=>a+r.w,0),k=W/sum,mm=v=>Math.round(v*1000)/1000;let u=0;return rooms.map((r,i)=>{const w=r.w*k,u0=mm(u),u1=i===rooms.length-1?W:mm(u+w),o={...r,u0,u1};u+=w;return o;});}
 
 // Qué puede ir en cada franja: lo que sólo va adelante (la sala, con la puerta de calle), lo que sólo va atrás (lo
 // privado en un piso; la escalera) y lo que puede ir en cualquiera (se reparte para que las dos franjas midan parecido:

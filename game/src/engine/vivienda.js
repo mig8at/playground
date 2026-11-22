@@ -110,6 +110,17 @@ export function randomHouse(r=Math.random,base={}){const pick=a=>a[Math.floor(r(
 //  openings: ventanas y puertas (el modelo del paquete, el centro de abajo del vano, ancho, alto y hacia dónde mira).
 //  furniture: muebles del paquete (centro de su caja en x y z, piso, giro: 0 mira a +z).
 //  rooms:    los cuerpos (para saber si se está adentro) y lights: las lámparas del techo (para la noche).
+// EL CONTORNO DE UN PISO (2026-11-22): los bordes de los rectángulos rs que dan a un punto que no es de adentro (esDentro) y sí
+// cumple fuera(x, z): {axis ('x': a lo ancho, en z = e; 'z': de fondo, en x = e), e, n (el lado de adentro: +1 o −1), a, b}.
+// Los tramos seguidos de una misma línea, juntos. Lo usan los muros de afuera de la casa y validar-casas-modernas.
+export function bordesDe(rs,esDentro,fuera=()=>true){const out=[],dl=.01,cortes={x:[...new Set(rs.flatMap(r=>[r.x0,r.x1]))].sort((p,q)=>p-q),z:[...new Set(rs.flatMap(r=>[r.z0,r.z1]))].sort((p,q)=>p-q)};
+   for(const r of rs)for(const [axis,e,n,a0,a1] of [['x',r.z1,-1,r.x0,r.x1],['x',r.z0,1,r.x0,r.x1],['z',r.x0,1,r.z0,r.z1],['z',r.x1,-1,r.z0,r.z1]]){
+    const cs=[a0,...cortes[axis==='x'?'x':'z'].filter(c=>c>a0+1e-6&&c<a1-1e-6),a1];
+    for(let i=0;i+1<cs.length;i++){const m=(cs[i]+cs[i+1])/2,[ox,oz]=axis==='x'?[m,e-n*dl]:[e-n*dl,m];if(esDentro(ox,oz)||!fuera(ox,oz))continue;
+     const l=out[out.length-1];if(l&&l.axis===axis&&Math.abs(l.e-e)<1e-6&&l.n===n&&Math.abs(l.b-cs[i])<1e-6)l.b=cs[i+1];else out.push({axis,e,n,a:cs[i],b:cs[i+1]});}}
+ // (los tramos de una misma línea y lado que se tocan, de cuartos distintos, en uno solo: si no, cada uno se cortaba en la unión)
+ const r4=v=>Math.round(v*1e4);out.sort((p,q)=>p.axis.localeCompare(q.axis)||r4(p.e)-r4(q.e)||p.n-q.n||p.a-q.a);const J=[];for(const B of out){const l=J[J.length-1];if(l&&l.axis===B.axis&&r4(l.e)===r4(B.e)&&l.n===B.n&&B.a<=l.b+1e-6){l.a=Math.min(l.a,B.a);l.b=Math.max(l.b,B.b);}else J.push({...B});}
+ return J;}
 export function planHouse(input){
  const s=houseSpec(input),col=(cat,v)=>houseColor(cat,v);
  // (spec.hogar: una casa desde la familia —engine/hogar.js—: sus medidas, sus cuartos, sus vanos y sus muebles)
@@ -277,23 +288,27 @@ export function planHouse(input){
   const pd=L.doors.find(d=>d.patio);if(pd){back.push(door('x',T/2,-1,pd.from+pd.len/2,yF,s.estilo==='moderna'?'Leaf_minimal':s.puerta==='Door_Double'?'Door_1':s.puerta,DOOR_W));if(!lv)anotarEje(pd.axis,pd.at,pd.from+pd.len/2);}// (sencilla siempre: la doble, de 1,9 m, no cabe al lado de la ventana)
   // (por dentro, el color del cuarto que está detrás de cada tramo)
   const us=[...new Set(L.rooms.flatMap(q=>[q.u0,q.u1]))].sort((a,b)=>a-b),zs=[...new Set(L.rooms.flatMap(q=>[D-q.v0,D-q.v1]))].sort((a,b)=>a-b);
-  // (LA TERRAZA —hogar.js, la logia del piso de arriba—: un cuarto de afuera. Los muros de la casa se cortan donde ella toca el
-  // borde —ahí va su baranda—, y donde toca un cuarto, ese borde es muro de afuera, con la puerta del pasillo)
+  // (EL CONTORNO —2026-11-22, Miguel: «el plano de forma libre»—: los muros de afuera salen solos del borde entre los cuartos
+  // y lo de afuera —la calle, la entrada cubierta del voladizo, la terraza—, sin suponer que el piso es un rectángulo. Cada
+  // borde, con su lado de adentro; en una esquina hacia afuera el muro a lo ancho —eje x— llega a la punta y el de fondo —eje
+  // z— se corta un espesor; en una hacia adentro, al revés: el de x sigue un espesor y el de z llega a la punta. Los vanos de
+  // cada muro, los que caen en su línea)
   const terrs=L.rooms.filter(q=>q.type==='terraza').map(q=>({x0:q.u0,x1:q.u1,z0:D-q.v1,z1:D-q.v0}));
+  const cuartosW=L.rooms.filter(q=>q.type!=='terraza').map(q=>({x0:q.u0,x1:q.u1,z0:D-q.v1,z1:D-q.v0}));
+  const adentro=(x,z)=>cuartosW.some(r=>x>r.x0&&x<r.x1&&z>r.z0&&z<r.z1),enTerraza=(x,z)=>terrs.some(r=>x>r.x0&&x<r.x1&&z>r.z0&&z<r.z1);
   const menos=(a0,a1,cs)=>{let ps=[[a0,a1]];for(const [c0,c1] of cs)ps=ps.flatMap(([x,y])=>[[x,Math.min(y,c0)],[Math.max(x,c1),y]]).filter(([x,y])=>y-x>.05);return ps;};
-  const enTramo=(hs,a,b)=>hs.filter(h=>h.c>a-1e-6&&h.c<b+1e-6);
-  const tF=terrs.filter(t=>Math.abs(t.z1-zF)<.01),tL=terrs.filter(t=>t.x0<.01),tR=terrs.filter(t=>t.x1>W-.01);
-  for(const [a,b] of menos(0,W,tF.map(t=>[t.x0-(t.x0<.01?0:T),t.x1+(t.x1>W-.01?0:T)])))outer('x',zF-T/2,1,a,b,y0w,yTop,enTramo(front,a,b),x=>hgCol(L,x,zF-.3),us);
-  outer('x',T/2,-1,0,W,y0w,yTop,back,x=>hgCol(L,x,.3),us);
-  for(const [a,b] of menos(T,zF-T,tL.map(t=>[t.z0,t.z1])))outer('z',T/2,-1,a,b,y0w,yTop,enTramo(left,a,b),z=>hgCol(L,.3,z),zs);
-  for(const [a,b] of menos(T,zF-T,tR.map(t=>[t.z0,t.z1])))outer('z',W-T/2,1,a,b,y0w,yTop,enTramo(right,a,b),z=>hgCol(L,W-.3,z),zs);
-  for(const t of terrs){const rail=(x0,z0,x1,z1)=>box('marco',x0,yF,z0,x1,yF+TERRAZA_CASA.baranda,z1,cTrim);
-   if(Math.abs(t.z1-zF)<.01)rail(t.x0,zF-.08,t.x1,zF);if(t.x0<.01)rail(0,t.z0,.08,zF-.08);if(t.x1>W-.01)rail(W-.08,t.z0,W,zF-.08);
-   // (los bordes con la casa: muro de afuera del lado de adentro, y en el de atrás la puerta del pasillo)
-   const td=L.doors.find(d=>d.terraza),hT=[];if(td)hT.push(door('x',t.z0-T/2,1,td.from+td.len/2,yF,s.estilo==='moderna'?'Leaf_minimal':'Door_6',DOOR_W));
-   outer('x',t.z0-T/2,1,t.x0-(t.x0<.01?0:T),t.x1+(t.x1>W-.01?0:T),y0w,yTop,hT);
-   if(t.x0>.01)outer('z',t.x0-T/2,1,t.z0,zF,y0w,yTop,[]);if(t.x1<W-.01)outer('z',t.x1+T/2,-1,t.z0,zF,y0w,yTop,[]);
-   floor(t.x0,t.z0,t.x1,t.z1,yF);}
+  const bordes=bordesDe(cuartosW,adentro,()=>true);
+  const huecos=[...front.map(h=>({...h,axis:'x',at:zF-T/2})),...back.map(h=>({...h,axis:'x',at:T/2})),...left.map(h=>({...h,axis:'z',at:T/2})),...right.map(h=>({...h,axis:'z',at:W-T/2}))];
+  const td=L.doors.find(d=>d.terraza);if(td){const t=terrs[0],zc=D-td.at;huecos.push({...door('x',zc-T/2,1,td.from+td.len/2,yF,s.estilo==='moderna'?'Leaf_minimal':'Door_6',DOOR_W),axis:'x',at:zc-T/2});}
+  const hacia=(B,fin)=>{const P=fin?B.b:B.a,sg=fin?1:-1,dl=.01,[x,z]=B.axis==='x'?[P+sg*dl,B.e-B.n*dl]:[B.e-B.n*dl,P+sg*dl];return adentro(x,z);};// (¿esquina hacia adentro en esa punta?)
+  for(const B of bordes){const c=B.e+B.n*T/2,out=-B.n,ad0=hacia(B,false),ad1=hacia(B,true);
+   const a=B.axis==='x'?B.a-(ad0?T:0):B.a+(ad0?0:T),b=B.axis==='x'?B.b+(ad1?T:0):B.b-(ad1?0:T);if(b-a<.02)continue;
+   const hs=huecos.filter(h=>h.axis===B.axis&&Math.abs(h.at-c)<.01&&h.c>a-1e-6&&h.c<b+1e-6);
+   outer(B.axis,c,out,a,b,y0w,yTop,hs,B.axis==='x'?x=>hgCol(L,x,B.e+B.n*.3):z=>hgCol(L,B.e+B.n*.3,z),B.axis==='x'?us:zs);}
+  // (la terraza: su piso, y baranda en los bordes que dan afuera —ni a un cuarto ni a otra terraza—)
+  for(const B of bordesDe(terrs,enTerraza,(x,z)=>!adentro(x,z))){const t=.08,rail=(x0,z0,x1,z1)=>box('marco',x0,yF,z0,x1,yF+TERRAZA_CASA.baranda,z1,cTrim);
+   if(B.axis==='x')rail(B.a,B.n<0?B.e-t:B.e,B.b,B.n<0?B.e:B.e+t);else rail(B.n>0?B.e:B.e-t,B.a,B.n>0?B.e+t:B.e,B.b);}
+  for(const t of terrs)floor(t.x0,t.z0,t.x1,t.z1,yF);
   // Tabiques: cada borde entre cuartos, una vez (juntando los tramos de los dos lados), partido donde cambia el cuarto.
   const lines=new Map(),addE=(axis,at,a,b)=>{const k=axis+':'+at.toFixed(3);(lines.get(k)||lines.set(k,{axis,at,iv:[]}).get(k)).iv.push([a,b]);};
   for(const q of L.rooms){if(q.type==='terraza')continue;const x0=q.u0,x1=q.u1,z0=D-q.v1,z1=D-q.v0;if(z1<zF-.01)addE('x',z1,x0,x1);if(z0>.01)addE('x',z0,x0,x1);if(x0>.01)addE('z',x0,z0,z1);if(x1<W-.01)addE('z',x1,z0,z1);}
@@ -302,7 +317,7 @@ export function planHouse(input){
    const holes=L.doors.filter(d=>!d.street&&(axis==='x'?d.axis==='u'&&Math.abs(D-d.at-at)<.01:d.axis==='v'&&Math.abs(d.at-at)<.01)).map(d=>{const stair=[d.a,d.b].some(id=>L.rooms[id]?.type==='escalera');
     return {c:axis==='x'?d.from+d.len/2:D-(d.from+d.len/2),w:d.len,y0:0,y1:stair||d.entero?yTop+1:d.open?yF+DOOR_H:yF+INNER_H+.02};});// (d.entero: el borde abierto de la planta abierta —hogar.js abrirPlanta—, sin dintel)
    const cutsAlong=(axis==='x'?us:zs);
-   const deTerr=terrs.flatMap(t=>axis==='x'?(Math.abs(t.z0-at)<.01?[[t.x0-T,t.x1+T]]:[]):(Math.abs(t.x0-at)<.01||Math.abs(t.x1-at)<.01?[[t.z0-T,t.z1]]:[]));
+   const deTerr=bordes.filter(B=>B.axis===axis&&Math.abs(B.e-at)<.01).map(B=>[B.a-T,B.b+T]);// (un borde del contorno es muro de afuera, no tabique)
    for(let [a0,b0] of merged)for(let [a,b] of menos(a0,b0,deTerr)){a=Math.max(a,T);b=Math.min(b,axis==='x'?W-T:D-T);if(b-a<.05)continue;const pts=[a,...cutsAlong.filter(c=>c>a+.05&&c<b-.05),b];
     for(let i=0;i+1<pts.length;i++){const p0=pts[i],p1=pts[i+1],m=(p0+p1)/2,cN=axis==='x'?hgCol(L,m,at-.2):hgCol(L,at-.2,m),cP=axis==='x'?hgCol(L,m,at+.2):hgCol(L,at+.2,m);
      inner(axis,at,p0,p1,yF,yHi,holes.filter(h=>h.c+h.w/2>p0&&h.c-h.w/2<p1),cN,cP);}}}
