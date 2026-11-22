@@ -29,7 +29,10 @@ jira_title: ""
 - [ ] Bajar la gente encimada a la salida del colegio (5,2 % por cuadro, a menos de medio metro): termina cuando la prueba de sociedad la mide por debajo de 3 %, como a las 11.
 - [x] Calibrar las suites de hotel y hospital: 6 m de frente, baño de 3 × 2 m; probador en 0.
 - [ ] Decidir si las fachadas de calle deben tener más pared pintable. Depende de: Miguel — hoy 20 de 132 fachadas de la ciudad chica tienen alguna; se podría pintar el muro entre ventanas, o hacer que el generador deje paños ciegos.
-- [ ] Guardar junto a cada número de pared la versión de la ciudad: termina cuando lo pintado sobre una ciudad vieja no se carga en una pared que cambió de número.
+- [x] Guardar con cada pared pintada su huella y la versión de la ciudad, en SQLite: lo pintado sigue a su pared si cambia de número y queda apartado si la pared cambió (`validar-guardado`).
+- [ ] Validar en el servidor, contra el plano, que la huella que manda el navegador es la de esa pared: termina cuando un pedido con un número y una huella que no se corresponden se rechaza. Hoy la base sólo revisa la forma.
+- [ ] Achicar el baño de 2 × 6 m de las casas de la ciudad de 720 m (15 casos en `auditar-plano.mjs 1 1 --equipo=16`): termina cuando ese renglón da 0.
+- [ ] Mostrar y recuperar las paredes huérfanas: termina cuando desde el plano se ve qué quedó apartado y se puede volver a poner en una pared de la misma medida.
 - [ ] Numerar también las casas del monte (sus manzanas, después de las de la ciudad): termina cuando una pared de una casa del monte tiene su número de 10 cifras.
 - [ ] Unir las dos caras de un tabique en una sola pared con dos caras. Depende de: Miguel — hoy cada cara es una pared aparte (una por cuarto); decidir si la base de datos las quiere así o como una pared con dos lados.
 - [ ] Decidir quién puede pintar un muro. Depende de: Miguel — adentro, el dueño; afuera, el dueño del edificio, cualquiera, o pagando con la moneda.
