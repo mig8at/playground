@@ -34,7 +34,8 @@ jira_title: ""
 - [x] Achicar el baño de 2 × 6 m de las casas de la ciudad de 720 m: ahora baño de 2 × 3 m y zona de ropas; la auditoría da 4 casos.
 - [ ] Hacer que las pruebas de usos y de ciudad acepten el tamaño de la ciudad: termina cuando corren con la de 720 m.
 - [ ] Decidir si se BORRA del repo el código de colores, texturas y muebles (hoy sólo no se muestra). Depende de: Miguel — los muebles del generador son lo que mide que cada cuarto sirve; borrarlos deja sin base las pruebas de usos, interiores y muebles.
-- [ ] Pasar el plano 2D a boceto (cuartos sin color, sólo líneas y medidas) si Miguel lo quiere igual que el 3D.
+- [x] Pasar el plano de cada piso a plano técnico: cuartos en blanco, medidas y cotas, lo fuera del metro en rojo.
+- [ ] Llevar a metro entero los cuartos que quedan en medio metro (941 de 6.656: baños 372, halls 292): termina cuando no queda rojo en el plano técnico sin perder viviendas ni dormitorios, con el probador en 0.
 - [ ] Mostrar y recuperar las paredes huérfanas: termina cuando desde el plano se ve qué quedó apartado y se puede volver a poner en una pared de la misma medida.
 - [ ] Numerar también las casas del monte (sus manzanas, después de las de la ciudad): termina cuando una pared de una casa del monte tiene su número de 10 cifras.
 - [ ] Unir las dos caras de un tabique en una sola pared con dos caras. Depende de: Miguel — hoy cada cara es una pared aparte (una por cuarto); decidir si la base de datos las quiere así o como una pared con dos lados.
