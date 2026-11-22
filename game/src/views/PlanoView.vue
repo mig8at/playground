@@ -13,6 +13,7 @@ import {planoDe} from '../lib/mapasGuardados.js';
 import {drawWorldStage,drawFloorPlan,drawHogar,drawElevation,drawColocados,marcoPiso,CAPAS,ROOM_LABEL} from '../lib/drawPlan.js';
 import {colocar,OBJETOS,GRILLA} from '../engine/colocar.js';
 import {entregaDe} from '../engine/entrega.js';
+import {nivelDe} from '../engine/duplex.js';
 import {sitiosDe,aparecerEn,cupoDe,poblar,RADIO} from '../engine/aparecer.js';
 import {propiedadesDe,resumenDe,CLASE} from '../engine/propiedades.js';
 import {GRAFITI,lienzoDe,vacio,pintar,pintados,mascaraDe,aTexto,deTexto,claveCiudad,huellaDePared} from '../engine/grafiti.js';
@@ -86,7 +87,7 @@ const avisoPared=ref(''),verMapa=ref(false);
 function alzadoClic(){const L=elegido.value;if(!L)return;const lado=ladoAlzado.value||L.front,M=muroExterior(L,lado),paredes=pintablesDe(L,lado),ids=new Set(paredes.map(w=>w.id));avisoPared.value=paredes.length?'':'Esta fachada no tiene ninguna pared sin puertas ni ventanas.';
  // (las paredes con algún vano no se pintan: enteras, como hueco)
  abrirMuro({...M,huecos:[...M.huecos,...paredesDeFachada(L,lado).filter(w=>!ids.has(w.id)).map(w=>({u0:w.u0,u1:w.u1,y0:w.y0,y1:w.y0+w.alto,clase:'con vanos'}))],paredes});}
-function paredClic(e){const L=elegido.value,lv=L.levels[fichaNivel.value],p=aPiso(e),q=cuartoEn(lv,p.x,p.z);if(!q)return;const w=muroCerca(L,fichaNivel.value,q,p.x,p.z,otroLoteDe(planoEntero,L)),n=paredesPintables(planoEntero,L).find(x=>x.id===w.id);
+function paredClic(e){const L=elegido.value,lv=nivelDe(L,fichaNivel.value),p=aPiso(e),q=cuartoEn(lv,p.x,p.z);if(!q)return;const w=muroCerca(L,fichaNivel.value,q,p.x,p.z,otroLoteDe(planoEntero,L)),n=paredesPintables(planoEntero,L).find(x=>x.id===w.id);
  if(!n){avisoPared.value=BANOS.has(q.type)?'Las paredes de un baño no se pintan.':'Esa pared tiene una puerta o una ventana: sólo se pintan las paredes lisas.';return;}avisoPared.value='';abrirMuro(n);}
 const fondoG=()=>muro.value?.color||elegido.value?.colores?.fachada||'#d9cdb8';
 function celdaG(x,c,f){const s=zoomG.value,i=f*Lz.cols+c,v=graf.d[i];x.fillStyle=!mascara[i]?'#2a303a':v?GRAFITI.paleta[v]:fondoG();x.fillRect(c*s,f*s,s,s);if(!mascara[i]&&s>=3&&(c+f)%2===0){x.fillStyle='#3a424f';x.fillRect(c*s,f*s,s,s);}
@@ -133,8 +134,8 @@ const claveCol=computed(()=>elegido.value?`${seed.value}|${team.value}|L${elegid
 const deEstePiso=computed(()=>colocados.value[claveCol.value]||[]);
 const guardarCol=()=>{try{localStorage.setItem('fuga.colocados',JSON.stringify(colocados.value));}catch{}};
 function aPiso(e){const L=elegido.value,c=piso.value,r=c.getBoundingClientRect(),{m,ox,oy}=marcoPiso(L,c.clientWidth);return {x:(e.clientX-r.left)/m+ox,z:(e.clientY-r.top)/m+oy};}
-function pisoMueve(e){if(!objeto.value||!elegido.value)return;fantasma.value=colocar(elegido.value.levels[fichaNivel.value],aPiso(e),objeto.value,deEstePiso.value,giroObj.value);pintarPiso();}
-function pisoClic(e){if(eligePared.value&&elegido.value){paredClic(e);return;}if(!objeto.value||!elegido.value)return;const r=colocar(elegido.value.levels[fichaNivel.value],aPiso(e),objeto.value,deEstePiso.value,giroObj.value);fantasma.value=r;if(!r.ok){pintarPiso();return;}
+function pisoMueve(e){if(!objeto.value||!elegido.value)return;fantasma.value=colocar(nivelDe(elegido.value,fichaNivel.value),aPiso(e),objeto.value,deEstePiso.value,giroObj.value);pintarPiso();}
+function pisoClic(e){if(eligePared.value&&elegido.value){paredClic(e);return;}if(!objeto.value||!elegido.value)return;const r=colocar(nivelDe(elegido.value,fichaNivel.value),aPiso(e),objeto.value,deEstePiso.value,giroObj.value);fantasma.value=r;if(!r.ok){pintarPiso();return;}
  colocados.value={...colocados.value,[claveCol.value]:[...deEstePiso.value,r]};guardarCol();fantasma.value=null;pintarPiso();}
 function quitarCol(i){const l=[...deEstePiso.value];l.splice(i,1);colocados.value={...colocados.value,[claveCol.value]:l};guardarCol();pintarPiso();}
 function pintarPiso(){const L=elegido.value;if(!L||!piso.value)return;const w=piso.value.parentElement.clientWidth;drawFloorPlan(piso.value,L,{level:fichaNivel.value,stage:9,width:w});drawColocados(piso.value,L,deEstePiso.value,fantasma.value,OBJETOS,{width:w});}// (maxPisos: el plano no es reactivo —es enorme—, así que se anota al cargar)
@@ -180,9 +181,10 @@ function sube(e){const a=arrastre;arrastre=null;if(!a||a.movio||!plano)return;co
 function tecla(e){if(e.target.tagName==='INPUT')return;if(e.key==='+'||e.key==='=')nivel.value=Math.min(maxPisos.value,nivel.value+1);else if(e.key==='-')nivel.value=Math.max(0,nivel.value-1);else if(e.key==='0')ajustar();else if(e.key==='Escape'){if(objeto.value){objeto.value=null;fantasma.value=null;pintarPiso();}else elegido.value=casa.value=null;}
  else if((e.key==='r'||e.key==='R')&&objeto.value){giroObj.value=giroObj.value?0:GRILLA.giro;pintarPiso();}}
 
-const fichaNivel=computed(()=>elegido.value?Math.min(nivel.value,elegido.value.floors-1):0);
-const cuartos=computed(()=>{const L=elegido.value;if(!L)return [];const lv=L.levels[fichaNivel.value],n={};for(const q of lv.rooms){const t=ROOM_LABEL[q.type]||q.type;n[t]=(n[t]||0)+1;}return Object.entries(n).sort((a,b)=>b[1]-a[1]);});
-const medidas=computed(()=>{const L=elegido.value;if(!L)return null;const lv=L.levels[fichaNivel.value],area=L.parts.reduce((a,P)=>a+P.w*P.h,0),pas=lv.corridor.filter(q=>!q.ensanche).reduce((a,q)=>a+q.w*q.h,0),ens=lv.corridor.filter(q=>q.ensanche).reduce((a,q)=>a+q.w*q.h,0);
+// (con dúplex —engine/duplex.js—, arriba del último piso está la mansarda: un nivel más)
+const fichaNivel=computed(()=>elegido.value?Math.min(nivel.value,elegido.value.floors-(elegido.value.duplex?0:1)):0);
+const cuartos=computed(()=>{const L=elegido.value;if(!L)return [];const lv=nivelDe(L,fichaNivel.value),n={};for(const q of lv.rooms){const t=ROOM_LABEL[q.type]||q.type;n[t]=(n[t]||0)+1;}return Object.entries(n).sort((a,b)=>b[1]-a[1]);});
+const medidas=computed(()=>{const L=elegido.value;if(!L)return null;const lv=nivelDe(L,fichaNivel.value),area=L.parts.reduce((a,P)=>a+P.w*P.h,0),pas=lv.corridor.filter(q=>!q.ensanche).reduce((a,q)=>a+q.w*q.h,0),ens=lv.corridor.filter(q=>q.ensanche).reduce((a,q)=>a+q.w*q.h,0);
  return {area:Math.round(area),pasillo:Math.round(pas/area*100),ensanche:Math.round(ens/area*100),muebles:lv.furniture.length,puertas:lv.doors.length,ventanas:lv.windows.length};});
 const casaNivel=computed(()=>casa.value?Math.min(nivel.value,casa.value.spec.hogar.levels.length-1):0);
 const casaCuartos=computed(()=>{const c=casa.value;if(!c)return [];return c.spec.hogar.levels[casaNivel.value].rooms.filter(q=>q.type!=='hall').map(q=>({nombre:q.label||ROOM_LABEL[q.type]||q.type,medida:`${(q.u1-q.u0).toFixed(1)} × ${(q.v1-q.v0).toFixed(1)} m`}));});
@@ -286,7 +288,7 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
     <ul><li v-for="p in propsEdificio" :key="p.id" :class="{on:p.piso===fichaNivel}" :title="`${p.id} · clase ×${p.factores.clase} · centro ×${p.factores.centro} · piso ×${p.factores.piso} · parque ×${p.factores.parque}`"><span>{{ p.nombre }}<small>{{ p.piso===0?'planta baja':'piso '+p.piso }}<template v-if="p.dormitorios"> · {{ p.dormitorios }} dorm.</template></small></span><i>{{ p.area.toFixed(1) }} m²</i><b>{{ plata(p.precio) }}</b></li></ul>
     <small v-if="propsEdificio[0].direccion">{{ propsEdificio[0].direccion }} · precio base: área × 1.000 × clase × centro × piso × parque</small>
    </div>
-   <p class="nivel">{{ fichaNivel===0?'Planta baja':'Piso '+fichaNivel }}<template v-if="nivel>=elegido.floors"> (el último: el visor está en la azotea)</template></p>
+   <p class="nivel">{{ fichaNivel===0?'Planta baja':elegido.duplex&&fichaNivel>=elegido.floors?'Mansarda · dúplex':'Piso '+fichaNivel }}<template v-if="nivel>elegido.floors-(elegido.duplex?0:1)"> (el último: el visor está en la azotea)</template></p>
    <dl v-if="medidas"><dt>Área</dt><dd>{{ medidas.area }} m²</dd><dt>Pasillo</dt><dd :class="{alerta:medidas.pasillo>30}">{{ medidas.pasillo }} %</dd><template v-if="medidas.ensanche"><dt>Ensanche</dt><dd :class="{alerta:medidas.ensanche>25}" title="El tramo sin luz de un piso de departamentos: es más pasillo, decorado, y no cuartos">{{ medidas.ensanche }} %</dd></template><dt>Muebles</dt><dd>{{ medidas.muebles }}</dd><dt>Puertas</dt><dd>{{ medidas.puertas }}</dd><dt>Ventanas</dt><dd>{{ medidas.ventanas }}</dd></dl>
    <ul class="cuartos"><li v-for="[t,n] in cuartos" :key="t"><span>{{ t }}</span><b>{{ n }}</b></li></ul>
    <div class="alzado-cab"><b>La fachada</b>

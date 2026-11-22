@@ -20,12 +20,14 @@
 //   · parque: + PRECIO.parque si el edificio está a menos de PRECIO.cercaParque metros de un parque.
 import {CELL} from './blueprint.js';
 
-export const PRECIO={m2:1000,redondeo:100,clase:{departamento:1,local:1.6,casa:1.25,casa_monte:1.1},centro:.5,porPiso:.03,pisoMax:.24,parque:.1,cercaParque:12};
+// (duplex, 2026-11-22: el departamento del último piso con su mansarda —engine/duplex.js— suma el área de los dos niveles y
+// vale PRECIO.duplex más por metro: dos niveles, el piso más alto y la escalera propia. Miguel: «serían los más caros»)
+export const PRECIO={m2:1000,redondeo:100,clase:{departamento:1,local:1.6,casa:1.25,casa_monte:1.1},centro:.5,porPiso:.03,pisoMax:.24,parque:.1,cercaParque:12,duplex:.25};
 export const CLASE={departamento:'Departamento',local:'Local',casa:'Casa',casa_monte:'Casa del monte'};
 const r2=v=>Math.round(v*100)/100;
 
-export function precioDe({clase,area,centro=0,piso=0,parque=false}){const f={clase:PRECIO.clase[clase]||1,centro:1+PRECIO.centro*centro,piso:1+Math.min(PRECIO.pisoMax,PRECIO.porPiso*piso),parque:parque?1+PRECIO.parque:1};
- return {precio:Math.round(area*PRECIO.m2*f.clase*f.centro*f.piso*f.parque/PRECIO.redondeo)*PRECIO.redondeo,factores:{clase:f.clase,centro:r2(f.centro),piso:r2(f.piso),parque:f.parque}};}
+export function precioDe({clase,area,centro=0,piso=0,parque=false,duplex=false}){const f={clase:PRECIO.clase[clase]||1,centro:1+PRECIO.centro*centro,piso:1+Math.min(PRECIO.pisoMax,PRECIO.porPiso*piso),parque:parque?1+PRECIO.parque:1,duplex:duplex?1+PRECIO.duplex:1};
+ return {precio:Math.round(area*PRECIO.m2*f.clase*f.centro*f.piso*f.parque*f.duplex/PRECIO.redondeo)*PRECIO.redondeo,factores:{clase:f.clase,centro:r2(f.centro),piso:r2(f.piso),parque:f.parque,duplex:f.duplex}};}
 
 export function propiedadesDe(bp){const {W,H}=bp.map,cx=W*CELL/2,cz=H*CELL/2,dmax=Math.hypot(cx,cz),out=[];
  // (cerca de un parque: la huella del lote a menos de cercaParque del rectángulo del parque, en metros)
@@ -39,7 +41,9 @@ export function propiedadesDe(bp){const {W,H}=bp.map,cx=W*CELL/2,cz=H*CELL/2,dma
   L.levels.slice(0,L.floors).forEach((lv,piso)=>{
    // los departamentos: los cuartos de cada número de unidad
    const porUnidad=new Map();for(const q of lv.rooms)if(q.unit!=null)(porUnidad.get(q.unit)||porUnidad.set(q.unit,[]).get(q.unit)).push(q);
-   for(const [n,qs] of [...porUnidad].sort((a,b)=>a[0]-b[0]))pon({id:`L${L.id}-${n}`,clase:'departamento',piso,unidad:n,area:area(qs),cuartos:qs.length,dormitorios:qs.filter(q=>q.type==='dormitorio').length,nombre:`Apto ${n}`});
+   // (el dúplex: el departamento del último piso con su mansarda; suma los cuartos y el área de arriba)
+   for(const [n,qs] of [...porUnidad].sort((a,b)=>a[0]-b[0])){const dx=piso===L.floors-1?L.duplex?.unidades.find(u=>u.n===n):null;
+    pon({id:`L${L.id}-${n}`,clase:'departamento',piso,unidad:n,area:r2(area(qs)+(dx?.area||0)),cuartos:qs.length+(dx?dx.rooms.length:0),dormitorios:qs.filter(q=>q.type==='dormitorio').length,nombre:dx?`Dúplex ${n}`:`Apto ${n}`,...(dx?{duplex:true,niveles:2,areaArriba:dx.area}:{})});}
    // los locales: cada cuarto de comercio, numerados de izquierda a derecha y de arriba abajo
    lv.rooms.filter(q=>q.type==='local'&&q.unit==null).sort((a,b)=>a.y-b.y||a.x-b.x).forEach((q,i)=>pon({id:`L${L.id}-P${piso}-LOC${i+1}`,clase:'local',piso,unidad:i+1,area:area([q]),cuartos:1,nombre:`Local ${i+1}`}));});}
  (bp.isla?.casas||[]).forEach((c,i)=>{const HG=c.spec?.hogar;if(!HG)return;const p={id:`M${i}`,clase:'casa_monte',piso:0,unidad:null,area:r2(HG.area),cuartos:HG.levels.reduce((a,lv)=>a+lv.rooms.length,0),nombre:HG.label||'Casa',lote:null,edificio:null,direccion:c.direccion?.texto||null,centro:0,parque:false,casa:i};

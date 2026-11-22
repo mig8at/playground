@@ -16,11 +16,11 @@ for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:3}),P=propiedad
   if(!(p.area>0))falla('propiedad sin área',{ciudad:s,id:p.id,area:p.area});if(!(p.precio>0))falla('propiedad sin precio',{ciudad:s,id:p.id});
   if(p.area<8&&p.clase!=='local')falla('vivienda de menos de 8 m²',{ciudad:s,id:p.id,area:p.area});
   // el precio, recalculado por otro camino
-  const esperado=Math.round(p.area*PRECIO.m2*PRECIO.clase[p.clase]*(1+PRECIO.centro*p.centro)*(1+Math.min(PRECIO.pisoMax,PRECIO.porPiso*p.piso))*(p.parque?1+PRECIO.parque:1)/PRECIO.redondeo)*PRECIO.redondeo;
+  const esperado=Math.round(p.area*PRECIO.m2*PRECIO.clase[p.clase]*(1+PRECIO.centro*p.centro)*(1+Math.min(PRECIO.pisoMax,PRECIO.porPiso*p.piso))*(p.parque?1+PRECIO.parque:1)*(p.duplex?1+PRECIO.duplex:1)/PRECIO.redondeo)*PRECIO.redondeo;// (el dúplex, con su recargo —2026-11-22—)
   if(Math.abs(esperado-p.precio)>PRECIO.redondeo)falla('el precio no cuadra con su fórmula',{ciudad:s,id:p.id,precio:p.precio,esperado});}
  const viv=P.filter(p=>p.clase!=='local').length,cupo=cupoDe(bp).viviendas;if(viv!==cupo)falla('las viviendas del listado no son las del cupo',{ciudad:s,listado:viv,cupo});
  // por edificio y piso: el área vendida no supera la huella
- const porPiso=new Map();for(const p of P)if(p.lote!=null){const k=p.lote+':'+p.piso;porPiso.set(k,(porPiso.get(k)||0)+p.area);}
+ const porPiso=new Map();for(const p of P)if(p.lote!=null){const k=p.lote+':'+p.piso;porPiso.set(k,(porPiso.get(k)||0)+p.area-(p.areaArriba||0));}// (lo de la mansarda de un dúplex está en otro nivel)
  for(const [k,a] of porPiso){const L=bp.lots[+k.split(':')[0]],huella=L.parts.reduce((x,q)=>x+q.w*q.h,0);if(a>huella+.5)falla('se vende más área que la huella del edificio',{ciudad:s,piso:k,area:+a.toFixed(1),huella});}
  // a igual área, más alto no vale menos
  const dep=P.filter(p=>p.clase==='departamento');for(const a of dep)for(const b of dep)if(a.lote===b.lote&&Math.abs(a.area-b.area)<.01&&a.piso<b.piso&&a.precio>b.precio)falla('un piso más alto vale menos a igual área',{ciudad:s,a:a.id,b:b.id});
