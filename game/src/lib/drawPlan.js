@@ -20,10 +20,10 @@ export const ROOM_LABEL={sala:'Sala',dormitorio:'Dormitorio',cocina:'Cocina',ban
  entrada:'Entrada',secretaria:'Secretaría',comedor:'Comedor',sanitario:'Sanitario',interrogatorio:'Interrogatorio',prestamo:'Préstamo',estanteria:'Estantería',infantil:'Sala infantil'};
 // Colores del plano (claros también en modo oscuro: es un plano impreso, como el del juego).
 // EL PLANO TÉCNICO (2026-11-22, Miguel: «enfocarnos en la generación exacta de espacios, tanto a nivel cenital, que es el
-// mapa, como a nivel frontal con las fachadas, antes de pensar en cargar el inmobiliario y aplicar texturas»): los
-// cuartos en blanco, la circulación en gris claro, los muros en negro y, en cada cuarto, su medida de eje a eje. Lo que
-// no cae en metro entero va en rojo (TECNICO.fuera): es lo que todavía no está en la grilla. Los colores por tipo de
-// cuarto (ROOM_COLOR) quedan para las casas del monte (drawHogar).
+// mapa, como a nivel frontal con las fachadas, antes de pensar en cargar el inmobiliario y aplicar texturas»): los muros
+// en negro, la ventana como muro abierto con una raya fina y, en cada cuarto, su medida de eje a eje; lo que no cae en
+// metro entero va en rojo (TECNICO.fuera). Los cuartos conservan su color por tipo (ROOM_COLOR): «en el plano 2D sí
+// podés usar colores para identificar áreas —comercial, habitación, baño, sala, cocina—; donde no los quiero es en el 3D».
 export const TECNICO={cuarto:'#ffffff',paso:'#f1f1ef',nucleo:'#dcdcd8',muro:'#1f2224',fuera:'#d0412f',cota:'#4a4f55'};
 const entero=v=>Math.abs(v-Math.round(v))<1e-6,mm=v=>(Math.round(v*100)/100).toLocaleString('es-CO');
 const ROOM_COLOR={hall:'#efe9df',ropas:'#e2eef0',sala:'#f3e6cf',dormitorio:'#e8e0f0',cocina:'#f6eccd',bano:'#d9ecf2',oficina:'#dfe9f2',abierta:'#e3edf5',reuniones:'#e9e4f2',cocineta:'#f6eccd',
@@ -132,7 +132,7 @@ function drawLevel(g,lv,{m,stage,small=false,ox=0,oy=0,labels=false}){
  // Núcleo (5) y pasillo.
  // (el ensanche: el tramo ciego CORTO de un piso de departamentos —el largo lleva ropas y trasteros desde el 2026-11-20—, que por decisión de diseño es más pasillo y no cuartos —el 3D
  // lo decora con cuadros y floreros—; va en otro tono y con su nombre, para que no se lea como un pasillo que sobra)
- for(const c of lv.corridor){g.fillStyle=TECNICO.paso;R(c,(a,b,w,h)=>g.fillRect(a,b,w,h));
+ for(const c of lv.corridor){g.fillStyle=c.ensanche?'#ebe4d3':TECNICO.paso;R(c,(a,b,w,h)=>g.fillRect(a,b,w,h));
   if(c.ensanche&&!small){g.save();g.strokeStyle='rgba(120,100,70,.35)';g.lineWidth=1;g.setLineDash([5,4]);R(c,(a,b,w,h)=>g.strokeRect(a+3,b+3,w-6,h-6));g.restore();
    if(labels&&c.w*m>=70){g.font='600 11px system-ui,sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillStyle='rgba(90,76,52,.85)';g.fillText('Ensanche del pasillo',X(c.x+c.w/2),Y(c.y+c.h/2));}}}
  // (un piso puede no tener núcleo —un local de una planta sin escalera—: se dibuja sin él; antes el plano entero se caía)
@@ -146,7 +146,7 @@ function drawLevel(g,lv,{m,stage,small=false,ox=0,oy=0,labels=false}){
   const L=lv.liftRect;if(L){g.strokeStyle='#8b877f';g.strokeRect(X(L.x+.2),Y(L.y+.2),(L.w-.4)*m,(L.h-.4)*m);g.beginPath();g.moveTo(X(L.x+.2),Y(L.y+.2));g.lineTo(X(L.x+L.w-.2),Y(L.y+L.h-.2));g.moveTo(X(L.x+L.w-.2),Y(L.y+.2));g.lineTo(X(L.x+.2),Y(L.y+L.h-.2));g.stroke();}}
  if(stage<6){if(core){g.strokeStyle='#5d5a54';g.lineWidth=small?.8:1.5;R(core,(a,b,w,h)=>g.strokeRect(a,b,w,h));}return;}
  // Cuartos (6).
- for(const q of lv.rooms){g.fillStyle=TECNICO.cuarto;R(q,(a,b,w,h)=>g.fillRect(a,b,w,h));}
+ for(const q of lv.rooms){g.fillStyle=ROOM_COLOR[q.type]||TECNICO.cuarto;R(q,(a,b,w,h)=>g.fillRect(a,b,w,h));}
  g.strokeStyle=TECNICO.muro;g.lineWidth=small?.7:2;for(const q of core?[...lv.rooms,core]:lv.rooms)R(q,(a,b,w,h)=>g.strokeRect(a,b,w,h));
  // Cada departamento, con su contorno más grueso (la pared que lo separa del vecino y del pasillo).
  if(lv.units?.length){g.strokeStyle='#1f2224';g.lineWidth=small?1.3:4;for(const u of lv.units)R(u,(a,b,w,h)=>g.strokeRect(a,b,w,h));}
@@ -194,7 +194,7 @@ export function drawFloorPlan(canvas,L,{level,stage,width}){
  canvas.width=Math.round(width*dpr);canvas.height=Math.round(hgt*dpr);canvas.style.height=hgt+'px';
  const g=canvas.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,width,hgt);
  const ox=r.x-(width/m-r.w)/2,oy=r.y-pad/m;
- g.fillStyle=TECNICO.cuarto;for(const P of L.parts)g.fillRect((P.x-ox)*m,(P.y-oy)*m,P.w*m,P.h*m);
+ g.fillStyle=TYPES[L.type].color;for(const P of L.parts)g.fillRect((P.x-ox)*m,(P.y-oy)*m,P.w*m,P.h*m);
  // Rejilla de 1 m, y la del módulo de 2 m más marcada.
  g.save();g.beginPath();for(const P of L.parts)g.rect((P.x-ox)*m,(P.y-oy)*m,P.w*m,P.h*m);g.clip();
  for(const [paso,a] of [[1,.05],[2,.09]]){g.strokeStyle=`rgba(0,0,0,${a})`;g.lineWidth=1;g.beginPath();for(let x=0;x<=r.w;x+=paso){g.moveTo((r.x+x-ox)*m,(r.y-oy)*m);g.lineTo((r.x+x-ox)*m,(r.y+r.h-oy)*m);}for(let y=0;y<=r.h;y+=paso){g.moveTo((r.x-ox)*m,(r.y+y-oy)*m);g.lineTo((r.x+r.w-ox)*m,(r.y+y-oy)*m);}g.stroke();}g.restore();

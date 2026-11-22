@@ -325,12 +325,11 @@ function fill(a,b,prog,r,start=0,depth=Infinity){const out=[];let u=a,i=start;
 // mapa agradable»). Los anchos de los cuartos de un departamento se redondean a este paso, y con él se corren los
 // tabiques al repartir lo que sobra. Era 0,5 m: los tabiques llegaban a la fachada en cualquier medio metro y el 12 % caía
 // adentro de un módulo de 2 m a 0,5 o 1,5 m de su borde. PASO_CUARTO se lee del ambiente sólo para medir alternativas.
-// SE MIDIÓ Y NO SE CAMBIÓ: sigue en 0,5 m. Lo que se calibró fue el fondo de las franjas (medidas.js FRANJA, a 4 y 2 m),
-// que es lo que desalineaba. Con el paso además en 1 m (medio módulo), en tres ciudades chicas: 95 % de los tabiques en un
-// metro entero contra 94 % —casi nada—, 2 % menos de viviendas (727 → 711), y junto con las franjas nuevas 135 fallas en
-// la prueba de usos (camas y ventanas a las que no se llega). Con paso de 2 m se pierde el 16 % de los dormitorios.
-// FUGA_PASO: sólo para volver a medirlo.
-export const PASO_CUARTO=+(globalThis.process?.env?.FUGA_PASO||.5);
+// (2026-11-21: se midió con 1 m y no se adoptó: casi sin ganancia y 135 fallas de usos.) ADOPTADO EL 2026-11-22, Miguel:
+// «a metro entero». Con las franjas ya en 4 y 2 m, el paso de 1 m lleva los cuartos fuera del metro entero de 941 a ~190 en
+// tres ciudades; lo que fallaba era la puerta de la alcoba pegada al rincón (ver `near` en layoutFloor), no el paso.
+// Cuesta 16 de 727 viviendas y 9 de 698 dormitorios. FUGA_PASO: sólo para volver a medir.
+export const PASO_CUARTO=+(globalThis.process?.env?.FUGA_PASO||1);
 const G05=v=>Math.ceil(v/PASO_CUARTO-1e-6)*PASO_CUARTO;
 const minW=(k,depth)=>{const M=MINIMOS[k];let best=null;for(const o of ['hondo','ancho']){const m=M?.[o];if(!m)continue;for(const [w,d] of [m,[m[1],m[0]]])if(d<=depth+1e-6&&(best==null||w<best))best=w;}return best==null?null:G05(best);};
 const UNIT_COMBOS=[['dormitorio_principal','dormitorio_dos_camas','dormitorio_estudiante'],['dormitorio_principal','dormitorio_dos_camas'],['dormitorio_principal'],['dormitorio_doble']];
@@ -338,14 +337,14 @@ const UNIT_COMBOS=[['dormitorio_principal','dormitorio_dos_camas','dormitorio_es
 // (2026-10-15, decisión de Miguel) Cada alcoba y la sala tienen que contener los módulos de ventana ENTEROS que pide su
 // superficie para tener luz (MINIMO.luz) con la ventana más grande de la familia del edificio (gmax, m² de vidrio); D: el
 // fondo de la sala, que va de punta a punta del departamento.
-export function unitPlan(W,fd,u0,u1,mirror,sep=false,D=fd+FRANJA.interior,gmax=2){const bathW=G05(Math.max(2,minW('bano',2)||2.5)),cocMin=2.5;
+export function unitPlan(W,fd,u0,u1,mirror,sep=false,D=fd+FRANJA.interior,gmax=2){const bathW=G05(Math.max(2,minW('bano',2)||2.5)),cocMin=G05(2.5);// (la cocina aparte, en el paso de los tabiques: 2,5 dejaba medio metro en la ciudad de 720 m)
  // (proporciones, 2026-10-15: ningún cuarto habitable más alargado que MINIMO.proporcion con sus lados libres: la sala,
  // que va de punta a punta del departamento, por lo menos D/2; cada alcoba, como mucho el doble de su fondo)
- const T=MURO.tabique,salaMin=Math.max(3,G05((D-T)/MINIMO.proporcion+T)),bedMax=Math.floor(((fd-T)*MINIMO.proporcion+T)*2+1e-9)/2;
+ const T=MURO.tabique,salaMin=Math.max(3,G05((D-T)/MINIMO.proporcion+T)),bedMax=Math.floor(((fd-T)*MINIMO.proporcion+T)/PASO_CUARTO+1e-9)*PASO_CUARTO;// (en el paso de los tabiques: con 0,5 fijo, una alcoba de 4,5 m salía con el paso de 1 m)
  // (¿la ventana? una franja [x0, x1] tiene un módulo de 2 m entero adentro, en coordenadas del lote —con el espejo—)
  const real=(x0,x1)=>mirror?[u0+u1-x1,u0+u1-x0]:[x0,x1],mods=(x0,x1)=>{const [p,q]=real(x0,x1);return Math.max(0,Math.floor(q/2+1e-9)-Math.ceil(p/2-1e-9));};
  const need=area=>Math.max(1,Math.ceil(area*MINIMO.luz/gmax-1e-9)),hasMod=(x0,x1,area)=>mods(x0,x1)>=need(area);
- for(const coc of sep?[true,false]:[false,true])for(const combo of UNIT_COMBOS){const base=combo.map(k=>minW(k,fd));if(base.some(v=>v==null))continue;base[0]=Math.max(base[0],bathW+PASILLO.hall);// (el hall: lo que la primera alcoba pasa del baño)
+ for(const coc of sep?[true,false]:[false,true])for(const combo of UNIT_COMBOS){const base=combo.map(k=>minW(k,fd));if(base.some(v=>v==null))continue;base[0]=Math.max(base[0],G05(bathW+PASILLO.hall));// (el hall: lo que la primera alcoba pasa del baño, en el paso de los tabiques —2 + 1,5 daba 3,5 con el paso de 1 m—)
   {const need=base.reduce((a,b)=>a+b,0)+salaMin+(coc?cocMin:0);if(need>W+1e-6)continue;
    // Lo que sobra (2026-10-15: búsqueda; antes un reparto fijo —primero la sala hasta 5 m, después las alcobas— que con
    // ladrillo daba alcoba en 10 y 14 m pero no en 12: la sala de 5,5 pedía 3 módulos de ventana y le caían 2). Se prueban
@@ -405,7 +404,7 @@ function apartments(a,b,v0,v1,corr,r,band,units,gmax=2){
    else{const est=room('estudio',u0,u1-2,v0,v1,{entry:true});banoEstudio(est);}}
   // (la sala, como mucho MINIMO.proporcion veces su fondo libre —con pasillos de 2 m el fondo bajó a 4 y una sala de 8×4
   // quedaba alargada—; lo que sobra, al dormitorio)
-  else if(W>=10&&D>=4){const sw=2,salaMax=Math.floor(((D-MURO.tabique)*MINIMO.proporcion+MURO.tabique)*2+1e-9)/2,salaW=Math.min(W-4-sw,salaMax),dw=W-sw-salaW;
+  else if(W>=10&&D>=4){const sw=2,salaMax=Math.floor(((D-MURO.tabique)*MINIMO.proporcion+MURO.tabique)/PASO_CUARTO+1e-9)*PASO_CUARTO,salaW=Math.min(W-4-sw,salaMax),dw=W-sw-salaW;// (salaMax en el paso de los tabiques: con 0,5 fijo, sala de 7,5 y dormitorio de 4,5)
    // (4 m de fondo: cocina abierta en la sala —una cocina aparte de 2×2 no tenía lugar para el mesón— y el baño a todo
    // el fondo; el hall no cabe: el dormitorio da a la sala)
    const sala=room('sala_cocina',u0+dw,u0+dw+salaW,v0,v1,{entry:true});room('dormitorio',u0,u0+dw,v0,v1,{doorTo:sala});
@@ -467,7 +466,8 @@ export const STAIR_STEPS=ESCALERA.peldanos,STAIR_TREAD=ESCALERA.huella,STAIR_FR=
 // (FRANJA.fachada + FRANJA.interior = 6 m) mientras alcance; en las muy hondas, al medio. La usan layoutFloor y la L.
 export const corridorAt=Lv=>Lv<=14?Lv-(FRANJA.fachada+FRANJA.interior):Math.min(FRANJA.maxLuz,(Lv-PASILLO.ancho)/2);
 // El ancho del pasillo en un ala de Lv m de fondo: PASILLO.ancho, y en las muy hondas lo que dejan las dos franjas de
-// FRANJA.maxLuz (2026-10-15: con lotes de 18 m las franjas de 8 y 8,5 m no se podían iluminar; ahora 7,5 + 3 + 7,5).
+// FRANJA.maxLuz (2026-10-15: con lotes de 18 m las franjas de 8 y 8,5 m no se podían iluminar; 7,5 + 3 + 7,5, y desde el
+// 2026-11-22, a metro entero, 7 + 4 + 7).
 export const pasilloDe=Lv=>Lv<=14?PASILLO.ancho:Math.max(PASILLO.ancho,Lv-2*corridorAt(Lv));
 const ALARGA_MAX=2;// (m de tramo ciego —un módulo; con 4, 13 de 346 edificios con un cuarto sin ventana— que un departamento se alarga para no dejar cuartos sueltos al pasillo: layoutFloor)
 const ENSANCHE_MAX=4,TRASTEROS=[['ropas',2,2],['deposito',2,2],['deposito',2,2],['deposito',2,2]];// (m de tramo ciego que todavía es ensanche del pasillo; más largo, zona de ropas y trasteros: layoutFloor)
@@ -599,7 +599,7 @@ function openings(L,F,plan,level,r){// (PC: el ancho de la puerta de calle de es
  // FM —su cara más medio marco y 6 cm— y no 10 cm del eje, que la metía 15 cm en el muro. axis: hacia dónde corre el
  // borde ('u' o 'v'), para saber qué punta es borde. wd: el ancho real de la puerta.
  const FM=MURO.fachada+.1,edge=(axis,t)=>t<=1e-6||t>=(axis==='u'?Lu:Lv)-1e-6;
- const near=(a,b,wd=1,axis)=>{const len=b-a,rr=len>wd+.15?r():null,ea=!!axis&&edge(axis,a),eb=!!axis&&edge(axis,b),m=len<=2.2?.1:.4,ma=ea?Math.max(m,FM):m,mb=eb?Math.max(m,FM):m;
+ const near=(a,b,wd=1,axis)=>{const len=b-a,rr=len>wd+.15?r():null,ea=!!axis&&edge(axis,a),eb=!!axis&&edge(axis,b),m=len<wd+.8-1e-9?.1:.4,/* (2026-11-22: el aire de 40 cm a la esquina va siempre que entra —antes sólo con más de 2,2 m de borde—: con los tabiques cada 1 m el borde entre el hall y una alcoba es de 2 m y la puerta quedaba a 10 cm del rincón, donde el muro inflado por el cuerpo y la cómoda cerraban la entrada: validar-usos, 90 fallas por ciudad) */ma=ea?Math.max(m,FM):m,mb=eb?Math.max(m,FM):m;
   if(rr===null||len<wd+ma+mb-1e-9){const lo=a+(ea?FM:.1),hi=b-(eb?FM:.1)-wd;return hi>=lo-1e-9?(lo+hi)/2:a+(len-wd)/2;}
   return rr<.5?a+ma:b-mb-wd;};
  rooms.forEach((q,i)=>{q.id=i;});

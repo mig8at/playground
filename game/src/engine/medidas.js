@@ -184,7 +184,9 @@ export const copias={
 // El fondo máximo de una franja que se puede iluminar (2026-10-15): con una ventana por módulo de 2 m, un cuarto recibe
 // como mucho (vidrio de la ventana)/2 m² por metro de fachada y la luz pide fondo × MINIMO.luz: fondo ≤ vidrio/2/luz. Con
 // la ventana más grande de ladrillo y piedra (1,99 m²): 7,96 → 7,5 en la grilla de 0,5. Más hondo, ninguna ventana alcanza.
-FRANJA.maxLuz=Math.floor(Math.min(...Object.values(VENTANAS_FAMILIA).map(f=>Math.max(...f.map(k=>VIDRIO.ventana[k]))))/2/MINIMO.luz*2+1e-9)/2;
+// (2026-11-22, a metro entero: 7,96 → 7, no 7,5. En un lote de 18 m de fondo las franjas eran 7,5 + 3 + 7,5 y todo lo que
+// cortaba esas franjas quedaba en medio metro; ahora 7 + 4 + 7, con el pasillo de 4 m)
+FRANJA.maxLuz=Math.floor(Math.min(...Object.values(VENTANAS_FAMILIA).map(f=>Math.max(...f.map(k=>VIDRIO.ventana[k]))))/2/MINIMO.luz+1e-9);
 
 // ======== EL JUEGO: rangos que el generador garantiza (2026-10-15) ========
 // robables: los edificios que se roban (plano.js); puertasRobable: las puertas de calle mínimas de cada uno —con una sola,
