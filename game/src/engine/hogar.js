@@ -192,7 +192,11 @@ function layoutHogar(kind,two,list,rev){const H=HOGARES[kind],keys=[...list];
    if(q)doors.push({axis:'u',at:q.v1,from:Math.max(q.u0+.35,q.u1-(Math.abs(q.u1-q.Lu)<.01?1.35:1.2)),len:.9,a:q.id,b:'patio',patio:true});}
   // Ventanas: en el medio de cada borde que da afuera (las de los baños, chicas), menos donde va la puerta de calle.
   for(const q of rooms){if(q.type==='escalera'||AFUERA.has(q.type)||q===hall)continue;const bano=q.type==='bano',wl=bano?.6:Math.min(VENTANAL,(q.u1-q.u0)-.6);
-   const add=(axis,at,c0,c1,len)=>{if(len<.5)return;windows.push({axis,at,from:(c0+c1)/2-len/2,len,a:q.id,small:bano});};
+   // (2026-11-22, lo vio el grafo de la casa —grafoDeCasa—: la ventana de la cocina y la puerta del patio se pisaban en el plano;
+   // el 3D la corría al dibujarla. Ahora la ventana va en el pedazo más largo de su pared que dejan las puertas de afuera, con
+   // su marco y 25 cm de muro entre las dos)
+   const add=(axis,at,c0,c1,len)=>{let ps=[[c0,c1]];for(const d of doors)if((d.street||d.patio||d.afuera)&&d.axis===axis&&Math.abs(d.at-at)<1e-6)ps=ps.flatMap(([x,y])=>[[x,Math.min(y,d.from-.37)],[Math.max(x,d.from+d.len+.37),y]]).filter(([x,y])=>y-x>.05);
+    const [x,y]=ps.sort((p1,p2)=>(p2[1]-p2[0])-(p1[1]-p1[0]))[0]||[0,0],l=Math.min(len,y-x);if(l<.5)return;windows.push({axis,at,from:+((x+y)/2-l/2).toFixed(3),len:+l.toFixed(3),a:q.id,small:bano});};
    // (una sola ventana por cuarto: la de adelante o la de atrás; la del costado, si no tiene otra)
    const n0=windows.length;if(Math.abs(q.v0-f0)<1e-6&&!(level===0&&q===sala))add('u',f0,q.u0,q.u1,wl);
    if(Math.abs(q.v1-D)<1e-6)add('u',D,q.u0,q.u1,wl);

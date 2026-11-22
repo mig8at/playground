@@ -29,7 +29,7 @@ export function regionesDe(lv){const out=[];// (id: 'r<n>' un cuarto, 'pasillo',
  return out;}
 
 // El grafo de un piso. otroLote(x, z): ¿ese punto es de otro edificio? (para la medianera; si falta, afuera es fachada)
-export function grafoDePiso(L,nivel,{otroLote=null}={}){const lv=L.levels[nivel],R=regionesDe(lv),problemas=[],P=(L.parts||[]);
+export function grafoDePiso(L,nivel,{otroLote=null,espesor=ESPESOR}={}){const lv=L.levels[nivel],R=regionesDe(lv),problemas=[],P=(L.parts||[]);
  const dentroEdificio=(x,z)=>P.some(p=>x>p.x-E&&x<p.x+p.w+E&&z>p.y-E&&z<p.y+p.h+E);
  // (la región que cubre un punto, estrictamente adentro)
  const regionEn=(x,z)=>R.find(r=>x>r.x+E&&x<r.x+r.w-E&&z>r.y+E&&z<r.y+r.h-E)||null;
@@ -54,7 +54,7 @@ export function grafoDePiso(L,nivel,{otroLote=null}={}){const lv=L.levels[nivel]
  const tramos=[];const porLinea=new Map();for(const p of piezas){const k=(p.h?'h':'v')+p.f;(porLinea.get(k)||porLinea.set(k,[]).get(k)).push(p);}
  for(const ps of porLinea.values()){ps.sort((a,b)=>a.a0-b.a0);let t=null;
   for(const p of ps){if(t&&t.clase===p.clase&&Math.abs(t.a1-p.a0)<E){t.a1=p.a1;t.lados.push({a0:p.a0,a1:p.a1,lados:p.lados});}else{t={h:p.h,f:p.f,a0:p.a0,a1:p.a1,clase:p.clase,lados:[{a0:p.a0,a1:p.a1,lados:p.lados}],vanos:[]};tramos.push(t);}}}
- tramos.sort((a,b)=>(a.h===b.h?0:a.h?-1:1)||a.f-b.f||a.a0-b.a0);tramos.forEach((t,i)=>t.id=`L${L.id}-P${nivel}-M${i}`);
+ tramos.sort((a,b)=>(a.h===b.h?0:a.h?-1:1)||a.f-b.f||a.a0-b.a0);tramos.forEach((t,i)=>{t.id=`L${L.id}-P${nivel}-M${i}`;t.esp=espesor;});
  // NODOS: las puntas de cada tramo y donde un tramo toca a otro de costado
  const nodos=new Map();const nodo=(x,z)=>{const k=r3(x)+','+r3(z);return nodos.get(k)||nodos.set(k,{id:'',x:r3(x),z:r3(z),tramos:new Set()}).get(k);};
  const xz=(t,a)=>t.h?[a,t.f]:[t.f,a];
@@ -75,7 +75,7 @@ export function grafoDePiso(L,nivel,{otroLote=null}={}){const lv=L.levels[nivel]
  // ASTILLAS: lo que se VE de muro entre vanos y juntas —el largo en el eje, menos medio espesor del muro que llega en la junta
  // y el marco de la puerta de al lado—, si queda entre una junta (GRAFO.junta: el vano llega a la cara del muro) y GRAFO.astilla
  // (la medianera, como la fachada: según la altura del vecino el 3D la dibuja con el espesor de la fachada —la culata—)
- const medio=c=>c===CLASE.fachada||c===CLASE.medianera?ESPESOR.fachada:ESPESOR.tabique/2;
+ const medio=c=>c===CLASE.fachada||c===CLASE.medianera?espesor.fachada:espesor.tabique/2;
  const claseEn=(t,a)=>{const o=tramos.find(o=>o.h!==t.h&&Math.abs(o.f-a)<E&&t.f>o.a0-E&&t.f<o.a1+E);return o?.clase;};
  for(const t of tramos){if(t.clase===CLASE.fachada||t.clase===CLASE.medianera)continue;const cortes=[t.a0,t.a1,...(t.juntas||[])].sort((a,b)=>a-b),llenos=[];
   for(let i=0;i+1<cortes.length;i++){let ts=[[cortes[i],cortes[i+1]]];for(const v of t.vanos)ts=ts.flatMap(([u,w])=>[[u,Math.min(w,v.a0)],[Math.max(u,v.a1),w]].filter(([p,q])=>q-p>E));llenos.push(...ts);}
@@ -116,8 +116,9 @@ export function refinarMuros(bp){let estirados=0;
 // Así no se pisan ni queda un hueco en el nodo (lo mide juntasDe). Devuelve [{id, clase, x, y, w, h}] (metros); el 3D lo levantará.
 const RANGO={[CLASE.fachada]:3,[CLASE.medianera]:3,[CLASE.nucleo]:2,[CLASE.tabique]:1};
 export function bandaDe(t){// [c0, c1]: lo que ocupa a lo ancho, alrededor de su línea
- if(t.clase===CLASE.fachada||t.clase===CLASE.medianera){const adentroMas=t.lados.some(l=>l.lados[1]!=='afuera'&&l.lados[1]!=='vecino');return adentroMas?[t.f,t.f+ESPESOR.fachada]:[t.f-ESPESOR.fachada,t.f];}
- return [t.f-ESPESOR.tabique/2,t.f+ESPESOR.tabique/2];}
+ const e=t.esp||ESPESOR;// (el del grafo: el de los edificios, o el de las casas —grafoDeCasa—)
+ if(t.clase===CLASE.fachada||t.clase===CLASE.medianera){const adentroMas=t.lados.some(l=>l.lados[1]!=='afuera'&&l.lados[1]!=='vecino');return adentroMas?[t.f,t.f+e.fachada]:[t.f-e.fachada,t.f];}
+ return [t.f-e.tabique/2,t.f+e.tabique/2];}
 export function murosConEspesor(g){const out=[];const T=g.tramos;
  // (la línea de orientación h en la coordenada f, en el punto a de su eje: sus muros, si pasa, su rango y su banda)
  const linea=(h,f,a,sin)=>{const ms=T.filter(o=>o!==sin&&o.h===h&&Math.abs(o.f-f)<E&&a>o.a0-E&&a<o.a1+E);
@@ -192,3 +193,17 @@ export function huecosTapados(bp,L,vanoDe){const out=[];if(!L.levels?.length||!L
    if(w.clase===CLASE.tabique||w.clase===CLASE.nucleo){const centro=w.linea,junta=Math.round(centro/MODULO)*MODULO;if(Math.abs(centro-junta)<PARANTE.junta)continue;}
    out.push({lote:L.id,f:m.f,modulo:`${m.x},${m.y},${m.dx},${m.dy},${m.k}`,tipo:m.tipo,pieza:m.pieza,muro:w.id,clase:w.clase,cm:Math.round(o*100)});}}
  return out;}
+
+// EL GRAFO DE UNA CASA (2026-11-22, Miguel: «sí, sigue con el grafo»): el mismo grafo de los edificios, desde el plano de la casa
+// (hogar.js). Cada piso, como un piso de edificio: los cuartos de adentro son las regiones —la terraza y el porche quedan afuera,
+// y el cuerpo de la casa es la suma de los cuartos de adentro—; los bordes abiertos de la planta abierta son vanos sin marco; la
+// puerta de calle, la del patio y las de la terraza y el porche, puertas de afuera. Los espesores, los de la casa (vivienda.js:
+// fachada T, tabique TI). Así la casa tiene las mismas juntas exactas y las mismas pruebas que un edificio.
+export function grafoDeCasa(P,id='C',{espesor=ESPESOR_CASA}={}){const afuera=new Set(['terraza','porche']);
+ const linea=(o,extra={})=>o.axis==='u'?{x0:r3(o.from),y0:r3(o.at),x1:r3(o.from+o.len),y1:r3(o.at),...extra}:{x0:r3(o.at),y0:r3(o.from),x1:r3(o.at),y1:r3(o.from+o.len),...extra};
+ const levels=P.levels.map(L=>{const rooms=L.rooms.filter(q=>!afuera.has(q.type)).map(q=>({id:q.id,type:q.type,x:q.u0,y:q.v0,w:r3(q.u1-q.u0),h:r3(q.v1-q.v0)}));
+  return {rooms,parts:rooms.map(q=>({x:q.x,y:q.y,w:q.w,h:q.h})),corridor:[],core:null,
+   doors:L.doors.map(d=>linea(d,{a:d.a,b:d.b,wide:!!d.entero||(!!d.open&&!d.street),street:!!(d.street||d.patio||d.afuera)})),
+   windows:L.windows.map(w=>linea(w,{a:w.a}))};});
+ return levels.map((lv,f)=>grafoDePiso({id,levels,parts:lv.parts},f,{espesor}));}
+export const ESPESOR_CASA={tabique:.12,medianera:.2,fachada:.2,marco:.08};// (vivienda.js: T, la de afuera; TI, el tabique)
