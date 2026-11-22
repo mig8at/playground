@@ -20,7 +20,7 @@ import {MANSARDA} from './medidas.js';
 import {loteEn} from './fachada-piezas.js';
 import {CELL} from './veredas.js';
 
-export const DUPLEX={aire:2.1,cabeza:2,escalera:{ancho:1,largo:4,peldanos:15},corta:{ancho:1,largo:3,peldanos:12},cerrados:['bano','ropas','deposito'],cara:{fachada:.25,tabique:.07},pasoMin:1.3,penthouse:{max:450},isla:{paso:1.1,libre:1,largo:2.4,hondo:.9},ventana:'vidrio',arranque:1,vacio:{lado:3,piso:6,max:.45},otros:['dormitorio','hall'],paso:1,cuartos:['sala_cocina','sala','estudio','comedor']};
+export const DUPLEX={aire:2.1,cabeza:2,escalera:{ancho:1,largo:4,peldanos:15},corta:{ancho:1,largo:3,peldanos:12},cerrados:['bano'],cara:{fachada:.25,tabique:.07},pasoMin:1.3,penthouse:{max:450},isla:{paso:1.1,libre:1,largo:2.4,hondo:.9},ventana:'vidrio',arranque:1,vacio:{lado:3,piso:6,max:.45},otros:['dormitorio','hall'],paso:1,cuartos:['sala_cocina','sala','estudio','comedor']};
 const pisa=(a,b,t=.01)=>Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x)>t&&Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y)>t;
 const dentro=(a,b,t=.01)=>a.x>=b.x-t&&a.y>=b.y-t&&a.x+a.w<=b.x+b.w+t&&a.y+a.h<=b.y+b.h+t;
 
@@ -115,9 +115,9 @@ function arribaDe(L,U,esc,n,esquina=()=>false,partes=[U]){const rooms=partes.map
 // —hasta la cara del muro de al lado en cada punta—
 // —town3d lo dibuja sin muro, hasta el techo—, y los dormitorios de abajo pasan a ser comedor o sala. Devuelve cómo
 // deshacerlo (si después no cabe la escalera).
-function abrirAbajo(lv,qs,enContorno=()=>false){const antes={doors:lv.doors,furniture:lv.furniture,tipos:qs.map(q=>[q,q.type])},abiertos=qs.filter(q=>!DUPLEX.cerrados.includes(q.type)),ids=new Set(abiertos.map(q=>q.id));
+function abrirAbajo(lv,qs,enContorno=()=>false,{retipar=true}={}){const antes={doors:lv.doors,furniture:lv.furniture,tipos:qs.map(q=>[q,q.type])},abiertos=qs.filter(q=>!DUPLEX.cerrados.includes(q.type)),ids=new Set(abiertos.map(q=>q.id));
  let comedor=qs.some(q=>q.type==='comedor');
- for(const q of abiertos)if(q.type==='dormitorio'){q.type=comedor?'sala':'comedor';comedor=true;}
+ if(retipar)for(const q of abiertos)if(q.type==='dormitorio'){q.type=comedor?'sala':'comedor';comedor=true;}
  for(const q of abiertos)q.abierto=true;// (parte de la planta abierta; sus muebles, cuando vuelvan los muebles)
  // (las puertas entre dos abiertos se van; en su lugar, el vano de todo lo que comparten)
  const doors=lv.doors.filter(d=>!(ids.has(d.a)&&ids.has(d.b)));
@@ -150,7 +150,7 @@ function abrirAbajo(lv,qs,enContorno=()=>false){const antes={doors:lv.doors,furn
   lv.doors=[...doors,...vigentes.map(c=>c.h?{x0:c.p,y0:c.at,x1:c.q,y1:c.at,a:c.a,b:c.b,wide:true,hoja:false,abierta:true}:{x0:c.at,y0:c.p,x1:c.at,y1:c.q,a:c.a,b:c.b,wide:true,hoja:false,abierta:true})];};
  armar();
  // (los muebles de los que eran dormitorios —la cama, el armario— se van; los de obra quedan)
- const eran=new Set(antes.tipos.filter(([q,t])=>t==='dormitorio').map(([q])=>q.id));
+ const eran=new Set(retipar?antes.tipos.filter(([q,t])=>t==='dormitorio').map(([q])=>q.id):[]);
  lv.furniture=(lv.furniture||[]).filter(f=>LUGAR_FIJO.has(f.kind)||!qs.some(q=>eran.has(q.id)&&f.x>=q.x-.01&&f.y>=q.y-.01&&f.x+f.w<=q.x+q.w+.01&&f.y+f.h<=q.y+q.h+.01));
  return {rehacer:muros=>{extra=muros;armar();},deshacer:()=>{lv.doors=antes.doors;lv.furniture=antes.furniture;for(const [q,t] of antes.tipos){q.type=t;delete q.abierto;}}};}
 
@@ -265,6 +265,8 @@ function penthouse(L,top){const P=DUPLEX.penthouse,r=L.rect;
  // una sola cocina: la más grande; de las demás se van los aparatos de obra y pasan a sala (o comedor)
  const COC=new Set(['cocina','sala_cocina','cocineta']),cocinas=top.rooms.filter(q=>COC.has(q.type)).sort((a,b)=>area(b)-area(a)),dentroDe=(f,q)=>f.x>=q.x-.01&&f.y>=q.y-.01&&f.x+f.w<=q.x+q.w+.01&&f.y+f.h<=q.y+q.h+.01;
  for(const q of cocinas.slice(1)){top.furniture=(top.furniture||[]).filter(f=>!(LUGAR_FIJO.has(f.kind)&&dentroDe(f,q)));q.type=q.type==='cocina'?'comedor':'sala';}
+ // y un solo baño —el más grande—, como todo departamento (abrirDepartamentos)
+ for(const q of top.rooms.filter(q=>q.type==='bano').sort((a,b)=>b.w*b.h-a.w*a.h).slice(1)){top.furniture=(top.furniture||[]).filter(f=>!(['inodoro','lavamanos','ducha','tina'].includes(f.kind)&&dentroDe(f,q)));q.type='estudio';}
  function deshacer(){top.rooms=antes.rooms;top.doors=antes.doors;top.corridor=antes.corridor;top.units=antes.units;top.furniture=antes.furniture;}
  return {deshacer};}
 
@@ -300,6 +302,25 @@ function islaDe(lv,qs,esc){const I=DUPLEX.isla,fs=lv.furniture||[],dentro=(f,q)=
   lv.furniture=fs.filter(f=>f!==m&&f!==e&&(LUGAR_FIJO.has(f.kind)||!pisa(f,z))).concat([ne]);
   return {x:r.x,y:r.y,w:r.w,h:r.h,cuarto:K.id};}
  return null;}
+
+// LOS DEPARTAMENTOS ABIERTOS (2026-11-22, Miguel: «en el juego no vale mucho la pena tener muchas habitaciones o varios baños,
+// lo importante es la movilidad… lo mejor es dejar sólo el espacio del baño: que las habitaciones no existan, eso será decisión
+// del usuario agregar divisiones… sólo deja los apartamentos abiertos, sólo el baño con paredes y el mesón… y todo calculado en
+// el plano»). En cada departamento de la ciudad: un solo baño —el más grande; de los demás se sacan los aparatos y se abren—,
+// una sola cocina —la más grande—, y entre todo lo demás ningún tabique: cada pared compartida es un vano abierto
+// (abrirAbajo, sin pilares). La entrada, la de siempre: una puerta al pasillo. Cada zona conserva su nombre —el dormitorio, la
+// sala, la cocina— porque de ahí salen las familias, el botín y las cortinas; los muebles del plano quedan para esas cuentas y
+// no se entregan (entrega.js).
+export function abrirDepartamentos(bp){let deptos=0,banos=0,cocinas=0;const COC=new Set(['cocina','sala_cocina','cocineta']);
+ for(const L of bp.lots)for(const lv of L.levels||[])for(const u of lv.units||[]){const qs=lv.rooms.filter(q=>q.unit===u.n);if(qs.length<2)continue;
+  const dentroDe=(f,q)=>f.x>=q.x-.01&&f.y>=q.y-.01&&f.x+f.w<=q.x+q.w+.01&&f.y+f.h<=q.y+q.h+.01,sacar=(q,kinds)=>{lv.furniture=(lv.furniture||[]).filter(f=>!(kinds.has(f.kind)&&dentroDe(f,q)));};
+  // un baño: el más grande; los otros, sin aparatos, pasan a estudio (una zona más)
+  for(const q of qs.filter(q=>q.type==='bano').sort((a,b)=>b.w*b.h-a.w*a.h).slice(1)){sacar(q,new Set(['inodoro','lavamanos','ducha','tina']));q.type='estudio';banos++;}
+  // una cocina: la más grande con mesón; de las otras se van el mesón y los aparatos
+  const conMeson=qs.filter(q=>COC.has(q.type)&&(lv.furniture||[]).some(f=>f.kind==='meson'&&dentroDe(f,q))).sort((a,b)=>b.w*b.h-a.w*a.h);
+  for(const q of conMeson.slice(1)){sacar(q,new Set(['meson','estufa','nevera']));q.type=q.type==='cocina'?'comedor':'sala';cocinas++;}
+  abrirAbajo(lv,qs,contornoDe(L),{retipar:false});deptos++;}
+ return {deptos,banos,cocinas};}
 
 export function duplexDe(bp){let n=0,no=0,penthouses=0,incompletos=0;
  for(const L of bp.lots){delete L.duplex;if(!L.mansarda||(L.floors||0)<2)continue;const top=L.levels[L.floors-1];if(!top?.units?.length)continue;delete top.escalerasInternas;

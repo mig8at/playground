@@ -15,7 +15,7 @@
    Las paredes son líneas (el 3D les da grosor). El motor del juego (reglas y bots) no usa esto todavía. */
 import {marcarMansardas} from './techos.js';
 import {amoblarAzoteas} from './azoteas.js';
-import {duplexDe} from './duplex.js';
+import {duplexDe,abrirDepartamentos} from './duplex.js';
 import City from './ciudad.js';
 import {JUEGO_PASO,PUERTA,ESCALERA,PASILLO,MURO,ERGO,mm,FRANJA,MINIMO,VIDRIO,VENTANAS_FAMILIA,RESIDENCIAL,esVidriera,VENTANAS_VIVIENDA,VIDRIO_ENTERO,HABITABLE,JUEGO,ENCIERRO,CALLE,ALTURA,INTERIOR,MANZANA,LADERA,ESCALINATA,CHOQUE_MUEBLE,CORTINA,CIRCULACION,TERRAZA} from './medidas.js';
 import {USOS} from './usos.js';
@@ -1267,7 +1267,7 @@ export function generateBlueprint({seed=1,team=3,parks=JUEGO.parques}={}){
 
  // (la vegetación y la playa, y el equipamiento urbano, 2026-10-15: vegetacion.js y equipamiento.js, cada uno con su
  // propio azar, sobre el plano ya armado)
- const bp={seed,team,map,blocks,lots,courts,stats,isla};bp.vegetacion=plantar(bp);bp.equipamiento=equipar(bp);bp.contenedores=contenedoresDe(bp);bp.pintura=pinturaDe(bp);bp.botines=repartir(bp);pintar(bp);marcarEntradas(bp);marcarMansardas(bp);duplexDe(bp);amoblarAzoteas(bp);marcarHojas(bp);numerar(bp);cerrarCortinas(bp);
+ const bp={seed,team,map,blocks,lots,courts,stats,isla};bp.vegetacion=plantar(bp);bp.equipamiento=equipar(bp);bp.contenedores=contenedoresDe(bp);bp.pintura=pinturaDe(bp);bp.botines=repartir(bp);pintar(bp);marcarEntradas(bp);marcarMansardas(bp);abrirDepartamentos(bp);duplexDe(bp);amoblarAzoteas(bp);marcarHojas(bp);numerar(bp);cerrarCortinas(bp);
  // (2026-11-21: el plano lleva decidido qué va en cada módulo de cada fachada —engine/fachada-piezas.js—; el 3D lo lee)
  for(const L of lots)L.modulos=modulosDeFachada(bp,L);
  return bp;
