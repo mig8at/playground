@@ -42,6 +42,7 @@ const NIVELES=[
   {n:'fachada piezas',f:'validar-fachada-piezas.mjs',a:[N,S0],fallas:F,res:/^fachada piezas/},// (2026-11-21: el plano y el 3D ponen lo mismo en cada módulo —engine/fachada-piezas.js—)
   {n:'grafiti',f:'validar-grafiti.mjs',a:[N,S0],fallas:F,res:/^grafiti/},
   {n:'guardado',f:'validar-guardado.mjs',a:[N,S0],fallas:F,res:/^guardado/},
+  {n:'grafo de muros',f:'validar-grafo-muros.mjs',a:[N,S0],fallas:F,res:/^grafo de muros/},// (2026-11-22: tramos, nodos, vanos y lo que no encaja —engine/grafo-muros.js—)
   {n:'departamentos',f:'validar-departamentos.mjs',a:[N,S0],fallas:F,res:/^departamentos/},// (2026-11-22: los departamentos abiertos —engine/duplex.js abrirDepartamentos—)
   {n:'dúplex',f:'validar-duplex.mjs',a:[N,S0],fallas:F,res:/^dúplex/},// (2026-11-22: los dúplex bajo la mansarda —engine/duplex.js—)// (2026-11-21: la huella de cada pared, la conciliación y la base SQLite de lo pintado)// (2026-11-21: la grilla de pixel art de cada paño —engine/grafiti.js—)// (2026-11-21: vanos, paños y textura de cada fachada —engine/fachada-medida.js—)
   {n:'fachada 3D',f:'validar-fachada3d.mjs',a:[],fallas:F,res:/^fachada low poly/},

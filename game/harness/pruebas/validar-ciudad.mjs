@@ -79,8 +79,9 @@ for(let seed=S0;seed<S0+N;seed++){const bp=generateBlueprint({seed,team:3});bpMa
      const R=w.rect,[c0,c1]=h?[R.y,R.y+R.h]:[R.x,R.x+R.w];if(c1<at-.04||c0>at+.04)continue;// no toca la línea del vano
      const [wa,wb]=h?[R.x,R.x+R.w]:[R.y,R.y+R.h];
      if(wa<b-.005&&wb>a+.005){falla(w.kind==='fachada'?'vano metido en la fachada':'tabique dentro de un vano',{...tag,pared:w.kind,entre:[d.a,d.b],vano:[+a.toFixed(2),+b.toFixed(2)],pared_en:[+wa.toFixed(2),+wb.toFixed(2)],linea:(h?'y=':'x=')+at.toFixed(2)});continue;}
-     // (un vano abierto de más de 1,25 m va sin marco ni dintel —town3d VANO_ABIERTO—: no tiene marco que meter)
-     const gap=wa>=b?wa-b:a-wb;if(gap<MINIMO.aPuerta-1e-3&&!(d.wide&&b-a>1.25))falla('marco metido en una pared',{...tag,pared:w.kind,entre:[d.a,d.b],gap:+gap.toFixed(3)});}}
+     // (un vano de más de 1,25 m —uno abierto, el de la escalera del núcleo— va sin marco ni dintel —town3d VANO_ABIERTO—: no
+     // tiene marco que meter)
+     const gap=wa>=b?wa-b:a-wb;if(gap<MINIMO.aPuerta-1e-3&&!(b-a>1.25))falla('marco metido en una pared',{...tag,pared:w.kind,entre:[d.a,d.b],gap:+gap.toFixed(3)});}}
    // dos vanos en la misma línea que se pisan
    for(let i=0;i<doors.length;i++)for(let j=i+1;j<doors.length;j++){const p=doors[i],q=doors[j];if(p.h===q.h&&Math.abs(p.at-q.at)<E&&p.a<q.b-E&&q.a<p.b-E)falla('dos vanos encimados',{...tag,entre:[[p.d.a,p.d.b],[q.d.a,q.d.b]]});}
    // ---- Paredes ----
@@ -130,8 +131,8 @@ for(let seed=S0;seed<S0+N;seed++){const bp=generateBlueprint({seed,team:3});bpMa
    const fa=L.fachada||{},vidrioDe=w=>{const {a,b}=spanOf(w);return f===0&&esVidriera(L.type,w)?(VIDRIO.vidriera[fa.familia]??4.2):(VIDRIO.ventana[w.pieza||(f<=1&&b-a>=1?fa.ventana1:fa.ventana)]??.55);};// (2026-10-18: la vidriera sólo en un local, como la dibuja el 3D)
    // (la planta abierta de un dúplex —engine/duplex.js: q.abierto— es un solo espacio: su luz se cuenta junta)
    const grupo=q=>q.abierto?lv.rooms.filter(o=>o.abierto&&o.unit===q.unit):[q],vistos=new Set();
-   for(const q of lv.rooms){if(q.abierto){const k='u'+q.unit;if(vistos.has(k))continue;vistos.add(k);}const G=grupo(q),ws=[...new Set(G.flatMap(winOf))],vid=ws.reduce((t,w)=>t+vidrioDe(w),0),piso=G.reduce((t,o)=>t+o.w*o.h,0);
-    if(HABITABLE.has(q.type)){if(!ws.length)falla('cuarto habitable sin ventana',{...tag,cuarto:q.type,m2:+piso.toFixed(1)});else if(vid<piso*MINIMO.luz-1e-6)falla('ventana chica para el cuarto',{...tag,cuarto:q.type,vidrio:+vid.toFixed(2),necesita:+(piso*MINIMO.luz).toFixed(2)});}
+   for(const q of lv.rooms){if(q.abierto){const k='u'+q.unit;if(vistos.has(k))continue;vistos.add(k);}const G=grupo(q),ws=[...new Set(G.flatMap(winOf))],vid=ws.reduce((t,w)=>t+vidrioDe(w),0),piso=G.filter(o=>!q.abierto||HABITABLE.has(o.type)).reduce((t,o)=>t+o.w*o.h,0);// (en la planta abierta, la luz se pide por lo habitable: el cuarto de ropas o un depósito abiertos no la piden)
+    if(G.some(o=>HABITABLE.has(o.type))){if(!ws.length)falla('cuarto habitable sin ventana',{...tag,cuarto:q.type,m2:+piso.toFixed(1)});else if(vid<piso*MINIMO.luz-1e-6)falla('ventana chica para el cuarto',{...tag,cuarto:q.type,vidrio:+vid.toFixed(2),necesita:+(piso*MINIMO.luz).toFixed(2)});}
     else if(/bano|cocina|cocineta/.test(q.type)&&!ws.length)avisos[q.type]=(avisos[q.type]||0)+1;}
    // ---- Proporciones (2026-10-15): ningún cuarto habitable más alargado que MINIMO.proporcion (lados libres, sin los
    // tabiques), y en cada departamento la sala no más chica que la alcoba más grande ----
