@@ -325,11 +325,11 @@ function fill(a,b,prog,r,start=0,depth=Infinity){const out=[];let u=a,i=start;
 // mapa agradable»). Los anchos de los cuartos de un departamento se redondean a este paso, y con él se corren los
 // tabiques al repartir lo que sobra. Era 0,5 m: los tabiques llegaban a la fachada en cualquier medio metro y el 12 % caía
 // adentro de un módulo de 2 m a 0,5 o 1,5 m de su borde. PASO_CUARTO se lee del ambiente sólo para medir alternativas.
-// SE MIDIÓ Y NO SE CAMBIÓ: sigue en 0,5 m. En tres ciudades chicas, con paso de 1 m (medio módulo) los tabiques que llegan
-// a la fachada en un metro entero pasan de 91 a 92 % —casi nada: lo que desalinea es el fondo de las franjas, 3,5 y 2,5 m
-// (medidas.js FRANJA), no el ancho de los cuartos—, se pierde el 2 % de las viviendas (727 → 711) y la prueba de
-// visibilidad encuentra 2 paredes que parpadean. Con paso de 2 m el 94 % cae en línea de módulo, pero se pierde el 16 %
-// de los dormitorios. FUGA_PASO: sólo para volver a medirlo.
+// SE MIDIÓ Y NO SE CAMBIÓ: sigue en 0,5 m. Lo que se calibró fue el fondo de las franjas (medidas.js FRANJA, a 4 y 2 m),
+// que es lo que desalineaba. Con el paso además en 1 m (medio módulo), en tres ciudades chicas: 95 % de los tabiques en un
+// metro entero contra 94 % —casi nada—, 2 % menos de viviendas (727 → 711), y junto con las franjas nuevas 135 fallas en
+// la prueba de usos (camas y ventanas a las que no se llega). Con paso de 2 m se pierde el 16 % de los dormitorios.
+// FUGA_PASO: sólo para volver a medirlo.
 export const PASO_CUARTO=+(globalThis.process?.env?.FUGA_PASO||.5);
 const G05=v=>Math.ceil(v/PASO_CUARTO-1e-6)*PASO_CUARTO;
 const minW=(k,depth)=>{const M=MINIMOS[k];let best=null;for(const o of ['hondo','ancho']){const m=M?.[o];if(!m)continue;for(const [w,d] of [m,[m[1],m[0]]])if(d<=depth+1e-6&&(best==null||w<best))best=w;}return best==null?null:G05(best);};
@@ -663,7 +663,10 @@ function openings(L,F,plan,level,r){// (PC: el ancho de la puerta de calle de es
   // Una ventana por módulo de 2 m que cae entero en el borde del cuarto (los cortados por un tabique quedan de muro).
   // (en un módulo con puerta de calle no va ventana)
   const doorIn=(e,m)=>doors.some(d=>d.street&&d.axis===e.axis&&Math.abs(d.at-e.at)<1e-6&&d.from<m+2&&d.from+d.len>m);
-  for(const e of edges){const wd=q.type==='bano'?.8:1.2;for(const m of modulesIn(e.a,e.b))if(!doorIn(e,m)&&glazed(e.side,m+.2)&&glazed(e.side,m+1.8))windows.push({axis:e.axis,at:e.at,from:m+1-wd/2,len:wd,a:q.id});}}
+  // (2026-11-21, calibración: un baño cuyo borde a la fachada es un solo módulo —2 m— va sin ventana. Con las franjas de
+  // 2,5 m ese borde no contenía un módulo entero y nunca la tenía; al calibrarlas a 2 m empezó a tenerla, justo en la pared
+  // corta, y ahí no entraban la ducha ni el lavamanos: 65 baños sin ducha en dos ciudades)
+  for(const e of edges){if(q.type==='bano'&&e.b-e.a<=2+1e-6)continue;const wd=q.type==='bano'?.8:1.2;for(const m of modulesIn(e.a,e.b))if(!doorIn(e,m)&&glazed(e.side,m+.2)&&glazed(e.side,m+1.8))windows.push({axis:e.axis,at:e.at,from:m+1-wd/2,len:wd,a:q.id});}}
  // La pieza de cada ventana (2026-10-15, decisión de Miguel): la del estilo del edificio (primer piso ventana1, más
  // arriba ventana); si a un cuarto habitable no le alcanza para MINIMO.luz de su piso con el vidrio medido (VIDRIO), todas
  // sus ventanas suben a la pieza más chica de su familia que alcance (o a la más grande). El 3D dibuja w.pieza.
@@ -804,6 +807,9 @@ function furnish(F,plan,open,r,want){const items=[];
   // La cocina angosta (2 m): en línea, sin mesa, y la nevera al final: como no es esencial, va sólo si cabe sin
   // estorbar (con la fachada a lo largo no entran las tres cosas).
   if(q.type==='cocina'&&Math.min(q.u1-q.u0,q.v1-q.v0)<2.5)recipe=RECIPE.cocina_linea;
+  // (2026-11-21, calibración: en una sala con cocina de 4 m de ancho o menos, el escritorio opcional más la mesa cerraban el
+  // paso al hall de las alcobas —validar-interiores, ciudad 1, lote 50, con las franjas de 4 y 2 m—. Ahí no va)
+  if(q.type==='sala_cocina'&&Math.min(q.u1-q.u0,q.v1-q.v0)<=4+1e-6)recipe=recipe.filter(e=>e!=='escritorio?');
   // (el trastero de un piso de departamentos: 2 × 4 m, sólo cajas —con el estante del depósito de siempre, a la del fondo no
   // se llegaba caminando: validar-juego—)
   // LO QUE SE GUARDA (2026-11-21, Miguel: «hay muchas partes donde hay cajas que deberían ser otro tipo de muebles»): todo
@@ -818,8 +824,12 @@ function furnish(F,plan,open,r,want){const items=[];
   // ciudad 1 tenían ducha.)
   // (y el que mide más de 10 m² —los de 2 × 7,5 m de los lotes hondos— es un sanitario de varios puestos: dos y dos)
   if(q.type==='bano'&&!q.unit&&!q.doorTo&&!q.propio)recipe=(q.u1-q.u0)*(q.v1-q.v0)>10?RECIPE.sanitario_grande:RECIPE.sanitario_piso;
-  let C=null,used=recipe;const lists=q.unit&&PROG_BY[q.type];
-  if(lists)for(const k of (q.type==='dormitorio'&&!first.has(q)?lists[1]:lists[0])){if(k==='*'){const c=catalogFor(q,open,recipe);if(!c[0].missing){C=c;break;}continue;}
+  let C=null,used=recipe,sinBano=null;const lists=q.unit&&PROG_BY[q.type];
+  if(lists)for(const k of (q.type==='dormitorio'&&!first.has(q)?lists[1]:lists[0])){if(k==='*'){const c=catalogFor(q,open,recipe);
+    // (2026-11-21: la receta general de un baño trae la bañera como opcional, y en un baño angosto —3 × 2 m— quedaba
+    // «entera» sin ella: un baño de departamento sin dónde bañarse, y la ducha chica de la receta justa ni se probaba.
+    // Si lo que salió no tiene ducha ni bañera, se guarda como último recurso y se sigue con la receta justa)
+    if(!c[0].missing){if(q.type==='bano'&&!c[0].items.some(it=>it.kind==='ducha'||it.kind==='banera'||it.kind==='tina')){sinBano=c;continue;}C=c;break;}continue;}
    // (2026-11-20: antes de dejar el único baño de un departamento sin ducha —medio baño—, una ducha de 80 cm y el lavamanos
    // chico, en otro orden: la ducha primero, al rincón)
    // (sólo una distribución entera y en regla: sin nada delante de la ventana —validar-ciudad—; si no la hay, medio baño)
@@ -827,6 +837,7 @@ function furnish(F,plan,open,r,want){const items=[];
    if(!fitsMin(q,k))continue;
    const rec=[...PROGRAMS[k].recipe,...programExtras(k,q.type)];used=rec;
    const c=catalogFor(q,open,rec,'|'+k);if(!c[0].missing){C=c;q.prog=k;break;}used=recipe;}
+  if(!C&&sinBano){C=sinBano;used=recipe;}// (ni la justa entró: queda el baño sin ducha, y la auditoría lo cuenta)
   // (sin programa, la receta general; en una alcoba más chica que la doble de la norma —INTERIOR.alcobaDoble—, con cama
   // sencilla: la regla de las cortinas dejaba a veces sin programa a una de 8 m² y caía la cama de dos plazas)
   if(!C&&q.type==='dormitorio'){const a=q.u1-q.u0-MURO.tabique,b=q.v1-q.v0-MURO.tabique,N=INTERIOR.alcobaDoble;if(a*b<N.m2-1e-6||Math.min(a,b)<N.ancho-1e-6){recipe=recipe.map(e=>e==='cama'?'cama_s':e);used=recipe;}}

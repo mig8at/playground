@@ -24,8 +24,9 @@ jira_title: ""
 - [x] Medir el vano exacto de cada puerta de calle: la vista de fachadas muestra cada puerta con su medida, comprobada contra la pieza del 3D.
 - [x] Medir las fachadas de los edificios que no son un rectángulo simple: cada tramo del contorno tiene su dibujo y sus paredes (un edificio en L, seis tramos).
 - [x] Pasar el alzado de la ficha del plano a tramos: en un edificio en L el alzado y el editor de pixel art muestran el mismo tramo.
-- [ ] Escribir una receta de baño que funcione con 2 m de fondo (3 × 2 m, con ducha y lavamanos usable): termina cuando la auditoría no lista baños sin ducha con la franja interior en 2 m. Es lo que destraba calibrar las franjas a 4 y 2 m.
-- [ ] Calibrar las franjas de los departamentos a 4 y 2 m (módulos enteros). Depende de: la receta de baño de 2 m de fondo.
+- [x] Calibrar las franjas de los departamentos a 4 y 2 m (módulos enteros): hecho; el baño de 3 × 2 m funciona sin ventana en su pared corta.
+- [ ] Dejar en 0 las dos pruebas que quedaron fuera de margen con la calibración (visibilidad: 1 pared que parpadea; sociedad: 6,1 % de gente encimada a las 15 h contra un tope de 6 %). Depende de: Miguel — decidir si se corrige la causa o se acepta el margen; no se tocaron los topes.
+- [ ] Calibrar las suites de hotel y hospital (baño de 2,5 m, habitación de 3,5): termina cuando sus tabiques llegan a la fachada en línea de módulo sin que la auditoría empeore.
 - [ ] Decidir si las fachadas de calle deben tener más pared pintable. Depende de: Miguel — hoy 20 de 132 fachadas de la ciudad chica tienen alguna; se podría pintar el muro entre ventanas, o hacer que el generador deje paños ciegos.
 - [ ] Guardar junto a cada número de pared la versión de la ciudad: termina cuando lo pintado sobre una ciudad vieja no se carga en una pared que cambió de número.
 - [ ] Numerar también las casas del monte (sus manzanas, después de las de la ciudad): termina cuando una pared de una casa del monte tiene su número de 10 cifras.
@@ -143,16 +144,16 @@ El alzado con adornos de la ficha del plano y el editor de pixel art también va
 **Falta**: los barrios del monte calculan sus módulos al armarse, no los traen guardados.
 **Cierre**: lo que muestra `/fachadas` es exactamente lo que arma el 3D, comprobado por una prueba. Para las piezas de cada módulo ya se cumple (`validar-fachada-piezas`).
 
-### 3c. Calibrar las medidas a la grilla — medido, sin cambiar todavía
+### 3c. Calibrar las medidas a la grilla — hecho en los departamentos
 
-**El pedido de Miguel (2026-11-21)**: calibrar las medidas para que faciliten los cálculos, sin que el mapa deje de ser agradable.
-**Qué desalinea**: no el ancho de los cuartos sino el FONDO de las dos franjas de un departamento, 3,5 m (fachada) y 2,5 m (interior): el tabique entre ellas llega a las fachadas laterales a 2,5 o 3,5 m de la esquina. Lo mismo en las suites de hotel.
-**Lo que se evaluó y NO se eligió** (tres ciudades chicas; la base: 87 % de los cortes en línea de módulo, 91 % en metro entero, 727 viviendas, 685 dormitorios):
-- *Tabiques de los departamentos cada 1 m*: 92 % en metro entero. Casi nada de ganancia, 2 % menos de viviendas y la prueba de visibilidad encontró 2 paredes que parpadean.
-- *Tabiques cada 2 m*: 94 % en línea de módulo, pero 16 % menos de dormitorios.
-- *Franjas de 4 y 2 m con tabiques cada 1 m*: 98 % en metro entero y 90 % en línea de módulo, con las mismas viviendas; pero el baño de 3 × 2 m deja 65 baños sin ducha y 72 lavamanos que no se pueden usar en dos ciudades (la auditoría pasa de 10 casos a 178).
-**Qué quedó**: los dos números son ahora perillas para volver a medir (`FUGA_PASO`, `FUGA_FRANJA`), con sus valores de siempre; la ciudad generada es idéntica a la de antes.
-**Cierre**: las franjas en 4 y 2 m sin que la auditoría empeore.
+**El pedido de Miguel (2026-11-21)**: calibrar las medidas para que faciliten los cálculos, sin que el mapa deje de ser agradable; números exactos para construir la ciudad a medida.
+**Qué desalineaba**: no el ancho de los cuartos sino el FONDO de las dos franjas de un departamento, 3,5 m (fachada) y 2,5 m (interior): el tabique entre ellas llegaba a las fachadas laterales a 2,5 o 3,5 m de la esquina.
+**Qué se calibró**: las franjas pasan a 4 y 2 m, módulos enteros de la grilla de 2 m. Para que entrara hubo que corregir dos cosas que salieron al medirlo: el baño cuyo borde a la fachada es un solo módulo va sin ventana (con ella, en la pared corta, no entraban la ducha ni el lavamanos), y en una sala con cocina de 4 m o menos no va el escritorio opcional (cerraba el paso al hall).
+**Resultado** (tres ciudades chicas): los tabiques que llegan a la fachada en un metro entero pasan de 91 a 94 %, con las mismas 727 viviendas y 685 dormitorios; la auditoría del plano baja de 10 casos a 4 (desaparecen los 6 baños sin ducha). En la ciudad de 720 m: 91 % de los cortes en línea de módulo (antes 88 %), toda la ciudad cuadra y las paredes pintables de fachada pasan de 2.115 a 4.577.
+**Lo que se evaluó y NO se eligió**: tabiques de los departamentos cada 1 m (casi no mejora, 2 % menos de viviendas y, junto con las franjas nuevas, 135 fallas de usos); cada 2 m (16 % menos de dormitorios).
+**Lo que quedó fuera de margen**: dos pruebas, por poco. Visibilidad: 1 «pared que parpadea al caminar» en 400 caminatas (la función que aclara paredes está apagada en el juego desde octubre). Sociedad: a las 15 h la gente encimada es el 6,1 % contra un tope de 6 % (antes daba 6,0 %, justo en el tope). No se tocaron los topes.
+**Falta**: las suites de hotel y de hospital siguen con baño de 2,5 m y habitación de 3,5.
+**Cierre**: el probador entero en 0 con las franjas calibradas.
 
 ### 4. Propiedades — empezado
 

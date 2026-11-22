@@ -144,12 +144,14 @@ export const PASILLO={ancho:2,hall:1.5};
 // Las franjas de un departamento, derivadas de los cuartos (harness/pruebas/derivar-edificio.mjs, 2026-10-15): la interior
 // (junto al pasillo) lleva el baño completo (2,25) y el hall (1,2 libres) → 2,5; la de fachada, lo que piden de fondo
 // alcobas y sala (≤ 3,25) → 3,5. Juntas, 6 m: una casilla (antes 4 + 2).
-// (2026-11-21, calibración —Miguel: «que las medidas faciliten los cálculos pero siga generando un mapa agradable»—. Se
-// MIDIÓ pasar la franja interior a 2 m y la de fachada a 4 —módulos enteros de la grilla de 2 m—: los tabiques llegaban a
-// la fachada en un metro entero el 98 % de las veces, pero el baño de 3 × 2 m dejó 65 baños sin ducha y 72 lavamanos que
-// no se pueden usar en dos ciudades (la auditoría pasó de 10 casos a 178). Se queda en 2,5 y 3,5 hasta que haya una
-// receta de baño para 2 m de fondo. FUGA_FRANJA: sólo para volver a medirlo)
-const _fi=+(globalThis.process?.env?.FUGA_FRANJA||2.5);
+// (2026-11-21, calibración —Miguel: «que las medidas faciliten los cálculos pero siga generando un mapa agradable», «sacar
+// los números exactos para poder construir la ciudad a medida»—: la franja interior pasa de 2,5 a 2 m y la de fachada de
+// 3,5 a 4: las dos son módulos enteros de la grilla de 2 m, así el tabique entre ellas llega a las fachadas laterales en una
+// línea de módulo. Lo que lo impedía: con la franja en 2 m el baño ganaba una ventana en su pared corta y no entraban la
+// ducha ni el lavamanos; ese baño va ahora sin ventana —blueprint.js—. Medido en tres ciudades chicas: los tabiques que
+// llegan a la fachada en un metro entero pasan de 91 a 94 % y en línea de módulo de 87 a 89 %, con las mismas viviendas y
+// los mismos dormitorios, que ganan medio metro de fondo. FUGA_FRANJA: sólo para medir alternativas)
+const _fi=+(globalThis.process?.env?.FUGA_FRANJA||2);
 export const FRANJA={interior:_fi,fachada:6-_fi};
 
 // Los mínimos contra los que se valida (normas de vivienda y de edificios públicos; redondeados).
