@@ -89,7 +89,8 @@ export function planHogar(kind='familia',opts={}){const v=(opts.variant|0)&3,key
 // cuarto sigue en el plano con su tipo y sus muebles, que se pusieron antes de abrirlo—. Los vanos de 1,2 m entre la sala,
 // el comedor y la cocina quedan dentro del borde abierto y se quitan. Las ventanas, ventanales de hasta VENTANAL m.
 export const VENTANAL=3.2,VOLADIZO=2;
-const CERRADO=q=>q.type==='bano'||q.type==='terraza';
+export const AFUERA=new Set(['terraza','porche']);// (los espacios de afuera dentro del plano de la casa: la terraza de arriba y el porche de abajo)
+const CERRADO=q=>q.type==='bano'||AFUERA.has(q.type);
 // (LOS MUEBLES —2026-11-22: se amueblaba con las paredes y después se abría, y 312 de 676 muebles quedaban contra un borde sin
 // pared, el mesón incluido; amoblar después de abrir agrandaba las casas un 44 %—: un borde donde se apoya algo de obra
 // —LUGAR_FIJO: el mesón, la estufa, la nevera, la lavadora— no se abre; y lo alto que quede contra un borde abierto
@@ -154,16 +155,19 @@ function layoutHogar(kind,two,list,rev){const H=HOGARES[kind],keys=[...list];
   // (LA TERRAZA —2026-11-22, Miguel: «el retirado con terraza»—: arriba, el depósito que sólo rellenaba la franja de adelante
   // no se construye: es una terraza recortada en el volumen —una logia: el techo sigue encima—, con su puerta al pasillo y
   // baranda donde da afuera. La forma sale de los cuartos: la tienen las casas cuyo piso de arriba no llena su frente)
-  if(level===1)for(const q of rooms)if(q.band==='front'&&q.type==='deposito')Object.assign(q,{prog:'terraza',type:'terraza',label:'Terraza'});
+  // (y abajo —2026-11-22, «los depósitos de relleno», con el plano de forma libre—: el depósito es un porche cubierto, recortado
+  // en el volumen, con el piso de arriba de techo y su puerta al pasillo. Ningún cuarto queda sólo para rellenar)
   const hall={id:id++,prog:'pasillo',type:'hall',label:'Pasillo',band:'hall',u0:0,u1:W,v0:Df+o,v1:Df+HALL+o,Lu:W,Lv:D};rooms.push(hall);
   if(bk.rooms.length){const st=bk.rooms.find(r=>r.k==='escalera'),rest=bk.rooms.filter(r=>r.k!=='escalera'),Wr=st?W-st.w:W;
    // (la escalera, en el extremo izquierdo de la franja de atrás: contra la pared izquierda, como en vivienda.js)
    const sw=st?st.w:0;stretch(rest,Wr).forEach(r=>rooms.push({id:id++,prog:r.k,...info(r.k),band:'back',u0:r.u0+sw,u1:r.u1+sw,v0:Df+HALL+o,v1:D,Lu:W,Lv:D}));
    if(st)rooms.push({id:id++,prog:'escalera',type:'escalera',label:'Escalera',band:'back',u0:0,u1:sw,v0:Df+HALL+o,v1:D,Lu:W,Lv:D});}
+  // (todos los depósitos, ya puestos los de las dos franjas)
+  for(const q of rooms)if(q.type==='deposito')Object.assign(q,level===1?{prog:'terraza',type:'terraza',label:'Terraza'}:{prog:'porche',type:'porche',label:'Porche'});
   // Puertas: cada cuarto al pasillo (en el borde que comparten, a 10 cm de la esquina); la puerta de calle en la sala.
   for(const q of rooms){if(q===hall)continue;const at=q.band==='front'?q.v1:q.v0,a=q.u0,b=q.u1;
    if(q.type==='escalera'){doors.push({axis:'u',at,from:a+.05,len:b-a-.1,a:q.id,b:hall.id,open:true});continue;}
-   if(q.type==='terraza'){const left=(q.u0+q.u1)/2<W/2;doors.push({axis:'u',at,from:left?b-.25-DOOR:a+.25,len:DOOR,a:q.id,b:hall.id,terraza:true});continue;}
+   if(q.type==='terraza'||q.type==='porche'){const left=(q.u0+q.u1)/2<W/2;doors.push({axis:'u',at,from:left?b-.25-DOOR:a+.25,len:DOOR,a:q.id,b:hall.id,[q.type]:true,afuera:true});continue;}
    const left=(q.u0+q.u1)/2<W/2;doors.push({axis:'u',at,from:left?b-.1-DOOR:a+.1,len:DOOR,a:q.id,b:hall.id});}
   // Entre la sala, el comedor y la cocina vecinos (en la misma franja), un vano de 1,2 m en la pared que comparten: se
   // pasa de uno al otro sin salir al pasillo.
@@ -176,12 +180,12 @@ function layoutHogar(kind,two,list,rev){const H=HOGARES[kind],keys=[...list];
   // (2026-10-16, Miguel: «que uno pueda tener acceso a los patios»: la puerta de atrás, al patio, desde un cuarto de la franja
   // de atrás que llega a la pared del fondo —la cocina, si no el comedor o la sala, si no cualquiera que no sea baño ni
   // escalera, el dormitorio al final—, en el medio de su pared)
-  if(level===0){const atras=rooms.filter(q=>q.band==='back'&&Math.abs(q.v1-q.Lv)<1e-6&&q.u1-q.u0>=1.3&&!['bano','escalera'].includes(q.type)),pref=q=>/cocina/.test(q.prog)?0:/comedor/.test(q.prog)?1:/sala/.test(q.prog)?2:q.type==='dormitorio'?4:3;
+  if(level===0){const atras=rooms.filter(q=>q.band==='back'&&Math.abs(q.v1-q.Lv)<1e-6&&q.u1-q.u0>=1.3&&!['bano','escalera','porche','terraza'].includes(q.type)),pref=q=>/cocina/.test(q.prog)?0:/comedor/.test(q.prog)?1:/sala/.test(q.prog)?2:q.type==='dormitorio'?4:3;
    const q=atras.sort((a,b)=>pref(a)-pref(b))[0];
    // (corrida hacia un extremo de la pared —2026-10-18, validar-vanos—: centrada, ocupaba el lugar de la ventana del cuarto)
    if(q)doors.push({axis:'u',at:q.v1,from:Math.max(q.u0+.35,q.u1-(Math.abs(q.u1-q.Lu)<.01?1.35:1.2)),len:.9,a:q.id,b:'patio',patio:true});}
   // Ventanas: en el medio de cada borde que da afuera (las de los baños, chicas), menos donde va la puerta de calle.
-  for(const q of rooms){if(q.type==='escalera'||q.type==='terraza'||q===hall)continue;const bano=q.type==='bano',wl=bano?.6:Math.min(VENTANAL,(q.u1-q.u0)-.6);
+  for(const q of rooms){if(q.type==='escalera'||AFUERA.has(q.type)||q===hall)continue;const bano=q.type==='bano',wl=bano?.6:Math.min(VENTANAL,(q.u1-q.u0)-.6);
    const add=(axis,at,c0,c1,len)=>{if(len<.5)return;windows.push({axis,at,from:(c0+c1)/2-len/2,len,a:q.id,small:bano});};
    // (una sola ventana por cuarto: la de adelante o la de atrás; la del costado, si no tiene otra)
    const n0=windows.length;if(Math.abs(q.v0-f0)<1e-6&&!(level===0&&q===sala))add('u',f0,q.u0,q.u1,wl);

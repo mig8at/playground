@@ -13,6 +13,7 @@
 
 import {OBJETOS,partsBoxes,RUG_COUNT} from '../lib/objetos3d.js';
 import {PELICULA} from './cortinas.js';
+import {AFUERA} from './hogar.js';
 import {sinTitilar} from './titileo.js';
 import {CHOQUE_MUEBLE} from './medidas.js';
 
@@ -294,12 +295,13 @@ export function planHouse(input){
   // z— se corta un espesor; en una hacia adentro, al revés: el de x sigue un espesor y el de z llega a la punta. Los vanos de
   // cada muro, los que caen en su línea)
   const terrs=L.rooms.filter(q=>q.type==='terraza').map(q=>({x0:q.u0,x1:q.u1,z0:D-q.v1,z1:D-q.v0}));
-  const cuartosW=L.rooms.filter(q=>q.type!=='terraza').map(q=>({x0:q.u0,x1:q.u1,z0:D-q.v1,z1:D-q.v0}));
+  const cuartosW=L.rooms.filter(q=>!AFUERA.has(q.type)).map(q=>({x0:q.u0,x1:q.u1,z0:D-q.v1,z1:D-q.v0}));// (la terraza y el porche, afuera)
   const adentro=(x,z)=>cuartosW.some(r=>x>r.x0&&x<r.x1&&z>r.z0&&z<r.z1),enTerraza=(x,z)=>terrs.some(r=>x>r.x0&&x<r.x1&&z>r.z0&&z<r.z1);
   const menos=(a0,a1,cs)=>{let ps=[[a0,a1]];for(const [c0,c1] of cs)ps=ps.flatMap(([x,y])=>[[x,Math.min(y,c0)],[Math.max(x,c1),y]]).filter(([x,y])=>y-x>.05);return ps;};
   const bordes=bordesDe(cuartosW,adentro,()=>true);
   const huecos=[...front.map(h=>({...h,axis:'x',at:zF-T/2})),...back.map(h=>({...h,axis:'x',at:T/2})),...left.map(h=>({...h,axis:'z',at:T/2})),...right.map(h=>({...h,axis:'z',at:W-T/2}))];
-  const td=L.doors.find(d=>d.terraza);if(td){const t=terrs[0],zc=D-td.at;huecos.push({...door('x',zc-T/2,1,td.from+td.len/2,yF,s.estilo==='moderna'?'Leaf_minimal':'Door_6',DOOR_W),axis:'x',at:zc-T/2});}
+  // (las puertas a la terraza y al porche: en el muro del lado del cuarto —el del pasillo—)
+  for(const td of L.doors.filter(d=>d.afuera)){const zc=D-td.at,n=adentro(td.from+td.len/2,zc-.01)?-1:1,c=zc+n*T/2;huecos.push({...door('x',c,-n,td.from+td.len/2,yF,s.estilo==='moderna'?'Leaf_minimal':'Door_6',DOOR_W),axis:'x',at:c});}
   const hacia=(B,fin)=>{const P=fin?B.b:B.a,sg=fin?1:-1,dl=.01,[x,z]=B.axis==='x'?[P+sg*dl,B.e-B.n*dl]:[B.e-B.n*dl,P+sg*dl];return adentro(x,z);};// (¿esquina hacia adentro en esa punta?)
   for(const B of bordes){const c=B.e+B.n*T/2,out=-B.n,ad0=hacia(B,false),ad1=hacia(B,true);
    const a=B.axis==='x'?B.a-(ad0?T:0):B.a+(ad0?0:T),b=B.axis==='x'?B.b+(ad1?T:0):B.b-(ad1?0:T);if(b-a<.02)continue;
@@ -326,7 +328,7 @@ export function planHouse(input){
   // cocina y lisa en lo demás. Los vanos abiertos (sala-comedor, la escalera) y la de calle no llevan.
   // (y sólo las que el plano marca con hoja —d.hoja, engine/puertas.js—: dormitorios, baños, oficina, depósito; la cocina
   // y la sala, vano abierto)
-  for(const d of L.doors){if(d.street||d.patio||d.terraza||d.open||d.hoja===false)continue;const q=L.rooms.find(r=>r.id===d.a);if(!q)continue;
+  for(const d of L.doors){if(d.street||d.patio||d.afuera||d.open||d.hoja===false)continue;const q=L.rooms.find(r=>r.id===d.a);if(!q)continue;
    const style=s.estilo==='moderna'?'minimal':q.type==='dormitorio'?'tablero':q.type==='bano'?'rejilla':q.type==='cocina'?'vidrio':'lisa',c0=d.from+d.len/2,w=d.len;// (la moderna, la hoja minimalista en todas —objetos3d puerta—)
    // (out: hacia el pasillo —la hoja gira hacia el otro lado, como la de calle, que abre hacia adentro—)
    let axis,at,c,out;if(d.axis==='u'){axis='x';at=D-d.at;c=c0;out=(q.v0+q.v1)/2>d.at?1:-1;}else{axis='z';at=d.at;c=D-c0;out=(q.u0+q.u1)/2>d.at?-1:1;}
