@@ -35,6 +35,7 @@ const NIVELES=[
  {n:3,t:'Lotes y edificios',d:'plantas, pisos, escaleras, fachadas y el acceso a los patios',p:[
   {n:'ciudad',f:'validar-ciudad.mjs',a:[N,S0],fallas:/edificios con alguna falla: (\d+)/,res:/^\d+ ciudades/},
   {n:'núcleos',f:'validar-nucleos.mjs',a:[N,S0],fallas:/(\d+) con fallas/,res:/con escalera/},
+  {n:'casas modernas',f:'validar-casas-modernas.mjs',a:[N,S0],fallas:F,res:/^casas modernas/},// (2026-11-22: dúplex modernas del monte —hogar.js, vivienda.js—)
   {n:'escaleras de casa',f:'validar-escaleras-casa.mjs',a:[],fallas:/(\d+) con fallas/,res:/casas de dos pisos/},
   {n:'vanos de casa',f:'validar-vanos.mjs',a:[Math.min(N,3),S0],fallas:F,res:/^vanos/},
   {n:'fachada y uso',f:'validar-fachada-uso.mjs',a:[N,S0],fallas:F,res:/^fachada y uso/},

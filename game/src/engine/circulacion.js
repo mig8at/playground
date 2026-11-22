@@ -83,9 +83,10 @@ export function redVehicular(bp){const m=bp.map,I=bp.isla,{W,H}=m,K=City.K,n=m.n
 
 // El cuerpo de una casa del monte (sin el porche ni el jardín del frente: ahí se camina hasta la puerta): {x0,x1,z0,z1}
 // y la puerta, en el medio de su frente.
-export function cuerpoCasa(h){const Pl=h.spec?.hogar,Wc=Pl?.W??h.w,D=Pl?.D??h.d,dF=D-h.d/2,f=h.frente,v=f==='N'||f==='S';
- const cx=h.x+(f==='E'?dF-D/2:f==='W'?-(dF-D/2):0),cz=h.z+(f==='S'?dF-D/2:f==='N'?-(dF-D/2):0),w=v?Wc:D,d=v?D:Wc;
- return {x0:cx-w/2,x1:cx+w/2,z0:cz-d/2,z1:cz+d/2,puerta:{x:h.x+(f==='E'?dF:f==='W'?-dF:0),z:h.z+(f==='S'?dF:f==='N'?-dF:0)},afuera:{x:f==='E'?1:f==='W'?-1:0,z:f==='S'?1:f==='N'?-1:0}};}
+// (2026-11-22: sin la entrada cubierta del voladizo —hogar.js VOLADIZO—: el cuerpo es el piso de abajo, y la puerta, la de su frente)
+export function cuerpoCasa(h){const Pl=h.spec?.hogar,Wc=Pl?.W??h.w,D=Pl?.D??h.d,Vo=Pl?.voladizo||0,dF=D-h.d/2,f=h.frente,v=f==='N'||f==='S',Db=D-Vo,m=dF-Vo-Db/2;
+ const cx=h.x+(f==='E'?m:f==='W'?-m:0),cz=h.z+(f==='S'?m:f==='N'?-m:0),w=v?Wc:Db,d=v?Db:Wc;
+ return {x0:cx-w/2,x1:cx+w/2,z0:cz-d/2,z1:cz+d/2,puerta:{x:h.x+(f==='E'?dF-Vo:f==='W'?-(dF-Vo):0),z:h.z+(f==='S'?dF-Vo:f==='N'?-(dF-Vo):0)},afuera:{x:f==='E'?1:f==='W'?-1:0,z:f==='S'?1:f==='N'?-1:0}};}
 
 // ======== Peatones: la grilla de navegación ========
 // Cada celda de C.peaton.celda: su altura (la del suelo donde se para) y si se puede estar ahí (libre de obstáculos,

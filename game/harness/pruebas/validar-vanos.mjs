@@ -14,7 +14,7 @@ let ejesArriba=0,ejesAlineados=0,ejesPosibles=0,sinVentana=0,casas=0,paredes=0,v
 for(let sd=S0;sd<S0+N;sd++){const bp=generateBlueprint({seed:sd,team:3});
  for(const [i,h] of (bp.isla.casas||[]).filter(h=>h.spec).entries()){const P=planHouse({...h.spec,...(h.colores?{colores2d:h.colores}:{})});casas++;
   for(const l of h.spec.hogar?.levels||[])for(const q of l.rooms)if(l.windows.some(w=>w.a===q.id)&&!P.openings.some(o=>o.kind==='window'&&o.cuarto===q.id&&o.nivel===l.level)){sinVentana++;falla('cuarto sin su ventana',{semilla:sd,casa:i,cuarto:q.type,nivel:l.level});}
-  const g=new Map();for(const o of P.openings){if(o.ext==null)continue;const piso=o.y0>P.H1-.3?1:0,k=`${o.axis}:${o.at.toFixed(2)}:${piso}`;(g.get(k)||g.set(k,[]).get(k)).push(o);}
+  const g=new Map();for(const o of P.openings){if(o.ext==null)continue;const piso=o.y0>P.H1-.3?1:0,k=`${o.axis}:${o.out}:${piso}`;/* (la pared por su lado —2026-11-22: con el voladizo, el frente de abajo queda detrás del de arriba—) */(g.get(k)||g.set(k,[]).get(k)).push(o);}
   for(const [k,l] of g){paredes++;vanos+=l.length;const [axis,at]=k.split(':'),o0=axis==='x'?-P.ox:-P.oz,largo=axis==='x'?P.W:P.D,ej={semilla:sd,casa:i,pared:k};
    l.sort((a,b)=>a.c-b.c);
    for(const o of l){const a=o.c-o.ext-o0,b=o.c+o.ext-o0;if(a<ESQUINA_MIN-1e-6||b>largo-ESQUINA_MIN+1e-6)falla('vano que se sale de la pared o llega a la esquina',{...ej,kind:o.kind,c:+o.c.toFixed(2),ext:+o.ext.toFixed(2),largo:+largo.toFixed(2)});}
