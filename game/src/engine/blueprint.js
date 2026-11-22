@@ -714,7 +714,10 @@ function openings(L,F,plan,level,r){// (PC: el ancho de la puerta de calle de es
   // corta, y ahí no entraban la ducha ni el lavamanos: 65 baños sin ducha en dos ciudades)
   // (2026-11-22, lo mismo: lo que se guarda —depósitos, bóvedas, archivos, trasteros— no lleva ventana, como una bodega)
   if(CIEGOS.has(q.type)||q.trastero)continue;
-  const pone=ok=>{const n0=windows.length;for(const e of edges){if(q.type==='bano'&&e.b-e.a<=2+1e-6)continue;const wd=q.type==='bano'?.8:1.2;for(const m of modulesIn(e.a,e.b))if(!doorIn(e,m)&&ok(e.side,m+.2)&&ok(e.side,m+1.8))windows.push({axis:e.axis,at:e.at,from:m+1-wd/2,len:wd,a:q.id});}return windows.length-n0;};
+  // (2026-11-22, la auditoría de coherencia: el baño de planta baja no abre ventana a la calle —desde la vereda se vería
+  // adentro—: ventila por extracción, como los demás baños sin ventana; al patio, sí. 40 en dos ciudades)
+  const bajoALaCalle=level===0&&(q.type==='bano'||q.type==='sanitario');
+  const pone=ok=>{const n0=windows.length;for(const e of edges){if(q.type==='bano'&&e.b-e.a<=2+1e-6)continue;const wd=q.type==='bano'?.8:1.2;for(const m of modulesIn(e.a,e.b))if(!doorIn(e,m)&&ok(e.side,m+.2)&&ok(e.side,m+1.8)&&!(bajoALaCalle&&['calle','avenida'].includes(F.at(e.side,m+1,level))))windows.push({axis:e.axis,at:e.at,from:m+1-wd/2,len:wd,a:q.id});}return windows.length-n0;};
   const n=pone(glazed);
   if(CULATAS_CIEGAS&&HABITABLE.has(q.type)&&n*vidrioMax<(q.u1-q.u0)*(q.v1-q.v0)*MINIMO.luz-1e-9){windows.splice(windows.length-n,n);pone(glazedAlto);}}
  // La pieza de cada ventana (2026-10-15, decisión de Miguel): la del estilo del edificio (primer piso ventana1, más
@@ -737,14 +740,12 @@ function openings(L,F,plan,level,r){// (PC: el ancho de la puerta de calle de es
   {const ws=windows.filter(w=>!w.shop&&!(level===0&&esVidriera(L.type,w))),base=(level<=1?fa.ventana1:fa.ventana)||'cuadrada';
    const mayor=ws.reduce((m,w)=>{const k=w.pieza||base;return g(k)>g(m)?k:m;},base);for(const w of ws)w.pieza=mayor;piezaDelPiso=mayor;}}
  // La escalera también tiene ventanas donde el núcleo da a la fachada (el pozo del ascensor no).
- // (2026-11-22, la auditoría de coherencia: también donde el núcleo da al frente —antes sólo al fondo—; con la escalera
- // sobre la calle, la fachada de un edificio angosto quedaba ciega en todos sus pisos)
- if(core){const st0=plan.lift?core.u0+2:core.u0;if(core.v1===Lv)for(const m of modulesIn(st0,core.u1))if(glazed('back',m+.2)&&glazed('back',m+1.8))windows.push({axis:'u',at:Lv,from:m+.4,len:1.2,a:'nucleo'});
-  if(core.v0===0)for(const m of modulesIn(st0,core.u1))if(glazed('front',m+.2)&&glazed('front',m+1.8)&&!doors.some(d=>d.street&&d.axis==='u'&&Math.abs(d.at)<1e-6&&d.from<m+2&&d.from+d.len>m))windows.push({axis:'u',at:0,from:m+.4,len:1.2,a:'nucleo'});
-  // (y en los costados: en un edificio de esquina la escalera da a la calle de al lado)
-  const libreV=(at,m)=>!doors.some(d=>d.street&&d.axis==='v'&&Math.abs(d.at-at)<1e-6&&d.from<m+2&&d.from+d.len>m);
-  if(core.u0===0)for(const m of modulesIn(core.v0,core.v1))if(glazed('left',m+.2)&&glazed('left',m+1.8)&&libreV(0,m))windows.push({axis:'v',at:0,from:m+.4,len:1.2,a:'nucleo'});
-  if(core.u1===Lu)for(const m of modulesIn(core.v0,core.v1))if(glazed('right',m+.2)&&glazed('right',m+1.8)&&libreV(Lu,m))windows.push({axis:'v',at:Lu,from:m+.4,len:1.2,a:'nucleo'});}
+ // LA ESCALERA, SIN VENTANAS (2026-11-22, Miguel: «las ventanas en el giro de la escalera quedan mal: ¿lo podemos cuadrar en el
+ // motor?»). La escalera en U sube por los costados desde la puerta y descansa al fondo a media altura del piso (1,5 m):
+ // cualquier ventana del núcleo, a la altura de las de su piso, queda cruzada por un tramo o por la losa del descanso. Para
+ // que cuadrara habría que correrla medio piso, y eso saca la ventana de su módulo de 2 × 3 m. El muro de la escalera va
+ // ciego en todos sus lados, como en tantos edificios, y se puede pintar. (Antes llevaba ventana donde el núcleo daba al
+ // fondo; el 2026-11-22 se probó también al frente y a los costados.)
  // El pasillo del frente de las suites angostas: una ventana por módulo, como los cuartos.
  for(const h of corr.filter(h=>h.hall))for(const m of modulesIn(h.u0,h.u1))if(glazed('front',m+.2)&&glazed('front',m+1.8))windows.push({axis:'u',at:0,from:m+.4,len:1.2,a:'pasillo'});
  // El pasillo, con una ventana en cada punta que da afuera.
