@@ -20,7 +20,7 @@ import {MANSARDA} from './medidas.js';
 import {loteEn} from './fachada-piezas.js';
 import {CELL} from './veredas.js';
 
-export const DUPLEX={aire:2.1,cabeza:2,escalera:{ancho:1,largo:4,peldanos:15},corta:{ancho:1,largo:3,peldanos:12},cerrados:['bano','ropas'],cara:{fachada:.25,tabique:.07},pasoMin:1.3,penthouse:{max:250},isla:{paso:1.1,libre:1,largo:2.4,hondo:.9},ventana:'vidrio',arranque:1,vacio:{lado:3,piso:6,max:.45},otros:['dormitorio','hall'],paso:1,cuartos:['sala_cocina','sala','estudio','comedor']};
+export const DUPLEX={aire:2.1,cabeza:2,escalera:{ancho:1,largo:4,peldanos:15},corta:{ancho:1,largo:3,peldanos:12},cerrados:['bano','ropas','deposito'],cara:{fachada:.25,tabique:.07},pasoMin:1.3,penthouse:{max:250},isla:{paso:1.1,libre:1,largo:2.4,hondo:.9},ventana:'vidrio',arranque:1,vacio:{lado:3,piso:6,max:.45},otros:['dormitorio','hall'],paso:1,cuartos:['sala_cocina','sala','estudio','comedor']};
 const pisa=(a,b,t=.01)=>Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x)>t&&Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y)>t;
 const dentro=(a,b,t=.01)=>a.x>=b.x-t&&a.y>=b.y-t&&a.x+a.w<=b.x+b.w+t&&a.y+a.h<=b.y+b.h+t;
 
@@ -226,9 +226,10 @@ function esquinaDe(bp,L){const de=loteEn(bp),r=L.rect,W=bp.map.W,H=bp.map.H,lote
 // casa —su puerta de entrada, una puerta de verdad hacia la escalera del edificio, es la que se tranca—, los departamentos
 // se juntan en uno y queda una cocina: la más grande; las demás pasan a sala o comedor. Devuelve cómo deshacerlo.
 function penthouse(L,top){const P=DUPLEX.penthouse,r=L.rect;
- if((L.parts||[]).length!==1||(top.units||[]).length<2||!(top.corridor||[]).length||!top.core||r.w*r.h>P.max+1e-6)return null;
+ // (también con un solo departamento y su pasillo, o con depósitos y el cuarto de ropas sin dueño: todo pasa a la casa —Miguel,
+ // 2026-11-22: «sigo viendo mansardas vacías… deberían ser todos los edificios que terminan con mansarda dúplex»—)
+ if((L.parts||[]).length!==1||!(top.units||[]).length||!(top.corridor||[]).length||!top.core||r.w*r.h>P.max+1e-6)return null;
  const area=q=>q.w*q.h,suma=top.rooms.reduce((t,q)=>t+area(q),0)+top.corridor.reduce((t,c)=>t+area(c),0)+area(top.core);if(Math.abs(suma-r.w*r.h)>.5)return null;
- if(top.rooms.some(q=>q.unit==null))return null;
  const antes={rooms:top.rooms.map(q=>({...q})),doors:top.doors.map(d=>({...d})),corridor:top.corridor,units:top.units,furniture:top.furniture};
  const n=Math.min(...top.units.map(u=>u.n));let id=Math.max(...top.rooms.map(q=>q.id))+1;
  for(const q of top.rooms)q.unit=n;
@@ -237,7 +238,10 @@ function penthouse(L,top){const P=DUPLEX.penthouse,r=L.rect;
  const hallEn=(x,z)=>halls.find(h=>x>=h.x-.05&&x<=h.x+h.w+.05&&z>=h.y-.05&&z<=h.y+h.h+.05);
  // (las puertas de cada departamento al pasillo se van —ahora es la casa—; la del núcleo pasa a ser la puerta de entrada, de
  // 90 cm, al medio de su vano)
- const doors=[];for(const d of top.doors){const ap=d.a==='pasillo'||d.b==='pasillo';if(!ap){doors.push(d);continue;}
+ const doors=[],cerrado=id=>DUPLEX.cerrados.includes(top.rooms.find(q=>q.id===id)?.type);
+ for(const d of top.doors){const ap=d.a==='pasillo'||d.b==='pasillo';if(!ap){doors.push(d);continue;}
+  // (la puerta de un cuarto cerrado —un depósito, el de ropas, un baño— al pasillo queda: ahora da al vestíbulo)
+  const otro=d.a==='pasillo'?d.b:d.a;if(cerrado(otro)){const h=Math.abs(d.y0-d.y1)<1e-6,mx=(d.x0+d.x1)/2,mz=(d.y0+d.y1)/2,H=halls.find(q=>[[0,.2],[0,-.2],[.2,0],[-.2,0]].some(([a,b])=>mx+a>q.x&&mx+a<q.x+q.w&&mz+b>q.y&&mz+b<q.y+q.h));if(H){doors.push(d.a==='pasillo'?{...d,a:H.id}:{...d,b:H.id});continue;}}
   if(d.core||d.a==='escalera'||d.b==='escalera'){const h=Math.abs(d.y0-d.y1)<1e-6,m=h?(d.x0+d.x1)/2:(d.y0+d.y1)/2,H=hallEn(h?m:d.x0,h?d.y0:m);if(!H)return deshacer(),null;
    doors.push(h?{x0:m-.45,y0:d.y0,x1:m+.45,y1:d.y0,a:H.id,b:'escalera',street:false,core:false,wide:false,bay:false,stair:false,hoja:true,abierta:false,entrada:true}:{x0:d.x0,y0:m-.45,x1:d.x0,y1:m+.45,a:H.id,b:'escalera',street:false,core:false,wide:false,bay:false,stair:false,hoja:true,abierta:false,entrada:true});}}
  top.doors=doors;top.corridor=[];top.units=[{n,x:r.x,y:r.y,w:r.w,h:r.h}];
@@ -280,7 +284,7 @@ function islaDe(lv,qs,esc){const I=DUPLEX.isla,fs=lv.furniture||[],dentro=(f,q)=
   return {x:r.x,y:r.y,w:r.w,h:r.h,cuarto:K.id};}
  return null;}
 
-export function duplexDe(bp){let n=0,no=0,penthouses=0;
+export function duplexDe(bp){let n=0,no=0,penthouses=0,incompletos=0;
  for(const L of bp.lots){delete L.duplex;if(!L.mansarda||(L.floors||0)<2)continue;const top=L.levels[L.floors-1];if(!top?.units?.length)continue;delete top.escalerasInternas;
   // (cada departamento del piso, su dúplex si cabe la escalera)
   const armar=()=>{const unidades=[];let sin=0;
@@ -299,9 +303,15 @@ export function duplexDe(bp){let n=0,no=0,penthouses=0;
     arriba.windows=arriba.windows.filter(w=>!vb.vacios.some(v=>{const x=(w.x0+w.x1)/2,z=(w.y0+w.y1)/2;return x>v.x-.05&&x<v.x+v.w+.05&&z>v.y-.05&&z<v.y+v.h+.05;}));
     (top.escalerasInternas||(top.escalerasInternas=[])).push({...esc,unit:u.n});unidades.push({n:u.n,escalera:esc,...arriba,...vb});}
    return {unidades,sin};};
+  const foto={rooms:top.rooms.map(q=>({...q})),doors:top.doors.map(d=>({...d})),corridor:top.corridor,units:top.units,furniture:top.furniture};
   // primero, todo el piso en uno; si no cabe su escalera, como antes: un dúplex por departamento
-  const ph=penthouse(L,top);let r=armar();
-  if(ph&&!r.unidades.length){ph.deshacer();delete top.escalerasInternas;r=armar();}else if(ph)penthouses++;
+  let ph=penthouse(L,top),r=armar();
+  if(ph&&!r.unidades.length){ph.deshacer();ph=null;delete top.escalerasInternas;r=armar();}else if(ph)penthouses++;
+  // (la mansarda entera o nada —Miguel: «deberían ser todos los edificios que terminan con mansarda dúplex, y aprovechar los
+  // espacios»—: si queda piso de la mansarda sin dúplex —un pasillo, un departamento sin escalera, un cuarto sin dueño—, se
+  // deshace y el edificio pasa a techo plano —abajo—. El penthouse de un edificio en L queda para después)
+  const entero=!!ph||(!(top.corridor||[]).length&&top.units.every(u=>r.unidades.some(d=>d.n===u.n))&&!top.rooms.some(q=>q.unit==null));
+  if(r.unidades.length&&!entero){top.rooms=foto.rooms;top.doors=foto.doors;top.corridor=foto.corridor;top.units=foto.units;top.furniture=foto.furniture;delete top.escalerasInternas;incompletos++;r={unidades:[],sin:r.sin};}
   n+=r.unidades.length;no+=r.sin;
   if(r.unidades.length)L.duplex={nivel:L.floors,unidades:r.unidades,penthouse:!!ph&&r.unidades.length===1&&top.units.length===1};
   // (las ventanas modernas —Miguel, 2026-11-22: «ventanas más modernas en los dúplex, para que se vea más bonito y moderno»—:
@@ -310,7 +320,11 @@ export function duplexDe(bp){let n=0,no=0,penthouses=0;
   // (todas, también la del baño —con vidrio esmerilado: un detalle de material que acá no se dibuja—: un piso de la fachada
   // lleva sus ventanas a una misma altura —auditar-plano, coherencia—)
   if(r.unidades.length&&top.units.every(u=>r.unidades.some(d=>d.n===u.n)))for(const w of top.windows||[])if(!w.shop&&!w.escalera)w.pieza=DUPLEX.ventana;}
- return {duplex:n,sinLugar:no,penthouses};}
+  // (LA MANSARDA, SÓLO CON DÚPLEX —Miguel, 2026-11-22: «veo mansardas sin acceso, lo cual indica que el piso de abajo no la
+ // está aprovechando»—: un edificio con mansarda que quedó sin dúplex —oficinas, un hotel, la comisaría, una casa de un piso,
+ // o uno donde no cupo la escalera— pasa a techo plano: sin el piso vacío encima, y su escalera llega a la azotea)
+ let aplanados=0;for(const L of bp.lots)if(L.mansarda&&!L.duplex){delete L.mansarda;L.fachada={...L.fachada,techo:'plano'};aplanados++;}
+ return {duplex:n,sinLugar:no,penthouses,aplanados,incompletos};}
 
 // El nivel de la mansarda como un piso más (para dibujarlo y medirlo igual que los demás): los cuartos de todos los dúplex
 // del edificio con su número de unidad, sus puertas y buhardillas, y los huecos de sus escaleras.

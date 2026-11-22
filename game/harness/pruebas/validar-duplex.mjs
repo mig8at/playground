@@ -19,8 +19,13 @@ import {CELL} from '../../src/engine/veredas.js';
 const N=+(process.argv[2]||2),S0=+(process.argv[3]||1),TEAM=+(process.argv[4]||3);
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};
 const e=v=>Math.abs(v-Math.round(v))<1e-6,dentro=(a,b,t=.01)=>a.x>=b.x-t&&a.y>=b.y-t&&a.x+a.w<=b.x+b.w+t&&a.y+a.h<=b.y+b.h+t,pisa=(a,b,t=.01)=>Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x)>t&&Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y)>t;
-const med={terrazas:0,escaleraEnVacio:0,islas:0,dobleAltura:0,duplex:0,recta:0,corta:0,larga:0,edificios:0,unidadesArriba:0,areaArriba:0};
+const med={mansardas:0,terrazas:0,escaleraEnVacio:0,islas:0,dobleAltura:0,duplex:0,recta:0,corta:0,larga:0,edificios:0,unidadesArriba:0,areaArriba:0};
 for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:TEAM}),P=propiedadesDe(bp);
+ // (la mansarda, sólo con dúplex y entera: Miguel, «deberían ser todos los edificios que terminan con mansarda dúplex, y aprovechar
+ // los espacios»; con el motor anterior quedaban 19 mansardas vacías —sin departamentos arriba— y 13 a medias)
+ for(const L of bp.lots){if(!L.mansarda)continue;med.mansardas++;const top=L.levels[L.floors-1];
+  if(!L.duplex){falla('una mansarda sin dúplex',{ciudad:s,lote:L.id,tipo:L.type});continue;}
+  if((top.corridor||[]).length||top.rooms.some(q=>!L.duplex.unidades.some(u=>u.n===q.unit)))falla('una mansarda a medias: piso de abajo sin dúplex',{ciudad:s,lote:L.id});}
  for(const L of bp.lots){if(!L.duplex)continue;med.edificios++;
   // (el pie de la escalera no da a un balcón —Miguel: «la escalera debería estar al revés, no desde el balcón»—: los balcones
   // que arma la fachada en el último piso, contra el borde del pie de cada escalera)
@@ -42,7 +47,7 @@ for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:TEAM}),P=propie
     if(pisa(dh?{x:x0,y:y0-.9,w:x1-x0,h:1.8}:{x:x0-.9,y:y0,w:1.8,h:y1-y0},E,.05)){falla('la escalera cierra el paso de una puerta',ej({n:u.n}));break;}}
    for(const w of top.windows){const wh=Math.abs(w.y0-w.y1)<1e-6,at=wh?w.y0:w.x0;const toca=wh?(Math.abs(at-E.y)<.05||Math.abs(at-E.y-E.h)<.05)&&Math.min(Math.max(w.x0,w.x1),E.x+E.w)-Math.max(Math.min(w.x0,w.x1),E.x)>.05:(Math.abs(at-E.x)<.05||Math.abs(at-E.x-E.w)<.05)&&Math.min(Math.max(w.y0,w.y1),E.y+E.h)-Math.max(Math.min(w.y0,w.y1),E.y)>.05;const enPie=wh?Math.abs(at-E.pie[1])<.05:Math.abs(at-E.pie[0])<.05;if(toca&&!enPie){falla('la escalera tapa una ventana',ej({n:u.n}));break;}}
    // (abajo, la planta abierta: ningún dormitorio, y entre dos cuartos que no son el baño ni el de ropas, toda pared compartida es vano abierto, hasta la cara del muro de al lado en cada punta, menos el muro que levanta la escalera)
-   {const qs=top.rooms.filter(r=>r.unit===u.n),ab=qs.filter(r=>!['bano','ropas'].includes(r.type));if(qs.some(r=>r.type==='dormitorio'))falla('un dormitorio abajo en un dúplex',ej({n:u.n}));
+   {const qs=top.rooms.filter(r=>r.unit===u.n),ab=qs.filter(r=>!['bano','ropas','deposito'].includes(r.type));if(qs.some(r=>r.type==='dormitorio'))falla('un dormitorio abajo en un dúplex',ej({n:u.n}));
     for(let i=0;i<ab.length;i++)for(let j=i+1;j<ab.length;j++){const a=ab[i],b=ab[j];for(const [h,fa,fb,a0,a1,b0,b1] of [[true,a.y+a.h,b.y,a.x,a.x+a.w,b.x,b.x+b.w],[true,b.y+b.h,a.y,a.x,a.x+a.w,b.x,b.x+b.w],[false,a.x+a.w,b.x,a.y,a.y+a.h,b.y,b.y+b.h],[false,b.x+b.w,a.x,a.y,a.y+a.h,b.y,b.y+b.h]]){
      if(Math.abs(fa-fb)>.05)continue;const p=Math.max(a0,b0),q=Math.min(a1,b1);if(q-p<.5)continue;const vano=top.doors.filter(d=>d.wide&&(h?Math.abs(d.y0-fa)<.05:Math.abs(d.x0-fa)<.05)).reduce((t,d)=>t+Math.max(0,Math.min(q,h?Math.max(d.x0,d.x1):Math.max(d.y0,d.y1))-Math.max(p,h?Math.min(d.x0,d.x1):Math.min(d.y0,d.y1))),0);
      const muroEsc=u.escalera.muroPropio&&(h?Math.abs(u.escalera.y-fa)<.05||Math.abs(u.escalera.y+u.escalera.h-fa)<.05:Math.abs(u.escalera.x-fa)<.05||Math.abs(u.escalera.x+u.escalera.w-fa)<.05)?Math.max(0,Math.min(q,(h?u.escalera.x+u.escalera.w:u.escalera.y+u.escalera.h)+.9)-Math.max(p,(h?u.escalera.x:u.escalera.y)-.9)):0;
@@ -86,6 +91,6 @@ for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:TEAM}),P=propie
    for(const [k,n] of porCasilla)if(n!==3)falla('una terraza que no ocupa la casilla entera',{ciudad:s,lote:L.id,casilla:k,modulos:n});med.terrazas+=porCasilla.size;}
   // (el precio por metro)
   const ps=P.filter(p=>p.lote===L.id&&p.clase==='departamento'),otros=ps.filter(p=>!p.duplex);for(const p of ps.filter(p=>p.duplex))if(otros.some(o=>o.precio/o.area>=p.precio/p.area))falla('un dúplex que vale por metro menos que otro departamento',ej({id:p.id}));}}
-console.log(`dúplex · ${N} ciudades de ${TEAM} por equipo · ${med.duplex} dúplex en ${med.edificios} edificios (escaleras rectas: ${med.larga} de 4 m, ${med.corta} de 3 m; ${med.dobleAltura} con la sala a doble altura; ${med.islas} con cocina de isla; ${med.escaleraEnVacio} con la escalera dentro de la doble altura; ${med.terrazas} terrazas corridas) · ${med.unidadesArriba} cuartos arriba, ${Math.round(med.areaArriba)} m² de mansarda que se usan`);
+console.log(`dúplex · ${N} ciudades de ${TEAM} por equipo · ${med.mansardas} mansardas, todas con dúplex entero · ${med.duplex} dúplex en ${med.edificios} edificios (escaleras rectas: ${med.larga} de 4 m, ${med.corta} de 3 m; ${med.dobleAltura} con la sala a doble altura; ${med.islas} con cocina de isla; ${med.escaleraEnVacio} con la escalera dentro de la doble altura; ${med.terrazas} terrazas corridas) · ${med.unidadesArriba} cuartos arriba, ${Math.round(med.areaArriba)} m² de mansarda que se usan`);
 for(const [k,f] of fallas)console.log(`  ${f.n}\t${k}\n        ${f.ej.map(e=>JSON.stringify(e)).join('\n        ')}`);
 console.log(`fallas: ${[...fallas.values()].reduce((a,f)=>a+f.n,0)}`);process.exit(fallas.size?1:0);
