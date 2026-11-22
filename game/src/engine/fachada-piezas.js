@@ -44,7 +44,10 @@ export function modulosDeFachada(bp,B){const S=CELL,de=loteEn(bp),id=B.id,fs=est
   // los tabiques que llegan a esta fachada en el piso f: una ventana doble no se pone sobre uno
   const line=h?ez:ex,partsAt=f=>{const lv=B.levels[f],o=[];for(const q of [...lv.rooms,...lv.corridor,lv.core].filter(Boolean)){const toca=h?Math.abs(q.y-line)<.05||Math.abs(q.y+q.h-line)<.05:Math.abs(q.x-line)<.05||Math.abs(q.x+q.w-line)<.05;if(toca)o.push(...(h?[q.x,q.x+q.w]:[q.y,q.y+q.h]));}return o;};
   const freeEdge=(f,k)=>{const cb=-S/2+2+2*k,at=h?ex+tx*cb:ez+tz*cb;return !partsAt(f).some(p=>Math.abs(p-at)<.35);};
-  const balconyAt=f=>fs.balconies&&f>=2&&other<0&&winMod(1,f);
+  // (2026-11-22, la auditoría de coherencia: el balcón, sólo delante de un cuarto donde se está —una sala, una alcoba, una
+  // oficina—; antes salía también delante de una cocineta. Lo de detrás: el cuarto 30 cm adentro del centro del módulo)
+  const detras=f=>{const c=coordDe(1),px=h?c:ex-dx*.3,pz=h?ez-dy*.3:c;return B.levels[f]?.rooms.find(q=>px>q.x&&px<q.x+q.w&&pz>q.y&&pz<q.y+q.h);};
+  const balconyAt=f=>fs.balconies&&f>=2&&other<0&&winMod(1,f)&&BALCON_DELANTE.has(detras(f)?.type);
   const pairOf=[];for(let f=0;f<floors;f++)pairOf[f]=fs.double&&f>=Math.max(1,f0)&&!balconyAt(f)?(winMod(0,f)&&winMod(1,f)&&freeEdge(f,0)?0:winMod(1,f)&&winMod(2,f)&&freeEdge(f,1)?1:-1):-1;
   for(let k=0;k<3;k++){const coord=coordDe(k);
    for(let f=f0;f<floors;f++){const win=hit(lines[f].w.get(lineKey),coord),door=f===0?hit(lines[f].d.get(lineKey),coord):null,pon=(tipo,pieza=null)=>out.push({lote:id,x,y,dx,dy,k,f,tipo,pieza});
@@ -52,7 +55,7 @@ export function modulosDeFachada(bp,B){const S=CELL,de=loteEn(bp),id=B.id,fs=est
     if(door){const dw=Math.hypot(door.x1-door.x0,door.y1-door.y0);if(dw>=1.6){pon('puerta_doble');out[out.length-1].ancho=+dw.toFixed(2);}else pon('puerta',fs.door);continue;}
     const vidriera=f===0&&!!win&&esVidriera(B.type,win),len=win?Math.hypot(win.x1-win.x0,win.y1-win.y0):0;
     const pieza=f===0&&!(win&&!vidriera)?(win?fs.shop:fs.wall):(win?(win.pieza==='ventanal'?VENTANAL:win.pieza&&WINDOWS[win.pieza]?WINDOWS[win.pieza].p:f<=1&&len>=1?fs.win1:fs.win):fs.plain);
-    if(k===1&&balconyAt(f))pon('balcon',fs.door);
+    if(k===1&&balconyAt(f))pon('balcon',BALCON_MARCO);
     else if(pairOf[f]===k)pon('doble',fs.double);
     else if(pairOf[f]<0||pairOf[f]!==k-1)pon(vidriera?'vidriera':win&&(f>0||!vidriera)&&pieza!==fs.plain&&pieza!==fs.wall?'ventana':'muro',pieza);
     else pon('doble2');}}}
@@ -71,6 +74,8 @@ export function modulosDeFachada(bp,B){const S=CELL,de=loteEn(bp),id=B.id,fs=est
 export const CERCO={lado:.16,abajo:.24,arriba:.26};
 export const PUERTA_VANO={DoorFrame_Wooden:[-1,1,0,3],DoorFrame_Trim:[-.68,.68,0,2.96],DoorFrame_Metal_Single:[-.57,.57,0,2.93]};
 export const PUERTA_DOBLE_ALTO=2.6;
+// El balcón: el marco de una puerta sencilla, sin hoja (se sale caminando), y sólo delante de estos cuartos.
+export const BALCON_MARCO='DoorFrame_Trim',BALCON_DELANTE=new Set(['dormitorio','sala','sala_cocina','estudio','habitacion','habitacion_h','oficina','abierta','reuniones','comedor']);
 export function vanoDeModulo(m){const cl=(v,a,b)=>Math.max(a,Math.min(b,v));
  if(m.tipo==='ventana'||m.tipo==='doble'){const g=vidrioDeModulo(m),x1=m.tipo==='doble'?3:1;return g?[cl(g[0]-CERCO.lado,-1,x1),cl(g[1]+CERCO.lado,-1,x1),cl(g[2]-CERCO.abajo,0,3),cl(g[3]+CERCO.arriba,0,3)]:[-1,x1,.3,2.8];}
  if(m.tipo==='puerta')return PUERTA_VANO[m.pieza]||[-1,1,0,3];
@@ -79,6 +84,8 @@ export function vanoDeModulo(m){const cl=(v,a,b)=>Math.max(a,Math.min(b,v));
  // (2026-11-22, Miguel: «esto debería ser lineal, sin sobreposiciones: ¿por qué el morado baja más de su planta?»: el
  // balcón ocupaba desde −0,15 —el canto de su losa— y se metía 15 cm en el piso de abajo. La losa sale hacia afuera, delante
  // del muro: en el plano de la fachada el vano es la puerta, de su piso al de arriba, como todo módulo)
- if(m.tipo==='balcon')return [-1,1,0,3];
+ // (2026-11-22, Miguel: «parece un hueco raro: debería ser sólo la puerta, o incluso sin puerta para que sea más jugable»:
+ // el marco de una puerta sencilla, sin hoja; antes el de la entrada del edificio, de 2 m, con un hueco oscuro alrededor)
+ if(m.tipo==='balcon')return PUERTA_VANO[BALCON_MARCO];
  return null;}
 export function vidrioDeModulo(m){if(m.tipo==='ventana')return m.pieza===VENTANAL?VIDRIO_VENTANAL:VIDRIO_PIEZA[m.pieza]||null;if(m.tipo==='doble'){const g=VIDRIO_PIEZA[m.pieza];return g?[g[0]+1,g[1]+1,g[2],g[3]]:null;}return null;}

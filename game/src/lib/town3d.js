@@ -274,7 +274,7 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
      if(bal){// el balcón: puerta (marco y hoja de la de calle, que se abre al acercarse en ese piso), la losa de concreto (la
       // entrada del paquete, de 15 cm), las barandas de los costados (las de una escalera recta) y adelante la baranda baja.
       // Se pisa (balconies) y sus barandas frenan (paredes de 1,1 m).
-      anota('balcon',fs.door);items.push({piece:fs.door,x:mx,y:yb,z:mz,ry,tint,lit:lit(f)});leaves.push({piece:fs.leaf,x:mx+tx*.5-dx*.12,y:yb,z:mz+tz*.5-dy*.12,ry,cx:mx,cz:mz,cy:yb,tint});
+      /* (2026-11-22: el marco de una puerta sencilla y sin hoja —fachada-piezas.js BALCON_MARCO—: se sale caminando) */anota('balcon',D.pieza||fs.door);items.push({piece:D.pieza||fs.door,x:mx,y:yb,z:mz,ry,tint,lit:lit(f)});
       items.push({piece:'Entrance_Concrete_2x1',x:mx,y:yb-.15,z:mz,ry,sy:.15},{piece:'Stairs_Rails_Metal_Straight_1',x:mx,y:yb-.97,z:mz,ry,tint:tint&&{zones:[tint.zones?.[2]||[null,[]]]}},{piece:'Trim_Wall_Guard',x:mx+dx*.88,y:yb,z:mz+dy*.88,ry,sy:1.5,tint:tint&&{zones:[tint.zones?.[2]||[null,[]]]}});
       gaps.push([yb-.3,yb+2.5]);balconies.push({x:mx,z:mz,nx:dx,nz:dy,w:2,d:1,y:yb+R});
       const bw=(a0,b0,a1,b1)=>wallAny(Math.min(a0,a1),Math.min(b0,b1),Math.max(a0,a1),Math.max(b0,b1),yb,yb+1.1);

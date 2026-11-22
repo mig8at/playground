@@ -684,6 +684,7 @@ function openings(L,F,plan,level,r){// (PC: el ancho de la puerta de calle de es
  // Ventanas: en cada borde de cuarto que da a la calle o al patio (nunca a una medianera ni a la nada).
  // (se mira qué hay afuera en el lugar de cada ventana: un lado puede ser en parte calle y en parte el vecino)
  // 'alto': el muro que asoma por encima de un vecino más bajo (en ese piso, ya da afuera).
+ let piezaDelPiso=null;
  // (2026-11-22, Miguel: «aumentar las paredes para pintar sin perder la esencia de una ciudad coherente»: LAS CULATAS. El
  // muro que asoma por encima de un vecino más bajo —'alto'— está sobre el lindero, y ahí la norma no deja abrir ventanas:
  // en las ciudades colombianas esas paredes son ciegas y son donde se pintan los murales. Antes llevaban ventana.
@@ -716,7 +717,15 @@ function openings(L,F,plan,level,r){// (PC: el ancho de la puerta de calle de es
   for(const q of rooms){if(!HABITABLE.has(q.type))continue;const ws=windows.filter(w=>w.a===q.id&&!(level===0&&esVidriera(L.type,w)));if(!ws.length)continue;
    const need=(q.u1-q.u0)*(q.v1-q.v0)*MINIMO.luz,base=(level<=1&&ws[0].len>=1?fa.ventana1:fa.ventana)||'cuadrada';
    const opts=[...new Set([base,...fam])].filter(k=>g(k)>=g(base)-1e-9).sort((a,b)=>g(a)-g(b)),pick=opts.find(k=>g(k)*ws.length>=need-1e-9)||opts[opts.length-1];
-   if(pick!==base)for(const w of ws)w.pieza=pick;}}
+   if(pick!==base)for(const w of ws)w.pieza=pick;}
+  // (2026-11-22, la auditoría de coherencia: «ventanas de un mismo piso a distinta altura», 339 fachadas en dos ciudades.
+  // Cada cuarto elegía la pieza que le daba su luz y en un mismo piso quedaban ventanas de alturas distintas, como no pasa
+  // en un edificio de verdad. Ahora todas las ventanas del piso —también las de los baños— llevan la misma: la mayor que
+  // haya pedido alguno de sus cuartos)
+  // (la pieza queda escrita en cada ventana: sin ella, la fachada elegía otra para las angostas —las de los baños, de 0,8 m— y
+  // para las del pasillo y la escalera, que se ponen más abajo; las de éstas se igualan allá)
+  {const ws=windows.filter(w=>!w.shop&&w.pieza!=='ventanal'&&!(level===0&&esVidriera(L.type,w))),base=(level<=1?fa.ventana1:fa.ventana)||'cuadrada';
+   const mayor=ws.reduce((m,w)=>{const k=w.pieza||base;return g(k)>g(m)?k:m;},base);for(const w of ws)w.pieza=mayor;piezaDelPiso=mayor;}}
  // La escalera también tiene ventanas donde el núcleo da a la fachada (el pozo del ascensor no).
  if(core){const st0=plan.lift?core.u0+2:core.u0;if(core.v1===Lv)for(const m of modulesIn(st0,core.u1))if(glazed('back',m+.2)&&glazed('back',m+1.8))windows.push({axis:'u',at:Lv,from:m+.4,len:1.2,a:'nucleo'});}
  // El pasillo del frente de las suites angostas: una ventana por módulo, como los cuartos.
@@ -724,6 +733,8 @@ function openings(L,F,plan,level,r){// (PC: el ancho de la puerta de calle de es
  // El pasillo, con una ventana en cada punta que da afuera.
  // (centrada en el pasillo y del largo que le entra: con 2 m era de 1,2 a 0,4 del borde; con el de 1,5 se pasaba al cuarto de atrás)
  if(Lv>8&&c.v0%2===0){const P=c.v1-c.v0,wl=Math.min(1.2,P-.3);for(const [s,u] of [['left',0],['right',Lu]])if(glazed(s,c.v0+P/2))windows.push({axis:'v',at:u,from:c.v0+(P-wl)/2,len:wl,a:'pasillo'});}
+ // (la escalera y el pasillo, con la pieza del piso: ver arriba)
+ if(piezaDelPiso)for(const w of windows)if(!w.shop&&!w.pieza&&!(level===0&&esVidriera(L.type,w)))w.pieza=piezaDelPiso;
  // (2026-11-21, lo encontró la fachada medida —validar-fachada-medida—: la ventana del remate del pasillo se ponía sin mirar
  // si en ese tramo de la fachada ya había una puerta de afuera —la del patio—, y quedaban una encima de la otra. La puerta
  // gana: sale la ventana que la pisa)
@@ -1165,6 +1176,9 @@ function buildLot(L,seed,stat){
     const ryOf=it=>{const cu=(it.u0+it.u1)/2,cv=(it.v0+it.v1)/2,d=it.dir||[0,1],[ax,ay]=F.pt(cu,cv),[bx,by]=F.pt(cu+d[0],cv+d[1]);return Math.atan2(bx-ax,by-ay);};
     lv.furniture.push(...pt.items.map(it=>({kind:it.kind,...F.rect(it.u0,it.v0,it.u1,it.v1),pc:!!it.pc,...(it.fit?{fit:true}:{}),ry:ryOf(it),rt:pt.plan.rooms[it.room]?.type,giro:pt.plan.rooms[it.room]?.giro})));// rt: el tipo del cuarto
     off+=pt.plan.rooms.length;uoff+=(pt.plan.units||[]).length;});
+   // (las dos alas de un edificio en L eligen su pieza por separado: el piso entero lleva la mayor —la auditoría de
+   // coherencia, «ventanas de un mismo piso a distinta altura»—)
+   {const ws=lv.windows.filter(w=>!w.shop&&w.pieza&&w.pieza!=='ventanal'),g=k=>VIDRIO.ventana[k]??.55;if(ws.length){const mayor=ws.reduce((m,w)=>g(w.pieza)>g(m)?w.pieza:m,ws[0].pieza);for(const w of ws)w.pieza=mayor;}}
    delete lv.parts;}
   L.rect={x:L.x0*CELL,y:L.y0*CELL,w:L.w*CELL,h:L.h*CELL};
   L.parts=L.wings.map(g=>({x:g.x0*CELL,y:g.y0*CELL,w:g.w*CELL,h:g.h*CELL}));

@@ -21,7 +21,7 @@ export const ladosDeCalleDe=ladosDeCalle;
 import {RAISE,facadeStyle,WINDOWS,VIDRIO_PIEZA,VIDRIO_VENTANAL} from './fachada.js';
 import {paredesDe} from './colocar.js';
 import {GRAFITI,lienzoDe,vacio,aTexto,deTexto} from './grafiti.js';
-import {vanoDeModulo} from './fachada-piezas.js';
+import {vanoDeModulo,PUERTA_VANO,BALCON_MARCO} from './fachada-piezas.js';
 
 const r3=v=>Math.round(v*1000)/1000,NORMAL={N:[0,-1],S:[0,1],E:[1,0],W:[-1,0]};
 export const SALE={exterior:.07,tabique:.075,medianera:.145,fachada:.265};// (m: el zócalo sale 5 cm; un tabique mide 12 de espesor y se ve la mitad; la medianera, 12 de este lado; la fachada, 25 hacia adentro)
@@ -50,7 +50,7 @@ function ocupaVano(L,fs,v,nivel,base,sube,cercaDeCalle){const c=(v.u0+v.u1)/2,m0
  // (el balcón —de la segunda planta para arriba— es una puerta con su losa y sus barandas; la doble une dos módulos)
  // (2026-11-22: el módulo justo, de su piso al de arriba —antes 10 cm de más a cada lado y 30 cm hacia abajo—: lineal, sin
  // pisar al vecino ni al piso de abajo; la losa sale delante del muro)
- if(fs.balconies&&nivel>=2)out.push({u0:m0,u1:m1,y0:base,y1:base+3,clase:'balcon'});
+ if(fs.balconies&&nivel>=2){const [a,b,y0,y1]=PUERTA_VANO[BALCON_MARCO];out.push({u0:c+a,u1:c+b,y0:base+y0,y1:base+y1,clase:'balcon'});}
  if(fs.double&&nivel>=1)out.push({u0:m0,u1:m1,y0:base,y1:base+2.65,clase:'doble'});
  return out;}
 export const ZOCALO_ALTO=.8;

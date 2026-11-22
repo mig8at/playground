@@ -10,6 +10,9 @@
 import {createHash} from 'node:crypto';
 import {generateBlueprint,SIZES} from '../../src/engine/blueprint.js';
 import {MUEBLES_MEDIDOS} from '../../src/engine/muebles-medidos.js';
+import {muroExterior,tramosDe} from '../../src/engine/muros.js';
+import {fachadaMedida} from '../../src/engine/fachada-medida.js';
+import {esVidriera} from '../../src/engine/medidas.js';
 
 const args=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=Number(args[0])||4,S0=Number(args[1])||1,JSON_OUT=process.argv.includes('--json'),TEAM=Number((process.argv.find(a=>a.startsWith('--equipo='))||'').split('=')[1])||3;// (--equipo=12: el tamaño de la ciudad)
 const hallazgos=new Map();
@@ -33,7 +36,8 @@ for(const [k,m] of Object.entries(MUEBLES_MEDIDOS)){if(!m.plan||!m.modelo)contin
 // ---------- 2 a 4. Cada ciudad ----------
 const dentroDe=(f,q,t=.01)=>f.x>=q.x-t&&f.y>=q.y-t&&f.x+f.w<=q.x+q.w+t&&f.y+f.h<=q.y+q.h+t;
 const pisa=(a,b,t=.05)=>Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,a.x>b.x?a.x:b.x)>t&&Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y)>t;
-const VACIOS_OK=new Set(['hall','entrada','vestibulo']);// (de paso: pueden ir sin muebles)
+const VACIOS_OK=new Set(['hall','entrada','vestibulo']);
+const HAB_BALCON=new Set(['dormitorio','sala','sala_cocina','estudio','habitacion','habitacion_h','oficina','abierta','reuniones','comedor']);// (de paso: pueden ir sin muebles)
 const firma=bp=>createHash('sha1').update(JSON.stringify([bp.lots.map(L=>[L.id,L.type,L.floors,L.rect,L.levels.map(lv=>[lv.rooms.length,lv.furniture.map(f=>[f.kind,f.x,f.y,f.w,f.h]),lv.doors.length,lv.windows.length])]),bp.equipamiento?.length,bp.vegetacion?.arboles?.length])).digest('hex').slice(0,12);
 const t00=Date.now();
 for(let s=S0;s<S0+N;s++){const t0=Date.now(),bp=generateBlueprint({seed:s,team:TEAM}),ms=Date.now()-t0,en=(L,lv,x)=>`ciudad ${s} lote ${L.id} (${L.type}) piso ${lv.level}: ${x}`;
@@ -65,6 +69,37 @@ for(let s=S0;s<S0+N;s++){const t0=Date.now(),bp=generateBlueprint({seed:s,team:T
     for(const w of lv.windows){const [a,b]=tr(w),c=(a+b)/2,o=((c-(h(w)?L.rect.x:L.rect.y))%2+2)%2;if(Math.abs(o-1)>.05)anota('plano','una ventana fuera del eje del módulo',en(L,lv,`centro a ${c.toFixed(2)} m`));
      const bajo=B.filter(v=>key(v)===key(w)).map(tr).filter(([p,q])=>Math.min(b,q)-Math.max(a,p)>.05);
      if(bajo.length&&!bajo.some(([p,q])=>Math.abs((p+q)/2-c)<.16||(lv.level===1&&c>p&&c<q)))anota('plano','una ventana corrida respecto de la de abajo',en(L,lv,`centro a ${c.toFixed(2)} m`));}}}
+  // ---------- LA COHERENCIA (2026-11-22, Miguel: «un listado del deber ser y de los posibles absurdos, e ir iterando
+  // poco a poco hasta que todo el render sea coherente») ----------
+  // EN PLANTA: cada cuarto en metro entero, dentro del edificio y sin pisar a otro; cada departamento con baño y cocina;
+  // ningún baño de paso; ninguna puerta pegada a un rincón si el borde daba para más.
+  for(const lv of L.levels.slice(0,L.floors)){const e=v=>Math.abs(v-Math.round(v))<1e-6;
+   for(const q of lv.rooms){if(!e(q.w)||!e(q.h))anota('coherencia','planta · un cuarto fuera del metro entero',en(L,lv,`${q.type} de ${q.w}×${q.h} m`));
+    if(!L.parts.some(P=>dentroDe(q,P,.02)))anota('coherencia','planta · un cuarto que se sale del edificio',en(L,lv,q.type));}
+   for(let i=0;i<lv.rooms.length;i++)for(let j=i+1;j<lv.rooms.length;j++)if(pisa(lv.rooms[i],lv.rooms[j]))anota('coherencia','planta · dos cuartos se pisan',en(L,lv,`${lv.rooms[i].type} y ${lv.rooms[j].type}`));
+   const us=new Map();for(const q of lv.rooms)if(q.unit!=null)(us.get(q.unit)||us.set(q.unit,[]).get(q.unit)).push(q.type);
+   for(const [u,ts] of us){if(!ts.includes('bano'))anota('coherencia','planta · un departamento sin baño',en(L,lv,`apto ${u}: ${ts.join(', ')}`));if(!ts.some(t=>/cocina|cocineta|estudio/.test(t)))anota('coherencia','planta · un departamento sin cocina',en(L,lv,`apto ${u}: ${ts.join(', ')}`));}
+   for(const q of lv.rooms.filter(q=>q.type==='bano')){const ps=lv.doors.filter(d=>d.a===q.id||d.b===q.id);if(ps.length>1)anota('coherencia','planta · un baño de paso (con dos puertas)',en(L,lv,`${q.w}×${q.h} m`));}
+   // (la puerta a menos de 30 cm del rincón —el tabique de al lado inflado por el cuerpo cierra la entrada—, cuando el borde
+   // que comparte con el otro cuarto le dejaba poner 40 cm de aire de cada lado)
+   for(const d of lv.doors){if(d.street||d.core||d.wide||typeof d.b!=='number')continue;const A=lv.rooms.find(q=>q.id===d.a),B=lv.rooms.find(q=>q.id===d.b);if(!A||!B)continue;const h=Math.abs(d.y0-d.y1)<1e-6,p0=h?Math.min(d.x0,d.x1):Math.min(d.y0,d.y1),p1=h?Math.max(d.x0,d.x1):Math.max(d.y0,d.y1);
+    const a=Math.max(h?A.x:A.y,h?B.x:B.y),b=Math.min(h?A.x+A.w:A.y+A.h,h?B.x+B.w:B.y+B.h);if(b-a<(p1-p0)+.8-1e-6)continue;if(Math.min(p0-a,b-p1)<.3-1e-6)anota('coherencia','planta · una puerta pegada al rincón',en(L,lv,`entre ${A.type} y ${B.type}, a ${Math.min(p0-a,b-p1).toFixed(2)} m`));}}
+  // EN FACHADA: cada vano adentro de su módulo y de su piso, sin pisar a otro; la puerta de calle sólo en planta baja; la
+  // vidriera sólo en un local; el balcón con un cuarto habitable detrás; las ventanas de un piso, todas a la misma altura;
+  // la culata ciega (las ventanas que quedan en el lindero, contadas).
+  for(const t of tramosDe(L)){const M=muroExterior(L,t.codigo),F=fachadaMedida(L,t.codigo),V=M.huecos.filter(h=>h.clase!=='zocalo'),lineas=F.pisos.map(p=>p.base).filter(b=>b>F.sube+1e-6);
+   const ef=x=>`ciudad ${s} lote ${L.id} (${L.type}) fachada ${t.codigo}: ${x}`;
+   for(let i=0;i<V.length;i++){const a=V[i];for(const y of lineas)if(a.y0<y-.005&&a.y1>y+.005)anota('coherencia','fachada · un vano que cruza la línea de un piso',ef(`${a.clase} de ${a.y0} a ${a.y1}`));
+    const m0=Math.floor((a.u0+.001)/2),m1=Math.ceil((a.u1-.001)/2);if(m1-m0>(a.clase==='doble'?2:1))anota('coherencia','fachada · un vano que pasa de su módulo',ef(`${a.clase} de ${a.u0} a ${a.u1}`));
+    for(let j=i+1;j<V.length;j++){const b=V[j];if(Math.min(a.u1,b.u1)-Math.max(a.u0,b.u0)>.005&&Math.min(a.y1,b.y1)-Math.max(a.y0,b.y0)>.005)anota('coherencia','fachada · dos vanos se pisan',ef(`${a.clase} y ${b.clase}`));}}
+   for(const P of F.pisos){const alt=new Set(V.filter(h=>h.clase==='ventana'&&h.y0>=P.base-.01&&h.y1<=P.base+3.01).map(h=>h.y0.toFixed(2)+'-'+h.y1.toFixed(2)));if(alt.size>1)anota('coherencia','fachada · ventanas de un mismo piso a distinta altura',ef(`piso ${P.nivel}: ${[...alt].join(' · ')}`));}}
+  for(const m of L.modulos||[]){const lv=L.levels[m.f];if(!lv)continue;
+   if(m.f>0&&(m.tipo==='puerta'||m.tipo==='puerta_doble'||m.tipo==='porton'))anota('coherencia','fachada · una puerta de calle fuera de la planta baja',en(L,lv,m.tipo));
+   // (lo que hay detrás del módulo: el cuarto que contiene un punto 30 cm adentro de su centro)
+   const ex=(m.x+.5+m.dx*.5)*6,ez=(m.y+.5+m.dy*.5)*6,c=-2+2*m.k,px=ex+m.dy*c-m.dx*.3,pz=ez-m.dx*c-m.dy*.3,q=lv.rooms.find(q=>px>q.x&&px<q.x+q.w&&pz>q.y&&pz<q.y+q.h);
+   // (la planta baja de lo que no es vivienda va toda en vidrio —medidas.js esVidriera, regla acordada—: eso no cuenta)
+   if(m.tipo==='vidriera'&&q&&q.type!=='local'&&!q.giro&&!esVidriera(L.type,{shop:false}))anota('coherencia','fachada · una vidriera que no es de un local',en(L,lv,`delante de un ${q.type}`));
+   if(m.tipo==='balcon'&&(!q||!HAB_BALCON.has(q.type)))anota('coherencia','fachada · un balcón sin un cuarto habitable detrás',en(L,lv,`delante de ${q?q.type:'nada (pasillo o núcleo)'}`));}
   // la azotea
   for(const o of L.azotea?.objetos||[])if(!L.parts.some(P=>o.x-o.w/2>=P.x-.01&&o.x+o.w/2<=P.x+P.w+.01&&o.z-o.d/2>=P.y-.01&&o.z+o.d/2<=P.y+P.h+.01))anota('afuera','un objeto de azotea fuera de la huella',`ciudad ${s} lote ${L.id}: ${o.tipo}`);}
  // las casas del monte (hogar.js anota lo que no le entró y los cuartos sin paso)
@@ -89,7 +124,7 @@ const lista=[...hallazgos.values()].sort((a,b)=>b.n-a.n);
 if(JSON_OUT){console.log(JSON.stringify({ciudades:N,desde:S0,lista,medidas,modelos},null,1));process.exit(0);}
 console.log(`\nAUDITORÍA DEL PLANO · ${N} ciudades de ${TEAM} por equipo desde la semilla ${S0} · ${Math.round((Date.now()-t00)/1000)} s\n`);
 if(!lista.length)console.log('  Nada que calibrar: ningún renglón.');
-for(const g of ['modelos','plano','casas','afuera','estabilidad']){const ls=lista.filter(h=>h.grupo===g);if(!ls.length)continue;console.log(`  ${g.toUpperCase()}`);
+for(const g of ['coherencia','modelos','plano','casas','afuera','estabilidad']){const ls=lista.filter(h=>h.grupo===g);if(!ls.length)continue;console.log(`  ${g.toUpperCase()}`);
  for(const h of ls){console.log(`   ${String(h.n).padStart(5)}  ${h.clave}`);for(const e of h.ej)console.log(`          · ${e}`);}console.log('');}
 console.log('  DE UNA CIUDAD A OTRA (mínimo · mediana · máximo)');
 for(const [k,v] of Object.entries(medidas)){const o=[...v].sort((a,b)=>a-b);console.log(`   ${k.padEnd(22)} ${o[0]} · ${o[o.length>>1]} · ${o.at(-1)}`);}
