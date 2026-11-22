@@ -12,6 +12,7 @@
 //  · los muebles con la planta abierta: nada de obra (LUGAR_FIJO) ni nada alto (más de ALTO_SUELTO) contra un borde sin
 //    pared —abrirPlanta no abre el borde del mesón y saca el armario suelto—;
 //  · sin depósitos de relleno: abajo, porche cubierto con su puerta al pasillo; arriba, terraza;
+//  · una sola fuente: cada caja de muro de la casa armada cae dentro de una pieza del grafo de la casa (grafoDeCasa);
 //  · la grilla común: el ancho, el fondo y los bordes de los cuartos, en la grilla de GRILLA (50 cm);
 //  · en las ventanas cerradas, la película y no cortinas (lo mide validar-cortinas).
 // Uso: node harness/pruebas/validar-casas-modernas.mjs [ciudades=2] [semilla0=1]
@@ -20,6 +21,7 @@ import {planHouse,MODERNA_DINTEL,FLOOR0,FH,TERRAZA_CASA,T as TM,bordesDe} from '
 import {VOLADIZO,ALTO_SUELTO,AFUERA,GRILLA} from '../../src/engine/hogar.js';
 import {LUGAR_FIJO} from '../../src/engine/entrega.js';
 import {CHOQUE_MUEBLE} from '../../src/engine/medidas.js';
+import {grafoDeCasa,murosConEspesor} from '../../src/engine/grafo-muros.js';
 const N=+(process.argv[2]||2),S0=+(process.argv[3]||1);
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};
 let casas=0,voladizos=0,abiertos=0,ventanas=0,terrazas=0,porches=0;const t0=Date.now();const vistos=new Set();
@@ -78,6 +80,10 @@ for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:3});
    for(const B of bordesDe(rs,den))for(let u=B.a+.05;u<B.b-.04;u+=.1){const [x,z]=B.axis==='x'?[u,B.e+B.n*TM/2]:[B.e+B.n*TM/2,u],X=x-H.ox,Z=z-H.oz;
     if(puertas.some(o=>o.axis===B.axis&&Math.abs((B.axis==='x'?Z:X)-o.at)<.15&&Math.abs((B.axis==='x'?X:Z)-o.c)<o.w/2+.15))continue;
     if(!H.boxes.some(b=>b.solid&&X>b.x0-1e-3&&X<b.x1+1e-3&&Z>b.z0-1e-3&&Z<b.z1+1e-3&&y>b.y0&&y<b.y1)){falla('hueco en la envolvente',{...ej,nivel:L.level,eje:B.axis,x:+X.toFixed(2),z:+Z.toFixed(2)});break;}}}
+  // (una sola fuente: los muros de la casa armada son las piezas del grafo —en planta, al milímetro—)
+  {const G=grafoDeCasa(P,'c'),piezas=G.map((g,f)=>murosConEspesor(g).map(m=>({f,x0:m.x-H.ox,x1:m.x+m.w-H.ox,z0:H.D-(m.y+m.h)-H.oz,z1:H.D-m.y-H.oz}))),FH1=FLOOR0+FH;
+   for(const b of H.boxes){if(!b.solid||!['liso','tablas','interior'].includes(b.cat)||b.y1-b.y0<1.5||b.y0<-.1)continue;const f=b.y0>=FH1-.3?1:0;
+    if(!piezas[f]?.some(q=>b.x0>q.x0-1e-3&&b.x1<q.x1+1e-3&&b.z0>q.z0-1e-3&&b.z1<q.z1+1e-3)){falla('muro de la casa fuera del grafo',{...ej,piso:f,x:+b.x0.toFixed(2),z:+b.z0.toFixed(2),cat:b.cat});break;}}}
   for(const o of H.openings){if(o.kind!=='window'||o.room==='bano')continue;ventanas++;const piso=o.y0>=FLOOR0+FH-.01?FLOOR0+FH:FLOOR0,cab=o.y0+o.h-piso;
    if(Math.abs(cab-MODERNA_DINTEL)>.005)falla('ventanal con la cabeza fuera de la línea',{...ej,cabeza:+cab.toFixed(3),cuarto:o.room});}}}
 console.log(`casas modernas · ${N} ciudades · ${casas} casas · ${voladizos} con voladizo sobre la entrada · ${terrazas} terrazas · ${porches} porches · ${abiertos} bordes abiertos · ${ventanas} ventanales medidos · ${Math.round((Date.now()-t0)/1000)} s`);

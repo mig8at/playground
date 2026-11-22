@@ -14,6 +14,7 @@
 import {OBJETOS,partsBoxes,RUG_COUNT} from '../lib/objetos3d.js';
 import {PELICULA} from './cortinas.js';
 import {AFUERA} from './hogar.js';
+import {grafoDeCasa,murosConEspesor,bandaDe,CLASE} from './grafo-muros.js';
 import {sinTitilar} from './titileo.js';
 import {CHOQUE_MUEBLE} from './medidas.js';
 
@@ -127,6 +128,7 @@ export function planHouse(input){
  // (spec.hogar: una casa desde la familia —engine/hogar.js—: sus medidas, sus cuartos, sus vanos y sus muebles)
  const HG=s.hogar||null,W=HG?HG.W:s.ancho*MOD,D=HG?HG.D:s.fondo*MOD,two=HG?HG.floors>1:s.pisos>1,setback=!HG&&two&&s.arriba==='retirado',Du=setback?D-MOD:D;
  const H1=FLOOR0+FH,H2=FLOOR0+2*FH,top=two?H2:H1,stRun=stairRun(Du);
+ const grafosCasa=HG?grafoDeCasa(HG,'casa'):null;// (los muros de la casa salen de su grafo —grafo-muros.js—)
 // (s.colores2d —los del 2D, color.js: la casa del plan—: la fachada, el techo, la moldura, la puerta y cada cuarto; sin
  // ellos, los de siempre)
  const C2=s.colores2d||null;
@@ -298,31 +300,38 @@ export function planHouse(input){
   const cuartosW=L.rooms.filter(q=>!AFUERA.has(q.type)).map(q=>({x0:q.u0,x1:q.u1,z0:D-q.v1,z1:D-q.v0}));// (la terraza y el porche, afuera)
   const adentro=(x,z)=>cuartosW.some(r=>x>r.x0&&x<r.x1&&z>r.z0&&z<r.z1),enTerraza=(x,z)=>terrs.some(r=>x>r.x0&&x<r.x1&&z>r.z0&&z<r.z1);
   const menos=(a0,a1,cs)=>{let ps=[[a0,a1]];for(const [c0,c1] of cs)ps=ps.flatMap(([x,y])=>[[x,Math.min(y,c0)],[Math.max(x,c1),y]]).filter(([x,y])=>y-x>.05);return ps;};
-  const bordes=bordesDe(cuartosW,adentro,()=>true);
   const huecos=[...front.map(h=>({...h,axis:'x',at:zF-T/2})),...back.map(h=>({...h,axis:'x',at:T/2})),...left.map(h=>({...h,axis:'z',at:T/2})),...right.map(h=>({...h,axis:'z',at:W-T/2}))];
   // (las puertas a la terraza y al porche: en el muro del lado del cuarto —el del pasillo—)
   for(const td of L.doors.filter(d=>d.afuera)){const zc=D-td.at,n=adentro(td.from+td.len/2,zc-.01)?-1:1,c=zc+n*T/2;huecos.push({...door('x',c,-n,td.from+td.len/2,yF,s.estilo==='moderna'?'Leaf_minimal':'Door_6',DOOR_W),axis:'x',at:c});}
-  const hacia=(B,fin)=>{const P=fin?B.b:B.a,sg=fin?1:-1,dl=.01,[x,z]=B.axis==='x'?[P+sg*dl,B.e-B.n*dl]:[B.e-B.n*dl,P+sg*dl];return adentro(x,z);};// (¿esquina hacia adentro en esa punta?)
-  for(const B of bordes){const c=B.e+B.n*T/2,out=-B.n,ad0=hacia(B,false),ad1=hacia(B,true);
-   const a=B.axis==='x'?B.a-(ad0?T:0):B.a+(ad0?0:T),b=B.axis==='x'?B.b+(ad1?T:0):B.b-(ad1?0:T);if(b-a<.02)continue;
-   const hs=huecos.filter(h=>h.axis===B.axis&&Math.abs(h.at-c)<.01&&h.c>a-1e-6&&h.c<b+1e-6);
-   outer(B.axis,c,out,a,b,y0w,yTop,hs,B.axis==='x'?x=>hgCol(L,x,B.e+B.n*.3):z=>hgCol(L,B.e+B.n*.3,z),B.axis==='x'?us:zs);}
   // (la terraza: su piso, y baranda en los bordes que dan afuera —ni a un cuarto ni a otra terraza—)
   for(const B of bordesDe(terrs,enTerraza,(x,z)=>!adentro(x,z))){const t=.08,rail=(x0,z0,x1,z1)=>box('marco',x0,yF,z0,x1,yF+TERRAZA_CASA.baranda,z1,cTrim);
    if(B.axis==='x')rail(B.a,B.n<0?B.e-t:B.e,B.b,B.n<0?B.e:B.e+t);else rail(B.n>0?B.e:B.e-t,B.a,B.n>0?B.e+t:B.e,B.b);}
   for(const t of terrs)floor(t.x0,t.z0,t.x1,t.z1,yF);
-  // Tabiques: cada borde entre cuartos, una vez (juntando los tramos de los dos lados), partido donde cambia el cuarto.
-  const lines=new Map(),addE=(axis,at,a,b)=>{const k=axis+':'+at.toFixed(3);(lines.get(k)||lines.set(k,{axis,at,iv:[]}).get(k)).iv.push([a,b]);};
-  for(const q of L.rooms){if(q.type==='terraza')continue;const x0=q.u0,x1=q.u1,z0=D-q.v1,z1=D-q.v0;if(z1<zF-.01)addE('x',z1,x0,x1);if(z0>.01)addE('x',z0,x0,x1);if(x0>.01)addE('z',x0,z0,z1);if(x1<W-.01)addE('z',x1,z0,z1);}
-  const yHi=yTop-(lv===0&&two?.2:.02);
-  for(const {axis,at,iv} of lines.values()){iv.sort((p,q)=>p[0]-q[0]);const merged=[];for(const [a,b] of iv){const l=merged[merged.length-1];if(l&&a<=l[1]+1e-6)l[1]=Math.max(l[1],b);else merged.push([a,b]);}
-   const holes=L.doors.filter(d=>!d.street&&(axis==='x'?d.axis==='u'&&Math.abs(D-d.at-at)<.01:d.axis==='v'&&Math.abs(d.at-at)<.01)).map(d=>{const stair=[d.a,d.b].some(id=>L.rooms[id]?.type==='escalera');
-    return {c:axis==='x'?d.from+d.len/2:D-(d.from+d.len/2),w:d.len,y0:0,y1:stair||d.entero?yTop+1:d.open?yF+DOOR_H:yF+INNER_H+.02};});// (d.entero: el borde abierto de la planta abierta —hogar.js abrirPlanta—, sin dintel)
-   const cutsAlong=(axis==='x'?us:zs);
-   const deTerr=bordes.filter(B=>B.axis===axis&&Math.abs(B.e-at)<.01).map(B=>[B.a-T,B.b+T]);// (un borde del contorno es muro de afuera, no tabique)
-   for(let [a0,b0] of merged)for(let [a,b] of menos(a0,b0,deTerr)){a=Math.max(a,T);b=Math.min(b,axis==='x'?W-T:D-T);if(b-a<.05)continue;const pts=[a,...cutsAlong.filter(c=>c>a+.05&&c<b-.05),b];
-    for(let i=0;i+1<pts.length;i++){const p0=pts[i],p1=pts[i+1],m=(p0+p1)/2,cN=axis==='x'?hgCol(L,m,at-.2):hgCol(L,at-.2,m),cP=axis==='x'?hgCol(L,m,at+.2):hgCol(L,at+.2,m);
-     inner(axis,at,p0,p1,yF,yHi,holes.filter(h=>h.c+h.w/2>p0&&h.c-h.w/2<p1),cN,cP);}}}
+  // (LOS MUROS DESDE EL GRAFO —2026-11-22, Miguel: «sí, hazlo»—: el 3D de la casa ya no arma sus muros por su cuenta. Cada
+  // pieza del grafo de la casa —grafo-muros.js grafoDeCasa y murosConEspesor: la misma cuenta de los edificios, con las
+  // juntas resueltas en cada nodo— se levanta tal cual: la de afuera con su cara de afuera (60 % del espesor, el color de la
+  // casa) y la de adentro (el color del cuarto); el tabique, con una cara por cuarto. Una pieza puede ser una franja de su
+  // banda —donde la línea de enfrente cambia de espesor—: lleva sólo las capas que le tocan. Los vanos, los de su línea)
+  const gC=grafosCasa[lv],yHi=yTop-(lv===0&&two?.2:.02);
+  const huecosDeTabique=(axis,at)=>L.doors.filter(d=>!d.street&&!d.patio&&!d.afuera&&(axis==='x'?d.axis==='u'&&Math.abs(D-d.at-at)<.01:d.axis==='v'&&Math.abs(d.at-at)<.01)).map(d=>{const stair=[d.a,d.b].some(id=>L.rooms[id]?.type==='escalera');
+   return {c:axis==='x'?d.from+d.len/2:D-(d.from+d.len/2),w:d.len,y0:0,y1:stair||d.entero?yTop+1:d.open?yF+DOOR_H:yF+INNER_H+.02};});// (d.entero: el borde abierto de la planta abierta —hogar.js abrirPlanta—, sin dintel)
+  // (los vanos que tocan la pieza, recortados a ella)
+  const enPieza=(hs,a0,a1)=>hs.flatMap(h=>{const a=Math.max(a0,h.c-h.w/2),b=Math.min(a1,h.c+h.w/2);return b-a>.005?[{...h,c:(a+b)/2,w:b-a}]:[];});
+  // (y sin meterse en el espesor de un muro que llega de costado a esa línea: el vano abierto de la planta abierta iba de borde a
+  // borde del cuarto y se comía la esquina del tabique bajo el muro del porche —un hueco en la envolvente, validar-casas-modernas—)
+  // (un tabique que llega y está abierto él también junto a esta línea —su vano la toca— no cuenta: quedaría un poste suelto)
+  const abiertoJunto=(o,f)=>o.clase===CLASE.tabique&&(o.vanos||[]).some(v=>v.clase==='vano'&&v.a0<=f+.2&&v.a1>=f-.2);
+  const sinCostados=(hs,t)=>{const bs=gC.tramos.filter(o=>o.h!==t.h&&t.f>o.a0-1e-3&&t.f<o.a1+1e-3&&!abiertoJunto(o,t.f)).map(o=>{const [q0,q1]=bandaDe(o);return t.h?[q0,q1]:[D-q1,D-q0];});
+   return hs.flatMap(h=>{let ps=[[h.c-h.w/2,h.c+h.w/2]];for(const [x,y] of bs)ps=ps.flatMap(([u,w])=>[[u,Math.min(w,x)],[Math.max(u,y),w]]).filter(([u,w])=>w-u>.005);return ps.map(([u,w])=>({...h,c:(u+w)/2,w:w-u}));});};
+  for(const m of murosConEspesor(gC)){const t=gC.tramos.find(o=>o.id===m.tramo),axis=t.h?'x':'z',cuts=axis==='x'?us:zs;
+   const a0=t.h?m.x:D-(m.y+m.h),a1=t.h?m.x+m.w:D-m.y,s0=t.h?D-(m.y+m.h):m.x,s1=t.h?D-m.y:m.x+m.w;// (a lo largo y a lo ancho, en el mundo de la casa)
+   const [p0,p1]=bandaDe(t),b0=t.h?D-p1:p0,b1=t.h?D-p0:p1,c=(b0+b1)/2,at=(s0+s1)/2;// (la banda entera del tramo y su línea)
+   const capa=(r0,r1,cat,color)=>{const q0=Math.max(r0,s0),q1=Math.min(r1,s1);return q1-q0>.001?[[q1-q0,(q0+q1)/2-at,cat,color,cuts]]:[];};
+   const colorEn=e=>axis==='x'?x=>hgCol(L,x,e):z=>hgCol(L,e,z);
+   if(t.clase===CLASE.fachada||t.clase===CLASE.medianera){const A=t.lados[0].lados[0],bajoAfuera=A==='afuera'||A==='vecino',out=t.h?(bajoAfuera?1:-1):(bajoAfuera?-1:1);
+    const ext=out>0?[b1-T*.6,b1]:[b0,b0+T*.6],int=out>0?[b0,b1-T*.6]:[b0+T*.6,b1],dentro=(out>0?b0:b1)-out*.1;
+    wall(axis,at,a0,a1,y0w,yTop,[...capa(ext[0],ext[1],wallCat,cWall),...capa(int[0],int[1],'interior',colorEn(dentro))],enPieza(huecos.filter(h=>h.axis===axis&&Math.abs(h.at-c)<.01),a0,a1));}
+   else wall(axis,at,a0,a1,yF,yHi,[...capa(b0,c,'interior',colorEn(c-.2)),...capa(c,b1,'interior',colorEn(c+.2))],sinCostados(enPieza(huecosDeTabique(axis,c),a0,a1),t));}
   // Las puertas de los cuartos (2026-10-12): el marco por las dos caras del tabique y la hoja (del catálogo, a la medida
   // del vano) que abre hacia adentro del cuarto; de tablero en los dormitorios, con rejilla en el baño, con vidrio en la
   // cocina y lisa en lo demás. Los vanos abiertos (sala-comedor, la escalera) y la de calle no llevan.

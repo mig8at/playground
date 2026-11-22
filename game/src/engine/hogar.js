@@ -170,7 +170,9 @@ function layoutHogar(kind,two,list,rev){const H=HOGARES[kind],keys=[...list];
   for(const q of rooms)if(q.type==='deposito')Object.assign(q,level===1?{prog:'terraza',type:'terraza',label:'Terraza'}:{prog:'porche',type:'porche',label:'Porche'});
   // Puertas: cada cuarto al pasillo (en el borde que comparten, a 10 cm de la esquina); la puerta de calle en la sala.
   for(const q of rooms){if(q===hall)continue;const at=q.band==='front'?q.v1:q.v0,a=q.u0,b=q.u1;
-   if(q.type==='escalera'){doors.push({axis:'u',at,from:a+.05,len:b-a-.1,a:q.id,b:hall.id,open:true});continue;}
+   // (la escalera, abierta al pasillo de borde a borde: con 5 cm de muro a cada lado quedaban dos astillas sueltas —2026-11-22,
+   // con los muros del grafo—)
+   if(q.type==='escalera'){doors.push({axis:'u',at,from:a,len:b-a,a:q.id,b:hall.id,open:true});continue;}
    // (la de la terraza y el porche: centrada en su borde, sin acercarse a una esquina de la casa a menos de lo que pide la
    // fachada —su marco más 25 cm, validar-vanos— ni a la del cuarto a menos de su marco)
    if(q.type==='terraza'||q.type==='porche'){const lo=a+(a<.01?.87:.62),hi=b-(b>W-.01?.87:.62),c=lo<=hi?Math.min(Math.max((a+b)/2,lo),hi):(lo+hi)/2;doors.push({axis:'u',at,from:+(c-DOOR/2).toFixed(3),len:DOOR,a:q.id,b:hall.id,[q.type]:true,afuera:true});continue;}
