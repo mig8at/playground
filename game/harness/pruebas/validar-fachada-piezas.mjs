@@ -4,7 +4,8 @@
 //  · los mismos módulos (casilla, lado, módulo y piso), ni uno de más ni uno de menos;
 //  · en cada uno, el mismo tipo y la misma pieza;
 //  · en el plano, cada casilla·lado·módulo·piso aparece una sola vez, y toda ventana doble tiene su otra mitad al lado;
-//  · lo que ocupa cada módulo (vanoDeModulo) no se sale de su módulo de 2 × 3 m (la doble, de sus dos módulos);
+//  · lo que ocupa cada módulo (vanoDeModulo) no se sale de su módulo de 2 × 3 m (la doble, de sus dos módulos), tampoco
+//    hacia abajo: ninguno se mete en el piso de abajo (2026-11-22: el balcón bajaba 15 cm);
 //  · NINGUNA PARED INTERNA CORTA UN VANO: donde un tabique llega a la fachada no hay ventana, puerta ni vidriera; y
 //    todo corte cae en la grilla de 5 cm (cuántos, además, justo en una línea de módulo de 2 m, se informa);
 //  · la medida de cada marco de puerta (PUERTA_VANO) es la de la pieza que arma el 3D (fachada3d.js, con las medidas
@@ -27,7 +28,7 @@ for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:T}),w=buildWorl
   if(a.tipo!==m.tipo)falla('distinto tipo en un módulo',{ciudad:s,k,plano:m.tipo,armado:a.tipo});
   // (el ventanal: el 3D le pone el nombre de su pieza según el material; en el plano es «ventanal»)
   else if((a.pieza||null)!==(m.pieza||null)&&!(m.pieza===VENTANAL&&String(a.pieza).startsWith('LP_Ventanal_')))falla('distinta pieza en un módulo',{ciudad:s,k,plano:m.pieza,armado:a.pieza});
-  {const v=vanoDeModulo(m);if(v&&(v[0]<-1.001||v[1]>(m.tipo==='doble'?3.001:1.001)||v[3]>3.001||v[1]<=v[0]||v[3]<=v[2]))falla('lo que ocupa un módulo se sale de su módulo',{ciudad:s,k,tipo:m.tipo,v});}
+  {const v=vanoDeModulo(m);if(v&&(v[0]<-1.001||v[1]>(m.tipo==='doble'?3.001:1.001)||v[2]<-.001||v[3]>3.001||v[1]<=v[0]||v[3]<=v[2]))falla('lo que ocupa un módulo se sale de su módulo',{ciudad:s,k,tipo:m.tipo,v});}
   if(m.tipo==='doble'&&plano.get(`${m.lote}|${m.x},${m.y}|${m.dx},${m.dy}|${m.k+1}|${m.f}`)?.tipo!=='doble2')falla('una ventana doble sin su otra mitad',{ciudad:s,k});}
  for(const [k,a] of armada)if(!plano.has(k))falla('el 3D arma un módulo que el plano no tiene',{ciudad:s,k,tipo:a.tipo});
  // ninguna pared interna corta un vano

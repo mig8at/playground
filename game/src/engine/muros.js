@@ -48,7 +48,9 @@ function ocupaVano(L,fs,v,nivel,base,sube,cercaDeCalle){const c=(v.u0+v.u1)/2,m0
  for(const G of vidrioDe(fs,v,nivel,v.u1-v.u0))out.push({u0:c+G[0]-CERCO,u1:c+G[1]+CERCO,y0:base+G[2]-CERCO-.08,y1:base+G[3]+CERCO+.1,clase:'ventana'});
  if(!out.length)out.push({u0:v.u0-CERCO,u1:v.u1+CERCO,y0:base+.3,y1:base+2.8,clase:'ventana'});
  // (el balcón —de la segunda planta para arriba— es una puerta con su losa y sus barandas; la doble une dos módulos)
- if(fs.balconies&&nivel>=2)out.push({u0:m0-.1,u1:m1+.1,y0:base-.3,y1:base+3,clase:'balcon'});
+ // (2026-11-22: el módulo justo, de su piso al de arriba —antes 10 cm de más a cada lado y 30 cm hacia abajo—: lineal, sin
+ // pisar al vecino ni al piso de abajo; la losa sale delante del muro)
+ if(fs.balconies&&nivel>=2)out.push({u0:m0,u1:m1,y0:base,y1:base+3,clase:'balcon'});
  if(fs.double&&nivel>=1)out.push({u0:m0,u1:m1,y0:base,y1:base+2.65,clase:'doble'});
  return out;}
 export const ZOCALO_ALTO=.8;

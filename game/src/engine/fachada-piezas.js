@@ -67,7 +67,7 @@ export function modulosDeFachada(bp,B){const S=CELL,de=loteEn(bp),id=B.id,fs=est
 //   · puerta: el vano de su marco, con el marco y el dintel (PUERTA_VANO: medido de las tres piezas del paquete como las
 //     arma fachada3d.js —la de madera ocupa el módulo entero; la de piedra y la de metal, menos—);
 //   · puerta doble: el ancho que dice el plano más su marco, hasta 2,6 m (encima queda un paño de muro de 40 cm);
-//   · vidriera y portón: el módulo entero; balcón: el módulo, desde su losa.
+//   · vidriera, portón y balcón: el módulo entero (la losa del balcón sale delante del muro: no es vano).
 export const CERCO={lado:.16,abajo:.24,arriba:.26};
 export const PUERTA_VANO={DoorFrame_Wooden:[-1,1,0,3],DoorFrame_Trim:[-.68,.68,0,2.96],DoorFrame_Metal_Single:[-.57,.57,0,2.93]};
 export const PUERTA_DOBLE_ALTO=2.6;
@@ -76,6 +76,9 @@ export function vanoDeModulo(m){const cl=(v,a,b)=>Math.max(a,Math.min(b,v));
  if(m.tipo==='puerta')return PUERTA_VANO[m.pieza]||[-1,1,0,3];
  if(m.tipo==='puerta_doble'){const a=cl((m.ancho||1.8)/2+.16,0,1);return [-a,a,0,PUERTA_DOBLE_ALTO];}
  if(m.tipo==='vidriera'||m.tipo==='porton')return [-1,1,0,3];
- if(m.tipo==='balcon')return [-1,1,-.15,3];
+ // (2026-11-22, Miguel: «esto debería ser lineal, sin sobreposiciones: ¿por qué el morado baja más de su planta?»: el
+ // balcón ocupaba desde −0,15 —el canto de su losa— y se metía 15 cm en el piso de abajo. La losa sale hacia afuera, delante
+ // del muro: en el plano de la fachada el vano es la puerta, de su piso al de arriba, como todo módulo)
+ if(m.tipo==='balcon')return [-1,1,0,3];
  return null;}
 export function vidrioDeModulo(m){if(m.tipo==='ventana')return m.pieza===VENTANAL?VIDRIO_VENTANAL:VIDRIO_PIEZA[m.pieza]||null;if(m.tipo==='doble'){const g=VIDRIO_PIEZA[m.pieza];return g?[g[0]+1,g[1]+1,g[2],g[3]]:null;}return null;}
