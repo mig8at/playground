@@ -737,7 +737,7 @@ function openings(L,F,plan,level,r){// (PC: el ancho de la puerta de calle de es
   // para las del pasillo y la escalera, que se ponen más abajo; las de éstas se igualan allá)
   // (también el ventanal: si un cuarto lo necesita para su luz, todo el piso lo lleva —la ciudad de 720 m tenía pisos con
   // ventanales y ventanas comunes mezclados—)
-  {const ws=windows.filter(w=>!w.shop&&!(level===0&&esVidriera(L.type,w))),base=(level<=1?fa.ventana1:fa.ventana)||'cuadrada';
+  {const ws=windows.filter(w=>!w.shop&&!w.escalera&&!(level===0&&esVidriera(L.type,w))),base=(level<=1?fa.ventana1:fa.ventana)||'cuadrada';
    const mayor=ws.reduce((m,w)=>{const k=w.pieza||base;return g(k)>g(m)?k:m;},base);for(const w of ws)w.pieza=mayor;piezaDelPiso=mayor;}}
  // La escalera también tiene ventanas donde el núcleo da a la fachada (el pozo del ascensor no).
  // LA ESCALERA, SIN VENTANAS (2026-11-22, Miguel: «las ventanas en el giro de la escalera quedan mal: ¿lo podemos cuadrar en el
@@ -746,6 +746,12 @@ function openings(L,F,plan,level,r){// (PC: el ancho de la puerta de calle de es
  // que cuadrara habría que correrla medio piso, y eso saca la ventana de su módulo de 2 × 3 m. El muro de la escalera va
  // ciego en todos sus lados, como en tantos edificios, y se puede pintar. (Antes llevaba ventana donde el núcleo daba al
  // fondo; el 2026-11-22 se probó también al frente y a los costados.)
+ // EL VENTANAL DE LA ESCALERA (2026-11-22, Miguel: «para la pared de la escalera, un ventanal para ver hacia el patio»): en
+ // el muro del fondo del núcleo —el del descanso— cuando da al patio, un vidrio casi de piso a techo en cada piso
+ // (Metal_FullWindow: 1,80 × 2,64 m dentro del módulo de 2 × 3). Uno encima del otro forman una franja de vidrio por la
+ // que se ve subir la escalera, como en una torre de escalera: el descanso y los tramos se ven detrás del vidrio en vez
+ // de cortar una ventana chica. Es otro elemento: no entra en la pieza pareja del piso (w.escalera).
+ if(core&&core.v1===Lv){const st0=plan.lift?core.u0+2:core.u0;for(const m of modulesIn(st0,core.u1))if(F.at('back',m+.2,level)==='patio'&&F.at('back',m+1.8,level)==='patio')windows.push({axis:'u',at:Lv,from:m+.1,len:1.8,a:'nucleo',pieza:'vidrio',escalera:true});}
  // El pasillo del frente de las suites angostas: una ventana por módulo, como los cuartos.
  for(const h of corr.filter(h=>h.hall))for(const m of modulesIn(h.u0,h.u1))if(glazed('front',m+.2)&&glazed('front',m+1.8))windows.push({axis:'u',at:0,from:m+.4,len:1.2,a:'pasillo'});
  // El pasillo, con una ventana en cada punta que da afuera.
@@ -1189,7 +1195,7 @@ function buildLot(L,seed,stat){
     if(pt.plan.core){const C=pt.plan.core,sx0=pt.plan.lift?C.u0+2:C.u0,[px,pz]=F.pt(sx0,C.v0),[ax,az]=F.pt(sx0+1,C.v0),[bx,bz]=F.pt(sx0,C.v0+1);
      const sw=pt.plan.sw||2,d=Math.min(C.v1-C.v0,5),run=STAIR_STEPS*STAIR_TREAD;
      lv.stair={x:px,z:pz,ux:ax-px,uz:az-pz,vx:bx-px,vz:bz-pz,w:sw,d,fr:STAIR_FR,bk:+(d-STAIR_FR-run).toFixed(3),steps:STAIR_STEPS};if(pt.plan.lift)lv.liftRect=R({u0:C.u0,u1:C.u0+2,v0:C.v0,v1:C.v0+2});}
-    lv.windows.push(...pt.open.windows.map(w=>({...seg(w),shop:!!w.shop,...(w.pieza?{pieza:w.pieza}:{})})));
+    lv.windows.push(...pt.open.windows.map(w=>({...seg(w),shop:!!w.shop,...(w.pieza?{pieza:w.pieza}:{}),...(w.escalera?{escalera:true}:{})})));
     // ry: el giro del modelo (su frente, +z, hacia donde mira el mueble).
     const ryOf=it=>{const cu=(it.u0+it.u1)/2,cv=(it.v0+it.v1)/2,d=it.dir||[0,1],[ax,ay]=F.pt(cu,cv),[bx,by]=F.pt(cu+d[0],cv+d[1]);return Math.atan2(bx-ax,by-ay);};
     lv.furniture.push(...pt.items.map(it=>({kind:it.kind,...F.rect(it.u0,it.v0,it.u1,it.v1),pc:!!it.pc,...(it.fit?{fit:true}:{}),ry:ryOf(it),rt:pt.plan.rooms[it.room]?.type,giro:pt.plan.rooms[it.room]?.giro})));// rt: el tipo del cuarto
@@ -1208,7 +1214,7 @@ function buildLot(L,seed,stat){
       else d.abreAfuera=true;}}}
    // (las dos alas de un edificio en L eligen su pieza por separado: el piso entero lleva la mayor —la auditoría de
    // coherencia, «ventanas de un mismo piso a distinta altura»—)
-   {const ws=lv.windows.filter(w=>!w.shop&&w.pieza),g=k=>VIDRIO.ventana[k]??.55;if(ws.length){const mayor=ws.reduce((m,w)=>g(w.pieza)>g(m)?w.pieza:m,ws[0].pieza);for(const w of ws)w.pieza=mayor;}}
+   {const ws=lv.windows.filter(w=>!w.shop&&w.pieza&&!w.escalera),g=k=>VIDRIO.ventana[k]??.55;if(ws.length){const mayor=ws.reduce((m,w)=>g(w.pieza)>g(m)?w.pieza:m,ws[0].pieza);for(const w of ws)w.pieza=mayor;}}
    delete lv.parts;}
   L.rect={x:L.x0*CELL,y:L.y0*CELL,w:L.w*CELL,h:L.h*CELL};
   L.parts=L.wings.map(g=>({x:g.x0*CELL,y:g.y0*CELL,w:g.w*CELL,h:g.h*CELL}));

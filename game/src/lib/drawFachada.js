@@ -15,8 +15,8 @@ import {ALTURA} from '../engine/medidas.js';
 import {paredesDeFachada,fachadaPintable,medirFachada} from '../engine/muros.js';
 import {fachadaMedida} from '../engine/fachada-medida.js';
 
-const COLOR={ventana:['#cfe2f3','#3d7ab8'],puerta:['#e6d3bd','#8a5a3a'],vidriera:['#cdeef2','#1f8f9c'],balcon:['#e3d4ee','#6a3fa0'],doble:['#e3d4ee','#6a3fa0']};
-export const LEYENDA=[['#ffffff','#18a06a','pared que se pinta (con su número)'],['#e2e3e6','#9aa3a8','pared que no se pinta'],['#8d9198','#4a5563','tapada por el edificio de al lado'],...Object.entries({ventana:'ventana',puerta:'puerta',vidriera:'vidriera',balcon:'balcón o ventana doble'}).map(([k,t])=>[COLOR[k][0],COLOR[k][1],t]),['#c9c4bb','#8a857c','zócalo'],['#d6332e','#d6332e','una pared interna corta acá, en línea de módulo'],['#f08a1c','#f08a1c','corta adentro de un módulo']];
+const COLOR={ventana:['#cfe2f3','#3d7ab8'],puerta:['#e6d3bd','#8a5a3a'],vidriera:['#cdeef2','#1f8f9c'],balcon:['#e3d4ee','#6a3fa0'],doble:['#e3d4ee','#6a3fa0'],escalera:['#d6eef0','#2c7a86']};
+export const LEYENDA=[['#ffffff','#18a06a','pared que se pinta (con su número)'],['#e2e3e6','#9aa3a8','pared que no se pinta'],['#8d9198','#4a5563','tapada por el edificio de al lado'],...Object.entries({ventana:'ventana',puerta:'puerta',vidriera:'vidriera',balcon:'balcón o ventana doble',escalera:'ventanal de la escalera'}).map(([k,t])=>[COLOR[k][0],COLOR[k][1],t]),['#c9c4bb','#8a857c','zócalo'],['#d6332e','#d6332e','una pared interna corta acá, en línea de módulo'],['#f08a1c','#f08a1c','corta adentro de un módulo']];
 
 export function drawFachadaTecnica(canvas,bp,L,lado,{width=640,cotas=true}={}){const F=fachadaPintable(bp,L,lado),paredes=paredesDeFachada(L,lado),FM=fachadaMedida(L,lado),H=ALTURA.piso,ancho=F.ancho,alto=F.alto;
  const dpr=window.devicePixelRatio||1,padL=46,padR=14,padT=22,padB=34,m=Math.min(34,(width-padL-padR)/ancho),w=ancho*m,h=alto*m,W=width,Hh=h+padT+padB;

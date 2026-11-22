@@ -63,7 +63,7 @@ const CELDA=6;
 export function huecosDeLinea(L,horiz,linea,nivel){const out=[];for(const m of L.modulos||[]){if(m.f!==nivel||(m.dy!==0)!==horiz)continue;const ex=(m.x+.5+m.dx*.5)*CELDA,ez=(m.y+.5+m.dy*.5)*CELDA;if(Math.abs((horiz?ez:ex)-linea)>.01)continue;
   const tx=m.dy,tz=-m.dx,c=-CELDA/2+1+2*m.k,c0=horiz?ex+tx*c:ez+tz*c,sg=horiz?tx:tz,pon=(a,b,y0,y1,clase)=>out.push({t0:Math.min(a,b),t1:Math.max(a,b),y0,y1,clase});
   // (lo que ocupa: engine/fachada-piezas.js vanoDeModulo, la única cuenta; acá sólo se lleva a la línea de la fachada)
-  const v=vanoDeModulo(m);if(v)pon(c0+v[0]*sg,c0+v[1]*sg,v[2],v[3],m.tipo==='puerta_doble'||m.tipo==='porton'?'puerta':m.tipo);}
+  const v=vanoDeModulo(m);if(v)pon(c0+v[0]*sg,c0+v[1]*sg,v[2],v[3],m.tipo==='puerta_doble'||m.tipo==='porton'?'puerta':m.escalera?'escalera':m.tipo);}
  return out;}
 function huecosDeFachada(L,F){const fs=estiloDe(L),out=[{u0:0,u1:F.ancho,y0:0,y1:F.sube+ZOCALO_ALTO,clase:'zocalo'}];
  if(L.modulos){const {horiz,inv,linea,o}=F.eje;
@@ -192,7 +192,7 @@ export function fachadaPintable(bp,L,lado){const M=muroExterior(L,lado),paredes=
 // LO MEDIDO DE UNA FACHADA, SIN DIBUJARLA (2026-11-21, para validar el mapa completo): de un tramo, cuántos módulos y
 // pisos tiene, sus paredes, las que se pintan, sus vanos, dónde la cortan las paredes internas y si todo cuadra.
 // pintablesDelEdificio: las de paredesPintables(bp, L), si ya se tienen (para no calcularlas por cada tramo).
-const VANOS=new Set(['ventana','puerta','vidriera','balcon','doble']);
+const VANOS=new Set(['ventana','puerta','vidriera','balcon','doble','escalera']);
 export function medirFachada(bp,L,codigo,pintablesDelEdificio=null){const M=muroExterior(L,codigo),paredes=paredesDeFachada(L,M.codigo),pint=(pintablesDelEdificio||paredesPintables(bp,L)).filter(w=>w.clase==='exterior'&&w.codigo===M.codigo),vanos=M.huecos.filter(q=>VANOS.has(q.clase));
  let cortes=0,cortesMalos=0,fueraDeModulo=0;for(const p of paredes){if(p.u0<=1e-6)continue;cortes++;if(Math.abs(p.u0/2-Math.round(p.u0/2))>1e-6)fueraDeModulo++;if(vanos.some(q=>p.u0>q.u0+.02&&p.u0<q.u1-.02&&q.y1>p.y0+.05&&q.y0<p.y0+p.alto-.05))cortesMalos++;}
  const pisos=L.floors,suma=n=>paredes.filter(p=>p.nivel===n).reduce((a,p)=>a+p.ancho,0),areaP=pint.reduce((a,p)=>{const z=Math.max(0,...(p.huecos||[]).filter(q=>q.clase==='zocalo').map(q=>q.y1));return a+p.ancho*(p.alto-z);},0);

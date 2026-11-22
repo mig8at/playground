@@ -40,7 +40,8 @@ export function modulosDeFachada(bp,B){const S=CELL,de=loteEn(bp),id=B.id,fs=est
   let f0=0;if(other>=0){const O=bp.lots[other];if(O.floors>=floors)continue;f0=O.floors;}
   const hit=(list,coord)=>(list||[]).find(s=>{const [a,b]=aLoLargo(s,h);return coord>a-.01&&coord<b+.01;});
   const coordDe=k=>{const c=-S/2+1+2*k;return h?ex+tx*c:ez+tz*c;};
-  const winMod=(k,f)=>f>0&&!!hit(lines[f].w.get(lineKey),coordDe(k));
+  // (el ventanal de la escalera no cuenta: no se junta en una doble ni lleva balcón)
+  const winMod=(k,f)=>{if(!(f>0))return false;const w=hit(lines[f].w.get(lineKey),coordDe(k));return !!w&&!w.escalera;};
   // los tabiques que llegan a esta fachada en el piso f: una ventana doble no se pone sobre uno
   const line=h?ez:ex,partsAt=f=>{const lv=B.levels[f],o=[];for(const q of [...lv.rooms,...lv.corridor,lv.core].filter(Boolean)){const toca=h?Math.abs(q.y-line)<.05||Math.abs(q.y+q.h-line)<.05:Math.abs(q.x-line)<.05||Math.abs(q.x+q.w-line)<.05;if(toca)o.push(...(h?[q.x,q.x+q.w]:[q.y,q.y+q.h]));}return o;};
   const freeEdge=(f,k)=>{const cb=-S/2+2+2*k,at=h?ex+tx*cb:ez+tz*cb;return !partsAt(f).some(p=>Math.abs(p-at)<.35);};
@@ -57,7 +58,7 @@ export function modulosDeFachada(bp,B){const S=CELL,de=loteEn(bp),id=B.id,fs=est
     const pieza=f===0&&!(win&&!vidriera)?(win?fs.shop:fs.wall):(win?(win.pieza==='ventanal'?VENTANAL:win.pieza&&WINDOWS[win.pieza]?WINDOWS[win.pieza].p:f<=1&&len>=1?fs.win1:fs.win):fs.plain);
     if(k===1&&balconyAt(f))pon('balcon',BALCON_MARCO);
     else if(pairOf[f]===k)pon('doble',fs.double);
-    else if(pairOf[f]<0||pairOf[f]!==k-1)pon(vidriera?'vidriera':win&&(f>0||!vidriera)&&pieza!==fs.plain&&pieza!==fs.wall?'ventana':'muro',pieza);
+    else if(pairOf[f]<0||pairOf[f]!==k-1){pon(vidriera?'vidriera':win&&(f>0||!vidriera)&&pieza!==fs.plain&&pieza!==fs.wall?'ventana':'muro',pieza);if(win?.escalera&&!vidriera)out[out.length-1].escalera=true;}
     else pon('doble2');}}}
  return out;}
 

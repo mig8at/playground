@@ -17,7 +17,9 @@ const med={vidrieras:0,enLocal:0,resid:0,ventanas:0,maxParte:0,cuartos:0,oscuros
 const cuartoDe=(lv,w)=>{const mx=(w.x0+w.x1)/2,my=(w.y0+w.y1)/2,E=.05;return lv.rooms.find(q=>mx>=q.x-E&&mx<=q.x+q.w+E&&my>=q.y-E&&my<=q.y+q.h+E);};
 for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:3});
  for(const L of bp.lots){const fa=L.fachada||{},res=RESIDENCIAL.has(L.type);if(res)med.resid++;
-  for(const lv of L.levels||[])for(const w of lv.windows){const q=cuartoDe(lv,w),len=Math.hypot(w.x1-w.x0,w.y1-w.y0),ej={semilla:s,lote:L.type,piso:lv.level,cuarto:q?.type};
+  // (2026-11-22: el ventanal de la escalera —w.escalera— no cuenta: la escalera es común, nadie vive ahí; A2 es por la
+  // intimidad de los cuartos)
+  for(const lv of L.levels||[])for(const w of lv.windows){if(w.escalera)continue;const q=cuartoDe(lv,w),len=Math.hypot(w.x1-w.x0,w.y1-w.y0),ej={semilla:s,lote:L.type,piso:lv.level,cuarto:q?.type};
    if(lv.level===0&&VIVE_EN_PLANTA_BAJA.has(L.type)&&esVidriera(L.type,w)){med.vidrieras++;if(q?.type==='local')med.enLocal++;else falla('vidriera fuera de un local donde se vive',ej);}
    if(!res||(lv.level===0&&esVidriera(L.type,w)))continue;const pz=w.pieza||(lv.level<=1&&len>=1?fa.ventana1:fa.ventana);med.ventanas++;
    if(VIDRIO_ENTERO.has(pz))falla('vidrio entero donde se vive',{...ej,pieza:pz});
