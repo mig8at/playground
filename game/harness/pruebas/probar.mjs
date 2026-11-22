@@ -40,7 +40,8 @@ const NIVELES=[
   {n:'fachada y uso',f:'validar-fachada-uso.mjs',a:[N,S0],fallas:F,res:/^fachada y uso/},
   {n:'fachada medida',f:'validar-fachada-medida.mjs',a:[N,S0],fallas:F,res:/^fachada medida/},
   {n:'fachada piezas',f:'validar-fachada-piezas.mjs',a:[N,S0],fallas:F,res:/^fachada piezas/},// (2026-11-21: el plano y el 3D ponen lo mismo en cada módulo —engine/fachada-piezas.js—)
-  {n:'grafiti',f:'validar-grafiti.mjs',a:[N,S0],fallas:F,res:/^grafiti/},// (2026-11-21: la grilla de pixel art de cada paño —engine/grafiti.js—)// (2026-11-21: vanos, paños y textura de cada fachada —engine/fachada-medida.js—)
+  {n:'grafiti',f:'validar-grafiti.mjs',a:[N,S0],fallas:F,res:/^grafiti/},
+  {n:'guardado',f:'validar-guardado.mjs',a:[N,S0],fallas:F,res:/^guardado/},// (2026-11-21: la huella de cada pared, la conciliación y la base SQLite de lo pintado)// (2026-11-21: la grilla de pixel art de cada paño —engine/grafiti.js—)// (2026-11-21: vanos, paños y textura de cada fachada —engine/fachada-medida.js—)
   {n:'fachada 3D',f:'validar-fachada3d.mjs',a:[],fallas:F,res:/^fachada low poly/},
   {n:'patios',f:'validar-patios.mjs',a:[N,S0],fallas:F,res:/^patios/}]},
  {n:4,t:'Interiores',d:'pasillos, muebles, usos y cortinas',p:[

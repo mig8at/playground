@@ -32,8 +32,15 @@ EL JUEGO
              texturas del 3D se dibujan en lib/texturas3d.js. Prueba: validar-fachada-medida.
   GRAFITI    (2026-11-21, engine/grafiti.js y engine/muros.js): pixel art sobre un muro ENTERO —una fachada o una pared de
              un cuarto—, sin sus ventanas ni puertas: píxeles de 5 cm y 15 colores. En /plano se toca la fachada del
-             alzado, o «pintá una pared de adentro» y una pared del piso; queda en el navegador ('fuga.grafitis', por
-             ciudad) y el paseo 3D lo muestra en esa pared (lib/grafitis3d.js). Prueba: validar-grafiti.
+             alzado, o «pintá una pared de adentro» y una pared del piso; el paseo 3D lo muestra en esa pared
+             (lib/grafitis3d.js). Prueba: validar-grafiti.
+  GUARDADO   (2026-11-21, servidor/pintura.mjs, lib/pinturaGuardada.js): lo pintado queda en SQLite
+             (datos/pintura.sqlite, fuera de git; el SQLite que trae node), por ciudad y por pared, con el número de 10
+             cifras y la HUELLA de la pared (lo que la pared es: piso, centro, hacia dónde mira, medidas). Al abrir una
+             ciudad se concilia con sus paredes de hoy: si el generador renumeró una pared, lo pintado se muda con ella;
+             si la pared cambió de medida o ya no está, queda apartado (tabla huerfana), no se borra. El navegador
+             guarda una copia ('fuga.grafitis'), que es lo que se usa sin servidor. API del servidor de desarrollo:
+             GET /api/pintura?ciudad=1|3 y POST /api/pintura. Prueba: validar-guardado.
   COLOCAR    (2026-11-21, engine/colocar.js): una persona dice «acá» y el plano contesta dónde queda exactamente y si se
              puede, con la razón. De pared (cuadro, espejo, reloj, repisa): se pega a la pared más cercana, a la grilla
              de 5 cm; no pisa puertas ni ventanas ni otro colgado, ni queda detrás de un mueble alto. De piso (planta,

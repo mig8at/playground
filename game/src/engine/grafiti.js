@@ -36,3 +36,25 @@ export function valido(g,m){const L=lienzoDe(m);if(!g||g.cols!==L.cols||g.rows!=
 export function pixelEn(m,u,y){const L=lienzoDe(m),c=Math.floor((u-L.du)/L.px),f=L.rows-1-Math.floor((y-L.dy)/L.px);return c<0||f<0||c>=L.cols||f>=L.rows?null:{c,f};}
 // La clave de una ciudad en lo guardado.
 export const claveCiudad=(seed,team)=>seed+'|'+team;
+
+// LA HUELLA DE UNA PARED Y LA VERSIÓN DE LA CIUDAD (2026-11-21). El número de 10 cifras dice DÓNDE está una pared en la
+// cuenta de su edificio, y esa cuenta cambia cuando se ajusta el generador (las suites de hotel de hoy renumeraron sus
+// pisos): lo pintado quedaba apuntando a otra pared, o a ninguna. Por eso con cada pared pintada se guarda además su
+// HUELLA: un hash de lo que la pared ES —clase, piso, centro, hacia dónde mira, ancho y alto, al centímetro—. Al cargar:
+//   · el número sigue ahí y la huella es la misma → vigente;
+//   · la huella está en otra pared (la misma pared, renumerada) → se MUDA a su número nuevo;
+//   · la huella ya no existe (la pared cambió de medida o desapareció) → HUÉRFANA: no se dibuja ni se pisa, se aparta.
+// La versión de la ciudad es el hash de todas las huellas con su número: dice de un vistazo si hay que conciliar.
+const cm=v=>Math.round(v*100);
+const fnv=t=>{let a=0x811c9dc5,b=0x9747b28c;for(let i=0;i<t.length;i++){const c=t.charCodeAt(i);a=Math.imul(a^c,0x01000193);b=Math.imul(b^c,0x5bd1e995)^(b>>>13);}return (a>>>0).toString(16).padStart(8,'0')+(b>>>0).toString(16).padStart(8,'0');};
+export const huellaDePared=w=>fnv([w.clase,w.nivel,cm(w.c.x),cm(w.c.z),w.n[0],w.n[1],cm(w.y0),cm(w.ancho),cm(w.alto)].join('|'));
+export function versionDeParedes(paredes){const t=paredes.map(w=>w.numero+':'+huellaDePared(w)).sort().join(',');return {version:fnv(t),paredes:paredes.length};}
+// guardados: {numero: {h?, cols, rows, t}}. Devuelve {vigentes: {numero: {h, cols, rows, t}}, mudadas: [{de, a}],
+// huerfanas: {numero: lo guardado}}. (lo guardado antes de la huella —sin `h`— vale si su grilla es la de esa pared)
+export function conciliar(paredes,guardados){const porNumero=new Map(),porHuella=new Map();for(const w of paredes){const h=huellaDePared(w);porNumero.set(w.numero,{w,h});porHuella.set(h,w);}
+ const vigentes={},mudadas=[],huerfanas={},cabe=(s,w)=>{const L=lienzoDe(w);return s.cols===L.cols&&s.rows===L.rows;},pendientes=[];
+ for(const [num,s] of Object.entries(guardados||{})){if(!s?.t)continue;const e=porNumero.get(num);
+  if(e&&(s.h?s.h===e.h:cabe(s,e.w)))vigentes[num]={h:e.h,cols:s.cols,rows:s.rows,t:s.t};else pendientes.push([num,s]);}
+ // (las mudanzas, después: una pared con lo suyo vigente no se pisa con lo de otra)
+ for(const [num,s] of pendientes){const w=s.h&&porHuella.get(s.h);if(w&&!vigentes[w.numero]&&cabe(s,w)){vigentes[w.numero]={h:s.h,cols:s.cols,rows:s.rows,t:s.t};mudadas.push({de:num,a:w.numero});}else huerfanas[num]=s;}
+ return {vigentes,mudadas,huerfanas};}

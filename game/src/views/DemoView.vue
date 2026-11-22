@@ -55,6 +55,8 @@ import {entregaDe,entregaCasa} from '../engine/entrega.js';
 import {sitiosDe,aparecerEn} from '../engine/aparecer.js';
 import {createGrafitis,createMapaPintable} from '../lib/grafitis3d.js';
 import {claveCiudad} from '../engine/grafiti.js';
+import {sincronizar} from '../lib/pinturaGuardada.js';
+import {paredesDeLaCiudad} from '../engine/muros.js';
 import {RELOJ,MODO_BOTIN,PATRULLA} from '../engine/medidas.js';
 
 // (el salto, el del 2D —CIRCULACION.peaton.salto—: de ahí sale ALCANCE, a qué muebles se sube; CHOQUE_MUEBLE)
@@ -247,7 +249,8 @@ function load(ready=null){
  // La gente de la isla rodea los edificios de los barrios (y los árboles y faroles de sus jardines).
  // Las casas de las manzanas de la montaña, con su jardín.
  // (los grafitis guardados en el plano —'fuga.grafitis', engine/grafiti.js—: cada uno, en su paño de muro)
- grafitis?.dispose();{let g={};try{g=JSON.parse(localStorage.getItem('fuga.grafitis')||'{}')[claveCiudad(seed.value,team.value)]||{};}catch{}grafitis=createGrafitis(plan,g);world.group.add(grafitis.group);}
+ // (2026-11-21: vienen de la base —lib/pinturaGuardada.js—, conciliados con las paredes de este plano; llegan cuando llegan)
+ grafitis?.dispose();grafitis=null;{const s0=seed.value,t0=team.value,W=world;sincronizar(s0,t0,paredesDeLaCiudad(plan)).then(r=>{if(world!==W||seed.value!==s0||team.value!==t0)return;grafitis?.dispose();if(grafitis)W.group.remove(grafitis.group);grafitis=createGrafitis(plan,r.vigentes);W.group.add(grafitis.group);});}
  casas=createCasas(PRUEBA?{...plan,isla:{...plan.isla,casas:[]}}:plan,{nature,nature2,rampaEn:island.rampaEn});world.group.add(casas.group);lap('casas');
  // Las casas armadas (vivienda3d.js): se entra, se sube y se ve por las ventanas.
  viviendas=createHouses((PRUEBA?[]:plan.isla?.casas||[]).filter(c=>c.spec).map(c=>PASEO?{...c,spec:entregaCasa(c.spec)}:c).map(c=>({spec:c.colores||c.cortinas?{...c.spec,...(c.colores?{colores2d:c.colores}:{}),...(c.cortinas?{cortinas2d:c.cortinas}:{})}:c.spec,x:c.x,y:c.nivel,z:c.z,ry:c.ry})),{kit:furniture||casa2?{...(furniture||{}),...(casa2||{}),...(tienda||{})}:null});world.group.add(viviendas.group);lap('viviendas');

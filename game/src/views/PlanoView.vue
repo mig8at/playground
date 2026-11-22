@@ -15,8 +15,9 @@ import {colocar,OBJETOS,GRILLA} from '../engine/colocar.js';
 import {entregaDe} from '../engine/entrega.js';
 import {sitiosDe,aparecerEn,cupoDe,poblar,RADIO} from '../engine/aparecer.js';
 import {propiedadesDe,resumenDe,CLASE} from '../engine/propiedades.js';
-import {GRAFITI,lienzoDe,vacio,pintar,pintados,mascaraDe,aTexto,deTexto,claveCiudad} from '../engine/grafiti.js';
-import {muroExterior,muroCerca,otroLoteDe,paredesDeFachada,paredesPintables,componerFachada,partirFachada,fachadaPintable} from '../engine/muros.js';
+import {GRAFITI,lienzoDe,vacio,pintar,pintados,mascaraDe,aTexto,deTexto,claveCiudad,huellaDePared} from '../engine/grafiti.js';
+import {leerLocal,guardarLocal,sincronizar,guardarPintura} from '../lib/pinturaGuardada.js';
+import {muroExterior,muroCerca,otroLoteDe,paredesDeFachada,paredesPintables,paredesDeLaCiudad,componerFachada,partirFachada,fachadaPintable} from '../engine/muros.js';
 import {cuartoEn} from '../engine/colocar.js';
 import {BANOS} from '../engine/muros.js';
 import {tramosDe,ejeDe} from '../engine/fachada-medida.js';
@@ -65,10 +66,12 @@ const TIPO={vivienda:'Vivienda',oficinas:'Oficinas',comercio:'Comercio',hotel:'H
 // en píxeles de 5 cm, sin sus ventanas ni sus puertas. Se toca la fachada del alzado, o «Pintar una pared» y una pared del
 // plano del piso, y se pinta. Queda guardado en el navegador ('fuga.grafitis', por ciudad) y el paseo 3D lo muestra ahí.
 // (lo guardado con la grilla vieja —por paño, sin `t`— no sirve más: se descarta al leer)
-const leerGrafitis=()=>{try{const o=JSON.parse(localStorage.getItem('fuga.grafitis')||'{}');for(const k of Object.keys(o))for(const id of Object.keys(o[k]||{}))if(!o[k][id]?.t)delete o[k][id];return o;}catch{return {};}};
+// (2026-11-21: lo pintado vive en la base —servidor/pintura.mjs, SQLite— con la huella de cada pared; el navegador guarda
+// una copia. Al abrir una ciudad se concilia con sus paredes de hoy: lib/pinturaGuardada.js sincronizar)
+const leerGrafitis=leerLocal,pintura=ref(null);
 const grafitis=ref({}),muro=ref(null),tinta=ref(3),pincel=ref(1),zoomG=ref(4),lienzoGraf=ref(null),eligePared=ref(false),pintadosAca=ref(0);let pintando=false,graf=null,mascara=null,Lz=null;
 const deEstaCiudad=()=>grafitis.value[claveCiudad(seed.value,team.value)]||{};
-const guardarGrafitis=()=>{try{localStorage.setItem('fuga.grafitis',JSON.stringify(grafitis.value));}catch{}};
+const guardarGrafitis=()=>guardarLocal(grafitis.value);
 const grafitiGuardado=m=>{const L=lienzoDe(m),s=deEstaCiudad()[m.numero||m.id];return s&&s.cols===L.cols&&s.rows===L.rows?deTexto(s.t,L.cols,L.rows):null;};
 // (una fachada se pinta de corrido pero se guarda POR PARED —engine/muros.js paredesDeFachada—: al abrirla se arma con lo
 // de sus paredes y al guardar se reparte. m.paredes: las de esa fachada, para dibujar dónde corta cada una)
@@ -96,9 +99,13 @@ function dibujarGraf(){const c=lienzoGraf.value;if(!c||!muro.value||!Lz)return;c
 function grafPunto(e){const c=lienzoGraf.value;if(!c||!graf)return;const r=c.getBoundingClientRect(),s=zoomG.value,b=pincel.value,c0=Math.floor((e.clientX-r.left)/s)-Math.floor((b-1)/2),f0=Math.floor((e.clientY-r.top)/s)-Math.floor((b-1)/2),x=c.getContext('2d');
  for(let df=0;df<b;df++)for(let dc=0;dc<b;dc++)if(pintar(graf,c0+dc,f0+df,tinta.value,mascara))celdaG(x,c0+dc,f0+df);}
 function grafBaja(e){if(e.button)return;pintando=true;e.target.setPointerCapture?.(e.pointerId);grafPunto(e);}
-function guardarMuro(){const m=muro.value;if(!m||!graf)return;pintadosAca.value=pintados(graf);const k=claveCiudad(seed.value,team.value),todos={...deEstaCiudad()};
- if(m.paredes){for(const [id,v] of Object.entries(partirFachada(elegido.value,m.codigo,graf,m.paredes))){if(v)todos[id]=v;else delete todos[id];}}
- else if(pintadosAca.value)todos[m.numero]={cols:graf.cols,rows:graf.rows,t:aTexto(graf)};else delete todos[m.numero];grafitis.value={...grafitis.value,[k]:todos};guardarGrafitis();dibujarPiso();}
+function guardarMuro(){const m=muro.value;if(!m||!graf)return;pintadosAca.value=pintados(graf);const k=claveCiudad(seed.value,team.value),todos={...deEstaCiudad()},cambios={};
+ // (cada pared se guarda con su huella —lo que la pared es—; a la base va sólo lo que cambió)
+ const pone=(P,v)=>{const n=P.numero,antes=todos[n];if(v){const s={h:huellaDePared(P),...v};if(!antes||antes.t!==s.t||antes.h!==s.h)cambios[n]=s;todos[n]=s;}else if(antes){cambios[n]=null;delete todos[n];}};
+ if(m.paredes){const partes=partirFachada(elegido.value,m.codigo,graf,m.paredes);for(const P of m.paredes)pone(P,partes[P.numero]);}
+ else pone(m,pintadosAca.value?{cols:graf.cols,rows:graf.rows,t:aTexto(graf)}:null);
+ grafitis.value={...grafitis.value,[k]:todos};guardarGrafitis();dibujarPiso();
+ guardarPintura(seed.value,team.value,cambios).then(r=>{avisoPared.value=r.ok?'':(r.razon||'No se pudo guardar en la base.');});}
 function grafSube(){if(!pintando)return;pintando=false;guardarMuro();}
 function grafLimpiar(){if(!graf)return;graf.d.fill(0);dibujarGraf();guardarMuro();}
 function zoomGraf(d){zoomG.value=Math.max(1,Math.min(16,zoomG.value+d));dibujarGraf();}
@@ -193,6 +200,8 @@ async function cargar(){
  planoEntero=r.plano;const pe=entregaDe(planoEntero);entrega.value=pe.entrega;plano=vacias.value?pe:planoEntero;maxPisos.value=Math.max(...plano.lots.map(L=>L.floors));const V=plano.vegetacion||{};
  resumen.value={edificios:plano.lots.length,casas:plano.isla.casas?.length||0,arboles:(V.arboles?.length||0)+(V.palmeras?.length||0),mobiliario:plano.equipamiento?.length||0,
   muebles:plano.lots.reduce((a,L)=>a+L.levels.slice(0,L.floors).reduce((b,lv)=>b+lv.furniture.length,0),0),ms:Math.round(performance.now()-t0),guardado:r.guardado};
+ // (lo pintado de esta ciudad, puesto de acuerdo con sus paredes de hoy)
+ {const s0=seed.value,t0=team.value;pintura.value=null;sincronizar(s0,t0,paredesDeLaCiudad(planoEntero)).then(r=>{if(seed.value!==s0||team.value!==t0)return;grafitis.value={...grafitis.value,[claveCiudad(s0,t0)]:r.vigentes};pintura.value=r;dibujarPiso();});}
  sitios=sitiosDe(planoEntero);cupo.value=cupoDe(planoEntero).cupo;propiedades=propiedadesDe(planoEntero);propResumen.value=resumenDe(propiedades);
  if(pedido.lote!=null){const L=plano.lots.find(o=>o.id===pedido.lote);if(L){elegido.value=L;grande.value=true;verMapa.value=pedido.mapa;nextTick(()=>{if(pedido.lado)ladoAlzado.value=pedido.lado;pedido.lote=null;});}}
  nivel.value=0;estado.value='';await nextTick();dibujar();ajustar();poblarCon(Math.round(cupo.value*.15));// (de arranque, la ciudad al 15 % de su cupo)
@@ -284,7 +293,7 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
     <div class="lados" role="group" aria-label="Lado de la fachada"><button v-for="l in ladosAbiertos" :key="l" :class="{on:l===ladoAlzado}" @click="ladoAlzado=l">{{ nombreTramo(l) }}<small v-if="l===elegido.front+'0'"> · frente</small></button></div></div>
    <div class="paquetes" role="group" aria-label="Paquete de texturas"><span>Texturas</span><button v-for="(P,k) in PAQUETES" :key="k" :class="{on:k===paquete}" :title="P.nota" @click="paquete=k">{{ P.nombre }}</button><small>{{ PAQUETES[paquete].nota }}</small></div>
    <div class="ficha-piso pintable"><canvas ref="alzado" @click="alzadoClic"></canvas></div>
-   <p class="alzado-med">Se pintan las paredes sin puertas ni ventanas (y no las de los baños). Tocá la fachada para pintar las suyas, o <button class="enlace" :class="{on:eligePared}" @click="eligePared=!eligePared;objeto=null">{{ eligePared?'tocá ahora una pared en el plano del piso…':'pintá una pared de adentro' }}</button>. <template v-if="murosPintados">{{ murosPintados }} {{ murosPintados===1?'muro pintado':'muros pintados' }} en esta ciudad.</template></p>
+   <p class="alzado-med">Se pintan las paredes sin puertas ni ventanas (y no las de los baños). Tocá la fachada para pintar las suyas, o <button class="enlace" :class="{on:eligePared}" @click="eligePared=!eligePared;objeto=null">{{ eligePared?'tocá ahora una pared en el plano del piso…':'pintá una pared de adentro' }}</button>. <template v-if="murosPintados">{{ murosPintados }} {{ murosPintados===1?'muro pintado':'muros pintados' }} en esta ciudad.</template><template v-if="pintura">{{ ' ' }}{{ pintura.base?'Guardado en la base.':'Sin base: queda sólo en este navegador.' }}<template v-if="pintura.mudadas.length"> {{ pintura.mudadas.length }} se mudaron de número con su pared.</template><template v-if="pintura.huerfanas"> {{ pintura.huerfanas }} quedaron sin pared (el plano cambió) y están apartadas.</template></template></p>
    <p class="alzado-med"><button class="enlace" :class="{on:verMapa}" @click="verMapa=!verMapa">{{ verMapa?'Volver a la fachada':'Ver qué se pinta: blanco sí, gris no' }}</button><template v-if="verMapa&&medidoAlzado"> · {{ medidoAlzado.pintablesN||0 }} {{ medidoAlzado.pintablesN===1?'pared pintable':'paredes pintables' }} de este lado; el número es el de la pared dentro de su piso.</template></p>
    <p v-if="avisoPared" class="alzado-med" style="color:#ffd166">{{ avisoPared }}</p>
    <div class="paredes">
