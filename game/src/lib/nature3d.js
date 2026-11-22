@@ -2,6 +2,7 @@
    en cuatro etapas (_1 a _4: de brote a crecida) y el fruto cosechado (_Crop, que no se usa acá). Sin texturas: el color
    de cada parte va en su .mtl. Se cargan una vez y se dibujan con instancias (una malla por modelo y material). */
 import * as THREE from 'three';
+import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import {OBJLoader} from 'three/addons/loaders/OBJLoader.js';
 import {REEMPLAZOS,kitModel} from './objetos3d.js';
 
@@ -153,6 +154,25 @@ export function plantBatched(kit,name,items,group,{shadow=true}={}){
    const bm=new THREE.BatchedMesh(items.length,g.attributes.position.count,idx.length,mat);bm.sortObjects=!!mat.transparent;const gid=bm.addGeometry(sub),ids=[];
    items.forEach(it=>{const iid=bm.addInstance(gid);o.position.set(it.x,it.y,it.z);o.rotation.set(0,it.ry||0,0);o.scale.set(it.sx??it.s??1,it.sy??it.s??1,it.sz??it.sx??it.s??1);o.updateMatrix();bm.setMatrixAt(iid,o.matrix);if(it.tint)bm.setColorAt(iid,c.set(it.tint));ids.push(iid);});
    bm.castShadow=shadow;bm.receiveShadow=true;group.add(bm);todas.push({bm,ids});}}
- let antes=null;
- const setCeldas=(celdas,W,S=6)=>{if(celdas===antes)return;antes=celdas;for(const {bm,ids} of todas)items.forEach((it,i)=>bm.setVisibleAt(ids[i],!celdas||celdas.has(Math.floor(it.z/S)*W+Math.floor(it.x/S))));};
- return {setCeldas,n:items.length,meshes:todas.map(t=>t.bm)};}
+ // (LA VERSIÓN DE LEJOS —2026-11-22, como en los juegos de Rockstar: medido en el navegador, los troncos y las copas de las
+ // plantas eran más de 3 de los 6,6 millones de triángulos que se veían—: una pieza a mano por modelo, de su caja: un árbol
+ // —más alto que ancho—, un tronco delgado y una copa de 20 caras; un arbusto, la copa sola. Más allá de LEJOS_PLANTA.lejos de
+ // la cámara se dibuja ésa y no el modelo; vuelve el modelo más acá de LEJOS_PLANTA.cerca)
+ let lejosBM=null;const lejosIds=[];
+ {const box=new THREE.Box3();for(const p of m.parts){p.geometry.computeBoundingBox();box.union(p.geometry.boundingBox);}const sz=box.getSize(new THREE.Vector3()),cx=(box.min.x+box.max.x)/2,cz=(box.min.z+box.max.z)/2;
+  const arbol=sz.y>Math.max(sz.x,sz.z)*1.3,geos=[];
+  if(arbol){const tw=Math.max(sz.x,sz.z)*.08;geos.push(new THREE.BoxGeometry(tw,sz.y*.5,tw).translate(cx,box.min.y+sz.y*.25,cz));geos.push(new THREE.IcosahedronGeometry(.5,0).scale(sz.x,sz.y*.55,sz.z).translate(cx,box.min.y+sz.y*.68,cz));}
+  else geos.push(new THREE.IcosahedronGeometry(.5,0).scale(sz.x,sz.y,sz.z).translate(cx,box.min.y+sz.y/2,cz));
+  const g=mergeGeometries(geos.map(x=>{const y=x.index?x.toNonIndexed():x;y.deleteAttribute('uv');return y;}),false);
+  if(g){lejosBM=new THREE.BatchedMesh(items.length,g.attributes.position.count,g.attributes.position.count,new THREE.MeshStandardMaterial({color:arbol?'#7fae74':'#8fbf7a',roughness:.95,flatShading:true}));
+   g.setIndex([...Array(g.attributes.position.count).keys()]);const gid=lejosBM.addGeometry(g);
+   items.forEach(it=>{const iid=lejosBM.addInstance(gid);o.position.set(it.x,it.y,it.z);o.rotation.set(0,it.ry||0,0);o.scale.set(it.sx??it.s??1,it.sy??it.s??1,it.sz??it.sx??it.s??1);o.updateMatrix();lejosBM.setMatrixAt(iid,o.matrix);lejosBM.setVisibleAt(iid,false);lejosIds.push(iid);});
+   lejosBM.castShadow=false;lejosBM.receiveShadow=true;lejosBM.name='plantas de lejos';group.add(lejosBM);}}
+ let antes=null,celdasW=0;const lejos=new Uint8Array(items.length);
+ const enCelda=it=>!antes||antes.has(Math.floor(it.z/6)*celdasW+Math.floor(it.x/6));
+ const aplicar=i=>{const it=items[i],v=enCelda(it);for(const {bm,ids} of todas)bm.setVisibleAt(ids[i],v&&!lejos[i]);if(lejosBM)lejosBM.setVisibleAt(lejosIds[i],v&&!!lejos[i]);};
+ const setCeldas=(celdas,W,S=6)=>{if(celdas===antes)return;antes=celdas;celdasW=W;items.forEach((it,i)=>aplicar(i));};
+ const setLejos=(x,z)=>{if(!lejosBM)return;items.forEach((it,i)=>{const d=Math.hypot(it.x-x,it.z-z),era=lejos[i],es=era?d>LEJOS_PLANTA.cerca:d>LEJOS_PLANTA.lejos;if(!!es!==!!era){lejos[i]=es?1:0;aplicar(i);}});};
+ return {setCeldas,setLejos,n:items.length,meshes:[...todas.map(t=>t.bm),...(lejosBM?[lejosBM]:[])]};}
+// (la distancia a la que una planta pasa a su versión de lejos, y a la que vuelve su modelo: m)
+export const LEJOS_PLANTA={lejos:45,cerca:38};

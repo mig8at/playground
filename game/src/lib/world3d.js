@@ -404,7 +404,7 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
  const blankOut=(faces,y0,y1)=>{for(const f of faces)for(let fl=Math.max(1,Math.floor(y0/FLOOR));fl<=Math.floor((y1-.01)/FLOOR);fl++)blank.add(`${f.x},${f.y},${f.dx},${f.dy},${fl}`);};
  // El frente de cada puerta (y de cada portón): ahí no se pone nada que estorbe el paso (ver inDoor).
  const doorFronts=[],doorFrames=[];
- const stoopsByCell=new Map(),balconiesByCell=new Map(),lotFurniture=new Map(),surfByCell=new Map(),panios=new Map();let cortinaMesh=null,cortinaOrig=null,cortinaLote=null,cortinaSlot=null,cortinasVisibles=null;const panioDe=[];let stationInfo=null,lotPlaques=[],town=null,civ=null,civicFronts=[],elevators=[],setElevatorDoors=()=>{};const walls=new Map(),WALL_T=.3;let stairsByLot=new Map(),duplexByLot=new Map(),mansardaArmada_=[];
+ const stoopsByCell=new Map(),balconiesByCell=new Map(),lotFurniture=new Map(),surfByCell=new Map(),panios=new Map();let cortinaMesh=null,cortinaOrig=null,cortinaLote=null,cortinaSlot=null,cortinasVisibles=null;const panioDe=[];let stationInfo=null,lotPlaques=[],town=null,civ=null,civicFronts=[],elevators=[],setElevatorDoors=()=>{};const walls=new Map(),WALL_T=.3;let stairsByLot=new Map(),duplexByLot=new Map(),mansardaArmada_=[],cascarones_=[];
  if(downtown&&plan){
   // Los edificios del plano (town3d.js): fachadas, pisos, tabiques, ascensores, muebles y choques.
   adPlan=barrio||LOWPOLY.on?[]:planFacadeAds();// (van en la azotea: la fachada conserva sus ventanas; con LOWPOLY, sin publicidad)
@@ -449,7 +449,7 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
    // también desde adentro de un edificio—: se apagan con su lote, como las piezas de downtown3d; las matrices de cada una,
    // guardadas para volver a ponerlas)
    if(cortinaMesh){cortinaOrig=cortinaMesh.instanceMatrix.array.slice();cortinaLote=T.cortinas.map(c=>c.lote??-1);cortinaSlot=new Int32Array(cortinaLote.length).map((_,i)=>i);for(const p of T.panios)for(let i=0;i<p.n;i++)panioDe[p.i0+i]=p;}
-  WORLD_TIMES.lap('unir');lotPlaques=T.plaques;town=buildDowntown(downtown,T.items,T.leaves);group.add(town.group);
+  WORLD_TIMES.lap('unir');lotPlaques=T.plaques;cascarones_=T.cascarones||[];town=buildDowntown(downtown,T.items,T.leaves,{cascarones:T.cascarones});group.add(town.group);
   // Las escalinatas (town3d.js): por casilla, para el piso de afuera.
   for(const st of T.stoops||[]){const cx=Math.floor((st.x+st.nx*.5)/S),cy=Math.floor((st.z+st.nz*.5)/S),k=cy*W+cx;(stoopsByCell.get(k)||stoopsByCell.set(k,[]).get(k)).push(st);}
   // Los balcones (town3d.js): por casilla, para pisarlos.
@@ -1183,7 +1183,9 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
  // La ronda (2026-10-17): lo robado no se dibuja (oculto(it, lote) → true) y las puertas trancadas no se abren solas
  // (trancada(x, z, y) → true). El 3D las fija con setOcultos / setTrancadas; refrescarInteriores rearma lo de adentro.
  let ocultoFn=null,trancadaFn=null,cerradoFn=null;
- function updateInteriors(px,pz,dt=.016,py=1.7){if(!furniture||!lotFurniture.size)return;if((clock-=dt)>0)return;clock=.4;
+ // (la caja de lejos de cada edificio —downtown3d setLejos—, cada 0,3 s según dónde está la cámara)
+ let lejosReloj=0;
+ function updateInteriors(px,pz,dt=.016,py=1.7){if((lejosReloj-=dt)<=0){lejosReloj=.3;town?.setLejos?.(px,pz);}if(!furniture||!lotFurniture.size)return;if((clock-=dt)>0)return;clock=.4;
   // Los edificios a menos de 15 m de la cámara, y sólo los pisos cerca de su altura (el de la cámara y los vecinos).
   const cf=Math.floor(Math.max(0,py-.5)/FLOOR),act=[...lotFurniture].filter(([id,L])=>Math.hypot(L.x-px,L.z-pz)<15+L.r).map(([id])=>id),key=act.join(',')+'|'+cf;if(key===activeKey)return;activeKey=key;
   const near=it=>Math.abs(it.f-cf)<=1;
@@ -1213,7 +1215,7 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
  const glassMat=new THREE.MeshStandardMaterial({color:'#bcd6e2',transparent:true,opacity:.28,roughness:.05,metalness:.1,depthWrite:false});own.push(glassMat);
  const bedBox=base(new THREE.BoxGeometry(1,1,1));own.push(bedBox);
  WORLD_TIMES.lap("fin");
- return {group,doorFronts,station:stationInfo,updateAds,updateInteriors,lots:lotFurniture,duplexes:duplexByLot,get mansardaArmada(){return mansardaArmada_;},fachadaArmada:fachadaArmada_,
+ return {group,doorFronts,station:stationInfo,updateAds,updateInteriors,lots:lotFurniture,duplexes:duplexByLot,get mansardaArmada(){return mansardaArmada_;},get cascarones(){return cascarones_;},fachadaArmada:fachadaArmada_,
   // Las bancas de parques y plazas: dos puestos por banca, para la gente de la calle (se sientan mirando hacia ry).
   setOcultos:fn=>{ocultoFn=fn;activeKey=null;clock=0;},setCerrados:fn=>{cerradoFn=fn;activeKey=null;clock=0;},setTrancadas:fn=>{trancadaFn=fn;},refrescarInteriores:()=>{activeKey=null;clock=0;},get lotFurniture(){return lotFurniture;},
   benchSeats:benches.flatMap(b=>[-.42,.42].map(o=>({x:b.x+Math.cos(b.ry||0)*o,y:0,z:b.z-Math.sin(b.ry||0)*o,yaw:b.ry||0,lift:.24,ap:.45,by:null}))),roofBoards,clearance,floorAt,curbAt:(x,z)=>curbAt(Math.floor(x/SW),Math.floor(z/SW)),kindAt:(x,z)=>at(Math.floor(x/S),Math.floor(z/S)),elevatorAt,updateElevators,buildings:town,// las puertas cerca de (x, z) a la altura y —las de los cuartos y las de calle—: para abrirlas y cerrarlas con E y para

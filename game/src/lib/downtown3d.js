@@ -144,6 +144,8 @@ function cortarPorPendiente(geo){{const g=geo.index?geo.toNonIndexed():geo;
 // y marco delgado, en vez del frontón clásico. Sale de la pizarra con su hueco de la buhardilla del paquete; las cajas se
 // cortan por la pendiente como la otra, para que por dentro no atraviesen nada. Pocos polígonos: siete cajas
 export const BUHARDILLA_MODERNA='Roof_Buhardilla_Moderna';
+// (la distancia a la que un edificio pasa a su caja de lejos, y a la que vuelve su detalle: m)
+export const LEJOS={lejos:120,cerca:100};
 function buhardillaModerna(kit){if(kit.pieces[BUHARDILLA_MODERNA]||!kit.pieces['Roof_SlateCornice_Window_1'])return;const base=kit.pieces['Roof_SlateCornice_Window_1'];
  const B=(x0,x1,y0,y1,z0,z1)=>{const g=new THREE.BoxGeometry(x1-x0,y1-y0,z1-z0);g.translate((x0+x1)/2,(y0+y1)/2,(z0+z1)/2);return g;};
  const metal=mergeGeometries([B(-.62,.62,2.55,2.61,-.95,.06),B(-.62,-.56,.1,2.55,-.95,.06),B(.56,.62,.1,2.55,-.95,.06),B(-.62,.62,.08,.16,-.35,.08),B(-.56,.56,2.47,2.55,-.07,0),B(-.56,-.5,.16,2.47,-.07,0),B(.5,.56,.16,2.47,-.07,0)].map(g=>g.toNonIndexed()),false);
@@ -151,7 +153,7 @@ function buhardillaModerna(kit){if(kit.pieces[BUHARDILLA_MODERNA]||!kit.pieces['
  const de=m=>base.parts.find(p=>p.mat===m),slate=de('MI_Roof_Slate'),gl=de('MI_Glass'),mt=de('MI_Trim_MetalConcrete')||de('MI_Trim');
  kit.pieces[BUHARDILLA_MODERNA]={...base,parts:[slate,{...(mt||{}),mat:'MI_Trim_MetalConcrete',geo:cortarPorPendiente(metal),color:mt?.color||new THREE.Color('#3a3d40')},{...(gl||{}),mat:'MI_Glass',geo:vidrio}].filter(p=>p&&p.geo)};}
 
-export function buildDowntown(kit,items,leaves=[]){
+export function buildDowntown(kit,items,leaves=[],{cascarones=[]}={}){
  for(const [n,pc] of Object.entries(kit.pieces||{}))if(/^Roof_SlateCornice_Window/.test(n))recortarBuhardilla(pc);
  if(kit.pieces)buhardillaModerna(kit);
  const tex=textures(),mats=new Map(),buckets=new Map(),group=new THREE.Group(),own=[],litMats=[],bounce=[];
@@ -212,9 +214,25 @@ export function buildDowntown(kit,items,leaves=[]){
   for(const {geo,lote} of list){const gid=bm.addGeometry(geo),iid=bm.addInstance(gid);piezas.push({bm,iid,lote});}
   // El contorno gris (edges3d.js) va sólo por dentro: paredes, pisos y cielos rasos interiores.
   if(/^MI_Interior/.test(key))bm.userData.edges=true;bm.castShadow=!m.transparent;bm.receiveShadow=true;if(m.transparent)bm.renderOrder=1;group.add(bm);own.push(bm);}
- let visibles=null;
- const setVisibles=set=>{if(set===visibles)return;visibles=set;for(const p of piezas)p.bm.setVisibleAt(p.iid,!set||set.has(p.lote));};
- return {group,triangles,meshes:group.children.length,doors:doors.length,setVisibles,lotesConPiezas:()=>new Set(piezas.map(p=>p.lote)),
+ // LA CAJA DE LEJOS (2026-11-22, la versión baja de cada edificio, como en los juegos de Rockstar): cada lote tiene además su caja
+ // —town3d cascarones: sus partes hasta su altura, con la mansarda—, en una BatchedMesh propia, una instancia por lote. Más allá
+ // de LEJOS.lejos de la cámara se dibuja la caja y no sus piezas; vuelve el detalle más acá de LEJOS.cerca (el margen, para que
+ // no parpadee en el borde). La distancia, al rectángulo del lote. setVisibles —lo que se ve desde adentro— manda sobre las dos.
+ const cajaGeo=(cs)=>mergeGeometries(cs.map(c=>{const g=new THREE.BoxGeometry(c.w,c.h,c.d);g.translate(c.x,c.y+c.h/2,c.z);return g;}),false);
+ const cajas=new Map();let cajasBM=null;
+ if(cascarones.length){const geos=cascarones.map(c=>({lote:c.lote,geo:cajaGeo(c.cajas),rect:c.cajas.reduce((r,b)=>({x0:Math.min(r.x0,b.x-b.w/2),x1:Math.max(r.x1,b.x+b.w/2),z0:Math.min(r.z0,b.z-b.d/2),z1:Math.max(r.z1,b.z+b.d/2)}),{x0:1e9,x1:-1e9,z0:1e9,z1:-1e9})}));
+  const nv=geos.reduce((t,g)=>t+g.geo.attributes.position.count,0),ni=geos.reduce((t,g)=>t+g.geo.index.count,0);
+  cajasBM=new THREE.BatchedMesh(geos.length,nv,ni,new THREE.MeshStandardMaterial({color:'#e9e6df',roughness:.9,flatShading:true}));cajasBM.castShadow=true;cajasBM.receiveShadow=true;cajasBM.name='cajas de lejos';
+  for(const g of geos){const iid=cajasBM.addInstance(cajasBM.addGeometry(g.geo));cajasBM.setVisibleAt(iid,false);cajas.set(g.lote,{iid,rect:g.rect});g.geo.dispose();}
+  group.add(cajasBM);own.push(cajasBM);}
+ let visibles=null;const lejos=new Set();
+ const aplicar=()=>{for(const p of piezas)p.bm.setVisibleAt(p.iid,(!visibles||visibles.has(p.lote))&&!lejos.has(p.lote));
+  if(cajasBM)for(const [lote,c] of cajas)cajasBM.setVisibleAt(c.iid,(!visibles||visibles.has(lote))&&lejos.has(lote));};
+ const setVisibles=set=>{if(set===visibles)return;visibles=set;aplicar();};
+ const setLejos=(x,z)=>{if(!cajasBM)return;let cambio=false;
+  for(const [lote,c] of cajas){const r=c.rect,d=Math.hypot(Math.max(r.x0-x,0,x-r.x1),Math.max(r.z0-z,0,z-r.z1)),era=lejos.has(lote),es=era?d>LEJOS.cerca:d>LEJOS.lejos;if(es!==era){cambio=true;es?lejos.add(lote):lejos.delete(lote);}}
+  if(cambio)aplicar();};
+ return {group,triangles,meshes:group.children.length,doors:doors.length,setVisibles,setLejos,lejos:()=>new Set(lejos),lotesConPiezas:()=>new Set(piezas.map(p=>p.lote)),
   // people: [{x,z}]. Abre las puertas con alguien cerca; sólo se recalculan si alguna se movió. trancada(x, z, y): la
   // puerta de calle de una vivienda trancada (o de un lugar cerrado) no se abre sola (la ronda, como las de adentro).
   // (2026-10-18: al jugador —o.esJugador— no se le abren solas: d.mano, la abrió él con E)

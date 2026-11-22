@@ -148,7 +148,7 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
  // (armada: lo que de verdad se puso en cada módulo de fachada —lote, casilla, lado, módulo, piso, tipo y pieza—, para
  // comparar con lo que dice el plano: engine/fachada-piezas.js, validar-fachada-piezas)
  const armada=[],mansardaArmada=[];
- const escalerasAire=[],roofProps=[],items=[],leaves=[],doorFronts=[],plaques=[],lotFurniture=new Map(),civics=[],civicFronts=[],awnings=[],stoops=[],balconies=[],cortinas=[],superficies=[],panios=[];let stationInfo=null;
+ const cascarones=[],escalerasAire=[],roofProps=[],items=[],leaves=[],doorFronts=[],plaques=[],lotFurniture=new Map(),civics=[],civicFronts=[],awnings=[],stoops=[],balconies=[],cortinas=[],superficies=[],panios=[];let stationInfo=null;
  const columns=new Set(),stairs=new Map(),duplexes=new Map();
  // Un rectángulo menos otro (los dos alineados a los ejes): hasta cuatro pedazos.
  const minus=(R,Hh)=>{const x0=Math.max(R.x,Hh.x),z0=Math.max(R.z,Hh.z),x1=Math.min(R.x+R.w,Hh.x+Hh.w),z1=Math.min(R.z+R.h,Hh.z+Hh.h);if(x1<=x0+1e-6||z1<=z0+1e-6)return [R];
@@ -674,6 +674,14 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
   // visibles en el último tramo también». Todo lo del último piso que cae en la escalera o en sus muros, 35 cm alrededor)
   if(ST?.azotea&&escI0>=0){const top=L.floors-1,zona=ST.rect(-.35,-.35,ST.W+.35,ST.sd.d+.35),enZona=b=>b.x>=zona.x&&b.x<=zona.x+zona.w&&b.z>=zona.z&&b.z<=zona.z+zona.h;
    for(let i=boxes.length-1;i>=0;i--)if(boxes[i].f===top&&(i>=escI0||enZona(boxes[i]))){escalerasAire.push(boxes[i]);boxes.splice(i,1);}}
+  // (LA CAJA DE LEJOS —2026-11-22, Miguel: «según las estrategias de GTA 6 para aumentar el rendimiento» → «arranca y miramos con
+  // 1»—: la versión baja de cada edificio, como las de Rockstar: cada parte del edificio, una caja hasta su altura —con la
+  // escalinata; sin pretil, para no tapar lo de la azotea—; con mansarda, media pendiente sobre toda la planta y la cubierta encima. Sale del
+  // plano, al milímetro; downtown3d la dibuja en vez de las piezas cuando el lote queda lejos —setLejos—)
+  {const cajas=B.parts.map(p=>({x:p.x+p.w/2,z:p.y+p.h/2,w:p.w,d:p.h,y:0,h:L.h+R}));
+   if(fs.mansard&&B.mansarda){for(const p of B.parts)cajas.push({x:p.x+p.w/2,z:p.y+p.h/2,w:p.w-MANSARDA.retiro,d:p.h-MANSARDA.retiro,y:L.h+R,h:MANSARDA.alto/2});
+    for(const c of B.mansarda.cubierta)cajas.push({x:(c.x0+c.x1)/2,z:(c.z0+c.z1)/2,w:c.x1-c.x0,d:c.z1-c.z0,y:L.h+R,h:MANSARDA.alto});}
+   cascarones.push({lote:id,cajas});}
   lotFurniture.set(id,{id,raise:R,leaves:innerLeaves,cortinas:cortinasLote,glass,who,floors:L.floors,cells:cells.map(([x,y])=>[x*S,y*S,(x+1)*S,(y+1)*S]),items:models,beds:boxes,seats,sleeps,staff,x:cx,z:cz,r:Math.sqrt(cells.length)*S,noWalk:ST?[ST.rect(-.2,-.2,ST.W+.2,ST.sd.d+.2)]:[]});
   // ---------- Edificios públicos: letrero, portones, cruz, bandera ----------
   const civicType={hospital:'hospital',colegio:'colegio',biblioteca:'biblioteca',bomberos:'bomberos',comisaria:'comisaria'}[B.type];
@@ -701,7 +709,7 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
   const val=new THREE.BoxGeometry(2,.24,.03);val.translate(0,fy-.1,fz);const geo=mergeGeometries([top,val]);top.dispose();val.dispose();
   // (LOWPOLY: la lona lisa, del color de su edificio —sin las rayas pintadas—)
   const mat=new THREE.MeshStandardMaterial(LOWPOLY.on?{roughness:.9,flatShading:true}:{map:tex,roughness:.9});own.push(geo,mat,tex);ctx.instanced(group,geo,mat,awnings);}
- return {fachadaArmada:armada,mansardaArmada,duplexes,escalerasAire,roofProps,items,leaves,doorFronts,plaques,lotFurniture,civics,civicFronts,stationInfo,stairs,stoops,balconies,cortinas,superficies,panios};
+ return {cascarones,fachadaArmada:armada,mansardaArmada,duplexes,escalerasAire,roofProps,items,leaves,doorFronts,plaques,lotFurniture,civics,civicFronts,stationInfo,stairs,stoops,balconies,cortinas,superficies,panios};
 }
 
 // Las cabinas de los ascensores: paredes de metal, techo con luz y botonera, puertas corredizas (se abren cuando el
