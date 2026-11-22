@@ -57,3 +57,12 @@ export function cortinaAbierta(v,a,b){const K=CORTINA_ABIERTA,w=v.x1-v.x0+2*K.ma
 export function juntarCortinas(ks){const out=[];for(const k of ks){const p=out.at(-1);
   if(p&&k.u0-k.paño<p.u1+p.paño+.01){const n=Math.min(p.pliegues,k.pliegues),pa=CORTINA_ABIERTA.panio(n);Object.assign(p,{u0:p.u0,u1:k.u1,w:k.u1-p.u0,m:(p.u0+k.u1)/2,h:Math.max(p.h,k.h),pliegues:n,paño:pa});}
   else out.push({...k});}return out;}
+
+// LA PERSIANA CERRADA (2026-11-22, Miguel: «las casas y apartamentos que no estén vendidos, con las ventanas cerradas, así
+// aumenta el rendimiento»; y «en vez de cortinas, persianas, que son lisas y serían menos polígonos, casi un cuadrado»).
+// Una sola caja delante del vidrio, del ancho de la ventana y de panio.bajo a panio.alto: 12 triángulos contra los 48 del
+// paño con sus pliegues y su barral. Con ella cerrada no se ve el interior, y el 3D no lo arma (propiedad.js).
+export const PERSIANA={color:'#e7e3da',margen:.04,espesor:.025};
+export function persianaCerrada(c,yb,cara){const P=CORTINA.panio,u0=c.u-PERSIANA.margen,u1=c.v+PERSIANA.margen,at=c.at+c.edge*cara,mu=(u0+u1)/2,L=u1-u0,y0=yb+P.bajo,y1=yb+P.alto;
+ const caja=c.h?{x:mu,y:y0,z:at,sx:L,sy:y1-y0,sz:PERSIANA.espesor,color:PERSIANA.color}:{x:at,y:y0,z:mu,sx:PERSIANA.espesor,sy:y1-y0,sz:L,color:PERSIANA.color};
+ return {cajas:[caja],u0,u1,y0,y1};}

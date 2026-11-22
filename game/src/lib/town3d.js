@@ -17,7 +17,8 @@ import {PUERTA_DOBLE,MARQUESINA,VENTANAL} from './fachada3d.js';
 import {pendienteEn} from '../engine/techos.js';
 import {ALTURA,COLUMNA,CHOQUE_MUEBLE,CORTINA,AZOTEA,MANSARDA,esVidriera} from '../engine/medidas.js';
 const CORTINA_CU=new Set(CORTINA.cuartos);
-import {cuartoDeVentana,panioCerrado,cortinaAbierta,juntarCortinas,telaDe} from '../engine/cortinas.js';
+import {cuartoDeVentana,panioCerrado,cortinaAbierta,juntarCortinas,telaDe,persianaCerrada} from '../engine/cortinas.js';
+import {esVivienda} from '../engine/entrega.js';
 import {piezasSinTitilar} from '../engine/titileo.js';
 
 // Qué modelo usa cada mueble del plano (el primero que esté cargado) y, si no hay, una caja: [alto, color, desde].
@@ -582,7 +583,11 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
    // (2026-10-16, las acciones: el paño va en TODAS las ventanas de los cuartos que llevan cortina —CORTINA.cuartos—, cada una
    // con su clave lote:piso:ventana y cerrado o no según el plano; el jugador lo abre o lo cierra —world3d cortina()—)
    // (2026-11-22: en la ciudad entregada vacía —bp.entrega— no hay alfombras, cuadros, relojes ni cortinas: sólo la obra)
-   if(!bp.entrega)lv.windows.forEach((w,wi)=>{if(w.shop)return;const c=cuartoDeVentana(lv,w);if(!c||!CORTINA_CU.has(c.q.type))return;const tela=w.cortina||telaDe(id,f,wi);
+   // (2026-11-22: en la ciudad entregada, toda ventana de una vivienda —sin dueño todavía— lleva su persiana cerrada:
+   // engine/cortinas.js persianaCerrada, una caja; el interior no se ve ni se arma —engine/propiedad.js—)
+   if(bp.entrega)lv.windows.forEach((w,wi)=>{if(w.shop)return;const c=cuartoDeVentana(lv,w);if(!c||!esVivienda(B,c.q))return;
+    const cj=persianaCerrada(c,yb,FACE+.02).cajas;panios.push({key:id+':'+f+':'+wi,i0:cortinas.length,n:cj.length,cerrada:true,persiana:true});cortinas.push(...cj);});
+   else lv.windows.forEach((w,wi)=>{if(w.shop)return;const c=cuartoDeVentana(lv,w);if(!c||!CORTINA_CU.has(c.q.type))return;const tela=w.cortina||telaDe(id,f,wi);
     const cj=panioCerrado(c,tela,yb,FACE+.02).cajas;panios.push({key:id+':'+f+':'+wi,i0:cortinas.length,n:cj.length,cerrada:!!w.cortina});cortinas.push(...cj);});
   });
   // ---------- La escalera: peldaños con huella y nariz, descanso, pared del medio, pasamanos y la baranda del último piso ----------

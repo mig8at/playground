@@ -57,6 +57,7 @@ import {createGrafitis,createMapaPintable} from '../lib/grafitis3d.js';
 import {claveCiudad} from '../engine/grafiti.js';
 import {sincronizar} from '../lib/pinturaGuardada.js';
 import {createBoceto} from '../lib/boceto3d.js';
+import {cerradurasDe,puertaTrancadaEn,trancada,adentroCerrado} from '../engine/propiedad.js';
 import {paredesDeLaCiudad} from '../engine/muros.js';
 import {RELOJ,MODO_BOTIN,PATRULLA} from '../engine/medidas.js';
 
@@ -82,8 +83,8 @@ const pickCity=t=>{if(!parks)return randomCity(t);for(let i=0;i<200;i++){const s
 // allá. Esta pantalla ya no los importa: sus funciones son estas variables, que quedan sin definir en la ciudad —nadie
 // las llama, porque la ronda no se arma— y se llenan con cargarFuga() sólo cuando se pide el juego viejo.
 const PASEO=route.query.paseo!=null||(route.name!=='demo'&&route.query.fuga==null);
-let createViewmodel,ViewmodelPass,createShooting,crearRonda,robar,guardar,sacar,incautar,perseguido,precio,gano,hayGente,empezarForzar,tickForzar,trancada,puertaTrancadaEn,robadoEn,usosRonda,createPersecucion,rasgosDe,createPatrullas;
-async function cargarFuga(){({createViewmodel,ViewmodelPass,createShooting,crearRonda,robar,guardar,sacar,incautar,perseguido,precio,gano,hayGente,empezarForzar,tickForzar,trancada,puertaTrancadaEn,robadoEn,usosRonda,createPersecucion,rasgosDe,createPatrullas}=await import('../../fuga/index.js'));}
+let createViewmodel,ViewmodelPass,createShooting,crearRonda,robar,guardar,sacar,incautar,perseguido,precio,gano,hayGente,empezarForzar,tickForzar,robadoEn,usosRonda,createPersecucion,rasgosDe,createPatrullas;
+async function cargarFuga(){({createViewmodel,ViewmodelPass,createShooting,crearRonda,robar,guardar,sacar,incautar,perseguido,precio,gano,hayGente,empezarForzar,tickForzar,robadoEn,usosRonda,createPersecucion,rasgosDe,createPatrullas}=await import('../../fuga/index.js'));}
 const MenuJuego=defineAsyncComponent(()=>import('../../fuga/components/MenuJuego.vue'));
 // (2026-11-22, Miguel: «la idea es eliminar todo el ruido y centrarnos en las medidas… bórralos, no los dejes ahí, porque
 // la idea es ir progresivamente»): el paseo es un BOCETO —todo blanco, lib/boceto3d.js— y no hay cómo volver a los
@@ -301,6 +302,9 @@ function load(ready=null){
  // (la casa del 3D y la del plano: el 3D sólo arma las que tienen plano de casa; la ronda cuenta en las del plano)
  const conPlano=(plan.isla?.casas||[]).map((c,i)=>c.spec?i:-1).filter(i=>i>=0);
  acciones=createAcciones({plan,world,player,avatar:()=>avatar,viviendas:()=>viviendas,ronda:()=>ronda,enRonda:usarRonda,casaPlan:i=>conPlano[i],usosRonda:(...a)=>usosRonda(...a)});accionTexto.value='';
+ // (2026-11-22: en el paseo, toda vivienda está cerrada hasta que se compre —engine/propiedad.js—: su puerta trancada y lo
+ // de adentro sin armar)
+ if(PASEO&&!PRUEBA){const R=cerradurasDe(plan);trancar(R,conPlano);world.setCerrados?.(adentroCerrado(plan,R));}
  ronda=null;rondaVista.value=null;if(!PRUEBA&&!PASEO)setTimeout(()=>POLICIA?armarPolicia(conPlano):armarRonda(conPlano),400);// (después de mostrar el mundo: elegir las guaridas toma unos segundos)
  // (2026-10-18, Miguel: «quita el efecto que oculta paredes»: sin aclarado —createAclarado({max:VISIBILIDAD.maximo}) lo
  // volvía a poner— ni muñón de las paredes del lado de la cámara en la vista de arriba)

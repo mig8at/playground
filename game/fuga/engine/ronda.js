@@ -63,15 +63,11 @@ export function empezarForzar(R,id,t){const p=R.puertas.find(p=>p.id===id);if(!p
 export function tickForzar(R,x,z,t){const F=R.forzando;if(!F)return null;if(Math.hypot(F.x-x,F.z-z)>ALCANCE+.4){R.forzando=null;return {cancelado:true};}
  if(t<F.hasta)return {resta:F.hasta-t};R.forzando=null;R.abiertas.add(F.vivienda);const gente=hayGente(R,F.vivienda,t);
  if(gente)R.avisos.push({x:F.x,z:F.z,t,que:'Llamada de los vecinos',donde:F.vivienda,llamada:true});R.registro.push({t,que:'Forzaste una chapa'+(gente?' con gente adentro: llamaron a la policía':'')});return {abierta:true,gente};}
-// ¿la hoja que el 3D dibuja en (x, z) a la altura y es de una puerta trancada? (para que no se abra sola)
-export function puertaTrancadaEn(R,x,z,y){for(const p of R.puertas){if(p.y==null||R.abiertas.has(p.vivienda)||Math.abs((y??p.y)-p.y)>1.6)continue;if(Math.hypot((p.x0+p.x1)/2-x,(p.z0+p.z1)/2-z)<.9)return true;}return false;}
+// (las cuentas de la puerta trancada son las de la propiedad —src/engine/propiedad.js—: una sola, para la ronda y el paseo)
+export {puertaTrancadaEn,trancada} from '../../src/engine/propiedad.js';
 // ¿lo dibujado (un mueble de adentro: su nombre de modelo, su punto y su piso f) es algo ya robado? Por ahora el televisor:
 // el portátil va junto con la geometría fija del piso y el joyero no se dibuja (es lo de adentro de la cómoda)
 export function robadoEn(R,nombre,lot,f,x,z){if(!/^tv@/.test(nombre))return false;for(const id of R.robados){const o=R.robables.find(o=>o.id===id);if(o?.nombre==='Televisor'&&o.lugar.lot===lot&&o.lugar.nivel===f&&Math.hypot(o.x-x,o.z-z)<.5)return true;}return false;}
-// ¿la puerta trancada tapa el paso en (x, z) a la altura F? (el 3D dice la altura de cada puerta: p.y)
-export function trancada(R,x,z,r,F){for(const p of R.puertas){if(p.y==null||R.abiertas.has(p.vivienda)||Math.abs(F-p.y)>1.2)continue;
- const x0=Math.min(p.x0,p.x1),x1=Math.max(p.x0,p.x1),z0=Math.min(p.z0,p.z1),z1=Math.max(p.z0,p.z1);if(x<x0-r||x>x1+r||z<z0-r||z>z1+r)continue;
- const dx=Math.max(x0-x,0,x-x1),dz=Math.max(z0-z,0,z-z1);if(Math.hypot(dx,dz)<r)return true;}return false;}
 
 export function robar(R,id,t=0){const o=R.robables.find(o=>o.id===id);if(!o||R.robados.has(id))return null;R.robados.add(id);R.mochila+=o.valor;R.rastroHasta=Math.max(R.rastroHasta,t+RASTRO.robo);R.enMochila.push({id,nombre:o.nombre,valor:o.valor,donde:o.donde,t});// (lo que lleva, una por una: el menú)
  R.avisos.push({x:o.x,z:o.z,t,que:o.nombre,donde:o.donde});R.registro.push({t,que:`Robaste ${o.nombre.toLowerCase()} (${precio(o.valor)})`});return o;}

@@ -1170,19 +1170,22 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
  const interior=new THREE.Group();group.add(interior);let activeKey='',clock=0;const bedMat=new THREE.MeshStandardMaterial({roughness:.85});own.push(bedMat);
  // La ronda (2026-10-17): lo robado no se dibuja (oculto(it, lote) → true) y las puertas trancadas no se abren solas
  // (trancada(x, z, y) → true). El 3D las fija con setOcultos / setTrancadas; refrescarInteriores rearma lo de adentro.
- let ocultoFn=null,trancadaFn=null;
+ let ocultoFn=null,trancadaFn=null,cerradoFn=null;
  function updateInteriors(px,pz,dt=.016,py=1.7){if(!furniture||!lotFurniture.size)return;if((clock-=dt)>0)return;clock=.4;
   // Los edificios a menos de 15 m de la cámara, y sólo los pisos cerca de su altura (el de la cámara y los vecinos).
   const cf=Math.floor(Math.max(0,py-.5)/FLOOR),act=[...lotFurniture].filter(([id,L])=>Math.hypot(L.x-px,L.z-pz)<15+L.r).map(([id])=>id),key=act.join(',')+'|'+cf;if(key===activeKey)return;activeKey=key;
   const near=it=>Math.abs(it.f-cf)<=1;
   for(const m of [...interior.children]){interior.remove(m);m.dispose?.();}
-  const by={};const beds=[],glass=[];for(const id of act){const L=lotFurniture.get(id);for(const it of L.items)if(near(it)&&!(ocultoFn&&ocultoFn(it,id)))(by[it.name]||(by[it.name]=[])).push(it);beds.push(...L.beds.filter(near));glass.push(...(L.glass||[]).filter(near));}
+  // (2026-11-22: lo de adentro de una vivienda cerrada —sin dueño, con sus persianas cerradas— no se arma: cerradoFn(lote, piso,
+  // x, z), engine/propiedad.js adentroCerrado. Ni sus aparatos, ni sus camas, ni sus vidrios, ni las hojas de sus puertas)
+  const fuera=(it,id,x,z)=>!(cerradoFn&&cerradoFn(id,it.f,x??it.x,z??it.z));
+  const by={};const beds=[],glass=[];for(const id of act){const L=lotFurniture.get(id);for(const it of L.items)if(near(it)&&fuera(it,id)&&!(ocultoFn&&ocultoFn(it,id)))(by[it.name]||(by[it.name]=[])).push(it);beds.push(...L.beds.filter(b=>near(b)&&fuera(b,id)));glass.push(...(L.glass||[]).filter(g=>near(g)&&fuera(g,id)));}
   for(const [n,list] of Object.entries(by))plantInstances(furniture,n,list,interior,{shadow:false});
   if(beds.length)instanced(interior,bedBox,bedMat,beds,{cast:false});
   if(glass.length){const g=instanced(interior,bedBox,glassMat,glass,{cast:false});g.renderOrder=2;}
   // Las hojas de las puertas de los cuartos (town3d innerLeaves): una instancia por puerta, por estilo; se mueven en
   // updateDoors.
-  activeLeaves.length=0;const byStyle={};for(const id of act){const L=lotFurniture.get(id);for(const lf of L.leaves||[])if(near(lf))(byStyle[lf.style]||(byStyle[lf.style]=[])).push(lf);}
+  activeLeaves.length=0;const byStyle={};for(const id of act){const L=lotFurniture.get(id);for(const lf of L.leaves||[])if(near(lf)&&fuera(lf,id,lf.cx,lf.cz))(byStyle[lf.style]||(byStyle[lf.style]=[])).push(lf);}
   for(const [st,list] of Object.entries(byStyle)){const M=leafModel(st),im=new THREE.InstancedMesh(M.parts[0].geometry,M.parts[0].materials,list.length);im.castShadow=false;im.receiveShadow=true;im.frustumCulled=false;
    list.forEach((lf,j)=>{activeLeaves.push({lf,im,j,M});setLeaf(im,j,lf,M);});im.instanceMatrix.needsUpdate=true;interior.add(im);}}
  // La hoja: la bisagra en (x, z), girada th0 (cerrada, a lo largo del vano) más sgn·a·85° (abierta, hacia el cuarto).
@@ -1200,7 +1203,7 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
  WORLD_TIMES.lap("fin");
  return {group,doorFronts,station:stationInfo,updateAds,updateInteriors,lots:lotFurniture,fachadaArmada:fachadaArmada_,
   // Las bancas de parques y plazas: dos puestos por banca, para la gente de la calle (se sientan mirando hacia ry).
-  setOcultos:fn=>{ocultoFn=fn;activeKey=null;clock=0;},setTrancadas:fn=>{trancadaFn=fn;},refrescarInteriores:()=>{activeKey=null;clock=0;},get lotFurniture(){return lotFurniture;},
+  setOcultos:fn=>{ocultoFn=fn;activeKey=null;clock=0;},setCerrados:fn=>{cerradoFn=fn;activeKey=null;clock=0;},setTrancadas:fn=>{trancadaFn=fn;},refrescarInteriores:()=>{activeKey=null;clock=0;},get lotFurniture(){return lotFurniture;},
   benchSeats:benches.flatMap(b=>[-.42,.42].map(o=>({x:b.x+Math.cos(b.ry||0)*o,y:0,z:b.z-Math.sin(b.ry||0)*o,yaw:b.ry||0,lift:.24,ap:.45,by:null}))),roofBoards,clearance,floorAt,curbAt:(x,z)=>curbAt(Math.floor(x/SW),Math.floor(z/SW)),kindAt:(x,z)=>at(Math.floor(x/S),Math.floor(z/S)),elevatorAt,updateElevators,buildings:town,// las puertas cerca de (x, z) a la altura y —las de los cuartos y las de calle—: para abrirlas y cerrarlas con E y para
   // que la cerrada frene al jugador. Cada una: {cx, cz, cy, seg: [ax, az, bx, bz], a, abierta, alternar(), trancada()}
   puertasCerca:(x,z,y,r=1.5)=>{const out=[];for(const L of lotFurniture.values()){if(Math.hypot(L.x-x,L.z-z)>L.r+r+2)continue;
