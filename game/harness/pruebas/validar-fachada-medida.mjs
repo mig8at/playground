@@ -4,12 +4,13 @@
 //  · la textura del muro es de las de su familia, y un piso tiene un número entero de sus hiladas;
 //  · el ancho de la fachada es un número entero de módulos de 2 m;
 //  · cada paño pintable está en la planta baja, mide lo que dice, no pisa ningún vano y cae sobre la línea de su fachada.
-// Uso: node harness/pruebas/validar-fachada-medida.mjs [ciudades=2] [semilla0=1]
+// Uso: node harness/pruebas/validar-fachada-medida.mjs [ciudades=2] [semilla0=1] [equipo=3]
 import {generateBlueprint} from '../../src/engine/blueprint.js';
 import {fachadaMedida,paniosPintables,TEXTURA_MURO,PINTABLE,tramosDe} from '../../src/engine/fachada-medida.js';
-const N=+(process.argv[2]||2),S0=+(process.argv[3]||1);const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};
+const N=+(process.argv[2]||2),S0=+(process.argv[3]||1),EQUIPO=+(process.argv[4]||3);// (el tamaño de la ciudad: 3 la chica, 16 la de 720 m)
+const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};
 let fachadas=0,vanos=0,panios=0,pint=0,area=0,tramos=0,enL=0;const tex={};
-for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:3});
+for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:EQUIPO});
  for(const L of bp.lots){if(!L.levels?.length)continue;
   // los tramos: cubren todo el contorno del edificio (su perímetro, casilla por casilla) y no repiten código
   {const T=tramosDe(L),dentro=new Set();for(const p of L.parts)for(let y=p.y/6;y<(p.y+p.h)/6;y++)for(let x=p.x/6;x<(p.x+p.w)/6;x++)dentro.add(x+','+y);let per=0;for(const k of dentro){const [x,y]=k.split(',').map(Number);for(const [dx,dy] of [[0,-1],[1,0],[0,1],[-1,0]])if(!dentro.has((x+dx)+','+(y+dy)))per+=6;}

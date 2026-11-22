@@ -12,15 +12,16 @@
 //    armar la ciudad otra vez;
 //  · el identificador de un muro lleva de vuelta al mismo muro (muroDe), y sus dos puntas caen sobre el borde del
 //    edificio (exterior) o del cuarto (interior), separadas por su ancho.
-// Uso: node harness/pruebas/validar-grafiti.mjs [ciudades=2] [semilla0=1]
+// Uso: node harness/pruebas/validar-grafiti.mjs [ciudades=2] [semilla0=1] [equipo=3]
 import {generateBlueprint} from '../../src/engine/blueprint.js';
 import {muroExterior,murosDeCuarto,muroDe,puntoDe,otroLoteDe,paredesDeFachada,paredesDelEdificio,componerFachada,partirFachada,MIN_PARED,paredesPintables,paredesDeLaCiudad,paredDeNumero,BANOS,tramosDe} from '../../src/engine/muros.js';
 import {GRAFITI,lienzoDe,vacio,pintar,pintados,valido,pixelEn,mascaraDe,pintable,centroDe,aTexto,deTexto} from '../../src/engine/grafiti.js';
-const N=+(process.argv[2]||2),S0=+(process.argv[3]||1);const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};
+const N=+(process.argv[2]||2),S0=+(process.argv[3]||1),EQUIPO=+(process.argv[4]||3);// (el tamaño de la ciudad: 3 la chica, 16 la de 720 m)
+const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};
 let ext=0,int=0,pix=0,libres=0,mayor=0,sale={},pfach=0,fachs=0,pint=0,pintF=0,tope={cuadra:0,edificio:0,piso:0,pared:0};
-for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:3});
+for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:EQUIPO});
  // los números de las paredes pintables de toda la ciudad
- {const T=paredesDeLaCiudad(bp),vistos=new Set(),T2=paredesDeLaCiudad(generateBlueprint({seed:s,team:3}));pint+=T.length;
+ {const T=paredesDeLaCiudad(bp),vistos=new Set(),T2=paredesDeLaCiudad(generateBlueprint({seed:s,team:EQUIPO}));pint+=T.length;
   if(T.length!==T2.length||T.some((w,i)=>w.numero!==T2[i].numero||w.id!==T2[i].id))falla('la misma ciudad dio otros números',{ciudad:s});
   for(const w of T){const d={ciudad:s,numero:w.numero,id:w.id};if(w.clase==='exterior')pintF++;if(!/^\d{10}$/.test(w.numero))falla('un número que no tiene 10 cifras',d);if(vistos.has(w.numero))falla('número de pared repetido',d);vistos.add(w.numero);
    if(w.numero!==String(w.cuadra).padStart(3,'0')+String(w.edificio).padStart(2,'0')+String(w.piso).padStart(2,'0')+String(w.pared).padStart(3,'0'))falla('el número no es cuadra + edificio + piso + pared',d);
