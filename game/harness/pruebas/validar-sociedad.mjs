@@ -66,11 +66,14 @@ for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:3});const t0=pe
  console.log(`esquinas: ${usadas.size} con vendedor, ${malas} fuera de la vereda`);
  // el caminar (2026-10-17): 30 s reales a 30 cuadros por segundo junto al colegio, a las 11 y a la salida (15): el paso de
  // cada uno, sin saltos, y nadie encima de otro (tampoco en las puertas)
- for(const [h,MAXP] of [[11,.03],[15,.06]]){const T2=crearTranseuntes(S,mapa),ini=(24+h)*H;let prev=new Map(),vels=[],enc=0,pers=0;
+ for(const [h,MAXP] of [[11,.03],[15,.06]]){const T2=crearTranseuntes(S,mapa),ini=(24+h)*H;let prev=new Map(),vels=[],enc=0,pers=0,mano=0;
   for(let s2=0;s2<30;s2+=1/30){const L=T2.cerca(ini,s2,col.x,col.z,90,120);for(const o of L){const p=prev.get(o.id);if(p&&o.camina)vels.push(Math.hypot(o.x-p.x,o.z-p.z)*30);}
-   prev=new Map(L.map(o=>[o.id,{x:o.x,z:o.z}]));pers+=L.length;for(let i=0;i<L.length;i++)for(let j=i+1;j<L.length;j++)if(Math.hypot(L[i].x-L[j].x,L[i].z-L[j].z)<.5)enc++;}
+   prev=new Map(L.map(o=>[o.id,{x:o.x,z:o.z}]));pers+=L.length;// (2026-11-21: un chico y quien lo cuida no cuentan: van juntos a propósito —transeuntes.js alLado y atras—, y en un tramo
+   // angosto quedan a menos de medio metro. Se cuentan aparte —deLaMano—. Antes entraban como encimados y a la salida del
+   // colegio la cuenta rozaba su tope: 6,0 % con un tope de 6 %, y 6,1 % con las franjas de los departamentos calibradas)
+   for(let i=0;i<L.length;i++)for(let j=i+1;j<L.length;j++)if(Math.hypot(L[i].x-L[j].x,L[i].z-L[j].z)<.5){const a=L[i].persona,b=L[j].persona;if(a&&b&&(a.cuidador===b.id||b.cuidador===a.id))mano++;else enc++;}}
   vels.sort((a,b)=>a-b);const q=f=>vels[Math.floor(f*(vels.length-1))]||0,parte=enc/Math.max(1,pers);
-  console.log(`caminar a las ${h}: paso mediano ${q(.5).toFixed(2)} m/s, el 99 % a menos de ${q(.99).toFixed(2)}, el más rápido ${q(1).toFixed(2)} · encimados ${(100*parte).toFixed(1)} % de la gente por cuadro`);
+  console.log(`caminar a las ${h}: paso mediano ${q(.5).toFixed(2)} m/s, el 99 % a menos de ${q(.99).toFixed(2)}, el más rápido ${q(1).toFixed(2)} · encimados ${(100*parte).toFixed(1)} % de la gente por cuadro (aparte, de la mano de quien los cuida: ${(100*mano/Math.max(1,pers)).toFixed(1)} %)`);
   if(q(.5)<1.1||q(.5)>1.5)falla('el paso mediano no es el de una persona',{hora:h,paso:+q(.5).toFixed(2)});if(q(.99)>2.6)falla('demasiada gente camina rápido',{hora:h,p99:+q(.99).toFixed(2)});
   if(q(1)>3.5)falla('alguien salta (más de 3,5 m/s de un cuadro a otro)',{hora:h,max:+q(1).toFixed(2)});if(parte>MAXP)falla('la gente se encima',{hora:h,parte:+parte.toFixed(3),max:MAXP});}
  med.calzada=cal/tot;med.caminos=n;console.log(`calle: ${n} caminos, por la calzada ${(100*cal/tot).toFixed(1)} % del largo · ${vistos} vistos a las 7, 11, 15 y 18 cerca del colegio, ${afuera} fuera de lo caminable`);

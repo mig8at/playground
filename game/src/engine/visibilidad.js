@@ -14,7 +14,11 @@ import {ALTURA} from './medidas.js';
 // un lado u otro—: el cuadrado del ancho del vano a cada lado de la línea, hasta el alto de la hoja)
 // (histeresis: 0,6 → 1 m el 2026-10-17: en la ciudad con parques —la que se juega— una pared volvía a prenderse a menos
 // de 0,6 m en 3 de 200 caminatas; con 1 m, ninguna, y las paredes aclaradas no aumentan: mediana 1, p99 7)
-export const VISIBILIDAD={maximo:16,histeresis:1,grosor:{tabique:.11,adentro:.34,afuera:.14},alto:ALTURA.piso,puerta:{alto:2.15,sobra:.05}};
+// (reposo, 2026-11-21: una pared que se acaba de apagar no vuelve a prenderse hasta que el jugador caminó ese tanto,
+// salvo que tape al jugador —la línea de la cámara a su cabeza la cruza—. Al pasar de un espacio a otro la línea al
+// centro del espacio salta, y una pared podía apagarse y prenderse en 20 cm: lo encontró validar-visibilidad al calibrar
+// las franjas de los departamentos. Se probó antes un retardo al apagar: corría el problema en vez de quitarlo)
+export const VISIBILIDAD={reposo:.6,maximo:16,histeresis:1,grosor:{tabique:.11,adentro:.34,afuera:.14},alto:ALTURA.piso,puerta:{alto:2.15,sobra:.05}};
 
 const espaciosDe=lv=>[...lv.rooms,...(lv.corridor||[]),...(lv.core?[lv.core]:[])].map(q=>({x0:q.x,z0:q.y,x1:q.x+q.w,z1:q.y+q.h,q}));
 export function loteEn(bp,x,z){for(const L of bp.lots)if((L.parts||[]).some(p=>x>p.x&&x<p.x+p.w&&z>p.y&&z<p.y+p.h))return L;return null;}
@@ -44,9 +48,14 @@ export function paredesAClarar(bp,jugador,camara,previo=null){
  const esp=espaciosDe(lv).find(e=>jugador.x>e.x0&&jugador.x<e.x1&&jugador.z>e.z0&&jugador.z<e.z1);
  const objetivos=[[jugador.x,jugador.z],...(esp?[[(esp.x0+esp.x1)/2,(esp.z0+esp.z1)/2]]:[])],lineas=objetivos.map(([tx,tz])=>[camara.x,camara.z,tx,tz]);
  const B=bordesDe(bp,L,lv),antes=new Set((previo||[]).filter(p=>p.lote===L.id&&p.nivel===jugador.nivel).map(p=>p.key)),out=[];
+ // (las apagadas hace poco: clave → dónde estaba el jugador al apagarse; viajan en el resultado, de una llamada a la otra)
+ const apagadas=new Map([...(previo?.apagadas||[])].filter(([,u])=>Math.hypot(jugador.x-u[0],jugador.z-u[1])<VISIBILIDAD.reposo));
  for(const e of B){if(e.borde==='medianera')continue;
   const si=lineas.some(l=>cruza(...l,...e.seg))||antes.has(e.key)&&lineas.some(l=>dSS(l,e.seg)<VISIBILIDAD.histeresis);
-  if(si)out.push({...cajaDeBorde(e),y0:0,y1:VISIBILIDAD.alto,lote:L.id,nivel:jugador.nivel,borde:e.borde,key:e.key,seg:e.seg});}
+  // (en reposo: sólo se prende si tapa al jugador —la primera línea—)
+  if(si&&apagadas.has(e.key)&&!cruza(...lineas[0],...e.seg))continue;
+  if(si)out.push({...cajaDeBorde(e),y0:0,y1:VISIBILIDAD.alto,lote:L.id,nivel:jugador.nivel,borde:e.borde,key:e.key,seg:e.seg});
+  else if(antes.has(e.key)&&!apagadas.has(e.key))apagadas.set(e.key,[jugador.x,jugador.z]);}
  // las hojas de las puertas de esas paredes (2026-10-16, Miguel: «que también se tornen semitransparentes las puertas»)
  const P=VISIBILIDAD.puerta,paredes=[...out];
  for(const d of lv.doors||[]){if(d.street||d.core||d.stair||d.hoja===false)continue;const h=Math.abs(d.y1-d.y0)<1e-6,at=h?d.y0:d.x0,u0=h?Math.min(d.x0,d.x1):Math.min(d.y0,d.y1),u1=h?Math.max(d.x0,d.x1):Math.max(d.y0,d.y1),w=u1-u0+P.sobra;
@@ -57,4 +66,4 @@ export function paredesAClarar(bp,jugador,camara,previo=null){
   out.push({...(h?{x0:u0-P.sobra,x1:u1+P.sobra,z0:at-w,z1:at+w}:{x0:at-w,x1:at+w,z0:u0-P.sobra,z1:u1+P.sobra}),y0:0,y1:P.alto,lote:L.id,nivel:jugador.nivel,borde:'puerta',key:kd,seg:sg,pared:e.key});}
  // (si pasan del máximo que acepta el 3D, las más cerca del jugador)
  if(out.length>VISIBILIDAD.maximo)out.sort((p,q)=>dPS(jugador.x,jugador.z,...p.seg)-dPS(jugador.x,jugador.z,...q.seg)).length=VISIBILIDAD.maximo;
- return out;}
+ for(const p of out)apagadas.delete(p.key);out.apagadas=apagadas;return out;}
