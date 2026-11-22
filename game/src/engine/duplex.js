@@ -20,7 +20,7 @@ import {MANSARDA} from './medidas.js';
 import {loteEn} from './fachada-piezas.js';
 import {CELL} from './veredas.js';
 
-export const DUPLEX={aire:2.1,cabeza:2,escalera:{ancho:1,largo:4,peldanos:15},corta:{ancho:1,largo:3,peldanos:12},cerrados:['bano','ropas','deposito'],cara:{fachada:.25,tabique:.07},pasoMin:1.3,penthouse:{max:250},isla:{paso:1.1,libre:1,largo:2.4,hondo:.9},ventana:'vidrio',arranque:1,vacio:{lado:3,piso:6,max:.45},otros:['dormitorio','hall'],paso:1,cuartos:['sala_cocina','sala','estudio','comedor']};
+export const DUPLEX={aire:2.1,cabeza:2,escalera:{ancho:1,largo:4,peldanos:15},corta:{ancho:1,largo:3,peldanos:12},cerrados:['bano','ropas','deposito'],cara:{fachada:.25,tabique:.07},pasoMin:1.3,penthouse:{max:450},isla:{paso:1.1,libre:1,largo:2.4,hondo:.9},ventana:'vidrio',arranque:1,vacio:{lado:3,piso:6,max:.45},otros:['dormitorio','hall'],paso:1,cuartos:['sala_cocina','sala','estudio','comedor']};
 const pisa=(a,b,t=.01)=>Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x)>t&&Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y)>t;
 const dentro=(a,b,t=.01)=>a.x>=b.x-t&&a.y>=b.y-t&&a.x+a.w<=b.x+b.w+t&&a.y+a.h<=b.y+b.h+t;
 
@@ -97,7 +97,9 @@ function escaleraCon(L,lv,qs,E,cuartos,excluir=new Set()){const UU={x:Math.min(.
 // LO DE ARRIBA de un departamento U (su rectángulo) con su escalera: un entrepiso abierto sobre toda la planta, sin cuartos
 // (2026-11-22, Miguel: «que el piso dos del dúplex no tenga cuartos»; antes llevaba un dormitorio y un baño en las puntas).
 // El vacío de la sala a doble altura y las barandas los pone vacioYBarandas.
-function arribaDe(L,U,esc,n,esquina=()=>false){const rooms=[{id:0,type:'entrepiso',abierto:true,...U,unit:n}],doors=[],windows=[];
+// (en un edificio en L —2026-11-22, Miguel: «haz el penthouse para los edificios en L»— el entrepiso es un cuarto abierto por
+// cada parte del edificio: partes; si no, uno sobre U)
+function arribaDe(L,U,esc,n,esquina=()=>false,partes=[U]){const rooms=partes.map((p,i)=>({id:i,type:'entrepiso',abierto:true,x:p.x,y:p.y,w:p.w,h:p.h,unit:n})),doors=[],windows=[];
  // las buhardillas: una por casilla de 6 m —en su módulo del medio: con una por módulo de 2 m, la pendiente vista desde
  // adentro era un serrucho; Miguel, «reducimos polígonos»— en cada borde de un cuarto de arriba que da a una fachada,
  // menos en la punta de una esquina, donde el 3D pone la pieza de esquina de la mansarda, que no tiene ventana, y donde no
@@ -162,8 +164,9 @@ function abrirAbajo(lv,qs,enContorno=()=>false){const antes={doors:lv.doors,furn
 // la llegada; contra un muro —el borde del departamento, un cuarto de arriba— no hace falta.
 function vacioYBarandas(lv,qs,U,esc,arriba){const V=DUPLEX.vacio,W=Math.round(U.w),H=Math.round(U.h),k=(x,y)=>y*W+x,cel=new Array(W*H).fill('piso');
  const en=(r,x,y)=>x+.5>r.x&&x+.5<r.x+r.w&&y+.5>r.y&&y+.5<r.y+r.h,X=x=>Math.round(x-U.x),Y=y=>Math.round(y-U.y);
- const A=arriba.rooms[0],abajo=(x,y)=>qs.find(q=>en(q,U.x+x,U.y+y));
- for(let y=0;y<H;y++)for(let x=0;x<W;x++){const px=U.x+x,py=U.y+y;if(en(esc,px,py))cel[k(x,y)]='hueco';else if(!en(A,px,py))cel[k(x,y)]='cuarto';}
+ const As=arriba.rooms.filter(q=>q.abierto),areaA=As.reduce((t,q)=>t+q.w*q.h,0),abajo=(x,y)=>qs.find(q=>en(q,U.x+x,U.y+y));
+ // (lo que no es entrepiso —un cuarto cerrado de arriba, o afuera del edificio en L— es 'cuarto': ni piso ni vacío)
+ for(let y=0;y<H;y++)for(let x=0;x<W;x++){const px=U.x+x,py=U.y+y;if(en(esc,px,py))cel[k(x,y)]='hueco';else if(!As.some(A=>en(A,px,py)))cel[k(x,y)]='cuarto';}
  // (la llegada: la casilla después de la punta de arriba de la escalera)
  const dl=esc.eje==='x'?[Math.sign(esc.llegada[0]-esc.pie[0]),0]:[0,Math.sign(esc.llegada[1]-esc.pie[1])];
  const llegCel=esc.eje==='x'?[dl[0]>0?X(esc.x+esc.w):X(esc.x)-1,Y(esc.y)]:[X(esc.x),dl[1]>0?Y(esc.y+esc.h):Y(esc.y)-1];
@@ -183,7 +186,7 @@ function vacioYBarandas(lv,qs,U,esc,arriba){const V=DUPLEX.vacio,W=Math.round(U.
    const pegado=(x,y)=>[[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy])=>{const nx=x+dx,ny=y+dy;return nx>=0&&ny>=0&&nx<W&&ny<H&&cel[k(nx,ny)]==='hueco';});
    let ok=true;for(let y=y0;y<y1&&ok;y++)for(let x=x0;x<x1&&ok;x++){const t=cel[k(x,y)],q=abajo(x,y);
     if(t==='hueco'&&conEscalera)continue;if(t!=='piso'||!q||!q.abierto||(x===llegCel[0]&&y===llegCel[1])||(!conEscalera&&pegado(x,y)))ok=false;}if(!ok)continue;
-   const area=(x1-x0)*(y1-y0);if(area>V.max*A.w*A.h+1e-6||(mejor&&area<mejor.area))continue;
+   const area=(x1-x0)*(y1-y0);if(area>V.max*areaA+1e-6||(mejor&&area<mejor.area))continue;
    const c=cel.slice();for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++)if(c[k(x,y)]==='piso')c[k(x,y)]='vacio';if(!deUnaPieza(c))continue;
    // (de dos iguales, el que más cae sobre la sala —el cuarto abierto más grande de abajo—)
    const sobreSala=sala?Math.max(0,Math.min(x1,X(sala.x+sala.w))-Math.max(x0,X(sala.x)))*Math.max(0,Math.min(y1,Y(sala.y+sala.h))-Math.max(y0,Y(sala.y))):0;
@@ -204,6 +207,14 @@ function vacioYBarandas(lv,qs,U,esc,arriba){const V=DUPLEX.vacio,W=Math.round(U.
 // ¿El módulo de fachada con centro (x, z) en el borde de L es la punta de una esquina? La misma cuenta que town3d: el módulo
 // k (0, 1, 2) de su casilla de CELL m a lo largo de la fachada; en una punta (k 0 o 2), si la casilla siguiente a lo largo
 // no es de ningún lote, ahí va la pieza de esquina de la mansarda (Roof_SlateCornice_Corner), sin ventana.
+// EL BORDE de una unión de rectángulos que se tocan sin pisarse (las partes de un edificio en L, los cuartos de arriba de un
+// dúplex): los tramos de sus lados que no comparte con otro, {h, fija, a0, a1, sg —hacia adentro—}
+export function bordesDe(rs){const out=[];
+ for(const r of rs)for(const [h,fija,a0,a1,sg] of [[true,r.y,r.x,r.x+r.w,1],[true,r.y+r.h,r.x,r.x+r.w,-1],[false,r.x,r.y,r.y+r.h,1],[false,r.x+r.w,r.y,r.y+r.h,-1]]){
+  let ts=[[a0,a1]];for(const o of rs){if(o===r)continue;const [of,o0,o1]=h?[sg>0?o.y+o.h:o.y,o.x,o.x+o.w]:[sg>0?o.x+o.w:o.x,o.y,o.y+o.h];if(Math.abs(of-fija)>.01)continue;
+   ts=ts.flatMap(([u,v])=>[[u,Math.min(v,o0)],[Math.max(u,o1),v]].filter(([p,q])=>q-p>.01));}
+  for(const [u,v] of ts)out.push({h,fija,a0:u,a1:v,sg});}
+ return out;}
 // ¿A cada cuarto del departamento se llega desde su puerta de entrada (al pasillo, a la escalera o a la calle), de puerta en puerta?
 function conectado(lv,qs){const ids=new Set(qs.map(q=>q.id)),ady=new Map(qs.map(q=>[q.id,[]])),vistos=new Set(),cola=[];
  for(const d of lv.doors||[]){const a=ids.has(d.a),b=ids.has(d.b);if(a&&b){ady.get(d.a).push(d.b);ady.get(d.b).push(d.a);}else if(a!==b){const q=a?d.a:d.b;if(!vistos.has(q)){vistos.add(q);cola.push(q);}}}
@@ -211,7 +222,8 @@ function conectado(lv,qs){const ids=new Set(qs.map(q=>q.id)),ady=new Map(qs.map(
  return qs.every(q=>vistos.has(q.id));}
 // ¿(x, z) está sobre el contorno del edificio? (a 5 cm, hacia algún lado, ya se sale de sus partes)
 function contornoDe(L){const ps=L.parts||[],adentro=(x,z)=>ps.some(p=>x>=p.x&&x<=p.x+p.w&&z>=p.y&&z<=p.y+p.h);
- return (x,z)=>adentro(x,z)&&[[.05,0],[-.05,0],[0,.05],[0,-.05]].some(([dx,dz])=>!adentro(x+dx,z+dz));}
+ // (también en diagonal: la esquina de adentro de una L tiene afuera sólo en diagonal)
+ return (x,z)=>adentro(x,z)&&[[.05,0],[-.05,0],[0,.05],[0,-.05],[.05,.05],[.05,-.05],[-.05,.05],[-.05,-.05]].some(([dx,dz])=>!adentro(x+dx,z+dz));}
 // ¿el módulo de 2 m con centro c (a lo largo de la fachada) es el del medio de su casilla de CELL m?
 const medioDeCasilla=c=>Math.round((c-(Math.floor(c/CELL)+.5)*CELL)/2)===0;
 function esquinaDe(bp,L){const de=loteEn(bp),r=L.rect,W=bp.map.W,H=bp.map.H,lote=(x,y)=>x>=0&&y>=0&&x<W&&y<H?de(x,y):-1;
@@ -228,8 +240,10 @@ function esquinaDe(bp,L){const de=loteEn(bp),r=L.rect,W=bp.map.W,H=bp.map.H,lote
 function penthouse(L,top){const P=DUPLEX.penthouse,r=L.rect;
  // (también con un solo departamento y su pasillo, o con depósitos y el cuarto de ropas sin dueño: todo pasa a la casa —Miguel,
  // 2026-11-22: «sigo viendo mansardas vacías… deberían ser todos los edificios que terminan con mansarda dúplex»—)
- if((L.parts||[]).length!==1||!(top.units||[]).length||!(top.corridor||[]).length||!top.core||r.w*r.h>P.max+1e-6)return null;
- const area=q=>q.w*q.h,suma=top.rooms.reduce((t,q)=>t+area(q),0)+top.corridor.reduce((t,c)=>t+area(c),0)+area(top.core);if(Math.abs(suma-r.w*r.h)>.5)return null;
+ // (de una parte o de varias —en L—: lo que cuenta es la planta del edificio, sus partes)
+ const area=q=>q.w*q.h,partes=(L.parts||[]).map(p=>({x:p.x,y:p.y,w:p.w,h:p.h})),planta=partes.reduce((t,p)=>t+area(p),0);
+ if(!partes.length||!(top.units||[]).length||!(top.corridor||[]).length||!top.core||planta>P.max+1e-6)return null;
+ const suma=top.rooms.reduce((t,q)=>t+area(q),0)+top.corridor.reduce((t,c)=>t+area(c),0)+area(top.core);if(Math.abs(suma-planta)>.5)return null;
  const antes={rooms:top.rooms.map(q=>({...q})),doors:top.doors.map(d=>({...d})),corridor:top.corridor,units:top.units,furniture:top.furniture};
  const n=Math.min(...top.units.map(u=>u.n));let id=Math.max(...top.rooms.map(q=>q.id))+1;
  for(const q of top.rooms)q.unit=n;
@@ -242,9 +256,12 @@ function penthouse(L,top){const P=DUPLEX.penthouse,r=L.rect;
  for(const d of top.doors){const ap=d.a==='pasillo'||d.b==='pasillo';if(!ap){doors.push(d);continue;}
   // (la puerta de un cuarto cerrado —un depósito, el de ropas, un baño— al pasillo queda: ahora da al vestíbulo)
   const otro=d.a==='pasillo'?d.b:d.a;if(cerrado(otro)){const h=Math.abs(d.y0-d.y1)<1e-6,mx=(d.x0+d.x1)/2,mz=(d.y0+d.y1)/2,H=halls.find(q=>[[0,.2],[0,-.2],[.2,0],[-.2,0]].some(([a,b])=>mx+a>q.x&&mx+a<q.x+q.w&&mz+b>q.y&&mz+b<q.y+q.h));if(H){doors.push(d.a==='pasillo'?{...d,a:H.id}:{...d,b:H.id});continue;}}
+  // (el ascensor —desde 6 pisos— llega directo al vestíbulo del penthouse: su vano queda como estaba, y también se tranca)
+  if(d.a==='nucleo'||d.b==='nucleo'){const h=Math.abs(d.y0-d.y1)<1e-6,m=h?(d.x0+d.x1)/2:(d.y0+d.y1)/2,H=hallEn(h?m:d.x0,h?d.y0:m);if(!H)return deshacer(),null;doors.push(d.a==='pasillo'?{...d,a:H.id}:{...d,b:H.id});continue;}
   if(d.core||d.a==='escalera'||d.b==='escalera'){const h=Math.abs(d.y0-d.y1)<1e-6,m=h?(d.x0+d.x1)/2:(d.y0+d.y1)/2,H=hallEn(h?m:d.x0,h?d.y0:m);if(!H)return deshacer(),null;
    doors.push(h?{x0:m-.45,y0:d.y0,x1:m+.45,y1:d.y0,a:H.id,b:'escalera',street:false,core:false,wide:false,bay:false,stair:false,hoja:true,abierta:false,entrada:true}:{x0:d.x0,y0:m-.45,x1:d.x0,y1:m+.45,a:H.id,b:'escalera',street:false,core:false,wide:false,bay:false,stair:false,hoja:true,abierta:false,entrada:true});}}
- top.doors=doors;top.corridor=[];top.units=[{n,x:r.x,y:r.y,w:r.w,h:r.h}];
+ const x0=Math.min(...partes.map(p=>p.x)),y0=Math.min(...partes.map(p=>p.y)),x1=Math.max(...partes.map(p=>p.x+p.w)),y1=Math.max(...partes.map(p=>p.y+p.h));
+ top.doors=doors;top.corridor=[];top.units=[{n,x:x0,y:y0,w:x1-x0,h:y1-y0,...(partes.length>1?{partes}:{})}];
  // una sola cocina: la más grande; de las demás se van los aparatos de obra y pasan a sala (o comedor)
  const COC=new Set(['cocina','sala_cocina','cocineta']),cocinas=top.rooms.filter(q=>COC.has(q.type)).sort((a,b)=>area(b)-area(a)),dentroDe=(f,q)=>f.x>=q.x-.01&&f.y>=q.y-.01&&f.x+f.w<=q.x+q.w+.01&&f.y+f.h<=q.y+q.h+.01;
  for(const q of cocinas.slice(1)){top.furniture=(top.furniture||[]).filter(f=>!(LUGAR_FIJO.has(f.kind)&&dentroDe(f,q)));q.type=q.type==='cocina'?'comedor':'sala';}
@@ -294,9 +311,9 @@ export function duplexDe(bp){let n=0,no=0,penthouses=0,incompletos=0;
     const ab=abrirAbajo(top,qs,contornoDe(L)),fuera=new Set();let esc=null;
     for(let i=0;i<40;i++){const e=escaleraDe(L,top,qs,fuera);if(!e)break;if(!e.muro){esc=e;break;}ab.rehacer([e.muro]);if(conectado(top,qs)){delete e.muro;esc=e;break;}ab.rehacer([]);fuera.add(`${e.x},${e.y},${e.w},${e.h}`);}
     if(!esc){ab.deshacer();sin++;continue;}
-    const arriba=arribaDe(L,U,esc,u.n,esquinaDe(bp,L));
-    // (la escalera llega a lo abierto: su hueco, adentro de él)
-    if(!dentro(esc,arriba.rooms[0])){ab.deshacer();sin++;continue;}
+    const arriba=arribaDe(L,U,esc,u.n,esquinaDe(bp,L),u.partes||[U]);
+    // (la escalera llega a lo abierto: su hueco, adentro de uno de sus cuartos)
+    if(!arriba.rooms.some(q=>dentro(esc,q))){ab.deshacer();sin++;continue;}
     const isla=islaDe(top,qs,esc);if(isla)arriba.isla=isla;
     const vb=vacioYBarandas(top,qs,U,esc,arriba);arriba.area-=vb.vacios.reduce((t,v)=>t+v.w*v.h,0);
     // (sobre el vacío de la doble altura no hay buhardilla: no hay piso desde donde asomarse, y desde abajo se veía por dentro)
@@ -331,7 +348,7 @@ export function duplexDe(bp){let n=0,no=0,penthouses=0,incompletos=0;
 export function nivelMansarda(L){if(!L?.duplex)return null;const rooms=[],doors=[],windows=[],units=[],huecos=[],barandas=[],vacios=[];
  for(const u of L.duplex.unidades){const off=rooms.length;for(const q of u.rooms)rooms.push({...q,id:off+q.id});
   for(const d of u.doors)doors.push({...d,a:off+d.a,b:off+d.b});for(const w of u.windows)windows.push({...w,a:off+(w.a||0)});
-  const xs=u.rooms.flatMap(q=>[q.x,q.x+q.w]),ys=u.rooms.flatMap(q=>[q.y,q.y+q.h]);units.push({n:u.n,x:Math.min(...xs),y:Math.min(...ys),w:Math.max(...xs)-Math.min(...xs),h:Math.max(...ys)-Math.min(...ys)});
+  const xs=u.rooms.flatMap(q=>[q.x,q.x+q.w]),ys=u.rooms.flatMap(q=>[q.y,q.y+q.h]);units.push({n:u.n,x:Math.min(...xs),y:Math.min(...ys),w:Math.max(...xs)-Math.min(...xs),h:Math.max(...ys)-Math.min(...ys),...(u.rooms.length>1?{partes:u.rooms.map(q=>({x:q.x,y:q.y,w:q.w,h:q.h}))}:{})});
   huecos.push({...u.escalera,unit:u.n});for(const b of u.barandas||[])barandas.push({...b,unit:u.n});for(const v of u.vacios||[])vacios.push({...v,unit:u.n});}
  return {level:L.duplex.nivel,mansarda:true,rooms,doors,windows,units,corridor:[],core:null,furniture:[],huecos,barandas,vacios};}
 // El piso f de un edificio: uno de los suyos, o la mansarda de los dúplex (f = L.floors).

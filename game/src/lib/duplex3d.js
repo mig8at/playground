@@ -14,6 +14,7 @@
    Todo son cajas «de adentro» (se dibujan sólo de cerca, como los tabiques) y choques (wallAny). */
 import {MANSARDA} from '../engine/medidas.js';
 import {pendienteEn,alturaMansarda} from '../engine/techos.js';
+import {bordesDe} from '../engine/duplex.js';
 
 export const DUPLEX3D={enrase:.6,muro:.1,canto:.25,flotante:{grueso:.07,luz:.02},baranda:{alto:.95,barrote:.04,poste:1,pasamanos:.05,riel:.03}};
 
@@ -24,9 +25,10 @@ export function duplexDeLote(B,L,{box,wallAny,color='#ece6da',FLOOR=3}){
  // un muro de (a0..a1) sobre la línea fija, de yA a yB, menos los vanos [p,q] (puertas)
  const muro=(h,fija,a0,a1,yA,yB,vanos=[],c=color)=>{let a=a0;for(const [p,q] of [...vanos].sort((x,y)=>x[0]-y[0])){if(p>a+.01)tramo(h,fija,a,p,yA,yB,c);a=Math.max(a,q);}if(a1>a+.01)tramo(h,fija,a,a1,yA,yB,c);};
  const tramo=(h,fija,a,b,yA,yB,c)=>{const m=(a+b)/2,l=b-a;if(h){box(m,yA,fija,l,yB-yA,T,c,L.floors);wallAny(a,fija-T/2,b,fija+T/2,yA,yB);}else{box(fija,yA,m,T,yB-yA,l,c,L.floors);wallAny(fija-T/2,a,fija+T/2,b,yA,yB);}};
- for(const u of B.duplex.unidades){const xs=u.rooms.flatMap(q=>[q.x,q.x+q.w]),zs=u.rooms.flatMap(q=>[q.y,q.y+q.h]),U={x:Math.min(...xs),y:Math.min(...zs),w:Math.max(...xs)-Math.min(...xs),h:Math.max(...zs)-Math.min(...zs)};dentro.push(U);
-  // el borde de la unidad: en el borde del edificio, el muro bajo de enrase (corrido hacia adentro); si no, de piso a cubierta
-  for(const [h,fija,a0,a1,sg] of [[true,U.y,U.x,U.x+U.w,1],[true,U.y+U.h,U.x,U.x+U.w,-1],[false,U.x,U.y,U.y+U.h,1],[false,U.x+U.w,U.y,U.y+U.h,-1]]){
+ for(const u of B.duplex.unidades){const xs=u.rooms.flatMap(q=>[q.x,q.x+q.w]),zs=u.rooms.flatMap(q=>[q.y,q.y+q.h]),U={x:Math.min(...xs),y:Math.min(...zs),w:Math.max(...xs)-Math.min(...xs),h:Math.max(...zs)-Math.min(...zs)};dentro.push(...u.rooms.map(q=>({x:q.x,y:q.y,w:q.w,h:q.h})));
+  // el borde de la unidad —el de la unión de sus cuartos de arriba: en un edificio en L, la L, no el rectángulo que la encierra
+  // (engine/duplex.js bordesDe)—: contra la pendiente, un choque; si no, un muro de piso a cubierta
+  for(const {h,fija,a0,a1,sg} of bordesDe(u.rooms)){
    // (sin muro bajo —Miguel, 2026-11-22: «las paredes no deberían ocultar las ventanas de la pared inclinada, deberían ser
    // parte del apartamento; así reducimos polígonos»—: la pared es la pendiente misma, con sus buhardillas. Sólo un choque,
    // sin dibujo, a DUPLEX3D.enrase del borde —donde la pendiente ya no deja pasar la cabeza—, y no sobre el vacío)

@@ -1,5 +1,5 @@
 // Dibujo del plano por etapas (engine/blueprint.js): la ciudad entera hasta la etapa elegida y el plano de un piso.
-import {nivelDe} from '../engine/duplex.js';
+import {nivelDe,bordesDe} from '../engine/duplex.js';
 import {CELL,TYPES} from '../engine/blueprint.js';
 import {City} from '../engine/index.js';
 import {planHouse,FURN_SIZE,FLOOR0,FH} from '../engine/vivienda.js';
@@ -150,7 +150,8 @@ function drawLevel(g,lv,{m,stage,small=false,ox=0,oy=0,labels=false}){
  for(const q of lv.rooms){g.fillStyle=ROOM_COLOR[q.type]||TECNICO.cuarto;R(q,(a,b,w,h)=>g.fillRect(a,b,w,h));}
  g.strokeStyle=TECNICO.muro;g.lineWidth=small?.7:2;for(const q of core?[...lv.rooms,core]:lv.rooms)R(q,(a,b,w,h)=>g.strokeRect(a,b,w,h));
  // Cada departamento, con su contorno más grueso (la pared que lo separa del vecino y del pasillo).
- if(lv.units?.length){g.strokeStyle='#1f2224';g.lineWidth=small?1.3:4;for(const u of lv.units)R(u,(a,b,w,h)=>g.strokeRect(a,b,w,h));}
+ // (un penthouse en L —engine/duplex.js, u.partes—: su contorno es el de la L, no el del rectángulo que la encierra)
+ if(lv.units?.length){g.strokeStyle='#1f2224';g.lineWidth=small?1.3:4;for(const u of lv.units){if(u.partes){g.beginPath();for(const b of bordesDe(u.partes)){if(b.h){g.moveTo(X(b.a0),Y(b.fija));g.lineTo(X(b.a1),Y(b.fija));}else{g.moveTo(X(b.fija),Y(b.a0));g.lineTo(X(b.fija),Y(b.a1));}}g.stroke();}else R(u,(a,b,w,h)=>g.strokeRect(a,b,w,h));}}
  // LA ESCALERA DEL DÚPLEX (2026-11-22, engine/duplex.js): abajo, en la sala, la recta con sus peldaños y una flecha que
  // sube; arriba, el hueco por donde llega, rayado, con su baranda (una raya doble, oscura).
  for(const e of [...(lv.escalerasInternas||[]),...(lv.huecos||[])]){const arriba=!!lv.mansarda;g.save();g.fillStyle=arriba?'rgba(60,64,70,.18)':'#f1ede4';R(e,(a,b,w,h)=>g.fillRect(a,b,w,h));g.strokeStyle='#3a3d40';g.lineWidth=small?.6:1.2;R(e,(a,b,w,h)=>g.strokeRect(a,b,w,h));

@@ -19,13 +19,17 @@ import {CELL} from '../../src/engine/veredas.js';
 const N=+(process.argv[2]||2),S0=+(process.argv[3]||1),TEAM=+(process.argv[4]||3);
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};
 const e=v=>Math.abs(v-Math.round(v))<1e-6,dentro=(a,b,t=.01)=>a.x>=b.x-t&&a.y>=b.y-t&&a.x+a.w<=b.x+b.w+t&&a.y+a.h<=b.y+b.h+t,pisa=(a,b,t=.01)=>Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x)>t&&Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y)>t;
-const med={mansardas:0,terrazas:0,escaleraEnVacio:0,islas:0,dobleAltura:0,duplex:0,recta:0,corta:0,larga:0,edificios:0,unidadesArriba:0,areaArriba:0};
+const med={enL:0,mansardas:0,terrazas:0,escaleraEnVacio:0,islas:0,dobleAltura:0,duplex:0,recta:0,corta:0,larga:0,edificios:0,unidadesArriba:0,areaArriba:0};
 for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:TEAM}),P=propiedadesDe(bp);
  // (la mansarda, sólo con dúplex y entera: Miguel, «deberían ser todos los edificios que terminan con mansarda dúplex, y aprovechar
  // los espacios»; con el motor anterior quedaban 19 mansardas vacías —sin departamentos arriba— y 13 a medias)
  for(const L of bp.lots){if(!L.mansarda)continue;med.mansardas++;const top=L.levels[L.floors-1];
   if(!L.duplex){falla('una mansarda sin dúplex',{ciudad:s,lote:L.id,tipo:L.type});continue;}
   if((top.corridor||[]).length||top.rooms.some(q=>!L.duplex.unidades.some(u=>u.n===q.unit)))falla('una mansarda a medias: piso de abajo sin dúplex',{ciudad:s,lote:L.id});}
+ // (el penthouse en L —Miguel: «haz el penthouse para los edificios en L»—: arriba, el entrepiso cubre la planta entera del
+ // edificio —sus partes—, ni más ni menos)
+ for(const L of bp.lots){if(!L.duplex?.penthouse||(L.parts||[]).length<2)continue;med.enL++;const u=L.duplex.unidades[0],planta=L.parts.reduce((t,p)=>t+p.w*p.h,0),arriba=u.rooms.reduce((t,q)=>t+q.w*q.h,0);
+  if(Math.abs(planta-arriba)>.5)falla('el entrepiso del penthouse en L no cubre la planta',{ciudad:s,lote:L.id,planta,arriba});}
  for(const L of bp.lots){if(!L.duplex)continue;med.edificios++;
   // (el pie de la escalera no da a un balcón —Miguel: «la escalera debería estar al revés, no desde el balcón»—: los balcones
   // que arma la fachada en el último piso, contra el borde del pie de cada escalera)
@@ -91,6 +95,6 @@ for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:TEAM}),P=propie
    for(const [k,n] of porCasilla)if(n!==3)falla('una terraza que no ocupa la casilla entera',{ciudad:s,lote:L.id,casilla:k,modulos:n});med.terrazas+=porCasilla.size;}
   // (el precio por metro)
   const ps=P.filter(p=>p.lote===L.id&&p.clase==='departamento'),otros=ps.filter(p=>!p.duplex);for(const p of ps.filter(p=>p.duplex))if(otros.some(o=>o.precio/o.area>=p.precio/p.area))falla('un dúplex que vale por metro menos que otro departamento',ej({id:p.id}));}}
-console.log(`dúplex · ${N} ciudades de ${TEAM} por equipo · ${med.mansardas} mansardas, todas con dúplex entero · ${med.duplex} dúplex en ${med.edificios} edificios (escaleras rectas: ${med.larga} de 4 m, ${med.corta} de 3 m; ${med.dobleAltura} con la sala a doble altura; ${med.islas} con cocina de isla; ${med.escaleraEnVacio} con la escalera dentro de la doble altura; ${med.terrazas} terrazas corridas) · ${med.unidadesArriba} cuartos arriba, ${Math.round(med.areaArriba)} m² de mansarda que se usan`);
+console.log(`dúplex · ${N} ciudades de ${TEAM} por equipo · ${med.mansardas} mansardas, todas con dúplex entero (${med.enL} penthouses en L) · ${med.duplex} dúplex en ${med.edificios} edificios (escaleras rectas: ${med.larga} de 4 m, ${med.corta} de 3 m; ${med.dobleAltura} con la sala a doble altura; ${med.islas} con cocina de isla; ${med.escaleraEnVacio} con la escalera dentro de la doble altura; ${med.terrazas} terrazas corridas) · ${med.unidadesArriba} cuartos arriba, ${Math.round(med.areaArriba)} m² de mansarda que se usan`);
 for(const [k,f] of fallas)console.log(`  ${f.n}\t${k}\n        ${f.ej.map(e=>JSON.stringify(e)).join('\n        ')}`);
 console.log(`fallas: ${[...fallas.values()].reduce((a,f)=>a+f.n,0)}`);process.exit(fallas.size?1:0);
