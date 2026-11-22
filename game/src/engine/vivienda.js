@@ -48,7 +48,7 @@ export const WINDOWS={
 // Puertas del paquete (la hoja gira hacia adentro cuando alguien se acerca). La doble pide un vano de 1,9 m.
 export const DOORS={Door_1:{t:'De tablero'},Door_2:{t:'De vidrio arriba'},Door_3:{t:'De cuadros'},Door_4:{t:'De vidrio alto'},
  Door_5:{t:'Con ventanita'},Door_6:{t:'De vidrios'},Door_7:{t:'Lisa'},Door_9:{t:'De tiras'},Door_Double:{t:'Doble',w:1.9}};
-export const MODERNA_DINTEL=2.45;// (la casa moderna: la cabeza común de sus ventanales, sobre el piso —ROOM_WIN de la moderna—)
+export const MODERNA_DINTEL=2.45,TERRAZA_CASA={baranda:1.05};// (la baranda de la terraza del retirado, como la del dúplex de la ciudad)// (la casa moderna: la cabeza común de sus ventanales, sobre el piso —ROOM_WIN de la moderna—)
 export const DOOR_W=1,DOOR_H=2.2,INNER_DOOR_W=.85,INNER_H=2.08;
 
 export const HOUSE_COLORS={
@@ -281,17 +281,33 @@ export function planHouse(input){
   const pd=L.doors.find(d=>d.patio);if(pd){back.push(door('x',T/2,-1,pd.from+pd.len/2,yF,s.estilo==='moderna'?'Leaf_minimal':s.puerta==='Door_Double'?'Door_1':s.puerta,DOOR_W));if(!lv)anotarEje(pd.axis,pd.at,pd.from+pd.len/2);}// (sencilla siempre: la doble, de 1,9 m, no cabe al lado de la ventana)
   // (por dentro, el color del cuarto que está detrás de cada tramo)
   const us=[...new Set(L.rooms.flatMap(q=>[q.u0,q.u1]))].sort((a,b)=>a-b),zs=[...new Set(L.rooms.flatMap(q=>[D-q.v0,D-q.v1]))].sort((a,b)=>a-b);
-  outer('x',zF-T/2,1,0,W,y0w,yTop,front,x=>hgCol(L,x,zF-.3),us);outer('x',T/2,-1,0,W,y0w,yTop,back,x=>hgCol(L,x,.3),us);
-  outer('z',T/2,-1,T,zF-T,y0w,yTop,left,z=>hgCol(L,.3,z),zs);outer('z',W-T/2,1,T,zF-T,y0w,yTop,right,z=>hgCol(L,W-.3,z),zs);
+  // (LA TERRAZA —hogar.js, la logia del piso de arriba—: un cuarto de afuera. Los muros de la casa se cortan donde ella toca el
+  // borde —ahí va su baranda—, y donde toca un cuarto, ese borde es muro de afuera, con la puerta del pasillo)
+  const terrs=L.rooms.filter(q=>q.type==='terraza').map(q=>({x0:q.u0,x1:q.u1,z0:D-q.v1,z1:D-q.v0}));
+  const menos=(a0,a1,cs)=>{let ps=[[a0,a1]];for(const [c0,c1] of cs)ps=ps.flatMap(([x,y])=>[[x,Math.min(y,c0)],[Math.max(x,c1),y]]).filter(([x,y])=>y-x>.05);return ps;};
+  const enTramo=(hs,a,b)=>hs.filter(h=>h.c>a-1e-6&&h.c<b+1e-6);
+  const tF=terrs.filter(t=>Math.abs(t.z1-zF)<.01),tL=terrs.filter(t=>t.x0<.01),tR=terrs.filter(t=>t.x1>W-.01);
+  for(const [a,b] of menos(0,W,tF.map(t=>[t.x0-(t.x0<.01?0:T),t.x1+(t.x1>W-.01?0:T)])))outer('x',zF-T/2,1,a,b,y0w,yTop,enTramo(front,a,b),x=>hgCol(L,x,zF-.3),us);
+  outer('x',T/2,-1,0,W,y0w,yTop,back,x=>hgCol(L,x,.3),us);
+  for(const [a,b] of menos(T,zF-T,tL.map(t=>[t.z0,t.z1])))outer('z',T/2,-1,a,b,y0w,yTop,enTramo(left,a,b),z=>hgCol(L,.3,z),zs);
+  for(const [a,b] of menos(T,zF-T,tR.map(t=>[t.z0,t.z1])))outer('z',W-T/2,1,a,b,y0w,yTop,enTramo(right,a,b),z=>hgCol(L,W-.3,z),zs);
+  for(const t of terrs){const rail=(x0,z0,x1,z1)=>box('marco',x0,yF,z0,x1,yF+TERRAZA_CASA.baranda,z1,cTrim);
+   if(Math.abs(t.z1-zF)<.01)rail(t.x0,zF-.08,t.x1,zF);if(t.x0<.01)rail(0,t.z0,.08,zF-.08);if(t.x1>W-.01)rail(W-.08,t.z0,W,zF-.08);
+   // (los bordes con la casa: muro de afuera del lado de adentro, y en el de atrás la puerta del pasillo)
+   const td=L.doors.find(d=>d.terraza),hT=[];if(td)hT.push(door('x',t.z0-T/2,1,td.from+td.len/2,yF,s.estilo==='moderna'?'Leaf_minimal':'Door_6',DOOR_W));
+   outer('x',t.z0-T/2,1,t.x0-(t.x0<.01?0:T),t.x1+(t.x1>W-.01?0:T),y0w,yTop,hT);
+   if(t.x0>.01)outer('z',t.x0-T/2,1,t.z0,zF,y0w,yTop,[]);if(t.x1<W-.01)outer('z',t.x1+T/2,-1,t.z0,zF,y0w,yTop,[]);
+   floor(t.x0,t.z0,t.x1,t.z1,yF);}
   // Tabiques: cada borde entre cuartos, una vez (juntando los tramos de los dos lados), partido donde cambia el cuarto.
   const lines=new Map(),addE=(axis,at,a,b)=>{const k=axis+':'+at.toFixed(3);(lines.get(k)||lines.set(k,{axis,at,iv:[]}).get(k)).iv.push([a,b]);};
-  for(const q of L.rooms){const x0=q.u0,x1=q.u1,z0=D-q.v1,z1=D-q.v0;if(z1<zF-.01)addE('x',z1,x0,x1);if(z0>.01)addE('x',z0,x0,x1);if(x0>.01)addE('z',x0,z0,z1);if(x1<W-.01)addE('z',x1,z0,z1);}
+  for(const q of L.rooms){if(q.type==='terraza')continue;const x0=q.u0,x1=q.u1,z0=D-q.v1,z1=D-q.v0;if(z1<zF-.01)addE('x',z1,x0,x1);if(z0>.01)addE('x',z0,x0,x1);if(x0>.01)addE('z',x0,z0,z1);if(x1<W-.01)addE('z',x1,z0,z1);}
   const yHi=yTop-(lv===0&&two?.2:.02);
   for(const {axis,at,iv} of lines.values()){iv.sort((p,q)=>p[0]-q[0]);const merged=[];for(const [a,b] of iv){const l=merged[merged.length-1];if(l&&a<=l[1]+1e-6)l[1]=Math.max(l[1],b);else merged.push([a,b]);}
    const holes=L.doors.filter(d=>!d.street&&(axis==='x'?d.axis==='u'&&Math.abs(D-d.at-at)<.01:d.axis==='v'&&Math.abs(d.at-at)<.01)).map(d=>{const stair=[d.a,d.b].some(id=>L.rooms[id]?.type==='escalera');
     return {c:axis==='x'?d.from+d.len/2:D-(d.from+d.len/2),w:d.len,y0:0,y1:stair||d.entero?yTop+1:d.open?yF+DOOR_H:yF+INNER_H+.02};});// (d.entero: el borde abierto de la planta abierta —hogar.js abrirPlanta—, sin dintel)
    const cutsAlong=(axis==='x'?us:zs);
-   for(let [a,b] of merged){a=Math.max(a,T);b=Math.min(b,axis==='x'?W-T:D-T);if(b-a<.05)continue;const pts=[a,...cutsAlong.filter(c=>c>a+.05&&c<b-.05),b];
+   const deTerr=terrs.flatMap(t=>axis==='x'?(Math.abs(t.z0-at)<.01?[[t.x0-T,t.x1+T]]:[]):(Math.abs(t.x0-at)<.01||Math.abs(t.x1-at)<.01?[[t.z0-T,t.z1]]:[]));
+   for(let [a0,b0] of merged)for(let [a,b] of menos(a0,b0,deTerr)){a=Math.max(a,T);b=Math.min(b,axis==='x'?W-T:D-T);if(b-a<.05)continue;const pts=[a,...cutsAlong.filter(c=>c>a+.05&&c<b-.05),b];
     for(let i=0;i+1<pts.length;i++){const p0=pts[i],p1=pts[i+1],m=(p0+p1)/2,cN=axis==='x'?hgCol(L,m,at-.2):hgCol(L,at-.2,m),cP=axis==='x'?hgCol(L,m,at+.2):hgCol(L,at+.2,m);
      inner(axis,at,p0,p1,yF,yHi,holes.filter(h=>h.c+h.w/2>p0&&h.c-h.w/2<p1),cN,cP);}}}
   // Las puertas de los cuartos (2026-10-12): el marco por las dos caras del tabique y la hoja (del catálogo, a la medida
@@ -299,7 +315,7 @@ export function planHouse(input){
   // cocina y lisa en lo demás. Los vanos abiertos (sala-comedor, la escalera) y la de calle no llevan.
   // (y sólo las que el plano marca con hoja —d.hoja, engine/puertas.js—: dormitorios, baños, oficina, depósito; la cocina
   // y la sala, vano abierto)
-  for(const d of L.doors){if(d.street||d.patio||d.open||d.hoja===false)continue;const q=L.rooms.find(r=>r.id===d.a);if(!q)continue;
+  for(const d of L.doors){if(d.street||d.patio||d.terraza||d.open||d.hoja===false)continue;const q=L.rooms.find(r=>r.id===d.a);if(!q)continue;
    const style=s.estilo==='moderna'?'minimal':q.type==='dormitorio'?'tablero':q.type==='bano'?'rejilla':q.type==='cocina'?'vidrio':'lisa',c0=d.from+d.len/2,w=d.len;// (la moderna, la hoja minimalista en todas —objetos3d puerta—)
    // (out: hacia el pasillo —la hoja gira hacia el otro lado, como la de calle, que abre hacia adentro—)
    let axis,at,c,out;if(d.axis==='u'){axis='x';at=D-d.at;c=c0;out=(q.v0+q.v1)/2>d.at?1:-1;}else{axis='z';at=d.at;c=D-c0;out=(q.u0+q.u1)/2>d.at?-1:1;}

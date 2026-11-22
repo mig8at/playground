@@ -86,7 +86,7 @@ export function planHogar(kind='familia',opts={}){const v=(opts.variant|0)&3,key
 // cuarto sigue en el plano con su tipo y sus muebles, que se pusieron antes de abrirlo—. Los vanos de 1,2 m entre la sala,
 // el comedor y la cocina quedan dentro del borde abierto y se quitan. Las ventanas, ventanales de hasta VENTANAL m.
 export const VENTANAL=3.2,VOLADIZO=2;
-const CERRADO=q=>q.type==='bano';
+const CERRADO=q=>q.type==='bano'||q.type==='terraza';
 function abrirPlanta(rooms,doors,hall){const abre=q=>q&&!CERRADO(q);
  const borde=(p,o)=>{// (el borde que comparten p y o: eje, línea y tramo)
   if(Math.abs(p.u1-o.u0)<1e-6||Math.abs(o.u1-p.u0)<1e-6){const at=Math.abs(p.u1-o.u0)<1e-6?p.u1:p.u0,a=Math.max(p.v0,o.v0),b=Math.min(p.v1,o.v1);return b-a>.05?{axis:'v',at,a,b}:null;}
@@ -124,7 +124,7 @@ function layoutHogar(kind,two,list,rev){const H=HOGARES[kind],keys=[...list];
  // franja le falta para llegar: sus cuartos crecen hasta un 30 % y, si aún falta más de 1,2 m, un depósito.
  const mk=list=>{const ks=list.filter(k=>k!=='escalera'),B=ks.length?band(ks):{D:0,rooms:[]};if(list.includes('escalera')){B.rooms.push({k:'escalera',w:STAIR_RECT[0],d:STAIR_RECT[1]});B.D=Math.max(B.D,STAIR_RECT[1]);}return B;};
  const F=floors.map(([f,b])=>[mk(f),mk(b)]),W=q25(Math.max(...F.flat().map(B=>B.rooms.reduce((a,r)=>a+r.w,0))));
- for(const B of F.flat()){const sum=B.rooms.reduce((a,r)=>a+r.w,0),flex=B.rooms.filter(r=>r.k!=='escalera').reduce((a,r)=>a+r.w,0);
+ for(const B of F.flat()){if(!B.rooms.length)continue;/* (una franja vacía no lleva depósito) */const sum=B.rooms.reduce((a,r)=>a+r.w,0),flex=B.rooms.filter(r=>r.k!=='escalera').reduce((a,r)=>a+r.w,0);
   if(W-sum>flex*(GROW-1)+1e-6&&W-sum-flex*(GROW-1)>=1.2)B.rooms.push({k:'deposito',w:W-sum-flex*(GROW-1),d:B.D||2});}
  // (EL VOLADIZO —2026-11-22, Miguel: «arquitectura moderna», sobre la propuesta «el piso de arriba en voladizo sobre la
  // entrada»—: con dos pisos y cuartos adelante arriba, el piso de arriba sale VOLADIZO m más hacia la calle que el de abajo;
@@ -138,6 +138,10 @@ function layoutHogar(kind,two,list,rev){const H=HOGARES[kind],keys=[...list];
   // (la escalera conserva su ancho: los demás cuartos de su franja se reparten lo que queda)
   const o=VO,f0=level===1?0:o;// (o: lo que se corre todo; f0: dónde empieza el frente de este piso)
   if(fr.rooms.length)place(fr.rooms,f0,Df+o,'front');
+  // (LA TERRAZA —2026-11-22, Miguel: «el retirado con terraza»—: arriba, el depósito que sólo rellenaba la franja de adelante
+  // no se construye: es una terraza recortada en el volumen —una logia: el techo sigue encima—, con su puerta al pasillo y
+  // baranda donde da afuera. La forma sale de los cuartos: la tienen las casas cuyo piso de arriba no llena su frente)
+  if(level===1)for(const q of rooms)if(q.band==='front'&&q.type==='deposito')Object.assign(q,{prog:'terraza',type:'terraza',label:'Terraza'});
   const hall={id:id++,prog:'pasillo',type:'hall',label:'Pasillo',band:'hall',u0:0,u1:W,v0:Df+o,v1:Df+HALL+o,Lu:W,Lv:D};rooms.push(hall);
   if(bk.rooms.length){const st=bk.rooms.find(r=>r.k==='escalera'),rest=bk.rooms.filter(r=>r.k!=='escalera'),Wr=st?W-st.w:W;
    // (la escalera, en el extremo izquierdo de la franja de atrás: contra la pared izquierda, como en vivienda.js)
@@ -146,6 +150,7 @@ function layoutHogar(kind,two,list,rev){const H=HOGARES[kind],keys=[...list];
   // Puertas: cada cuarto al pasillo (en el borde que comparten, a 10 cm de la esquina); la puerta de calle en la sala.
   for(const q of rooms){if(q===hall)continue;const at=q.band==='front'?q.v1:q.v0,a=q.u0,b=q.u1;
    if(q.type==='escalera'){doors.push({axis:'u',at,from:a+.05,len:b-a-.1,a:q.id,b:hall.id,open:true});continue;}
+   if(q.type==='terraza'){const left=(q.u0+q.u1)/2<W/2;doors.push({axis:'u',at,from:left?b-.25-DOOR:a+.25,len:DOOR,a:q.id,b:hall.id,terraza:true});continue;}
    const left=(q.u0+q.u1)/2<W/2;doors.push({axis:'u',at,from:left?b-.1-DOOR:a+.1,len:DOOR,a:q.id,b:hall.id});}
   // Entre la sala, el comedor y la cocina vecinos (en la misma franja), un vano de 1,2 m en la pared que comparten: se
   // pasa de uno al otro sin salir al pasillo.
@@ -163,7 +168,7 @@ function layoutHogar(kind,two,list,rev){const H=HOGARES[kind],keys=[...list];
    // (corrida hacia un extremo de la pared —2026-10-18, validar-vanos—: centrada, ocupaba el lugar de la ventana del cuarto)
    if(q)doors.push({axis:'u',at:q.v1,from:Math.max(q.u0+.35,q.u1-(Math.abs(q.u1-q.Lu)<.01?1.35:1.2)),len:.9,a:q.id,b:'patio',patio:true});}
   // Ventanas: en el medio de cada borde que da afuera (las de los baños, chicas), menos donde va la puerta de calle.
-  for(const q of rooms){if(q.type==='escalera'||q===hall)continue;const bano=q.type==='bano',wl=bano?.6:Math.min(VENTANAL,(q.u1-q.u0)-.6);
+  for(const q of rooms){if(q.type==='escalera'||q.type==='terraza'||q===hall)continue;const bano=q.type==='bano',wl=bano?.6:Math.min(VENTANAL,(q.u1-q.u0)-.6);
    const add=(axis,at,c0,c1,len)=>{if(len<.5)return;windows.push({axis,at,from:(c0+c1)/2-len/2,len,a:q.id,small:bano});};
    // (una sola ventana por cuarto: la de adelante o la de atrás; la del costado, si no tiene otra)
    const n0=windows.length;if(Math.abs(q.v0-f0)<1e-6&&!(level===0&&q===sala))add('u',f0,q.u0,q.u1,wl);
