@@ -12,12 +12,18 @@
 import {generateBlueprint} from '../../src/engine/blueprint.js';
 import {propiedadesDe} from '../../src/engine/propiedades.js';
 import {DE_OBRA} from '../../src/engine/entrega.js';
+import {modulosDeFachada} from '../../src/engine/fachada-piezas.js';
+import {CELL} from '../../src/engine/veredas.js';
 const N=+(process.argv[2]||2),S0=+(process.argv[3]||1),TEAM=+(process.argv[4]||3);
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};
 const e=v=>Math.abs(v-Math.round(v))<1e-6,dentro=(a,b,t=.01)=>a.x>=b.x-t&&a.y>=b.y-t&&a.x+a.w<=b.x+b.w+t&&a.y+a.h<=b.y+b.h+t,pisa=(a,b,t=.01)=>Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x)>t&&Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y)>t;
 const med={dobleAltura:0,duplex:0,recta:0,corta:0,larga:0,edificios:0,unidadesArriba:0,areaArriba:0};
 for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:TEAM}),P=propiedadesDe(bp);
- for(const L of bp.lots){if(!L.duplex)continue;med.edificios++;const top=L.levels[L.floors-1],ej=x=>({ciudad:s,lote:L.id,...x});
+ for(const L of bp.lots){if(!L.duplex)continue;med.edificios++;
+  // (el pie de la escalera no da a un balcón —Miguel: «la escalera debería estar al revés, no desde el balcón»—: los balcones
+  // que arma la fachada en el último piso, contra el borde del pie de cada escalera)
+  {const balc=modulosDeFachada(bp,L).filter(m=>m.tipo==='balcon'&&m.f===L.floors-1).map(m=>{const ex=(m.x+.5+m.dx*.5)*CELL,ez=(m.y+.5+m.dy*.5)*CELL,t=[m.dy,-m.dx];return [ex+t[0]*(m.k-1)*2,ez+t[1]*(m.k-1)*2];});
+   for(const u of L.duplex.unidades){const E=u.escalera;if(balc.some(([x,z])=>Math.hypot(x-E.pie[0],z-E.pie[1])<.9))falla('la escalera arranca frente a un balcón',{ciudad:s,lote:L.id,n:u.n});}}const top=L.levels[L.floors-1],ej=x=>({ciudad:s,lote:L.id,...x});
   for(const u of L.duplex.unidades){med.duplex++;med[u.escalera.tipo]=(med[u.escalera.tipo]||0)+1;med[u.escalera.peldanos<15?'corta':'larga']++;if(u.escalera.tipo!=='recta')falla('una escalera que no es recta',ej({n:u.n,tipo:u.escalera.tipo}));med.areaArriba+=u.area;const E=u.escalera,U=top.units.find(v=>v.n===u.n);
    const q=top.rooms.find(r=>r.id===E.cuarto);if(!q||q.unit!==u.n||!dentro(E,q))falla('la escalera no está adentro de un cuarto de su departamento',ej({n:u.n}));
    if(![E.x,E.y,E.w,E.h].every(e))falla('la escalera fuera del metro entero',ej({n:u.n}));

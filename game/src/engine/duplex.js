@@ -44,11 +44,15 @@ function escaleraCon(L,lv,qs,E,cuartos){const obra=(lv.furniture||[]).filter(f=>
   for(const c of cands){const {r,h}=c;
    // (ningún paso de puerta; ningún aparato de obra)
    // (las ventanas en sus bordes: N, S, W, E. Ninguna en el muro que tapa ni en la punta de arriba; en la punta del pie, sí
-   // —2026-11-22, al dejar sólo la recta—: el primer metro sube 75 cm y no llega al antepecho)
-   const bordes=new Set();for(const w of lv.windows||[]){const wh=Math.abs(w.y0-w.y1)<1e-6,at=wh?w.y0:w.x0;
-    if(wh){if(Math.min(Math.max(w.x0,w.x1),r.x+r.w)-Math.max(Math.min(w.x0,w.x1),r.x)<=.05)continue;if(Math.abs(at-r.y)<.05)bordes.add('N');if(Math.abs(at-r.y-r.h)<.05)bordes.add('S');}
-    else{if(Math.min(Math.max(w.y0,w.y1),r.y+r.h)-Math.max(Math.min(w.y0,w.y1),r.y)<=.05)continue;if(Math.abs(at-r.x)<.05)bordes.add('W');if(Math.abs(at-r.x-r.w)<.05)bordes.add('E');}}
-   const bordePie=p=>h?(Math.abs(p[0]-r.x)<.05?'W':'E'):(Math.abs(p[1]-r.y)<.05?'N':'S'),ventanasBien=p=>[...bordes].every(b=>b===bordePie(p));
+   // —2026-11-22, al dejar sólo la recta: el primer metro sube 75 cm y no llega al antepecho—, salvo la que puede ser balcón)
+   // (2026-11-22, Miguel, con una captura: «la escalera debería estar al revés, no desde el balcón»: en la punta del pie no
+   // va la ventana del módulo del medio de una casilla —ahí la fachada pone el balcón, fachada-piezas balconyAt—)
+   const medio=w=>{const c=Math.abs(w.y0-w.y1)<1e-6?(w.x0+w.x1)/2:(w.y0+w.y1)/2,o=c-(Math.floor(c/CELL)+.5)*CELL;return Math.round(o/2)===0;},conBalcon=new Set();
+   const bordes=new Set();for(const w of lv.windows||[]){const wh=Math.abs(w.y0-w.y1)<1e-6,at=wh?w.y0:w.x0,toca=[];
+    if(wh){if(Math.min(Math.max(w.x0,w.x1),r.x+r.w)-Math.max(Math.min(w.x0,w.x1),r.x)<=.05)continue;if(Math.abs(at-r.y)<.05)toca.push('N');if(Math.abs(at-r.y-r.h)<.05)toca.push('S');}
+    else{if(Math.min(Math.max(w.y0,w.y1),r.y+r.h)-Math.max(Math.min(w.y0,w.y1),r.y)<=.05)continue;if(Math.abs(at-r.x)<.05)toca.push('W');if(Math.abs(at-r.x-r.w)<.05)toca.push('E');}
+    for(const b of toca){bordes.add(b);if(medio(w))conBalcon.add(b);}}
+   const bordePie=p=>h?(Math.abs(p[0]-r.x)<.05?'W':'E'):(Math.abs(p[1]-r.y)<.05?'N':'S'),ventanasBien=p=>[...bordes].every(b=>b===bordePie(p))&&!conBalcon.has(bordePie(p));
    const puerta=(lv.doors||[]).some(d=>{const dh=Math.abs(d.y0-d.y1)<1e-6,x0=Math.min(d.x0,d.x1),x1=Math.max(d.x0,d.x1),y0=Math.min(d.y0,d.y1),y1=Math.max(d.y0,d.y1),P=DUPLEX.paso;
     // (un vano abierto de la planta abierta: la escalera puede arrimarse, pero tiene que quedar 1 m libre para pasar)
     if(d.wide){const z=dh?{x:x0,y:y0-.5,w:x1-x0,h:1}:{x:x0-.5,y:y0,w:1,h:y1-y0};if(!pisa(z,r))return false;const tapa=dh?Math.min(x1,r.x+r.w)-Math.max(x0,r.x):Math.min(y1,r.y+r.h)-Math.max(y0,r.y);return (dh?x1-x0:y1-y0)-tapa<1-1e-6;}
