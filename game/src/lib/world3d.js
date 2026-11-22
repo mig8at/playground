@@ -414,6 +414,8 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
   // (las superficies de los muebles pisables, por casilla: para pararse encima —floorAt—)
   for(const p of T.superficies)for(let cy=Math.floor(p.z0/S);cy<=Math.floor((p.z1-1e-6)/S);cy++)for(let cx=Math.floor(p.x0/S);cx<=Math.floor((p.x1-1e-6)/S);cx++){const k=cy*W+cx;(surfByCell.get(k)||surfByCell.set(k,[]).get(k)).push(p);}
   // (lo de las azoteas —town3d roofProps, engine/azoteas.js—: del catálogo, en una malla por color, siempre a la vista)
+  // (el último tramo de las escaleras que suben a la azotea: siempre a la vista, town3d escalerasAire)
+  if(T.escalerasAire?.length){const g=base(new THREE.BoxGeometry(1,1,1)),m=new THREE.MeshStandardMaterial({roughness:.85});own.push(g,m);const im=instanced(group,g,m,T.escalerasAire,{cast:false});if(im)im.name='escaleras-azotea';}
   if(T.roofProps.length){const ps=T.roofProps.flatMap(e=>placeParts(OBJETOS[e.modelo].piezas(e.o),{x:e.x,y:e.y,z:e.z,ry:e.ry}));const g=partsMesh(ps);group.add(g);g.traverse(o=>{if(o.isInstancedMesh)own.push(o);});}
   // Los ensanches del pasillo (blueprint, 2026-10-18, Miguel: «en vez de los cuartos, más pasillo, con floreros y
   // cuadros»): el tramo ciego de los pisos de departamentos. En su pared del fondo —la de enfrente del lado por el que se
@@ -1030,11 +1032,15 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
  };
  // El techo de un edificio (con la mansarda y la planta baja levantada).
  const topOf=inf=>(inf.h||0)+(inf.fs?.mansard?MANSARDA.alto:0)+(inf.raise||0);
+ // ¿el rectángulo (x0, z0)–(x1, z1) pisa la salida de una escalera a la azotea? (2026-11-22: los avisos de azotea caían con
+ // sus postes dentro del hueco —lo vio Miguel—; town3d stairs, con 60 cm de aire alrededor)
+ const pisaEscalera=(x0,z0,x1,z1)=>{for(const [,st] of stairsByLot||[]){if(!st.azotea)continue;const r=st.rect(-.6,-.6,st.W+.6,st.sd.d+.6);if(Math.min(x1,r.x+r.w)>Math.max(x0,r.x)&&Math.min(z1,r.z+r.h)>Math.max(z0,r.z))return true;}return false;};
+ const tablero=(cx,cz,tx,tz,nx,nz,w)=>{const xs=[],zs=[];for(const s of [-1,1])for(const d of [-1,.3]){xs.push(cx+tx*s*w/2+nx*d);zs.push(cz+tz*s*w/2+nz*d);}return pisaEscalera(Math.min(...xs),Math.min(...zs),Math.max(...xs),Math.max(...zs));};
  // Los avisos de los edificios (planFacadeAds: tramos de dos casillas o más): ya no van pegados a la fachada (tapaban
  // ventanas) sino en la azotea, al frente, sobre dos postes y mirando a la calle.
  const roofBoards=[];
  for(const a of adPlan||planFacadeAds()){const inf=a.run[0].inf,roof=topOf(inf),bottom=roof+1.2,y=bottom+a.h/2,tx=a.dy,tz=-a.dx,ex=a.cx-a.dx*.7,ez=a.cz-a.dy*.7;
-  if(roofBoards.some(b=>Math.hypot(b.x-ex,b.z-ez)<6))continue;roofBoards.push({x:ex,z:ez,tx,tz,nx:a.dx,nz:a.dy,roof,bottom});
+  if(roofBoards.some(b=>Math.hypot(b.x-ex,b.z-ez)<6)||tablero(ex,ez,tx,tz,a.dx,a.dy,a.w))continue;roofBoards.push({x:ex,z:ez,tx,tz,nx:a.dx,nz:a.dy,roof,bottom});
   panel(a.w,a.h,ex,y,ez,a.dx,a.dy,a.ad,.2);
   for(const s of [-1,1]){const l=new THREE.Mesh(geo(new THREE.CylinderGeometry(.09,.11,bottom-roof+.2,10)),frameMat);l.position.set(ex-a.dx*.4+tx*s*(a.w/2-.5),roof+(bottom-roof+.2)/2,ez-a.dy*.4+tz*s*(a.w/2-.5));l.castShadow=true;group.add(l);}}
 
@@ -1051,7 +1057,7 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
     // si tuviera que subir más de 10 m, esa azotea queda sin valla.
     const bottom=Math.max(roof+1.1,clearance(ex,ez,f.dy,-f.dx,3.5,f.dx,f.dy)+.6);if(bottom>roof+10)continue;
     // Ni encima de la valla de otra manzana: a menos de 8 m se pisarían.
-    if(roofBoards.some(b=>Math.hypot(b.x-ex,b.z-ez)<8))continue;
+    if(roofBoards.some(b=>Math.hypot(b.x-ex,b.z-ez)<8)||tablero(ex,ez,f.dy,-f.dx,f.dx,f.dy,10.5))continue;
     const y=bottom+1.75,len=y-roof;roofBoards.push({x:ex,z:ez,tx:f.dy,tz:-f.dx,nx:f.dx,nz:f.dy,roof,bottom});
     panel(7,3.5,ex,y,ez,f.dx,f.dy,Math.floor(hash(f.x,f.y,21)*99),.2);
     for(const s of [-1,1]){const l=new THREE.Mesh(geo(new THREE.CylinderGeometry(.09,.11,len,10)),frameMat);l.position.set(ex-f.dx*.4+f.dy*s*2.6,roof+len/2,ez-f.dy*.4-f.dx*s*2.6);l.castShadow=true;group.add(l);}
@@ -1070,7 +1076,9 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
  // ---------- Techos: tanques de agua, aires acondicionados y antenas ----------
  const tanks=[],tankBase=[],acs=[],antennas=[];
  for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){
-  const k=kind[y*W+x];if(OPEN.has(k)||k===K.border||DIRS.some(([dx,dy])=>OPEN.has(at(x+dx,y+dy))))continue;
+  // (2026-11-22: no en los edificios del plano —hollow—: su azotea la reparte engine/azoteas.js y deja libre la escalera; acá
+  // caían tanques y antenas al azar, también dentro del hueco de la escalera que sube al techo —lo vio Miguel—)
+  const k=kind[y*W+x];if(OPEN.has(k)||k===K.border||hollow[y*W+x]||DIRS.some(([dx,dy])=>OPEN.has(at(x+dx,y+dy))))continue;
   const hh=info(x,y).h,r=hash(x,y,map.seed+71),cx=(x+.3+.4*hash(y,x,5))*S,cz=(y+.3+.4*hash(x,y,6))*S;
   if(r<.07){tankBase.push({x:cx,y:hh,z:cz});tanks.push({x:cx,y:hh+.45,z:cz,color:r<.035?'#2b3a4a':'#d9d4c8'});}
   else if(r<.17)acs.push({x:cx,y:hh,z:cz,ry:Math.floor(r*40)*Math.PI/2});
