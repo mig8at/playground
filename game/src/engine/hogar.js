@@ -36,7 +36,11 @@ const ORDER={estudio:0,sala:1,sala_comedor:1,comedor_4:2,comedor_6:2,cocina_comp
 // 1 m y 3,5 m, en un rectángulo de 2,3 × 4,9)
 // (el pasillo: el ancho libre que pide el juego en una casa —JUEGO_PASO.casa, 1,3— más un tabique; hasta 2026-10-16, 1,1:
 // 0,98 libres, menos que MINIMO.hall)
-const HALL=Math.ceil((JUEGO_PASO.casa+MURO.tabique)*20-1e-9)/20,STAIR_RECT=[2.5,5.9],DOOR=.9;
+// (LA GRILLA COMÚN —2026-11-22, Miguel: «grilla común, reducir la complejidad de los cálculos para hacerlo lo más preciso
+// posible»—: todo borde de la casa cae en una grilla de GRILLA m, la misma que reparte los cuartos de los edificios —en
+// metros enteros— y sus módulos de fachada de 2 m. El ancho, las franjas, el pasillo y cada borde de cuarto)
+export const GRILLA=.5;const enGrilla=v=>Math.ceil(v/GRILLA-1e-6)*GRILLA,aGrilla=v=>Math.round(v/GRILLA)*GRILLA;
+const HALL=enGrilla(JUEGO_PASO.casa+MURO.tabique),STAIR_RECT=[2.5,5.9],DOOR=.9;
 const info=k=>k==='escalera'?{type:'escalera',label:'Escalera'}:k==='deposito'?{type:'deposito',label:'Depósito'}:{type:PROGRAMS[k].type,label:PROGRAMS[k].label};
 // Las dos medidas mínimas de cada programa, [ancho, fondo] con la puerta en el lado de adelante: hondo (la puerta en el
 // lado corto) y ancho (la puerta en el lado largo).
@@ -55,13 +59,13 @@ function band(keys){let best=null;const opts=keys.map(k=>[minOf(k),minOf(k,true)
 // Las anchuras de una franja estiradas a W (lo que sobra, repartido en proporción).
 // (al milímetro —2026-11-22: los bordes salían en 9,9999 en vez de 10 y el contorno de la casa no los juntaba—; el último
 // cuarto cierra justo en W)
-function stretch(rooms,W){const sum=rooms.reduce((a,r)=>a+r.w,0),k=W/sum,mm=v=>Math.round(v*1000)/1000;let u=0;return rooms.map((r,i)=>{const w=r.w*k,u0=mm(u),u1=i===rooms.length-1?W:mm(u+w),o={...r,u0,u1};u+=w;return o;});}
+function stretch(rooms,W){const sum=rooms.reduce((a,r)=>a+r.w,0),k=W/sum;let u=0;return rooms.map((r,i)=>{const w=r.w*k,u0=aGrilla(u),u1=i===rooms.length-1?W:aGrilla(u+w),o={...r,u0,u1};u+=w;return o;});}// (cada borde, en la grilla)
 
 // Qué puede ir en cada franja: lo que sólo va adelante (la sala, con la puerta de calle), lo que sólo va atrás (lo
 // privado en un piso; la escalera) y lo que puede ir en cualquiera (se reparte para que las dos franjas midan parecido:
 // así ningún cuarto se estira de más).
 const FRONT_ONLY=/^(sala|sala_comedor)$/,EITHER1=/^(comedor_4|comedor_6|cocina_linea|cocina_completa|estudio|medio_bano)$/;
-const q25=v=>Math.ceil(v*4-1e-6)/4,GROW=1.3;
+const GROW=1.3;
 const widthOf=keys=>keys.length?band(keys).rooms.reduce((a,r)=>a+r.w,0)+(keys.includes('escalera')?STAIR_RECT[0]:0):0;
 // Reparte «either» entre las dos franjas probando todas las combinaciones (son pocas).
 // (la cocina y el comedor, en la misma franja: uno al lado del otro; y un dormitorio adelante —a la calle— sólo si
@@ -116,7 +120,7 @@ function buildHogar(kind='familia',{rounds=12,variant=0}={}){BUMP={};let P;const
  // (2026-10-16: y que se pueda recorrer caminando —nav-interior.js, con el radio del personaje—: un cuarto al que no se
  // llega desde la calle crece como el que no lleva sus muebles; si no se entra a la casa, crece el de la puerta de calle)
  for(let i=0;i<rounds;i++){P=layoutHogar(kind,two,list,variant&1);P.missing=missingOf(P);P.sinPaso=sinPasoDe(P);P.rounds=i+1;if(!P.missing.length&&!P.sinPaso.length)break;
-  for(const m of [...P.missing,...P.sinPaso])BUMP[m.prog]=(BUMP[m.prog]||0)+.25;}
+  for(const m of [...P.missing,...P.sinPaso])BUMP[m.prog]=(BUMP[m.prog]||0)+GRILLA;}
  P.bump={...BUMP};return P;}
 function sinPasoDe(P){const out=[],nav=navHogar(P);
  for(const [k,p] of nav.entries()){const L=P.levels[k],porId=new Map(L.rooms.map(q=>['r'+q.id,q]));const malos=p.espacios.filter(e=>e.libres>.05&&e.alcanzado<=0);if(!malos.length)continue;
@@ -137,14 +141,14 @@ function layoutHogar(kind,two,list,rev){const H=HOGARES[kind],keys=[...list];
  // Medidas: cada franja con su fondo; el ancho de la casa, el de la franja más ancha (de todos los pisos). Lo que a una
  // franja le falta para llegar: sus cuartos crecen hasta un 30 % y, si aún falta más de 1,2 m, un depósito.
  const mk=list=>{const ks=list.filter(k=>k!=='escalera'),B=ks.length?band(ks):{D:0,rooms:[]};if(list.includes('escalera')){B.rooms.push({k:'escalera',w:STAIR_RECT[0],d:STAIR_RECT[1]});B.D=Math.max(B.D,STAIR_RECT[1]);}return B;};
- const F=floors.map(([f,b])=>[mk(f),mk(b)]),W=q25(Math.max(...F.flat().map(B=>B.rooms.reduce((a,r)=>a+r.w,0))));
+ const F=floors.map(([f,b])=>[mk(f),mk(b)]),W=enGrilla(Math.max(...F.flat().map(B=>B.rooms.reduce((a,r)=>a+r.w,0))));
  for(const B of F.flat()){if(!B.rooms.length)continue;/* (una franja vacía no lleva depósito) */const sum=B.rooms.reduce((a,r)=>a+r.w,0),flex=B.rooms.filter(r=>r.k!=='escalera').reduce((a,r)=>a+r.w,0);
   if(W-sum>flex*(GROW-1)+1e-6&&W-sum-flex*(GROW-1)>=1.2)B.rooms.push({k:'deposito',w:W-sum-flex*(GROW-1),d:B.D||2});}
  // (EL VOLADIZO —2026-11-22, Miguel: «arquitectura moderna», sobre la propuesta «el piso de arriba en voladizo sobre la
  // entrada»—: con dos pisos y cuartos adelante arriba, el piso de arriba sale VOLADIZO m más hacia la calle que el de abajo;
  // abajo queda la entrada cubierta, sin columnas. Todo el plano se corre VO hacia atrás y la franja de adelante de arriba
  // arranca en 0)
- const Df=Math.max(...F.map(p=>p[0].D)),Db=Math.max(...F.map(p=>p[1].D)),VO=F.length>1&&F[1][0].rooms.length?VOLADIZO:0,D=q25(Df+HALL+Db)+VO;
+ const Df=enGrilla(Math.max(...F.map(p=>p[0].D))),Db=enGrilla(Math.max(...F.map(p=>p[1].D))),VO=F.length>1&&F[1][0].rooms.length?VOLADIZO:0,D=Df+HALL+Db+VO;
  const levels=F.map(([fr,bk],level)=>{const rooms=[],doors=[],windows=[];let id=0;
   // la escalera, a la derecha de la franja de atrás en los dos pisos (en la misma huella)
   const order=list=>list.some(r=>r.k==='escalera')?[...list.filter(r=>r.k!=='escalera'),list.find(r=>r.k==='escalera')]:list;
@@ -167,7 +171,9 @@ function layoutHogar(kind,two,list,rev){const H=HOGARES[kind],keys=[...list];
   // Puertas: cada cuarto al pasillo (en el borde que comparten, a 10 cm de la esquina); la puerta de calle en la sala.
   for(const q of rooms){if(q===hall)continue;const at=q.band==='front'?q.v1:q.v0,a=q.u0,b=q.u1;
    if(q.type==='escalera'){doors.push({axis:'u',at,from:a+.05,len:b-a-.1,a:q.id,b:hall.id,open:true});continue;}
-   if(q.type==='terraza'||q.type==='porche'){const left=(q.u0+q.u1)/2<W/2;doors.push({axis:'u',at,from:left?b-.25-DOOR:a+.25,len:DOOR,a:q.id,b:hall.id,[q.type]:true,afuera:true});continue;}
+   // (la de la terraza y el porche: centrada en su borde, sin acercarse a una esquina de la casa a menos de lo que pide la
+   // fachada —su marco más 25 cm, validar-vanos— ni a la del cuarto a menos de su marco)
+   if(q.type==='terraza'||q.type==='porche'){const lo=a+(a<.01?.87:.62),hi=b-(b>W-.01?.87:.62),c=lo<=hi?Math.min(Math.max((a+b)/2,lo),hi):(lo+hi)/2;doors.push({axis:'u',at,from:+(c-DOOR/2).toFixed(3),len:DOOR,a:q.id,b:hall.id,[q.type]:true,afuera:true});continue;}
    const left=(q.u0+q.u1)/2<W/2;doors.push({axis:'u',at,from:left?b-.1-DOOR:a+.1,len:DOOR,a:q.id,b:hall.id});}
   // Entre la sala, el comedor y la cocina vecinos (en la misma franja), un vano de 1,2 m en la pared que comparten: se
   // pasa de uno al otro sin salir al pasillo.

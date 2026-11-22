@@ -12,12 +12,12 @@
 //  · los muebles con la planta abierta: nada de obra (LUGAR_FIJO) ni nada alto (más de ALTO_SUELTO) contra un borde sin
 //    pared —abrirPlanta no abre el borde del mesón y saca el armario suelto—;
 //  · sin depósitos de relleno: abajo, porche cubierto con su puerta al pasillo; arriba, terraza;
-//  · el plano al milímetro: los bordes de los cuartos, en milímetros exactos;
+//  · la grilla común: el ancho, el fondo y los bordes de los cuartos, en la grilla de GRILLA (50 cm);
 //  · en las ventanas cerradas, la película y no cortinas (lo mide validar-cortinas).
 // Uso: node harness/pruebas/validar-casas-modernas.mjs [ciudades=2] [semilla0=1]
 import {generateBlueprint} from '../../src/engine/blueprint.js';
 import {planHouse,MODERNA_DINTEL,FLOOR0,FH,TERRAZA_CASA,T as TM,bordesDe} from '../../src/engine/vivienda.js';
-import {VOLADIZO,ALTO_SUELTO,AFUERA} from '../../src/engine/hogar.js';
+import {VOLADIZO,ALTO_SUELTO,AFUERA,GRILLA} from '../../src/engine/hogar.js';
 import {LUGAR_FIJO} from '../../src/engine/entrega.js';
 import {CHOQUE_MUEBLE} from '../../src/engine/medidas.js';
 const N=+(process.argv[2]||2),S0=+(process.argv[3]||1);
@@ -27,8 +27,9 @@ for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:3});
  for(const c of bp.isla?.casas||[]){if(!c.spec?.hogar)continue;casas++;const sp=c.spec,P=sp.hogar,ej={ciudad:s,casa:P.kind+'#'+P.variant};
   if(sp.estilo!=='moderna'||sp.techo!=='plano')falla('casa que no es moderna de techo plano',{...ej,estilo:sp.estilo,techo:sp.techo});
   if(P.floors!==2)falla('casa que no es de dos pisos',{...ej,pisos:P.floors});
-  // (el plano, al milímetro: cada borde de cuarto en un número de milímetros exacto)
-  for(const L of P.levels)for(const q of L.rooms)if([q.u0,q.u1,q.v0,q.v1].some(v=>Math.abs(v*1000-Math.round(v*1000))>1e-6)){falla('borde de cuarto fuera del milímetro',{...ej,cuarto:q.type,u0:q.u0,u1:q.u1});break;}
+  // (la grilla común: el ancho, el fondo y cada borde de cuarto, en la grilla de GRILLA m —hogar.js—)
+  if([P.W,P.D].some(v=>Math.abs(v/GRILLA-Math.round(v/GRILLA))>1e-6))falla('casa fuera de la grilla',{...ej,W:P.W,D:P.D});
+  for(const L of P.levels)for(const q of L.rooms)if([q.u0,q.u1,q.v0,q.v1].some(v=>Math.abs(v/GRILLA-Math.round(v/GRILLA))>1e-6)){falla('borde de cuarto fuera de la grilla',{...ej,cuarto:q.type,u0:q.u0,u1:q.u1});break;}
   const L0=P.levels[0],L1=P.levels[1];if(!L1)continue;
   const f0=Math.min(...L0.rooms.map(q=>q.v0)),f1=Math.min(...L1.rooms.map(q=>q.v0)),haciaCalle=f0-f1;
   const conFrente=L1.rooms.some(q=>q.band==='front');
