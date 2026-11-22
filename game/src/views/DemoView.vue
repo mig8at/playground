@@ -293,6 +293,10 @@ function load(ready=null){
  ronda=null;rondaVista.value=null;if(!PRUEBA&&!PASEO)setTimeout(()=>POLICIA?armarPolicia(conPlano):armarRonda(conPlano),400);// (después de mostrar el mundo: elegir las guaridas toma unos segundos)
  // (compilar los shaders ya, en paralelo, en vez de a la primera vez que cada cosa aparece en cámara: eso eran los tirones
  // al girar o al entrar a un edificio)
+ // (2026-11-22, Miguel: «al entrar al 3D sigo teniendo un flash de cambio de color»: el blanco del boceto se ponía recién en
+ // el bucle, después de compilar con los materiales de color, y los primeros cuadros salían con color. Ahora se pone acá,
+ // antes de compilar: lo que se compila y lo primero que se ve ya es blanco)
+ if(EN_BOCETO){boceto||(boceto=createBoceto());boceto.aplicar(world.group);}
  renderer.compileAsync?.(scene,camera).catch(()=>{}).then(()=>setTimeout(()=>shooting?.warm().catch(()=>{}),300));
  // (en la ciudad sola se aparece donde dice el plano —engine/aparecer.js—: el sitio del andén con menos gente. Todavía no
  // hay gente de verdad, así que es el más cercano al centro; cuando la haya, se le pasa acá)
@@ -768,11 +772,12 @@ function loop(t){
  // Los contornos sólo delinean paredes interiores: afuera no se ven y el paso costaba más de la mitad del cuadro.
  // (en cada cuadro, antes de dibujar: lo que se arma al acercarse —un interior— nunca llega a verse con su color. Medido:
  // 0,12 ms recorrer las 3.831 piezas de la ciudad chica)
- if(EN_BOCETO&&world){boceto||(boceto=createBoceto());boceto.aplicar(world.group);}
  if(edgePass)edgePass.enabled=adentro||!!world.dentro?.(camera.position.x,camera.position.z,camera.position.y)||barrios.dentro(camera.position.x,camera.position.z,camera.position.y)||viviendas.dentro(camera.position.x,camera.position.z,camera.position.y);patrol.update(dt,player);traffic.update(dt,{player,people});world.updateDoors(dt,[player,...people,...(indoor.positions?.()||[])]);island.updateDoors(dt,[player,...folk.positions()]);viviendas.updateDoors(dt,[player,...folk.positions()]);viviendas.update(eye.x,eye.z);casas.update(eye.x,eye.z,scene.fog.far);world.updateAds(t/1000);world.updateInteriors(eye.x,eye.z,dt,eye.y);barrios.updateInteriors(eye.x,eye.z,dt,eye.y);barrios.updateDoors(dt,[player,...folk.positions()]);world.updateElevators(dt,player);
  {const at=drone.value?null:world.elevatorAt(player.x,player.z,player.feet);lift.value=at?{floor:at.floor,floors:at.floors,roof:at.roof}:null;}
  // Las luces reales van a los postes más cercanos; se reparten de nuevo cada tanto, no en cada cuadro.
  if(luz.n>.5&&(lightClock-=dt)<=0){lightClock=.35;const cp=camera.position,near=[...world.lights,...(island?.lights||[]),...(barrios?.lights||[]),...(viviendas?.lights||[]),...(planoVista?.lights||[])].map(l=>({l,d:(l.x-cp.x)**2+(l.z-cp.z)**2})).sort((a,b)=>a.d-b.d);streetLights.forEach((s,i)=>{const n=near[i];if(n)s.position.set(n.l.x,n.l.y,n.l.z);s.intensity=n?6:0;});}
+ // (justo antes de dibujar: lo que se armó en este cuadro —un interior al acercarse— tampoco llega a verse con color)
+ if(EN_BOCETO&&world){boceto||(boceto=createBoceto());boceto.aplicar(world.group);}
  renderFrame();medir();drawMini();
  if(Math.floor(t/250)!==Math.floor((t-dt*1000)/250)){niebla?.actualizar(camera,scene.fog.far);
   // Dónde estoy (direcciones.js ubicacionDe, validada en validar-ubicacion): la calle y la carrera del punto donde está el
