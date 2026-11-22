@@ -19,6 +19,13 @@ export const ROOM_LABEL={sala:'Sala',dormitorio:'Dormitorio',cocina:'Cocina',ban
  garaje:'Garaje',deposito:'Depósito',sala_cocina:'Sala y cocineta',estudio:'Estudio',dormitorio_b:'Dormitorio',hall:'Hall',ropas:'Zona de ropas',
  entrada:'Entrada',secretaria:'Secretaría',comedor:'Comedor',sanitario:'Sanitario',interrogatorio:'Interrogatorio',prestamo:'Préstamo',estanteria:'Estantería',infantil:'Sala infantil'};
 // Colores del plano (claros también en modo oscuro: es un plano impreso, como el del juego).
+// EL PLANO TÉCNICO (2026-11-22, Miguel: «enfocarnos en la generación exacta de espacios, tanto a nivel cenital, que es el
+// mapa, como a nivel frontal con las fachadas, antes de pensar en cargar el inmobiliario y aplicar texturas»): los
+// cuartos en blanco, la circulación en gris claro, los muros en negro y, en cada cuarto, su medida de eje a eje. Lo que
+// no cae en metro entero va en rojo (TECNICO.fuera): es lo que todavía no está en la grilla. Los colores por tipo de
+// cuarto (ROOM_COLOR) quedan para las casas del monte (drawHogar).
+export const TECNICO={cuarto:'#ffffff',paso:'#f1f1ef',nucleo:'#dcdcd8',muro:'#1f2224',fuera:'#d0412f',cota:'#4a4f55'};
+const entero=v=>Math.abs(v-Math.round(v))<1e-6,mm=v=>(Math.round(v*100)/100).toLocaleString('es-CO');
 const ROOM_COLOR={hall:'#efe9df',ropas:'#e2eef0',sala:'#f3e6cf',dormitorio:'#e8e0f0',cocina:'#f6eccd',bano:'#d9ecf2',oficina:'#dfe9f2',abierta:'#e3edf5',reuniones:'#e9e4f2',cocineta:'#f6eccd',
  habitacion:'#ede3ef',habitacion_h:'#f7e4e4',enfermeria:'#f7e9e9',aula:'#f1edcf',sala_prof:'#ece7d2',lectura:'#ece4d4',archivo:'#e4ddcf',celda:'#d6dde6',
  boveda:'#f2e3a6',local:'#f6ddd0',recepcion:'#e2ecf3',urgencias:'#f8dcdc',consultorio:'#f5e6e6',vestibulo:'#efede6',garaje:'#e2e2e2',deposito:'#e6dfd2',sala_cocina:'#f3e6cf',estudio:'#efe2d6',dormitorio_b:'#e8e0f0',
@@ -125,11 +132,11 @@ function drawLevel(g,lv,{m,stage,small=false,ox=0,oy=0,labels=false}){
  // Núcleo (5) y pasillo.
  // (el ensanche: el tramo ciego CORTO de un piso de departamentos —el largo lleva ropas y trasteros desde el 2026-11-20—, que por decisión de diseño es más pasillo y no cuartos —el 3D
  // lo decora con cuadros y floreros—; va en otro tono y con su nombre, para que no se lea como un pasillo que sobra)
- for(const c of lv.corridor){g.fillStyle=c.ensanche?'#ebe4d3':'#f4f2ec';R(c,(a,b,w,h)=>g.fillRect(a,b,w,h));
+ for(const c of lv.corridor){g.fillStyle=TECNICO.paso;R(c,(a,b,w,h)=>g.fillRect(a,b,w,h));
   if(c.ensanche&&!small){g.save();g.strokeStyle='rgba(120,100,70,.35)';g.lineWidth=1;g.setLineDash([5,4]);R(c,(a,b,w,h)=>g.strokeRect(a+3,b+3,w-6,h-6));g.restore();
    if(labels&&c.w*m>=70){g.font='600 11px system-ui,sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillStyle='rgba(90,76,52,.85)';g.fillText('Ensanche del pasillo',X(c.x+c.w/2),Y(c.y+c.h/2));}}}
  // (un piso puede no tener núcleo —un local de una planta sin escalera—: se dibuja sin él; antes el plano entero se caía)
- const core=lv.core;if(core){g.fillStyle='#d7d4cc';R(core,(a,b,w,h)=>g.fillRect(a,b,w,h));}
+ const core=lv.core;if(core){g.fillStyle=TECNICO.nucleo;R(core,(a,b,w,h)=>g.fillRect(a,b,w,h));}
  if(!small){g.strokeStyle='#8b877f';g.lineWidth=1;// escalera en U: dos carriles con sus peldaños, el descanso al fondo y la pared al medio; ascensor: una X
   const st=lv.stair;if(st){const Pt=(a,b)=>[X(st.x+st.ux*a+st.vx*b),Y(st.z+st.uz*a+st.vz*b)],FR=st.fr,BK=st.bk,run=st.d-FR-BK,W=st.w||2,HW=W/2;g.beginPath();
    const N=st.steps||Math.max(8,Math.round(run/.25));for(let k=0;k<=N;k++){const b=FR+run*k/N;for(const [a0,a1] of [[0,HW],[HW,W]]){const [x0,y0]=Pt(a0,b),[x1,y1]=Pt(a1,b);g.moveTo(x0,y0);g.lineTo(x1,y1);}}
@@ -139,8 +146,8 @@ function drawLevel(g,lv,{m,stage,small=false,ox=0,oy=0,labels=false}){
   const L=lv.liftRect;if(L){g.strokeStyle='#8b877f';g.strokeRect(X(L.x+.2),Y(L.y+.2),(L.w-.4)*m,(L.h-.4)*m);g.beginPath();g.moveTo(X(L.x+.2),Y(L.y+.2));g.lineTo(X(L.x+L.w-.2),Y(L.y+L.h-.2));g.moveTo(X(L.x+L.w-.2),Y(L.y+.2));g.lineTo(X(L.x+.2),Y(L.y+L.h-.2));g.stroke();}}
  if(stage<6){if(core){g.strokeStyle='#5d5a54';g.lineWidth=small?.8:1.5;R(core,(a,b,w,h)=>g.strokeRect(a,b,w,h));}return;}
  // Cuartos (6).
- for(const q of lv.rooms){g.fillStyle=ROOM_COLOR[q.type]||'#eee';R(q,(a,b,w,h)=>g.fillRect(a,b,w,h));}
- g.strokeStyle='#3a3d40';g.lineWidth=small?.7:2;for(const q of core?[...lv.rooms,core]:lv.rooms)R(q,(a,b,w,h)=>g.strokeRect(a,b,w,h));
+ for(const q of lv.rooms){g.fillStyle=TECNICO.cuarto;R(q,(a,b,w,h)=>g.fillRect(a,b,w,h));}
+ g.strokeStyle=TECNICO.muro;g.lineWidth=small?.7:2;for(const q of core?[...lv.rooms,core]:lv.rooms)R(q,(a,b,w,h)=>g.strokeRect(a,b,w,h));
  // Cada departamento, con su contorno más grueso (la pared que lo separa del vecino y del pasillo).
  if(lv.units?.length){g.strokeStyle='#1f2224';g.lineWidth=small?1.3:4;for(const u of lv.units)R(u,(a,b,w,h)=>g.strokeRect(a,b,w,h));}
  // Puertas y ventanas (7): la puerta corta la pared; la ventana es una doble raya celeste.
@@ -151,11 +158,15 @@ function drawLevel(g,lv,{m,stage,small=false,ox=0,oy=0,labels=false}){
     let nx=-uy,ny=ux;if((cx-d.x0)*nx+(cy-d.y0)*ny<0){nx=-nx;ny=-ny;}
     g.strokeStyle=d.street?'#c0392b':'#7d7972';g.lineWidth=1.2;g.beginPath();g.moveTo(X(d.x0),Y(d.y0));g.lineTo(X(d.x0+nx*len),Y(d.y0+ny*len));
     const a0=Math.atan2(ny,nx),a1=Math.atan2(uy,ux);let da=a1-a0;da=Math.atan2(Math.sin(da),Math.cos(da));g.arc(X(d.x0),Y(d.y0),len*m,a0,a0+da,da<0);g.stroke();}}}
-  g.strokeStyle='#5aa9d6';g.lineWidth=small?1.2:3.5;for(const w of lv.windows){g.beginPath();g.moveTo(X(w.x0),Y(w.y0));g.lineTo(X(w.x1),Y(w.y1));g.stroke();}}
+  // (la ventana, como en un plano de arquitectura: el muro abierto y una raya fina al medio)
+  for(const w of lv.windows){g.strokeStyle=TECNICO.cuarto;g.lineWidth=small?1.2:3.5;g.beginPath();g.moveTo(X(w.x0),Y(w.y0));g.lineTo(X(w.x1),Y(w.y1));g.stroke();
+   g.strokeStyle=TECNICO.muro;g.lineWidth=small?.6:1;g.beginPath();g.moveTo(X(w.x0),Y(w.y0));g.lineTo(X(w.x1),Y(w.y1));g.stroke();}}
  // Muebles (8): cada uno con su forma y mirando hacia donde mira (drawItem); muy de lejos, su caja de color.
  if(stage>=8)for(const f of lv.furniture){if(m>=4)drawItem(g,f,X,Y,m);else{g.fillStyle=ITEM_COLOR[f.kind]||'#999';R(f,(a,b,w,h)=>g.fillRect(a,b,w,h));}}
  if(labels&&stage>=6){g.font='600 11px system-ui,sans-serif';g.textAlign='center';g.textBaseline='middle';
-  for(const q of lv.rooms){if(q.w*m<34)continue;const t=ROOM_LABEL[q.type]||q.type;g.fillStyle='rgba(40,44,48,.8)';g.fillText(t,X(q.x+q.w/2),Y(q.y+q.h/2)-(stage>=8?q.h*m/2-9:0));}
+  // (el nombre y, debajo, la medida de eje a eje: ancho × fondo; en rojo si no cae en metro entero)
+  for(const q of lv.rooms){if(q.w*m<34)continue;const t=ROOM_LABEL[q.type]||q.type,cx=X(q.x+q.w/2),cy=Y(q.y+q.h/2)-(stage>=8&&lv.furniture.length?q.h*m/2-9:0);g.font='600 11px system-ui,sans-serif';g.fillStyle='rgba(40,44,48,.85)';g.fillText(t,cx,cy-(q.h*m>=34?6:0));
+   if(q.h*m>=34){const mal=!entero(q.w)||!entero(q.h);g.font='500 10px ui-monospace,monospace';g.fillStyle=mal?TECNICO.fuera:'rgba(40,44,48,.6)';g.fillText(`${mm(q.w)} × ${mm(q.h)}`,cx,cy+7);}}
   // El número de cada departamento, sobre su sala (o su estudio).
   g.font='700 11px ui-monospace,monospace';for(const u of lv.units||[]){const s=lv.rooms.find(q=>q.unit===u.n&&(q.type==='sala'||q.type==='sala_cocina'||q.type==='estudio'));if(!s)continue;
    const t='Apto '+u.n,tw=g.measureText(t).width+10,cx=X(s.x+s.w/2),cy=Y(s.y+s.h/2)+(stage>=8?s.h*m/2-12:14);g.fillStyle='rgba(31,34,36,.82)';g.fillRect(cx-tw/2,cy-8,tw,16);g.fillStyle='#fff';g.fillText(t,cx,cy);}}
@@ -164,7 +175,8 @@ function drawLevel(g,lv,{m,stage,small=false,ox=0,oy=0,labels=false}){
 // El plano grande de un piso del edificio L (centrado en el canvas, con escala en metros).
 // El marco del plano de un piso: cuántos píxeles mide un metro y dónde cae el origen. Lo usan drawFloorPlan y quien
 // necesite pasar de un clic a metros (colocar objetos: PlanoView).
-export const marcoPiso=(L,width)=>{const pad=26,r=L.rect,m=Math.min(42,(width-2*pad)/r.w);return {m,ox:r.x-(width/m-r.w)/2,oy:r.y-pad/m};};
+export const PAD_PISO=48;// (px alrededor del plano de un piso: el nombre de cada lado y sus cotas)
+export const marcoPiso=(L,width)=>{const pad=PAD_PISO,r=L.rect,m=Math.min(42,(width-2*pad)/r.w);return {m,ox:r.x-(width/m-r.w)/2,oy:r.y-pad/m};};
 // Lo colocado a mano sobre el plano de un piso (engine/colocar.js), encima de lo que dibujó drawFloorPlan, y el
 // «fantasma» —dónde quedaría lo que se está por poner: verde si se puede, rojo si no—.
 export function drawColocados(canvas,L,lista,fantasma,OBJETOS,{width}){const {m,ox,oy}=marcoPiso(L,width),g=canvas.getContext('2d'),X=v=>(v-ox)*m,Y=v=>(v-oy)*m;
@@ -178,17 +190,28 @@ export function drawColocados(canvas,L,lista,fantasma,OBJETOS,{width}){const {m,
   g.restore();};
  for(const o of lista)uno(o,false);if(fantasma)uno(fantasma,true);}
 export function drawFloorPlan(canvas,L,{level,stage,width}){
- const dpr=window.devicePixelRatio||1,pad=26,r=L.rect,m=Math.min(42,(width-2*pad)/r.w),hgt=r.h*m+2*pad;
+ const dpr=window.devicePixelRatio||1,pad=PAD_PISO,r=L.rect,m=Math.min(42,(width-2*pad)/r.w),hgt=r.h*m+2*pad;
  canvas.width=Math.round(width*dpr);canvas.height=Math.round(hgt*dpr);canvas.style.height=hgt+'px';
  const g=canvas.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,width,hgt);
  const ox=r.x-(width/m-r.w)/2,oy=r.y-pad/m;
- g.fillStyle=TYPES[L.type].color;for(const P of L.parts)g.fillRect((P.x-ox)*m,(P.y-oy)*m,P.w*m,P.h*m);
- // Rejilla de 1 m.
+ g.fillStyle=TECNICO.cuarto;for(const P of L.parts)g.fillRect((P.x-ox)*m,(P.y-oy)*m,P.w*m,P.h*m);
+ // Rejilla de 1 m, y la del módulo de 2 m más marcada.
  g.save();g.beginPath();for(const P of L.parts)g.rect((P.x-ox)*m,(P.y-oy)*m,P.w*m,P.h*m);g.clip();
- g.strokeStyle='rgba(0,0,0,.06)';g.lineWidth=1;g.beginPath();for(let x=0;x<=r.w;x++){g.moveTo((r.x+x-ox)*m,(r.y-oy)*m);g.lineTo((r.x+x-ox)*m,(r.y+r.h-oy)*m);}for(let y=0;y<=r.h;y++){g.moveTo((r.x-ox)*m,(r.y+y-oy)*m);g.lineTo((r.x+r.w-ox)*m,(r.y+y-oy)*m);}g.stroke();g.restore();
+ for(const [paso,a] of [[1,.05],[2,.09]]){g.strokeStyle=`rgba(0,0,0,${a})`;g.lineWidth=1;g.beginPath();for(let x=0;x<=r.w;x+=paso){g.moveTo((r.x+x-ox)*m,(r.y-oy)*m);g.lineTo((r.x+x-ox)*m,(r.y+r.h-oy)*m);}for(let y=0;y<=r.h;y+=paso){g.moveTo((r.x-ox)*m,(r.y+y-oy)*m);g.lineTo((r.x+r.w-ox)*m,(r.y+y-oy)*m);}g.stroke();}g.restore();
  // El contorno antes que el piso: así puertas y ventanas de la fachada quedan encima.
  g.strokeStyle='#1f2224';g.lineWidth=5;g.lineCap='square';outline(g,L.parts,v=>(v-ox)*m,v=>(v-oy)*m);g.lineCap='butt';
  if(stage>=5)drawLevel(g,L.levels[level],{m,stage,ox,oy,labels:true});
+ // LAS COTAS de cada lado: dónde llega cada tabique a la fachada, con la medida de cada tramo; en rojo lo que no cae en
+ // metro entero. (cada lado del rectángulo del lote; los puntos, los bordes de los cuartos y del núcleo que tocan ese lado)
+ if(stage>=6){const lv=L.levels[level],qs=[...lv.rooms,...(lv.core?[lv.core]:[]),...lv.corridor],e=1e-6;g.font='500 10px ui-monospace,monospace';
+  for(const [lado,horiz,fija,a0,a1,sal] of [['N',true,r.y,r.x,r.x+r.w,-1],['S',true,r.y+r.h,r.x,r.x+r.w,1],['W',false,r.x,r.y,r.y+r.h,-1],['E',false,r.x+r.w,r.y,r.y+r.h,1]]){
+   const ps=new Set([a0,a1]);for(const q of qs){const toca=horiz?Math.abs(q.y-fija)<e||Math.abs(q.y+q.h-fija)<e:Math.abs(q.x-fija)<e||Math.abs(q.x+q.w-fija)<e;if(!toca)continue;for(const v of horiz?[q.x,q.x+q.w]:[q.y,q.y+q.h])if(v>a0-e&&v<a1+e)ps.add(+v.toFixed(3));}
+   const L2=[...ps].sort((a,b)=>a-b);if(L2.length<3)continue;
+   const d=(horiz?(fija-oy)*m:(fija-ox)*m)+sal*28,P=(u,o=0)=>horiz?[(u-ox)*m,d+o]:[d+o,(u-oy)*m];
+   g.strokeStyle=TECNICO.cota;g.lineWidth=1;g.beginPath();{const [x0,y0]=P(L2[0]),[x1,y1]=P(L2[L2.length-1]);g.moveTo(x0,y0);g.lineTo(x1,y1);}
+   for(const u of L2){const [x,y]=P(u,-4),[x2,y2]=P(u,4);g.moveTo(x,y);g.lineTo(x2,y2);}g.stroke();
+   for(let i=0;i+1<L2.length;i++){const a=L2[i],b=L2[i+1],len=b-a;if(len*m<18)continue;const [x,y]=P((a+b)/2,sal*7);g.fillStyle=entero(len)&&entero(a-a0)?TECNICO.cota:TECNICO.fuera;
+    g.save();g.translate(x,y);if(!horiz)g.rotate(-Math.PI/2);g.textAlign='center';g.textBaseline='middle';g.fillText(mm(len),0,0);g.restore();}}}
  // Qué hay de cada lado (calle, avenida, patio, medianera).
  g.fillStyle=css('--muted')||'#777';g.font='11px ui-monospace,monospace';g.textAlign='center';g.textBaseline='middle';
  const mid=[(r.x+r.w/2-ox)*m,(r.y+r.h/2-oy)*m];
