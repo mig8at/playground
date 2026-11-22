@@ -103,3 +103,58 @@ export function refinarMuros(bp){let estirados=0;
      const nueva=punta==='a1'?otra-hueco:otra+hueco,h=t.h,k=h?['x0','x1']:['y0','y1'],lo=Math.min(d[k[0]],d[k[1]])===d[k[0]]?k[0]:k[1],hi=lo===k[0]?k[1]:k[0];
      if(punta==='a1'&&nueva>d[hi]+E){d[hi]=r3(nueva);estirados++;}else if(punta==='a0'&&nueva<d[lo]-E){d[lo]=r3(nueva);estirados++;}}}});}
  return {estirados};}
+
+// LOS MUROS CON SU ESPESOR (2026-11-22, Miguel: «quiero enfocarme en medir muy bien en el 2D, el motor, antes de pasar al 3D»).
+// Cada tramo del grafo como uno o más rectángulos en planta, con su espesor real —el tabique y el núcleo, ESPESOR.tabique
+// centrado en su línea; la fachada y la medianera, ESPESOR.fachada hacia adentro— y sus puntas resueltas en cada nodo:
+// - en un nodo, una LÍNEA pasa si tiene muro a los dos lados (un tramo de largo, o dos seguidos en la misma línea);
+// - si pasa la línea de enfrente (una T), el tramo se corta en su cara; si pasan las dos (un cruce), manda la de más rango
+//   —fachada y medianera, después núcleo, después tabique; a igual rango, la horizontal— y la otra se corta en su cara;
+// - si pasa la suya y no la de enfrente, el tramo termina justo en el nodo, donde sigue el de al lado;
+// - en una L, el horizontal sigue hasta la cara de afuera del vertical y el vertical se corta en la de adentro del
+//   horizontal; una punta libre queda en su línea.
+// Así no se pisan ni queda un hueco en el nodo (lo mide juntasDe). Devuelve [{id, clase, x, y, w, h}] (metros); el 3D lo levantará.
+const RANGO={[CLASE.fachada]:3,[CLASE.medianera]:3,[CLASE.nucleo]:2,[CLASE.tabique]:1};
+export function bandaDe(t){// [c0, c1]: lo que ocupa a lo ancho, alrededor de su línea
+ if(t.clase===CLASE.fachada||t.clase===CLASE.medianera){const adentroMas=t.lados.some(l=>l.lados[1]!=='afuera'&&l.lados[1]!=='vecino');return adentroMas?[t.f,t.f+ESPESOR.fachada]:[t.f-ESPESOR.fachada,t.f];}
+ return [t.f-ESPESOR.tabique/2,t.f+ESPESOR.tabique/2];}
+export function murosConEspesor(g){const out=[];const T=g.tramos;
+ // (la línea de orientación h en la coordenada f, en el punto a de su eje: sus muros, si pasa, su rango y su banda)
+ const linea=(h,f,a,sin)=>{const ms=T.filter(o=>o!==sin&&o.h===h&&Math.abs(o.f-f)<E&&a>o.a0-E&&a<o.a1+E);
+  const antes=ms.some(o=>o.a0<a-E),despues=ms.some(o=>o.a1>a+E);
+  const bs=ms.map(bandaDe);return {ms,pasa:antes&&despues,rango:Math.max(0,...ms.map(o=>RANGO[o.clase])),c0:Math.min(...bs.map(b=>b[0])),c1:Math.max(...bs.map(b=>b[1]))};};
+ const gana=(r1,h1,r2)=>r1>r2||(r1===r2&&h1);// (¿la línea de rango r1, horizontal si h1, le gana a la otra?)
+ for(const t of T){const [c0,c1]=bandaDe(t);
+  const propia=a=>linea(t.h,t.f,a,null);
+  // (cada punta, por franjas a lo ancho del tramo: si la línea de enfrente la forman muros de distinta banda —una fachada que
+  // sigue como tabique—, cada franja se corta en la cara del muro que tiene delante. Si no, una sola franja)
+  const puntas=[[0,t.a0],[1,t.a1]].map(([lado,a])=>{const fr=linea(!t.h,a,t.f,null);if(!fr.ms.length)return [{c0,c1,a}];// (punta libre: en su línea)
+   const mia=propia(a);
+   if(fr.pasa&&(!mia.pasa||!gana(mia.rango,t.h,fr.rango))){// T, o un cruce que pierde
+    const bs=[...new Set([c0,c1,...fr.ms.flatMap(o=>[o.a0,o.a1]).filter(v=>v>c0+E&&v<c1-E)])].sort((x,y)=>x-y);
+    return bs.slice(1).map((b,k)=>{const m=(bs[k]+b)/2,ws=fr.ms.filter(o=>m>o.a0&&m<o.a1).map(bandaDe);
+     return {c0:bs[k],c1:b,a:ws.length?(lado===0?Math.max(...ws.map(w=>w[1])):Math.min(...ws.map(w=>w[0]))):(lado===0?fr.c1:fr.c0)};});}
+   if(mia.pasa)return [{c0,c1,a}];// sigue el de al lado
+   return [{c0,c1,a:t.h?(lado===0?fr.c0:fr.c1):(lado===0?fr.c1:fr.c0)}];});// L
+  // (los cruces a mitad del tramo: si pierde, se corta en la cara del que pasa)
+  const cortes=T.filter(o=>o.h!==t.h&&o.f>t.a0+E&&o.f<t.a1-E&&t.f>o.a0+E&&t.f<o.a1-E).map(o=>linea(o.h,o.f,t.f,null)).filter(fr=>!gana(propia(fr.ms[0].f).rango,t.h,fr.rango)).map(fr=>[fr.c0,fr.c1]).sort((x,y)=>x[0]-y[0]);
+  const bs=[...new Set([c0,c1,...puntas.flat().flatMap(p=>[p.c0,p.c1])])].sort((x,y)=>x-y);let k=0;
+  for(let q=1;q<bs.length;q++){const s0=bs[q-1],s1=bs[q],m=(s0+s1)/2,en=ps=>ps.find(p=>m>p.c0-1e-9&&m<p.c1+1e-9).a;
+   const a0=en(puntas[0]),a1=en(puntas[1]);let desde=a0;const tramos=[];for(const [x0,x1] of cortes){tramos.push([desde,x0]);desde=x1;}tramos.push([desde,a1]);
+   for(const [p0,p1] of tramos){if(p1-p0<=E)continue;const id=k++?t.id+'#'+k:t.id;
+    out.push(t.h?{id,tramo:t.id,clase:t.clase,x:r3(p0),y:r3(s0),w:r3(p1-p0),h:r3(s1-s0)}:{id,tramo:t.id,clase:t.clase,x:r3(s0),y:r3(p0),w:r3(s1-s0),h:r3(p1-p0)});}}}
+ return out;}
+
+// LAS JUNTAS, al milímetro: dos muros que se pisan (área en común) y una junta abierta —un pedazo de la banda de un tramo, sobre su
+// propia línea, que no cubre ningún muro: lo que se le cortó en un nodo y nadie tapó—. Devuelve {pisan, abiertas}.
+export function juntasDe(g,muros=murosConEspesor(g)){const pisan=[],abiertas=[];
+ for(let i=0;i<muros.length;i++)for(let j=i+1;j<muros.length;j++){const a=muros[i],b=muros[j],ox=Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x),oz=Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y);
+  if(ox>.001&&oz>.001)pisan.push({a:a.id,b:b.id,cm2:Math.round(ox*oz*1e4)});}
+ const en=(x,z)=>muros.some(m=>x>m.x-1e-4&&x<m.x+m.w+1e-4&&z>m.y-1e-4&&z<m.y+m.h+1e-4);
+ // (cada tramo tiene que quedar sellado a lo largo de su propia línea, de a0 a a1 y con todo su espesor: lo que se le cortó en
+ // un nodo lo tiene que cubrir otro muro. Se recorre de a 1 cm cerca de cada nodo —las puntas y los cruces—, que es donde se corta)
+ const nodosEn=t=>[t.a0,t.a1,...g.tramos.filter(o=>o.h!==t.h&&o.f>t.a0+E&&o.f<t.a1-E&&t.f>o.a0-E&&t.f<o.a1+E).map(o=>o.f)];
+ for(const t of g.tramos){const [c0,c1]=bandaDe(t),R=ESPESOR.fachada+.02;let hueco=null;
+  fuera:for(const a of nodosEn(t))for(let u=Math.max(t.a0,a-R)+.004;u<Math.min(t.a1,a+R);u+=.01)for(let c=c0+.004;c<c1;c+=.01){const [x,z]=t.h?[u,c]:[c,u];if(!en(x,z)){hueco={x:r3(x),z:r3(z)};break fuera;}}
+  if(hueco){let ancho=0;for(let u=t.a0+.005;u<t.a1;u+=.01)for(let c=c0+.005;c<c1;c+=.01){const [x,z]=t.h?[u,c]:[c,u];if(!en(x,z))ancho++;}abiertas.push({tramo:t.id,...hueco,cm2:ancho});}}
+ return {pisan,abiertas};}
