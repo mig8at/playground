@@ -643,7 +643,24 @@ export const OBJETOS={
   antes:()=>[],
   piezas:o=>{const W=o.w||1.2,D=o.d||.6,f=D/2,n=Math.max(2,Math.round(W/.5)),dw=(W-.06)/n,wd=C.maderaClara;
    return [p(0,0,0,W-.04,.08,D-.06,C.maderaOscura),p(0,.08,0,W,1.86,D,wd),p(0,1.94,0,W+.04,.06,D+.03,C.maderaOscura),// zócalo, cuerpo y cornisa
-    ...Array.from({length:n},(_,k)=>{const x=-W/2+.03+dw*(k+.5),side=k%2?-1:1;return [p(x,.14,f,dw-.03,1.74,.015,C.madera),p(x+side*(dw/2-.07),.9,f+.012,.025,.3,.02,C.cobre)];}).flat()];}},// las puertas con su tirador (de a pares)
+    ...Array.from({length:n},(_,k)=>{const x=-W/2+.03+dw*(k+.5),side=k%2?-1:1;return [p(x,.14,f,dw-.03,1.74,.015,C.madera),p(x+side*(dw/2-.07),.9,f+.012,.025,.3,.02,C.cobre)];}).flat()];}},// las puertas con su tirador (de a pares),
+ // ---------- El dúplex (2026-11-22): el plano los coloca —engine/duplex.js— y acá se arman; se ven en el taller ----------
+ // (Miguel: «eso debería estar en los objetos 3D, no en el plano, como objetos que se agregan al plano»)
+ // LA ESCALERA FLOTANTE —«escalones flotantes; y si puede estar sin una pared, un apoyo en el centro de la escalera, como
+ // simulando el soporte»—: o.w de ancho, o.d de largo, sube o.sube en o.n peldaños; el pie al frente (+z), la llegada atrás.
+ // Cada peldaño, una tabla de 7 cm con 2 cm de luz; con o.apoyo 'centro', una viga escalonada de 22 cm bajo el medio.
+ escalera_flotante:{nombre:'Escalera de escalones flotantes',grupo:'Dúplex',medida:[1,4],alto:o=>o.sube||3,variantes:['muro','centro'],
+  piezas:o=>{const W=o.w,D=o.d,S=o.sube||3,n=o.n||15,G=.07,luz=.02,rise=S/n,tread=D/n,out=[];
+   for(let k=0;k<n;k++){const z=D/2-tread*(k+.5),top=rise*(k+1);out.push(p(0,top-G,z,W-.02,G,tread-luz,C.maderaClara));
+    if((o.apoyo||o.variante)==='centro'){const h=Math.min(top-G,rise*1.6);out.push(p(0,top-G-h,z,.22,h,tread+.004,C.grafito));}}
+   return out;}},
+ // LA BARANDA DEL ENTREPISO: o.w de largo; un poste cada metro, el pasamanos y un riel al medio, de 95 cm (en x)
+ baranda_entrepiso:{nombre:'Baranda del entrepiso',grupo:'Dúplex',medida:[3,.05],alto:()=>.95,
+  piezas:o=>{const L=o.w,H=.95,k=Math.max(1,Math.round(L)),out=[p(0,H-.05,0,L,.05,.05,C.negro),p(0,H/2,0,L,.03,.05,C.negro)];
+   for(let i=0;i<=k;i++)out.push(p(-L/2+L*i/k,0,0,.04,H-.05,.04,C.negro));return out;}},
+ // LA ISLA DE LA COCINA: un bloque de mesón de o.w × o.d y 90 cm, con su cubierta que sobresale 2 cm y el zócalo metido
+ isla_cocina:{nombre:'Isla de cocina',grupo:'Dúplex',medida:[2.4,.9],alto:()=>.9,
+  piezas:o=>[p(0,0,0,o.w-.1,.1,o.d-.1,C.grafito),p(0,.1,0,o.w-.04,.76,o.d-.04,'#e3ddd2'),p(0,.86,0,o.w+.04,.04,o.d+.04,C.piedra)]}
 };
 // (2026-10-16: ninguna pieza con una cara en el mismo plano que otra de otro color —titilan al mover la cámara—:
 // engine/titileo.js las corrige al armarlas; lo comprueba validar-titileo)

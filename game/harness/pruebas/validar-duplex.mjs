@@ -19,7 +19,7 @@ import {CELL} from '../../src/engine/veredas.js';
 const N=+(process.argv[2]||2),S0=+(process.argv[3]||1),TEAM=+(process.argv[4]||3);
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};
 const e=v=>Math.abs(v-Math.round(v))<1e-6,dentro=(a,b,t=.01)=>a.x>=b.x-t&&a.y>=b.y-t&&a.x+a.w<=b.x+b.w+t&&a.y+a.h<=b.y+b.h+t,pisa=(a,b,t=.01)=>Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x)>t&&Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y)>t;
-const med={enL:0,mansardas:0,terrazas:0,escaleraEnVacio:0,islas:0,dobleAltura:0,duplex:0,recta:0,corta:0,larga:0,edificios:0,unidadesArriba:0,areaArriba:0};
+const med={sueltas:0,enL:0,mansardas:0,terrazas:0,escaleraEnVacio:0,islas:0,dobleAltura:0,duplex:0,recta:0,corta:0,larga:0,edificios:0,unidadesArriba:0,areaArriba:0};
 for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:TEAM}),P=propiedadesDe(bp);
  // (la mansarda, sólo con dúplex y entera: Miguel, «deberían ser todos los edificios que terminan con mansarda dúplex, y aprovechar
  // los espacios»; con el motor anterior quedaban 19 mansardas vacías —sin departamentos arriba— y 13 a medias)
@@ -44,7 +44,11 @@ for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:TEAM}),P=propie
    // abierto encima —Miguel: «la escalera no puede quedar así», suelta contra el paso entre la sala y el comedor—)
    if(q){const ax=E.eje==='x',lados=ax?[E.y,E.y+E.h].filter(f=>Math.abs(f-q.y)<.05||Math.abs(f-q.y-q.h)<.05):[E.x,E.x+E.w].filter(f=>Math.abs(f-q.x)<.05||Math.abs(f-q.x-q.w)<.05),a0=ax?E.x:E.y,a1=a0+(ax?E.w:E.h);
     const libre=f=>!top.doors.some(d=>d.wide&&(ax?Math.abs(d.y0-f)<.05&&Math.abs(d.y1-f)<.05&&Math.min(Math.max(d.x0,d.x1),a1)-Math.max(Math.min(d.x0,d.x1),a0)>.01:Math.abs(d.x0-f)<.05&&Math.abs(d.x1-f)<.05&&Math.min(Math.max(d.y0,d.y1),a1)-Math.max(Math.min(d.y0,d.y1),a0)>.01));
-    if(!lados.some(libre))falla('la escalera no está arrimada a un muro (queda contra un vano abierto o suelta)',ej({n:u.n}));}
+    // (suelta —sin muro al lado— sí, pero con su apoyo en el centro: Miguel, «si puede estar sin una pared, puede tener un apoyo
+    // en el centro de la escalera»)
+    if(!lados.some(libre)&&E.apoyo!=='centro')falla('la escalera suelta sin su apoyo en el centro',ej({n:u.n}));
+    if(lados.some(libre)&&E.apoyo==='centro')falla('la escalera con apoyo en el centro estando contra un muro',ej({n:u.n}));
+    if(E.objeto!=='escalera_flotante')falla('la escalera sin su objeto del catálogo',ej({n:u.n}));if(E.apoyo==='centro')med.sueltas++;}
    if(top.furniture.some(f=>DE_OBRA.has(f.kind)&&pisa(f,E)))falla('la escalera pisa un aparato de obra',ej({n:u.n}));
    for(const d of top.doors){const dh=Math.abs(d.y0-d.y1)<1e-6,x0=Math.min(d.x0,d.x1),x1=Math.max(d.x0,d.x1),y0=Math.min(d.y0,d.y1),y1=Math.max(d.y0,d.y1);
     if(d.wide){const z=dh?{x:x0,y:y0-.5,w:x1-x0,h:1}:{x:x0-.5,y:y0,w:1,h:y1-y0};if(pisa(z,E,.01)&&(dh?x1-x0-(Math.min(x1,E.x+E.w)-Math.max(x0,E.x)):y1-y0-(Math.min(y1,E.y+E.h)-Math.max(y0,E.y)))<1-1e-6){falla('la escalera deja menos de 1 m en un vano abierto',ej({n:u.n}));break;}continue;}
@@ -95,6 +99,6 @@ for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:TEAM}),P=propie
    for(const [k,n] of porCasilla)if(n!==3)falla('una terraza que no ocupa la casilla entera',{ciudad:s,lote:L.id,casilla:k,modulos:n});med.terrazas+=porCasilla.size;}
   // (el precio por metro)
   const ps=P.filter(p=>p.lote===L.id&&p.clase==='departamento'),otros=ps.filter(p=>!p.duplex);for(const p of ps.filter(p=>p.duplex))if(otros.some(o=>o.precio/o.area>=p.precio/p.area))falla('un dúplex que vale por metro menos que otro departamento',ej({id:p.id}));}}
-console.log(`dúplex · ${N} ciudades de ${TEAM} por equipo · ${med.mansardas} mansardas, todas con dúplex entero (${med.enL} penthouses en L) · ${med.duplex} dúplex en ${med.edificios} edificios (escaleras rectas: ${med.larga} de 4 m, ${med.corta} de 3 m; ${med.dobleAltura} con la sala a doble altura; ${med.islas} con cocina de isla; ${med.escaleraEnVacio} con la escalera dentro de la doble altura; ${med.terrazas} terrazas corridas) · ${med.unidadesArriba} cuartos arriba, ${Math.round(med.areaArriba)} m² de mansarda que se usan`);
+console.log(`dúplex · ${N} ciudades de ${TEAM} por equipo · ${med.mansardas} mansardas, todas con dúplex entero (${med.enL} penthouses en L) · ${med.duplex} dúplex en ${med.edificios} edificios (escaleras rectas: ${med.larga} de 4 m, ${med.corta} de 3 m, ${med.sueltas} sueltas con apoyo central; ${med.dobleAltura} con la sala a doble altura; ${med.islas} con cocina de isla; ${med.escaleraEnVacio} con la escalera dentro de la doble altura; ${med.terrazas} terrazas corridas) · ${med.unidadesArriba} cuartos arriba, ${Math.round(med.areaArriba)} m² de mansarda que se usan`);
 for(const [k,f] of fallas)console.log(`  ${f.n}\t${k}\n        ${f.ej.map(e=>JSON.stringify(e)).join('\n        ')}`);
 console.log(`fallas: ${[...fallas.values()].reduce((a,f)=>a+f.n,0)}`);process.exit(fallas.size?1:0);

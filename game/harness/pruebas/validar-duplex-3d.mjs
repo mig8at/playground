@@ -14,7 +14,8 @@ for(let s=S0;s<S0+N;s++){const {world:w,bp}=await armarMundo(s,3);
  // (ninguna caja de baranda asoma por el tejado: en cada esquina de arriba, por debajo de la mansarda —Miguel: «evita que
  // las barandas salgan al tejado»—)
  for(const [id,dx] of w.duplexes||[]){const L=bp.lots.find(l=>l.id===id);for(const c of dx.cajasBaranda){cajas++;const top=c.y+c.sy;
-  for(const [x,z] of [[c.x-c.sx/2,c.z-c.sz/2],[c.x+c.sx/2,c.z-c.sz/2],[c.x-c.sx/2,c.z+c.sz/2],[c.x+c.sx/2,c.z+c.sz/2]]){const techo=L.floors*FLOOR+(L.mansarda?alturaMansarda(L.mansarda,x,z):3);if(top>techo+.01){falla('una baranda asoma por el tejado',{ciudad:s,lote:id,x:+x.toFixed(2),z:+z.toFixed(2),arriba:+(top-techo).toFixed(2)});break;}}}}
+  const gira=Math.abs(Math.sin(c.ry||0))>.5,ax=gira?c.sz:c.sx,az=gira?c.sx:c.sz;// (la caja girada un cuarto de vuelta: sus lados se cruzan)
+  for(const [x,z] of [[c.x-ax/2,c.z-az/2],[c.x+ax/2,c.z-az/2],[c.x-ax/2,c.z+az/2],[c.x+ax/2,c.z+az/2]]){const techo=L.floors*FLOOR+(L.mansarda?alturaMansarda(L.mansarda,x,z):3);if(top>techo+.01){falla('una baranda asoma por el tejado',{ciudad:s,lote:id,x:+x.toFixed(2),z:+z.toFixed(2),arriba:+(top-techo).toFixed(2)});break;}}}}
  // (las buhardillas del 3D y las ventanas de arriba del plano, una a una: Miguel, «que las buhardillas coincidan con las
  // ventanas del altillo». Cada ventana de un dúplex con su buhardilla en el mismo módulo, y ninguna buhardilla de más sobre un dúplex)
  {const buh=w.mansardaArmada||[];

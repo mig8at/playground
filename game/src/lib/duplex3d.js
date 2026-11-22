@@ -13,10 +13,11 @@
      escalera (ahí la losa del último piso no está) y .arriba si cae en el nivel de un dúplex. world3d floorAt los consulta.
    Todo son cajas «de adentro» (se dibujan sólo de cerca, como los tabiques) y choques (wallAny). */
 import {MANSARDA} from '../engine/medidas.js';
+import {OBJETOS,placeParts} from './objetos3d.js';
 import {pendienteEn,alturaMansarda} from '../engine/techos.js';
 import {bordesDe} from '../engine/duplex.js';
 
-export const DUPLEX3D={enrase:.6,muro:.1,canto:.25,flotante:{grueso:.07,luz:.02},baranda:{alto:.95,barrote:.04,poste:1,pasamanos:.05,riel:.03}};
+export const DUPLEX3D={enrase:.6,muro:.1,canto:.25,baranda:{alto:.95}};
 
 export function duplexDeLote(B,L,{box,wallAny,color='#ece6da',FLOOR=3}){
  if(!B?.duplex)return null;const H=MANSARDA.alto,y0=L.h,yb=(L.floors-1)*FLOOR,T=DUPLEX3D.muro,esc=[],dentro=[],cajasBaranda=[],vacios=B.duplex.unidades.flatMap(u=>u.vacios||[]);
@@ -43,28 +44,27 @@ export function duplexDeLote(B,L,{box,wallAny,color='#ece6da',FLOOR=3}){
     muro(h,fija,a0,a1,y0,y0+H,vanos.map(([p,q])=>[p,q]),color);if(vanos.length)for(const [p,q] of vanos){const m=(p+q)/2;if(h)box(m,y0+2.1,fija,q-p,H-2.1,T,color,L.floors);else box(fija,y0+2.1,m,T,H-2.1,q-p,color,L.floors);}}}
   // LA ESCALERA, de yb (el piso de abajo) a y0 (la mansarda): cada peldaño, macizo hasta el piso
   const E=u.escalera,n=E.peldanos||15,rise=(y0-yb)/n,cs=[],ax=E.eje==='x',sg=ax?Math.sign(E.llegada[0]-E.pie[0])||1:Math.sign(E.llegada[1]-E.pie[1])||1,l=ax?E.w:E.h,tread=l/n,o0=ax?(sg>0?E.x:E.x+E.w):(sg>0?E.y:E.y+E.h),cm=ax?E.y+E.h/2:E.x+E.w/2,ancho=ax?E.h:E.w;
-  // (escalones flotantes —Miguel, 2026-11-22: «las escaleras esas que son tipo escalones flotantes»—: cada peldaño, una tabla
-  // de DUPLEX3D.flotante.grueso empotrada en el muro, con DUPLEX3D.flotante.luz entre uno y otro y nada debajo. La pisada,
-  // la misma: surface)
-  const FL=DUPLEX3D.flotante;
-  for(let k=0;k<n;k++){const t=o0+sg*tread*(k+.5),top=yb+rise*(k+1),hd=tread-FL.luz;
-   cs.push(ax?{x:t,y:top-FL.grueso,z:cm,sx:hd,sy:FL.grueso,sz:ancho-.02,color:'#cfc7b8',f:L.floors-1}:{x:cm,y:top-FL.grueso,z:t,sx:ancho-.02,sy:FL.grueso,sz:hd,color:'#cfc7b8',f:L.floors-1});}
+  // (la escalera, del catálogo —objetos3d escalera_flotante: Miguel, «eso debería estar en los objetos 3D, no en el plano»—:
+  // escalones flotantes, empotrados en su muro o con su apoyo en el centro si va suelta —E.apoyo, lo decide el plano—. El pie,
+  // al frente del objeto: su +z mira hacia E.pie. La pisada, la del plano: surface)
+  {const O=OBJETOS[E.objeto||'escalera_flotante'],cx=E.x+E.w/2,cz=E.y+E.h/2,dx=E.pie[0]-cx,dz=E.pie[1]-cz,ry=Math.atan2(dx,dz);
+   cs.push(...placeParts(O.piezas({w:ancho,d:l,sube:y0-yb,n,apoyo:E.apoyo||'muro'}),{x:cx,y:yb,z:cz,ry},{f:L.floors-1}));}
   esc.push({ax,sg,o0,tread,n,rise,yb,rect:E});
   // LA BARANDA (el motor dice dónde: u.barandas): un poste cada DUPLEX3D.baranda.poste, el pasamanos y un riel al medio
   // —Miguel: «elimina los polígonos que no aportan»: antes, un barrote cada 12 cm—; choca hasta su alto. Se corta donde la
   // pendiente de la mansarda no la deja entrar —a DUPLEX3D.enrase del borde, donde va el muro bajo—: «evita que las barandas
   // salgan al tejado»
-  const BR=DUPLEX3D.baranda,cB='#3a3d40',cabe=(x,z)=>!B.mansarda||alturaMansarda(B.mansarda,x,z)>=MANSARDA.alto*DUPLEX3D.enrase/MANSARDA.retiro-1e-6;
+  const BR=DUPLEX3D.baranda,cabe=(x,z)=>!B.mansarda||alturaMansarda(B.mansarda,x,z)>=MANSARDA.alto*DUPLEX3D.enrase/MANSARDA.retiro-1e-6;
   for(const b0 of u.barandas||[]){const h=Math.abs(b0.y0-b0.y1)<1e-6,f=h?b0.y0:b0.x0,lo=h?Math.min(b0.x0,b0.x1):Math.min(b0.y0,b0.y1),hi=h?Math.max(b0.x0,b0.x1):Math.max(b0.y0,b0.y1);
    // (los tramos que caben, de a 5 cm)
    const tramos=[];let t0=null;for(let a=lo;a<=hi+1e-6;a+=.05){const ok=h?cabe(a,f):cabe(f,a);if(ok&&t0==null)t0=a;if((!ok||a+.05>hi+1e-6)&&t0!=null){const t1=ok?hi:a-.05;if(t1-t0>.1)tramos.push([t0,t1]);t0=null;}}
-   for(const [a0,a1] of tramos){const m=(a0+a1)/2,len=a1-a0,R=(y,hh)=>cs.push(h?{x:m,y,z:f,sx:len,sy:hh,sz:BR.pasamanos,color:cB,f:L.floors}:{x:f,y,z:m,sx:BR.pasamanos,sy:hh,sz:len,color:cB,f:L.floors});
-   R(y0+BR.alto-BR.pasamanos,BR.pasamanos);R(y0+BR.alto/2,BR.riel);
-   const k=Math.max(1,Math.round(len/BR.poste));for(let i=0;i<=k;i++){const a=a0+len*i/k;cs.push(h?{x:a,y:y0,z:f,sx:BR.barrote,sy:BR.alto-BR.pasamanos,sz:BR.barrote,color:cB,f:L.floors}:{x:f,y:y0,z:a,sx:BR.barrote,sy:BR.alto-BR.pasamanos,sz:BR.barrote,color:cB,f:L.floors});}
+   // (la baranda, del catálogo —objetos3d baranda_entrepiso—, a lo largo de su tramo)
+   for(const [a0,a1] of tramos){const m=(a0+a1)/2,len=a1-a0;
+   cs.push(...placeParts(OBJETOS.baranda_entrepiso.piezas({w:len}),{x:h?m:f,y:y0,z:h?f:m,ry:h?0:Math.PI/2},{f:L.floors,baranda:true}));
    if(h)wallAny(a0,f-.04,a1,f+.04,y0-.05,y0+BR.alto);else wallAny(f-.04,a0,f+.04,a1,y0-.05,y0+BR.alto);
    // (el canto del entrepiso, que se ve desde abajo: una viga de DUPLEX3D.canto bajo la baranda)
    cs.push(h?{x:m,y:y0-DUPLEX3D.canto,z:f,sx:len,sy:DUPLEX3D.canto,sz:.12,color:'#e2d6bf',f:L.floors-1}:{x:f,y:y0-DUPLEX3D.canto,z:m,sx:.12,sy:DUPLEX3D.canto,sz:len,color:'#e2d6bf',f:L.floors-1});}}
-  for(const c of cs){box(c.x,c.y,c.z,c.sx,c.sy,c.sz,c.color,c.f);if(c.color===cB)cajasBaranda.push(c);}}
+  for(const c of cs){box(c.x,c.y,c.z,c.sx,c.sy,c.sz,c.color,c.f,c.ry||0);if(c.baranda)cajasBaranda.push(c);}}
  const enRect=(r,x,z)=>x>r.x&&x<r.x+r.w&&z>r.y&&z<r.y+r.h;
  return {nivel:y0,cajasBaranda,// (las cajas de la baranda, a nivel —sin la planta baja levantada—: para medir que no asomen por el tejado)
   // ¿el punto está en el hueco de una escalera o en el vacío de una sala a doble altura? (ahí no hay losa arriba)

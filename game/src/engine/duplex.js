@@ -31,8 +31,8 @@ const FACHADA=new Set(['calle','avenida','patio']);
 // La escalera de un departamento: el primer lugar que sirve, o null.
 // (2026-11-22, Miguel: «las escaleras en caracol son difíciles de subir»: sólo rectas. Primero la de 4 m —peldaños de 20 cm—
 // en la sala, después en un dormitorio o el hall; si en ningún lado cabe, la corta de 3 m —de 25 cm, la de un altillo—)
-function escaleraDe(L,lv,qs,excluir=new Set()){for(const E of [DUPLEX.escalera,DUPLEX.corta].filter(Boolean))for(const cuartos of [DUPLEX.cuartos,DUPLEX.otros||[]]){const r=escaleraCon(L,lv,qs,E,cuartos,excluir);if(r)return r;}return null;}
-function escaleraCon(L,lv,qs,E,cuartos,excluir=new Set()){const UU={x:Math.min(...qs.map(q=>q.x)),y:Math.min(...qs.map(q=>q.y))};UU.w=Math.max(...qs.map(q=>q.x+q.w))-UU.x;UU.h=Math.max(...qs.map(q=>q.y+q.h))-UU.y;const obra=(lv.furniture||[]).filter(f=>LUGAR_FIJO.has(f.kind));
+function escaleraDe(L,lv,qs){for(const E of [DUPLEX.escalera,DUPLEX.corta].filter(Boolean))for(const cuartos of [DUPLEX.cuartos,DUPLEX.otros||[]]){const r=escaleraCon(L,lv,qs,E,cuartos);if(r)return r;}return null;}
+function escaleraCon(L,lv,qs,E,cuartos){const UU={x:Math.min(...qs.map(q=>q.x)),y:Math.min(...qs.map(q=>q.y))};UU.w=Math.max(...qs.map(q=>q.x+q.w))-UU.x;UU.h=Math.max(...qs.map(q=>q.y+q.h))-UU.y;const obra=(lv.furniture||[]).filter(f=>LUGAR_FIJO.has(f.kind));
  const salas=qs.filter(q=>cuartos.includes(q.type)).sort((a,b)=>b.w*b.h-a.w*a.h);
  // (los candidatos de todos los cuartos juntos, y después el orden: si no, el muro de adentro del cuarto más grande ganaba a la
  // orilla de otro cuarto)
@@ -40,10 +40,8 @@ function escaleraCon(L,lv,qs,E,cuartos,excluir=new Set()){const UU={x:Math.min(.
  for(const q of salas){
   for(const [lado,h] of [['N',true],['S',true],['W',false],['E',false]]){const largo=h?q.w:q.h,ancho=h?q.h:q.w;if(largo<E.largo-1e-6||ancho<E.ancho+2-1e-6)continue;
    const fija=lado==='N'?q.y:lado==='S'?q.y+q.h:lado==='W'?q.x:q.x+q.w,fachada=FACHADA.has(ladoDe(L,h?q.x+q.w/2:fija,h?fija:q.y+q.h/2));
-   // (arrimada a un MURO en todo su largo: Miguel, 2026-11-22, con una captura del penthouse del lote 4 —«valida bien,
-   // porque la escalera no puede quedar así»—: quedaba contra el paso de 5,4 m entre la sala y el comedor, suelta en el medio.
-   // Si de ese lado hay un vano abierto de la planta abierta, la escalera levanta su muro: el vano se corta a lo largo de la
-   // escalera —como en la foto que mandó Miguel: la escalera contra su pared— y lo demás sigue abierto. Un muro que ya está, primero)
+   // (arrimada a un muro, primero —un muro que ya está—; si de ese lado hay un vano abierto de la planta abierta, la escalera
+   // queda suelta con su apoyo en el centro —abajo—. Antes levantaba su propio muro en el vano)
    // (en la orilla —contra el borde del departamento: el vecino, el pasillo o la fachada—, mejor que contra un muro de adentro:
    // Miguel, 2026-11-22, «la escalera podría estar en la orilla para que se aproveche mejor el espacio arriba»)
    const orilla=h?Math.abs(fija-UU.y)<.05||Math.abs(fija-UU.y-UU.h)<.05:Math.abs(fija-UU.x)<.05||Math.abs(fija-UU.x-UU.w)<.05;
@@ -52,7 +50,7 @@ function escaleraCon(L,lv,qs,E,cuartos,excluir=new Set()){const UU={x:Math.min(.
     const a0=h?r.x:r.y,a1=a0+E.largo,cortar=vanos.filter(d=>{const p=h?Math.min(d.x0,d.x1):Math.min(d.y0,d.y1),q2=h?Math.max(d.x0,d.x1):Math.max(d.y0,d.y1);return Math.min(q2,a1)-Math.max(p,a0)>.01;});
     cands.push({q,r,lado,h,fachada,cortar,a0,a1,orilla,fija});}}}
   cands.sort((a,b)=>(b.orilla?1:0)-(a.orilla?1:0)||(a.cortar.length?1:0)-(b.cortar.length?1:0)||a.fachada-b.fachada);
-  for(const c of cands){const {q,r,h}=c;if(excluir.has(`${r.x},${r.y},${r.w},${r.h}`))continue;
+  for(const c of cands){const {q,r,h}=c;
    // (ningún paso de puerta; ningún aparato de obra)
    // (las ventanas en sus bordes: N, S, W, E. Ninguna en el muro que tapa ni en la punta de arriba; en la punta del pie, sí
    // —2026-11-22, al dejar sólo la recta: el primer metro sube 75 cm y no llega al antepecho—, salvo la que puede ser balcón)
@@ -64,7 +62,7 @@ function escaleraCon(L,lv,qs,E,cuartos,excluir=new Set()){const UU={x:Math.min(.
     else{if(Math.min(Math.max(w.y0,w.y1),r.y+r.h)-Math.max(Math.min(w.y0,w.y1),r.y)<=.05)continue;if(Math.abs(at-r.x)<.05)toca.push('W');if(Math.abs(at-r.x-r.w)<.05)toca.push('E');}
     for(const b of toca){bordes.add(b);if(medio(w))conBalcon.add(b);}}
    const bordePie=p=>h?(Math.abs(p[0]-r.x)<.05?'W':'E'):(Math.abs(p[1]-r.y)<.05?'N':'S'),ventanasBien=p=>[...bordes].every(b=>b===bordePie(p))&&!conBalcon.has(bordePie(p));
-   const puerta=(lv.doors||[]).some(d=>{if(c.cortar.includes(d))return false;const dh=Math.abs(d.y0-d.y1)<1e-6,x0=Math.min(d.x0,d.x1),x1=Math.max(d.x0,d.x1),y0=Math.min(d.y0,d.y1),y1=Math.max(d.y0,d.y1),P=DUPLEX.paso;
+   const puerta=(lv.doors||[]).some(d=>{const dh=Math.abs(d.y0-d.y1)<1e-6,x0=Math.min(d.x0,d.x1),x1=Math.max(d.x0,d.x1),y0=Math.min(d.y0,d.y1),y1=Math.max(d.y0,d.y1),P=DUPLEX.paso;
     // (un vano abierto de la planta abierta: la escalera puede arrimarse, pero tiene que quedar 1 m libre para pasar)
     if(d.wide){const z=dh?{x:x0,y:y0-.5,w:x1-x0,h:1}:{x:x0-.5,y:y0,w:1,h:y1-y0};if(!pisa(z,r))return false;const tapa=dh?Math.min(x1,r.x+r.w)-Math.max(x0,r.x):Math.min(y1,r.y+r.h)-Math.max(y0,r.y);return (dh?x1-x0:y1-y0)-tapa<1-1e-6;}
     const zona=dh?{x:x0-.2,y:y0-P,w:x1-x0+.4,h:2*P}:{x:x0-P,y:y0-.2,w:2*P,h:y1-y0+.4};return pisa(zona,r);});
@@ -90,8 +88,10 @@ function escaleraCon(L,lv,qs,E,cuartos,excluir=new Set()){const UU={x:Math.min(.
    const arranca=(p,l)=>{const d=dir(l,p),x=p[0]+d[0]*DUPLEX.arranque,z=p[1]+d[1]*DUPLEX.arranque;return x>q.x-.01&&x<q.x+q.w+.01&&z>q.y-.01&&z<q.y+q.h+.01&&(x>q.x+.01&&x<q.x+q.w-.01||z>q.y+.01&&z<q.y+q.h-.01);};
    const sirve=(p,l)=>llegaBien(l,dir(p,l))&&cabe(p,l)&&ventanasBien(p)&&arranca(p,l);
    if(!sirve(pie,llegada)){if(!sirve(llegada,pie))continue;[pie,llegada]=[llegada,pie];}
-   // (si de ese lado había un vano abierto, la escalera levanta su muro: duplexDe rehace los vanos con él —abrirAbajo rehacer—)
-   return {...r,tipo:'recta',eje:h?'x':'z',pie,llegada,cuarto:q.id,peldanos:E.peldanos,...(c.cortar.length?{muroPropio:true,muro:{h,fija:c.fija,a0:c.a0,a1:c.a1}}:{})};}
+   // (si de ese lado hay un vano abierto, la escalera queda suelta, con su apoyo en el centro —Miguel, 2026-11-22: «si puede
+   // estar sin una pared, puede tener un apoyo en el centro de la escalera, como simulando el soporte»—: no se levanta muro;
+   // el vano, con 1 m libre al lado —la regla de arriba—. El 3D la arma del catálogo: objetos3d escalera_flotante)
+   return {...r,tipo:'recta',eje:h?'x':'z',pie,llegada,cuarto:q.id,peldanos:E.peldanos,objeto:'escalera_flotante',apoyo:c.cortar.length?'centro':'muro'};}
  return null;}
 
 // LO DE ARRIBA de un departamento U (su rectángulo) con su escalera: un entrepiso abierto sobre toda la planta, sin cuartos
@@ -131,19 +131,16 @@ function abrirAbajo(lv,qs,enContorno=()=>false,{retipar=true}={}){const antes={d
  // si ahí sigue otro vano en la misma línea, o el cruce también es abierto, hasta la punta: con 7 cm en cada lado quedaba un
  // poste de 14 cm en cada cruce de la planta abierta)
  let vigentes=crudos;// (los vanos que quedan: se recalcula hasta que no cambia —uno que se descarta por corto deja muro, y eso cambia sus vecinos—)
- let extra=[];// (muros de más —el de la escalera—: {h, fija, a0, a1})
  const abre=(h,at,t)=>vigentes.some(c=>c.h===h&&Math.abs(c.at-at)<.05&&t>c.p-.005&&t<c.q+.005);
  const muroEn=(h,at,t)=>{// ¿un borde de cuarto (o del núcleo, o del pasillo) cruza la línea en t, y no está abierto ahí?
   const rs=[...lv.rooms,...(lv.core?[lv.core]:[]),...(lv.corridor||[])];
   for(const r of rs)for(const [hh,f,c0,c1] of [[!h,h?r.x:r.y,h?r.y:r.x,h?r.y+r.h:r.x+r.w],[!h,h?r.x+r.w:r.y+r.h,h?r.y:r.x,h?r.y+r.h:r.x+r.w]]){
    if(Math.abs(f-t)>.05||at<c0-.05||at>c1+.05)continue;// (el borde perpendicular pasa por la punta)
    for(const o of [-.02,.02]){const u=at+o;if(u<c0-.01||u>c1+.01)continue;if(!abre(hh,f,u))return true;}}// (a 2 cm: el resto de 7 cm que deja un tabique también es muro)
-  // (o un muro de más que pasa por ahí)
-  return extra.some(m=>m.h!==h&&Math.abs(m.fija-t)<.05&&at>m.a0-.05&&at<m.a1+.05);};
+  return false;};
  const cara=(c,t)=>{const [x,z]=c.h?[t,c.at]:[c.at,t];if(enContorno(x,z))return DUPLEX.cara.fachada;return muroEn(c.h,c.at,t)?DUPLEX.cara.tabique:0;};
  const armar=()=>{
-  // (los tramos de cada par, menos lo que tapa un muro de más en su misma línea)
-  let base=crudos.flatMap(c=>{let ts=[[c.p,c.q]];for(const m of extra)if(m.h===c.h&&Math.abs(m.fija-c.at)<.05)ts=ts.flatMap(([u,v])=>[[u,Math.min(v,m.a0)],[Math.max(u,m.a1),v]].filter(([x,y])=>y-x>.05));return ts.map(([p,q])=>({...c,p,q,p0:p,q0:q}));});
+  const base=crudos.map(c=>({...c,p0:c.p,q0:c.q}));
   vigentes=base;
   for(let vuelta=0;vuelta<8;vuelta++){const nuevos=[];for(const c of base){const p=c.p0+cara(c,c.p0),q=c.q0-cara(c,c.q0);if(q-p>=DUPLEX.pasoMin-1e-6)nuevos.push({...c,p,q});}
    const igual=nuevos.length===vigentes.length&&nuevos.every((c,i)=>c===vigentes[i]||Math.abs(c.p-vigentes[i].p)<1e-6&&Math.abs(c.q-vigentes[i].q)<1e-6&&c.p0===vigentes[i].p0);vigentes=nuevos;if(igual)break;}
@@ -152,7 +149,7 @@ function abrirAbajo(lv,qs,enContorno=()=>false,{retipar=true}={}){const antes={d
  // (los muebles de los que eran dormitorios —la cama, el armario— se van; los de obra quedan)
  const eran=new Set(retipar?antes.tipos.filter(([q,t])=>t==='dormitorio').map(([q])=>q.id):[]);
  lv.furniture=(lv.furniture||[]).filter(f=>LUGAR_FIJO.has(f.kind)||!qs.some(q=>eran.has(q.id)&&f.x>=q.x-.01&&f.y>=q.y-.01&&f.x+f.w<=q.x+q.w+.01&&f.y+f.h<=q.y+q.h+.01));
- return {rehacer:muros=>{extra=muros;armar();},deshacer:()=>{lv.doors=antes.doors;lv.furniture=antes.furniture;for(const [q,t] of antes.tipos){q.type=t;delete q.abierto;}}};}
+ return {deshacer:()=>{lv.doors=antes.doors;lv.furniture=antes.furniture;for(const [q,t] of antes.tipos){q.type=t;delete q.abierto;}}};}
 
 // LA SALA A DOBLE ALTURA (2026-11-22, Miguel: «aprovechar el dúplex para un diseño más bonito: que la sala sea de dos pisos,
 // que aproveche la altura y se vea desde abajo la parte de arriba con barandas»). Arriba, sobre lo abierto de abajo, un
@@ -215,11 +212,6 @@ export function bordesDe(rs){const out=[];
    ts=ts.flatMap(([u,v])=>[[u,Math.min(v,o0)],[Math.max(u,o1),v]].filter(([p,q])=>q-p>.01));}
   for(const [u,v] of ts)out.push({h,fija,a0:u,a1:v,sg});}
  return out;}
-// ¿A cada cuarto del departamento se llega desde su puerta de entrada (al pasillo, a la escalera o a la calle), de puerta en puerta?
-function conectado(lv,qs){const ids=new Set(qs.map(q=>q.id)),ady=new Map(qs.map(q=>[q.id,[]])),vistos=new Set(),cola=[];
- for(const d of lv.doors||[]){const a=ids.has(d.a),b=ids.has(d.b);if(a&&b){ady.get(d.a).push(d.b);ady.get(d.b).push(d.a);}else if(a!==b){const q=a?d.a:d.b;if(!vistos.has(q)){vistos.add(q);cola.push(q);}}}
- while(cola.length){const q=cola.pop();for(const o of ady.get(q)||[])if(!vistos.has(o)){vistos.add(o);cola.push(o);}}
- return qs.every(q=>vistos.has(q.id));}
 // ¿(x, z) está sobre el contorno del edificio? (a 5 cm, hacia algún lado, ya se sale de sus partes)
 function contornoDe(L){const ps=L.parts||[],adentro=(x,z)=>ps.some(p=>x>=p.x&&x<=p.x+p.w&&z>=p.y&&z<=p.y+p.h);
  // (también en diagonal: la esquina de adentro de una L tiene afuera sólo en diagonal)
@@ -327,10 +319,7 @@ export function duplexDe(bp){let n=0,no=0,penthouses=0,incompletos=0;
   // (cada departamento del piso, su dúplex si cabe la escalera)
   const armar=()=>{const unidades=[];let sin=0;
    for(const u of top.units){const qs=top.rooms.filter(q=>q.unit===u.n),U={x:u.x,y:u.y,w:u.w,h:u.h};if(!qs.length)continue;
-    // (si el muro que levanta la escalera deja un cuarto sin paso —a cada cuarto se llega desde la puerta de entrada—, esa
-    // escalera no sirve: se prueba la siguiente)
-    const ab=abrirAbajo(top,qs,contornoDe(L)),fuera=new Set();let esc=null;
-    for(let i=0;i<40;i++){const e=escaleraDe(L,top,qs,fuera);if(!e)break;if(!e.muro){esc=e;break;}ab.rehacer([e.muro]);if(conectado(top,qs)){delete e.muro;esc=e;break;}ab.rehacer([]);fuera.add(`${e.x},${e.y},${e.w},${e.h}`);}
+    const ab=abrirAbajo(top,qs,contornoDe(L)),esc=escaleraDe(L,top,qs);
     if(!esc){ab.deshacer();sin++;continue;}
     const arriba=arribaDe(L,U,esc,u.n,esquinaDe(bp,L),u.partes||[U]);
     // (la escalera llega a lo abierto: su hueco, adentro de uno de sus cuartos)
