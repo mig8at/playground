@@ -146,7 +146,7 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
  const {S,FLOOR,CEIL,W,H,lots,lotOf,hash,seed,blank,addWall,furniture,clearance,CIVIC,group,own,instanced,base}=ctx;
  // (armada: lo que de verdad se puso en cada módulo de fachada —lote, casilla, lado, módulo, piso, tipo y pieza—, para
  // comparar con lo que dice el plano: engine/fachada-piezas.js, validar-fachada-piezas)
- const armada=[];
+ const armada=[],mansardaArmada=[];
  const escalerasAire=[],roofProps=[],items=[],leaves=[],doorFronts=[],plaques=[],lotFurniture=new Map(),civics=[],civicFronts=[],awnings=[],stoops=[],balconies=[],cortinas=[],superficies=[],panios=[];let stationInfo=null;
  const columns=new Set(),stairs=new Map(),duplexes=new Map();
  // Un rectángulo menos otro (los dos alineados a los ejes): hasta cuatro pedazos.
@@ -204,8 +204,9 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
   const alAzotea=!!B.levels[0].stair&&L.floors>=2&&!fs.mansard;
   const ST=B.levels[0].stair&&L.floors>=2?stairOf(B.levels[0].stair,L.floors+(alAzotea?1:0),FLOOR):null;if(ST){ST.azotea=alAzotea;stairs.set(id,ST);}
   // ---------- Pisos, cielo raso y techo (por casilla) ----------
-  // (los dúplex —engine/duplex.js—: el hueco de su escalera privada en la losa del último piso, que es el piso del altillo)
-  const huecosDuplex=(B.duplex?.unidades||[]).map(u=>({x:u.escalera.x,z:u.escalera.y,w:u.escalera.w,h:u.escalera.h}));
+  // (los dúplex —engine/duplex.js—: el hueco de su escalera privada y el vacío de la sala a doble altura, en la losa del
+  // último piso, que es el piso de arriba)
+  const huecosDuplex=(B.duplex?.unidades||[]).flatMap(u=>[u.escalera,...(u.vacios||[])].map(r=>({x:r.x,z:r.y,w:r.w,h:r.h})));
   for(const [x,y] of cells){const cx=(x+.5)*S,cz=(y+.5)*S,fs4=S/4;
    for(let f=0;f<L.floors;f++){const hole=ST?.hole(f),C={x:x*S,z:y*S,w:S,h:S};
     // La losa de cada piso, menos el hueco de la escalera (en rectángulos: la pieza de piso del paquete se estira).
@@ -304,7 +305,12 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
     // (la caseta del ascensor —techos.js: sin pendiente en ese tramo—: muro derecho hasta la cubierta, y choca hasta ahí)
     else if(B.mansarda&&!pendienteEn(B.mansarda,mx,mz)){items.push({piece:fs.plain,x:mx,y:L.h,z:mz,ry,tint});wseg(m0,m1,L.h-.1,L.h+MANSARDA.alto);}
     else{const endS=k===0?-1:k===2?1:0,outer=endS&&lotAtCell(x+tx*endS,y+tz*endS)<0;// en la punta de una esquina, la pieza de esquina
-     if(!outer)items.push({piece:k===1&&hash(x*3+k,y*5+id,seed+97)<.75?'Roof_SlateCornice_Window_1':'Roof_SlateCornice_Center',x:mx,y:L.h,z:mz,ry,tint});
+     // (en un dúplex —engine/duplex.js— la buhardilla va donde el plano pone una —la ventana de un cuarto de arriba—, y nunca
+     // sobre el vacío de la sala a doble altura: desde abajo se veía por dentro, con su fondo flotando. Miguel: «elimina los
+     // polígonos que no aportan». Fuera de los dúplex, la de antes: el módulo del medio, a veces)
+     const ud=(B.duplex?.unidades||[]).find(u=>{const xs=u.rooms.flatMap(q=>[q.x,q.x+q.w]),zs=u.rooms.flatMap(q=>[q.y,q.y+q.h]);return mx>Math.min(...xs)-.05&&mx<Math.max(...xs)+.05&&mz>Math.min(...zs)-.05&&mz<Math.max(...zs)+.05;});
+     const buh=ud?ud.windows.some(w=>w.buhardilla&&Math.hypot((w.x0+w.x1)/2-mx,(w.y0+w.y1)/2-mz)<.6)&&!(ud.vacios||[]).some(v=>mx>v.x-.05&&mx<v.x+v.w+.05&&mz>v.y-.05&&mz<v.y+v.h+.05):k===1&&hash(x*3+k,y*5+id,seed+97)<.75;
+     if(!outer){const pz=buh?'Roof_SlateCornice_Window_1':'Roof_SlateCornice_Center';items.push({piece:pz,x:mx,y:L.h,z:mz,ry,tint});mansardaArmada.push({lote:id,x,y,dx,dy,k,tipo:buh?'buhardilla':'mansarda',pieza:pz,mx,mz});}// (anotada aparte de fachadaArmada —que es el plano de fachada—: validar-duplex-3d cruza cada buhardilla con las ventanas del plano)
      else{// La pieza de esquina ocupa el cuadro de 2 × 2 m del módulo de la punta y cae hacia su −x: en la punta izquierda
       // va tal cual; en la derecha, girada 90° sobre el centro del cuadro. Las dos fachadas de la esquina la piden: va una vez.
       const cxq=mx-dx,czq=mz-dy,key='m'+cxq.toFixed(2)+','+czq.toFixed(2);
@@ -483,7 +489,9 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
     cab={cx:mx+nx*(.1+prof/2),cz:mz+nz*(.1+prof/2),fx:-nx,fz:-nz,prof};}
    // Una lámpara de techo por cuarto.
    const lamp=['Light_Ceiling1','Light_Ceiling3'].filter(n=>furniture?.[n]);
-   if(lamp.length)for(const q of lv.rooms)if(q.w*q.h>=4)models.push({name:lamp[(q.id+id)%lamp.length],x:q.x+q.w/2,y:yb+2.78,z:q.y+q.h/2,ry:0,s:furniture[lamp[0]].scale||.52,f});
+   // (no en el último piso de un dúplex bajo su vacío a doble altura —engine/duplex.js—: ahí no hay techo de donde colgarla)
+   const enVacio=(x,z)=>f===L.floors-1&&(B.duplex?.unidades||[]).some(u=>(u.vacios||[]).some(v=>x>v.x&&x<v.x+v.w&&z>v.y&&z<v.y+v.h));
+   if(lamp.length)for(const q of lv.rooms)if(q.w*q.h>=4&&!enVacio(q.x+q.w/2,q.y+q.h/2))models.push({name:lamp[(q.id+id)%lamp.length],x:q.x+q.w/2,y:yb+2.78,z:q.y+q.h/2,ry:0,s:furniture[lamp[0]].scale||.52,f});
    // Los muebles.
    for(const it of lv.furniture){const cx=it.x+it.w/2,cz=it.y+it.h/2,turned=Math.abs(Math.sin(it.ry))>.5,wAlong=turned?it.h:it.w,dIn=turned?it.w:it.h;
     // La silla: de oficina junto a un escritorio; acolchada en comedores, cocinas y salas de reuniones; de madera en
@@ -593,9 +601,12 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
    // (2026-11-22: en la ciudad entregada vacía —bp.entrega— no hay alfombras, cuadros, relojes ni cortinas: sólo la obra)
    // (2026-11-22: en la ciudad entregada, toda ventana de una vivienda —sin dueño todavía— lleva su persiana cerrada:
    // engine/cortinas.js persianaCerrada, una caja; el interior no se ve ni se arma —engine/propiedad.js—)
-   if(bp.entrega)lv.windows.forEach((w,wi)=>{if(w.shop)return;const c=cuartoDeVentana(lv,w);if(!c||!esVivienda(B,c.q))return;
+   // (el dúplex, sin cortinas ni persianas —Miguel, 2026-11-22: «haz que el dúplex no tenga cortinas»—: su planta abierta
+   // y la doble altura se ven desde la calle)
+   const enDuplex=c=>f===L.floors-1&&B.duplex?.unidades.some(u=>u.n===c.q.unit);
+   if(bp.entrega)lv.windows.forEach((w,wi)=>{if(w.shop)return;const c=cuartoDeVentana(lv,w);if(!c||!esVivienda(B,c.q)||enDuplex(c))return;
     const cj=persianaCerrada(c,yb,FACE+.02).cajas;panios.push({key:id+':'+f+':'+wi,i0:cortinas.length,n:cj.length,cerrada:true,persiana:true});cortinas.push(...cj);});
-   else lv.windows.forEach((w,wi)=>{if(w.shop)return;const c=cuartoDeVentana(lv,w);if(!c||!CORTINA_CU.has(c.q.type))return;const tela=w.cortina||telaDe(id,f,wi);
+   else lv.windows.forEach((w,wi)=>{if(w.shop)return;const c=cuartoDeVentana(lv,w);if(!c||!CORTINA_CU.has(c.q.type)||enDuplex(c))return;const tela=w.cortina||telaDe(id,f,wi);
     const cj=panioCerrado(c,tela,yb,FACE+.02).cajas;panios.push({key:id+':'+f+':'+wi,i0:cortinas.length,n:cj.length,cerrada:!!w.cortina});cortinas.push(...cj);});
   });
   // ---------- La escalera: peldaños con huella y nariz, descanso, pared del medio, pasamanos y la baranda del último piso ----------
@@ -660,7 +671,7 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
   const val=new THREE.BoxGeometry(2,.24,.03);val.translate(0,fy-.1,fz);const geo=mergeGeometries([top,val]);top.dispose();val.dispose();
   // (LOWPOLY: la lona lisa, del color de su edificio —sin las rayas pintadas—)
   const mat=new THREE.MeshStandardMaterial(LOWPOLY.on?{roughness:.9,flatShading:true}:{map:tex,roughness:.9});own.push(geo,mat,tex);ctx.instanced(group,geo,mat,awnings);}
- return {fachadaArmada:armada,duplexes,escalerasAire,roofProps,items,leaves,doorFronts,plaques,lotFurniture,civics,civicFronts,stationInfo,stairs,stoops,balconies,cortinas,superficies,panios};
+ return {fachadaArmada:armada,mansardaArmada,duplexes,escalerasAire,roofProps,items,leaves,doorFronts,plaques,lotFurniture,civics,civicFronts,stationInfo,stairs,stoops,balconies,cortinas,superficies,panios};
 }
 
 // Las cabinas de los ascensores: paredes de metal, techo con luz y botonera, puertas corredizas (se abren cuando el

@@ -19,6 +19,8 @@ export function cerrarCortinas(bp){let unidades=0,cerradas=0,ventanas=0;
  for(const L of [...bp.lots,...(bp.isla?.lots||[]).filter(l=>l.levels)]){const tipo=bp.lots.includes(L)?L.type:'monte';
   for(const lv of L.levels||[]){const vistas=new Set();
    for(const w of lv.windows||[]){delete w.cortina;if(w.shop)continue;const c=cuartoDeVentana(lv,w);if(!c||!CUARTOS.has(c.q.type))continue;
+    // (el dúplex —engine/duplex.js—, sin cortinas: Miguel, 2026-11-22, «haz que el dúplex no tenga cortinas»)
+    if(L.duplex&&lv===L.levels[L.floors-1]&&L.duplex.unidades.some(x=>x.n===c.q.unit))continue;
     const u=c.q.unit??'c'+c.q.id,k=[bp.seed,L.id,lv.level,u];if(!vistas.has(u)){vistas.add(u);unidades++;if(pideCerrar(tipo,...k))cerradas++;}
     if(pideCerrar(tipo,...k)){w.cortina=telaDe(...k);ventanas++;}}}}
  for(const h of bp.isla?.casas||[]){delete h.cortinas;const P=h.spec?.hogar;if(!P)continue;unidades++;const k=[bp.seed,'casa',h.x.toFixed(1),h.z.toFixed(1)];if(!pideCerrar('casa',...k))continue;cerradas++;

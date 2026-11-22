@@ -43,7 +43,7 @@ export function propiedadesDe(bp){const {W,H}=bp.map,cx=W*CELL/2,cz=H*CELL/2,dma
    const porUnidad=new Map();for(const q of lv.rooms)if(q.unit!=null)(porUnidad.get(q.unit)||porUnidad.set(q.unit,[]).get(q.unit)).push(q);
    // (el dúplex: el departamento del último piso con su mansarda; suma los cuartos y el área de arriba)
    for(const [n,qs] of [...porUnidad].sort((a,b)=>a[0]-b[0])){const dx=piso===L.floors-1?L.duplex?.unidades.find(u=>u.n===n):null;
-    pon({id:`L${L.id}-${n}`,clase:'departamento',piso,unidad:n,area:r2(area(qs)+(dx?.area||0)),cuartos:qs.length+(dx?dx.rooms.length:0),dormitorios:qs.filter(q=>q.type==='dormitorio').length,nombre:dx?`Dúplex ${n}`:`Apto ${n}`,...(dx?{duplex:true,niveles:2,areaArriba:dx.area}:{})});}
+    pon({id:`L${L.id}-${n}`,clase:'departamento',piso,unidad:n,area:r2(area(qs)+(dx?.area||0)),cuartos:qs.length+(dx?dx.rooms.length:0),dormitorios:qs.filter(q=>q.type==='dormitorio').length+(dx?dx.rooms.filter(q=>q.type==='dormitorio').length:0),nombre:dx?`Dúplex ${n}`:`Apto ${n}`,...(dx?{duplex:true,niveles:2,areaArriba:dx.area}:{})});}
    // los locales: cada cuarto de comercio, numerados de izquierda a derecha y de arriba abajo
    lv.rooms.filter(q=>q.type==='local'&&q.unit==null).sort((a,b)=>a.y-b.y||a.x-b.x).forEach((q,i)=>pon({id:`L${L.id}-P${piso}-LOC${i+1}`,clase:'local',piso,unidad:i+1,area:area([q]),cuartos:1,nombre:`Local ${i+1}`}));});}
  (bp.isla?.casas||[]).forEach((c,i)=>{const HG=c.spec?.hogar;if(!HG)return;const p={id:`M${i}`,clase:'casa_monte',piso:0,unidad:null,area:r2(HG.area),cuartos:HG.levels.reduce((a,lv)=>a+lv.rooms.length,0),nombre:HG.label||'Casa',lote:null,edificio:null,direccion:c.direccion?.texto||null,centro:0,parque:false,casa:i};

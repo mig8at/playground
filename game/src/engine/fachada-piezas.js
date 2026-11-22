@@ -27,7 +27,7 @@ export const VENTANAL='ventanal';// (la pieza propia del ventanal de vivienda: e
 
 const celdas=new WeakMap();
 // De qué edificio es cada casilla del mapa (−1: de ninguno).
-function loteEn(bp){let M=celdas.get(bp);if(!M){const W=bp.map.W,H=bp.map.H,o=new Int32Array(W*H).fill(-1);for(const L of bp.lots)for(const p of L.parts||[])for(let y=p.y/CELL;y<(p.y+p.h)/CELL;y++)for(let x=p.x/CELL;x<(p.x+p.w)/CELL;x++)o[y*W+x]=L.id;M={o,W,H};celdas.set(bp,M);}
+export function loteEn(bp){let M=celdas.get(bp);if(!M){const W=bp.map.W,H=bp.map.H,o=new Int32Array(W*H).fill(-1);for(const L of bp.lots)for(const p of L.parts||[])for(let y=p.y/CELL;y<(p.y+p.h)/CELL;y++)for(let x=p.x/CELL;x<(p.x+p.w)/CELL;x++)o[y*W+x]=L.id;M={o,W,H};celdas.set(bp,M);}
  return (x,y)=>x>=0&&y>=0&&x<M.W&&y<M.H?M.o[y*M.W+x]:-1;}
 const porLinea=list=>{const m=new Map();for(const s of list){const k=Math.abs(s.y0-s.y1)<1e-6?'h:'+s.y0.toFixed(2):'v:'+s.x0.toFixed(2);(m.get(k)||m.set(k,[]).get(k)).push(s);}return m;};
 const aLoLargo=(s,h)=>h?[Math.min(s.x0,s.x1),Math.max(s.x0,s.x1)]:[Math.min(s.y0,s.y1),Math.max(s.y0,s.y1)];

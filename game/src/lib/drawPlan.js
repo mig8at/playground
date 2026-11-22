@@ -14,7 +14,7 @@ const TEX_2D={ladrillo:'ladrillo',ladrillo_pintado:'ladrillo',sillar:'sillar',es
 const K=City.K;
 const css=name=>getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
-export const ROOM_LABEL={altillo:'Altillo',vestidor:'Vestidor',sala:'Sala',dormitorio:'Dormitorio',cocina:'Cocina',bano:'Baño',oficina:'Oficina',abierta:'Oficina abierta',reuniones:'Reuniones',
+export const ROOM_LABEL={entrepiso:'Entrepiso',sala:'Sala',dormitorio:'Dormitorio',cocina:'Cocina',bano:'Baño',oficina:'Oficina',abierta:'Oficina abierta',reuniones:'Reuniones',
  cocineta:'Cocineta',habitacion:'Habitación',habitacion_h:'Habitación',enfermeria:'Enfermería',aula:'Aula',sala_prof:'Profesores',lectura:'Lectura',
  archivo:'Archivo',celda:'Celda',boveda:'Bóveda',local:'Local',recepcion:'Recepción',urgencias:'Urgencias',consultorio:'Consultorio',vestibulo:'Vestíbulo',
  garaje:'Garaje',deposito:'Depósito',sala_cocina:'Sala y cocineta',estudio:'Estudio',dormitorio_b:'Dormitorio',hall:'Hall',ropas:'Zona de ropas',
@@ -27,7 +27,7 @@ export const ROOM_LABEL={altillo:'Altillo',vestidor:'Vestidor',sala:'Sala',dormi
 // podés usar colores para identificar áreas —comercial, habitación, baño, sala, cocina—; donde no los quiero es en el 3D».
 export const TECNICO={cuarto:'#ffffff',paso:'#f1f1ef',nucleo:'#dcdcd8',muro:'#1f2224',fuera:'#d0412f',cota:'#4a4f55'};
 const entero=v=>Math.abs(v-Math.round(v))<1e-6,mm=v=>(Math.round(v*100)/100).toLocaleString('es-CO');
-const ROOM_COLOR={altillo:'#e9dcef',vestidor:'#e6e0d4',hall:'#efe9df',ropas:'#e2eef0',sala:'#f3e6cf',dormitorio:'#e8e0f0',cocina:'#f6eccd',bano:'#d9ecf2',oficina:'#dfe9f2',abierta:'#e3edf5',reuniones:'#e9e4f2',cocineta:'#f6eccd',
+const ROOM_COLOR={entrepiso:'#ece4f1',hall:'#efe9df',ropas:'#e2eef0',sala:'#f3e6cf',dormitorio:'#e8e0f0',cocina:'#f6eccd',bano:'#d9ecf2',oficina:'#dfe9f2',abierta:'#e3edf5',reuniones:'#e9e4f2',cocineta:'#f6eccd',
  habitacion:'#ede3ef',habitacion_h:'#f7e4e4',enfermeria:'#f7e9e9',aula:'#f1edcf',sala_prof:'#ece7d2',lectura:'#ece4d4',archivo:'#e4ddcf',celda:'#d6dde6',
  boveda:'#f2e3a6',local:'#f6ddd0',recepcion:'#e2ecf3',urgencias:'#f8dcdc',consultorio:'#f5e6e6',vestibulo:'#efede6',garaje:'#e2e2e2',deposito:'#e6dfd2',sala_cocina:'#f3e6cf',estudio:'#efe2d6',dormitorio_b:'#e8e0f0',
  entrada:'#efe9df',secretaria:'#e2ecf3',comedor:'#f4e7cc',sanitario:'#d9ecf2',interrogatorio:'#d9dbe2',prestamo:'#ece4d4',estanteria:'#e6dcc6',infantil:'#f6e6ee'};
@@ -152,15 +152,17 @@ function drawLevel(g,lv,{m,stage,small=false,ox=0,oy=0,labels=false}){
  // Cada departamento, con su contorno más grueso (la pared que lo separa del vecino y del pasillo).
  if(lv.units?.length){g.strokeStyle='#1f2224';g.lineWidth=small?1.3:4;for(const u of lv.units)R(u,(a,b,w,h)=>g.strokeRect(a,b,w,h));}
  // LA ESCALERA DEL DÚPLEX (2026-11-22, engine/duplex.js): abajo, en la sala, la recta con sus peldaños y una flecha que
- // sube —o el caracol, un círculo con sus peldaños en abanico—; arriba, el hueco por donde llega, rayado.
+ // sube; arriba, el hueco por donde llega, rayado, con su baranda (una raya doble, oscura).
  for(const e of [...(lv.escalerasInternas||[]),...(lv.huecos||[])]){const arriba=!!lv.mansarda;g.save();g.fillStyle=arriba?'rgba(60,64,70,.18)':'#f1ede4';R(e,(a,b,w,h)=>g.fillRect(a,b,w,h));g.strokeStyle='#3a3d40';g.lineWidth=small?.6:1.2;R(e,(a,b,w,h)=>g.strokeRect(a,b,w,h));
-  if(e.tipo==='caracol'){const cx=X(e.x+e.w/2),cy=Y(e.y+e.h/2),rr=Math.min(e.w,e.h)*m/2-2;g.beginPath();g.arc(cx,cy,rr,0,7);g.stroke();g.beginPath();g.arc(cx,cy,rr*.18,0,7);g.stroke();
-   for(let k=0;k<e.peldanos;k++){const t=k/e.peldanos*Math.PI*1.75;g.beginPath();g.moveTo(cx+Math.cos(t)*rr*.18,cy+Math.sin(t)*rr*.18);g.lineTo(cx+Math.cos(t)*rr,cy+Math.sin(t)*rr);g.stroke();}}
-  else{const n=e.peldanos||15,h=e.eje==='x';g.beginPath();for(let k=1;k<n;k++){const t=k/n;if(h){g.moveTo(X(e.x+e.w*t),Y(e.y));g.lineTo(X(e.x+e.w*t),Y(e.y+e.h));}else{g.moveTo(X(e.x),Y(e.y+e.h*t));g.lineTo(X(e.x+e.w),Y(e.y+e.h*t));}}g.stroke();
+  {const n=e.peldanos||15,h=e.eje==='x';g.beginPath();for(let k=1;k<n;k++){const t=k/n;if(h){g.moveTo(X(e.x+e.w*t),Y(e.y));g.lineTo(X(e.x+e.w*t),Y(e.y+e.h));}else{g.moveTo(X(e.x),Y(e.y+e.h*t));g.lineTo(X(e.x+e.w),Y(e.y+e.h*t));}}g.stroke();
    if(!small&&e.pie&&e.llegada){g.strokeStyle=arriba?'#5d5a54':'#c0392b';g.lineWidth=1.6;g.beginPath();g.moveTo(X(e.pie[0]),Y(e.pie[1]));g.lineTo(X(e.llegada[0]),Y(e.llegada[1]));g.stroke();
     const ang=Math.atan2(Y(e.llegada[1])-Y(e.pie[1]),X(e.llegada[0])-X(e.pie[0])),hx=X(e.llegada[0]),hy=Y(e.llegada[1]);g.beginPath();g.moveTo(hx,hy);g.lineTo(hx-8*Math.cos(ang-.5),hy-8*Math.sin(ang-.5));g.moveTo(hx,hy);g.lineTo(hx-8*Math.cos(ang+.5),hy-8*Math.sin(ang+.5));g.stroke();}}
   if(arriba){g.save();g.beginPath();R(e,(a,b,w,h)=>g.rect(a,b,w,h));g.clip();g.strokeStyle='rgba(60,64,70,.35)';g.lineWidth=1;g.beginPath();for(let d=-e.h*m;d<e.w*m;d+=6){g.moveTo(X(e.x)+d,Y(e.y));g.lineTo(X(e.x)+d+e.h*m,Y(e.y+e.h));}g.stroke();g.restore();}
   g.restore();}
+ // (la sala a doble altura, arriba: su vacío, rayado más suave, con su nombre)
+ for(const v of lv.vacios||[]){g.save();g.fillStyle='rgba(120,150,180,.16)';R(v,(a,b,w,h)=>g.fillRect(a,b,w,h));g.beginPath();R(v,(a,b,w,h)=>g.rect(a,b,w,h));g.clip();g.strokeStyle='rgba(90,120,150,.3)';g.lineWidth=1;g.beginPath();for(let d=-v.h*m;d<v.w*m;d+=10){g.moveTo(X(v.x)+d+v.h*m,Y(v.y));g.lineTo(X(v.x)+d,Y(v.y+v.h));}g.stroke();g.restore();
+  if(!small){g.fillStyle='#4a5a6a';g.font='600 11px system-ui,sans-serif';g.textAlign='center';g.fillText('Doble altura',X(v.x+v.w/2),Y(v.y+v.h/2));}}
+ for(const b of lv.barandas||[]){g.strokeStyle='#2a2d30';g.lineWidth=small?1:3;g.beginPath();g.moveTo(X(b.x0),Y(b.y0));g.lineTo(X(b.x1),Y(b.y1));g.stroke();g.strokeStyle='#f4f2ec';g.lineWidth=small?.3:1;g.stroke();}
  // Puertas y ventanas (7): la puerta corta la pared; la ventana es una doble raya celeste.
  if(stage>=7){for(const d of lv.doors){g.strokeStyle=d.street?'#f4f2ec':'#f4f2ec';g.lineWidth=small?1.4:4;g.beginPath();g.moveTo(X(d.x0),Y(d.y0));g.lineTo(X(d.x1),Y(d.y1));g.stroke();
     // La hoja: gira desde una jamba hacia adentro del cuarto (un cuarto de círculo).

@@ -53,7 +53,8 @@ for(let s=S0;s<S0+N;s++){const t0=Date.now(),bp=bpActual=generateBlueprint({seed
   for(const lv of L.levels.slice(0,L.floors)){
    for(const f of lv.furniture){muebles++;if(!lv.rooms.some(q=>dentroDe(f,q))&&!lv.corridor.some(q=>dentroDe(f,q)))anota('plano','un mueble se sale de su cuarto',en(L,lv,`${f.kind} en ${f.x.toFixed(2)},${f.y.toFixed(2)}`));}
    for(const q of lv.rooms){cuartos++;const fs=lv.furniture.filter(f=>dentroDe(f,q));
-    if(!fs.length&&!VACIOS_OK.has(q.type))anota('plano','un cuarto sin ningún mueble',en(L,lv,`${q.type} de ${q.w}×${q.h} m`));
+    // (la planta abierta de un dúplex —engine/duplex.js—: lo que era un dormitorio queda libre; sus muebles, cuando vuelvan los muebles)
+    if(!fs.length&&!VACIOS_OK.has(q.type)&&!q.abierto)anota('plano','un cuarto sin ningún mueble',en(L,lv,`${q.type} de ${q.w}×${q.h} m`));
     // (una silla metida hasta 25 cm bajo su mesa no es pisarse: está arrimada)
     for(let i=0;i<fs.length;i++)for(let j=i+1;j<fs.length;j++){const a=fs[i],b=fs[j],ox=Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x),oy=Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y);if(ox<=.05||oy<=.05)continue;
      const ks=[a.kind,b.kind],arrimada=ks.includes('silla')&&ks.some(k=>/^(mesa|escritorio|pupitre)/.test(k))&&Math.min(ox,oy)<=.25;if(!arrimada)anota('plano','dos muebles se pisan',en(L,lv,`${a.kind} y ${b.kind} en un ${q.type} (${ox.toFixed(2)} × ${oy.toFixed(2)} m)`));}
@@ -135,7 +136,8 @@ for(let s=S0;s<S0+N;s++){const t0=Date.now(),bp=bpActual=generateBlueprint({seed
   // repiten: un piso distinto del primero se ve desde afuera—; los baños apilados, uno encima del otro —las tuberías—; y los
   // balcones en columna.
   if(['vivienda','oficinas','hotel','comercio','hospital'].includes(L.type)&&L.floors>=3){const firma=lv=>lv.rooms.map(q=>[q.type,q.x,q.y,q.w,q.h].join(',')).sort().join('|'),f1=firma(L.levels[1]);
-   for(let f=2;f<L.floors;f++)if(firma(L.levels[f])!==f1)anota('coherencia','altura · un piso de arriba distinto del primero',`ciudad ${s} lote ${L.id} (${L.type}) piso ${f}`);
+   // (el último piso de un dúplex es otro producto —planta abierta, dormitorios arriba—; desde afuera, las mismas ventanas)
+   for(let f=2;f<L.floors;f++)if(!(L.duplex&&f===L.floors-1)&&firma(L.levels[f])!==f1)anota('coherencia','altura · un piso de arriba distinto del primero',`ciudad ${s} lote ${L.id} (${L.type}) piso ${f}`);
    for(let f=2;f<L.floors;f++)for(const q of L.levels[f].rooms.filter(q=>BANOS_A.has(q.type)))if(!L.levels[f-1].rooms.some(o=>BANOS_A.has(o.type)&&pisa(q,o,.3)))anota('coherencia','altura · un baño que no está encima de otro',`ciudad ${s} lote ${L.id} (${L.type}) piso ${f}: ${q.w}×${q.h} m`);}
   {const B=new Set((L.modulos||[]).filter(m=>m.tipo==='balcon').map(m=>`${m.x},${m.y},${m.dx},${m.dy},${m.k},${m.f}`));
    for(const m of (L.modulos||[]).filter(m=>m.tipo==='balcon'&&m.f>2))if(!B.has(`${m.x},${m.y},${m.dx},${m.dy},${m.k},${m.f-1}`))anota('coherencia','altura · un balcón sin el de abajo',`ciudad ${s} lote ${L.id} (${L.type}) piso ${m.f}`);}
