@@ -513,13 +513,21 @@ function layoutFloor(L,F,level,r,opt={}){
   if(homes){units.push({u0:0,u1:cu,v0:0,v1:Lv,n:1});
    if(cu>=7){const dw=Math.min(4,cu-4),sala={type:'sala_cocina',u0:dw,u1:cu,v0:0,v1:Lv,band:'front',unit:1};
     rooms.push({type:'dormitorio',u0:0,u1:dw,v0:0,v1:Lv-2,band:'front',unit:1,doorTo:sala},{type:'bano',u0:0,u1:dw,v0:Lv-2,v1:Lv,band:'front',unit:1,doorTo:sala},sala);}
-   else{const est={type:'estudio',u0:2,u1:cu,v0:0,v1:Lv,band:'front',unit:1};rooms.push({type:'bano',u0:0,u1:2,v0:0,v1:Lv,band:'front',unit:1,doorTo:est},est);}}
+   // (2026-11-21: como en el estudio de un departamento —banoEstudio—: el baño no va de punta a punta. En la casa de una
+   // sola celda quedaba de 2 × 6 m, 12 m²: 15 casas de la ciudad de 720 m, ninguna en las chicas. Con fondo para las dos
+   // cosas, baño de 3 m al fondo y la zona de ropas del lado del frente)
+   else{const est={type:'estudio',u0:2,u1:cu,v0:0,v1:Lv,band:'front',unit:1};
+    if(Lv>=5)rooms.push({type:'ropas',u0:0,u1:2,v0:0,v1:Lv-3,band:'front',unit:1,doorTo:est},{type:'bano',u0:0,u1:2,v0:Lv-3,v1:Lv,band:'front',unit:1,doorTo:est},est);
+    else rooms.push({type:'bano',u0:0,u1:2,v0:0,v1:Lv,band:'front',unit:1,doorTo:est},est);}}
   // Hotel u hospital: un pasillo de 2 m a lo largo del frente (sigue en el descanso del núcleo) y detrás, una tras otra,
   // la habitación de 4 m con su baño de 2 m al costado, cada una con su puerta al pasillo (2026-10-12: antes iban en
   // fila sin pasillo, habitación | baño | habitación…, y el baño de en medio dejaba las habitaciones sin salida).
   else if(suite){corr.push({u0:0,v0:0,u1:cu,v1:2,hall:true});let u=0;while(cu-u>0){let W=6;if(cu-u-W<5)W=cu-u;if(W>=10)W=Math.ceil(W/2);const u0=u,u1=u+W;u=u1;
     if(W<5){rooms.push({type:'deposito',u0,u1,v0:2,v1:Lv,band:'back',hall:true});continue;}
     const SB=SUITE.banoCostado,room={type:suite,u0,u1:u1-SB,v0:2,v1:Lv,band:'back',hall:true};rooms.push(room,{type:'bano',u0:u1-SB,u1,v0:2,v1:Lv,band:'back',doorTo:room});}}
+  // (la casa de una fila: lo mismo —el baño de 3 m al fondo y la zona de ropas al frente, los dos abiertos al monoambiente—)
+  else if(casa1&&Lv>=5){let est=null;for(const q of fill(0,cu,prog.front,r,0,Lv)){if(q.type==='bano'&&est&&q.u1-q.u0<=2.5)rooms.push({...q,type:'ropas',v0:0,v1:Lv-3,band:'front',doorTo:est},{...q,v0:Lv-3,v1:Lv,band:'front',doorTo:est});
+    else{const o={...q,v0:0,v1:Lv,band:'front',chain:est?1:0};if(!est&&q.type==='estudio')est=o;rooms.push(o);}}}
   else fill(0,cu,prog.front,r,0,Lv).forEach((q,i)=>rooms.push({...q,v0:0,v1:Lv,band:'front',chain:i}));
  }else{// pasillo de 2 m a lo largo del frente
   const c0=corridorAt(Lv),P=pasilloDe(Lv);corr.push({u0:0,v0:c0,u1:Lu,v1:c0+P});
