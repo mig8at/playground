@@ -1,7 +1,7 @@
 /* LOS DÚPLEX EN 3D (2026-11-22, Miguel: «sigue con el 3D del dúplex»; el plano lo arma engine/duplex.js). Para cada dúplex
    de un edificio:
-   · la escalera privada entre el último piso y la mansarda: recta, de 15 peldaños de 20 cm o 12 de 25 cm, maciza de
-     costado (como la de la foto de Miguel) y sin pasamanos. El caracol se quitó el mismo día: Miguel, «las escaleras en
+   · la escalera privada entre el último piso y la mansarda: recta, de 15 peldaños de 20 cm o 12 de 25 cm, de escalones
+     flotantes empotrados en su muro y sin pasamanos. El caracol se quitó el mismo día: Miguel, «las escaleras en
      caracol son difíciles de subir»;
    · arriba, un entrepiso abierto (sin cuartos desde el mismo día); el cierre con lo que no es del departamento
      —el vecino, el pasillo— de piso a cubierta; contra la pendiente, ningún muro —la pared es la mansarda con sus
@@ -15,7 +15,7 @@
 import {MANSARDA} from '../engine/medidas.js';
 import {pendienteEn,alturaMansarda} from '../engine/techos.js';
 
-export const DUPLEX3D={enrase:.6,muro:.1,canto:.25,baranda:{alto:.95,barrote:.04,poste:1,pasamanos:.05,riel:.03}};
+export const DUPLEX3D={enrase:.6,muro:.1,canto:.25,flotante:{grueso:.07,luz:.02},baranda:{alto:.95,barrote:.04,poste:1,pasamanos:.05,riel:.03}};
 
 export function duplexDeLote(B,L,{box,wallAny,color='#ece6da',FLOOR=3}){
  if(!B?.duplex)return null;const H=MANSARDA.alto,y0=L.h,yb=(L.floors-1)*FLOOR,T=DUPLEX3D.muro,esc=[],dentro=[],cajasBaranda=[],vacios=B.duplex.unidades.flatMap(u=>u.vacios||[]);
@@ -41,8 +41,12 @@ export function duplexDeLote(B,L,{box,wallAny,color='#ece6da',FLOOR=3}){
     muro(h,fija,a0,a1,y0,y0+H,vanos.map(([p,q])=>[p,q]),color);if(vanos.length)for(const [p,q] of vanos){const m=(p+q)/2;if(h)box(m,y0+2.1,fija,q-p,H-2.1,T,color,L.floors);else box(fija,y0+2.1,m,T,H-2.1,q-p,color,L.floors);}}}
   // LA ESCALERA, de yb (el piso de abajo) a y0 (la mansarda): cada peldaño, macizo hasta el piso
   const E=u.escalera,n=E.peldanos||15,rise=(y0-yb)/n,cs=[],ax=E.eje==='x',sg=ax?Math.sign(E.llegada[0]-E.pie[0])||1:Math.sign(E.llegada[1]-E.pie[1])||1,l=ax?E.w:E.h,tread=l/n,o0=ax?(sg>0?E.x:E.x+E.w):(sg>0?E.y:E.y+E.h),cm=ax?E.y+E.h/2:E.x+E.w/2,ancho=ax?E.h:E.w;
-  for(let k=0;k<n;k++){const t=o0+sg*tread*(k+.5),top=yb+rise*(k+1);
-   cs.push(ax?{x:t,y:yb,z:cm,sx:tread+.005,sy:top-yb,sz:ancho-.02,color:'#cfc7b8',f:L.floors-1}:{x:cm,y:yb,z:t,sx:ancho-.02,sy:top-yb,sz:tread+.005,color:'#cfc7b8',f:L.floors-1});}
+  // (escalones flotantes —Miguel, 2026-11-22: «las escaleras esas que son tipo escalones flotantes»—: cada peldaño, una tabla
+  // de DUPLEX3D.flotante.grueso empotrada en el muro, con DUPLEX3D.flotante.luz entre uno y otro y nada debajo. La pisada,
+  // la misma: surface)
+  const FL=DUPLEX3D.flotante;
+  for(let k=0;k<n;k++){const t=o0+sg*tread*(k+.5),top=yb+rise*(k+1),hd=tread-FL.luz;
+   cs.push(ax?{x:t,y:top-FL.grueso,z:cm,sx:hd,sy:FL.grueso,sz:ancho-.02,color:'#cfc7b8',f:L.floors-1}:{x:cm,y:top-FL.grueso,z:t,sx:ancho-.02,sy:FL.grueso,sz:hd,color:'#cfc7b8',f:L.floors-1});}
   esc.push({ax,sg,o0,tread,n,rise,yb,rect:E});
   // LA BARANDA (el motor dice dónde: u.barandas): un poste cada DUPLEX3D.baranda.poste, el pasamanos y un riel al medio
   // —Miguel: «elimina los polígonos que no aportan»: antes, un barrote cada 12 cm—; choca hasta su alto. Se corta donde la
