@@ -75,7 +75,6 @@ const NIVELES=[
   {n:'suelo',f:'validar-suelo.mjs',a:[2,S0],fallas:F,res:/^suelo/,node:grande},
   {n:'pisos',f:'validar-pisos.mjs',a:[RAP?1:2,S0],fallas:F,res:/^pisos/,node:grande}]},
  {n:8,t:'Visibilidad',d:'qué se ve desde adentro y qué se aclara',p:[
-  {n:'visibilidad',f:'validar-visibilidad.mjs',a:[2,S0],fallas:F,res:/^visibilidad/},
   {n:'visibles',f:'validar-visibles.mjs',a:[2,S0,800],fallas:F,res:/^visibles/,lento:true}]},
  {n:9,t:'Juego',d:'recorridos, distancias, reparto entre equipos, un solo cuerpo, las guaridas, las viviendas, el motor del modo «Botín», el allanamiento, la sociedad (familias, trabajos y horarios) y la rutina (agenda, necesidades, buses y eventos)',p:[
   {n:'juego',f:'validar-juego.mjs',a:[N,S0],fallas:F,res:/^a pie:/,node:grande},

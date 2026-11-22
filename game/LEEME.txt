@@ -96,9 +96,10 @@ EL JUEGO
              entrada (vidrio, Bungee y Rubik); el día, el atardecer y la noche se mezclan de a poco (PAL y pasoLuz en
              DemoView.vue: sol bajo y naranja de 16:30 a 19 y de 6 a 7:30) y el cielo tiene nubes que se corren.
              El movimiento (2026-11-19): el jugador arranca y frena con inercia (INERCIA en DemoView.vue), el paso del
-             muñeco sigue a la velocidad real, el campo de visión se abre al correr y, al cambiar de vista (T, o al
-             entrar a un edificio), la cámara recorre la distancia en vez de saltar.
-             ?lab=1 muestra los botones de prueba (tamaño, papel, otra ciudad, vista, la cámara libre —V—, día/noche).
+             muñeco sigue a la velocidad real y el campo de visión se abre al correr.
+             La vista (2026-11-22, Miguel): SÓLO PRIMERA PERSONA. Se quitaron la vista de atrás, la de arriba con el
+             edificio cortado por pisos y el aclarado de paredes, con sus teclas (T, F, la rueda). Queda el dron (V).
+             ?lab=1 muestra los botones de prueba (tamaño, papel, otra ciudad, la cámara libre —V—, día/noche).
 
 EL MÉTODO: TODO SE PRUEBA EN EL 2D
   node harness/pruebas/probar.mjs              el probador por niveles (0 medidas … 10 pantalla); --nivel=3-5, --seguir

@@ -36,15 +36,12 @@ import {buildWorld,CELL,EYE,FLOOR,WORLD_TIMES} from '../lib/world3d.js';
 import {createIndoor} from '../lib/indoor3d.js';
 import {createBarrios} from '../lib/barrios3d.js';
 import {createCasas} from '../lib/casas3d.js';
-import {createCut} from '../lib/cutaway3d.js';
 import {drawWorldStage} from '../lib/drawPlan.js';
 import {CIRCULACION,ATERRIZAJE,ALCANCE,VIDA} from '../engine/medidas.js';
 import {danoDeCaida} from '../engine/juego/huida.js';
 import {ubicacionDe} from '../engine/direcciones.js';
 import {crearNiebla} from '../lib/niebla3d.js';
-import {paredesAClarar,VISIBILIDAD} from '../engine/visibilidad.js';
 import {visiblesDesde} from '../engine/visibles.js';
-import {createAclarado} from '../lib/aclarado3d.js';
 import {createAcciones} from '../lib/acciones3d.js';
 import {placeParts,partsMesh,OBJETOS} from '../lib/objetos3d.js';
 import {createSociedad3d} from '../lib/sociedad3d.js';
@@ -127,24 +124,13 @@ const accionTexto=ref(''),accionAlterna=ref(''),aiming=ref(false),hitMark=ref(0)
 // Modo dron: la cámara vuela libre (sin choques) y el jugador se queda donde estaba, marcado desde arriba.
 const DRONE_SPEED=22,DRONE_FAST=60,DRONE_MIN=-320,DRONE_MAX=260;
 const dronePos={x:0,y:0,z:0};let marker;
-// Tercera persona (2026-10-14, T alterna): el jugador es un muñeco del vestier (una plantilla de la gente) y la cámara va
-// detrás, a CAM_DIST, mirando hacia donde apunta el mouse. Si una pared queda entre la cámara y el muñeco, la cámara se
-// acerca; bajo techo no sube más que CAM_ROOF sobre los pies.
-// Dos vistas, como un shooter (Miguel, 2026-10-15): detrás del muñeco (Fortnite, la de por defecto) y primera persona
-// (Call of Duty). La vista desde arriba con los edificios cortados (cutaway3d.js) se retiró: daba muchas complicaciones
-// —muebles flotando, medianeras, el techo—; su código sigue en thirdPerson pero no se entra (VIEWS no la tiene) y el
-// corte no se crea. T y F alternan detrás ⇄ primera.
-// (2026-10-18, Miguel: «que por defecto sea la vista cenital que tenemos»: 'arriba' de entrada; T la cambia por la de
-// detrás y F por la primera persona)
-const VIEWS=['arriba','tercera','primera'],view=ref(VIEWS.includes(route.query.vista)?route.query.vista:'arriba'),third={get value(){return view.value!=='primera';}};
-const ARRIBA_ADENTRO=true;let enArriba=false,cambioT=9;
-const TOP_DIST=8,TOP_PITCH=-.95,CUT_H=2.55,STUB=.8,CUT_T=.3;let aclarado=null,aclPrev=null,acciones=null,accionCerca=null,accionReloj=0,cut=null,cutA=0,lastBox=null,lastShared=null,lastFeet=0,topTurn=null,topZoom=8,topZoomAfuera=15,zoomAdentro=false,topDist=8;
-// ORIENTAR (2026-10-16, Miguel: «girar la cámara mientras camino se siente incómodo»): 'camara' —el cuerpo mira hacia la
-// cámara y se desplaza de costado, como en Fortnite— o 'movimiento' —el cuerpo gira hacia donde camina: con A/D y la cámara
-// girando, daba vueltas alrededor de ella—.
-// (2026-10-18, Miguel: «que donde mueva las direcciones gire el muñeco, no que se vaya de espaldas»: 'movimiento')
-const ORIENTAR='movimiento';
-const CAM_NEAR_CERCA=.05,CAM_DIST=4,CAM_HEAD=1.75,CAM_LIFT=.55,CAM_ROOF=2.3,CAM_CAMBIO=.5,CAM_ALARGA=3,CAM_ACORTA=8,CAM_SOSTEN=.25;let camWay=0,camWayT=0,camDistS=CAM_DIST,camHeadY=null,camPosY=null;let avatar=null,avatarYaw=0;
+// SÓLO PRIMERA PERSONA (2026-11-22, Miguel: «para este estilo de juego es mejor primera persona: quita lo de la cámara y lo
+// que corta el edificio en capas»). Se quitaron la vista de atrás del muñeco, la de arriba con el edificio cortado por
+// pisos (cutaway3d.js), el aclarado de paredes y sus teclas (T, F, la rueda). El dron —V, volar— sigue: es la misma
+// primera persona en el aire. (Las vistas estuvieron del 2026-10-14 al 2026-11-22; su código, en la historia de git.)
+const view=ref('primera'),third={value:false};
+let acciones=null,accionCerca=null,accionReloj=0;
+let avatar=null,avatarYaw=0;
 // Ascensor: el aviso mientras se está en una cabina, y el fundido a negro al cambiar de piso.
 const lift=ref(null),fading=ref(false);let lifting=false;
 function ride(d){const at=world.elevatorAt(player.x,player.z,player.feet);if(!at||lifting)return;const to=at.floor+d;if(to<0||to>=at.floors)return;
@@ -297,7 +283,6 @@ function load(ready=null){
  scene.add(world.group);
  makeAvatar();lap('muñeco');muñecoDelPerfil();
  patrullas=PASEO?null:createPatrullas({scene:world.group,plan,models:carModels,equipo:team.value,suelo:(x,z,y)=>groundHere(x,z,y??0),bloquea:bloqueaAuto,gente:()=>[...(soc?.personas()||[]),...patrol.positions(),...folk.positions(),...(persec?.P?.agentes.filter(a=>!a.humano&&a.estado==='libre')||[])]});lap('patrullas');
- if(cut){patchCut();for(const t of [...characters,...policeTemplates])cut.patchTree(t.scene);lap('corte');}
  // (las paredes que se aclaran: los edificios y las casas, no la gente ni los autos)
  // (la casa del 3D y la del plano: el 3D sólo arma las que tienen plano de casa; la ronda cuenta en las del plano)
  const conPlano=(plan.isla?.casas||[]).map((c,i)=>c.spec?i:-1).filter(i=>i>=0);
@@ -306,9 +291,6 @@ function load(ready=null){
  // de adentro sin armar)
  if(PASEO&&!PRUEBA){const R=cerradurasDe(plan);trancar(R,conPlano);world.setCerrados?.(adentroCerrado(plan,R));}
  ronda=null;rondaVista.value=null;if(!PRUEBA&&!PASEO)setTimeout(()=>POLICIA?armarPolicia(conPlano):armarRonda(conPlano),400);// (después de mostrar el mundo: elegir las guaridas toma unos segundos)
- // (2026-10-18, Miguel: «quita el efecto que oculta paredes»: sin aclarado —createAclarado({max:VISIBILIDAD.maximo}) lo
- // volvía a poner— ni muñón de las paredes del lado de la cámara en la vista de arriba)
- aclarado=null;aclPrev=null;
  // (compilar los shaders ya, en paralelo, en vez de a la primera vez que cada cosa aparece en cámara: eso eran los tirones
  // al girar o al entrar a un edificio)
  renderer.compileAsync?.(scene,camera).catch(()=>{}).then(()=>setTimeout(()=>shooting?.warm().catch(()=>{}),300));
@@ -321,7 +303,7 @@ function load(ready=null){
  if(PRUEBA){const L=plan.lots[0],d=L?.levels?.[0]?.doors?.find(d=>d.street);
   if(d){const mx=(d.x0+d.x1)/2,mz=(d.y0+d.y1)/2,h=Math.abs(d.y1-d.y0)<1e-6,adentro=L.parts.some(p=>(h?mx:mx+.5)>p.x&&(h?mx:mx+.5)<p.x+p.w&&(h?mz+.5:mz)>p.y&&(h?mz+.5:mz)<p.y+p.h),s=adentro?-1:1,
    ox=h?0:s,oz=h?s:0;world.spawn={x:mx+ox*2.5,z:mz+oz*2.5,yaw:Math.atan2(ox,oz)};Object.assign(player,{x:world.spawn.x,z:world.spawn.z,feet:world.groundAt(world.spawn.x,world.spawn.z)});}}
- euler.set(view.value==='arriba'?TOP_PITCH:-.05,world.spawn.yaw,0);camera.quaternion.setFromEuler(euler);syncTop();cutA=0;lastBox=null;
+ euler.set(-.05,world.spawn.yaw,0);camera.quaternion.setFromEuler(euler);
  if(drone.value){Object.assign(dronePos,{x:world.spawn.x,y:30,z:world.spawn.z});euler.x=-.6;camera.quaternion.setFromEuler(euler);}
  world.setNight(night.value);traffic.setNight(night.value);island.setNight(night.value);barrios.setNight(night.value);viviendas.setNight(night.value);lightClock=0;
  // El minimapa: el mundo entero del plano (la isla, el monte con sus carreteras y casas, y la ciudad), el mismo de
@@ -329,15 +311,7 @@ function load(ready=null){
  baseMap=document.createElement('canvas');const o=drawWorldStage(baseMap,plan,{cell:MAP_CELL,stage:3,fronts:false});mapOff={x:o.x0,y:o.y0};
  router.replace({query:{...route.query,jugadores:team.value,ciudad:seed.value}});
 }
-// El corte en todo lo que hay: edificios (con canto) y la gente, autos y animales (sin canto). Hay piezas que se arman
-// después (instancias que aparecen al acercarse, la gente de adentro): se vuelve a pasar una vez por segundo; lo ya
-// parcheado se saltea.
-function patchCut(){if(!cut||!world)return;const people=[crowd,traffic,folk,animals,indoor,patrol].filter(Boolean).map(g=>g.group);
- // (las fachadas primero: cortadas por arriba, pero sin bajar a muñón las del lado de la cámara)
- if(world.buildings?.group)cut.patchTree(world.buildings.group,[],{building:true,fachada:true});
- cut.patchTree(world.group,[island.group,...people],{building:true});for(const g of people)cut.patchTree(g);}
 // (la cámara de arriba toma el ángulo fijo más cercano a hacia donde mira)
-function syncTop(){topTurn=null;}
 // ---------- La ronda jugable (REGLAS.md, paso 1: el ladrón) ----------
 // Sus guaridas con su caja dibujada (un baúl), lo que se roba en el mundo con su precio, y el panel de arriba.
 function armarRonda(conPlano){if(!plan||!world)return;ronda=crearRonda(plan,{equipo:team.value,ronda:0});trancar(ronda,conPlano);
@@ -534,7 +508,6 @@ const groundHere=(x,z,feet=0)=>{const sz=world.size;if(x>=0&&z>=0&&x<=sz.w&&z<=s
 // apenas al moverse de costado; al caer de un salto, un golpe que se recupera con resorte. Y el cuerpo propio visible
 // («full body awareness»): el muñeco va debajo de la cámara mirando hacia donde se mira, sin la cabeza (el hueso Head a
 // escala 0 se lleva pelo y sombrero), así al mirar abajo se ven el pecho, las piernas y los pies caminando.
-const TERCERA_FOV=72,TERCERA_FOV_CORRE=77;
 const FPS_FOV=75,FPS_RUN_FOV=83,FPS_AIM_FOV=60,FPS_NEAR=.05;
 // Sin armas (2026-10-17, REGLAS.md: «simple como un juego de patio»): el arma en la mano (viewmodel3d) y el disparo
 // (disparo3d) quedan apagados; en primera persona se ven los brazos del muñeco. ARMAS=true los vuelve a prender.
@@ -630,7 +603,7 @@ function step(dt){
  // el uso más cercano y su tecla.
  const quiere=['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].some(k=>keys.has(k));
  if(acciones?.activa){acciones.update(dt,quiere);accionAlterna.value='';const m=acciones.mirada();accionTexto.value=acciones.fase==='quieto'?(acciones.accion==='asomarse'?'Volver':'Levantarse'):'';
-  if(m){ventana(dt,m);return;}if(asomo)dejarVentana();if(third.value)thirdPerson(dt,false);else fps.step(dt,false,0);return;}
+  if(m){ventana(dt,m);return;}if(asomo)dejarVentana();fps.step(dt,false,0);return;}
  if(asomo)dejarVentana();
  if(acciones&&(accionReloj-=dt)<=0){accionReloj=.15;quienVista.value=persec?.quien(player.x,player.z)||(q=>q&&cartelDe({aspecto:q.aspecto,identidad:q.identidad,documentado:!!persec?.documentado?.(q.id)}))(soc?.quien(player.x,player.z))||null;const pc0=persec?.cerca(),pt=POLICIA?patrullas?.cerca(player.x,player.z):null,pc=pc0&&(pt==null||pc0.accion==='atrapar'||pc0.accion==='papeles')?pc0:null;// (la patrulla gana, salvo atrapar o pedirle papeles a un ladrón)
   accionCerca=pc?{persec:pc,texto:pc.texto}:pt!=null?{patrulla:pt,texto:'Subir a la patrulla'}:pc0?{persec:pc0,texto:pc0.texto}:acciones.cerca();{const pu=puertaParaE();if(pu&&(!accionCerca||pu.d<.9&&!accionCerca.persec&&accionCerca.patrulla==null))accionCerca={puerta:pu.p,texto:pu.p.abierta?(pu.p.garaje?'Cerrar el garaje':'Cerrar la puerta'):(pu.p.garaje?'Abrir el garaje':'Abrir la puerta')};}
@@ -639,13 +612,13 @@ function step(dt){
  if(menuAbierto.value&&(menuReloj-=dt)<=0){menuReloj=.5;menuDatos.value=datosMenu();}
  pasoNoticias();
  // (cambiándose de ropa: quieto VESTIR_S s)
- if(performance.now()<vistiendo){accionTexto.value='Cambiándote de ropa…';if(third.value)thirdPerson(dt,false);else fps.step(dt,false,0);return;}
- if(persec?.quieto()){accionTexto.value=POLICIA?'Pidiendo papeles…':persec.quietoPorPapeles()?'La policía te pide los papeles…':'';if(third.value)thirdPerson(dt,false);else fps.step(dt,false,0);return;}
+ if(performance.now()<vistiendo){accionTexto.value='Cambiándote de ropa…';fps.step(dt,false,0);return;}
+ if(persec?.quieto()){accionTexto.value=POLICIA?'Pidiendo papeles…':persec.quietoPorPapeles()?'La policía te pide los papeles…':'';fps.step(dt,false,0);return;}
  const f=new THREE.Vector3();camera.getWorldDirection(f);f.y=0;f.normalize();const r=new THREE.Vector3(-f.z,0,f.x);
  const fw=(keys.has('KeyW')||keys.has('ArrowUp')?1:0)-(keys.has('KeyS')||keys.has('ArrowDown')?1:0);
  const st=(keys.has('KeyD')||keys.has('ArrowRight')?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')?1:0);
- // (hacia dónde mira el cuerpo en tercera persona, ORIENTAR='camara': hacia la cámara, como en Fortnite; de costado o en
- // diagonal gira como mucho 45° hacia donde va, y para atrás camina de espaldas sin darse vuelta)
+ // (hacia dónde mira el cuerpo: hacia la cámara; de costado o en diagonal gira como mucho 45° hacia donde va, y para atrás
+ // camina de espaldas sin darse vuelta)
  {const cam=Math.atan2(f.x,f.z),rel=Math.atan2(st,fw);player.face=fw<0?cam:cam-Math.max(-Math.PI/4,Math.min(Math.PI/4,rel));}
  // EL ARRANQUE Y LA FRENADA (2026-11-19): antes la velocidad era todo o nada —de quieto a 5,2 m/s en un cuadro, y al
  // soltar la tecla, clavado—. Ahora la velocidad va hacia la que piden las teclas (INERCIA: llega al 95 % en ~0,2 s
@@ -675,165 +648,10 @@ function step(dt){
   // el golpe: lo que cayó desde lo más alto del salto (no al bajar del dron ni al salir del ascensor)
   const h=(player.caidaDesde??g)-g;if(!player.sinDano&&!lifting)golpe(danoDeCaida(h),h);player.caidaDesde=null;player.sinDano=false;}
  if(player.feet<=g){player.feet=player.ground&&g>player.feet?player.feet+(g-player.feet)*Math.min(1,dt*18):g;player.feet=Math.max(player.feet,g-.0001);player.vy=0;player.ground=true;}
- if(third.value)thirdPerson(dt,moving);else{fadeTo=1;fadeAvatar(1);fps.step(dt,moving,landed);cut?.set(false);cut?.look(false);aclarado?.set([]);aclPrev=null;}
+ fadeTo=1;fadeAvatar(1);fps.step(dt,moving,landed);
  actualizarVisibles();
  followCamera();
 }
-// El muñeco donde está el jugador, girando de a poco hacia donde camina, y la cámara detrás.
-// El edificio donde está el muñeco, en planta: desde sus pies se recorre (de a medio metro, hasta 70 m) todo lo techado
-// conectado a esa altura; su rectángulo, con medio metro de más para las paredes, es lo único que se corta. Se rehace
-// sólo al cambiar de piso o al salir del rectángulo.
-let cutBox=null;
-function buildingBox(){
- // (en la ciudad, el lote exacto: sus casillas en planta)
- for(const [,L] of world.lots||[])if(L.cells?.some(c=>player.x>=c[0]&&player.x<=c[2]&&player.z>=c[1]&&player.z<=c[3])){
-  const b=[Infinity,Infinity,-Infinity,-Infinity];for(const c of L.cells){b[0]=Math.min(b[0],c[0]);b[1]=Math.min(b[1],c[1]);b[2]=Math.max(b[2],c[2]);b[3]=Math.max(b[3],c[3]);}
-  // (los lados pegados a otro lote: alguna casilla ajena toca ese borde)
-  const touch=(c,i)=>i===0?Math.abs(c[2]-b[0])<.01&&c[3]>b[1]&&c[1]<b[3]:i===1?Math.abs(c[3]-b[1])<.01&&c[2]>b[0]&&c[0]<b[2]:i===2?Math.abs(c[0]-b[2])<.01&&c[3]>b[1]&&c[1]<b[3]:Math.abs(c[1]-b[3])<.01&&c[2]>b[0]&&c[0]<b[2];
-  // (y hasta qué altura llega el vecino de ese lado —su azotea—: la medianera queda en pie sólo hasta ahí; 0, sin vecino)
-  const shared=[0,1,2,3].map(i=>Math.max(0,...[...world.lots].filter(([,o])=>o!==L&&o.cells?.some(c=>touch(c,i))).map(([,o])=>(o.raise||0)+(o.floors||0)*FLOOR)));
-  // (del lado de un vecino, el borde va justo en el límite del lote: la pared del vecino queda fuera y no se corta)
-  // (sólo si el vecino llega al menos a la altura de éste: si es más bajo, la fachada de este lado es del edificio —con
-  // ventanas— y se corta como las otras; antes quedaba entera, afuera de la caja)
-  const top=(L.raise||0)+(L.floors||0)*FLOOR,m=shared.map(v=>v>=top-.1?-.05:.4);
-  return {box:[b[0]-m[0],b[1]-m[1],b[2]+m[2],b[3]+m[3]],shared,feet:Math.round(player.feet*2)/2};}
- // (en una casa del monte —vivienda3d—, la casa entera: su rectángulo girado, con medio metro de alero; el recorrido de abajo
- // se quedaba en los cuartos conectados al del muñeco y el resto del piso de arriba no se cortaba —2026-10-18—)
- {const i=viviendas?.houseAt?.(player.x,player.z),h=i!=null?viviendas.houses[i]:null;
-  if(h){const xs=[],zs=[];for(const [a,b] of [[-1,-1],[1,-1],[1,1],[-1,1]]){const lx=a*h.hw,lz=b*h.hd;xs.push(h.x+lx*h.c+lz*h.s);zs.push(h.z-lx*h.s+lz*h.c);}
-   return {box:[Math.min(...xs),Math.min(...zs),Math.max(...xs),Math.max(...zs)],feet:Math.round(player.feet*2)/2};}}
- const y=player.feet+1,S=.5,M=140,seen=new Set(),q=[[0,0]],roof=(x,z)=>!!(world.dentro?.(x,z,y)||barrios.dentro(x,z,y)||viviendas.dentro(x,z,y));
- let x0=0,z0=0,x1=0,z1=0;seen.add('0,0');
- for(let h=0;h<q.length&&q.length<12000;h++){const [i,j]=q[h];for(const [di,dj] of [[1,0],[-1,0],[0,1],[0,-1]]){const a=i+di,b=j+dj,k=a+','+b;if(seen.has(k)||Math.abs(a)>M||Math.abs(b)>M)continue;seen.add(k);
-  // (no se cruzan paredes: a medio metro, el techado de dos edificios pegados se toca a través de la medianera)
-  const px=player.x+(i+di*.5)*S,pz=player.z+(j+dj*.5)*S,F=player.feet;if(!roof(player.x+a*S,player.z+b*S)||world.collide(px,pz,.26,false,F)||barrios.collide(px,pz,.26,false,F)||viviendas.collide(px,pz,.26,false,F))continue;q.push([a,b]);x0=Math.min(x0,a);x1=Math.max(x1,a);z0=Math.min(z0,b);z1=Math.max(z1,b);}}
- // (fuera de la ciudad las casas tienen alero: el techo sale hasta dos metros de las paredes)
- return {box:[player.x+x0*S-2.2,player.z+z0*S-2.2,player.x+x1*S+2.2,player.z+z1*S+2.2],feet:Math.round(player.feet*2)/2};}
-function cutBoxFor(){const f=Math.round(player.feet*2)/2,b=cutBox?.box;if(!cutBox||cutBox.feet!==f||player.x<b[0]||player.x>b[2]||player.z<b[1]||player.z>b[3])cutBox=buildingBox();return cutBox.box;}
-const insideAny=(x,z,y)=>!!(world.dentro?.(x,z,y)||barrios.dentro(x,z,y)||viviendas.dentro(x,z,y)||world.collide(x,z,.05,false,y-1.2));
-// El piso que muestra el corte (2026-10-18, Miguel: «que no se cargue de a poco cuando subo: pasada la mitad de la escalera
-// o del ascensor, todo el piso siguiente; lo mismo hacia abajo»): en un edificio de la ciudad, el piso más cercano a los
-// pies —de a FLOOR m desde su planta baja—; en otro lado, los pies.
-function pisoDelCorte(){const lot=world.lotAt(player.x,player.z),L=lot>=0?world.lots.get(lot):null;
- // (en una casa del monte —vivienda3d—: su planta baja o su planta alta, la que quede más cerca de los pies)
- if(!L){const i=viviendas?.houseAt?.(player.x,player.z),h=i!=null?viviendas.houses[i]:null;if(!h)return player.feet;const y0=h.y+(h.plan.FLOOR0||0),y1=h.plan.H1?h.y+h.plan.H1:null;
-  return y1!=null&&player.feet>(y0+y1)/2?y1:y0;}
- // (hasta la azotea —n = floors—: si no, en el techo se mostraba el último piso de adentro y el muñeco flotaba encima —2026-10-18—)
- const R=L.raise||0,n=Math.max(0,Math.min(L.floors??99,Math.round((player.feet-R)/FLOOR)));return R+n*FLOOR+.02;}
-function thirdPerson(dt,moving){
- if(avatar&&!acciones?.activa){const h=avatar.holder;h.visible=true;h.position.set(player.x,player.feet,player.z);
-  if(moving){const meta=ORIENTAR==='camara'?player.face:player.dir;let d=meta-avatarYaw;d=Math.atan2(Math.sin(d),Math.cos(d));avatarYaw+=d*Math.min(1,dt*12);}h.rotation.y=avatarYaw;
-  moveCharacter(avatar,moving?(player.run?'run':'walk'):'idle',moving?(player.rapidez||WALK)/3.5:0,dt);
-  // (corriendo, el ritmo del clip sigue a la velocidad: al arrancar y al frenar las piernas no van a fondo)
-  if(avatar.state==='run')avatar.acts.run.timeScale=Math.max(.75,Math.min(1.15,(player.rapidez||RUN)/RUN*1.1));
-  // (el campo de visión se abre un poco al correr, como en primera persona: da sensación de velocidad)
-  {const goal=moving&&player.run?TERCERA_FOV_CORRE:TERCERA_FOV;if(Math.abs(camera.fov-goal)>.02){camera.fov+=(goal-camera.fov)*Math.min(1,dt*5);camera.updateProjectionMatrix();}}}
- const roofed=world.dentro?.(player.x,player.z,player.feet+1)||barrios.dentro(player.x,player.z,player.feet+1)||viviendas.dentro(player.x,player.z,player.feet+1);
- // (arriba: adentro de un edificio o casa, sólo el piso del jugador; afuera, todo entero. La inclinación se lee de la
- // cámara misma, que la mueven el mouse capturado o el arrastre, y se acota)
- // (arriba, como Los Sims: la cámara en 4 ángulos fijos a 45° —el mouse o Q/E la pasan al siguiente, con un giro
- // suave— y la inclinación fija. Adentro de un edificio, sólo su piso y las paredes del lado de la cámara bajas; el corte
- // entra y sale en CUT_T segundos)
- // (2026-10-18, Miguel, con una captura de un juego así: «cuando entre a un edificio, que vea todo así»): adentro de un
- // edificio la vista de arriba se pone sola —la cámara sube en diagonal, sin techo ni pisos de arriba— y al salir vuelve
- // la de atrás; la inclinación pasa de una a otra en un momento, no de golpe.
- const arriba=view.value==='arriba'||ARRIBA_ADENTRO&&view.value==='tercera'&&(roofed||cutA>0);
- if(arriba!==enArriba){enArriba=arriba;cambioT=0;
-  // (2026-11-19: la distancia arranca de donde está la cámara y va a la de la vista nueva; antes saltaba de 4 m a 15 —o
-  // al revés— en un cuadro y sólo la inclinación hacía el recorrido)
-  {const d=Math.hypot(camera.position.x-player.x,camera.position.y-(player.feet+1),camera.position.z-player.z);if(d>1.5){if(arriba)topDist=d;else{camDistS=d;camPosY=null;}}}planoVista?.setArboles?.(!arriba);casas?.setArboles?.(!arriba);}cambioT+=dt;
- if(arriba){const g0=groundHere(player.x,player.z,-1e3);aclarado?.set([]);aclPrev=null;
-  if(cambioT<.8){euler.setFromQuaternion(camera.quaternion,'YXZ');euler.x+=(TOP_PITCH-euler.x)*Math.min(1,dt*8);camera.quaternion.setFromEuler(euler);}
-  if(roofed){lastBox=cutBoxFor();lastShared=cutBox?.shared;lastFeet=pisoDelCorte();}else cutBox=null;
-  cutA=Math.max(0,Math.min(1,cutA+(roofed?1:-1)*dt/CUT_T));const up=(1-cutA)*(1-cutA)*14,F=lastFeet;
-  // (en la escalera, el piso que se muestra puede quedar hasta medio piso arriba o abajo de los pies: el muñeco no se corta
-  // —sus materiales son suyos, sin el corte: makeAvatar— y, por debajo del piso que se muestra, no se corta lo de abajo:
-  // es el peldaño en que está)
-  const yCorte=F+CUT_H+up,yBajo=player.feet<F-.3?-1e9:F-.35;
-  cut?.set(cutA>0&&!!lastBox,player.x,player.z,yCorte,F>g0+1.5&&cutA>.99?yBajo:-1e9,lastBox,g0+.25,lastShared);
-  // (giro libre: el mouse capturado o el arrastre mueven la cámara a cualquier ángulo e inclinación —acotada—; Q/E giran
-  // 90° con un giro suave; la rueda acerca o aleja)
-  euler.setFromQuaternion(camera.quaternion,'YXZ');
-  if(topTurn){let d=topTurn.goal-euler.y;d=Math.atan2(Math.sin(d),Math.cos(d));if(Math.abs(d)<.01)topTurn=null;else euler.y+=d*Math.min(1,dt*8);}
-  // (2026-10-18, Miguel: «afuera, ¿podría mover toda la cámara aunque esté en la cenital?»: afuera la inclinación es libre
-  // —hasta un poco por encima del horizonte—; adentro vuelve, suave, a la de arriba: el corte la necesita)
-  if(roofed&&euler.x>-.45)euler.x+=(-.45-euler.x)*Math.min(1,dt*6);
-  euler.x=Math.max(-1.35,Math.min(roofed?-.3:.35,euler.x));euler.z=0;camera.quaternion.setFromEuler(euler);
-  // (2026-10-30, Miguel: «que la vista arranque más alejada»: afuera, 15 m —la calle y lo que rodea—; adentro, 8 —el piso
-  // cortado—. La rueda cambia la de donde se está; el paso de una a otra es suave)
-  zoomAdentro=!!roofed;const zoom=roofed?topZoom:topZoomAfuera;
-  topDist+=(zoom-topDist)*Math.min(1,dt*(cutA>0&&cutA<1||cambioT<1.2?4:10));const TOP=topDist;
-  const f=new THREE.Vector3();camera.getWorldDirection(f);const head=new THREE.Vector3(player.x,player.feet+1,player.z);
-  // (si la cámara queda metida en OTRO edificio —los vecinos no se cortan—, se acerca; el propio no cuenta: está cortado)
-  const box=roofed?lastBox:null,own=(x,z)=>box&&x>=box[0]&&x<=box[2]&&z>=box[1]&&z<=box[3];
-  let dist=TOP;for(let s=1.5;s<=TOP;s+=.25){const q=head.clone().addScaledVector(f,-s);if(!own(q.x,q.z)&&insideAny(q.x,q.z,q.y)){dist=Math.max(roofed?4.5:1.5,s-.4);break;}}
-  camera.position.copy(head).addScaledVector(f,-dist);
-  // (mirando hacia arriba —afuera se puede—, la cámara no baja del suelo: queda a 40 cm de él como mínimo)
-  {const gc=groundHere(camera.position.x,camera.position.z,-1e3)+.4;if(camera.position.y<gc)camera.position.y=gc;}
-  cut?.front(new THREE.Vector2(-f.x,-f.z).normalize(),1e9);// (sin muñón: las paredes enteras hasta el corte)
-  // (sin «ver a través»: hacía un círculo alrededor del muñeco —2026-10-18, Miguel: «elimina el círculo»—; los árboles ya
-  // se ocultan todos en esta vista)
-  cut?.look(false);return;}
- cut?.set(false);
- if(cambioT<.8){euler.setFromQuaternion(camera.quaternion,'YXZ');if(euler.x<-.15){euler.x+=(-.12-euler.x)*Math.min(1,dt*8);camera.quaternion.setFromEuler(euler);}}
- // (la cabeza que sigue la cámara, con la altura suavizada —en la escalera los pies suben de a peldaño—; un salto de más de
- // un metro —el ascensor, aparecer— se toma de una)
- const hy=player.feet+CAM_HEAD;camHeadY=camHeadY==null||Math.abs(hy-camHeadY)>1?hy:camHeadY+(hy-camHeadY)*Math.min(1,dt*14);
- const f=new THREE.Vector3();camera.getWorldDirection(f);const head=new THREE.Vector3(player.x,camHeadY,player.z);
- // (hacia atrás por la línea de mira, de a 20 cm, hasta la primera pared)
- // Como el «spring arm» de los juegos en tercera persona: de la cabeza hacia atrás, de a 15 cm, hasta lo primero que la
- // cámara tocaría —una pared, probada a la altura de ESE punto (no de los pies: en la escalera la cámara está un piso
- // más arriba), o una losa que cruce o le quede encima/debajo—; se queda 25 cm antes. Antes sólo miraba paredes a la
- // altura de los pies y nunca losas, y al subir la escalera la cámara pasaba al piso de arriba (2026-10-15).
- const wall=(x,z,y)=>{const sz=world.size,F=y-.5;return x>=0&&z>=0&&x<=sz.w&&z<=sz.h?world.collide(x,z,.15,false,y-.2,.4):barrios.collide(x,z,.15,false,F)||viviendas.collide(x,z,.15,false,F)||casas.collide(x,z,.15);};
- // (un poco más arriba que la cabeza: el muñeco queda abajo del centro y se ve hacia dónde camina)
- // Tres caminos: el normal (atrás y arriba), a la altura de la cabeza y un poco por debajo; gana el que llega más lejos
- // (en la escalera, atrás y arriba está el tramo del piso siguiente: bajando, la cámara se aleja del muñeco).
- const at=(s,k)=>{const q=head.clone().addScaledVector(f,-s);q.y=k===0?q.y+CAM_LIFT*s/CAM_DIST:k===1?head.y:head.y-.35*s/CAM_DIST;const gq=groundHere(q.x,q.z,player.feet);// (bajo techo, a CAM_ROOF del piso que hay DEBAJO DE LA CÁMARA: subiendo la escalera, el de los pies la metía en la losa del pasillo de atrás y se acercaba de un salto)
-  // (y debajo del techo de verdad de ese punto —el tramo de arriba de la escalera—, 40 cm: la prueba de losas pide 30)
-  if(roofed){q.y=Math.min(q.y,gq+CAM_ROOF);const tc=world.techoEn?.(q.x,q.z,gq+.5);if(tc!=null)q.y=Math.min(q.y,tc-.4);}q.y=Math.max(q.y,gq+.3);return q;};
- // (adentro de un edificio la cámara no sale de él: cada punto, con el grosor de la fachada de margen, en el mismo lote)
- const lot=world.lotAt(player.x,player.z),M=.35,outOf=(x,z)=>lot>=0&&[[0,0],[M,0],[-M,0],[0,M],[0,-M]].some(([dx,dz])=>world.lotAt(x+dx,z+dz)!==lot);
- // Las paredes que se aclaran (2026-10-16, engine/visibilidad.js: el 2D decide; aclarado3d trama): con la cámara donde
- // quedaría sin paredes —CAM_DIST atrás, sin salir del lote, como la prueba el validador—, y las aclaradas no la frenan.
- let acl=null,aclBase=0;
- if(aclarado&&lot>=0&&roofed){const R=world.lots.get(lot)?.raise||0,nivel=Math.max(0,Math.floor((player.feet-R+.3)/3)),hx=f.x,hz=f.z,hn=Math.hypot(hx,hz)||1;aclBase=R+nivel*3;
-  let s=0;for(let t=.15;t<=CAM_DIST+1e-6;t+=.15){if(outOf(head.x-hx/hn*t,head.z-hz/hn*t))break;s=t;}
-  acl=paredesAClarar(plan,{x:player.x,z:player.z,nivel},{x:head.x-hx/hn*s,z:head.z-hz/hn*s},aclPrev);aclPrev=acl;
-  }
- else aclPrev=null;
- aclarado?.set(acl||[],aclBase);
- const reach=k=>{let prev=head;for(let s=.3;s<=CAM_DIST+1e-6;s+=.15){const q=at(s,k);
-  // (por qué se frena: lo guarda camDbg.por —para __demo.probarCamara—)
-  const r_=outOf(q.x,q.z)?'lote':wall(q.x,q.z,q.y)&&!aclarado?.dentro(acl,aclBase,q.x,q.y,q.z)?'pared':world.slabAt(q.x,q.z,Math.min(prev.y,q.y)-.1,Math.max(prev.y,q.y)+.2)!=null?'losa':null;
-  if(r_){camDbg.por[k]=[r_,+s.toFixed(2),+q.x.toFixed(2),+q.y.toFixed(2),+q.z.toFixed(2)];return Math.max(.3,s-.25);}prev=q;}return CAM_DIST;};
- // (2026-10-16, Miguel: «cuando subo escaleras o paso por debajo de puertas la cámara tiembla»: medido, en la escalera
- // cambiaba 14 veces de camino en 3 s —y con él de altura— y la distancia saltaba de 4 m a 0,3 y a 2,75 de un cuadro al
- // otro. Ahora el camino se cambia sólo si el otro llega CAM_CAMBIO más lejos, y la distancia se acorta de una —que no
- // atraviese lo que tapa— pero se alarga de a CAM_ALARGA m/s.)
- camDbg.por={};const ds=[reach(0),null,null];const best=k=>ds[k]??(ds[k]=reach(k));if(ds[0]<CAM_DIST){best(1);best(2);}
- // (el cambio de camino tiene que sostenerse CAM_SOSTEN s —en una puerta el de arriba quedaba libre un cuadro sí y otro
- // no—; si el actual se tapa casi del todo, de una)
- let cand=camWay;for(const w of [0,1,2])if(best(w)>best(cand)+CAM_CAMBIO||w===0&&cand!==0&&best(0)>=CAM_DIST)cand=w;
- if(cand!==camWay){camWayT+=dt;if(camWayT>=CAM_SOSTEN||best(camWay)<.6){camWay=cand;camWayT=0;}}else camWayT=0;
- // (si el camino de ahora se tapa de golpe —el dintel de una puerta, el tramo de arriba de la escalera— y otro sigue
- // casi tan lejos como estaba la cámara, se pasa a ése en el acto: baja por debajo en vez de acercarse de un salto)
- if(best(camWay)<camDistS-1)for(const w of [1,2,0])if(w!==camWay&&best(w)>=camDistS-.3){camWay=w;camWayT=0;break;}
- const way=camWay;
- // (la distancia: si lo que tapa aparece más de 1 m más cerca, de una —que no se meta en la pared—; si no, se acorta a
- // CAM_ACORTA m/s y se alarga a CAM_ALARGA)
- const target=best(way);camDistS=cambioT<1.2&&camDistS>CAM_DIST?Math.max(target,camDistS+(target-camDistS)*Math.min(1,dt*5)):target<camDistS-1?target:target<camDistS?Math.max(target,camDistS-CAM_ACORTA*dt):Math.min(target,camDistS+CAM_ALARGA*dt);const dist=camDistS;
- camDbg.dist=dist;camDbg.way=way;camDbg.acl=acl?.length||0;
- // (y la altura, suave al pasar de un camino a otro)
- const pos=at(dist,way);camPosY=camPosY==null||Math.abs(pos.y-camPosY)>1.2?pos.y:camPosY+(pos.y-camPosY)*Math.min(1,dt*10);pos.y=camPosY;
- camera.position.copy(pos);
- // (2026-10-18, Miguel: «por los pasillos angostos las paredes se atraviesan»: la cámara se frena a 15 cm de la pared, pero
- // su plano cercano estaba a 15 cm y en las esquinas de la pantalla llega a ~27: cortaba la pared y se veía a través. Bajo
- // techo o con la cámara cerca, a 5 cm; afuera, 15 —con 5 a lo lejos el suelo titila—)
- {const nq=roofed||dist<1.6?CAM_NEAR_CERCA:.15;if(camera.near!==nq){camera.near=nq;camera.updateProjectionMatrix();}}
- // Con la cámara a menos de un metro de la cabeza (un pasillo, la escalera), el muñeco se desvanece, como en los juegos
- // en tercera persona: si no, la pantalla es la nuca. Entero desde 1 m, invisible a 45 cm; suave (2026-10-15).
- const k=Math.min(1,Math.max(0,(dist-.45)/.55));fadeTo+=(k*k*(3-2*k)-fadeTo)*Math.min(1,dt*12);fadeAvatar(fadeTo);}
 // Sólo dibujar lo que se ve (2026-10-16, engine/visibles.js): adentro de un edificio, de las fachadas de la ciudad sólo
 // los lotes que se pueden ver desde ese piso por sus aberturas; en la escalera, entre dos pisos, lo de los dos; afuera,
 // todo (y three.js descarta por cámara cada lote). Se recalcula sólo al cambiar de lote o de piso.
@@ -847,34 +665,11 @@ function actualizarVisibles(){const B=world?.buildings;if(!B?.setVisibles)return
  const lote=+key.split(':')[0],n0=parseInt(key.split(':')[1]),uno=visiblesDesde(plan,lote,n0),dos=key.endsWith('+')?visiblesDesde(plan,lote,n0+1):null;if(!uno){B.setVisibles(null);world.setVisiblesCortinas?.(null);planoVista?.setCeldas?.(null);return;}
  {const ls=dos?new Set([...uno.lotes,...dos.lotes]):uno.lotes;B.setVisibles(ls);world.setVisiblesCortinas?.(ls);}planoVista?.setCeldas?.(dos?new Set([...uno.celdas,...dos.celdas]):uno.celdas,uno.W);}
 const camDbg={};
-// La prueba de la cámara (2026-10-16, Miguel: «cuando subo escaleras o paso por debajo de puertas, tiembla»): camina con
-// la física del juego —W apretada, de a 1/60 s— por las escaleras y las puertas de los primeros edificios y mide, cuadro
-// por cuadro: los sacudones (la segunda diferencia de la posición de la cámara, más de 5 cm), las idas y vueltas de su
-// distancia a la cabeza, los cambios de camino y el salto más grande. Desde la consola: __demo.probarCamara().
-function probarCamara({escaleras=4,puertas=8}={}){const w=world,out={escaleras:[],puertas:[]};
- // (medio segundo quieto antes de caminar: el salto de la cámara al aparecer no cuenta)
- const medir=(x,z,yaw,seg)=>{const feet=w.floorAt(x,z,-5);Object.assign(player,{x,z,feet,ground:true,vy:0});for(let k=0;k<30;k++){euler.set(-.15,yaw,0,'YXZ');camera.quaternion.setFromEuler(euler);step(1/60);}const log=[];keys.add('KeyW');
-  for(let k=0;k<seg*60;k++){euler.set(-.15,yaw,0,'YXZ');camera.quaternion.setFromEuler(euler);step(1/60);const c=camera.position;log.push([c.x,c.y,c.z,camDbg.dist,camDbg.way]);}
-  keys.delete('KeyW');let a=0,sac=0,vu=0,pr=0,cc=0;
-  for(let i=1;i<log.length;i++){if(log[i][4]!==log[i-1][4])cc++;if(i<2)continue;const j=Math.hypot(log[i][0]-2*log[i-1][0]+log[i-2][0],log[i][1]-2*log[i-1][1]+log[i-2][1],log[i][2]-2*log[i-1][2]+log[i-2][2]);a=Math.max(a,j);if(j>.05)sac++;const dd=log[i][3]-log[i-1][3];if(Math.abs(dd)>.03){const sg=Math.sign(dd);if(pr&&sg!==pr)vu++;pr=sg;}}
-  return {sacudones:sac,vueltas:vu,cambiosCamino:cc,saltoMax:+a.toFixed(2),segundos:seg};};
- for(const L of plan.lots){if(out.escaleras.length>=escaleras)break;const s=L.levels?.[0]?.stair;if(!s||L.levels.length<2)continue;const x=s.x+s.ux*.8+s.vx*(s.fr-.8),z=s.z+s.uz*.8+s.vz*(s.fr-.8);out.escaleras.push(medir(x,z,Math.atan2(-s.vx,-s.vz),3));}
- for(const B of plan.lots){if(out.puertas.length>=puertas)break;const lv=B.levels?.[0];for(const dr of lv?.doors||[]){if(dr.street||dr.core||dr.stair)continue;const q=lv.rooms.find(r=>r.id===dr.a)||lv.rooms.find(r=>r.id===dr.b),h=Math.abs(dr.y1-dr.y0)<1e-6;if(!q||(h?q.h:q.w)<3.5)continue;
-  const mx=(dr.x0+dr.x1)/2,mz=(dr.y0+dr.y1)/2,sg=h?Math.sign(q.y+q.h/2-mz):Math.sign(q.x+q.w/2-mx),nx=h?0:sg,nz=h?sg:0,sx=mx-nx*2.2,sz=mz-nz*2.2;if(w.lotAt(sx,sz)!==B.id||w.collide(sx,sz,RADIUS,true,w.floorAt(sx,sz,-5)))continue;out.puertas.push(medir(sx,sz,Math.atan2(-nx,-nz),1.4));break;}}
- const suma=l=>({casos:l.length,sacudones:l.reduce((p,r)=>p+r.sacudones,0),vueltas:l.reduce((p,r)=>p+r.vueltas,0),cambiosCamino:l.reduce((p,r)=>p+r.cambiosCamino,0),saltoMax:Math.max(0,...l.map(r=>r.saltoMax))});
- return {escaleras:suma(out.escaleras),puertas:suma(out.puertas),detalle:out};}
 let fadeTo=1;
 function fadeAvatar(a){if(!avatar?.fadeMats)return;if(a>.995)a=1;if(a<=.04)avatar.holder.visible=false;if(avatar.fade===a)return;avatar.fade=a;
  // (sigue escribiendo profundidad: así sólo se mezcla la cara de afuera, no las capas de ropa de adentro)
  for(const m of avatar.fadeMats){const t=a<1;if(m.transparent!==t){m.transparent=t;m.needsUpdate=true;}m.opacity=a;m.depthWrite=true;}
  for(const m of avatar.silMats||[])m.opacity=.55*a;}
-// T: arriba ⇄ detrás; F: primera persona (y de vuelta a la de antes).
-let lastThird=view.value==='primera'?'arriba':view.value;
-function toggleFirst(){setView(view.value==='primera'?lastThird:'primera');}
-function toggleThird(){setView(view.value==='arriba'?'tercera':'arriba');}
-function setView(v){if(v!=='primera')lastThird=v;view.value=v;fps.on=v==='primera';if(fps.on)fps.enter();else fps.leave();if(avatar)avatar.holder.visible=(third.value||fps.on)&&!drone.value;if(view.value==='arriba'){euler.x=TOP_PITCH;camera.quaternion.setFromEuler(euler);syncTop();}else if(euler.x<-.5){euler.x=-.1;camera.quaternion.setFromEuler(euler);}if(view.value==='primera')cut?.set(false);
- router.replace({query:{...route.query,vista:view.value==='arriba'?undefined:view.value}});}
-
 // El cielo, las estrellas y la caja de sombras van con la cámara (camine o vuele).
 function followCamera(){
  sky.position.copy(camera.position);stars.position.copy(camera.position);
@@ -966,9 +761,7 @@ function renderFrame(){
 
 function loop(t){
  frame=requestAnimationFrame(loop);const dt=Math.min(.05,(t-last)/1000||0);last=t;
- step(dt);pasoLuz(dt,t);actualizarVisibles();shooting?.update(dt);if(Math.floor(t/250)!==Math.floor((t-dt*1000)/250))patchCut();
- // (los interiores —tabiques, muebles— se arman al acercarse: una vez por segundo se parchean los nuevos para el aclarado)
- if(aclarado&&world&&Math.floor(t/1000)!==Math.floor((t-dt*1000)/1000))aclarado.patchTree(world.group,[crowd,traffic,folk,animals,indoor,patrol].filter(Boolean).map(g=>g.group));
+ step(dt);pasoLuz(dt,t);actualizarVisibles();shooting?.update(dt);
  // (los interiores —muebles del piso, casa armada— se eligen por donde está el muñeco, no la cámara: desde arriba la
  // cámara queda dos pisos más alta)
  const eye=third.value&&!drone.value?{x:player.x,y:player.feet+1.7,z:player.z}:camera.position;island.update(t/1000);const people=[...crowd.positions(),...patrol.positions(),...(soc?.personas()||[])];crowd.update(dt,player);LOD_CAM.x=camera.position.x;LOD_CAM.y=camera.position.y;LOD_CAM.z=camera.position.z;folk.update(dt,player);animals?.update(dt,camera.position);indoor.update(dt,camera.position);const adentro=island.insideHouse(eye.x,eye.z);casas?.adentro(island.casaDentro?.(eye.x,eye.z)??null);island.setEdges(adentro);
@@ -1012,8 +805,6 @@ function onKey(e){
   if(e.code==='Enter'&&muerto.value)revivir();
   if(e.code==='KeyM')showMap.value=!showMap.value;
   if(e.code==='KeyV'&&(LAB||PASEO))toggleDrone();// (la cámara libre: sólo en el laboratorio, ?lab=1 —2026-10-18: el dron salió del juego—)
-  if(e.code==='KeyT')toggleThird();
-  if(e.code==='KeyF')toggleFirst();
   // R: la acción alterna de lo que está cerca (correr la cortina de la ventana, mirar por el visor de una puerta)
   // (estaba adentro del «if» de E y Q: nunca llegaba; 2026-10-17, lo encontró validar-ronda al apretar la tecla)
   if(e.code==='KeyR'&&!acciones?.activa&&(accionCerca?.cortina||accionCerca?.alterna)){acciones.empezar(accionCerca.cortina||accionCerca.alterna);accionReloj=0;}
@@ -1025,7 +816,6 @@ function onKey(e){
 }
 function onBlur(){keys.clear();}
 // (la rueda: acercar y alejar la cámara de arriba, entre 4 y 18 m)
-function onWheel(e){if(!enArriba||drone.value)return;e.preventDefault();const z=v=>Math.max(4,Math.min(zoomAdentro?18:30,v*(1+Math.sign(e.deltaY)*.12)));if(zoomAdentro)topZoom=z(topZoom);else topZoomAfuera=z(topZoomAfuera);}
 
 let resize;
 onMounted(async()=>{
@@ -1035,8 +825,6 @@ onMounted(async()=>{
  host.value.appendChild(renderer.domElement);
  scene=new THREE.Scene();scene.fog=new THREE.Fog(0xcad9e2,45,240);
  camera=new THREE.PerspectiveCamera(72,1,.15,2400);
- // (el corte de lo de arriba —cutaway3d.js—: lo usa la vista de arriba, que se pone sola adentro de un edificio)
- cut=createCut({radius:1e4});// (sin radio: el corte llega a todo el edificio, sin borde redondo)
  sky=makeSky();sky.renderOrder=-1;stars=makeStars();scene.add(sky,stars);
  hemi=new THREE.HemisphereLight(0xe3eef8,0x8a8170,1.25);scene.add(hemi);
  sun=new THREE.DirectionalLight(0xfff1dc,2.6);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
@@ -1073,10 +861,10 @@ onMounted(async()=>{
   const ejes=I.carreteras.filter(c=>c.puntos).flatMap(c=>c.puntos.slice(1).map((p,i)=>({a:c.puntos[i],b:p})));
   const calle=(x,z)=>{let best=null,bd=1e9;for(const {a,b} of ejes){const dx=b.x-a.x,dz=b.z-a.z,L2=dx*dx+dz*dz||1,t=Math.max(0,Math.min(1,((x-a.x)*dx+(z-a.z)*dz)/L2)),dd=Math.hypot(x-a.x-t*dx,z-a.z-t*dz);if(dd<bd){bd=dd;best=a.h+(b.h-a.h)*t;}}return bd<14?best:null;};
   for(const c of I.cells){if(!c.lote||c.manzana==='mirador')continue;for(const u of [.1,.5,.9])for(const v of [.1,.5,.9]){const x=(c.x+u)*CELL,z=(c.y+v)*CELL;n++;ray.set(new THREE.Vector3(x,c.terraza+40,z),new THREE.Vector3(0,-1,0));const h=ray.intersectObjects(objs,false)[0];const ys=h?h.point.y:-99,cal=calle(x,z);if(ys<Math.min(c.terraza,cal??c.terraza)-1)out.push({c:[c.x,c.y],visto:+ys.toFixed(2),lote:c.terraza});}}
-  return {muestras:n,huecos:out.length,ej:out.slice(0,5)};},get zonaAterrizaje(){return zonaAterrizaje;},toggleDrone,camDbg,probarCamara,get planoVista(){return planoVista;},parchearAclarado(){aclarado?.patchTree(world.group,[crowd,traffic,folk,animals,indoor,patrol].filter(Boolean).map(g=>g.group));},get acl(){return aclPrev;},setNight(v){night.value=v;applyLight(true);},get luz(){return luz;},get jugador(){return player;},get plan(){return plan;},get camara(){return camera;}};
+  return {muestras:n,huecos:out.length,ej:out.slice(0,5)};},get zonaAterrizaje(){return zonaAterrizaje;},toggleDrone,camDbg,get planoVista(){return planoVista;},setNight(v){night.value=v;applyLight(true);},get luz(){return luz;},get jugador(){return player;},get plan(){return plan;},get camara(){return camera;}};
  resize=new ResizeObserver(()=>{const w=host.value.clientWidth,h=host.value.clientHeight;renderer.setSize(w,h);composer.setPixelRatio(renderer.getPixelRatio());composer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();vm?.resize(w/h);});
  resize.observe(host.value);
- renderer.domElement.addEventListener('pointerdown',onDown);renderer.domElement.addEventListener('wheel',onWheel,{passive:false});window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp);
+ renderer.domElement.addEventListener('pointerdown',onDown);window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp);
  window.addEventListener('keydown',onKey);window.addEventListener('keyup',onKey);document.addEventListener('mousedown',onShoot);document.addEventListener('mouseup',onShoot);window.addEventListener('contextmenu',noMenu);window.addEventListener('blur',onBlur);
  frame=requestAnimationFrame(loop);
  await cuadro();carga.value={parte:1,etapa:'Listo',lista:true};
@@ -1132,7 +920,7 @@ onBeforeUnmount(()=>{
    <div v-if="velocidad!=null" class="velocimetro" aria-live="off"><b>{{ velocidad }}</b> km/h</div>
    <Transition name="sube"><div v-if="quienVista" class="quien" role="status"><b>{{ quienVista.nombre }}</b><span>{{ quienVista.oficio }}<template v-if="quienVista.edad!=null"> · {{ quienVista.edad }} años</template></span></div></Transition>
    <Transition name="sube"><div v-if="accionTexto" class="accion"><kbd>E</kbd> {{ accionTexto }}<template v-if="accionAlterna"> · <kbd>R</kbd> {{ accionAlterna }}</template></div></Transition>
-   <div class="where"><b>{{ lugar?.titulo }}</b><span v-if="lugar?.sub" class="via">{{ lugar.sub }}</span><small><template v-if="PASEO"><kbd class="tabk">V</kbd> {{ drone?'aterrizar':'volar' }} · <kbd class="tabk">N</kbd> día/noche · <kbd class="tabk">T</kbd> vista</template><template v-else><kbd class="tabk">Tab</kbd> menú</template><template v-if="LAB"> · Ciudad {{ seed }} · {{ team }} vs {{ team }}</template><template v-if="horaVista"> · {{ horaVista }}</template></small></div>
+   <div class="where"><b>{{ lugar?.titulo }}</b><span v-if="lugar?.sub" class="via">{{ lugar.sub }}</span><small><template v-if="PASEO"><kbd class="tabk">V</kbd> {{ drone?'aterrizar':'volar' }} · <kbd class="tabk">N</kbd> día/noche</template><template v-else><kbd class="tabk">Tab</kbd> menú</template><template v-if="LAB"> · Ciudad {{ seed }} · {{ team }} vs {{ team }}</template><template v-if="horaVista"> · {{ horaVista }}</template></small></div>
    <!-- (los botones de prueba —tamaño, papel, otra ciudad, vista, dron, día/noche—: sólo con ?lab=1; quedan en la página,
    ocultos, porque las pruebas de pantalla los usan) -->
    <div class="actions" v-show="LAB">
@@ -1141,7 +929,6 @@ onBeforeUnmount(()=>{
     </div>
     <button @click="cambiarPapel" :class="{on:POLICIA}" title="Jugar de ladrón o de policía (contra los bots del motor)">{{ POLICIA?'Papel: policía':'Papel: ladrón' }}</button>
     <button @click="otherCity">Otra ciudad</button>
-    <button @click="toggleThird" :class="{on:view!=='primera'}" title="T cambia la vista · F primera persona">{{ {arriba:'Vista: arriba',tercera:'Vista: detrás',primera:'Vista: primera persona'}[view] }}</button>
     <button @click="toggleDrone" :class="{on:drone}">{{ drone?'Caminar':'Dron' }}</button>
     <button @click="night=!night;applyLight()">{{ night?'Día':'Noche' }}</button>
    </div>
@@ -1167,7 +954,7 @@ onBeforeUnmount(()=>{
     <p v-if="PASEO" class="paseo-nota">La ciudad sola: sin gente, sin policía y sin ronda. <kbd>V</kbd> despega y aterriza; en el aire se avanza hacia donde se mira con WASD, Espacio sube, C baja y Shift acelera.</p>
     <dl>
      <dt>WASD</dt><dd>moverse</dd><dt>Ratón</dt><dd>mirar</dd><dt>Shift</dt><dd>correr</dd><dt>Espacio</dt><dd>saltar</dd>
-     <dt>N</dt><dd>día / noche</dd><dt>M</dt><dd>plano</dd><dt>T · F</dt><dd>vista: arriba o atrás · primera persona</dd><dt>E · Q</dt><dd>en un ascensor: subir · bajar</dd><template v-if="POLICIA"><dt>E</dt><dd>de policía: revisar la cámara de un aviso · atrapar · pedir papeles · subir y bajar de la patrulla</dd><dt>W/S · A/D</dt><dd>en la patrulla: acelerar y frenar · girar</dd></template><dt>E · R</dt><dd>usar lo de cerca (abrir y cerrar puertas, sentarse, asomarse…) · correr la cortina de la ventana</dd><dt>Esc</dt><dd>soltar el ratón</dd>
+     <dt>N</dt><dd>día / noche</dd><dt>M</dt><dd>plano</dd><dt>E · Q</dt><dd>en un ascensor: subir · bajar</dd><template v-if="POLICIA"><dt>E</dt><dd>de policía: revisar la cámara de un aviso · atrapar · pedir papeles · subir y bajar de la patrulla</dd><dt>W/S · A/D</dt><dd>en la patrulla: acelerar y frenar · girar</dd></template><dt>E · R</dt><dd>usar lo de cerca (abrir y cerrar puertas, sentarse, asomarse…) · correr la cortina de la ventana</dd><dt>Esc</dt><dd>soltar el ratón</dd>
     </dl>
    </div>
   </div>
