@@ -18,8 +18,10 @@
 // Todo en metros enteros. No cambia nada del plano de abajo más que anotar la escalera (lv.escalerasInternas); lo de
 // arriba queda en L.duplex = {nivel, unidades: [{n, escalera, rooms, doors, windows, area}]}.
 import {DE_OBRA} from './entrega.js';
+import {alturaMansarda} from './techos.js';
+import {MANSARDA} from './medidas.js';
 
-export const DUPLEX={escalera:{ancho:1,largo:4,peldanos:15},caracol:{lado:2,peldanos:14},paso:1,altilloMin:4,franja:2,bano:3,cuartos:['sala_cocina','sala','estudio','comedor']};
+export const DUPLEX={aire:2.1,escalera:{ancho:1,largo:4,peldanos:15},caracol:{lado:2,peldanos:14},paso:1,altilloMin:4,franja:2,bano:3,cuartos:['sala_cocina','sala','estudio','comedor']};
 const pisa=(a,b,t=.01)=>Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x)>t&&Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y)>t;
 const dentro=(a,b,t=.01)=>a.x>=b.x-t&&a.y>=b.y-t&&a.x+a.w<=b.x+b.w+t&&a.y+a.h<=b.y+b.h+t;
 
@@ -47,11 +49,22 @@ function escaleraDe(L,lv,qs){const E=DUPLEX.escalera,obra=(lv.furniture||[]).fil
    const puerta=(lv.doors||[]).some(d=>{const dh=Math.abs(d.y0-d.y1)<1e-6,x0=Math.min(d.x0,d.x1),x1=Math.max(d.x0,d.x1),y0=Math.min(d.y0,d.y1),y1=Math.max(d.y0,d.y1),P=DUPLEX.paso;
     const zona=dh?{x:x0-.2,y:y0-P,w:x1-x0+.4,h:2*P}:{x:x0-P,y:y0-.2,w:2*P,h:y1-y0+.4};return pisa(zona,r);});
    if(puerta)continue;if(obra.some(f=>pisa(f,r)))continue;
+   // (2026-11-22, al subirla en 3D: arriba la mansarda baja a 0 en cada borde con pendiente —techos.js—, y una escalera
+   // arrimada a la fachada llegaba donde no cabe una cabeza —una recta del lote 55 terminaba contra el muro—. Toda la
+   // escalera, a DUPLEX.aire de altura libre o más —en metros enteros, a 1 m de la pendiente—; y la llegada —medio metro más
+   // allá de la punta de arriba— adentro del departamento y con esa misma altura)
+   const libre=(x,z)=>!L.mansarda||alturaMansarda(L.mansarda,x,z)>=DUPLEX.aire-1e-6,enUnidad=(x,z)=>qs.some(o=>x>o.x+.01&&x<o.x+o.w-.01&&z>o.y+.01&&z<o.y+o.h-.01);
+   if(![[r.x,r.y],[r.x+r.w,r.y],[r.x,r.y+r.h],[r.x+r.w,r.y+r.h]].every(([x,z])=>libre(x,z)))continue;
+   const llegaBien=(p,d)=>{const x=p[0]+d[0]*.5,z=p[1]+d[1]*.5;return enUnidad(x,z)&&libre(x,z);};
    // (sube a lo largo del muro; la llegada, en la punta que queda más lejos del centro del cuarto en el otro eje no importa:
    // se sube hacia la punta más lejana de la puerta más cercana)
-   if(c.caracol){const m=[r.x+r.w/2,r.y+r.h/2];return {...r,tipo:'caracol',eje:null,pie:m,llegada:m,cuarto:q.id,peldanos:DUPLEX.caracol.peldanos};}
+   // (el caracol se sale por el medio de un borde —por la esquina se cae al piso de abajo—: el que deja más lugar en el cuarto)
+   if(c.caracol){const m=[r.x+r.w/2,r.y+r.h/2],ops=[[[1,0],q.x+q.w-r.x-r.w],[[0,1],q.y+q.h-r.y-r.h],[[-1,0],r.x-q.x],[[0,-1],r.y-q.y]].map(([d,l])=>({d,l,p:[m[0]+d[0]*r.w/2,m[1]+d[1]*r.h/2]})).filter(o=>llegaBien(o.p,o.d)).sort((a,b)=>b.l-a.l);
+    if(!ops.length)continue;return {...r,tipo:'caracol',eje:null,pie:m,llegada:ops[0].p,cuarto:q.id,peldanos:DUPLEX.caracol.peldanos};}
    const ds=(lv.doors||[]).filter(d=>d.a===q.id||d.b===q.id).map(d=>[(d.x0+d.x1)/2,(d.y0+d.y1)/2]),p0=h?[r.x,r.y+r.h/2]:[r.x+r.w/2,r.y],p1=h?[r.x+r.w,r.y+r.h/2]:[r.x+r.w/2,r.y+r.h];
-   const lejos=p=>ds.length?Math.min(...ds.map(d=>Math.hypot(d[0]-p[0],d[1]-p[1]))):0,[pie,llegada]=lejos(p0)<=lejos(p1)?[p0,p1]:[p1,p0];
+   const lejos=p=>ds.length?Math.min(...ds.map(d=>Math.hypot(d[0]-p[0],d[1]-p[1]))):0;let [pie,llegada]=lejos(p0)<=lejos(p1)?[p0,p1]:[p1,p0];
+   const dir=(a,b)=>{const l=Math.hypot(b[0]-a[0],b[1]-a[1]);return [(b[0]-a[0])/l,(b[1]-a[1])/l];};
+   if(!llegaBien(llegada,dir(pie,llegada))){if(!llegaBien(pie,dir(llegada,pie)))continue;[pie,llegada]=[llegada,pie];}
    return {...r,tipo:'recta',eje:h?'x':'z',pie,llegada,cuarto:q.id,peldanos:E.peldanos};}}
  return null;}
 

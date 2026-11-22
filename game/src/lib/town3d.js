@@ -20,6 +20,7 @@ const CORTINA_CU=new Set(CORTINA.cuartos);
 import {cuartoDeVentana,panioCerrado,cortinaAbierta,juntarCortinas,telaDe,persianaCerrada} from '../engine/cortinas.js';
 import {esVivienda} from '../engine/entrega.js';
 import {piezasSinTitilar} from '../engine/titileo.js';
+import {duplexDeLote} from './duplex3d.js';
 
 // Qué modelo usa cada mueble del plano (el primero que esté cargado) y, si no hay, una caja: [alto, color, desde].
 export const MODEL={lampara:['C2_Lamp'],sillon:['C2_Sofa','Sofa_individual'],sofa:['C2_SofaDouble','Sofa2','Couch_Medium2'],cama:['C2_Bed','Bed_King','BedDouble'],comoda:['C2_Closet2','Drawer_1'],cama_s:['Bed_Single','BedTwin'],cama_h:['HospitalBed','BedTwin'],catre:['Bed_Single'],litera:['Bed_Bunk'],
@@ -147,7 +148,7 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
  // comparar con lo que dice el plano: engine/fachada-piezas.js, validar-fachada-piezas)
  const armada=[];
  const escalerasAire=[],roofProps=[],items=[],leaves=[],doorFronts=[],plaques=[],lotFurniture=new Map(),civics=[],civicFronts=[],awnings=[],stoops=[],balconies=[],cortinas=[],superficies=[],panios=[];let stationInfo=null;
- const columns=new Set(),stairs=new Map();
+ const columns=new Set(),stairs=new Map(),duplexes=new Map();
  // Un rectángulo menos otro (los dos alineados a los ejes): hasta cuatro pedazos.
  const minus=(R,Hh)=>{const x0=Math.max(R.x,Hh.x),z0=Math.max(R.z,Hh.z),x1=Math.min(R.x+R.w,Hh.x+Hh.w),z1=Math.min(R.z+R.h,Hh.z+Hh.h);if(x1<=x0+1e-6||z1<=z0+1e-6)return [R];
   return [{x:R.x,z:R.z,w:R.w,h:z0-R.z},{x:R.x,z:z1,w:R.w,h:R.z+R.h-z1},{x:R.x,z:z0,w:x0-R.x,h:z1-z0},{x:x1,z:z0,w:R.x+R.w-x1,h:z1-z0}].filter(q=>q.w>.01&&q.h>.01);};
@@ -203,12 +204,14 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
   const alAzotea=!!B.levels[0].stair&&L.floors>=2&&!fs.mansard;
   const ST=B.levels[0].stair&&L.floors>=2?stairOf(B.levels[0].stair,L.floors+(alAzotea?1:0),FLOOR):null;if(ST){ST.azotea=alAzotea;stairs.set(id,ST);}
   // ---------- Pisos, cielo raso y techo (por casilla) ----------
+  // (los dúplex —engine/duplex.js—: el hueco de su escalera privada en la losa del último piso, que es el piso del altillo)
+  const huecosDuplex=(B.duplex?.unidades||[]).map(u=>({x:u.escalera.x,z:u.escalera.y,w:u.escalera.w,h:u.escalera.h}));
   for(const [x,y] of cells){const cx=(x+.5)*S,cz=(y+.5)*S,fs4=S/4;
    for(let f=0;f<L.floors;f++){const hole=ST?.hole(f),C={x:x*S,z:y*S,w:S,h:S};
     // La losa de cada piso, menos el hueco de la escalera (en rectángulos: la pieza de piso del paquete se estira).
     for(const q of hole?minus(C,hole):[C])items.push({piece:'Floor_4x4',x:q.x+q.w/2,y:f?f*FLOOR:.02,z:q.z+q.h/2,sx:q.w/4,sz:q.h/4});}
    // (el techo, menos el hueco de la escalera si sube a la azotea)
-   {const C={x:x*S,z:y*S,w:S,h:S},hr=ST?.azotea?ST.hole(L.floors):null;for(const q of hr?minus(C,hr):[C]){items.push({piece:'Floor_4x4',x:q.x+q.w/2,y:L.h-.03,z:q.z+q.h/2,sx:q.w/4,sz:q.h/4});if(!fs.mansard)items.push({piece:'Roof_4x4',x:q.x+q.w/2,y:L.h+.2,z:q.z+q.h/2,sx:q.w/4,sz:q.h/4});}}
+   {const C={x:x*S,z:y*S,w:S,h:S},hr=ST?.azotea?ST.hole(L.floors):null;let qs=hr?minus(C,hr):[C];for(const hd of huecosDuplex)qs=qs.flatMap(q=>minus(q,hd));for(const q of qs){items.push({piece:'Floor_4x4',x:q.x+q.w/2,y:L.h-.03,z:q.z+q.h/2,sx:q.w/4,sz:q.h/4});if(!fs.mansard)items.push({piece:'Roof_4x4',x:q.x+q.w/2,y:L.h+.2,z:q.z+q.h/2,sx:q.w/4,sz:q.h/4});}}
    // (la mansarda: su cubierta, abajo, sólo donde el 2D la pone —techos.js—; antes la losa iba en toda la casilla y tapaba la pizarra)
   }
   // Lo de la azotea (engine/azoteas.js —el 2D lo reparte con la pista del borde libre—): el tanque, la antena, el tendedero y
@@ -606,6 +609,8 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
    const side=(a,b=FR+run/2)=>{const [x,z]=P(a,b),o=lotAtCell(Math.floor(x/S),Math.floor(z/S));return o<0?FACE:o!==id?THIN+.01:THIN/2+.01;};
    const W=ST.W,A0=side(-.15),A1=W-side(W+.15),BD=sd.d-side(W/2,sd.d+.15);
    escI0=boxes.length;stairBoxes(ST,M,{floors:ST.floors,FLOOR,hallC,A0,A1,BD,box,boxes,wallAny,deco:Math.floor(hash(id*19,7,seed+143)*16)});}
+  // ---------- Los dúplex (duplex3d.js): la escalera privada, los tabiques del altillo y sus muros bajo la pendiente ----------
+  {const DX=duplexDeLote(B,L,{box,wallAny,FLOOR});if(DX){DX.R=R;duplexes.set(id,DX);}}
   // ---------- Sin caras que titilen (2026-10-16): las cajas del lote —muebles, marcos, escalera, decoración— con una
   // cara en el mismo plano que otra de otro color se alternan al mover la cámara; la más chica se retira 3 mm ----------
   {const ok=piezasSinTitilar(boxes,{suelos:Array.from({length:L.floors+1},(_,f)=>[f*FLOOR,f*FLOOR+.02]).flat()});for(let i=0;i<ok.length;i++)boxes[i]=ok[i];}
@@ -655,7 +660,7 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
   const val=new THREE.BoxGeometry(2,.24,.03);val.translate(0,fy-.1,fz);const geo=mergeGeometries([top,val]);top.dispose();val.dispose();
   // (LOWPOLY: la lona lisa, del color de su edificio —sin las rayas pintadas—)
   const mat=new THREE.MeshStandardMaterial(LOWPOLY.on?{roughness:.9,flatShading:true}:{map:tex,roughness:.9});own.push(geo,mat,tex);ctx.instanced(group,geo,mat,awnings);}
- return {fachadaArmada:armada,escalerasAire,roofProps,items,leaves,doorFronts,plaques,lotFurniture,civics,civicFronts,stationInfo,stairs,stoops,balconies,cortinas,superficies,panios};
+ return {fachadaArmada:armada,duplexes,escalerasAire,roofProps,items,leaves,doorFronts,plaques,lotFurniture,civics,civicFronts,stationInfo,stairs,stoops,balconies,cortinas,superficies,panios};
 }
 
 // Las cabinas de los ascensores: paredes de metal, techo con luz y botonera, puertas corredizas (se abren cuando el

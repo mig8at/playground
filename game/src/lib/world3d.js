@@ -404,7 +404,7 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
  const blankOut=(faces,y0,y1)=>{for(const f of faces)for(let fl=Math.max(1,Math.floor(y0/FLOOR));fl<=Math.floor((y1-.01)/FLOOR);fl++)blank.add(`${f.x},${f.y},${f.dx},${f.dy},${fl}`);};
  // El frente de cada puerta (y de cada portón): ahí no se pone nada que estorbe el paso (ver inDoor).
  const doorFronts=[],doorFrames=[];
- const stoopsByCell=new Map(),balconiesByCell=new Map(),lotFurniture=new Map(),surfByCell=new Map(),panios=new Map();let cortinaMesh=null,cortinaOrig=null,cortinaLote=null,cortinaSlot=null,cortinasVisibles=null;const panioDe=[];let stationInfo=null,lotPlaques=[],town=null,civ=null,civicFronts=[],elevators=[],setElevatorDoors=()=>{};const walls=new Map(),WALL_T=.3;let stairsByLot=new Map();
+ const stoopsByCell=new Map(),balconiesByCell=new Map(),lotFurniture=new Map(),surfByCell=new Map(),panios=new Map();let cortinaMesh=null,cortinaOrig=null,cortinaLote=null,cortinaSlot=null,cortinasVisibles=null;const panioDe=[];let stationInfo=null,lotPlaques=[],town=null,civ=null,civicFronts=[],elevators=[],setElevatorDoors=()=>{};const walls=new Map(),WALL_T=.3;let stairsByLot=new Map(),duplexByLot=new Map();
  if(downtown&&plan){
   // Los edificios del plano (town3d.js): fachadas, pisos, tabiques, ascensores, muebles y choques.
   adPlan=barrio||LOWPOLY.on?[]:planFacadeAds();// (van en la azotea: la fachada conserva sus ventanas; con LOWPOLY, sin publicidad)
@@ -437,7 +437,7 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
      for(let cy=Math.floor(z0/S);cy<=Math.floor(z1/S);cy++)for(let cx=Math.floor(x0/S);cx<=Math.floor(x1/S);cx++)addWall(cx,cy,x0,z0,x1,z1,y,y+.56);}
     ps.push(...placeParts(OBJETOS.mesa_noche.piezas({}),{x:mx,y,z:mz,ry}),...placeParts(OBJETOS.florero.piezas({variante:['rojas','amarillas','lilas'][Math.floor(hs(3)*3)],paleta:Math.floor(hs(4)*3)}),{x:mx,y:y+OBJETOS.mesa_noche.alto({}),z:mz,ry}));}}});
    if(ps.length){const g=partsMesh(ps);g.name='pasillo:adornos';group.add(g);g.traverse(o=>{if(o.isInstancedMesh)own.push(o);});}}
-  fachadaArmada_=T.fachadaArmada;doorFronts.push(...T.doorFronts);stairsByLot=T.stairs;for(const [k,v] of T.lotFurniture)lotFurniture.set(k,v);stationInfo=T.stationInfo;civicFronts.push(...T.civicFronts);
+  fachadaArmada_=T.fachadaArmada;doorFronts.push(...T.doorFronts);stairsByLot=T.stairs;duplexByLot=T.duplexes||new Map();for(const [k,v] of T.lotFurniture)lotFurniture.set(k,v);stationInfo=T.stationInfo;civicFronts.push(...T.civicFronts);
   setElevatorDoors=buildCabins(elevators,{FLOOR,group,own,instanced,base,addWall,S,W,H});
   // Las cortinas cerradas (town3d T.cortinas): siempre, con la fachada —no con los muebles, que sólo se dibujan de cerca—.
   if(T.cortinas.length){const cm=new THREE.MeshStandardMaterial({roughness:.95,flatShading:true}),cg=base(new THREE.BoxGeometry(1,1,1));own.push(cm,cg);cortinaMesh=instanced(group,cg,cm,T.cortinas,{cast:false});
@@ -1122,11 +1122,14 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
   // (la mansarda: su pendiente desde cada fachada y la cubierta arriba —techos.js, la misma altura que mide el 2D—)
   // (sobre el hueco de la escalera que sube a la azotea no hay techo: se sigue por los peldaños)
   const roof=L.h+(L.mansarda?alturaMansarda(L.mansarda,px,pz):0);if(fe>=roof-.45&&!(st?.azotea&&st.inHole(px,pz,L.floors)))return roof+R;
+  // (un dúplex: arriba, el piso del altillo —la losa del último piso—, menos el hueco de su escalera; en el hueco, los peldaños)
+  const dx=duplexByLot.get(id);if(dx&&fe>=L.h-.45&&dx.arriba(px,pz)&&!dx.hueco(px,pz))return L.h+R;
   for(let f=L.floors-1;f>0;f--)if(f*FLOOR<=fe+.45&&!(st&&st.inHole(px,pz,f))){g=f*FLOOR;break;}
   // (la planta baja se dibuja 2 cm arriba del suelo, para que no titile con él —town3d yb, piezasSinTitilar—: se pisa ahí.
   // 2026-10-16, medido sin pantalla —validar-pisos—: los pies quedaban 2 cm dentro del piso en toda planta baja)
   if(g===0)g=.02;
   if(st){const h=st.surface(px,pz,fe);if(h!==null&&h>g)g=h;}
+  if(dx){const h=dx.surface(px,pz,fe);if(h!==null&&h>g)g=h;}
   // (encima de un mueble pisable: la mesa, el sofá, el mesón —town3d T.superficies, con la planta baja ya subida—)
   let top=g+R;for(const p of surfByCell.get(cy*W+cx)||[])if(px>p.x0&&px<p.x1&&pz>p.z0&&pz<p.z1&&p.y<=feet+.45&&p.y>top)top=p.y;return top;}
  // El balcón bajo un punto (para quien está a su altura: los de la calle pasan por debajo).
