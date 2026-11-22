@@ -729,7 +729,14 @@ function openings(L,F,plan,level,r){// (PC: el ancho de la puerta de calle de es
   {const ws=windows.filter(w=>!w.shop&&!(level===0&&esVidriera(L.type,w))),base=(level<=1?fa.ventana1:fa.ventana)||'cuadrada';
    const mayor=ws.reduce((m,w)=>{const k=w.pieza||base;return g(k)>g(m)?k:m;},base);for(const w of ws)w.pieza=mayor;piezaDelPiso=mayor;}}
  // La escalera también tiene ventanas donde el núcleo da a la fachada (el pozo del ascensor no).
- if(core){const st0=plan.lift?core.u0+2:core.u0;if(core.v1===Lv)for(const m of modulesIn(st0,core.u1))if(glazed('back',m+.2)&&glazed('back',m+1.8))windows.push({axis:'u',at:Lv,from:m+.4,len:1.2,a:'nucleo'});}
+ // (2026-11-22, la auditoría de coherencia: también donde el núcleo da al frente —antes sólo al fondo—; con la escalera
+ // sobre la calle, la fachada de un edificio angosto quedaba ciega en todos sus pisos)
+ if(core){const st0=plan.lift?core.u0+2:core.u0;if(core.v1===Lv)for(const m of modulesIn(st0,core.u1))if(glazed('back',m+.2)&&glazed('back',m+1.8))windows.push({axis:'u',at:Lv,from:m+.4,len:1.2,a:'nucleo'});
+  if(core.v0===0)for(const m of modulesIn(st0,core.u1))if(glazed('front',m+.2)&&glazed('front',m+1.8)&&!doors.some(d=>d.street&&d.axis==='u'&&Math.abs(d.at)<1e-6&&d.from<m+2&&d.from+d.len>m))windows.push({axis:'u',at:0,from:m+.4,len:1.2,a:'nucleo'});
+  // (y en los costados: en un edificio de esquina la escalera da a la calle de al lado)
+  const libreV=(at,m)=>!doors.some(d=>d.street&&d.axis==='v'&&Math.abs(d.at-at)<1e-6&&d.from<m+2&&d.from+d.len>m);
+  if(core.u0===0)for(const m of modulesIn(core.v0,core.v1))if(glazed('left',m+.2)&&glazed('left',m+1.8)&&libreV(0,m))windows.push({axis:'v',at:0,from:m+.4,len:1.2,a:'nucleo'});
+  if(core.u1===Lu)for(const m of modulesIn(core.v0,core.v1))if(glazed('right',m+.2)&&glazed('right',m+1.8)&&libreV(Lu,m))windows.push({axis:'v',at:Lu,from:m+.4,len:1.2,a:'nucleo'});}
  // El pasillo del frente de las suites angostas: una ventana por módulo, como los cuartos.
  for(const h of corr.filter(h=>h.hall))for(const m of modulesIn(h.u0,h.u1))if(glazed('front',m+.2)&&glazed('front',m+1.8))windows.push({axis:'u',at:0,from:m+.4,len:1.2,a:'pasillo'});
  // El pasillo, con una ventana en cada punta que da afuera.
@@ -1178,6 +1185,18 @@ function buildLot(L,seed,stat){
     const ryOf=it=>{const cu=(it.u0+it.u1)/2,cv=(it.v0+it.v1)/2,d=it.dir||[0,1],[ax,ay]=F.pt(cu,cv),[bx,by]=F.pt(cu+d[0],cv+d[1]);return Math.atan2(bx-ax,by-ay);};
     lv.furniture.push(...pt.items.map(it=>({kind:it.kind,...F.rect(it.u0,it.v0,it.u1,it.v1),pc:!!it.pc,...(it.fit?{fit:true}:{}),ry:ryOf(it),rt:pt.plan.rooms[it.room]?.type,giro:pt.plan.rooms[it.room]?.giro})));// rt: el tipo del cuarto
     off+=pt.plan.rooms.length;uoff+=(pt.plan.units||[]).length;});
+   // LA BISAGRA (2026-11-22, la auditoría de coherencia: «una puerta que al abrir pega contra un aparato», 280 en dos
+   // ciudades —la hoja de un baño contra el lavamanos, la de una cocineta contra el mesón—). La hoja gira desde (x0, y0)
+   // —town3d la arma así— un cuarto de vuelta hacia el cuarto al que abre; si así pega contra un aparato de obra y desde la
+   // otra jamba no, la bisagra pasa a la otra jamba (se invierte el segmento), como se hace en una obra.
+   {const OBRA_FIJA=new Set(['inodoro','lavamanos','ducha','tina','meson','estufa','nevera','lavadora']),fijos=lv.furniture.filter(f=>OBRA_FIJA.has(f.kind));
+    if(fijos.length)for(const d of lv.doors){if(d.street||d.core||d.stair||d.wide||d.bay||d.hoja===false||d.abierta)continue;const q=lv.rooms.find(r=>r.id===d.a)||lv.rooms.find(r=>r.id===d.b);if(!q)continue;
+     const len=Math.hypot(d.x1-d.x0,d.y1-d.y0);if(len>1.25||len<.6)continue;
+     const pega=(hx,hz,ox,oz)=>{const ux=(ox-hx)/len,uz=(oz-hz)/len;let nx=-uz,nz=ux;if((q.x+q.w/2-hx)*nx+(q.y+q.h/2-hz)*nz<0){nx=-nx;nz=-nz;}
+      for(const f of fijos){if(f.x>hx+len+.1||f.x+f.w<hx-len-.1||f.y>hz+len+.1||f.y+f.h<hz-len-.1)continue;for(let x=f.x+.025;x<f.x+f.w;x+=.05)for(let z=f.y+.025;z<f.y+f.h;z+=.05){const px=x-hx,pz=z-hz;if(px*px+pz*pz<(len-.03)**2&&px*ux+pz*uz>.02&&px*nx+pz*nz>.02)return true;}}return false;};
+     if(pega(d.x0,d.y0,d.x1,d.y1)){if(!pega(d.x1,d.y1,d.x0,d.y0))[d.x0,d.y0,d.x1,d.y1]=[d.x1,d.y1,d.x0,d.y0];
+      // (si pega desde las dos jambas —la cocina de un estudio contra su entrada—, abre hacia afuera: d.abreAfuera)
+      else d.abreAfuera=true;}}}
    // (las dos alas de un edificio en L eligen su pieza por separado: el piso entero lleva la mayor —la auditoría de
    // coherencia, «ventanas de un mismo piso a distinta altura»—)
    {const ws=lv.windows.filter(w=>!w.shop&&w.pieza),g=k=>VIDRIO.ventana[k]??.55;if(ws.length){const mayor=ws.reduce((m,w)=>g(w.pieza)>g(m)?w.pieza:m,ws[0].pieza);for(const w of ws)w.pieza=mayor;}}

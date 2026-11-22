@@ -97,6 +97,18 @@ for(let s=S0;s<S0+N;s++){const t0=Date.now(),bp=bpActual=generateBlueprint({seed
     if(!afuera)anota('coherencia','planta · un departamento sin puerta a lo común',en(L,lv,`apto ${u}`));if(ajena)anota('coherencia','planta · un departamento que se abre a otro',en(L,lv,`apto ${u}`));}
    for(const d of lv.doors.filter(d=>d.street)){const h=Math.abs(d.y0-d.y1)<1e-6,mx=(d.x0+d.x1)/2,mz=(d.y0+d.y1)/2;for(const sg of [1,-1]){const x=mx+(h?0:sg*.6),z=mz+(h?sg*.6:0);const dentroL=L.parts.some(P=>x>P.x&&x<P.x+P.w&&z>P.y&&z<P.y+P.h);if(dentroL)continue;
      if(bp.lots.some(o=>o.id!==L.id&&(o.parts||[]).some(P=>x>P.x&&x<P.x+P.w&&z>P.y&&z<P.y+P.h)))anota('coherencia','planta · una puerta de calle que da contra otro edificio',en(L,lv,`en ${mx.toFixed(1)},${mz.toFixed(1)}`));}}
+   // (al abrir: la hoja barre un cuarto de círculo desde su bisagra —(x0, y0), como la arma el 3D, town3d innerLeaves— hacia
+   // el cuarto al que abre —el del lado a, o el del b si a es el pasillo—; dos barridos que se pisan son dos puertas que se
+   // golpean, y uno que pisa un aparato de obra es una puerta que no abre entera. Se mira con puntos cada 5 cm)
+   const barrido=d=>{if(d.street||d.core||d.stair||d.wide||d.bay||d.hoja===false||d.abierta)return null;const q=R(d.a)||(typeof d.b==='number'?R(d.b):null);if(!q)return null;
+    const len=Math.hypot(d.x1-d.x0,d.y1-d.y0);if(len>1.25||len<.6)return null;const ux=(d.x1-d.x0)/len,uz=(d.y1-d.y0)/len;let nx=-uz,nz=ux;if((q.x+q.w/2-d.x0)*nx+(q.y+q.h/2-d.y0)*nz<0){nx=-nx;nz=-nz;}if(d.abreAfuera){nx=-nx;nz=-nz;}
+    return {q:q.type,d,adentro:(x,z)=>{const px=x-d.x0,pz=z-d.y0;return px*px+pz*pz<(len-.03)**2&&px*ux+pz*uz>.02&&px*nx+pz*nz>.02;},caja:{x:Math.min(d.x0,d.x0+nx*len,d.x1),y:Math.min(d.y0,d.y0+nz*len,d.y1),w:len,h:len}};};
+   const toca=(b,f)=>{for(let x=f.x+.025;x<f.x+f.w;x+=.05)for(let z=f.y+.025;z<f.y+f.h;z+=.05)if(b.adentro(x,z))return true;return false;};
+   const bs=lv.doors.map(barrido).filter(Boolean);
+   for(let i=0;i<bs.length;i++)for(let j=i+1;j<bs.length;j++){const A=bs[i],B=bs[j];if(!pisa(A.caja,B.caja,.02))continue;let choca=false;const c=A.caja;for(let x=c.x+.025;x<c.x+c.w&&!choca;x+=.05)for(let z=c.y+.025;z<c.y+c.h&&!choca;z+=.05)if(A.adentro(x,z)&&B.adentro(x,z))choca=true;
+    if(choca)anota('coherencia','planta · dos puertas que se golpean al abrir',en(L,lv,`${A.q} y ${B.q}`));}
+   const OBRA=new Set(['inodoro','lavamanos','ducha','tina','meson','estufa','nevera','lavadora']);
+   for(const b of bs)for(const f of lv.furniture)if(OBRA.has(f.kind)&&pisa(b.caja,f,.01)&&toca(b,f)){anota('coherencia','planta · una puerta que al abrir pega contra un aparato',en(L,lv,`${f.kind} en un ${b.q}`));break;}
    // (la puerta a menos de 30 cm del rincón —el tabique de al lado inflado por el cuerpo cierra la entrada—, cuando el borde
    // que comparte con el otro cuarto le dejaba poner 40 cm de aire de cada lado)
    for(const d of lv.doors){if(d.street||d.core||d.wide||typeof d.b!=='number')continue;const A=lv.rooms.find(q=>q.id===d.a),B=lv.rooms.find(q=>q.id===d.b);if(!A||!B)continue;const h=Math.abs(d.y0-d.y1)<1e-6,p0=h?Math.min(d.x0,d.x1):Math.min(d.y0,d.y1),p1=h?Math.max(d.x0,d.x1):Math.max(d.y0,d.y1);
@@ -109,11 +121,21 @@ for(let s=S0;s<S0+N;s++){const t0=Date.now(),bp=bpActual=generateBlueprint({seed
    for(let i=0;i<V.length;i++){const a=V[i];for(const y of lineas)if(a.y0<y-.005&&a.y1>y+.005)anota('coherencia','fachada · un vano que cruza la línea de un piso',ef(`${a.clase} de ${a.y0} a ${a.y1}`));
     const m0=Math.floor((a.u0+.001)/2),m1=Math.ceil((a.u1-.001)/2);if(m1-m0>(a.clase==='doble'?2:1))anota('coherencia','fachada · un vano que pasa de su módulo',ef(`${a.clase} de ${a.u0} a ${a.u1}`));
     for(let j=i+1;j<V.length;j++){const b=V[j];if(Math.min(a.u1,b.u1)-Math.max(a.u0,b.u0)>.005&&Math.min(a.y1,b.y1)-Math.max(a.y0,b.y0)>.005)anota('coherencia','fachada · dos vanos se pisan',ef(`${a.clase} y ${b.clase}`));}}
+   // (una fachada a la calle, de 6 m o más, sin ninguna ventana en un piso de arriba —y que no es culata—: en una ciudad no pasa)
+   // (a la calle de verdad: la casilla de delante del medio del tramo es vía; delante de un patio, un muro ciego vale)
+   {const pm=F.punto(F.ancho/2),nn=F.eje.horiz?[0,F.eje.lado==='N'?-1:1]:[F.eje.lado==='W'?-1:1,0],cx=Math.floor((pm.x+nn[0]*1)/6),cy=Math.floor((pm.z+nn[1]*1)/6),M=bp.map,aCalle=cx>=0&&cy>=0&&cx<M.W&&cy<M.H&&[0,1].includes(M.kind[cy*M.W+cx]);
+    if(aCalle&&F.ancho>=6)for(const P of F.pisos){if(P.nivel===0)continue;const hay=V.some(h=>h.y0>=P.base-.01&&h.y1<=P.base+3.01);
+     const x=F.punto(F.ancho/2),n=F.eje.horiz?[0,F.eje.lado==='N'?-1:1]:[F.eje.lado==='W'?-1:1,0],px=x.x+n[0]*.6,pz=x.z+n[1]*.6,vecino=bp.lots.some(o=>o.id!==L.id&&(o.parts||[]).some(Q=>px>Q.x&&px<Q.x+Q.w&&pz>Q.y&&pz<Q.y+Q.h));
+     if(!hay&&!vecino)anota('coherencia','fachada · una fachada a la calle sin ninguna ventana en un piso',ef(`piso ${P.nivel}, ${F.ancho} m`));}}
    for(const P of F.pisos){const alt=new Set(V.filter(h=>h.clase==='ventana'&&h.y0>=P.base-.01&&h.y1<=P.base+3.01).map(h=>h.y0.toFixed(2)+'-'+h.y1.toFixed(2)));if(alt.size>1)anota('coherencia','fachada · ventanas de un mismo piso a distinta altura',ef(`piso ${P.nivel}: ${[...alt].join(' · ')}`));}}
   // PARA PINTAR: toda pared sin vanos y a la vista tiene cómo alcanzarse (muros.js accesoDe: su cuarto, la escalera de mano
   // o colgado desde la azotea); la que no, no se cuenta como pintable y acá se anota
   for(const w of paredesDelEdificio(bp,L)){if(w.clase!=='exterior'||!esPintable(w))continue;const x=w.c.x+w.n[0]*.3,z=w.c.z+w.n[1]*.3;if(bp.lots.some(o=>o.id!==L.id&&o.floors>w.nivel&&(o.parts||[]).some(p=>x>p.x&&x<p.x+p.w&&z>p.y&&z<p.y+p.h)))continue;
    if(!accesoDe(bp,L,w))anota('coherencia','pintar · una pared lisa a la que no se llega',`ciudad ${s} lote ${L.id} (${L.type}) piso ${w.nivel}: fachada ${w.codigo}`);}
+  // (delante de una puerta de calle, a menos de 1,2 m de su centro: un tronco, un poste, una banca)
+  {const lv0=L.levels[0],cosas=[...(bp.vegetacion?.arboles||[]).filter(a=>a.tipo!=='bosque').map(a=>({x:a.x,z:a.z,t:'árbol'})),...(bp.equipamiento||[]).filter(e=>e.tipo!=='cebra').map(e=>({x:e.x,z:e.z,t:e.tipo}))];
+   for(const d of (lv0?.doors||[]).filter(d=>d.street)){const h=Math.abs(d.y0-d.y1)<1e-6,mx=(d.x0+d.x1)/2,mz=(d.y0+d.y1)/2;for(const sg of [1,-1]){const x=mx+(h?0:sg*1),z=mz+(h?sg*1:0);if(L.parts.some(P=>x>P.x&&x<P.x+P.w&&z>P.y&&z<P.y+P.h))continue;
+     const c=cosas.find(c=>Math.hypot(c.x-x,c.z-z)<.9);if(c)anota('coherencia','afuera · algo delante de una puerta de calle',en(L,lv0,`${c.t} a ${Math.hypot(c.x-mx,c.z-mz).toFixed(2)} m de la puerta`));}}}
   for(const m of L.modulos||[]){const lv=L.levels[m.f];if(!lv)continue;
    if(m.f>0&&m.tipo==='vidriera')anota('coherencia','fachada · una vidriera arriba de la planta baja',en(L,lv,'vidriera'));
    if(m.f>0&&(m.tipo==='puerta'||m.tipo==='puerta_doble'||m.tipo==='porton'))anota('coherencia','fachada · una puerta de calle fuera de la planta baja',en(L,lv,m.tipo));

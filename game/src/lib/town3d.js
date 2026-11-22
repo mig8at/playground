@@ -460,7 +460,7 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
    // entre espacios sociales, vano abierto. Abre hacia el cuarto del lado a, o del b si a es el pasillo)
    for(const d of lv.doors){if(d.street||d.core||d.stair||d.wide||d.bay||d.hoja===false)continue;const q=lv.rooms.find(r=>r.id===d.a)||lv.rooms.find(r=>r.id===d.b);if(!q||OPEN.has(q.type))continue;// (del hall a la sala, un vano: una hoja ahí tapaba las puertas del hall)
     const dx=d.x1-d.x0,dz=d.y1-d.y0,len=Math.hypot(dx,dz);if(len>1.25||len<.6)continue;const ux=dx/len,uz=dz/len,cx=(d.x0+d.x1)/2,cz=(d.y0+d.y1)/2;
-    const nx=q.x+q.w/2-cx,nz=q.y+q.h/2-cz,th0=Math.atan2(-uz,ux),sgn=Math.sign((-Math.sin(th0))*nx+(-Math.cos(th0))*nz)||1;
+    const nx=q.x+q.w/2-cx,nz=q.y+q.h/2-cz,th0=Math.atan2(-uz,ux),sgn=(Math.sign((-Math.sin(th0))*nx+(-Math.cos(th0))*nz)||1)*(d.abreAfuera?-1:1);// (abreAfuera: hacia el otro lado —blueprint, la bisagra—)
     const style=/dormitorio|habitacion|infantil/.test(q.type)?'tablero':/bano|sanitario|vestuario/.test(q.type)?'rejilla':/cocina|oficina|consultorio/.test(q.type)?'vidrio':'lisa';
     // (la que el plano deja siempre abierta —d.abierta, engine/puertas.js— va sin hoja: sólo el marco. 2026-10-18, Miguel:
     // «las puertas que siempre están abiertas, quítalas; deja el marco»)
