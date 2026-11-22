@@ -123,7 +123,7 @@ const rinde=ref(null);let rindeN=0,rindeT=0,rindeLlamadas=0,rindeTris=0,rindePeo
 const accionTexto=ref(''),accionAlterna=ref(''),aiming=ref(false),hitMark=ref(0),host=ref(null),mini=ref(null),locked=ref(false),sinCaptura=ref(false),night=ref(false),showMap=ref(true),place=ref(''),drone=ref(false),lugar=ref(null);let niebla=null;
 // Modo dron: la cámara vuela libre (sin choques) y el jugador se queda donde estaba, marcado desde arriba.
 const DRONE_SPEED=22,DRONE_FAST=60,DRONE_MIN=-320,DRONE_MAX=260;
-const dronePos={x:0,y:0,z:0};let marker;
+const dronePos={x:0,y:0,z:0};let marker,cerradoAlPasear=null;// (lo de adentro de las viviendas cerradas, para devolverlo al aterrizar)
 // SÓLO PRIMERA PERSONA (2026-11-22, Miguel: «para este estilo de juego es mejor primera persona: quita lo de la cámara y lo
 // que corta el edificio en capas»). Se quitaron la vista de atrás del muñeco, la de arriba con el edificio cortado por
 // pisos (cutaway3d.js), el aclarado de paredes y sus teclas (T, F, la rueda). El dron —V, volar— sigue: es la misma
@@ -289,7 +289,7 @@ function load(ready=null){
  acciones=createAcciones({plan,world,player,avatar:()=>avatar,viviendas:()=>viviendas,ronda:()=>ronda,enRonda:usarRonda,casaPlan:i=>conPlano[i],usosRonda:(...a)=>usosRonda(...a)});accionTexto.value='';
  // (2026-11-22: en el paseo, toda vivienda está cerrada hasta que se compre —engine/propiedad.js—: su puerta trancada y lo
  // de adentro sin armar)
- if(PASEO&&!PRUEBA){const R=cerradurasDe(plan);trancar(R,conPlano);world.setCerrados?.(adentroCerrado(plan,R));}
+ if(PASEO&&!PRUEBA){const R=cerradurasDe(plan);trancar(R,conPlano);cerradoAlPasear=adentroCerrado(plan,R);world.setCerrados?.(cerradoAlPasear);}
  ronda=null;rondaVista.value=null;if(!PRUEBA&&!PASEO)setTimeout(()=>POLICIA?armarPolicia(conPlano):armarRonda(conPlano),400);// (después de mostrar el mundo: elegir las guaridas toma unos segundos)
  // (compilar los shaders ya, en paralelo, en vez de a la primera vez que cada cosa aparece en cámara: eso eran los tirones
  // al girar o al entrar a un edificio)
@@ -690,12 +690,13 @@ function droneStep(dt){
  const move=f.multiplyScalar(fw).add(r.multiplyScalar(st)).add(new THREE.Vector3(0,up,0));
  // (el despegue: sube solo hasta 28 m sobre donde arrancó, salvo que se pida subir o bajar)
  if(despegue!=null){if(up||Math.abs(despegue-dronePos.y)<.3)despegue=null;else dronePos.y+=(despegue-dronePos.y)*Math.min(1,dt*2.5);}
- // (no entra a los edificios ni a las casas: el paso que lo metería se corta, eje por eje, para que resbale por la fachada)
+ // (2026-11-22, Miguel: «en el modo volar déjame atravesar las paredes para inspeccionar y decirte qué veo mal»: el dron pasa
+ // por paredes, techos y pisos; sólo no se mete en el terreno. Antes no entraba a los edificios: resbalaba por la fachada)
  if(move.lengthSq()>0){move.normalize().multiplyScalar((keys.has('ShiftLeft')||keys.has('ShiftRight')?DRONE_FAST:DRONE_SPEED)*dt);
-  for(const k of ['y','x','z']){const antes=dronePos[k];dronePos[k]+=move[k];if(dronAdentro(dronePos.x,dronePos.z,dronePos.y))dronePos[k]=antes;}}
+  dronePos.x+=move.x;dronePos.y+=move.y;dronePos.z+=move.z;}
  const sz=world.size,M=ISLAND_MARGIN;dronePos.x=Math.max(-M,Math.min(sz.w+M,dronePos.x));dronePos.z=Math.max(-M,Math.min(sz.h+M,dronePos.z));
  // Sobre la isla no se mete en el suelo ni en la montaña; por debajo del borde vuela libre (para ver la roca que cuelga).
- if(dronePos.y>CLIFF)dronePos.y=Math.max(dronePos.y,(island.techo||island.height)(dronePos.x,dronePos.z)+3);// nunca por dentro de un lote ni de una rampa
+ if(dronePos.y>CLIFF)dronePos.y=Math.max(dronePos.y,island.height(dronePos.x,dronePos.z)+.3);// (no por dentro del terreno; los edificios sí se atraviesan)
  // Cuanto más alto, más lejos se ve: la niebla se corre con la altura.
  {const n=night.value,sz=world.size,away=Math.hypot(dronePos.x-sz.w/2,dronePos.z-sz.h/2,dronePos.y);scene.fog.near=(n?120:220)+away*.5;scene.fog.far=(n?700:1000)+away*.6;}dronePos.y=Math.max(DRONE_MIN,Math.min(DRONE_MAX,dronePos.y));
  camera.position.set(dronePos.x,dronePos.y,dronePos.z);
@@ -719,9 +720,12 @@ function toggleDrone(){
  if(acciones?.activa)return;// (sentado o acostado no se despega: primero hay que levantarse)
  drone.value=!drone.value;
  if(drone.value){Object.assign(dronePos,{x:camera.position.x,y:camera.position.y,z:camera.position.z});despegue=camera.position.y+28;euler.setFromQuaternion(camera.quaternion,'YXZ');euler.x=-.6;camera.quaternion.setFromEuler(euler);
-  // (despegando desde adentro de algo, arranca sobre el techo)
-  for(let k=0;k<300&&dronAdentro(dronePos.x,dronePos.z,dronePos.y);k++)dronePos.y+=1;despegue=Math.max(despegue,dronePos.y+3);}
- else{marker.visible=false;despegue=null;euler.setFromQuaternion(camera.quaternion,'YXZ');euler.x=0;camera.quaternion.setFromEuler(euler);}
+  // (despegando desde adentro de un edificio, se queda adentro —para inspeccionarlo—: sin el despegue de 28 m ni la mirada hacia abajo)
+  if(dronAdentro(dronePos.x,dronePos.z,dronePos.y)){despegue=null;euler.x=0;camera.quaternion.setFromEuler(euler);}
+  // (y mientras vuela se arma también lo de adentro de las viviendas cerradas: se ve lo que hay para inspeccionar)
+  world.setCerrados?.(null);world.refrescarInteriores?.();}
+ else{marker.visible=false;despegue=null;euler.setFromQuaternion(camera.quaternion,'YXZ');euler.x=0;camera.quaternion.setFromEuler(euler);
+  if(cerradoAlPasear){world.setCerrados?.(cerradoAlPasear);world.refrescarInteriores?.();}}
  lightClock=0;applyLight();
 }
 
