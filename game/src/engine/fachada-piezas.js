@@ -49,13 +49,19 @@ export function modulosDeFachada(bp,B){const S=CELL,de=loteEn(bp),id=B.id,fs=est
   // oficina—; antes salía también delante de una cocineta. Lo de detrás: el cuarto 30 cm adentro del centro del módulo)
   const detras=f=>{const c=coordDe(1),px=h?c:ex-dx*.3,pz=h?ez-dy*.3:c;return B.levels[f]?.rooms.find(q=>px>q.x&&px<q.x+q.w&&pz>q.y&&pz<q.y+q.h);};
   const balconyAt=f=>fs.balconies&&f>=2&&other<0&&winMod(1,f)&&BALCON_DELANTE.has(detras(f)?.type);
-  const pairOf=[];for(let f=0;f<floors;f++)pairOf[f]=fs.double&&f>=Math.max(1,f0)&&!balconyAt(f)?(winMod(0,f)&&winMod(1,f)&&freeEdge(f,0)?0:winMod(1,f)&&winMod(2,f)&&freeEdge(f,1)?1:-1):-1;
+  // (EL BALCÓN CORRIDO DEL DÚPLEX —Miguel, 2026-11-22: «balcones para los dúplex más modernos y amplios», «en el piso de
+  // abajo»—: en el piso de abajo de un dúplex, la casilla de fachada entera —sus tres módulos con ventana y la planta abierta
+  // detrás— es una terraza de TERRAZA.fondo con baranda de vidrio; los costados, paños de vidrio, y el del medio, el paso)
+  const detrasK=(k,f)=>{const c=coordDe(k),px=h?c:ex-dx*.3,pz=h?ez-dy*.3:c;return B.levels[f]?.rooms.find(q=>px>q.x&&px<q.x+q.w&&pz>q.y&&pz<q.y+q.h);};
+  const terrazaAt=f=>!!B.duplex&&f===floors-1&&f>=1&&other<0&&[0,1,2].every(k=>winMod(k,f)&&detrasK(k,f)?.abierto);
+  const pairOf=[];for(let f=0;f<floors;f++)pairOf[f]=fs.double&&f>=Math.max(1,f0)&&!balconyAt(f)&&!terrazaAt(f)?(winMod(0,f)&&winMod(1,f)&&freeEdge(f,0)?0:winMod(1,f)&&winMod(2,f)&&freeEdge(f,1)?1:-1):-1;
   for(let k=0;k<3;k++){const coord=coordDe(k);
    for(let f=f0;f<floors;f++){const win=hit(lines[f].w.get(lineKey),coord),door=f===0?hit(lines[f].d.get(lineKey),coord):null,pon=(tipo,pieza=null)=>out.push({lote:id,x,y,dx,dy,k,f,tipo,pieza});
     if(door&&door.bay){pon('porton');continue;}
     if(door){const dw=Math.hypot(door.x1-door.x0,door.y1-door.y0);if(dw>=1.6){pon('puerta_doble');out[out.length-1].ancho=+dw.toFixed(2);}else pon('puerta',fs.door);continue;}
     const vidriera=f===0&&!!win&&esVidriera(B.type,win),len=win?Math.hypot(win.x1-win.x0,win.y1-win.y0):0;
     const pieza=f===0&&!(win&&!vidriera)?(win?fs.shop:fs.wall):(win?(win.pieza==='ventanal'?VENTANAL:win.pieza&&WINDOWS[win.pieza]?WINDOWS[win.pieza].p:f<=1&&len>=1?fs.win1:fs.win):fs.plain);
+    if(terrazaAt(f)){pon('terraza',k===1?TERRAZA.paso:TERRAZA.vidrio);continue;}
     if(k===1&&balconyAt(f))pon('balcon',BALCON_MARCO);
     else if(pairOf[f]===k)pon('doble',fs.double);
     else if(pairOf[f]<0||pairOf[f]!==k-1){pon(vidriera?'vidriera':win&&(f>0||!vidriera)&&pieza!==fs.plain&&pieza!==fs.wall?'ventana':'muro',pieza);if(win?.escalera&&!vidriera)out[out.length-1].escalera=true;}
@@ -76,6 +82,8 @@ export const CERCO={lado:.16,abajo:.24,arriba:.26};
 export const PUERTA_VANO={DoorFrame_Wooden:[-1,1,0,3],DoorFrame_Trim:[-.68,.68,0,2.96],DoorFrame_Metal_Single:[-.57,.57,0,2.93]};
 export const PUERTA_DOBLE_ALTO=2.6;
 // El balcón: el marco de una puerta sencilla, sin hoja (se sale caminando), y sólo delante de estos cuartos.
+// (la terraza del dúplex: el paso, el marco metálico de una puerta sin hoja; los costados, paños de vidrio entero)
+export const TERRAZA={fondo:1.4,paso:'DoorFrame_Metal_Single',vidrio:'Metal_FullWindow',baranda:1.05};
 export const BALCON_MARCO='DoorFrame_Trim',BALCON_DELANTE=new Set(['dormitorio','sala','sala_cocina','estudio','habitacion','habitacion_h','oficina','abierta','reuniones','comedor']);
 export function vanoDeModulo(m){const cl=(v,a,b)=>Math.max(a,Math.min(b,v));
  if(m.tipo==='ventana'||m.tipo==='doble'){const g=vidrioDeModulo(m),x1=m.tipo==='doble'?3:1;return g?[cl(g[0]-CERCO.lado,-1,x1),cl(g[1]+CERCO.lado,-1,x1),cl(g[2]-CERCO.abajo,0,3),cl(g[3]+CERCO.arriba,0,3)]:[-1,x1,.3,2.8];}
@@ -88,5 +96,7 @@ export function vanoDeModulo(m){const cl=(v,a,b)=>Math.max(a,Math.min(b,v));
  // (2026-11-22, Miguel: «parece un hueco raro: debería ser sólo la puerta, o incluso sin puerta para que sea más jugable»:
  // el marco de una puerta sencilla, sin hoja; antes el de la entrada del edificio, de 2 m, con un hueco oscuro alrededor)
  if(m.tipo==='balcon')return PUERTA_VANO[BALCON_MARCO];
+ // (la terraza: el paso, su marco; los costados, el paño de vidrio con su cerco)
+ if(m.tipo==='terraza'){if(m.pieza===TERRAZA.paso)return PUERTA_VANO[TERRAZA.paso];const g=VIDRIO_PIEZA[m.pieza];return g?[cl(g[0]-CERCO.lado,-1,1),cl(g[1]+CERCO.lado,-1,1),cl(g[2]-CERCO.abajo,0,3),cl(g[3]+CERCO.arriba,0,3)]:[-1,1,0,3];}
  return null;}
-export function vidrioDeModulo(m){if(m.tipo==='ventana')return m.pieza===VENTANAL?VIDRIO_VENTANAL:VIDRIO_PIEZA[m.pieza]||null;if(m.tipo==='doble'){const g=VIDRIO_PIEZA[m.pieza];return g?[g[0]+1,g[1]+1,g[2],g[3]]:null;}return null;}
+export function vidrioDeModulo(m){if(m.tipo==='terraza'&&m.pieza!==TERRAZA.paso)return VIDRIO_PIEZA[m.pieza]||null;if(m.tipo==='ventana')return m.pieza===VENTANAL?VIDRIO_VENTANAL:VIDRIO_PIEZA[m.pieza]||null;if(m.tipo==='doble'){const g=VIDRIO_PIEZA[m.pieza];return g?[g[0]+1,g[1]+1,g[2],g[3]]:null;}return null;}

@@ -128,7 +128,8 @@ function bake(list){
 // afuera; la pizarra y el vidrio, enteros. Una vez por pieza)
 // (cada triángulo se corta exacto por el plano —d = z + y/3, adentro si d < 0—: lo de afuera queda, con su normal y su uv)
 function recortarBuhardilla(piece){if(piece._recortada)return;piece._recortada=true;
- for(const part of piece.parts){if(part.mat==='MI_Roof_Slate'||part.mat==='MI_Glass')continue;const g=part.geo.index?part.geo.toNonIndexed():part.geo;
+ for(const part of piece.parts){if(part.mat==='MI_Roof_Slate'||part.mat==='MI_Glass')continue;part.geo=cortarPorPendiente(part.geo);}}
+function cortarPorPendiente(geo){{const g=geo.index?geo.toNonIndexed():geo;
   const P=g.attributes.position.array,N=g.attributes.normal?.array,U=g.attributes.uv?.array,oP=[],oN=[],oU=[],d=i=>P[i*3+2]+P[i*3+1]/3+.005;
   const vtx=(i,j,t)=>({p:[0,1,2].map(k=>P[i*3+k]+(P[j*3+k]-P[i*3+k])*t),n:N?[0,1,2].map(k=>N[i*3+k]+(N[j*3+k]-N[i*3+k])*t):null,u:U?[0,1].map(k=>U[i*2+k]+(U[j*2+k]-U[i*2+k])*t):null});
   for(let t=0;t<P.length/3;t+=3){const ids=[t,t+1,t+2],ds=ids.map(d);if(ds.every(x=>x>=0)){for(const i of ids){oP.push(P[i*3],P[i*3+1],P[i*3+2]);if(N)oN.push(N[i*3],N[i*3+1],N[i*3+2]);if(U)oU.push(U[i*2],U[i*2+1]);}continue;}if(ds.every(x=>x<0))continue;
@@ -136,10 +137,23 @@ function recortarBuhardilla(piece){if(piece._recortada)return;piece._recortada=t
    const poly=[];for(let k=0;k<3;k++){const a=ids[k],b=ids[(k+1)%3],da=ds[k],db=ds[(k+1)%3];if(da>=0)poly.push(vtx(a,a,0));if((da>=0)!==(db>=0))poly.push(vtx(a,b,da/(da-db)));}
    for(let k=1;k+1<poly.length;k++)for(const v of [poly[0],poly[k],poly[k+1]]){oP.push(...v.p);if(N)oN.push(...v.n);if(U)oU.push(...v.u);}}
   const ng=new THREE.BufferGeometry();ng.setAttribute('position',new THREE.Float32BufferAttribute(oP,3));if(N)ng.setAttribute('normal',new THREE.Float32BufferAttribute(oN,3));if(U)ng.setAttribute('uv',new THREE.Float32BufferAttribute(oU,2));
-  ng.setIndex([...Array(oP.length/3).keys()]);part.geo=ng;}}
+  ng.setIndex([...Array(oP.length/3).keys()]);return ng;}}
+
+// LA BUHARDILLA MODERNA DEL DÚPLEX (2026-11-22, Miguel: «ventanas más modernas en los dúplex, para que se vea más bonito y
+// moderno»): una caja de techo plano en metal oscuro —los costados y el techo de 6 cm— con un solo paño de vidrio de 1 × 2,3 m
+// y marco delgado, en vez del frontón clásico. Sale de la pizarra con su hueco de la buhardilla del paquete; las cajas se
+// cortan por la pendiente como la otra, para que por dentro no atraviesen nada. Pocos polígonos: siete cajas
+export const BUHARDILLA_MODERNA='Roof_Buhardilla_Moderna';
+function buhardillaModerna(kit){if(kit.pieces[BUHARDILLA_MODERNA]||!kit.pieces['Roof_SlateCornice_Window_1'])return;const base=kit.pieces['Roof_SlateCornice_Window_1'];
+ const B=(x0,x1,y0,y1,z0,z1)=>{const g=new THREE.BoxGeometry(x1-x0,y1-y0,z1-z0);g.translate((x0+x1)/2,(y0+y1)/2,(z0+z1)/2);return g;};
+ const metal=mergeGeometries([B(-.62,.62,2.55,2.61,-.95,.06),B(-.62,-.56,.1,2.55,-.95,.06),B(.56,.62,.1,2.55,-.95,.06),B(-.62,.62,.08,.16,-.35,.08),B(-.56,.56,2.47,2.55,-.07,0),B(-.56,-.5,.16,2.47,-.07,0),B(.5,.56,.16,2.47,-.07,0)].map(g=>g.toNonIndexed()),false);
+ const vidrio=B(-.5,.5,.16,2.47,-.045,-.03);
+ const de=m=>base.parts.find(p=>p.mat===m),slate=de('MI_Roof_Slate'),gl=de('MI_Glass'),mt=de('MI_Trim_MetalConcrete')||de('MI_Trim');
+ kit.pieces[BUHARDILLA_MODERNA]={...base,parts:[slate,{...(mt||{}),mat:'MI_Trim_MetalConcrete',geo:cortarPorPendiente(metal),color:mt?.color||new THREE.Color('#3a3d40')},{...(gl||{}),mat:'MI_Glass',geo:vidrio}].filter(p=>p&&p.geo)};}
 
 export function buildDowntown(kit,items,leaves=[]){
  for(const [n,pc] of Object.entries(kit.pieces||{}))if(/^Roof_SlateCornice_Window/.test(n))recortarBuhardilla(pc);
+ if(kit.pieces)buhardillaModerna(kit);
  const tex=textures(),mats=new Map(),buckets=new Map(),group=new THREE.Group(),own=[],litMats=[],bounce=[];
  const material=(name,color,tint,lit,pared=false,textura=null)=>{
   // (pared: la capa de afuera de un muro; con TEXTURAS3D lleva la textura que le toca a su material y su color)

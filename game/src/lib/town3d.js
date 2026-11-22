@@ -10,9 +10,9 @@ import {facadeStyle,LEGACY,WINDOWS,VIDRIO_PIEZA,VIDRIO_VENTANAL} from '../engine
 import {liftFor} from './sitting3d.js';
 import {OBJETOS,placeParts,RUG_COUNT,kitModel,REEMPLAZOS} from './objetos3d.js';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
-import {LOWPOLY} from './downtown3d.js';
+import {LOWPOLY,BUHARDILLA_MODERNA} from './downtown3d.js';
 import {texturaDeMuro} from '../engine/fachada-medida.js';
-import {modulosDeFachada,VENTANAL as VENTANAL_PLANO} from '../engine/fachada-piezas.js';
+import {modulosDeFachada,VENTANAL as VENTANAL_PLANO,TERRAZA} from '../engine/fachada-piezas.js';
 import {PUERTA_DOBLE,MARQUESINA,VENTANAL} from './fachada3d.js';
 import {pendienteEn} from '../engine/techos.js';
 import {ALTURA,COLUMNA,CHOQUE_MUEBLE,CORTINA,AZOTEA,MANSARDA,esVidriera} from '../engine/medidas.js';
@@ -281,7 +281,25 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
      if(vidriera&&B.giro)signAt.push({x:mx+dx*.12,z:mz+dy*.12,ry});
      const piece=D.pieza===VENTANAL_PLANO?VENTANAL((fs.paintOn||[])[0]||'MI_RedBrick'):D.pieza||fs.plain;
      const bal=D.tipo==='balcon';
-     if(bal){// el balcón: puerta (marco y hoja de la de calle, que se abre al acercarse en ese piso), la losa de concreto (la
+     if(D.tipo==='terraza'){// LA TERRAZA DEL DÚPLEX (fachada-piezas TERRAZA): la casilla entera; en el medio el paso —el marco sin hoja—,
+      // a los costados paños de vidrio; la losa de TERRAZA.fondo y la baranda de vidrio con marco metálico —el mismo paño, bajo—
+      // adelante y en las puntas. Se pisa (balconies) y la baranda frena
+      const Fd=TERRAZA.fondo,Hb=TERRAZA.baranda,sb=Hb/3,mt=tint&&{zones:[tint.zones?.[2]||[null,[]]]};anota('terraza',D.pieza);
+      items.push({piece:D.pieza,x:mx,y:yb,z:mz,ry,tint,lit:lit(f)});if(k!==1)vidrio(D.pieza,mx,mz,f);
+      items.push({piece:'Entrance_Concrete_2x1',x:mx,y:yb-.15,z:mz,ry,sy:.15,sz:Fd});
+      items.push({piece:TERRAZA.vidrio,x:mx+dx*Fd,y:yb,z:mz+dy*Fd,ry,sy:sb,tint:mt});
+      const bw=(a0,b0,a1,b1)=>wallAny(Math.min(a0,a1),Math.min(b0,b1),Math.max(a0,a1),Math.max(b0,b1),yb,yb+1.1);
+      bw(mx-tx*1+dx*(Fd-.08),mz-tz*1+dy*(Fd-.08),mx+tx*1+dx*Fd,mz+tz*1+dy*Fd);
+      // (las puntas: la baranda de costado, de vidrio, sólo en los módulos de los extremos)
+      // (si la casilla de al lado también es terraza, sigue de corrido: sin baranda entre las dos —las dos se ponían en el mismo
+      // lugar y titilaban, validar-triangulos—)
+      // (contra la terraza de OTRO edificio, la baranda queda —no se pasa de una casa a otra—, pero una sola: la pone el lote de
+      // número menor)
+      for(const sg of k===0?[-1]:k===2?[1]:[]){const nx=x+tx*sg,ny=y+tz*sg,vk=sg<0?2:0,vl=lotAtCell(nx,ny);
+       if(vl===id&&modDe.get(`${nx},${ny},${dx},${dy},${vk},${f}`)?.tipo==='terraza')continue;
+       if(vl>=0&&vl<id&&(P[vl]?.modulos||[]).some(m=>m.x===nx&&m.y===ny&&m.dx===dx&&m.dy===dy&&m.k===vk&&m.f===f&&m.tipo==='terraza'))continue;const px=mx+tx*sg+dx*Fd/2,pz=mz+tz*sg+dy*Fd/2;items.push({piece:TERRAZA.vidrio,x:px,y:yb,z:pz,ry:ry+Math.PI/2,sx:Fd/2,sy:sb,tint:mt});bw(px-dx*Fd/2,pz-dy*Fd/2,px+dx*Fd/2+tx*sg*.08,pz+dy*Fd/2+tz*sg*.08);}
+      if(k===1)gaps.push([yb-.3,yb+2.5]);balconies.push({x:mx,z:mz,nx:dx,nz:dy,w:2,d:Fd,y:yb+R});}
+     else if(bal){// el balcón: puerta (marco y hoja de la de calle, que se abre al acercarse en ese piso), la losa de concreto (la
       // entrada del paquete, de 15 cm), las barandas de los costados (las de una escalera recta) y adelante la baranda baja.
       // Se pisa (balconies) y sus barandas frenan (paredes de 1,1 m).
       /* (2026-11-22: el marco de una puerta sencilla y sin hoja —fachada-piezas.js BALCON_MARCO—: se sale caminando) */anota('balcon',D.pieza||fs.door);items.push({piece:D.pieza||fs.door,x:mx,y:yb,z:mz,ry,tint,lit:lit(f)});
@@ -310,7 +328,8 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
      // polígonos que no aportan». Fuera de los dúplex, la de antes: el módulo del medio, a veces)
      const ud=(B.duplex?.unidades||[]).find(u=>{const xs=u.rooms.flatMap(q=>[q.x,q.x+q.w]),zs=u.rooms.flatMap(q=>[q.y,q.y+q.h]);return mx>Math.min(...xs)-.05&&mx<Math.max(...xs)+.05&&mz>Math.min(...zs)-.05&&mz<Math.max(...zs)+.05;});
      const buh=ud?ud.windows.some(w=>w.buhardilla&&Math.hypot((w.x0+w.x1)/2-mx,(w.y0+w.y1)/2-mz)<.6)&&!(ud.vacios||[]).some(v=>mx>v.x-.05&&mx<v.x+v.w+.05&&mz>v.y-.05&&mz<v.y+v.h+.05):k===1&&hash(x*3+k,y*5+id,seed+97)<.75;
-     if(!outer){const pz=buh?'Roof_SlateCornice_Window_1':'Roof_SlateCornice_Center';items.push({piece:pz,x:mx,y:L.h,z:mz,ry,tint});mansardaArmada.push({lote:id,x,y,dx,dy,k,tipo:buh?'buhardilla':'mansarda',pieza:pz,mx,mz});}// (anotada aparte de fachadaArmada —que es el plano de fachada—: validar-duplex-3d cruza cada buhardilla con las ventanas del plano)
+     // (y en un dúplex, la buhardilla moderna —downtown3d BUHARDILLA_MODERNA: caja de techo plano y un solo vidrio—)
+     if(!outer){const pz=buh?(ud?BUHARDILLA_MODERNA:'Roof_SlateCornice_Window_1'):'Roof_SlateCornice_Center';items.push({piece:pz,x:mx,y:L.h,z:mz,ry,tint});mansardaArmada.push({lote:id,x,y,dx,dy,k,tipo:buh?'buhardilla':'mansarda',pieza:pz,mx,mz});}// (anotada aparte de fachadaArmada —que es el plano de fachada—: validar-duplex-3d cruza cada buhardilla con las ventanas del plano)
      else{// La pieza de esquina ocupa el cuadro de 2 × 2 m del módulo de la punta y cae hacia su −x: en la punta izquierda
       // va tal cual; en la derecha, girada 90° sobre el centro del cuadro. Las dos fachadas de la esquina la piden: va una vez.
       const cxq=mx-dx,czq=mz-dy,key='m'+cxq.toFixed(2)+','+czq.toFixed(2);

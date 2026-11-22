@@ -20,7 +20,7 @@ import {MANSARDA} from './medidas.js';
 import {loteEn} from './fachada-piezas.js';
 import {CELL} from './veredas.js';
 
-export const DUPLEX={aire:2.1,cabeza:2,escalera:{ancho:1,largo:4,peldanos:15},corta:{ancho:1,largo:3,peldanos:12},cerrados:['bano','ropas'],cara:{fachada:.25,tabique:.07},pasoMin:1.3,penthouse:{max:250},isla:{paso:1.1,libre:1,largo:2.4,hondo:.9},arranque:1,vacio:{lado:3,piso:6,max:.45},otros:['dormitorio','hall'],paso:1,cuartos:['sala_cocina','sala','estudio','comedor']};
+export const DUPLEX={aire:2.1,cabeza:2,escalera:{ancho:1,largo:4,peldanos:15},corta:{ancho:1,largo:3,peldanos:12},cerrados:['bano','ropas'],cara:{fachada:.25,tabique:.07},pasoMin:1.3,penthouse:{max:250},isla:{paso:1.1,libre:1,largo:2.4,hondo:.9},ventana:'vidrio',arranque:1,vacio:{lado:3,piso:6,max:.45},otros:['dormitorio','hall'],paso:1,cuartos:['sala_cocina','sala','estudio','comedor']};
 const pisa=(a,b,t=.01)=>Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x)>t&&Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y)>t;
 const dentro=(a,b,t=.01)=>a.x>=b.x-t&&a.y>=b.y-t&&a.x+a.w<=b.x+b.w+t&&a.y+a.h<=b.y+b.h+t;
 
@@ -303,7 +303,13 @@ export function duplexDe(bp){let n=0,no=0,penthouses=0;
   const ph=penthouse(L,top);let r=armar();
   if(ph&&!r.unidades.length){ph.deshacer();delete top.escalerasInternas;r=armar();}else if(ph)penthouses++;
   n+=r.unidades.length;no+=r.sin;
-  if(r.unidades.length)L.duplex={nivel:L.floors,unidades:r.unidades,penthouse:!!ph&&r.unidades.length===1&&top.units.length===1};}
+  if(r.unidades.length)L.duplex={nivel:L.floors,unidades:r.unidades,penthouse:!!ph&&r.unidades.length===1&&top.units.length===1};
+  // (las ventanas modernas —Miguel, 2026-11-22: «ventanas más modernas en los dúplex, para que se vea más bonito y moderno»—:
+  // si todo el piso de abajo es dúplex, sus ventanas son paños de vidrio casi de piso a techo —la pieza «vidrio», 1,81 × 2,64 m—;
+  // con otros departamentos en el piso no, para que la fachada siga pareja)
+  // (todas, también la del baño —con vidrio esmerilado: un detalle de material que acá no se dibuja—: un piso de la fachada
+  // lleva sus ventanas a una misma altura —auditar-plano, coherencia—)
+  if(r.unidades.length&&top.units.every(u=>r.unidades.some(d=>d.n===u.n)))for(const w of top.windows||[])if(!w.shop&&!w.escalera)w.pieza=DUPLEX.ventana;}
  return {duplex:n,sinLugar:no,penthouses};}
 
 // El nivel de la mansarda como un piso más (para dibujarlo y medirlo igual que los demás): los cuartos de todos los dúplex
