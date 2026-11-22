@@ -68,9 +68,10 @@ export class EdgePass extends Pass{
    const now=performance.now();if(!this.layered||now-this.layered>1000){this.layered=now;this.flat=[];this.layer(s,false);}
    for(const o of this.flat)o.visible=false;
    s.background=null;s.fog=null;renderer.shadowMap.autoUpdate=false;renderer.setRenderTarget(this.target);renderer.setClearColor(0x8080ff,0);renderer.clear();
+   const antes=s.overrideMaterial;// (el que había —el modo aristas, lib/aristas3d.js—: se devuelve al terminar)
    s.overrideMaterial=this.other;renderer.render(s,cam);
    s.overrideMaterial=this.wall;cam.layers.set(WALLS);const ac=renderer.autoClear;renderer.autoClear=false;renderer.render(s,cam);renderer.autoClear=ac;cam.layers.mask=mask;
-   s.overrideMaterial=null;for(const o of this.flat)o.visible=true;
+   s.overrideMaterial=antes;for(const o of this.flat)o.visible=true;
    s.background=bg;s.fog=fog;renderer.shadowMap.autoUpdate=au;renderer.setClearColor(cc,ca);}
   const u=this.material.uniforms;u.tDiffuse.value=readBuffer.texture;u.near.value=this.camera.near;u.far.value=this.camera.far;
   renderer.setRenderTarget(this.renderToScreen?null:writeBuffer);this.quad.render(renderer);
