@@ -33,6 +33,8 @@ jira_title: ""
 - [ ] Validar en el servidor, contra el plano, que la huella que manda el navegador es la de esa pared: termina cuando un pedido con un número y una huella que no se corresponden se rechaza. Hoy la base sólo revisa la forma.
 - [x] Achicar el baño de 2 × 6 m de las casas de la ciudad de 720 m: ahora baño de 2 × 3 m y zona de ropas; la auditoría da 4 casos.
 - [ ] Hacer que las pruebas de usos y de ciudad acepten el tamaño de la ciudad: termina cuando corren con la de 720 m.
+- [ ] Decidir si se BORRA del repo el código de colores, texturas y muebles (hoy sólo no se muestra). Depende de: Miguel — los muebles del generador son lo que mide que cada cuarto sirve; borrarlos deja sin base las pruebas de usos, interiores y muebles.
+- [ ] Pasar el plano 2D a boceto (cuartos sin color, sólo líneas y medidas) si Miguel lo quiere igual que el 3D.
 - [ ] Mostrar y recuperar las paredes huérfanas: termina cuando desde el plano se ve qué quedó apartado y se puede volver a poner en una pared de la misma medida.
 - [ ] Numerar también las casas del monte (sus manzanas, después de las de la ciudad): termina cuando una pared de una casa del monte tiene su número de 10 cifras.
 - [ ] Unir las dos caras de un tabique en una sola pared con dos caras. Depende de: Miguel — hoy cada cara es una pared aparte (una por cuarto); decidir si la base de datos las quiere así o como una pared con dos lados.
