@@ -28,17 +28,17 @@ export function cerrarCortinas(bp){let unidades=0,cerradas=0,ventanas=0;
   h.cortinas={tela:telaDe(...k),cuartos:[...new Set(cuartos)]};}
  return {unidades,cerradas,ventanas};}
 
-// El paño cerrado de una ventana (c: cuartoDeVentana), en cajas del mundo {x,y,z,sx,sy,sz,color}: la tela de lado a lado
-// —hasta CORTINA.panio.ancho centrado en la ventana, sin pasar del cuarto (margen)— de panio.bajo a panio.alto sobre el
-// piso yb, a cara (m) de la línea de la fachada hacia adentro; el barral arriba y dos pliegues un poco más oscuros.
-const oscuro=(hex,k=.82)=>'#'+[1,3,5].map(i=>Math.round(parseInt(hex.slice(i,i+2),16)*k).toString(16).padStart(2,'0')).join('');
-export function panioCerrado(c,tela,yb,cara){const P=CORTINA.panio,m=(c.u+c.v)/2,u0=Math.max(c.a+P.margen,m-P.ancho/2),u1=Math.min(c.b-P.margen,m+P.ancho/2),L=u1-u0,mu=(u0+u1)/2;
- const at=c.at+c.edge*cara,out=[];
- const caja=(du,y,hh,ancho,off,esp,color)=>{const p=at+c.edge*off;out.push(c.h?{x:mu+du,y,z:p,sx:ancho,sy:hh,sz:esp,color}:{x:p,y,z:mu+du,sx:esp,sy:hh,sz:ancho,color});};
- caja(0,yb+P.bajo,P.alto-P.bajo,L,0,.03,tela);
- for(const t of [-1/3,1/3])caja(t*L,yb+P.bajo,P.alto-P.bajo-.04,.12,.02,.02,oscuro(tela));
- caja(0,yb+P.alto,.04,L+.1,.03,.04,'#5b4330');
- return {cajas:out,u0,u1,y0:yb+P.bajo,y1:yb+P.alto};}
+// LA PELÍCULA DEL VIDRIO (2026-11-22, Miguel: «eliminamos las cortinas y hacemos que sean borrosas cuando no estén abiertas,
+// como eso nuevo que una ventana se puede ver transparente u opaca con una película»; «que no se vea por dentro de los
+// apartamentos, pero que al abrir se ponga transparente»). En vez del paño con sus pliegues y su barral (4 cajas, 48
+// triángulos) y de los paños abiertos a los costados, una sola lámina lechosa pegada al vidrio por dentro (12 triángulos):
+// opaca, tapa el cuarto; transparente, no se dibuja. Del ancho que tapaba el paño —hasta CORTINA.panio.ancho centrado en
+// la ventana, sin pasar del cuarto (margen)— y de panio.bajo a panio.alto sobre el piso yb, a cara (m) de la línea de la
+// fachada hacia adentro. Devuelve {cajas: [la lámina, {x,y,z,sx,sy,sz,color}], u0, u1, y0, y1}.
+export const PELICULA={color:'#e3e9ec',espesor:.012};
+export function peliculaCerrada(c,yb,cara){const P=CORTINA.panio,m=(c.u+c.v)/2,u0=Math.max(c.a+P.margen,m-P.ancho/2),u1=Math.min(c.b-P.margen,m+P.ancho/2),mu=(u0+u1)/2,L=u1-u0,at=c.at+c.edge*cara,y0=yb+P.bajo,y1=yb+P.alto;
+ const caja=c.h?{x:mu,y:y0,z:at,sx:L,sy:y1-y0,sz:PELICULA.espesor,color:PELICULA.color}:{x:at,y:y0,z:mu,sx:PELICULA.espesor,sy:y1-y0,sz:L,color:PELICULA.color};
+ return {cajas:[caja],u0,u1,y0,y1};}
 
 // La cortina abierta de una ventana DIBUJADA (2026-10-16, Miguel: «reubicá y organizá las cortinas para que estén bien en
 // las ventanas»: iban una por ventana del plano, medidas con su largo; donde el 3D dibuja una ventana doble para dos del
@@ -60,11 +60,5 @@ export function juntarCortinas(ks){const out=[];for(const k of ks){const p=out.a
   if(p&&k.u0-k.paño<p.u1+p.paño+.01){const n=Math.min(p.pliegues,k.pliegues),pa=CORTINA_ABIERTA.panio(n);Object.assign(p,{u0:p.u0,u1:k.u1,w:k.u1-p.u0,m:(p.u0+k.u1)/2,h:Math.max(p.h,k.h),pliegues:n,paño:pa});}
   else out.push({...k});}return out;}
 
-// LA PERSIANA CERRADA (2026-11-22, Miguel: «las casas y apartamentos que no estén vendidos, con las ventanas cerradas, así
-// aumenta el rendimiento»; y «en vez de cortinas, persianas, que son lisas y serían menos polígonos, casi un cuadrado»).
-// Una sola caja delante del vidrio, del ancho de la ventana y de panio.bajo a panio.alto: 12 triángulos contra los 48 del
-// paño con sus pliegues y su barral. Con ella cerrada no se ve el interior, y el 3D no lo arma (propiedad.js).
-export const PERSIANA={color:'#e7e3da',margen:.04,espesor:.025};
-export function persianaCerrada(c,yb,cara){const P=CORTINA.panio,u0=c.u-PERSIANA.margen,u1=c.v+PERSIANA.margen,at=c.at+c.edge*cara,mu=(u0+u1)/2,L=u1-u0,y0=yb+P.bajo,y1=yb+P.alto;
- const caja=c.h?{x:mu,y:y0,z:at,sx:L,sy:y1-y0,sz:PERSIANA.espesor,color:PERSIANA.color}:{x:at,y:y0,z:mu,sx:PERSIANA.espesor,sy:y1-y0,sz:L,color:PERSIANA.color};
- return {cajas:[caja],u0,u1,y0,y1};}
+// (LA PERSIANA CERRADA de las viviendas sin dueño —2026-11-22, «las casas y apartamentos que no estén vendidos, con las
+// ventanas cerradas»— es ahora la misma película, opaca: peliculaCerrada)

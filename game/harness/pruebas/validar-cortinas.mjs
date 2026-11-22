@@ -2,14 +2,14 @@
 // negocios, como decoración, y que tapen los interiores vacíos que se ven de lejos»):
 //  · el reparto: la parte de unidades con la cortina cerrada, por tipo de edificio, cerca de CORTINA.cerradas (±8 puntos, o 3 desvíos si la muestra es chica);
 //  · sólo en ventanas de cuartos de CORTINA.cuartos, nunca en vidrieras, y la misma tela en toda la unidad;
-//  · el paño (panioCerrado, el mismo que dibuja town3d) tapa el vidrio: el más ancho y el más alto de las ventanas del
+//  · la película (peliculaCerrada, la misma que dibuja town3d) tapa el vidrio: el más ancho y el más alto de las ventanas del
 //    paquete (medidos en sus .gltf), dentro de la pared de su cuarto, y queda detrás del vidrio;
 //  · en las casas: los cuartos cerrados son de CORTINA.cuartos y la casa armada (planHouse) lleva la tela corrida sobre
 //    toda la ventana.
 // Uso: node scripts/validar-cortinas.mjs [ciudades=4] [semilla0=1]
 import {readFileSync} from 'node:fs';
 import {generateBlueprint} from '../../src/engine/blueprint.js';
-import {cuartoDeVentana,panioCerrado} from '../../src/engine/cortinas.js';
+import {cuartoDeVentana,peliculaCerrada} from '../../src/engine/cortinas.js';
 import {CORTINA,ALTURA} from '../../src/engine/medidas.js';
 import {WINDOWS} from '../../src/engine/fachada.js';
 import {planHouse} from '../../src/engine/vivienda.js';
@@ -30,7 +30,7 @@ for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:3});
     const u=c.q.unit??'c'+c.q.id;if(!w.cortina){abiertas.add(u);continue;}
     if(telas.has(u)&&telas.get(u)!==w.cortina)falla('dos telas en la misma unidad',ej);telas.set(u,w.cortina);
     // el paño contra el vidrio
-    paños++;const P=panioCerrado(c,w.cortina,yb,FACE),m=(c.u+c.v)/2,g0=Math.max(c.a,m-G.half),g1=Math.min(c.b,m+G.half);if(m-G.half<c.a-1e-6||m+G.half>c.b+1e-6)cruzan++;
+    paños++;const P=peliculaCerrada(c,yb,FACE),m=(c.u+c.v)/2,g0=Math.max(c.a,m-G.half),g1=Math.min(c.b,m+G.half);if(m-G.half<c.a-1e-6||m+G.half>c.b+1e-6)cruzan++;
     if(P.u0>g0+CORTINA.panio.margen+1e-6||P.u1<g1-CORTINA.panio.margen-1e-6)falla('el paño no tapa el ancho del vidrio',{...ej,panio:[+P.u0.toFixed(2),+P.u1.toFixed(2)],vidrio:[+g0.toFixed(2),+g1.toFixed(2)]});
     if(P.u0<c.a-1e-6||P.u1>c.b+1e-6)falla('el paño se sale de la pared de su cuarto',ej);
     if(P.y0>lv.level*FLOOR+G.y0+1e-6||P.y1<lv.level*FLOOR+G.y1-1e-6)falla('el paño no tapa el alto del vidrio',{...ej,panio:[P.y0,P.y1],vidrio:[G.y0,G.y1]});

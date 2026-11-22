@@ -1243,7 +1243,8 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
    let k=0;for(let i=0;i<n;i++){if(set&&!set.has(cortinaLote[i])){cortinaSlot[i]=-1;continue;}cortinaSlot[i]=k;for(let j=0;j<16;j++)A[k*16+j]=cortinaOrig[i*16+j];k++;}
    cortinaMesh.count=k;for(const p of new Set(panioDe.filter(Boolean)))if(cortinaSlot[p.i0]>=0)ponPanio(p);cortinaMesh.instanceMatrix.needsUpdate=true;},
   cortinaCerrada:key=>!!panios.get(key)?.cerrada,cortinaK:key=>panios.get(key)?.k,
-  cortina:(key,cerrar)=>{const p=panios.get(key);if(!p||!cortinaMesh)return false;p.cerrada=cerrar??!p.cerrada;(corriendo||(corriendo=new Set())).add(p);return p.cerrada;},
+  // (2026-11-22: la cortina es la película del vidrio —engine/cortinas.js peliculaCerrada—: cambia de una vez, como la de verdad)
+  cortina:(key,cerrar)=>{const p=panios.get(key);if(!p||!cortinaMesh)return false;p.cerrada=cerrar??!p.cerrada;p.k=p.cerrada?1:0;ponPanio(p);cortinaMesh.instanceMatrix.needsUpdate=true;return p.cerrada;},
   // El techo sobre (x, z) por encima de la altura y: lo más bajo que haya arriba —la losa del piso siguiente (menos el hueco
   // de la escalera) o un tramo de escalera—, o null. Para la cámara de tercera persona, que se queda debajo en vez de
   // chocar y acercarse de un salto (2026-10-16).

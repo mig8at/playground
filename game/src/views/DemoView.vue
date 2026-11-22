@@ -816,7 +816,7 @@ function onKey(e){
   if(e.code==='Enter'&&muerto.value)revivir();
   if(e.code==='KeyM')showMap.value=!showMap.value;
   if(e.code==='KeyV'&&(LAB||PASEO))toggleDrone();// (la cámara libre: sólo en el laboratorio, ?lab=1 —2026-10-18: el dron salió del juego—)
-  // R: la acción alterna de lo que está cerca (correr la cortina de la ventana, mirar por el visor de una puerta)
+  // R: la acción alterna de lo que está cerca (aclarar u opacar el vidrio de la ventana, mirar por el visor de una puerta)
   // (estaba adentro del «if» de E y Q: nunca llegaba; 2026-10-17, lo encontró validar-ronda al apretar la tecla)
   if(e.code==='KeyR'&&!acciones?.activa&&(accionCerca?.cortina||accionCerca?.alterna)){acciones.empezar(accionCerca.cortina||accionCerca.alterna);accionReloj=0;}
   if(e.code==='KeyE'||e.code==='KeyQ'){const d=e.code==='KeyE'?1:-1;if(e.code==='KeyE'&&patrullas?.manejando)bajarPatrulla();else if(e.code==='KeyE'&&accionCerca?.patrulla!=null&&!drone.value){subirPatrulla(accionCerca.patrulla);accionCerca=null;}else if(e.code==='KeyE'&&accionCerca?.puerta&&!drone.value){alternarPuerta(accionCerca.puerta);accionCerca=null;accionReloj=0;}else if(world.elevatorAt(player.x,player.z,player.feet))ride(d);
@@ -965,7 +965,7 @@ onBeforeUnmount(()=>{
     <p v-if="PASEO" class="paseo-nota">La ciudad sola: sin gente, sin policía y sin ronda. <kbd>V</kbd> despega y aterriza; en el aire se avanza hacia donde se mira con WASD, Espacio sube, C baja y Shift acelera.</p>
     <dl>
      <dt>WASD</dt><dd>moverse</dd><dt>Ratón</dt><dd>mirar</dd><dt>Shift</dt><dd>correr</dd><dt>Espacio</dt><dd>saltar</dd>
-     <dt>N</dt><dd>día / noche</dd><dt>M</dt><dd>plano</dd><dt>E · Q</dt><dd>en un ascensor: subir · bajar</dd><template v-if="POLICIA"><dt>E</dt><dd>de policía: revisar la cámara de un aviso · atrapar · pedir papeles · subir y bajar de la patrulla</dd><dt>W/S · A/D</dt><dd>en la patrulla: acelerar y frenar · girar</dd></template><dt>E · R</dt><dd>usar lo de cerca (abrir y cerrar puertas, sentarse, asomarse…) · correr la cortina de la ventana</dd><dt>Esc</dt><dd>soltar el ratón</dd>
+     <dt>N</dt><dd>día / noche</dd><dt>M</dt><dd>plano</dd><dt>E · Q</dt><dd>en un ascensor: subir · bajar</dd><template v-if="POLICIA"><dt>E</dt><dd>de policía: revisar la cámara de un aviso · atrapar · pedir papeles · subir y bajar de la patrulla</dd><dt>W/S · A/D</dt><dd>en la patrulla: acelerar y frenar · girar</dd></template><dt>E · R</dt><dd>usar lo de cerca (abrir y cerrar puertas, sentarse, asomarse…) · aclarar u opacar el vidrio de la ventana</dd><dt>Esc</dt><dd>soltar el ratón</dd>
     </dl>
    </div>
   </div>

@@ -17,7 +17,7 @@ import {PUERTA_DOBLE,MARQUESINA,VENTANAL} from './fachada3d.js';
 import {pendienteEn} from '../engine/techos.js';
 import {ALTURA,COLUMNA,CHOQUE_MUEBLE,CORTINA,AZOTEA,MANSARDA,esVidriera} from '../engine/medidas.js';
 const CORTINA_CU=new Set(CORTINA.cuartos);
-import {cuartoDeVentana,panioCerrado,cortinaAbierta,juntarCortinas,telaDe,persianaCerrada} from '../engine/cortinas.js';
+import {cuartoDeVentana,peliculaCerrada} from '../engine/cortinas.js';
 import {esVivienda} from '../engine/entrega.js';
 import {piezasSinTitilar} from '../engine/titileo.js';
 import {duplexDeLote} from './duplex3d.js';
@@ -46,7 +46,6 @@ const DECO_RUG=new Set(['sala','dormitorio','dormitorio_b','habitacion','estudio
 const DECO_ART=new Set(['sala','dormitorio','dormitorio_b','habitacion','habitacion_h','estudio','sala_cocina','comedor','recepcion','oficina','reuniones','sala_prof','consultorio','lectura','vestibulo','infantil','secretaria']);
 // El reloj de pared y las cortinas, en qué cuartos.
 const CLOCK=new Set(['cocina','cocineta','sala_cocina','comedor','oficina','abierta','reuniones','aula','sala_prof','recepcion','secretaria','consultorio','urgencias','prestamo']);
-const CURTAIN=new Set(['sala','dormitorio','dormitorio_b','habitacion','habitacion_h','estudio','sala_cocina','comedor','infantil','consultorio','oficina','reuniones']);
 const TALL=new Set(['perchero','estanteria_ropa','probador','espejo_pared','caminadora','casillero','armario','estante','nevera','archivador','repisa','vitrina','buzones','tablero','litera','caja_fuerte','horno','comoda','lavadora','ducha','tina','estufa','tv','meson','plancha']);
 const SIGN={pizzeria:['#b8322a','#fff3d6'],hamburgueseria:['#f2b632','#3a2416'],panaderia:['#8a5a2b','#fbe9c9'],heladeria:['#f4b6c8','#5a2a3a'],
  fruteria:['#4f8a3a','#f4f1d0'],gimnasio:['#1f2a36','#f2c230'],ropa:['#2b2b2b','#f4e9dc'],sushi:['#1f2326','#e8463a']};
@@ -620,34 +619,25 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
     // El reloj de pared (cocinas, oficinas, aulas, recepción…): en otra pared libre o, si no hay, al final de la del cuadro.
     if(CLOCK.has(q.type)&&best){const o=cands.find(c=>c!==best&&!(c.h===best.h&&Math.abs(c.at-best.at)<.01))||(best.len>=2.4?{...best,m:best.c1-.35}:null);
      if(o){const [px,pz]=o.h?[o.m,o.at+o.dir*o.off]:[o.at+o.dir*o.off,o.m];if(!bp.entrega)boxes.push(...placeParts(OBJETOS.reloj.piezas({paleta:Math.floor(r*9)}),{x:px,y:yb+2.0,z:pz,ry:o.h?(o.dir>0?0:Math.PI):(o.dir>0?Math.PI/2:-Math.PI/2)},{f}));}}
-    // Las cortinas, en las ventanas de fachada de los cuartos donde se vive (no en las vidrieras de los locales).
-    if(CURTAIN.has(q.type)){const tone=['crema','azul','verde','terracota'][Math.floor(r2*4)];
-     // (2026-10-16: una por ventana DIBUJADA —vidrios: la doble es una sola— y a la medida de su vidrio, engine/cortinas.js
-     // cortinaAbierta; las de cortina cerrada, no: esas tienen su paño)
-     const paredes=new Map();for(const v of vidrios){if(v.f!==f)continue;const h=v.h,at=v.at,a=h?q.x:q.y,b=h?q.x+q.w:q.y+q.h,gm=v.c+(v.x0+v.x1)/2;
-      const edge=h?(Math.abs(at-q.y)<.02?1:Math.abs(at-q.y-q.h)<.02?-1:0):(Math.abs(at-q.x)<.02?1:Math.abs(at-q.x-q.w)<.02?-1:0);if(!edge||gm<a||gm>b)continue;
-      if(lv.windows.some(w=>w.cortina&&(Math.abs(w.y0-w.y1)<1e-3)===h&&Math.abs((h?w.y0:w.x0)-at)<.02&&Math.abs((h?(w.x0+w.x1):(w.y0+w.y1))/2-gm)<v.x1-v.x0))continue;
-      const K=cortinaAbierta(v,a,b);const reg={f,h,at,vidrio:[v.c+v.x0,v.c+v.x1,v.y1],cortina:null,cuarto:[a,b],pieza:v.pieza};cortinasLote.push(reg);if(!K)continue;
-      const key=(h?'h':'v')+at.toFixed(2)+':'+edge;(paredes.get(key)||paredes.set(key,{h,at,edge,ks:[]}).get(key)).ks.push({...K,reg});}
-     // (las de una misma pared que se pisarían, un solo juego)
-     for(const {h,at,edge,ks} of paredes.values())for(const K of juntarCortinas(ks.sort((p,r)=>p.u0-r.u0))){
-      for(const k of ks)if(k.u0>=K.u0-1e-6&&k.u1<=K.u1+1e-6)k.reg.cortina={u0:K.u0,u1:K.u1,paño:K.paño,h:K.h,solapa:!!k.solapa};
-      const [px,pz]=h?[K.m,at+edge*(FACE+.02)]:[at+edge*(FACE+.02),K.m];
-      if(!bp.entrega)boxes.push(...placeParts(OBJETOS.cortina.piezas({w:K.w,h:K.h,bajo:K.bajo,variante:tone,pliegues:K.pliegues}),{x:px,y:yb,z:pz,ry:h?(edge>0?0:Math.PI):(edge>0?Math.PI/2:-Math.PI/2)},{f}));}}}
+    // (2026-11-22, Miguel: «eliminamos las cortinas»: ya no hay paños abiertos a los costados del vidrio; la ventana cerrada es
+    // su película —engine/cortinas.js peliculaCerrada—, más abajo)
+   }
+   // (2026-11-22, Miguel: «que sean borrosas cuando no estén abiertas… y que al abrir se ponga transparente»: el paño es ahora la
+   // película del vidrio —engine/cortinas.js peliculaCerrada, una lámina lechosa—; w.cortina dice si arranca opaca)
    // Las cortinas cerradas (engine/cortinas.js, w.cortina): un paño de lado a lado detrás del vidrio. No van con los
    // muebles (que sólo se dibujan de cerca): se ven de lejos y tapan el cuarto vacío (world3d las dibuja siempre).
    // (2026-10-16, las acciones: el paño va en TODAS las ventanas de los cuartos que llevan cortina —CORTINA.cuartos—, cada una
    // con su clave lote:piso:ventana y cerrado o no según el plano; el jugador lo abre o lo cierra —world3d cortina()—)
    // (2026-11-22: en la ciudad entregada vacía —bp.entrega— no hay alfombras, cuadros, relojes ni cortinas: sólo la obra)
    // (2026-11-22: en la ciudad entregada, toda ventana de una vivienda —sin dueño todavía— lleva su persiana cerrada:
-   // engine/cortinas.js persianaCerrada, una caja; el interior no se ve ni se arma —engine/propiedad.js—)
+   // engine/cortinas.js peliculaCerrada, una lámina; el interior no se ve ni se arma —engine/propiedad.js—)
    // (el dúplex, sin cortinas ni persianas —Miguel, 2026-11-22: «haz que el dúplex no tenga cortinas»—: su planta abierta
    // y la doble altura se ven desde la calle)
    const enDuplex=c=>f===L.floors-1&&B.duplex?.unidades.some(u=>u.n===c.q.unit);
    if(bp.entrega)lv.windows.forEach((w,wi)=>{if(w.shop)return;const c=cuartoDeVentana(lv,w);if(!c||!esVivienda(B,c.q)||enDuplex(c))return;
-    const cj=persianaCerrada(c,yb,FACE+.02).cajas;panios.push({key:id+':'+f+':'+wi,i0:cortinas.length,n:cj.length,cerrada:true,persiana:true});cortinas.push(...cj);});
-   else lv.windows.forEach((w,wi)=>{if(w.shop)return;const c=cuartoDeVentana(lv,w);if(!c||!CORTINA_CU.has(c.q.type)||enDuplex(c))return;const tela=w.cortina||telaDe(id,f,wi);
-    const cj=panioCerrado(c,tela,yb,FACE+.02).cajas;panios.push({key:id+':'+f+':'+wi,i0:cortinas.length,n:cj.length,cerrada:!!w.cortina});cortinas.push(...cj);});
+    const cj=peliculaCerrada(c,yb,FACE+.02).cajas;panios.push({key:id+':'+f+':'+wi,i0:cortinas.length,n:cj.length,cerrada:true,persiana:true});cortinas.push(...cj);});
+   else lv.windows.forEach((w,wi)=>{if(w.shop)return;const c=cuartoDeVentana(lv,w);if(!c||!CORTINA_CU.has(c.q.type)||enDuplex(c))return;
+    const cj=peliculaCerrada(c,yb,FACE+.02).cajas;panios.push({key:id+':'+f+':'+wi,i0:cortinas.length,n:cj.length,cerrada:!!w.cortina});cortinas.push(...cj);});
   });
   // ---------- La escalera: peldaños con huella y nariz, descanso, pared del medio, pasamanos y la baranda del último piso ----------
   // El material según el edificio (STAIRS, stairKind): madera, mármol, granito, concreto o acero.

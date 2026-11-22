@@ -43,7 +43,7 @@ export function createAcciones({plan,world,player,avatar,viviendas=()=>null,rond
  const lugarDe=(u,p)=>{if(p.lot==null)return null;const L=world.lots.get(p.lot);if(!L)return null;const list=u.accion==='sentarse'?L.seats:u.accion==='acostarse'?L.sleeps:null;let best=null,bd=u.accion==='sentarse'?.45:1;
   for(const s of list||[]){if(s.f!=null&&s.f!==p.nivel)continue;const d=Math.hypot(s.x-u.pose.x,s.z-u.pose.z);if(d<bd){bd=d;best=s;}}return best;};
  const ocupado=(u,p)=>{const s=lugarDe(u,p);return !!(s&&s.by&&s.by!=='jugador');};
- const texto=u=>u.accion==='sentarse'?'Sentarse':u.accion==='acostarse'?'Acostarse':u.accion==='asomarse'?'Asomarse':world.cortinaCerrada?.(u.objeto.key)?'Abrir la cortina':'Cerrar la cortina';
+ const texto=u=>u.accion==='sentarse'?'Sentarse':u.accion==='acostarse'?'Acostarse':u.accion==='asomarse'?'Asomarse':world.cortinaCerrada?.(u.objeto.key)?'Aclarar el vidrio':'Opacar el vidrio';
  // (lo de la ronda como acción: con su alterna —R—, si tiene)
  const deRonda=(ur,p)=>({ronda:ur,texto:ur.texto,piso:p,...(ur.alterna?{alterna:{ronda:ur.alterna,texto:ur.alterna.texto}}:{})});
  function cerca(){if(cur)return {texto:cur.fase==='quieto'?'Levantarse':null};const p=pisoDe();
