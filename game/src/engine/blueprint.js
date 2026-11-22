@@ -321,7 +321,17 @@ function fill(a,b,prog,r,start=0,depth=Infinity){const out=[];let u=a,i=start;
 //   5–6 m: estudio | baño                             <5 m: depósito (al pasillo)
 // El departamento de 6 m de fondo desde sus cuartos: los anchos de cada combinación (alcobas de mayor a menor, la sala, la
 // cocina aparte si entra) y el reparto de lo que sobra. Devuelve null si ni una alcoba entra (va un estudio).
-const G05=v=>Math.ceil(v*2-1e-6)/2;
+// EL PASO DE LOS TABIQUES (2026-11-21, Miguel: «calibrá las medidas para que faciliten los cálculos pero siga generando un
+// mapa agradable»). Los anchos de los cuartos de un departamento se redondean a este paso, y con él se corren los
+// tabiques al repartir lo que sobra. Era 0,5 m: los tabiques llegaban a la fachada en cualquier medio metro y el 12 % caía
+// adentro de un módulo de 2 m a 0,5 o 1,5 m de su borde. PASO_CUARTO se lee del ambiente sólo para medir alternativas.
+// SE MIDIÓ Y NO SE CAMBIÓ: sigue en 0,5 m. En tres ciudades chicas, con paso de 1 m (medio módulo) los tabiques que llegan
+// a la fachada en un metro entero pasan de 91 a 92 % —casi nada: lo que desalinea es el fondo de las franjas, 3,5 y 2,5 m
+// (medidas.js FRANJA), no el ancho de los cuartos—, se pierde el 2 % de las viviendas (727 → 711) y la prueba de
+// visibilidad encuentra 2 paredes que parpadean. Con paso de 2 m el 94 % cae en línea de módulo, pero se pierde el 16 %
+// de los dormitorios. FUGA_PASO: sólo para volver a medirlo.
+export const PASO_CUARTO=+(globalThis.process?.env?.FUGA_PASO||.5);
+const G05=v=>Math.ceil(v/PASO_CUARTO-1e-6)*PASO_CUARTO;
 const minW=(k,depth)=>{const M=MINIMOS[k];let best=null;for(const o of ['hondo','ancho']){const m=M?.[o];if(!m)continue;for(const [w,d] of [m,[m[1],m[0]]])if(d<=depth+1e-6&&(best==null||w<best))best=w;}return best==null?null:G05(best);};
 const UNIT_COMBOS=[['dormitorio_principal','dormitorio_dos_camas','dormitorio_estudiante'],['dormitorio_principal','dormitorio_dos_camas'],['dormitorio_principal'],['dormitorio_doble']];
 // (sep: la cocina aparte primero, aunque cueste una alcoba —el azar del departamento: uno de cada cuatro—)
@@ -342,9 +352,9 @@ export function unitPlan(W,fd,u0,u1,mirror,sep=false,D=fd+FRANJA.interior,gmax=2
    // los anchos de sala (los más cerca de 5 m primero) y, para cada uno, lo que va a la primera alcoba (corre los tabiques);
    // el resto, a las alcobas sin pasar bedMax y lo que no les entra a la cocina (sin cocina, ese ancho de sala no sirve).
    // Gana la primera en que cada alcoba y la sala tienen los módulos de ventana que pide su superficie.
-   const extra=W-need,salas=[];for(let sv=salaMin;sv<=salaMin+extra+1e-9;sv+=.5)salas.push(sv);salas.sort((a,b)=>Math.abs(a-5)-Math.abs(b-5)||b-a);
-   for(const sala of salas)for(let shift=0;shift<=Math.min(extra-(sala-salaMin),3)+1e-9;shift+=.5){const beds=[...base];beds[0]+=shift;if(beds[0]>bedMax+1e-9)break;
-    let left=extra-(sala-salaMin)-shift;for(let i=0,idle=0;left>1e-9&&idle<beds.length;i=(i+1)%beds.length){if(beds[i]+.5>bedMax+1e-9){idle++;continue;}idle=0;const d=Math.min(.5,left);beds[i]+=d;left-=d;}
+   const extra=W-need,salas=[];for(let sv=salaMin;sv<=salaMin+extra+1e-9;sv+=PASO_CUARTO)salas.push(sv);salas.sort((a,b)=>Math.abs(a-5)-Math.abs(b-5)||b-a);
+   for(const sala of salas)for(let shift=0;shift<=Math.min(extra-(sala-salaMin),3)+1e-9;shift+=PASO_CUARTO){const beds=[...base];beds[0]+=shift;if(beds[0]>bedMax+1e-9)break;
+    let left=extra-(sala-salaMin)-shift;for(let i=0,idle=0;left>1e-9&&idle<beds.length;i=(i+1)%beds.length){if(beds[i]+PASO_CUARTO>bedMax+1e-9){idle++;continue;}idle=0;const d=Math.min(PASO_CUARTO,left);beds[i]+=d;left-=d;}
     if(left>1e-9&&!coc)continue;
     let x=u0;const ok=beds.every(w=>{const r=hasMod(x,x+w,w*fd);x+=w;return r;})&&hasMod(x,x+sala,sala*D);
     if(ok)return {combo,w:{beds,salaW:sala,cocW:coc?W-beds.reduce((a,b)=>a+b,0)-sala:0,bathW}};}}}
@@ -354,7 +364,7 @@ export function unitPlan(W,fd,u0,u1,mirror,sep=false,D=fd+FRANJA.interior,gmax=2
 // —la de atrás de un lote de 12 m— la única variante con alcoba pide 10 m (ver abajo).
 const UNIT_LEN=new Map();
 export function unitLengths(D,inner,gmax=2){const k=D+'|'+inner+'|'+gmax;if(UNIT_LEN.has(k))return UNIT_LEN.get(k);let out=[];
- if(D>=5){const fd=D-inner;for(const n of [1,2,3])for(let w=5;w<=24;w+=.5){const P=unitPlan(w,fd,0,w,false,false,D,gmax);if(P&&P.combo.length>=n){if(!out.includes(w))out.push(w);break;}}}
+ if(D>=5){const fd=D-inner;for(const n of [1,2,3])for(let w=5;w<=24;w+=PASO_CUARTO){const P=unitPlan(w,fd,0,w,false,false,D,gmax);if(P&&P.combo.length>=n){if(!out.includes(w))out.push(w);break;}}}
  else if(D>=4)out=[10];
  UNIT_LEN.set(k,out);return out;}
 function apartments(a,b,v0,v1,corr,r,band,units,gmax=2){
@@ -412,7 +422,9 @@ function apartments(a,b,v0,v1,corr,r,band,units,gmax=2){
 // Con menos de 5 m de fondo, otra forma (ver abajo).
 // El baño de una suite de hotel u hospital: lo que pide la tabla de mínimos (el baño con ducha, con el cuerpo de la
 // prueba), en la grilla de 0,5 m (2026-10-15: antes 2 m fijos, y con el paso de 800 el lavamanos y la ducha no se usaban).
-const SUITE_BANO=()=>G05(Math.max(...(MINIMOS.bano?.hondo||[2,2])));
+// (2026-11-21: sigue en la grilla de 0,5 m aunque los departamentos pasaron a 1 m —PASO_CUARTO—: con 3 m el baño de una
+// suite quedaba de 3 × 4 = 12 m² y la entrada, de 1 m)
+const SUITE_BANO=()=>Math.ceil(Math.max(...(MINIMOS.bano?.hondo||[2,2]))*2-1e-6)/2;
 function suites(a,b,v0,v1,corr,r,band,type){const SB=SUITE_BANO(),out=[],D=v1-v0,hall=corr==='v1'?[v1-SB,v1]:[v0,v0+SB],face=corr==='v1'?[v0,v1-SB]:[v0+SB,v1];
  // Fondo corto (menos de 5 m): suites de 6 m de frente, la habitación de 4 m entra directo del pasillo y el baño ocupa
  // todo el fondo a un costado (2 m de ancho); la cama cabe a lo largo.

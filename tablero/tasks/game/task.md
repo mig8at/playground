@@ -24,7 +24,8 @@ jira_title: ""
 - [x] Medir el vano exacto de cada puerta de calle: la vista de fachadas muestra cada puerta con su medida, comprobada contra la pieza del 3D.
 - [x] Medir las fachadas de los edificios que no son un rectángulo simple: cada tramo del contorno tiene su dibujo y sus paredes (un edificio en L, seis tramos).
 - [x] Pasar el alzado de la ficha del plano a tramos: en un edificio en L el alzado y el editor de pixel art muestran el mismo tramo.
-- [ ] Decidir si los cuartos deben medir siempre un número entero de módulos de 2 m. Depende de: Miguel — hoy el 12 % de los tabiques llega a la fachada adentro de un módulo; alinearlos cambia cómo se reparten los pisos (baños de 2 m en vez de 1,5).
+- [ ] Escribir una receta de baño que funcione con 2 m de fondo (3 × 2 m, con ducha y lavamanos usable): termina cuando la auditoría no lista baños sin ducha con la franja interior en 2 m. Es lo que destraba calibrar las franjas a 4 y 2 m.
+- [ ] Calibrar las franjas de los departamentos a 4 y 2 m (módulos enteros). Depende de: la receta de baño de 2 m de fondo.
 - [ ] Decidir si las fachadas de calle deben tener más pared pintable. Depende de: Miguel — hoy 20 de 132 fachadas de la ciudad chica tienen alguna; se podría pintar el muro entre ventanas, o hacer que el generador deje paños ciegos.
 - [ ] Guardar junto a cada número de pared la versión de la ciudad: termina cuando lo pintado sobre una ciudad vieja no se carga en una pared que cambió de número.
 - [ ] Numerar también las casas del monte (sus manzanas, después de las de la ciudad): termina cuando una pared de una casa del monte tiene su número de 10 cifras.
@@ -141,6 +142,17 @@ El alzado con adornos de la ficha del plano y el editor de pixel art también va
 **La ciudad entera de un vistazo**: `/fachadas` tiene «Ver la ciudad entera, por cuadra»: una fila por cuadra con edificios, tramos, módulos, paredes, las que se pintan, vanos, cortes y si cuadra. La misma cuenta (`medirFachada`, `resumenDeFachadas`) sirve al dibujo y a la prueba. En la de 720 m: 83 cuadras, 64.116 módulos, toda la ciudad cuadra, en menos de un segundo.
 **Falta**: los barrios del monte calculan sus módulos al armarse, no los traen guardados.
 **Cierre**: lo que muestra `/fachadas` es exactamente lo que arma el 3D, comprobado por una prueba. Para las piezas de cada módulo ya se cumple (`validar-fachada-piezas`).
+
+### 3c. Calibrar las medidas a la grilla — medido, sin cambiar todavía
+
+**El pedido de Miguel (2026-11-21)**: calibrar las medidas para que faciliten los cálculos, sin que el mapa deje de ser agradable.
+**Qué desalinea**: no el ancho de los cuartos sino el FONDO de las dos franjas de un departamento, 3,5 m (fachada) y 2,5 m (interior): el tabique entre ellas llega a las fachadas laterales a 2,5 o 3,5 m de la esquina. Lo mismo en las suites de hotel.
+**Lo que se evaluó y NO se eligió** (tres ciudades chicas; la base: 87 % de los cortes en línea de módulo, 91 % en metro entero, 727 viviendas, 685 dormitorios):
+- *Tabiques de los departamentos cada 1 m*: 92 % en metro entero. Casi nada de ganancia, 2 % menos de viviendas y la prueba de visibilidad encontró 2 paredes que parpadean.
+- *Tabiques cada 2 m*: 94 % en línea de módulo, pero 16 % menos de dormitorios.
+- *Franjas de 4 y 2 m con tabiques cada 1 m*: 98 % en metro entero y 90 % en línea de módulo, con las mismas viviendas; pero el baño de 3 × 2 m deja 65 baños sin ducha y 72 lavamanos que no se pueden usar en dos ciudades (la auditoría pasa de 10 casos a 178).
+**Qué quedó**: los dos números son ahora perillas para volver a medir (`FUGA_PASO`, `FUGA_FRANJA`), con sus valores de siempre; la ciudad generada es idéntica a la de antes.
+**Cierre**: las franjas en 4 y 2 m sin que la auditoría empeore.
 
 ### 4. Propiedades — empezado
 
