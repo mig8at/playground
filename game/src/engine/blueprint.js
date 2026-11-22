@@ -724,7 +724,9 @@ function openings(L,F,plan,level,r){// (PC: el ancho de la puerta de calle de es
   // haya pedido alguno de sus cuartos)
   // (la pieza queda escrita en cada ventana: sin ella, la fachada elegía otra para las angostas —las de los baños, de 0,8 m— y
   // para las del pasillo y la escalera, que se ponen más abajo; las de éstas se igualan allá)
-  {const ws=windows.filter(w=>!w.shop&&w.pieza!=='ventanal'&&!(level===0&&esVidriera(L.type,w))),base=(level<=1?fa.ventana1:fa.ventana)||'cuadrada';
+  // (también el ventanal: si un cuarto lo necesita para su luz, todo el piso lo lleva —la ciudad de 720 m tenía pisos con
+  // ventanales y ventanas comunes mezclados—)
+  {const ws=windows.filter(w=>!w.shop&&!(level===0&&esVidriera(L.type,w))),base=(level<=1?fa.ventana1:fa.ventana)||'cuadrada';
    const mayor=ws.reduce((m,w)=>{const k=w.pieza||base;return g(k)>g(m)?k:m;},base);for(const w of ws)w.pieza=mayor;piezaDelPiso=mayor;}}
  // La escalera también tiene ventanas donde el núcleo da a la fachada (el pozo del ascensor no).
  if(core){const st0=plan.lift?core.u0+2:core.u0;if(core.v1===Lv)for(const m of modulesIn(st0,core.u1))if(glazed('back',m+.2)&&glazed('back',m+1.8))windows.push({axis:'u',at:Lv,from:m+.4,len:1.2,a:'nucleo'});}
@@ -1178,7 +1180,7 @@ function buildLot(L,seed,stat){
     off+=pt.plan.rooms.length;uoff+=(pt.plan.units||[]).length;});
    // (las dos alas de un edificio en L eligen su pieza por separado: el piso entero lleva la mayor —la auditoría de
    // coherencia, «ventanas de un mismo piso a distinta altura»—)
-   {const ws=lv.windows.filter(w=>!w.shop&&w.pieza&&w.pieza!=='ventanal'),g=k=>VIDRIO.ventana[k]??.55;if(ws.length){const mayor=ws.reduce((m,w)=>g(w.pieza)>g(m)?w.pieza:m,ws[0].pieza);for(const w of ws)w.pieza=mayor;}}
+   {const ws=lv.windows.filter(w=>!w.shop&&w.pieza),g=k=>VIDRIO.ventana[k]??.55;if(ws.length){const mayor=ws.reduce((m,w)=>g(w.pieza)>g(m)?w.pieza:m,ws[0].pieza);for(const w of ws)w.pieza=mayor;}}
    delete lv.parts;}
   L.rect={x:L.x0*CELL,y:L.y0*CELL,w:L.w*CELL,h:L.h*CELL};
   L.parts=L.wings.map(g=>({x:g.x0*CELL,y:g.y0*CELL,w:g.w*CELL,h:g.h*CELL}));

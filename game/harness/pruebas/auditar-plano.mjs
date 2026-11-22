@@ -10,7 +10,7 @@
 import {createHash} from 'node:crypto';
 import {generateBlueprint,SIZES} from '../../src/engine/blueprint.js';
 import {MUEBLES_MEDIDOS} from '../../src/engine/muebles-medidos.js';
-import {muroExterior,tramosDe} from '../../src/engine/muros.js';
+import {muroExterior,tramosDe,paredesDelEdificio,esPintable,accesoDe} from '../../src/engine/muros.js';
 import {fachadaMedida} from '../../src/engine/fachada-medida.js';
 import {esVidriera} from '../../src/engine/medidas.js';
 
@@ -37,10 +37,13 @@ for(const [k,m] of Object.entries(MUEBLES_MEDIDOS)){if(!m.plan||!m.modelo)contin
 const dentroDe=(f,q,t=.01)=>f.x>=q.x-t&&f.y>=q.y-t&&f.x+f.w<=q.x+q.w+t&&f.y+f.h<=q.y+q.h+t;
 const pisa=(a,b,t=.05)=>Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,a.x>b.x?a.x:b.x)>t&&Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y)>t;
 const VACIOS_OK=new Set(['hall','entrada','vestibulo']);
+// ¿la puerta da a la calle o a la avenida? (la casilla de afuera, a 0,6 m de la puerta, es vía: contenedores.js K_VIA)
+const aLaCalle=(d,L)=>{const M=bpActual.map,h=Math.abs(d.y0-d.y1)<1e-6,mx=(d.x0+d.x1)/2,mz=(d.y0+d.y1)/2;for(const sg of [1,-1]){const x=mx+(h?0:sg*.6),z=mz+(h?sg*.6:0);if(L.parts.some(P=>x>P.x&&x<P.x+P.w&&z>P.y&&z<P.y+P.h))continue;const cx=Math.floor(x/6),cy=Math.floor(z/6);if(cx>=0&&cy>=0&&cx<M.W&&cy<M.H&&[0,1].includes(M.kind[cy*M.W+cx]))return true;}return false;};
+let bpActual=null;
 const HAB_BALCON=new Set(['dormitorio','sala','sala_cocina','estudio','habitacion','habitacion_h','oficina','abierta','reuniones','comedor']);// (de paso: pueden ir sin muebles)
 const firma=bp=>createHash('sha1').update(JSON.stringify([bp.lots.map(L=>[L.id,L.type,L.floors,L.rect,L.levels.map(lv=>[lv.rooms.length,lv.furniture.map(f=>[f.kind,f.x,f.y,f.w,f.h]),lv.doors.length,lv.windows.length])]),bp.equipamiento?.length,bp.vegetacion?.arboles?.length])).digest('hex').slice(0,12);
 const t00=Date.now();
-for(let s=S0;s<S0+N;s++){const t0=Date.now(),bp=generateBlueprint({seed:s,team:TEAM}),ms=Date.now()-t0,en=(L,lv,x)=>`ciudad ${s} lote ${L.id} (${L.type}) piso ${lv.level}: ${x}`;
+for(let s=S0;s<S0+N;s++){const t0=Date.now(),bp=bpActual=generateBlueprint({seed:s,team:TEAM}),ms=Date.now()-t0,en=(L,lv,x)=>`ciudad ${s} lote ${L.id} (${L.type}) piso ${lv.level}: ${x}`;
  mide('segundos por ciudad',+(ms/1000).toFixed(1));
  // la misma semilla, el mismo plano
  if(firma(generateBlueprint({seed:s,team:TEAM}))!==firma(bp))anota('estabilidad','la misma semilla dio dos planos distintos',`ciudad ${s}`);
@@ -80,6 +83,20 @@ for(let s=S0;s<S0+N;s++){const t0=Date.now(),bp=generateBlueprint({seed:s,team:T
    const us=new Map();for(const q of lv.rooms)if(q.unit!=null)(us.get(q.unit)||us.set(q.unit,[]).get(q.unit)).push(q.type);
    for(const [u,ts] of us){if(!ts.includes('bano'))anota('coherencia','planta · un departamento sin baño',en(L,lv,`apto ${u}: ${ts.join(', ')}`));if(!ts.some(t=>/cocina|cocineta|estudio/.test(t)))anota('coherencia','planta · un departamento sin cocina',en(L,lv,`apto ${u}: ${ts.join(', ')}`));}
    for(const q of lv.rooms.filter(q=>q.type==='bano')){const ps=lv.doors.filter(d=>d.a===q.id||d.b===q.id);if(ps.length>1)anota('coherencia','planta · un baño de paso (con dos puertas)',en(L,lv,`${q.w}×${q.h} m`));}
+   // (los cuartos que se abren entre sí: un baño no se abre a una cocina; un cuarto donde se está no se abre sólo a un baño;
+   // la puerta de calle no da a un baño, un depósito ni una alcoba; a un departamento se entra desde lo común —el pasillo,
+   // el descanso—, no a través de otro)
+   const R=id=>lv.rooms.find(q=>q.id===id),HABIT=new Set(['dormitorio','sala','sala_cocina','estudio','oficina','abierta','reuniones','habitacion','habitacion_h','comedor']);
+   for(const d of lv.doors){const A=R(d.a),B=typeof d.b==='number'?R(d.b):null;
+    if(A&&B&&[A.type,B.type].includes('bano')&&[A.type,B.type].some(t=>t==='cocina'||t==='cocineta'))anota('coherencia','planta · un baño que se abre a la cocina',en(L,lv,`${A.type} y ${B.type}`));
+    // (la que da a la calle o a la avenida: la del patio, a una bodega o a la alcoba de una casa, es de servicio y existe)
+    if(d.street&&A&&['bano','sanitario','deposito','dormitorio','habitacion','habitacion_h'].includes(A.type)&&aLaCalle(d,L))anota('coherencia','planta · una puerta de calle a un baño, un depósito o una alcoba',en(L,lv,A.type));}
+   for(const q of lv.rooms){if(!HABIT.has(q.type))continue;const ps=lv.doors.filter(d=>d.a===q.id||d.b===q.id);if(ps.length&&ps.every(d=>{const o=d.a===q.id?d.b:d.a;return typeof o==='number'&&R(o)?.type==='bano';}))anota('coherencia','planta · un cuarto que sólo se abre a un baño',en(L,lv,q.type));}
+   for(const [u] of us){const ids=new Set(lv.rooms.filter(q=>q.unit===u).map(q=>q.id));const afuera=lv.doors.some(d=>(ids.has(d.a)&&!ids.has(d.b))||(typeof d.b==='number'&&ids.has(d.b)&&!ids.has(d.a)));
+    const ajena=lv.doors.some(d=>{const a=R(d.a),b=typeof d.b==='number'?R(d.b):null;return a&&b&&a.unit!=null&&b.unit!=null&&a.unit!==b.unit&&(ids.has(a.id)||ids.has(b.id));});
+    if(!afuera)anota('coherencia','planta · un departamento sin puerta a lo común',en(L,lv,`apto ${u}`));if(ajena)anota('coherencia','planta · un departamento que se abre a otro',en(L,lv,`apto ${u}`));}
+   for(const d of lv.doors.filter(d=>d.street)){const h=Math.abs(d.y0-d.y1)<1e-6,mx=(d.x0+d.x1)/2,mz=(d.y0+d.y1)/2;for(const sg of [1,-1]){const x=mx+(h?0:sg*.6),z=mz+(h?sg*.6:0);const dentroL=L.parts.some(P=>x>P.x&&x<P.x+P.w&&z>P.y&&z<P.y+P.h);if(dentroL)continue;
+     if(bp.lots.some(o=>o.id!==L.id&&(o.parts||[]).some(P=>x>P.x&&x<P.x+P.w&&z>P.y&&z<P.y+P.h)))anota('coherencia','planta · una puerta de calle que da contra otro edificio',en(L,lv,`en ${mx.toFixed(1)},${mz.toFixed(1)}`));}}
    // (la puerta a menos de 30 cm del rincón —el tabique de al lado inflado por el cuerpo cierra la entrada—, cuando el borde
    // que comparte con el otro cuarto le dejaba poner 40 cm de aire de cada lado)
    for(const d of lv.doors){if(d.street||d.core||d.wide||typeof d.b!=='number')continue;const A=lv.rooms.find(q=>q.id===d.a),B=lv.rooms.find(q=>q.id===d.b);if(!A||!B)continue;const h=Math.abs(d.y0-d.y1)<1e-6,p0=h?Math.min(d.x0,d.x1):Math.min(d.y0,d.y1),p1=h?Math.max(d.x0,d.x1):Math.max(d.y0,d.y1);
@@ -93,7 +110,12 @@ for(let s=S0;s<S0+N;s++){const t0=Date.now(),bp=generateBlueprint({seed:s,team:T
     const m0=Math.floor((a.u0+.001)/2),m1=Math.ceil((a.u1-.001)/2);if(m1-m0>(a.clase==='doble'?2:1))anota('coherencia','fachada · un vano que pasa de su módulo',ef(`${a.clase} de ${a.u0} a ${a.u1}`));
     for(let j=i+1;j<V.length;j++){const b=V[j];if(Math.min(a.u1,b.u1)-Math.max(a.u0,b.u0)>.005&&Math.min(a.y1,b.y1)-Math.max(a.y0,b.y0)>.005)anota('coherencia','fachada · dos vanos se pisan',ef(`${a.clase} y ${b.clase}`));}}
    for(const P of F.pisos){const alt=new Set(V.filter(h=>h.clase==='ventana'&&h.y0>=P.base-.01&&h.y1<=P.base+3.01).map(h=>h.y0.toFixed(2)+'-'+h.y1.toFixed(2)));if(alt.size>1)anota('coherencia','fachada · ventanas de un mismo piso a distinta altura',ef(`piso ${P.nivel}: ${[...alt].join(' · ')}`));}}
+  // PARA PINTAR: toda pared sin vanos y a la vista tiene cómo alcanzarse (muros.js accesoDe: su cuarto, la escalera de mano
+  // o colgado desde la azotea); la que no, no se cuenta como pintable y acá se anota
+  for(const w of paredesDelEdificio(bp,L)){if(w.clase!=='exterior'||!esPintable(w))continue;const x=w.c.x+w.n[0]*.3,z=w.c.z+w.n[1]*.3;if(bp.lots.some(o=>o.id!==L.id&&o.floors>w.nivel&&(o.parts||[]).some(p=>x>p.x&&x<p.x+p.w&&z>p.y&&z<p.y+p.h)))continue;
+   if(!accesoDe(bp,L,w))anota('coherencia','pintar · una pared lisa a la que no se llega',`ciudad ${s} lote ${L.id} (${L.type}) piso ${w.nivel}: fachada ${w.codigo}`);}
   for(const m of L.modulos||[]){const lv=L.levels[m.f];if(!lv)continue;
+   if(m.f>0&&m.tipo==='vidriera')anota('coherencia','fachada · una vidriera arriba de la planta baja',en(L,lv,'vidriera'));
    if(m.f>0&&(m.tipo==='puerta'||m.tipo==='puerta_doble'||m.tipo==='porton'))anota('coherencia','fachada · una puerta de calle fuera de la planta baja',en(L,lv,m.tipo));
    // (lo que hay detrás del módulo: el cuarto que contiene un punto 30 cm adentro de su centro)
    const ex=(m.x+.5+m.dx*.5)*6,ez=(m.y+.5+m.dy*.5)*6,c=-2+2*m.k,px=ex+m.dy*c-m.dx*.3,pz=ez-m.dx*c-m.dy*.3,q=lv.rooms.find(q=>px>q.x&&px<q.x+q.w&&pz>q.y&&pz<q.y+q.h);

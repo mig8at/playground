@@ -14,7 +14,7 @@
 // del muro hacia arriba. Para el 3D: c (el centro, en el plano), n (hacia quien lo mira), y0 (la altura del pie, sin la
 // del edificio) y sale (cuánto por delante de la línea del muro va lo pintado, para no quedar metido en la pared).
 // Las casas del monte todavía no: su plano está en otras coordenadas (hogar.js).
-import {ALTURA,esVidriera} from './medidas.js';
+import {ALTURA,esVidriera,PINTAR} from './medidas.js';
 import {fachadaMedida,VANO,ladosDeCalle,tramosDe} from './fachada-medida.js';
 export {tramosDe};
 export const ladosDeCalleDe=ladosDeCalle;
@@ -156,12 +156,23 @@ export const esPintable=w=>!(w.huecos||[]).some(h=>h.clase!=='zocalo')&&!(w.clas
 const cuadras=new WeakMap();
 const cuadraDe=(bp,L)=>{let M=cuadras.get(bp);if(!M){const ids=[...new Set(bp.lots.filter(o=>o.levels?.length).map(o=>o.block))].sort((a,b)=>a-b);M={c:new Map(ids.map((b,i)=>[b,i+1])),e:new Map()};for(const b of ids)bp.lots.filter(o=>o.block===b&&o.levels?.length).sort((x,y)=>x.id-y.id).forEach((o,i)=>M.e.set(o.id,i+1));cuadras.set(bp,M);}return {cuadra:M.c.get(L.block),edificio:M.e.get(L.id),M};};
 const dos=(n,k)=>String(n).padStart(k,'0');
+// CÓMO SE LLEGA A PINTAR UNA PARED (medidas.js PINTAR): la de adentro, desde su cuarto; la de afuera, con la escalera de
+// mano desde donde uno se para delante —el suelo (la vereda o el patio) o el techo del vecino más bajo— si su borde de arriba
+// queda a PINTAR.escaleraDeMano o menos; si no, colgado desde la azotea, si el edificio tiene escalera hasta ella (un
+// núcleo y dos pisos o más). Devuelve 'cuarto', 'escalera de mano', 'escalera de mano desde el techo vecino', 'azotea' o null.
+export function accesoDe(bp,L,w){if(w.clase!=='exterior')return 'cuarto';const x=w.c.x+w.n[0]*.6,z=w.c.z+w.n[1]*.6,H=ALTURA.piso;
+ const O=bp.lots.find(o=>o.id!==L.id&&(o.parts||[]).some(p=>x>p.x&&x<p.x+p.w&&z>p.y&&z<p.y+p.h));
+ const pie=O?O.floors*H+(O.fachada?.escalinata?RAISE:0):0;
+ if(w.y0+w.alto-pie<=PINTAR.escaleraDeMano+1e-6)return O?'escalera de mano desde el techo vecino':'escalera de mano';
+ if(L.floors>=2&&L.levels?.some(lv=>lv.core))return 'azotea';
+ return null;}
 // Las paredes pintables de un edificio, cada una con su `numero` (y cuadra, edificio, piso, pared, por separado).
 export function paredesPintables(bp,L){const {cuadra,edificio}=cuadraDe(bp,L);if(!cuadra)return [];const out=[],porPiso=new Map();
  // (una pared de fachada pegada a otro edificio que llega a ese piso —una medianera— no se ve: no cuenta; la que asoma
  // por encima de un vecino más bajo, sí)
  const tapada=w=>{if(w.clase!=='exterior')return false;const x=w.c.x+w.n[0]*.3,z=w.c.z+w.n[1]*.3;return bp.lots.some(o=>o.id!==L.id&&o.floors>w.nivel&&(o.parts||[]).some(p=>x>p.x&&x<p.x+p.w&&z>p.y&&z<p.y+p.h));};
- for(const w of paredesDelEdificio(bp,L)){if(!esPintable(w)||tapada(w))continue;(porPiso.get(w.nivel)||porPiso.set(w.nivel,[]).get(w.nivel)).push(w);}
+ // (y sólo la que tiene cómo llegarse a pintar: accesoDe)
+ for(const w0 of paredesDelEdificio(bp,L)){if(!esPintable(w0)||tapada(w0))continue;const acceso=accesoDe(bp,L,w0);if(!acceso)continue;const w={...w0,acceso};(porPiso.get(w.nivel)||porPiso.set(w.nivel,[]).get(w.nivel)).push(w);}
  for(const [nivel,ws] of [...porPiso].sort((a,b)=>a[0]-b[0])){ws.sort((a,b)=>(a.clase==='exterior'?0:1)-(b.clase==='exterior'?0:1)||(a.clase==='exterior'?ORDEN_LADO[a.lado]-ORDEN_LADO[b.lado]||a.recta-b.recta||a.tramo-b.tramo:a.cuarto-b.cuarto||ORDEN_LADO[a.lado]-ORDEN_LADO[b.lado]));
   ws.forEach((w,i)=>out.push({...w,cuadra,edificio,piso:nivel,pared:i+1,numero:dos(cuadra,3)+dos(edificio,2)+dos(nivel,2)+dos(i+1,3)}));}
  return out;}

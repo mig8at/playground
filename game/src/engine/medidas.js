@@ -385,6 +385,12 @@ export const TRANSITO={semaforo:{verde:15,amarillo:3,todoRojo:1.5},frena:{comoda
 //    va en la pared—.
 // alto: la superficie (pisable) o hasta dónde estorba (sólido); nunca más que lo que mide su modelo (MUEBLES_MEDIDOS).
 // Lo comprueba validar-muebles.
+// PINTAR UNA PARED DE AFUERA (2026-11-22, Miguel: «valida que las paredes sean accesibles para pintar: las del exterior,
+// por la escalera o el ascensor a la terraza»; y «para pintar pisos arriba el jugador puede usar una escalera»). Como lo
+// hace un pintor de verdad: con una escalera de mano desde donde se pueda parar delante del muro —la vereda, el patio o el
+// techo del vecino más bajo— se llega hasta `escaleraDeMano` metros (una de 6 m y el brazo); más arriba, colgado desde la
+// azotea del propio edificio, si se sube a ella por la escalera del núcleo.
+export const PINTAR={escaleraDeMano:8};
 export const ALCANCE=(()=>{const S=CIRCULACION.peaton.salto;return +(S.velocidad**2/(2*S.gravedad)+CIRCULACION.peaton.escalon).toFixed(2);})();
 const P=(alto)=>({choque:'pisable',alto}),SOL=(alto,razon)=>({choque:'solido',alto,...(razon?{razon}:{})}),NO=razon=>({choque:'ninguno',razon});
 export const CHOQUE_MUEBLE={
