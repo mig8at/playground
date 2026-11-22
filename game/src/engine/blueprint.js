@@ -329,6 +329,8 @@ function fill(a,b,prog,r,start=0,depth=Infinity){const out=[];let u=a,i=start;
 // «a metro entero». Con las franjas ya en 4 y 2 m, el paso de 1 m lleva los cuartos fuera del metro entero de 941 a ~190 en
 // tres ciudades; lo que fallaba era la puerta de la alcoba pegada al rincón (ver `near` en layoutFloor), no el paso.
 // Cuesta 16 de 727 viviendas y 9 de 698 dormitorios. FUGA_PASO: sólo para volver a medir.
+// Las paredes ciegas (layoutFloor, las ventanas): las culatas y los cuartos donde se guarda.
+const CULATAS_CIEGAS=globalThis.process?.env?.FUGA_CULATAS!=='0',CIEGOS=new Set(globalThis.process?.env?.FUGA_CIEGOS==='0'?[]:['deposito','boveda','archivo','evidencia']);
 export const PASO_CUARTO=+(globalThis.process?.env?.FUGA_PASO||1);
 const G05=v=>Math.ceil(v/PASO_CUARTO-1e-6)*PASO_CUARTO;
 const minW=(k,depth)=>{const M=MINIMOS[k];let best=null;for(const o of ['hondo','ancho']){const m=M?.[o];if(!m)continue;for(const [w,d] of [m,[m[1],m[0]]])if(d<=depth+1e-6&&(best==null||w<best))best=w;}return best==null?null:G05(best);};
@@ -682,7 +684,14 @@ function openings(L,F,plan,level,r){// (PC: el ancho de la puerta de calle de es
  // Ventanas: en cada borde de cuarto que da a la calle o al patio (nunca a una medianera ni a la nada).
  // (se mira qué hay afuera en el lugar de cada ventana: un lado puede ser en parte calle y en parte el vecino)
  // 'alto': el muro que asoma por encima de un vecino más bajo (en ese piso, ya da afuera).
- const glazed=(s,t)=>['calle','avenida','patio','alto'].includes(F.at(s,t,level));
+ // (2026-11-22, Miguel: «aumentar las paredes para pintar sin perder la esencia de una ciudad coherente»: LAS CULATAS. El
+ // muro que asoma por encima de un vecino más bajo —'alto'— está sobre el lindero, y ahí la norma no deja abrir ventanas:
+ // en las ciudades colombianas esas paredes son ciegas y son donde se pintan los murales. Antes llevaban ventana.
+ // FUGA_CULATAS=0 lo deja como antes, sólo para medir)
+ // (salvo que un cuarto habitable no llegue sin ellas a su luz mínima —MINIMO.luz, con la ventana más grande de su familia—:
+ // ese cuarto sí abre a la culata. Sin la excepción, 8 salas quedaban sin ventana en la ciudad 1: validar-ciudad)
+ const VENTANA_EN=CULATAS_CIEGAS?['calle','avenida','patio']:['calle','avenida','patio','alto'],glazed=(s,t)=>VENTANA_EN.includes(F.at(s,t,level)),glazedAlto=(s,t)=>['calle','avenida','patio','alto'].includes(F.at(s,t,level));
+ const vidrioMax=Math.max(...(RESIDENCIAL.has(L.type)?VENTANAS_VIVIENDA:VENTANAS_FAMILIA[L.fachada?.familia]||VENTANAS_FAMILIA.ladrillo).map(k=>VIDRIO.ventana[k]??.55));
  for(const q of rooms){
   const edges=[];if(q.v0===0&&!(level===0&&q.type==='local'))edges.push({side:'front',axis:'u',at:0,a:q.u0,b:q.u1});
   if(q.v1===Lv&&!q.alPatio)edges.push({side:'back',axis:'u',at:Lv,a:q.u0,b:q.u1});// (el local al patio ya tiene su vidriera)
@@ -694,7 +703,11 @@ function openings(L,F,plan,level,r){// (PC: el ancho de la puerta de calle de es
   // (2026-11-21, calibración: un baño cuyo borde a la fachada es un solo módulo —2 m— va sin ventana. Con las franjas de
   // 2,5 m ese borde no contenía un módulo entero y nunca la tenía; al calibrarlas a 2 m empezó a tenerla, justo en la pared
   // corta, y ahí no entraban la ducha ni el lavamanos: 65 baños sin ducha en dos ciudades)
-  for(const e of edges){if(q.type==='bano'&&e.b-e.a<=2+1e-6)continue;const wd=q.type==='bano'?.8:1.2;for(const m of modulesIn(e.a,e.b))if(!doorIn(e,m)&&glazed(e.side,m+.2)&&glazed(e.side,m+1.8))windows.push({axis:e.axis,at:e.at,from:m+1-wd/2,len:wd,a:q.id});}}
+  // (2026-11-22, lo mismo: lo que se guarda —depósitos, bóvedas, archivos, trasteros— no lleva ventana, como una bodega)
+  if(CIEGOS.has(q.type)||q.trastero)continue;
+  const pone=ok=>{const n0=windows.length;for(const e of edges){if(q.type==='bano'&&e.b-e.a<=2+1e-6)continue;const wd=q.type==='bano'?.8:1.2;for(const m of modulesIn(e.a,e.b))if(!doorIn(e,m)&&ok(e.side,m+.2)&&ok(e.side,m+1.8))windows.push({axis:e.axis,at:e.at,from:m+1-wd/2,len:wd,a:q.id});}return windows.length-n0;};
+  const n=pone(glazed);
+  if(CULATAS_CIEGAS&&HABITABLE.has(q.type)&&n*vidrioMax<(q.u1-q.u0)*(q.v1-q.v0)*MINIMO.luz-1e-9){windows.splice(windows.length-n,n);pone(glazedAlto);}}
  // La pieza de cada ventana (2026-10-15, decisión de Miguel): la del estilo del edificio (primer piso ventana1, más
  // arriba ventana); si a un cuarto habitable no le alcanza para MINIMO.luz de su piso con el vidrio medido (VIDRIO), todas
  // sus ventanas suben a la pieza más chica de su familia que alcance (o a la más grande). El 3D dibuja w.pieza.
