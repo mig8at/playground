@@ -352,11 +352,16 @@ export function unitPlan(W,fd,u0,u1,mirror,sep=false,D=fd+FRANJA.interior,gmax=2
    // el resto, a las alcobas sin pasar bedMax y lo que no les entra a la cocina (sin cocina, ese ancho de sala no sirve).
    // Gana la primera en que cada alcoba y la sala tienen los módulos de ventana que pide su superficie.
    const extra=W-need,salas=[];for(let sv=salaMin;sv<=salaMin+extra+1e-9;sv+=PASO_CUARTO)salas.push(sv);salas.sort((a,b)=>Math.abs(a-5)-Math.abs(b-5)||b-a);
+   // (2026-11-22, Miguel: «sigue refinando las fachadas»: de los repartos que sirven con esta combinación se queda el que
+   // deja más tabiques en una línea de módulo de 2 m de la fachada —donde cambian las piezas—; a igualdad, el primero, el de
+   // siempre. El número de alcobas no cambia: es el de la combinación)
+   let mejor=null;const impares=(bs,sl)=>{let x=u0,n=0;for(const w of [...bs,sl]){x+=w;if(x>=u1-1e-6)break;const [p]=real(x,x);if(Math.abs(p/2-Math.round(p/2))>1e-6)n++;}return n;};
    for(const sala of salas)for(let shift=0;shift<=Math.min(extra-(sala-salaMin),3)+1e-9;shift+=PASO_CUARTO){const beds=[...base];beds[0]+=shift;if(beds[0]>bedMax+1e-9)break;
     let left=extra-(sala-salaMin)-shift;for(let i=0,idle=0;left>1e-9&&idle<beds.length;i=(i+1)%beds.length){if(beds[i]+PASO_CUARTO>bedMax+1e-9){idle++;continue;}idle=0;const d=Math.min(PASO_CUARTO,left);beds[i]+=d;left-=d;}
     if(left>1e-9&&!coc)continue;
     let x=u0;const ok=beds.every(w=>{const r=hasMod(x,x+w,w*fd);x+=w;return r;})&&hasMod(x,x+sala,sala*D);
-    if(ok)return {combo,w:{beds,salaW:sala,cocW:coc?W-beds.reduce((a,b)=>a+b,0)-sala:0,bathW}};}}}
+    if(ok){const n=impares(beds,sala);if(!mejor||n<mejor.n)mejor={n,r:{combo,w:{beds,salaW:sala,cocW:coc?W-beds.reduce((a,b)=>a+b,0)-sala:0,bathW}}};if(!n)break;}}
+   if(mejor)return mejor.r;}}
  return null;}
 // Los largos de departamento que dan 1, 2 y 3 alcobas en una franja de D m de fondo (inner: la franja interior): el menor
 // largo con que unitPlan arma esa cantidad (con fachada de 3,5 m: 8, 12 y 15). En una franja de menos de 5 m de fondo
