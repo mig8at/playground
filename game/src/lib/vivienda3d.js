@@ -48,7 +48,7 @@ const FALLBACK={C2_Bed:'Bed_King',C2_Sofa:'Couch_Small2',C2_SofaDouble:'Couch_Me
 export function createHouses(items,{kit=null,shadows=true}={}){
  const group=new THREE.Group(),own=[];
  // (las hojas de las puertas de los cuartos: del catálogo de objetos, una por estilo; se estiran al vano como las del paquete)
- if(kit)kit={...kit,...Object.fromEntries(['tablero','lisa','vidrio','rejilla'].map(v=>['Leaf_'+v,kitModel('puerta',{variante:v})]))};
+ if(kit)kit={...kit,...Object.fromEntries(['minimal','tablero','lisa','vidrio','rejilla'].map(v=>['Leaf_'+v,kitModel('puerta',{variante:v})]))};
  const houses=items.map(it=>{const plan=it.plan||planHouse(it.spec||{}),ry=it.ry||0;return {plan,x:it.x||0,y:it.y||0,z:it.z||0,ry,c:Math.cos(ry),s:Math.sin(ry)};});
  // (2026-10-16, medido en el navegador sin ventana —validar-3d—: todas las casas iban fundidas en una malla por material y
  // la cámara no podía dejar afuera ninguna: desde adentro de un edificio de la ciudad se dibujaban 1,4 millones de

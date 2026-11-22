@@ -591,9 +591,15 @@ export const OBJETOS={
  // La hoja de la puerta de un cuarto (2026-10-12), a la medida del vano (o.w × o.h; 4 cm de grueso; el frente a +z,
  // centrada): de tablero (cuatro paneles, en los dormitorios), lisa, con vidrio arriba (la cocina) o con rejilla abajo (el
  // baño). La manija, de los dos lados, a 1 m y a 7 cm del canto que no lleva bisagra (el de −x).
- puerta:{nombre:'Puerta de cuarto',grupo:'Casa',medida:[.85,.04],alto:o=>o.h||2.05,variantes:['tablero','lisa','vidrio','rejilla'],
+ // (LA MINIMALISTA —2026-11-22, Miguel: «puertas más minimalistas, planas y quizás con unas líneas»—: la hoja plana, dos
+ // ranuras a los tercios de su alto en las dos caras y un tirador vertical en vez de la manija: 6 cajas, 72 triángulos, contra
+ // 13 cajas —156— de la de tablero y 19 —228— de la de rejilla)
+ puerta:{nombre:'Puerta de cuarto',grupo:'Casa',medida:[.85,.04],alto:o=>o.h||2.05,variantes:['minimal','tablero','lisa','vidrio','rejilla'],
   antes:()=>[],
-  piezas:o=>{const W=o.w||.85,H=o.h||2.05,T=.04,v=o.variante||'tablero',wd=o.color||(v==='lisa'||v==='rejilla'?'#ece7dc':C.maderaClara),dk=shadeHex(wd,.86),out=[p(0,0,0,W,H,T,wd)];
+  piezas:o=>{const W=o.w||.85,H=o.h||2.05,T=.04,v=o.variante||'tablero',wd=o.color||(v==='lisa'||v==='rejilla'||v==='minimal'?'#ece7dc':C.maderaClara),dk=shadeHex(wd,.86),out=[p(0,0,0,W,H,T,wd)];
+   // (las líneas son ranuras de verdad —1,2 cm de ancho, 1 cm de hondo por cada cara—: tres paños de la hoja con su alma
+   // más delgada entre ellos; se leen con la luz aunque todo sea de un color)
+   if(v==='minimal'){const g=.012,h=(H-2*g)/3;out.length=0;out.push(p(0,0,0,W,H,T-.02,wd));for(let i=0;i<3;i++)out.push(p(0,i*(h+g),0,W,h,T,wd));for(const sx of [-1,1])out.push(p(-W/2+.08,.75,sx*(T/2+.008),.02,.6,.02,C.aceroClaro));return out;}
    const panel=(x,y,w,h,c=dk)=>{for(const s of [-1,1])out.push(p(x,y,s*(T/2+.004),w,h,.008,c));};
    if(v==='tablero'){const pw=(W-.3)/2;for(const sx of [-1,1]){panel(sx*(pw/2+.05),.18,pw,.78);panel(sx*(pw/2+.05),1.12,pw,H-1.32);}}
    else if(v==='lisa')panel(0,.08,W-.12,H-.16,shadeHex(wd,.94));
