@@ -122,7 +122,24 @@ function bake(list){
   U.set(g.attributes.uv.array,v0*2);const ix=g.index.array;for(let j=0;j<ix.length;j++)I[i0+j]=ix[j]+v0;v0+=c;i0+=ix.length;}
  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(P,3));geo.setAttribute('normal',new THREE.BufferAttribute(N,3));geo.setAttribute('uv',new THREE.BufferAttribute(U,2));geo.setIndex(new THREE.BufferAttribute(I,1));return geo;}
 
+// (la buhardilla de la mansarda, recortada por la pendiente —2026-11-22, Miguel, desde adentro de un penthouse: «quita los
+// polígonos que no aportan»—: su moldura atravesaba el plano de la pizarra —z = −y/3 en la pieza: de la base, en z = 0, a la
+// cornisa, en z = −1 y 3 m de alto— y por dentro asomaban orejas y un costado hasta el piso. Se quedan sólo los triángulos de
+// afuera; la pizarra y el vidrio, enteros. Una vez por pieza)
+// (cada triángulo se corta exacto por el plano —d = z + y/3, adentro si d < 0—: lo de afuera queda, con su normal y su uv)
+function recortarBuhardilla(piece){if(piece._recortada)return;piece._recortada=true;
+ for(const part of piece.parts){if(part.mat==='MI_Roof_Slate'||part.mat==='MI_Glass')continue;const g=part.geo.index?part.geo.toNonIndexed():part.geo;
+  const P=g.attributes.position.array,N=g.attributes.normal?.array,U=g.attributes.uv?.array,oP=[],oN=[],oU=[],d=i=>P[i*3+2]+P[i*3+1]/3+.005;
+  const vtx=(i,j,t)=>({p:[0,1,2].map(k=>P[i*3+k]+(P[j*3+k]-P[i*3+k])*t),n:N?[0,1,2].map(k=>N[i*3+k]+(N[j*3+k]-N[i*3+k])*t):null,u:U?[0,1].map(k=>U[i*2+k]+(U[j*2+k]-U[i*2+k])*t):null});
+  for(let t=0;t<P.length/3;t+=3){const ids=[t,t+1,t+2],ds=ids.map(d);if(ds.every(x=>x>=0)){for(const i of ids){oP.push(P[i*3],P[i*3+1],P[i*3+2]);if(N)oN.push(N[i*3],N[i*3+1],N[i*3+2]);if(U)oU.push(U[i*2],U[i*2+1]);}continue;}if(ds.every(x=>x<0))continue;
+   // (Sutherland–Hodgman contra un plano: el polígono de afuera, en abanico)
+   const poly=[];for(let k=0;k<3;k++){const a=ids[k],b=ids[(k+1)%3],da=ds[k],db=ds[(k+1)%3];if(da>=0)poly.push(vtx(a,a,0));if((da>=0)!==(db>=0))poly.push(vtx(a,b,da/(da-db)));}
+   for(let k=1;k+1<poly.length;k++)for(const v of [poly[0],poly[k],poly[k+1]]){oP.push(...v.p);if(N)oN.push(...v.n);if(U)oU.push(...v.u);}}
+  const ng=new THREE.BufferGeometry();ng.setAttribute('position',new THREE.Float32BufferAttribute(oP,3));if(N)ng.setAttribute('normal',new THREE.Float32BufferAttribute(oN,3));if(U)ng.setAttribute('uv',new THREE.Float32BufferAttribute(oU,2));
+  ng.setIndex([...Array(oP.length/3).keys()]);part.geo=ng;}}
+
 export function buildDowntown(kit,items,leaves=[]){
+ for(const [n,pc] of Object.entries(kit.pieces||{}))if(/^Roof_SlateCornice_Window/.test(n))recortarBuhardilla(pc);
  const tex=textures(),mats=new Map(),buckets=new Map(),group=new THREE.Group(),own=[],litMats=[],bounce=[];
  const material=(name,color,tint,lit,pared=false,textura=null)=>{
   // (pared: la capa de afuera de un muro; con TEXTURAS3D lleva la textura que le toca a su material y su color)
@@ -151,12 +168,11 @@ export function buildDowntown(kit,items,leaves=[]){
   for(const part of piece.parts){if(part.mat.startsWith('MI_FakeInterior'))continue;
    // El color del edificio va sólo en sus paredes (tint.on); el resto queda con su color.
    const tint=tintOf(it.tint,part.mat);
-   // (las molduras de la mansarda —la buhardilla, la cornisa—, de un solo lado: por fuera se ven igual y por dentro del
-   // dúplex desaparecen —su volumen se veía por dentro: costados que bajaban hasta el piso, el frontón, la cornisa—, y queda
-   // la pendiente con el hueco de la ventana. Miguel, 2026-11-22: «mejora y quita los polígonos innecesarios». La pizarra
-   // sigue de los dos lados: por dentro es la pared inclinada)
+   // (las molduras de la cornisa de la mansarda, de un solo lado: por fuera se ven igual y por dentro del dúplex no asoman.
+   // Miguel, 2026-11-22: «mejora y quita los polígonos innecesarios». La buhardilla no: se recorta por la pendiente
+   // —recortarBuhardilla— y queda de los dos lados, para que por dentro se vea su nicho con el marco)
    let k0=material(part.mat,part.color,tint,it.lit??-1,part.pared,it.tint?.textura);
-   if(/^Roof_SlateCornice_/.test(it.piece)&&part.mat!=='MI_Roof_Slate'&&part.mat!=='MI_Glass'){const k1=k0+'|afuera';if(!mats.has(k1)){const m=mats.get(k0).clone();m.side=THREE.FrontSide;mats.set(k1,m);}k0=k1;}
+   if(/^Roof_SlateCornice_(?!Window)/.test(it.piece)&&part.mat!=='MI_Roof_Slate'&&part.mat!=='MI_Glass'){const k1=k0+'|afuera';if(!mats.has(k1)){const m=mats.get(k0).clone();m.side=THREE.FrontSide;mats.set(k1,m);}k0=k1;}
    const key=k0+(DOWNTOWN.zona?'@'+Math.floor(it.x/DOWNTOWN.zona)+','+Math.floor(it.z/DOWNTOWN.zona):'')+'§'+(it.lote??-1);(buckets.get(key)||buckets.set(key,[]).get(key)).push([part.geo,M]);}}
  // Hojas de puerta (1 m × 2,2 m, con la bisagra en su origen): instancias que se abren hacia adentro cuando alguien
  // se acerca a menos de 2,5 m y se cierran solas. No se suman a las mallas juntadas porque se mueven.
