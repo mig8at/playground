@@ -31,7 +31,8 @@ jira_title: ""
 - [ ] Decidir si las fachadas de calle deben tener más pared pintable. Depende de: Miguel — hoy 20 de 132 fachadas de la ciudad chica tienen alguna; se podría pintar el muro entre ventanas, o hacer que el generador deje paños ciegos.
 - [x] Guardar con cada pared pintada su huella y la versión de la ciudad, en SQLite: lo pintado sigue a su pared si cambia de número y queda apartado si la pared cambió (`validar-guardado`).
 - [ ] Validar en el servidor, contra el plano, que la huella que manda el navegador es la de esa pared: termina cuando un pedido con un número y una huella que no se corresponden se rechaza. Hoy la base sólo revisa la forma.
-- [ ] Achicar el baño de 2 × 6 m de las casas de la ciudad de 720 m (15 casos en `auditar-plano.mjs 1 1 --equipo=16`): termina cuando ese renglón da 0.
+- [x] Achicar el baño de 2 × 6 m de las casas de la ciudad de 720 m: ahora baño de 2 × 3 m y zona de ropas; la auditoría da 4 casos.
+- [ ] Hacer que las pruebas de usos y de ciudad acepten el tamaño de la ciudad: termina cuando corren con la de 720 m.
 - [ ] Mostrar y recuperar las paredes huérfanas: termina cuando desde el plano se ve qué quedó apartado y se puede volver a poner en una pared de la misma medida.
 - [ ] Numerar también las casas del monte (sus manzanas, después de las de la ciudad): termina cuando una pared de una casa del monte tiene su número de 10 cifras.
 - [ ] Unir las dos caras de un tabique en una sola pared con dos caras. Depende de: Miguel — hoy cada cara es una pared aparte (una por cuarto); decidir si la base de datos las quiere así o como una pared con dos lados.
