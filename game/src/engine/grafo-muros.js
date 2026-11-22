@@ -20,10 +20,11 @@ export const GRAFO={eps:.005,astilla:.15,junta:.02,mocheta:.05};// (m: dos medid
 export const ESPESOR={tabique:.12,medianera:.24,fachada:.25,marco:.08};
 const E=GRAFO.eps,r3=v=>Math.round(v*1000)/1000;
 
-// Las regiones de un piso: {id, x, y, w, h, tipo}. id: 'r<n>' un cuarto, 'c<n>' un tramo del pasillo, 'nucleo'.
-export function regionesDe(lv){const out=[];
+// Las regiones de un piso: {id, x, y, w, h, tipo}. id: 'r<n>' un cuarto, 'pasillo' (todos sus rectángulos), 'nucleo'.
+export function regionesDe(lv){const out=[];// (id: 'r<n>' un cuarto, 'pasillo', 'nucleo')
  for(const q of lv.rooms||[])out.push({id:'r'+q.id,x:q.x,y:q.y,w:q.w,h:q.h,tipo:q.type,unidad:q.unit,abierto:!!q.abierto});
- (lv.corridor||[]).forEach((c,i)=>out.push({id:'c'+i,x:c.x,y:c.y,w:c.w,h:c.h,tipo:'pasillo'}));
+ // (el pasillo es UNA región aunque el plano lo dé en varios rectángulos —el tramo largo, los ensanches—: entre ellos no hay muro)
+ (lv.corridor||[]).forEach(c=>out.push({id:'pasillo',x:c.x,y:c.y,w:c.w,h:c.h,tipo:'pasillo'}));
  if(lv.core)out.push({id:'nucleo',x:lv.core.x,y:lv.core.y,w:lv.core.w,h:lv.core.h,tipo:'nucleo'});
  return out;}
 

@@ -21,6 +21,7 @@ import {cuartoDeVentana,panioCerrado,cortinaAbierta,juntarCortinas,telaDe,persia
 import {esVivienda} from '../engine/entrega.js';
 import {piezasSinTitilar} from '../engine/titileo.js';
 import {duplexDeLote} from './duplex3d.js';
+import {grafoDePiso,regionesDe} from '../engine/grafo-muros.js';
 
 // Qué modelo usa cada mueble del plano (el primero que esté cargado) y, si no hay, una caja: [alto, color, desde].
 export const MODEL={lampara:['C2_Lamp'],sillon:['C2_Sofa','Sofa_individual'],sofa:['C2_SofaDouble','Sofa2','Couch_Medium2'],cama:['C2_Bed','Bed_King','BedDouble'],comoda:['C2_Closet2','Drawer_1'],cama_s:['Bed_Single','BedTwin'],cama_h:['HospitalBed','BedTwin'],catre:['Bed_Single'],litera:['Bed_Bunk'],
@@ -424,16 +425,23 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
    const face=(h,at,p,q,side,y,hh,th,c=at+side*th/2)=>{const cs=[p,...edges(h).filter(e=>e>p+.01&&e<q-.01).sort((a,b)=>a-b),q];let s0=p,col=null;
     const flush=e=>{if(e-s0<.01)return;const m=(s0+e)/2;if(h)box(m,y,c,e-s0,hh,th,col,f);else box(c,y,m,th,hh,e-s0,col,f);};
     for(let i=0;i+1<cs.length;i++){const m=(cs[i]+cs[i+1])/2,cc=h?wallAt(m,at+side*.25):wallAt(at+side*.25,m);if(col!==null&&cc!==col){flush(cs[i]);s0=cs[i];}col=cc;}flush(q);};
-   const solid=(h,at,p,q,y,hh)=>{face(h,at,p,q,-1,y,hh,THIN/2);face(h,at,p,q,1,y,hh,THIN/2);};
+   // (un tabique macizo, UNA caja de espesor completo —2026-11-22, el grafo de muros: Miguel, «al pasar al 3D ahorrar polígonos»—:
+   // antes eran dos medias cajas, una por lado y partidas donde cambiaba el cuarto, para pintar cada cara de su color; el paseo es
+   // un boceto blanco y esos colores no se ven)
+   const solid=(h,at,p,q,y,hh)=>{const m=(p+q)/2,l=q-p;if(l<.01)return;if(h)box(m,y,at,l,hh,THIN,WALL_COLOR,f);else box(at,y,m,THIN,hh,l,WALL_COLOR,f);};
    const segs=new Map(),add=(k,a,b,rank)=>{(segs.get(k)||segs.set(k,[]).get(k)).push([a,b,rank]);};
-   for(const q of lv.rooms){for(const [k,a,b,h,at,dir] of [['h:'+q.y.toFixed(2),q.x,q.x+q.w,true,q.y,-1],['h:'+(q.y+q.h).toFixed(2),q.x,q.x+q.w,true,q.y+q.h,1],['v:'+q.x.toFixed(2),q.y,q.y+q.h,false,q.x,-1],['v:'+(q.x+q.w).toFixed(2),q.y,q.y+q.h,false,q.x+q.w,1]]){
-     // (las celdas: rejas hacia el pasillo, rango 1,5; entre celdas, pared)
-     const m=(a+b)/2,[px,pz]=h?[m,at+dir*.15]:[at+dir*.15,m],rank=OPEN.has(q.type)&&inCorr(px,pz)?0:q.type==='celda'?(inCorr(px,pz)?1.5:2):GLASS.has(q.type)?1:2;add(k,a,b,rank);}}
+   // (las líneas de tabique, del GRAFO DE MUROS del plano —engine/grafo-muros.js: la misma fuente que mide y corrige el plano—;
+   // cada pedazo con su rango según los cuartos que separa. Las celdas: rejas hacia el pasillo, rango 1,5; entre celdas, pared)
+   {const G=grafoDePiso(B,f),reg=new Map(regionesDe(lv).map(r=>[r.id,r])),rangoDe=(id,otro)=>{if(id==='nucleo')return 2;const r=reg.get(id);if(!r||r.tipo==='pasillo')return -1;const haciaPasillo=otro==='pasillo';
+     return OPEN.has(r.tipo)&&haciaPasillo?0:r.tipo==='celda'?(haciaPasillo?1.5:2):GLASS.has(r.tipo)?1:2;};
+    for(const t of G.tramos){if(t.clase!=='tabique'&&t.clase!=='nucleo')continue;const k=(t.h?'h:':'v:')+t.f.toFixed(2);
+     for(const l of t.lados){const [A,B2]=l.lados,r=Math.max(rangoDe(A,B2),rangoDe(B2,A));if(r>=0)add(k,l.a0,l.a1,r);}}}
    // El núcleo es un módulo cerrado (2026-10-12): su contorno y, si hay ascensor, la caja del ascensor entera —el tabique
    // entre el hueco del ascensor y la escalera iba sin hacer: se veían uno al otro y el pasamanos del carril de ese lado
    // quedaba frente a la nada—. La escalera queda entre ese tabique, el contorno y su pared del medio (stairBoxes).
    const rectWalls=q=>{add('h:'+q.y.toFixed(2),q.x,q.x+q.w,2);add('h:'+(q.y+q.h).toFixed(2),q.x,q.x+q.w,2);add('v:'+q.x.toFixed(2),q.y,q.y+q.h,2);add('v:'+(q.x+q.w).toFixed(2),q.y,q.y+q.h,2);};
-   if(lv.core)rectWalls(lv.core);if(lv.core&&lv.liftRect){const C=lv.core,Q=lv.liftRect;// (el hueco: los 2 m del ascensor por todo el fondo del núcleo)
+   // (el contorno del núcleo ya viene del grafo; acá queda la caja del ascensor, adentro del núcleo)
+   if(lv.core&&lv.liftRect){const C=lv.core,Q=lv.liftRect;// (el hueco: los 2 m del ascensor por todo el fondo del núcleo)
     // (a lo ancho, según hacia dónde corren los carriles de la escalera: comparar anchos fallaba en un núcleo cuadrado
     // de 4 × 4 con los carriles a lo largo de z, y el tabique cruzaba la escalera a media subida)
     const ux=lv.stair?Math.abs(lv.stair.ux)>.5:Math.abs(Q.w-C.w)>.01;
