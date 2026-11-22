@@ -33,7 +33,7 @@ for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:3});
  const priv=new Set(PUERTA.hoja.privados);
  for(const L of [...bp.lots,...(bp.isla.lots||[]).filter(l=>l.levels)])for(const lv of L.levels){const T=id=>id==='pasillo'||id==='calle'?id:lv.rooms.find(r=>r.id===id)?.type||'pasillo';
   const ms=(lv.furniture||[]).filter(f=>f.kind!=='alfombra').map(f=>({x0:f.x,x1:f.x+f.w,z0:f.y,z1:f.y+f.h}));
-  for(const d of lv.doors||[]){if(d.street)continue;const want=d.core||d.stair?false:conHoja(T(d.a),T(d.b));d.hoja?med.hojas.con++:med.hojas.sin++;if(!!d.hoja!==want)falla('puerta con o sin hoja contra la regla',{semilla:s,entre:[T(d.a),T(d.b)]});
+  for(const d of lv.doors||[]){if(d.street)continue;const want=d.entrada?true:d.core||d.stair?false:conHoja(T(d.a),T(d.b));/* (la puerta de entrada de un penthouse, con hoja) */d.hoja?med.hojas.con++:med.hojas.sin++;if(!!d.hoja!==want)falla('puerta con o sin hoja contra la regla',{semilla:s,entre:[T(d.a),T(d.b)]});
    if(!d.hoja){if(d.abierta)falla('hoja abierta en una puerta sin hoja',{semilla:s});continue;}const q=lv.rooms.find(r=>r.id===d.a)||lv.rooms.find(r=>r.id===d.b);if(!q)continue;
    const h=Math.abs(d.y1-d.y0)<1e-6,at=h?d.y0:d.x0,sg=Math.sign(h?q.y+q.h/2-at:q.x+q.w/2-at)||1,u0=h?Math.min(d.x0,d.x1):Math.min(d.y0,d.y1),u1=h?Math.max(d.x0,d.x1):Math.max(d.y0,d.y1);
    revisarAbierta(d,q.type,quiereAbierta(q.type,(d.x0+d.x1)/2,(d.y0+d.y1)/2),giroDe(h,u0,u1,at,sg),ms,{semilla:s,tipo:L.type,cuarto:q.type});}

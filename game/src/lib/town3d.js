@@ -508,7 +508,10 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
      if(cid&&OBJETOS[cid]){const va=OBJETOS[cid].variantes&&!REEMPLAZOS[name]?variante(OBJETOS[cid],it):null,key=cid+'@'+wAlong.toFixed(2)+'x'+dIn.toFixed(2)+(va?'@'+va:'');if(!furniture[key])furniture[key]=kitModel(cid,{...(REEMPLAZOS[name]?.[1]||{}),w:wAlong,d:dIn,...(va?{variante:va}:{})});name=key;}}
     let top=.75;
     // El mesón: varios muebles de cocina en fila a lo largo de su lugar (el lavaplatos al medio).
-    if(it.kind==='meson'&&furniture?.Kitchen_2Drawers){const parts=['Kitchen_2Drawers','Kitchen_Sink','Kitchen_Cabinet1'].filter(n=>furniture[n]),m0=furniture[parts[0]],sc=m0.scale||.52,mw=(m0.box.max.x-m0.box.min.x)*sc;
+    // (la isla de la cocina de un dúplex —engine/duplex.js islaDe—: un solo bloque de mesón, del tamaño del plano; con los
+    // muebles del paquete en fila salían bloques sueltos de distinta altura. Miguel, «reducimos polígonos»)
+    if(it.kind==='meson'&&it.isla){box(cx,yb,cz,it.w,.9,it.h,'#e3ddd2',f);top=.9;}
+    else if(it.kind==='meson'&&furniture?.Kitchen_2Drawers){const parts=['Kitchen_2Drawers','Kitchen_Sink','Kitchen_Cabinet1'].filter(n=>furniture[n]),m0=furniture[parts[0]],sc=m0.scale||.52,mw=(m0.box.max.x-m0.box.min.x)*sc;
      const n=Math.max(1,Math.floor((wAlong+.02)/mw)),tX=Math.cos(it.ry),tZ=-Math.sin(it.ry);
      for(let k=0;k<n;k++){const nm=k===Math.floor(n/2)&&furniture.Kitchen_Sink?'Kitchen_Sink':parts[k%parts.length]==='Kitchen_Sink'?parts[0]:parts[k%parts.length],m=furniture[nm],b=m.box,ox=(b.max.x+b.min.x)/2*sc,oz=(b.max.z+b.min.z)/2*sc,c2=Math.cos(it.ry),s2=Math.sin(it.ry);
       const off=(k-(n-1)/2)*mw,px=cx+tX*off,pz=cz+tZ*off;models.push({name:nm,x:px-(ox*c2+oz*s2),y:yb+.04,z:pz-(-ox*s2+oz*c2),ry:it.ry,s:sc,f});}top=m0.box.max.y*sc;}

@@ -151,7 +151,13 @@ export function buildDowntown(kit,items,leaves=[]){
   for(const part of piece.parts){if(part.mat.startsWith('MI_FakeInterior'))continue;
    // El color del edificio va sólo en sus paredes (tint.on); el resto queda con su color.
    const tint=tintOf(it.tint,part.mat);
-   const key=material(part.mat,part.color,tint,it.lit??-1,part.pared,it.tint?.textura)+(DOWNTOWN.zona?'@'+Math.floor(it.x/DOWNTOWN.zona)+','+Math.floor(it.z/DOWNTOWN.zona):'')+'§'+(it.lote??-1);(buckets.get(key)||buckets.set(key,[]).get(key)).push([part.geo,M]);}}
+   // (las molduras de la mansarda —la buhardilla, la cornisa—, de un solo lado: por fuera se ven igual y por dentro del
+   // dúplex desaparecen —su volumen se veía por dentro: costados que bajaban hasta el piso, el frontón, la cornisa—, y queda
+   // la pendiente con el hueco de la ventana. Miguel, 2026-11-22: «mejora y quita los polígonos innecesarios». La pizarra
+   // sigue de los dos lados: por dentro es la pared inclinada)
+   let k0=material(part.mat,part.color,tint,it.lit??-1,part.pared,it.tint?.textura);
+   if(/^Roof_SlateCornice_/.test(it.piece)&&part.mat!=='MI_Roof_Slate'&&part.mat!=='MI_Glass'){const k1=k0+'|afuera';if(!mats.has(k1)){const m=mats.get(k0).clone();m.side=THREE.FrontSide;mats.set(k1,m);}k0=k1;}
+   const key=k0+(DOWNTOWN.zona?'@'+Math.floor(it.x/DOWNTOWN.zona)+','+Math.floor(it.z/DOWNTOWN.zona):'')+'§'+(it.lote??-1);(buckets.get(key)||buckets.set(key,[]).get(key)).push([part.geo,M]);}}
  // Hojas de puerta (1 m × 2,2 m, con la bisagra en su origen): instancias que se abren hacia adentro cuando alguien
  // se acerca a menos de 2,5 m y se cierran solas. No se suman a las mallas juntadas porque se mueven.
  const doors=leaves.map(l=>({...l,a:0})),inst=[],byPiece=new Map();

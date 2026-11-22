@@ -4,8 +4,8 @@
      costado (como la de la foto de Miguel) y sin pasamanos. El caracol se quitó el mismo día: Miguel, «las escaleras en
      caracol son difíciles de subir»;
    · arriba, un entrepiso abierto (sin cuartos desde el mismo día); el cierre con lo que no es del departamento
-     —el vecino, el pasillo— de piso a cubierta, y un muro bajo (DUPLEX3D.enrase) a lo largo de cada borde con pendiente:
-     la mansarda baja a 0 en el borde, y ese muro deja el espacio donde ya pasa la cabeza;
+     —el vecino, el pasillo— de piso a cubierta; contra la pendiente, ningún muro —la pared es la mansarda con sus
+     buhardillas—, sólo un choque a DUPLEX3D.enrase del borde, donde ya no pasa la cabeza;
    · la sala a doble altura: sin losa sobre su vacío; la baranda (DUPLEX3D.baranda: barrotes y pasamanos) en cada borde
      entre el piso de arriba y un hueco —el vacío o la escalera— menos la llegada, con el canto del entrepiso debajo. Miguel:
      «usa barandas»; «que la sala sea de dos pisos y se vea desde abajo la parte de arriba con barandas»;
@@ -15,7 +15,7 @@
 import {MANSARDA} from '../engine/medidas.js';
 import {pendienteEn,alturaMansarda} from '../engine/techos.js';
 
-export const DUPLEX3D={enrase:.7,muro:.1,canto:.25,baranda:{alto:.95,barrote:.04,poste:1,pasamanos:.05,riel:.03}};
+export const DUPLEX3D={enrase:.6,muro:.1,canto:.25,baranda:{alto:.95,barrote:.04,poste:1,pasamanos:.05,riel:.03}};
 
 export function duplexDeLote(B,L,{box,wallAny,color='#ece6da',FLOOR=3}){
  if(!B?.duplex)return null;const H=MANSARDA.alto,y0=L.h,yb=(L.floors-1)*FLOOR,T=DUPLEX3D.muro,esc=[],dentro=[],cajasBaranda=[],vacios=B.duplex.unidades.flatMap(u=>u.vacios||[]);
@@ -27,8 +27,11 @@ export function duplexDeLote(B,L,{box,wallAny,color='#ece6da',FLOOR=3}){
  for(const u of B.duplex.unidades){const xs=u.rooms.flatMap(q=>[q.x,q.x+q.w]),zs=u.rooms.flatMap(q=>[q.y,q.y+q.h]),U={x:Math.min(...xs),y:Math.min(...zs),w:Math.max(...xs)-Math.min(...xs),h:Math.max(...zs)-Math.min(...zs)};dentro.push(U);
   // el borde de la unidad: en el borde del edificio, el muro bajo de enrase (corrido hacia adentro); si no, de piso a cubierta
   for(const [h,fija,a0,a1,sg] of [[true,U.y,U.x,U.x+U.w,1],[true,U.y+U.h,U.x,U.x+U.w,-1],[false,U.x,U.y,U.y+U.h,1],[false,U.x+U.w,U.y,U.y+U.h,-1]]){
-   // (el muro bajo no pasa sobre el vacío de la sala: ahí no hay piso, y desde abajo se ve la pendiente hasta la cubierta)
-   if(enBorde(h,fija,a0,a1)){const f2=fija+sg*DUPLEX3D.enrase,sobre=(u.vacios||[]).filter(v=>h?f2>v.y&&f2<v.y+v.h:f2>v.x&&f2<v.x+v.w).map(v=>h?[v.x,v.x+v.w]:[v.y,v.y+v.h]);muro(h,f2,a0,a1,y0,y0+H*DUPLEX3D.enrase/MANSARDA.retiro*.98,sobre);}
+   // (sin muro bajo —Miguel, 2026-11-22: «las paredes no deberían ocultar las ventanas de la pared inclinada, deberían ser
+   // parte del apartamento; así reducimos polígonos»—: la pared es la pendiente misma, con sus buhardillas. Sólo un choque,
+   // sin dibujo, a DUPLEX3D.enrase del borde —donde la pendiente ya no deja pasar la cabeza—, y no sobre el vacío)
+   if(enBorde(h,fija,a0,a1)){const f2=fija+sg*DUPLEX3D.enrase,sobre=(u.vacios||[]).filter(v=>h?f2>v.y&&f2<v.y+v.h:f2>v.x&&f2<v.x+v.w).map(v=>h?[v.x,v.x+v.w]:[v.y,v.y+v.h]).sort((p,q)=>p[0]-q[0]);
+    let a=a0;const choque=(p,q)=>{if(q-p<.01)return;if(h)wallAny(p,f2-.05,q,f2+.05,y0,y0+H);else wallAny(f2-.05,p,f2+.05,q,y0,y0+H);};for(const [p,q] of sobre){choque(a,Math.min(p,a1));a=Math.max(a,q);}choque(a,a1);}
    else muro(h,fija,a0,a1,y0,y0+H);}
   // los tabiques de adentro (si un día vuelven cuartos arriba) con sus vanos: los bordes que no son del departamento
   for(const q of u.rooms){if(q.abierto)continue;

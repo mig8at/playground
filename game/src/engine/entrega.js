@@ -3,10 +3,16 @@
 //
 // El generador amuebla cada vivienda como si alguien viviera ahí, y eso sigue sirviendo: es lo que comprueba que el cuarto
 // tiene buen tamaño y que los muebles caben. Pero lo que se vende es el lugar vacío. Esto saca de un plano ya armado todo
-// lo que es de quien vive —camas, sofás, mesas, televisores, armarios, plantas— y deja lo que viene con la obra: los
-// aparatos del baño y la cocina. (Hasta el 2026-11-22 no tocaba lo que no es vivienda; ahora vacía todo: ver entregaDe.)
+// lo que es de quien vive —camas, sofás, mesas, televisores, armarios, plantas, y los aparatos que se compran— y deja lo que
+// viene con la obra: el baño y el mesón de la cocina. (Hasta el 2026-11-22 no tocaba lo que no es vivienda; ahora vacía todo: ver entregaDe.)
 // No cambia el plano que recibe: devuelve otro, y dice cuánto sacó.
-export const DE_OBRA=new Set(['inodoro','lavamanos','ducha','tina','meson','estufa','nevera','lavadora']);
+// (2026-11-22, Miguel: «cuando hablamos de cocinas hablamos del mesón, no la nevera y la estufa: será decisión del usuario
+// comprarlas o no; no debería haber estufas, neveras, etc., sólo lo que normalmente viene con la casa, como ducha, lavaplatos,
+// inodoro». La casa viene con el baño —inodoro, lavamanos, ducha, tina— y el mesón de la cocina con su lavaplatos; la estufa,
+// la nevera y la lavadora se compran. El plano sigue guardando su lugar —ver colocar.js—, pero no se entregan)
+export const DE_OBRA=new Set(['inodoro','lavamanos','ducha','tina','meson']);
+// (lo que tiene su lugar fijo en el plano: la obra y los aparatos que se compran —su toma, su desagüe—; nada se pone encima)
+export const LUGAR_FIJO=new Set([...DE_OBRA,'estufa','nevera','lavadora']);
 // (los modelos de las casas del monte que son de obra: el baño y la cocina)
 export const modeloDeObra=m=>/^(Bathroom_|Kitchen_)/.test(m||'');
 

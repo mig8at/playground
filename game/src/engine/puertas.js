@@ -20,7 +20,8 @@ const choca=(g,muebles)=>muebles.some(m=>Math.min(g.x1,m.x1)-Math.max(g.x0,m.x0)
 export function marcarHojas(bp){let con=0,sin=0;
  for(const L of [...bp.lots,...(bp.isla?.lots||[]).filter(l=>l.levels)])for(const lv of L.levels){const T=id=>id==='pasillo'||id==='calle'?id:lv.rooms.find(r=>r.id===id)?.type||'pasillo';
   const muebles=(lv.furniture||[]).filter(f=>f.kind!=='alfombra').map(f=>({x0:f.x,x1:f.x+f.w,z0:f.y,z1:f.y+f.h}));
-  for(const d of lv.doors||[]){d.hoja=d.street?true:d.core||d.stair?false:conHoja(T(d.a),T(d.b));d.hoja?con++:sin++;
+  // (la puerta de entrada de un penthouse —engine/duplex.js—, de la casa a la escalera del edificio: con hoja, y se tranca)
+  for(const d of lv.doors||[]){d.hoja=d.street||d.entrada?true:d.core||d.stair?false:conHoja(T(d.a),T(d.b));d.hoja?con++:sin++;
    // (abierta: el cuarto es el del lado a, o el b si a es el pasillo —como lo abre town3d—)
    d.abierta=false;if(!d.hoja||d.street)continue;const q=lv.rooms.find(r=>r.id===d.a)||lv.rooms.find(r=>r.id===d.b);if(!q)continue;
    const h=Math.abs(d.y1-d.y0)<1e-6,mx=(d.x0+d.x1)/2,mz=(d.y0+d.y1)/2;if(!quiereAbierta(q.type,mx,mz))continue;

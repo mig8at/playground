@@ -27,7 +27,8 @@ for(let s=S0;s<S0+N;s++){const {world:w,bp}=await armarMundo(s,3);
    // (arriba se pisa en la llegada —medio metro después de la punta de la escalera—; sobre el vacío de la sala a doble
    // altura no: se cae al piso de abajo —o al mesón de la cocina, si la doble altura queda sobre ella—)
    {const d=E.eje==='x'?[Math.sign(E.llegada[0]-E.pie[0]),0]:[0,Math.sign(E.llegada[1]-E.pie[1])],g=w.floorAt(E.llegada[0]+d[0]*.5,E.llegada[1]+d[1]*.5,arriba);if(Math.abs(g-arriba)>.05)falla('lo abierto de arriba no se pisa a su altura',{ciudad:s,lote:L.id,unidad:u.n,piso:+g.toFixed(2),arriba});
-    for(const v of u.vacios||[]){const g2=w.floorAt(v.x+v.w/2,v.y+v.h/2,arriba),abajo=(L.floors-1)*FLOOR+R;if(g2>abajo+1.2||g2<abajo-.05)falla('sobre el vacío de la doble altura hay piso',{ciudad:s,lote:L.id,unidad:u.n,piso:+g2.toFixed(2),abajo});else vacios++;}}}}}
+    for(const v of u.vacios||[]){let px=v.x+v.w/2,pz=v.y+v.h/2;for(let i=0;i<40&&px>E.x&&px<E.x+E.w&&pz>E.y&&pz<E.y+E.h;i++){px=v.x+.5+(i%Math.max(1,v.w-1));pz=v.y+.5+Math.floor(i/Math.max(1,v.w-1));}// (un punto del vacío fuera de la escalera)
+     const g2=w.floorAt(px,pz,arriba),abajo=(L.floors-1)*FLOOR+R;if(g2>abajo+1.2||g2<abajo-.05)falla('sobre el vacío de la doble altura hay piso',{ciudad:s,lote:L.id,unidad:u.n,piso:+g2.toFixed(2),abajo});else vacios++;}}}}}
 console.log(`dúplex en 3D · ${N} ciudades · ${probados} escaleras (${cortas} de 3 m), ${llegan} llegan caminando arriba, ${vacios} salas a doble altura sin piso arriba, ${cajas} cajas de baranda bajo el tejado, ${ventanas} ventanas de arriba con su buhardilla · ${Math.round((Date.now()-t0)/1000)} s`);
 for(const [k,f] of fallas)console.log(`  ${f.n}\t${k}\n        ${f.ej.map(e=>JSON.stringify(e)).join('\n        ')}`);
 console.log(`fallas: ${[...fallas.values()].reduce((a,f)=>a+f.n,0)}`);process.exit(fallas.size||!probados?1:0);

@@ -5,7 +5,7 @@
 //  · ningún otro piso asoma entre TOL y 30 cm por encima (el pie se hunde en algo que se ve), salvo que ahí la física
 //    frene (un estorbo: la base de un monumento).
 // Afuera: 3×3 puntos por casilla abierta (calle, avenida, callejón, plaza). Adentro: 5 puntos por cuarto en cada piso,
-// lejos de los muebles (sobre un mueble pisable la física sube a su tapa) y de las escaleras.
+// lejos de los muebles (sobre un mueble pisable la física sube a su tapa) y de las escaleras —también la de un dúplex—.
 // Uso: node scripts/validar-pisos.mjs [ciudades=1] [semilla0=1]
 import {armarMundo} from './sin-pantalla.mjs';
 import {indiceTriangulos} from './medir3d.mjs';
@@ -25,7 +25,7 @@ for(let s=S0;s<S0+N;s++){const M=await armarMundo(s),{bp,world}=M,ix=indiceTrian
   if(asoma>-Infinity&&!world.collide(x,z,.05,true,feet)){med.asoma[donde]++;falla(`${donde}: un piso asoma sobre el que se pisa`,{...ej,mm:Math.round(asoma*1000)});}};
  for(let cy=0;cy<H;cy++)for(let cx=0;cx<W;cx++){if(!ABIERTA.has(bp.map.kind[cy*W+cx]))continue;for(const u of [.25,.5,.75])for(const v of [.25,.5,.75])mira('afuera',(cx+u)*CELL+.13,(cy+v)*CELL+.13,0,{casilla:[cx,cy]});}// (corridos 13 cm: la vereda va en cuadros de 1 m, y justo en su borde se ve el más alto de los dos)
  for(const [li,L] of bp.lots.entries())for(const lv of L.levels){const ms=(lv.furniture||[]).filter(f=>f.kind!=='alfombra');
-  const libre=(x,z)=>!ms.some(f=>x>f.x-.35&&x<f.x+f.w+.35&&z>f.y-.35&&z<f.y+f.h+.35)&&!(lv.stairs||[]).some(st=>x>st.x-.3&&x<st.x+st.w+.3&&z>st.y-.3&&z<st.y+st.h+.3);
+  const libre=(x,z)=>!ms.some(f=>x>f.x-.35&&x<f.x+f.w+.35&&z>f.y-.35&&z<f.y+f.h+.35)&&![...(lv.stairs||[]),...(lv.escalerasInternas||[])].some(st=>x>st.x-.3&&x<st.x+st.w+.3&&z>st.y-.3&&z<st.y+st.h+.3);
   const feet=lv.level*3+(world.lots.get(li)?.raise||0)+.1;
   for(const r of lv.rooms){if(r.w<1.2||r.h<1.2)continue;for(const [u,v] of [[.5,.5],[.25,.25],[.75,.25],[.25,.75],[.75,.75]]){const x=r.x+r.w*u,z=r.y+r.h*v;if(libre(x,z))mira('adentro',x,z,feet,{lote:li,tipo:L.type,piso:lv.level,cuarto:r.type});}}}}
 console.log(`pisos · ${N} ciudad(es) · afuera ${med.afuera} puntos (${med.sinPiso.afuera} sin piso dibujado, ${med.asoma.afuera} con un piso que asoma) · adentro ${med.adentro} (${med.sinPiso.adentro} sin piso, ${med.asoma.adentro} con uno que asoma)`);
