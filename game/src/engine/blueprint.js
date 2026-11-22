@@ -424,20 +424,35 @@ function apartments(a,b,v0,v1,corr,r,band,units,gmax=2){
 // prueba), en la grilla de 0,5 m (2026-10-15: antes 2 m fijos, y con el paso de 800 el lavamanos y la ducha no se usaban).
 // (2026-11-21: sigue en la grilla de 0,5 m aunque los departamentos pasaron a 1 m —PASO_CUARTO—: con 3 m el baño de una
 // suite quedaba de 3 × 4 = 12 m² y la entrada, de 1 m)
+// LA SUITE, A MEDIDA DE LA GRILLA (2026-11-21, Miguel: «pruébalo y ve ajustando, guiándote por que encajen los muebles
+// permitiendo entrar y moverse, como se hace en la construcción y diseño de interiores»). Todo en módulos de 2 m o en
+// metros enteros, como una habitación de hotel de verdad: baño al lado de un pasillo de entrada.
+//   · 6 m de frente (tres módulos); del lado del pasillo, 2 m de fondo: el baño de 3 × 2 m (ducha, inodoro y lavamanos
+//     entran y se usan) y una entrada de 3 × 2 m con su armario; la habitación, de 6 m de ancho hasta la fachada;
+//   · fondo corto (menos de 5 m): el baño a un costado, de 2 m de ancho por todo el fondo, con la ducha de 80 cm; y un
+//     resto de 10 m o más son dos suites, no una habitación de 8 × 4.
+// Medido en tres ciudades: los tabiques que llegan a la fachada en metro entero pasan de 94 a 97 % (91 % en línea de
+// módulo), la auditoría sigue en 4 casos y ningún baño de habitación queda sin ducha. Quedan 261 habitaciones de 333.
+// LO QUE NO ENTRÓ: 4 m de frente con baño de 3 × 2 y un pasillo de entrada de 1 m conservaba las 333, pero el pasillo deja
+// 0,88 m libres (el mínimo de un cuarto es 1,2) y por su puerta de 0,72 m no pasa el personaje; con el baño de 2,5 × 2 m
+// (4 m partidos 2,5 + 1,5) la ducha no entraba en 26 casos; con 5 m de frente salen las mismas 261 y más depósitos.
+export const SUITE={frente:6,bano:3,banoCostado:2};
 const SUITE_BANO=()=>Math.ceil(Math.max(...(MINIMOS.bano?.hondo||[2,2]))*2-1e-6)/2;
 function suites(a,b,v0,v1,corr,r,band,type){const SB=SUITE_BANO(),out=[],D=v1-v0,hall=corr==='v1'?[v1-SB,v1]:[v0,v0+SB],face=corr==='v1'?[v0,v1-SB]:[v0+SB,v1];
  // Fondo corto (menos de 5 m): suites de 6 m de frente, la habitación de 4 m entra directo del pasillo y el baño ocupa
  // todo el fondo a un costado (2 m de ancho); la cama cabe a lo largo.
- if(D<5){let u=a;while(b-u>0){let W=6;if(b-u-W<5)W=b-u;const u0=u,u1=u+W;u=u1;
+ if(D<5){let u=a;while(b-u>0){let W=6;if(b-u-W<5)W=b-u;if(W>=10)W=Math.ceil(W/2);const u0=u,u1=u+W;u=u1;
    if(W<5||D<3.5){out.push({type:'deposito',u0,u1,v0,v1,band});continue;}// donde no cabe una suite: el cuarto de servicio
-   const mir=r()<.5,bx=mir?[u1-SB,u1]:[u0,u0+SB],rx=mir?[u0,u1-SB]:[u0+SB,u1],room={type,u0:rx[0],u1:rx[1],v0,v1,band};
+   const SF=SUITE.banoCostado,mir=r()<.5,bx=mir?[u1-SF,u1]:[u0,u0+SF],rx=mir?[u0,u1-SF]:[u0+SF,u1],room={type,u0:rx[0],u1:rx[1],v0,v1,band};
    out.push(room,{type:'bano',u0:bx[0],u1:bx[1],v0,v1,band,doorTo:room});}
   return out;}
- let u=a;while(b-u>0){let W=4;if(b-u-W<3)W=b-u;const u0=u,u1=u+W;u=u1;
-  if(W<4){out.push({type:'deposito',u0,u1,v0,v1,band});continue;}
-  const mir=r()<.5,bx=mir?[u1-SB,u1]:[u0,u0+SB],ex=mir?[u0,u1-SB]:[u0+SB,u1];
-  const ent={type:'entrada',u0:ex[0],u1:ex[1],v0:hall[0],v1:hall[1],band};
-  out.push({type,u0,u1,v0:face[0],v1:face[1],band,doorTo:ent},ent,{type:'bano',u0:bx[0],u1:bx[1],v0:hall[0],v1:hall[1],band,doorTo:ent});}
+ // (la franja del lado del pasillo mide un módulo —FRANJA.interior— y la habitación llega a la fachada en línea de módulo: SUITE)
+ const FI=FRANJA.interior,WS=SUITE.frente,BW=SUITE.bano,hall2=corr==='v1'?[v1-FI,v1]:[v0,v0+FI],face2=corr==='v1'?[v0,v1-FI]:[v0+FI,v1];
+ let u=a;while(b-u>0){let W=WS;if(b-u-W<2)W=b-u;const u0=u,u1=u+W;u=u1;
+  if(W<WS){out.push({type:'deposito',u0,u1,v0,v1,band});continue;}
+  const mir=r()<.5,bx=mir?[u1-BW,u1]:[u0,u0+BW],ex=mir?[u0,u1-BW]:[u0+BW,u1];
+  const ent={type:'entrada',u0:ex[0],u1:ex[1],v0:hall2[0],v1:hall2[1],band};
+  out.push({type,u0,u1,v0:face2[0],v1:face2[1],band,doorTo:ent},ent,{type:'bano',u0:bx[0],u1:bx[1],v0:hall2[0],v1:hall2[1],band,doorTo:ent});}
  return out;}
 
 // El ancho de la escalera del núcleo en un ala de Lu × Lv m (ver layoutFloor).
@@ -502,9 +517,9 @@ function layoutFloor(L,F,level,r,opt={}){
   // Hotel u hospital: un pasillo de 2 m a lo largo del frente (sigue en el descanso del núcleo) y detrás, una tras otra,
   // la habitación de 4 m con su baño de 2 m al costado, cada una con su puerta al pasillo (2026-10-12: antes iban en
   // fila sin pasillo, habitación | baño | habitación…, y el baño de en medio dejaba las habitaciones sin salida).
-  else if(suite){corr.push({u0:0,v0:0,u1:cu,v1:2,hall:true});let u=0;while(cu-u>0){let W=6;if(cu-u-W<5)W=cu-u;const u0=u,u1=u+W;u=u1;
+  else if(suite){corr.push({u0:0,v0:0,u1:cu,v1:2,hall:true});let u=0;while(cu-u>0){let W=6;if(cu-u-W<5)W=cu-u;if(W>=10)W=Math.ceil(W/2);const u0=u,u1=u+W;u=u1;
     if(W<5){rooms.push({type:'deposito',u0,u1,v0:2,v1:Lv,band:'back',hall:true});continue;}
-    const SB=SUITE_BANO(),room={type:suite,u0,u1:u1-SB,v0:2,v1:Lv,band:'back',hall:true};rooms.push(room,{type:'bano',u0:u1-SB,u1,v0:2,v1:Lv,band:'back',doorTo:room});}}
+    const SB=SUITE.banoCostado,room={type:suite,u0,u1:u1-SB,v0:2,v1:Lv,band:'back',hall:true};rooms.push(room,{type:'bano',u0:u1-SB,u1,v0:2,v1:Lv,band:'back',doorTo:room});}}
   else fill(0,cu,prog.front,r,0,Lv).forEach((q,i)=>rooms.push({...q,v0:0,v1:Lv,band:'front',chain:i}));
  }else{// pasillo de 2 m a lo largo del frente
   const c0=corridorAt(Lv),P=pasilloDe(Lv);corr.push({u0:0,v0:c0,u1:Lu,v1:c0+P});
@@ -837,6 +852,9 @@ function furnish(F,plan,open,r,want){const items=[];
    if(!fitsMin(q,k))continue;
    const rec=[...PROGRAMS[k].recipe,...programExtras(k,q.type)];used=rec;
    const c=catalogFor(q,open,rec,'|'+k);if(!c[0].missing){C=c;q.prog=k;break;}used=recipe;}
+  // (el baño de una habitación de hotel u hospital: si con la receta general queda sin ducha ni bañera —el de 2 m de ancho a
+  // un costado—, la receta justa de los departamentos: ducha de 80 cm al rincón y lavamanos chico)
+  if(!lists&&q.type==='bano'&&q.doorTo){const c=catalogFor(q,open,recipe);if(c[0].missing||!c[0].items.some(it=>it.kind==='ducha'||it.kind==='banera'||it.kind==='tina')){const j=catalogFor(q,open,BANO_JUSTO,'|justo'),v=j.find(v=>!v.missing&&v.full&&!v.win)||j.find(v=>!v.missing);if(v){C=[v];used=BANO_JUSTO;}}}
   if(!C&&sinBano){C=sinBano;used=recipe;}// (ni la justa entró: queda el baño sin ducha, y la auditoría lo cuenta)
   // (sin programa, la receta general; en una alcoba más chica que la doble de la norma —INTERIOR.alcobaDoble—, con cama
   // sencilla: la regla de las cortinas dejaba a veces sin programa a una de 8 m² y caía la cama de dos plazas)

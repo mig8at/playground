@@ -49,13 +49,19 @@ for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:3}),r=rng(s*31)
   for(let t=0;t<8;t+=.1){x+=dx*.1;z+=dz*.1;if(loteEn(bp,x,z)!==L)break;med.metros+=.1;const C=camaraDe(L,x,z,dx,dz),P=paredesAClarar(bp,{x,z,nivel:lv.level},C,prev);
    const ahora=new Set(P.map(p=>p.key)),antes=new Set((prev||[]).map(p=>p.key));
    for(const k2 of antes)if(!ahora.has(k2)){apagada.set(k2,t);med.cambios++;}
-   for(const k2 of ahora)if(!antes.has(k2)){if(apagada.has(k2)&&t-apagada.get(k2)<.6)falla('una pared parpadea al caminar',{semilla:s,lote:L.type,piso:lv.level});med.cambios++;}
+   for(const k2 of ahora)if(!antes.has(k2)){if(apagada.has(k2)&&t-apagada.get(k2)<.6)falla('una pared parpadea al caminar',{semilla:s,lote:L.type,piso:lv.level,pared:k2,en:[+x.toFixed(2),+z.toFixed(2)],rumbo:[+dx.toFixed(2),+dz.toFixed(2)],tras:+(t-apagada.get(k2)).toFixed(1)});med.cambios++;}
    prev=P;}}
  // 4b: la cámara que tiembla (el mouse, ±1°) cerca de una puerta: el conjunto cambia como mucho una vez
  for(const L of bp.lots.slice(0,40))for(const lv of L.levels.slice(0,2))for(const d of (lv.doors||[]).filter(d=>!d.street).slice(0,6)){const h=Math.abs(d.y1-d.y0)<1e-6,mx=(d.x0+d.x1)/2,mz=(d.y0+d.y1)/2;
   for(const sg of [1,-1]){const x=mx+(h?0:sg)*.8,z=mz+(h?sg:0)*.8;if(loteEn(bp,x,z)!==L)continue;const a0=Math.atan2(h?sg:0,h?0:sg);
-   for(let a=-1.2;a<=1.2;a+=.05){let prev=null,cambios=0,ultimo=null;med.temblores=(med.temblores||0)+1;
-    for(let i=0;i<10;i++){const b=a0+a+(i%2?.0175:0),dx=Math.cos(b),dz=Math.sin(b),C=camaraDe(L,x,z,dx,dz),P=paredesAClarar(bp,{x,z,nivel:lv.level},C,prev),k=P.map(p=>p.key).sort().join('|');if(ultimo!=null&&k!==ultimo)cambios++;ultimo=k;prev=P;}
+   // (2026-11-21: parpadear es que UNA pared o una hoja cambie de estado más de una vez —se prende, se apaga y vuelve—.
+   // Antes se contaban los cambios del conjunto, y un conjunto que sólo crece en dos pasos —la pared se prende y, ya
+   // prendida, su segunda hoja entra en la vuelta siguiente; después queda quieto— contaba como parpadeo: hospital,
+   // ciudad 2, con las suites de 6 m)
+   for(let a=-1.2;a<=1.2;a+=.05){let prev=null,cambios=0,ultimo=null;const veces=new Map();med.temblores=(med.temblores||0)+1;
+    for(let i=0;i<10;i++){const b=a0+a+(i%2?.0175:0),dx=Math.cos(b),dz=Math.sin(b),C=camaraDe(L,x,z,dx,dz),P=paredesAClarar(bp,{x,z,nivel:lv.level},C,prev),ks=new Set(P.map(p=>p.key));
+     if(ultimo){for(const k of ks)if(!ultimo.has(k))veces.set(k,(veces.get(k)||0)+1);for(const k of ultimo)if(!ks.has(k))veces.set(k,(veces.get(k)||0)+1);}ultimo=ks;prev=P;}
+    cambios=Math.max(0,...veces.values());
     if(cambios>1){falla('una pared parpadea con la cámara que tiembla',{semilla:s,lote:L.type,piso:lv.level,cambios});break;}}}}
  // 5: desde la calle
  const K=City.K,m=bp.map;for(let i=0;i<m.W*m.H;i+=7){if(m.kind[i]!==K.street)continue;const x=(i%m.W+.5)*CELL,z=(Math.floor(i/m.W)+.5)*CELL;med.calle++;if(paredesAClarar(bp,{x,z,nivel:0},{x:x+3,z}).length)falla('se aclara algo con el jugador en la calle',{semilla:s,x,z});}}

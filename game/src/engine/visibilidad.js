@@ -62,8 +62,13 @@ export function paredesAClarar(bp,jugador,camara,previo=null){
   // (sólo las que pueden tapar: a menos de su ancho y medio metro de la línea de la cámara —un pasillo largo aclarado
   // sumaba todas sus puertas y pasaba del máximo—)
   const sg=h?[u0,at,u1,at]:[at,u0,at,u1];const kd='p'+(h?'h':'v')+at.toFixed(2)+':'+u0.toFixed(2),mg=w+.5+(antes.has(kd)?VISIBILIDAD.histeresis:0);if(!lineas.some(l=>dSS(l,sg)<mg))continue;
+  // (2026-11-21: el reposo vale también para la hoja de una puerta. En un piso de hospital con muchas puertas, una hoja a
+  // 7 m se apagaba y volvía a los 10 cm —por el tope de VISIBILIDAD.maximo o porque su pared entraba y salía—)
+  if(apagadas.has(kd)&&!cruza(...lineas[0],...sg))continue;
   const e=paredes.find(p=>p.seg[0]===p.seg[2]?!h&&Math.abs(p.seg[0]-at)<.02&&u0>=Math.min(p.seg[1],p.seg[3])-.01&&u1<=Math.max(p.seg[1],p.seg[3])+.01:h&&Math.abs(p.seg[1]-at)<.02&&u0>=Math.min(p.seg[0],p.seg[2])-.01&&u1<=Math.max(p.seg[0],p.seg[2])+.01);if(!e)continue;
   out.push({...(h?{x0:u0-P.sobra,x1:u1+P.sobra,z0:at-w,z1:at+w}:{x0:at-w,x1:at+w,z0:u0-P.sobra,z1:u1+P.sobra}),y0:0,y1:P.alto,lote:L.id,nivel:jugador.nivel,borde:'puerta',key:kd,seg:sg,pared:e.key});}
  // (si pasan del máximo que acepta el 3D, las más cerca del jugador)
  if(out.length>VISIBILIDAD.maximo)out.sort((p,q)=>dPS(jugador.x,jugador.z,...p.seg)-dPS(jugador.x,jugador.z,...q.seg)).length=VISIBILIDAD.maximo;
- for(const p of out)apagadas.delete(p.key);out.apagadas=apagadas;return out;}
+ // (todo lo que estaba y ya no está —también lo que sacó el tope, y las hojas— entra en reposo)
+ {const quedan=new Set(out.map(p=>p.key));for(const k of antes)if(!quedan.has(k)&&!apagadas.has(k))apagadas.set(k,[jugador.x,jugador.z]);for(const k of quedan)apagadas.delete(k);}
+ out.apagadas=apagadas;return out;}
