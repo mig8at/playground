@@ -9,12 +9,16 @@
 //    baranda donde da afuera;
 //  · la envolvente cerrada: a lo largo del contorno de cada piso (vivienda.js bordesDe), a 5 cm del piso, un
 //    muro en todo punto que no sea una puerta;
+//  · los muebles con la planta abierta: nada de obra (LUGAR_FIJO) ni nada alto (más de ALTO_SUELTO) contra un borde sin
+//    pared —abrirPlanta no abre el borde del mesón y saca el armario suelto—;
 //  · el plano al milímetro: los bordes de los cuartos, en milímetros exactos;
 //  · en las ventanas cerradas, la película y no cortinas (lo mide validar-cortinas).
 // Uso: node harness/pruebas/validar-casas-modernas.mjs [ciudades=2] [semilla0=1]
 import {generateBlueprint} from '../../src/engine/blueprint.js';
 import {planHouse,MODERNA_DINTEL,FLOOR0,FH,TERRAZA_CASA,T as TM,bordesDe} from '../../src/engine/vivienda.js';
-import {VOLADIZO} from '../../src/engine/hogar.js';
+import {VOLADIZO,ALTO_SUELTO} from '../../src/engine/hogar.js';
+import {LUGAR_FIJO} from '../../src/engine/entrega.js';
+import {CHOQUE_MUEBLE} from '../../src/engine/medidas.js';
 const N=+(process.argv[2]||2),S0=+(process.argv[3]||1);
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};
 let casas=0,voladizos=0,abiertos=0,ventanas=0,terrazas=0;const t0=Date.now();const vistos=new Set();
@@ -47,7 +51,13 @@ for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:3});
     const vert=Math.abs(p.u1-o.u0)<1e-6||Math.abs(o.u1-p.u0)<1e-6,hor=Math.abs(p.v1-o.v0)<1e-6||Math.abs(o.v1-p.v0)<1e-6;
     const largo=vert?Math.min(p.v1,o.v1)-Math.max(p.v0,o.v0):hor?Math.min(p.u1,o.u1)-Math.max(p.u0,o.u0):0;if(largo<=.05)continue;
     const d=L.doors.find(d=>d.entero&&[d.a,d.b].includes(p.id)&&[d.a,d.b].includes(o.id));
+    // (queda muro si en ese borde se apoya algo de obra: el mesón, la estufa…)
+    if(!d){const at=vert?(Math.abs(p.u1-o.u0)<1e-6?p.u1:p.u0):(Math.abs(p.v1-o.v0)<1e-6?p.v1:p.v0),a0=vert?Math.max(p.v0,o.v0):Math.max(p.u0,o.u0),a1=a0+largo;
+     if(L.furniture.some(f=>LUGAR_FIJO.has(f.kind)&&(vert?Math.min(f.v1,a1)-Math.max(f.v0,a0)>.05&&(Math.abs(f.u0-at)<.2||Math.abs(f.u1-at)<.2):Math.min(f.u1,a1)-Math.max(f.u0,a0)>.05&&(Math.abs(f.v0-at)<.2||Math.abs(f.v1-at)<.2))))continue;}
     if(!d||Math.abs(d.len-largo)>1e-6)falla('borde entre cuartos abiertos que no es un vano entero',{...ej,nivel:L.level,a:p.prog,b:o.prog});else abiertos++;}
+   for(const f of L.furniture){const malo=LUGAR_FIJO.has(f.kind)||(CHOQUE_MUEBLE[f.kind]?.alto||0)>ALTO_SUELTO;if(!malo)continue;
+    const pegado=L.doors.filter(d=>d.entero).some(d=>d.axis==='u'?Math.min(f.u1,d.from+d.len)-Math.max(f.u0,d.from)>.05&&(Math.abs(f.v0-d.at)<.2||Math.abs(f.v1-d.at)<.2):Math.min(f.v1,d.from+d.len)-Math.max(f.v0,d.from)>.05&&(Math.abs(f.u0-d.at)<.2||Math.abs(f.u1-d.at)<.2));
+    if(pegado)falla('mueble de obra o alto contra un borde sin pared',{...ej,nivel:L.level,mueble:f.kind});}
    for(const q of L.rooms)if(q.type==='bano'&&!L.doors.some(d=>!d.entero&&(d.a===q.id||d.b===q.id)))falla('baño sin su puerta',{...ej,nivel:L.level});}
   // (la línea horizontal: la cabeza de cada ventanal, la misma en su piso; una vez por plano de casa)
   const k=JSON.stringify([P.kind,P.variant,sp.ventana]);if(vistos.has(k))continue;vistos.add(k);

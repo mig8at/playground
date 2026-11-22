@@ -15,7 +15,8 @@
 import {PROGRAMS,minRoom,furnishProgram} from './blueprint.js';
 import {navHogar} from './nav-interior.js';
 import {MINIMOS} from './cuartos-minimos.js';
-import {JUEGO_PASO,MURO} from './medidas.js';
+import {JUEGO_PASO,MURO,CHOQUE_MUEBLE} from './medidas.js';
+import {LUGAR_FIJO} from './entrega.js';
 
 // Quién vive en la casa: su programa (cuartos) y cuántos pisos prefiere (si hay muchos cuartos, dos).
 export const HOGARES={
@@ -89,15 +90,25 @@ export function planHogar(kind='familia',opts={}){const v=(opts.variant|0)&3,key
 // el comedor y la cocina quedan dentro del borde abierto y se quitan. Las ventanas, ventanales de hasta VENTANAL m.
 export const VENTANAL=3.2,VOLADIZO=2;
 const CERRADO=q=>q.type==='bano'||q.type==='terraza';
-function abrirPlanta(rooms,doors,hall){const abre=q=>q&&!CERRADO(q);
+// (LOS MUEBLES —2026-11-22: se amueblaba con las paredes y después se abría, y 312 de 676 muebles quedaban contra un borde sin
+// pared, el mesón incluido; amoblar después de abrir agrandaba las casas un 44 %—: un borde donde se apoya algo de obra
+// —LUGAR_FIJO: el mesón, la estufa, la nevera, la lavadora— no se abre; y lo alto que quede contra un borde abierto
+// —más de ALTO_SUELTO m: un armario, un estante— sale, porque no se para solo. Lo bajo —el sofá, la cama, la mesa— queda:
+// en una planta abierta se para en medio)
+export const ALTO_SUELTO=1.2;
+const contra=(f,e)=>e.axis==='u'?Math.min(f.u1,e.b)-Math.max(f.u0,e.a)>.05&&(Math.abs(f.v0-e.at)<.2||Math.abs(f.v1-e.at)<.2):Math.min(f.v1,e.b)-Math.max(f.v0,e.a)>.05&&(Math.abs(f.u0-e.at)<.2||Math.abs(f.u1-e.at)<.2);
+function abrirPlanta(rooms,doors,hall,furniture=[]){const abre=q=>q&&!CERRADO(q);const abiertos=[];
  const borde=(p,o)=>{// (el borde que comparten p y o: eje, línea y tramo)
   if(Math.abs(p.u1-o.u0)<1e-6||Math.abs(o.u1-p.u0)<1e-6){const at=Math.abs(p.u1-o.u0)<1e-6?p.u1:p.u0,a=Math.max(p.v0,o.v0),b=Math.min(p.v1,o.v1);return b-a>.05?{axis:'v',at,a,b}:null;}
   if(Math.abs(p.v1-o.v0)<1e-6||Math.abs(o.v1-p.v0)<1e-6){const at=Math.abs(p.v1-o.v0)<1e-6?p.v1:p.v0,a=Math.max(p.u0,o.u0),b=Math.min(p.u1,o.u1);return b-a>.05?{axis:'u',at,a,b}:null;}
   return null;};
  for(let i=0;i<rooms.length;i++)for(let j=i+1;j<rooms.length;j++){const p=rooms[i],o=rooms[j];if(!abre(p)||!abre(o))continue;const e=borde(p,o);if(!e)continue;
+  if(furniture.some(f=>LUGAR_FIJO.has(f.kind)&&contra(f,e)))continue;abiertos.push(e);
   // (lo que ya había en ese borde —la puerta al pasillo, el vano de 1,2 m— queda dentro del abierto: se quita)
   for(let k=doors.length-1;k>=0;k--){const d=doors[k];if(!d.street&&!d.patio&&d.axis===e.axis&&Math.abs(d.at-e.at)<1e-6&&d.from>=e.a-1e-6&&d.from+d.len<=e.b+1e-6)doors.splice(k,1);}
-  doors.push({axis:e.axis,at:e.at,from:e.a,len:e.b-e.a,a:p.id,b:o.id,open:true,entero:true});}}
+  doors.push({axis:e.axis,at:e.at,from:e.a,len:e.b-e.a,a:p.id,b:o.id,open:true,entero:true});}
+ const quitados=[];for(let k=furniture.length-1;k>=0;k--){const f=furniture[k];if((CHOQUE_MUEBLE[f.kind]?.alto||0)>ALTO_SUELTO&&abiertos.some(e=>contra(f,e)))quitados.push(...furniture.splice(k,1));}
+ return quitados;}
 // Con qué frecuencia vive cada una en el monte.
 export const HOGAR_PESO={solo:1,pareja:2,familia:3,familia_grande:1.5,estudiantes:1,abuelos:1.5};
 function buildHogar(kind='familia',{rounds=12,variant=0}={}){BUMP={};let P;const H=HOGARES[kind],list=variant&2&&EXTRA[kind]?[...H.rooms,EXTRA[kind]]:H.rooms,two=true;// (2026-11-22, Miguel: «para las casas, pásalas a dúplex»: toda casa del monte tiene dos pisos; antes, si pasaba de 55 m²)
@@ -112,7 +123,7 @@ function sinPasoDe(P){const out=[],nav=navHogar(P);
   if(k===0&&p.espacios.every(e=>e.alcanzado<=0)){const d=(L.doors||[]).find(d=>d.street||d.b==='calle'),q=d&&L.rooms.find(q=>q.id===d.a);if(q?.prog)out.push({level:L.level,prog:q.prog,label:q.label,kind:'paso'});continue;}
   for(const e of malos){const q=porId.get(e.id);if(q?.prog)out.push({level:L.level,prog:q.prog,label:q.label,kind:'paso'});}}
  return out;}
-function missingOf(P){const out=[];for(const L of P.levels)for(const q of L.rooms){const P0=PROGRAMS[q.prog];if(!P0)continue;const have=L.furniture.filter(f=>f.room===q.id).map(f=>f.kind),need={};
+function missingOf(P){const out=[];for(const L of P.levels)for(const q of L.rooms){const P0=PROGRAMS[q.prog];if(!P0)continue;const have=[...L.furniture,...(L.quitados||[])].filter(f=>f.room===q.id).map(f=>f.kind),need={};/* (lo que la planta abierta sacó —abrirPlanta— cabía: no es que falte) */
   for(const e of P0.recipe){const n=e.split(':')[0];need[n]=(need[n]||0)+1;}for(const [n,c] of Object.entries(need))if(have.filter(x=>x===n).length<c){out.push({level:L.level,prog:q.prog,label:q.label,kind:n});break;}}
  return out;}
 function layoutHogar(kind,two,list,rev){const H=HOGARES[kind],keys=[...list];
@@ -183,8 +194,8 @@ function layoutHogar(kind,two,list,rev){const H=HOGARES[kind],keys=[...list];
   // un solo mueble en cuatro ciudades. Lleva lo de un depósito: cajas y, si entra, un estante.)
   const furniture=[];for(const q of rooms){const receta=PROGRAMS[q.prog]?.recipe||(q.type==='deposito'?DEPOSITO_CASA:null);if(!receta)continue;const open={doors:doors.filter(d=>d.a===q.id||d.b===q.id),windows:windows.filter(w=>w.a===q.id)};
    furniture.push(...furnishProgram(q,open,receta));}
-  abrirPlanta(rooms,doors,hall);
-  return {level,rooms,doors,windows,furniture};});
+  const quitados=abrirPlanta(rooms,doors,hall,furniture);
+  return {level,rooms,doors,windows,furniture,quitados};});
 
  const used=keys.reduce((a,k)=>a+minOf(k)[0]*minOf(k)[1],0);
  return {kind,label:H.label,W,D,voladizo:VO,floors:levels.length,levels,area:+(W*D*levels.length).toFixed(1),minArea:+used.toFixed(1)};}
