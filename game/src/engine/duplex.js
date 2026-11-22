@@ -250,7 +250,10 @@ function penthouse(L,top){const P=DUPLEX.penthouse,r=L.rect;
   const otro=d.a==='pasillo'?d.b:d.a;if(cerrado(otro)){const h=Math.abs(d.y0-d.y1)<1e-6,mx=(d.x0+d.x1)/2,mz=(d.y0+d.y1)/2,H=halls.find(q=>[[0,.2],[0,-.2],[.2,0],[-.2,0]].some(([a,b])=>mx+a>q.x&&mx+a<q.x+q.w&&mz+b>q.y&&mz+b<q.y+q.h));if(H){doors.push(d.a==='pasillo'?{...d,a:H.id}:{...d,b:H.id});continue;}}
   // (el ascensor —desde 6 pisos— llega directo al vestíbulo del penthouse: su vano queda como estaba, y también se tranca)
   if(d.a==='nucleo'||d.b==='nucleo'){const h=Math.abs(d.y0-d.y1)<1e-6,m=h?(d.x0+d.x1)/2:(d.y0+d.y1)/2,H=hallEn(h?m:d.x0,h?d.y0:m);if(!H)return deshacer(),null;doors.push(d.a==='pasillo'?{...d,a:H.id}:{...d,b:H.id});continue;}
-  if(d.core||d.a==='escalera'||d.b==='escalera'){const h=Math.abs(d.y0-d.y1)<1e-6,m=h?(d.x0+d.x1)/2:(d.y0+d.y1)/2,H=hallEn(h?m:d.x0,h?d.y0:m);if(!H)return deshacer(),null;
+  // (2026-11-22, Miguel: «la puerta de algunos dúplex, cuando suben la escalera, queda mal»: iba al medio del vano, justo entre
+  // los dos tramos, y media puerta abría sobre el hueco del tramo que baja, detrás de su baranda. Va centrada en el tramo B,
+  // el que llega a este piso —llegadaArriba—)
+  if(d.core||d.a==='escalera'||d.b==='escalera'){const h=Math.abs(d.y0-d.y1)<1e-6,lle=llegadaArriba(top.stair),m=Math.round((lle?(h?lle[0]:lle[1]):h?(d.x0+d.x1)/2:(d.y0+d.y1)/2)*1000)/1000,H=hallEn(h?m:d.x0,h?d.y0:m);if(!H)return deshacer(),null;
    doors.push(h?{x0:m-.45,y0:d.y0,x1:m+.45,y1:d.y0,a:H.id,b:'escalera',street:false,core:false,wide:false,bay:false,stair:false,hoja:true,abierta:false,entrada:true}:{x0:d.x0,y0:m-.45,x1:d.x0,y1:m+.45,a:H.id,b:'escalera',street:false,core:false,wide:false,bay:false,stair:false,hoja:true,abierta:false,entrada:true});}}
  const x0=Math.min(...partes.map(p=>p.x)),y0=Math.min(...partes.map(p=>p.y)),x1=Math.max(...partes.map(p=>p.x+p.w)),y1=Math.max(...partes.map(p=>p.y+p.h));
  top.doors=doors;top.corridor=[];top.units=[{n,x:x0,y:y0,w:x1-x0,h:y1-y0,...(partes.length>1?{partes}:{})}];
@@ -314,6 +317,9 @@ export function abrirDepartamentos(bp){let deptos=0,banos=0,cocinas=0;const COC=
   abrirAbajo(lv,qs,contornoDe(L),{retipar:false});deptos++;}
  return {deptos,banos,cocinas};}
 
+// El punto del frente de la escalera en U del núcleo (lv.stair, blueprint) donde llega el tramo que sube a ese piso: el
+// carril B —de HW a W, menos medio muro del medio—, en su centro y en el borde de adelante. null sin escalera.
+export function llegadaArriba(st){if(!st)return null;const HW=st.w/2,a=(HW+.05+st.w)/2;return [st.x+st.ux*a,st.z+st.uz*a];}
 export function duplexDe(bp){let n=0,no=0,penthouses=0,incompletos=0;
  for(const L of bp.lots){delete L.duplex;if(!L.mansarda||(L.floors||0)<2)continue;const top=L.levels[L.floors-1];if(!top?.units?.length)continue;delete top.escalerasInternas;
   // (cada departamento del piso, su dúplex si cabe la escalera)

@@ -30,6 +30,11 @@ for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:TEAM}),P=propie
  // edificio —sus partes—, ni más ni menos)
  for(const L of bp.lots){if(!L.duplex?.penthouse||(L.parts||[]).length<2)continue;med.enL++;const u=L.duplex.unidades[0],planta=L.parts.reduce((t,p)=>t+p.w*p.h,0),arriba=u.rooms.reduce((t,q)=>t+q.w*q.h,0);
   if(Math.abs(planta-arriba)>.5)falla('el entrepiso del penthouse en L no cubre la planta',{ciudad:s,lote:L.id,planta,arriba});}
+ // (la puerta de entrada del penthouse, en el tramo que llega arriba —el carril B de la escalera del núcleo—: 2026-11-22, Miguel:
+ // «la puerta de algunos dúplex cuando suben la escalera queda mal»; iba al medio del vano y media abría sobre el hueco)
+ for(const L of bp.lots){const top=L.levels?.[L.floors-1],st=top?.stair;if(!st)continue;for(const d of top.doors.filter(d=>d.entrada)){med.entradas=(med.entradas||0)+1;
+  const loc=(x,z)=>(x-st.x)*st.ux+(z-st.z)*st.uz,a0=Math.min(loc(d.x0,d.y0),loc(d.x1,d.y1)),a1=Math.max(loc(d.x0,d.y0),loc(d.x1,d.y1));
+  if(a0<st.w/2+.05-1e-6||a1>st.w+1e-6)falla('puerta de entrada fuera del tramo que llega',{ciudad:s,lote:L.id,a0:+a0.toFixed(3),a1:+a1.toFixed(3),tramo:[st.w/2,st.w]});}}
  for(const L of bp.lots){if(!L.duplex)continue;med.edificios++;
   // (el pie de la escalera no da a un balcón —Miguel: «la escalera debería estar al revés, no desde el balcón»—: los balcones
   // que arma la fachada en el último piso, contra el borde del pie de cada escalera)

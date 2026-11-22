@@ -651,7 +651,7 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
    // se metían 4 cm en el muro del medio y los pasamanos rozaban la pared).
    const side=(a,b=FR+run/2)=>{const [x,z]=P(a,b),o=lotAtCell(Math.floor(x/S),Math.floor(z/S));return o<0?FACE:o!==id?THIN+.01:THIN/2+.01;};
    const W=ST.W,A0=side(-.15),A1=W-side(W+.15),BD=sd.d-side(W/2,sd.d+.15);
-   escI0=boxes.length;stairBoxes(ST,M,{floors:ST.floors,FLOOR,hallC,A0,A1,BD,box,boxes,wallAny,deco:Math.floor(hash(id*19,7,seed+143)*16)});}
+   escI0=boxes.length;stairBoxes(ST,M,{floors:ST.floors,FLOOR,hallC,A0,A1,BD,box,boxes,wallAny,deco:Math.floor(hash(id*19,7,seed+143)*16),frenteCerrado:!B.levels[ST.floors-1]?.doors.some(d=>d.core||d.stair)});}
   // ---------- Los dúplex (duplex3d.js): la escalera privada, los tabiques del altillo y sus muros bajo la pendiente ----------
   {const DX=duplexDeLote(B,L,{box,wallAny,FLOOR});if(DX){DX.R=R;duplexes.set(id,DX);}}
   // ---------- Sin caras que titilen (2026-10-16): las cajas del lote —muebles, marcos, escalera, decoración— con una
@@ -721,7 +721,7 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
    (stairOf), M (un material de STAIRS), floors pisos de FLOOR m, hallC (el color del muro del medio), A0/A1 (las caras
    de las paredes de afuera de los carriles, en el eje a) y BD (la de la pared del fondo, en b). box(x,y,z,sx,sy,sz,
    color,f) y boxes reciben las cajas; wallAny(x0,z0,x1,z1,y0,y1), los choques (en el taller, nada). */
-export function stairBoxes(ST,M,{floors,FLOOR,hallC,A0=.07,A1,BD,box,boxes,wallAny=()=>{},deco=0}){
+export function stairBoxes(ST,M,{floors,FLOOR,hallC,A0=.07,A1,BD,box,boxes,wallAny=()=>{},deco=0,frenteCerrado=false}){
    const {sd,run,P,FR,BK,W,HW,N}=ST;if(A1==null)A1=W-.07;const rise=1.5/N,tread=run/N,alongX=Math.abs(sd.ux)>.5,TH=.045,NO=.03;if(BD==null)BD=sd.d-.07;
    // Una caja en coordenadas de la escalera: centro (a,b), ancho da (a lo ancho de los carriles) y fondo db.
    const sbox=(a,b,y,da,db,hh,color,f)=>{const [x,z]=P(a,b);box(x,y,z,alongX?da:db,hh,alongX?db:da,color,f);};
@@ -768,7 +768,9 @@ export function stairBoxes(ST,M,{floors,FLOOR,hallC,A0=.07,A1,BD,box,boxes,wallA
    // de ese borde sí sigue hasta el fondo, para que nadie camine por encima del hueco)
    // (en la azotea —la escalera que sube al techo, ST.azotea— no va reja: Miguel, «incluso elimina la reja de la azotea para
    // mejorar el rendimiento». El hueco queda abierto; quien cae, cae a la escalera de abajo. Adentro del edificio, sí)
-   if(!ST.azotea){balus(A0,FR,M0,FR);balus(HW,FR,HW,FR+run);
+   // (si el frente del núcleo es un muro con su puerta —la entrada del penthouse, engine/duplex.js—, la baranda de adelante
+   // quedaba pegada a ese muro: Miguel, «barandas junto a paredes que no tienen sentido». El muro ya cierra el hueco)
+   if(!ST.azotea){if(!frenteCerrado)balus(A0,FR,M0,FR);balus(HW,FR,HW,FR+run);
     swall(0,FR,HW,FR,top*FLOOR-.05,top*FLOOR+FLOOR-.05);swall(HW,FR,HW,sd.d,top*FLOOR-.05,top*FLOOR+FLOOR-.05);}}
 
 export function buildCabins(elevators,{FLOOR,group,own,instanced,base,addWall,S,W,H}){
