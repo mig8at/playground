@@ -56,6 +56,7 @@ import {sitiosDe,aparecerEn} from '../engine/aparecer.js';
 import {createGrafitis,createMapaPintable} from '../lib/grafitis3d.js';
 import {claveCiudad} from '../engine/grafiti.js';
 import {sincronizar} from '../lib/pinturaGuardada.js';
+import {createBoceto} from '../lib/boceto3d.js';
 import {paredesDeLaCiudad} from '../engine/muros.js';
 import {RELOJ,MODO_BOTIN,PATRULLA} from '../engine/medidas.js';
 
@@ -84,6 +85,10 @@ const PASEO=route.query.paseo!=null||(route.name!=='demo'&&route.query.fuga==nul
 let createViewmodel,ViewmodelPass,createShooting,crearRonda,robar,guardar,sacar,incautar,perseguido,precio,gano,hayGente,empezarForzar,tickForzar,trancada,puertaTrancadaEn,robadoEn,usosRonda,createPersecucion,rasgosDe,createPatrullas;
 async function cargarFuga(){({createViewmodel,ViewmodelPass,createShooting,crearRonda,robar,guardar,sacar,incautar,perseguido,precio,gano,hayGente,empezarForzar,tickForzar,trancada,puertaTrancadaEn,robadoEn,usosRonda,createPersecucion,rasgosDe,createPatrullas}=await import('../../fuga/index.js'));}
 const MenuJuego=defineAsyncComponent(()=>import('../../fuga/components/MenuJuego.vue'));
+// (2026-11-22, Miguel: «la idea es eliminar todo el ruido y centrarnos en las medidas… bórralos, no los dejes ahí, porque
+// la idea es ir progresivamente»): el paseo es un BOCETO —todo blanco, lib/boceto3d.js— y no hay cómo volver a los
+// colores ni a los muebles desde la pantalla. Sin bordes negros: se probaron y Miguel los sacó.
+const EN_BOCETO=PASEO;let boceto=null;
 const PRUEBA=route.query.prueba==='edificio',PRUEBA_LOTES=PRUEBA?String(route.query.lotes||'32,34').split(',').map(Number):null;
 const seed=ref(+route.query.ciudad||(PRUEBA?2:pickCity(team.value)));
 // characters: los personajes animados (se cargan una vez al entrar); mientras tanto, «Cargando gente…».
@@ -964,6 +969,9 @@ function loop(t){
  // cámara queda dos pisos más alta)
  const eye=third.value&&!drone.value?{x:player.x,y:player.feet+1.7,z:player.z}:camera.position;island.update(t/1000);const people=[...crowd.positions(),...patrol.positions(),...(soc?.personas()||[])];crowd.update(dt,player);LOD_CAM.x=camera.position.x;LOD_CAM.y=camera.position.y;LOD_CAM.z=camera.position.z;folk.update(dt,player);animals?.update(dt,camera.position);indoor.update(dt,camera.position);const adentro=island.insideHouse(eye.x,eye.z);casas?.adentro(island.casaDentro?.(eye.x,eye.z)??null);island.setEdges(adentro);
  // Los contornos sólo delinean paredes interiores: afuera no se ven y el paso costaba más de la mitad del cuadro.
+ // (en cada cuadro, antes de dibujar: lo que se arma al acercarse —un interior— nunca llega a verse con su color. Medido:
+ // 0,12 ms recorrer las 3.831 piezas de la ciudad chica)
+ if(EN_BOCETO&&world){boceto||(boceto=createBoceto());boceto.aplicar(world.group);}
  if(edgePass)edgePass.enabled=adentro||!!world.dentro?.(camera.position.x,camera.position.z,camera.position.y)||barrios.dentro(camera.position.x,camera.position.z,camera.position.y)||viviendas.dentro(camera.position.x,camera.position.z,camera.position.y);patrol.update(dt,player);traffic.update(dt,{player,people});world.updateDoors(dt,[player,...people,...(indoor.positions?.()||[])]);island.updateDoors(dt,[player,...folk.positions()]);viviendas.updateDoors(dt,[player,...folk.positions()]);viviendas.update(eye.x,eye.z);casas.update(eye.x,eye.z,scene.fog.far);world.updateAds(t/1000);world.updateInteriors(eye.x,eye.z,dt,eye.y);barrios.updateInteriors(eye.x,eye.z,dt,eye.y);barrios.updateDoors(dt,[player,...folk.positions()]);world.updateElevators(dt,player);
  {const at=drone.value?null:world.elevatorAt(player.x,player.z,player.feet);lift.value=at?{floor:at.floor,floors:at.floors,roof:at.roof}:null;}
  // Las luces reales van a los postes más cercanos; se reparten de nuevo cada tanto, no en cada cuadro.
@@ -1145,7 +1153,7 @@ onBeforeUnmount(()=>{
      <p class="carga-papel" :class="POLICIA?'policia':'ladron'">{{ PASEO?'La ciudad':POLICIA?'Hoy sos policía':'Hoy sos ladrón' }}</p>
      <div class="carga-barra" role="progressbar" :aria-valuenow="Math.round(carga.parte*100)" aria-valuemin="0" aria-valuemax="100"><i :style="{transform:`scaleX(${carga.parte})`}"></i></div>
      <p class="carga-etapa">{{ carga.etapa }}</p>
-     <p class="carga-pista">{{ PASEO?'Las viviendas están vacías, como se entregan: sólo el baño y la cocina.':POLICIA?'Un ladrón corriendo llama la atención; uno caminando se pierde entre la gente.':'Caminá: correr llama la atención. Lo robado no cuenta hasta que llega a una guarida.' }}</p>
+     <p class="carga-pista">{{ PASEO?'En boceto: todo blanco y vacío, sólo el baño y la cocina. Primero las medidas.':POLICIA?'Un ladrón corriendo llama la atención; uno caminando se pierde entre la gente.':'Caminá: correr llama la atención. Lo robado no cuenta hasta que llega a una guarida.' }}</p>
     </div>
    </div>
   </Transition>

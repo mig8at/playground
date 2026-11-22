@@ -34,6 +34,7 @@ const host=ref(null),lienzo=ref(null),piso=ref(null),nitido=ref(null),nitidoList
 let relojNitido=0;
 // (la vivienda vacía: lo que se vende es el lugar sin amueblar —engine/entrega.js—; «Amueblado» muestra lo que puso el
 // generador, que es lo que comprueba que los cuartos tienen buen tamaño)
+// (2026-11-22: el plano se ve siempre vacío —sólo baño y cocina—; se quitó el botón para verlo amueblado)
 const vacias=ref(true),entrega=ref(null);let planoEntero=null;
 // (la gente, como puntos, y dónde aparece el próximo —engine/aparecer.js—: el sitio menos poblado. «Entra una persona»
 // la suma ahí y recalcula; el cupo es una persona por vivienda)
@@ -231,7 +232,6 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
    </div>
    <div class="capas"><label v-for="(n,k) in NOMBRE_CAPA" :key="k" :class="{on:capas[k]}"><input type="checkbox" v-model="capas[k]">{{ n }}</label></div>
    <label class="sel-paquete" title="El paquete de texturas de fachadas y techos">Texturas <select v-model="paquete"><option v-for="(P,k) in PAQUETES" :key="k" :value="k">{{ P.nombre }}</option></select></label>
-   <button class="techos" :class="{on:vacias}" @click="vacias=!vacias" :title="vacias?'Las viviendas, como se entregan: sólo el baño y la cocina. Tocá para ver cómo las amuebla el generador.':'Las viviendas amuebladas por el generador. Tocá para verlas vacías, como se entregan.'">{{ vacias?'Viviendas vacías':'Amueblado' }}</button>
    <div class="gente" role="group" aria-label="Gente" title="Cada punto amarillo es una persona. El punto verde es donde aparece la próxima: el sitio del andén con menos gente alrededor (30 m). El cupo es una persona por vivienda.">
     <span><b>{{ cuanta.toLocaleString('es-CO') }}</b> de {{ cupo.toLocaleString('es-CO') }} personas</span>
     <button :disabled="cuanta>=cupo" @click="entra(1)">Entra una</button>
@@ -256,7 +256,7 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
     <span v-if="cursor">x {{ cursor.x }} m · z {{ cursor.z }} m</span>
     <span v-if="escala">{{ escala.toFixed(1) }} px por metro</span>
     <span v-if="resumen">{{ resumen.edificios }} edificios · {{ resumen.casas }} casas · {{ resumen.muebles.toLocaleString('es-CO') }} muebles · {{ resumen.arboles.toLocaleString('es-CO') }} árboles · {{ resumen.mobiliario }} de mobiliario</span>
-    <span v-if="entrega&&vacias">{{ entrega.viviendas.toLocaleString('es-CO') }} viviendas vacías · {{ entrega.sacados.toLocaleString('es-CO') }} muebles afuera · quedan {{ entrega.quedan.toLocaleString('es-CO') }} de baño y cocina</span>
+    <span v-if="entrega&&vacias">{{ entrega.viviendas.toLocaleString('es-CO') }} viviendas · todo vacío · {{ entrega.sacados.toLocaleString('es-CO') }} muebles afuera · quedan {{ entrega.quedan.toLocaleString('es-CO') }} de baño y cocina</span>
     <span v-if="propResumen" :title="Object.entries(propResumen.por).map(([c,v])=>`${CLASE[c]}: ${v.n}, de ${plata(v.min)} a ${plata(v.max)}`).join(' · ')">{{ propResumen.n.toLocaleString('es-CO') }} propiedades · {{ propResumen.area.toLocaleString('es-CO') }} m² · {{ plata(propResumen.valor) }}</span>
     <span v-if="aparicion?.ok">aparece en x {{ aparicion.x }} · z {{ aparicion.z }} m{{ aparicion.cerca!=null?' · la persona más cercana, a '+aparicion.cerca+' m':'' }}</span>
     <span v-else-if="aparicion">{{ aparicion.razon }}</span>

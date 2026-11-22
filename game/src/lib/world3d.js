@@ -419,7 +419,8 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
   // cuadros»): el tramo ciego de los pisos de departamentos. En su pared del fondo —la de enfrente del lado por el que se
   // llega del pasillo—, un cuadro cada ~2 m y, entre ellos, una mesita con un florero; la mesita choca (una caja de su
   // huella y su alto, como las paredes —addWall—).
-  {const ps=[];plan.lots.forEach(B=>{const R0=lots[B.id]?.raise||0;for(const lv of B.levels||[])for(const e of lv.corridor||[]){if(!e.ensanche)continue;
+  // (2026-11-22: en la ciudad entregada vacía —plan.entrega—, sin adornos)
+  if(!plan.entrega){const ps=[];plan.lots.forEach(B=>{const R0=lots[B.id]?.raise||0;for(const lv of B.levels||[])for(const e of lv.corridor||[]){if(!e.ensanche)continue;
    const otros=lv.corridor.filter(o=>o!==e),cruza=(a0,a1,b0,b1)=>a0<b1-.05&&a1>b0+.05;
    const bordes=[{h:true,at:e.y,n:[0,1],t:o=>Math.abs(o.y+o.h-e.y)<.05&&cruza(o.x,o.x+o.w,e.x,e.x+e.w)},{h:true,at:e.y+e.h,n:[0,-1],t:o=>Math.abs(o.y-e.y-e.h)<.05&&cruza(o.x,o.x+o.w,e.x,e.x+e.w)},
     {h:false,at:e.x,n:[1,0],t:o=>Math.abs(o.x+o.w-e.x)<.05&&cruza(o.y,o.y+o.h,e.y,e.y+e.h)},{h:false,at:e.x+e.w,n:[-1,0],t:o=>Math.abs(o.x-e.x-e.w)<.05&&cruza(o.y,o.y+o.h,e.y,e.y+e.h)}];

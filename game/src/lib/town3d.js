@@ -138,7 +138,9 @@ export function stairOf(sd,floors,FLOOR){
     if(h<=feet+.45&&(best===null||h>best))best=h;}return best;}};
 }
 
-export function buildTown(bp,ctx){
+// (la ciudad entregada vacía —bp.entrega—: sin el cuadro del descanso de la escalera; lo lee stairBoxes)
+let SIN_DECO=false;
+export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
  const {S,FLOOR,CEIL,W,H,lots,lotOf,hash,seed,blank,addWall,furniture,clearance,CIVIC,group,own,instanced,base}=ctx;
  // (armada: lo que de verdad se puso en cada módulo de fachada —lote, casilla, lado, módulo, piso, tipo y pieza—, para
  // comparar con lo que dice el plano: engine/fachada-piezas.js, validar-fachada-piezas)
@@ -541,7 +543,7 @@ export function buildTown(bp,ctx){
    // ni la abierta al pasillo), sin ventana, puerta ni mueble alto delante; a 1,55 m de alto su centro.
    for(const [qi,q] of lv.rooms.entries()){const r=hash(id*31+qi,f*13+5,seed+171),r2=hash(id*7+qi,f*5+9,seed+173);
     if(DECO_RUG.has(q.type)&&Math.min(q.w,q.h)>=2.6){const long=q.w>=q.h,W=Math.min(Math.max(q.w,q.h)-1.2,3),D=Math.min(Math.min(q.w,q.h)-1.2,2);
-     if(W>1.2&&D>.9)boxes.push(...placeParts(OBJETOS.alfombra.piezas({w:W,d:D,variante:['persa','rayas','moderna'][Math.floor(r*3)],paleta:Math.floor(r2*RUG_COUNT)}),{x:q.x+q.w/2,y:yb+.004,z:q.y+q.h/2,ry:long?0:Math.PI/2},{f}));}
+     if(W>1.2&&D>.9)if(!bp.entrega)boxes.push(...placeParts(OBJETOS.alfombra.piezas({w:W,d:D,variante:['persa','rayas','moderna'][Math.floor(r*3)],paleta:Math.floor(r2*RUG_COUNT)}),{x:q.x+q.w/2,y:yb+.004,z:q.y+q.h/2,ry:long?0:Math.PI/2},{f}));}
     if(!DECO_ART.has(q.type)&&!(q.type==='local'&&q.giro))continue;
     const cands=[];
     for(const [h,at,a,b,dir] of [[true,q.y,q.x,q.x+q.w,1],[true,q.y+q.h,q.x,q.x+q.w,-1],[false,q.x,q.y,q.y+q.h,1],[false,q.x+q.w,q.y,q.y+q.h,-1]]){
@@ -557,10 +559,10 @@ export function buildTown(bp,ctx){
      for(const [c0,c1] of cuts)if(c1-c0>=.8)cands.push({h,at,dir,off,len:c1-c0,m:(c0+c1)/2,c1});}
     cands.sort((a,b)=>b.len-a.len);const best=cands[0];
     if(best){const W=Math.min(1.2,best.len-.2),H=+(W*.7).toFixed(2),[px,pz]=best.h?[best.m,best.at+best.dir*best.off]:[best.at+best.dir*best.off,best.m],ry=best.h?(best.dir>0?0:Math.PI):(best.dir>0?Math.PI/2:-Math.PI/2);
-     boxes.push(...placeParts(OBJETOS.cuadro.piezas({w:W,h:H,variante:['paisaje','mar','abstracto','flores'][Math.floor(r2*4)],marco:Math.floor(r*4)}),{x:px,y:yb+1.55-H/2,z:pz,ry},{f}));}
+     if(!bp.entrega)boxes.push(...placeParts(OBJETOS.cuadro.piezas({w:W,h:H,variante:['paisaje','mar','abstracto','flores'][Math.floor(r2*4)],marco:Math.floor(r*4)}),{x:px,y:yb+1.55-H/2,z:pz,ry},{f}));}
     // El reloj de pared (cocinas, oficinas, aulas, recepción…): en otra pared libre o, si no hay, al final de la del cuadro.
     if(CLOCK.has(q.type)&&best){const o=cands.find(c=>c!==best&&!(c.h===best.h&&Math.abs(c.at-best.at)<.01))||(best.len>=2.4?{...best,m:best.c1-.35}:null);
-     if(o){const [px,pz]=o.h?[o.m,o.at+o.dir*o.off]:[o.at+o.dir*o.off,o.m];boxes.push(...placeParts(OBJETOS.reloj.piezas({paleta:Math.floor(r*9)}),{x:px,y:yb+2.0,z:pz,ry:o.h?(o.dir>0?0:Math.PI):(o.dir>0?Math.PI/2:-Math.PI/2)},{f}));}}
+     if(o){const [px,pz]=o.h?[o.m,o.at+o.dir*o.off]:[o.at+o.dir*o.off,o.m];if(!bp.entrega)boxes.push(...placeParts(OBJETOS.reloj.piezas({paleta:Math.floor(r*9)}),{x:px,y:yb+2.0,z:pz,ry:o.h?(o.dir>0?0:Math.PI):(o.dir>0?Math.PI/2:-Math.PI/2)},{f}));}}
     // Las cortinas, en las ventanas de fachada de los cuartos donde se vive (no en las vidrieras de los locales).
     if(CURTAIN.has(q.type)){const tone=['crema','azul','verde','terracota'][Math.floor(r2*4)];
      // (2026-10-16: una por ventana DIBUJADA —vidrios: la doble es una sola— y a la medida de su vidrio, engine/cortinas.js
@@ -574,12 +576,13 @@ export function buildTown(bp,ctx){
      for(const {h,at,edge,ks} of paredes.values())for(const K of juntarCortinas(ks.sort((p,r)=>p.u0-r.u0))){
       for(const k of ks)if(k.u0>=K.u0-1e-6&&k.u1<=K.u1+1e-6)k.reg.cortina={u0:K.u0,u1:K.u1,paño:K.paño,h:K.h,solapa:!!k.solapa};
       const [px,pz]=h?[K.m,at+edge*(FACE+.02)]:[at+edge*(FACE+.02),K.m];
-      boxes.push(...placeParts(OBJETOS.cortina.piezas({w:K.w,h:K.h,bajo:K.bajo,variante:tone,pliegues:K.pliegues}),{x:px,y:yb,z:pz,ry:h?(edge>0?0:Math.PI):(edge>0?Math.PI/2:-Math.PI/2)},{f}));}}}
+      if(!bp.entrega)boxes.push(...placeParts(OBJETOS.cortina.piezas({w:K.w,h:K.h,bajo:K.bajo,variante:tone,pliegues:K.pliegues}),{x:px,y:yb,z:pz,ry:h?(edge>0?0:Math.PI):(edge>0?Math.PI/2:-Math.PI/2)},{f}));}}}
    // Las cortinas cerradas (engine/cortinas.js, w.cortina): un paño de lado a lado detrás del vidrio. No van con los
    // muebles (que sólo se dibujan de cerca): se ven de lejos y tapan el cuarto vacío (world3d las dibuja siempre).
    // (2026-10-16, las acciones: el paño va en TODAS las ventanas de los cuartos que llevan cortina —CORTINA.cuartos—, cada una
    // con su clave lote:piso:ventana y cerrado o no según el plano; el jugador lo abre o lo cierra —world3d cortina()—)
-   lv.windows.forEach((w,wi)=>{if(w.shop)return;const c=cuartoDeVentana(lv,w);if(!c||!CORTINA_CU.has(c.q.type))return;const tela=w.cortina||telaDe(id,f,wi);
+   // (2026-11-22: en la ciudad entregada vacía —bp.entrega— no hay alfombras, cuadros, relojes ni cortinas: sólo la obra)
+   if(!bp.entrega)lv.windows.forEach((w,wi)=>{if(w.shop)return;const c=cuartoDeVentana(lv,w);if(!c||!CORTINA_CU.has(c.q.type))return;const tela=w.cortina||telaDe(id,f,wi);
     const cj=panioCerrado(c,tela,yb,FACE+.02).cajas;panios.push({key:id+':'+f+':'+wi,i0:cortinas.length,n:cj.length,cerrada:!!w.cortina});cortinas.push(...cj);});
   });
   // ---------- La escalera: peldaños con huella y nariz, descanso, pared del medio, pasamanos y la baranda del último piso ----------
@@ -683,7 +686,7 @@ export function stairBoxes(ST,M,{floors,FLOOR,hallC,A0=.07,A1,BD,box,boxes,wallA
    // El rincón bajo el carril B de planta baja (ST.nook): la cara de lo macizo que lo cierra, un cuadro colgado en ella y
    // una planta en la esquina de afuera. El choque, en la cara (nadie camina por debajo de lo bajo) y alrededor de la planta.
    if(ST.nook){const nb=ST.nook.b1,[fx,fz]=[-sd.vx,-sd.vz],ry=Math.atan2(fx,fz),cw=Math.min(.7,wB-.24),[qx,qz]=P(cB,nb-.005);
-    boxes.push(...placeParts(OBJETOS.cuadro.piezas({w:cw,h:.5,variante:OBJETOS.cuadro.variantes[deco%4],marco:deco>>2}),{x:qx,y:STAIR_CUADRO,z:qz,ry},{f:0}));
+    if(!SIN_DECO)boxes.push(...placeParts(OBJETOS.cuadro.piezas({w:cw,h:.5,variante:OBJETOS.cuadro.variantes[deco%4],marco:deco>>2}),{x:qx,y:STAIR_CUADRO,z:qz,ry},{f:0}));
     const pa=A1-.22,pb=nb-.22,[mx,mz]=P(pa,pb);boxes.push(...placeParts(OBJETOS.maceta.piezas(),{x:mx,y:.02,z:mz,ry:deco*.7},{f:0}));
     swall(M1,nb,A1,nb,-.05,2);swall(pa-.16,pb-.16,pa+.16,pb+.16,-.05,1);}
    // Arriba, una baranda alrededor del hueco: pasamanos, zócalo y barrotes cada 12 cm (de pared a pared).
