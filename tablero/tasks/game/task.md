@@ -37,6 +37,8 @@ jira_title: ""
 - [x] Pasar el plano de cada piso a plano técnico: cuartos en blanco, medidas y cotas, lo fuera del metro en rojo.
 - [x] Llevar a metro entero los cuartos que quedan en medio metro: 0 en cuatro ciudades, probador en 0.
 - [ ] Llevar a línea de módulo de 2 m los 650 tabiques que llegan a la mitad de un módulo de fachada sin perder dormitorios: termina cuando la vista de fachadas no muestra cortes naranjas. Con el paso de 2 m se pierde el 17 % de los dormitorios.
+- [ ] Cortinas cerradas en lo que no está vendido y viviendas privadas hasta comprarlas (idea de Miguel, 2026-11-22): termina cuando una vivienda sin dueño se ve con cortinas cerradas, no se dibuja su interior y su puerta no abre. Depende de: Miguel — quién es dueño de qué (todavía no hay compra).
+- [ ] La escalera de mano como objeto del juego, para pintar desde afuera hasta 8 m: termina cuando en el 3D se puede apoyar, subir y pintar una pared de fachada del primer piso.
 - [ ] Mostrar y recuperar las paredes huérfanas: termina cuando desde el plano se ve qué quedó apartado y se puede volver a poner en una pared de la misma medida.
 - [ ] Numerar también las casas del monte (sus manzanas, después de las de la ciudad): termina cuando una pared de una casa del monte tiene su número de 10 cifras.
 - [ ] Unir las dos caras de un tabique en una sola pared con dos caras. Depende de: Miguel — hoy cada cara es una pared aparte (una por cuarto); decidir si la base de datos las quiere así o como una pared con dos lados.
