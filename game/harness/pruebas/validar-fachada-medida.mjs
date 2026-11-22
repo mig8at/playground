@@ -7,10 +7,13 @@
 // Uso: node harness/pruebas/validar-fachada-medida.mjs [ciudades=2] [semilla0=1] [equipo=3]
 import {generateBlueprint} from '../../src/engine/blueprint.js';
 import {fachadaMedida,paniosPintables,TEXTURA_MURO,PINTABLE,tramosDe} from '../../src/engine/fachada-medida.js';
+import {resumenDeFachadas} from '../../src/engine/muros.js';
 const N=+(process.argv[2]||2),S0=+(process.argv[3]||1),EQUIPO=+(process.argv[4]||3);// (el tamaño de la ciudad: 3 la chica, 16 la de 720 m)
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};
-let fachadas=0,vanos=0,panios=0,pint=0,area=0,tramos=0,enL=0;const tex={};
+let fachadas=0,vanos=0,panios=0,pint=0,area=0,tramos=0,enL=0,cuadras=0;const tex={};
 for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:EQUIPO});
+ // el resumen de la ciudad por cuadra (lo que muestra /fachadas): ninguna fachada sin cuadrar, ningún corte sobre un vano
+ for(const f of resumenDeFachadas(bp)){cuadras++;if(f.noCuadran.length)falla('una fachada no cuadra',{ciudad:s,cuadra:f.cuadra,cuales:f.noCuadran.slice(0,3)});if(f.malos)falla('un corte de pared sobre un vano',{ciudad:s,cuadra:f.cuadra,n:f.malos});}
  for(const L of bp.lots){if(!L.levels?.length)continue;
   // los tramos: cubren todo el contorno del edificio (su perímetro, casilla por casilla) y no repiten código
   {const T=tramosDe(L),dentro=new Set();for(const p of L.parts)for(let y=p.y/6;y<(p.y+p.h)/6;y++)for(let x=p.x/6;x<(p.x+p.w)/6;x++)dentro.add(x+','+y);let per=0;for(const k of dentro){const [x,y]=k.split(',').map(Number);for(const [dx,dy] of [[0,-1],[1,0],[0,1],[-1,0]])if(!dentro.has((x+dx)+','+(y+dy)))per+=6;}
@@ -33,7 +36,7 @@ for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:EQUIPO});
   // sobre la línea de su fachada: sus dos puntas están en el borde del rectángulo del edificio
   const enBorde=(x,z)=>(L.parts||[]).some(q=>x>=q.x-.01&&x<=q.x+q.w+.01&&z>=q.y-.01&&z<=q.y+q.h+.01&&(Math.abs(x-q.x)<.01||Math.abs(x-q.x-q.w)<.01||Math.abs(z-q.y)<.01||Math.abs(z-q.y-q.h)<.01));if(!enBorde(p.x0,p.z0)||!enBorde(p.x1,p.z1))falla('un paño pintable no cae sobre su fachada',d);
   if(Math.abs(Math.hypot(p.x1-p.x0,p.z1-p.z0)-p.ancho)>.01)falla('el paño no mide en el plano lo que dice',d);}}
-console.log(`fachada medida · ${N} ciudades · ${tramos} tramos de fachada (${enL} edificios con más de cuatro) · ${fachadas} fachadas, ${vanos} vanos, ${panios} paños · ${pint} paños pintables, ${Math.round(area)} m²`);
+console.log(`fachada medida · ${N} ciudades · ${cuadras} cuadras · ${tramos} tramos de fachada (${enL} edificios con más de cuatro) · ${fachadas} fachadas, ${vanos} vanos, ${panios} paños · ${pint} paños pintables, ${Math.round(area)} m²`);
 console.log('  texturas de los frentes: '+Object.entries(tex).sort((a,b)=>b[1]-a[1]).map(([k,n])=>`${k} ${n}`).join(' · '));
 for(const [k,f] of fallas)console.log(`  ${f.n}\t${k}\n        ${f.ej.map(e=>JSON.stringify(e)).join('\n        ')}`);
 console.log(`fallas: ${[...fallas.values()].reduce((a,f)=>a+f.n,0)}`);process.exit(fallas.size?1:0);

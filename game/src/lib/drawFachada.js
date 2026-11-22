@@ -12,7 +12,7 @@
 //   · las cotas: el ancho de cada pared, el alto de cada piso y el ancho total.
 // Devuelve lo medido, para mostrarlo al lado y para que se pueda comprobar.
 import {ALTURA} from '../engine/medidas.js';
-import {paredesDeFachada,fachadaPintable} from '../engine/muros.js';
+import {paredesDeFachada,fachadaPintable,medirFachada} from '../engine/muros.js';
 import {fachadaMedida} from '../engine/fachada-medida.js';
 
 const COLOR={ventana:['#cfe2f3','#3d7ab8'],puerta:['#e6d3bd','#8a5a3a'],vidriera:['#cdeef2','#1f8f9c'],balcon:['#e3d4ee','#6a3fa0'],doble:['#e3d4ee','#6a3fa0']};
@@ -52,7 +52,5 @@ export function drawFachadaTecnica(canvas,bp,L,lado,{width=640,cotas=true}={}){c
   g.textAlign='right';for(const P of FM.pisos)g.fillText((P.base+H).toFixed(1),x0-4,Y(P.base+H)+(P.nivel===FM.pisos.length-1?6:0));g.fillText('0',x0-4,Y(0)-4);
   g.textAlign='center';g.textBaseline='top';for(const p of paredes.filter(q=>q.nivel===0))if((p.u1-p.u0)*m>26)g.fillText((p.u1-p.u0).toFixed(1)+' m',X((p.u0+p.u1)/2),suelo+4);
   g.fillStyle='#2a3340';g.font='600 11px system-ui,sans-serif';g.fillText(`${ancho} × ${alto.toFixed(1)} m · fachada ${({N:'norte',S:'sur',E:'este',W:'oeste'})[F.lado]}${F.eje?.recta?' '+(F.eje.recta+1):''}`,x0+w/2,suelo+18);}
- const areaP=F.paredes.reduce((a,p)=>{const z=Math.max(0,...(p.huecos||[]).filter(q=>q.clase==='zocalo').map(q=>q.y1));return a+p.ancho*(p.alto-z);},0);
- return {ancho,alto,modulos:Math.round(ancho/2),pisos:FM.pisos.length,paredes:paredes.length,pintables:F.paredes.length,cortes,cortesMalos,fueraDeModulo,vanos:nV,areaVanos:+areaV.toFixed(1),areaPintable:+areaP.toFixed(1),numeros:F.paredes.map(p=>p.numero),
-  // (lo que tiene que cuadrar: las paredes de cada piso suman el ancho; ningún hueco se sale)
-  cuadra:!cortesMalos&&FM.pisos.every(P=>Math.abs(paredes.filter(p=>p.nivel===P.nivel).reduce((a,p)=>a+p.ancho,0)-ancho)<.001)&&F.huecos.every(q=>q.u0>=-.001&&q.u1<=ancho+.001&&q.y0>=-.001&&q.y1<=alto+.001)};}
+ // (lo medido sale del motor —engine/muros.js medirFachada—: la misma cuenta que valida la ciudad entera)
+ return medirFachada(bp,L,F.codigo);}

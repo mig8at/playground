@@ -175,3 +175,17 @@ export const paredesDeLaCiudad=bp=>bp.lots.filter(L=>L.levels?.length).flatMap(L
 // paredes pintables con su número. mascaraDe(muro) da el mapa píxel por píxel (1: se pinta).
 export function fachadaPintable(bp,L,lado){const M=muroExterior(L,lado),paredes=paredesPintables(bp,L).filter(w=>w.clase==='exterior'&&w.codigo===M.codigo),ids=new Set(paredes.map(w=>w.id));
  return {...M,huecos:[...M.huecos,...paredesDeFachada(L,lado).filter(w=>!ids.has(w.id)).map(w=>({u0:w.u0,u1:w.u1,y0:w.y0,y1:r3(w.y0+w.alto),clase:'con vanos'}))],paredes};}
+
+// LO MEDIDO DE UNA FACHADA, SIN DIBUJARLA (2026-11-21, para validar el mapa completo): de un tramo, cuántos módulos y
+// pisos tiene, sus paredes, las que se pintan, sus vanos, dónde la cortan las paredes internas y si todo cuadra.
+// pintablesDelEdificio: las de paredesPintables(bp, L), si ya se tienen (para no calcularlas por cada tramo).
+const VANOS=new Set(['ventana','puerta','vidriera','balcon','doble']);
+export function medirFachada(bp,L,codigo,pintablesDelEdificio=null){const M=muroExterior(L,codigo),paredes=paredesDeFachada(L,M.codigo),pint=(pintablesDelEdificio||paredesPintables(bp,L)).filter(w=>w.clase==='exterior'&&w.codigo===M.codigo),vanos=M.huecos.filter(q=>VANOS.has(q.clase));
+ let cortes=0,cortesMalos=0,fueraDeModulo=0;for(const p of paredes){if(p.u0<=1e-6)continue;cortes++;if(Math.abs(p.u0/2-Math.round(p.u0/2))>1e-6)fueraDeModulo++;if(vanos.some(q=>p.u0>q.u0+.02&&p.u0<q.u1-.02&&q.y1>p.y0+.05&&q.y0<p.y0+p.alto-.05))cortesMalos++;}
+ const pisos=L.floors,suma=n=>paredes.filter(p=>p.nivel===n).reduce((a,p)=>a+p.ancho,0),areaP=pint.reduce((a,p)=>{const z=Math.max(0,...(p.huecos||[]).filter(q=>q.clase==='zocalo').map(q=>q.y1));return a+p.ancho*(p.alto-z);},0);
+ let cuadra=!cortesMalos&&M.huecos.every(q=>q.u0>=-.001&&q.u1<=M.ancho+.001&&q.y0>=-.001&&q.y1<=M.alto+.001);for(let n=0;n<pisos&&cuadra;n++)if(Math.abs(suma(n)-M.ancho)>.001)cuadra=false;
+ return {codigo:M.codigo,lado:M.lado,ancho:M.ancho,alto:M.alto,modulos:Math.round(M.ancho/2),pisos,paredes:paredes.length,pintables:pint.length,numeros:pint.map(p=>p.numero),cortes,cortesMalos,fueraDeModulo,vanos:vanos.length,areaVanos:r3(vanos.reduce((a,q)=>a+(q.u1-q.u0)*(q.y1-q.y0),0)),areaPintable:r3(areaP),area:r3(M.ancho*M.alto),cuadra};}
+// La ciudad entera, por cuadra: una fila por cuadra con sus edificios, tramos, paredes, vanos, cortes y lo que no cuadra.
+export function resumenDeFachadas(bp){const filas=new Map();for(const L of bp.lots){if(!L.levels?.length)continue;const P=paredesPintables(bp,L),c=P[0]?.cuadra??cuadraDe(bp,L).cuadra,F=filas.get(c)||filas.set(c,{cuadra:c,edificios:0,tramos:0,modulos:0,paredes:0,pintables:0,pintablesAdentro:0,vanos:0,cortes:0,fueraDeModulo:0,malos:0,noCuadran:[]}).get(c);
+  F.edificios++;F.pintablesAdentro+=P.filter(w=>w.clase==='interior').length;for(const t of tramosDe(L)){const m=medirFachada(bp,L,t.codigo,P);F.tramos++;F.modulos+=m.modulos*m.pisos;F.paredes+=m.paredes;F.pintables+=m.pintables;F.vanos+=m.vanos;F.cortes+=m.cortes;F.fueraDeModulo+=m.fueraDeModulo;F.malos+=m.cortesMalos;if(!m.cuadra)F.noCuadran.push(`L${L.id}-${t.codigo}`);}}
+ return [...filas.values()].sort((a,b)=>a.cuadra-b.cuadra);}
