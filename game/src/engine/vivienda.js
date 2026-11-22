@@ -12,6 +12,7 @@
    es el centro de la huella entera (con garaje y porche) a nivel del suelo. */
 
 import {OBJETOS,partsBoxes,RUG_COUNT} from '../lib/objetos3d.js';
+import {PELICULA} from './cortinas.js';
 import {sinTitilar} from './titileo.js';
 import {CHOQUE_MUEBLE} from './medidas.js';
 
@@ -212,6 +213,11 @@ export function planHouse(input){
  // piso da a la fachada su línea, aunque los anchos cambien; antes iban de 2,05 a 2,2 m según el cuarto)
  const ROOM_WIN={bano:{v:'bano',h:.6,sill:DOOR_H-.6,maxW:.7},cocina:{v:'cocina',h:1.1,sill:DOOR_H-1.1,maxW:1.4},dormitorio:{v:'dos_hojas',h:1.3,sill:DOOR_H-1.3,maxW:1.5},
   sala:{v:'tres_panos',h:1.5,sill:DOOR_H-1.5,maxW:2.1},oficina:{v:'simple',h:1.3,sill:DOOR_H-1.3,maxW:1.1},otro:{v:'dos_hojas',h:1.3,sill:DOOR_H-1.3,maxW:1.3}};
+ // (LA MODERNA —2026-11-22, Miguel: «arquitectura moderna»—: ventanales de piso casi a techo, con todas las cabezas a
+ // MODERNA_DINTEL, la línea horizontal de la fachada; la cocina, sobre el mesón; el baño, igual)
+ const MODERNA_DINTEL=2.45;
+ if(s.estilo==='moderna')Object.assign(ROOM_WIN,{cocina:{v:'cocina',h:1.25,sill:MODERNA_DINTEL-1.25,maxW:2.6},dormitorio:{v:'dos_hojas',h:2.05,sill:MODERNA_DINTEL-2.05,maxW:2.6},
+  sala:{v:'tres_panos',h:2.35,sill:MODERNA_DINTEL-2.35,maxW:3.2},oficina:{v:'simple',h:2.05,sill:MODERNA_DINTEL-2.05,maxW:2.2},otro:{v:'dos_hojas',h:2.05,sill:MODERNA_DINTEL-2.05,maxW:2.4}});
  const roomWin=(axis,at,out,c,yF,K,w,tela=null,sinPostigos=false)=>{const y0=yF+K.sill,h=K.h,ry=axis==='x'?(out>0?0:Math.PI):(out>0?Math.PI/2:-Math.PI/2);
   openings.push({kind:'window',m:null,axis,at,out,c,w,y0,h,room:K.v,tela,ext:conPostigos(K,w,sinPostigos)?w+.06:w/2+.08});
   for(const b of partsBoxes(OBJETOS.ventana.piezas({w,h,variante:K.v,color:cTrim}),{x:axis==='x'?c:at,y:y0,z:axis==='x'?at:c,ry}))box(b.color?'marco':'vidrio',b.x0,b.y0,b.z0,b.x1,b.y1,b.z1,b.color||'#cfe4ee',false);
@@ -283,7 +289,7 @@ export function planHouse(input){
   const yHi=yTop-(lv===0&&two?.2:.02);
   for(const {axis,at,iv} of lines.values()){iv.sort((p,q)=>p[0]-q[0]);const merged=[];for(const [a,b] of iv){const l=merged[merged.length-1];if(l&&a<=l[1]+1e-6)l[1]=Math.max(l[1],b);else merged.push([a,b]);}
    const holes=L.doors.filter(d=>!d.street&&(axis==='x'?d.axis==='u'&&Math.abs(D-d.at-at)<.01:d.axis==='v'&&Math.abs(d.at-at)<.01)).map(d=>{const stair=[d.a,d.b].some(id=>L.rooms[id]?.type==='escalera');
-    return {c:axis==='x'?d.from+d.len/2:D-(d.from+d.len/2),w:d.len,y0:0,y1:stair||d.open?(stair?yTop+1:yF+DOOR_H):yF+INNER_H+.02};});
+    return {c:axis==='x'?d.from+d.len/2:D-(d.from+d.len/2),w:d.len,y0:0,y1:stair||d.entero?yTop+1:d.open?yF+DOOR_H:yF+INNER_H+.02};});// (d.entero: el borde abierto de la planta abierta —hogar.js abrirPlanta—, sin dintel)
    const cutsAlong=(axis==='x'?us:zs);
    for(let [a,b] of merged){a=Math.max(a,T);b=Math.min(b,axis==='x'?W-T:D-T);if(b-a<.05)continue;const pts=[a,...cutsAlong.filter(c=>c>a+.05&&c<b-.05),b];
     for(let i=0;i+1<pts.length;i++){const p0=pts[i],p1=pts[i+1],m=(p0+p1)/2,cN=axis==='x'?hgCol(L,m,at-.2):hgCol(L,at-.2,m),cP=axis==='x'?hgCol(L,m,at+.2):hgCol(L,at+.2,m);
@@ -572,14 +578,12 @@ export function planHouse(input){
   const B=roomsUp[1];if(B){const bx=(B.x0+B.x1)/2;fur('Bed_Single',bx,H1,T+1.1,0);fur('C2_BookCaseBooks',B.x1-.3,H1,T+2.6,-Math.PI/2);fur('C2_Closet',B.x0+.25,H1,T+2.6,Math.PI/2,true,[[B.x0+.25,T+3.5]]);fur('Houseplant_3',B.x0+.3,H1,T+.3,0,false);fur('Light_Ceiling1',bx,H2-.02,Du/2,0,false);}
   fur('Houseplant_1',sx0+.3,H1,T+.3,0,false);}
 }
- // ---- Cortinas (2026-10-12): en cada ventana, del lado de adentro, menos en el baño; si un tabique llega a la ventana,
- // no van (los paños tocarían el tabique) ----
- {const tone=['crema','azul','verde','terracota'][Math.floor(hs('t')*4)],parts=boxes.filter(b=>b.cat==='interior'&&Math.min(b.x1-b.x0,b.z1-b.z0)<.065);
-  for(const o of openings){if(o.kind!=='window'||o.h<.7)continue;const ax=o.axis==='x',face=o.at-o.out*T/2,ry=ax?(o.out>0?Math.PI:0):(o.out>0?-Math.PI/2:Math.PI/2);
-   const x=ax?o.c:face,z=ax?face:o.c;if(bath&&x>bath.x0-.05&&z<bath.z1+.05&&o.y0<H1)continue;
-   const list=partsBoxes(OBJETOS.cortina.piezas({w:o.w,h:o.y0+o.h+.14,bajo:Math.max(o.y0-.3,(o.y0>H1?H1:FLOOR0)+.08),variante:tone,cerrada:o.tela||null}),{x,y:0,z,ry});
-   if(list.some(c=>parts.some(b=>c.x0<b.x1&&c.x1>b.x0&&c.z0<b.z1&&c.z1>b.z0&&c.y0<b.y1&&c.y1>b.y0)))continue;
-   for(const b of list)box('liso',b.x0,b.y0,b.z0,b.x1,b.y1,b.z1,b.color,false);}}
+ // ---- La película del vidrio (2026-11-22, Miguel: «eliminamos las cortinas y hacemos que sean borrosas cuando no estén
+ // abiertas»; «también para las casas»): la ventana de un cuarto con la cortina cerrada —s.cortinas2d, engine/cortinas.js—
+ // lleva una lámina lechosa pegada al vidrio por dentro, del ancho y el alto del vano; las demás, nada (antes, paños de
+ // tela a los costados de cada ventana y el paño corrido en las cerradas) ----
+ for(const o of openings){if(o.kind!=='window'||!o.tela)continue;const ax=o.axis==='x',face=o.at-o.out*(T/2+PELICULA.espesor/2+.005),e=PELICULA.espesor/2;
+  if(ax)box('liso',o.c-o.w/2,o.y0,face-e,o.c+o.w/2,o.y0+o.h,face+e,PELICULA.color,false);else box('liso',face-e,o.y0,o.c-o.w/2,face+e,o.y0+o.h,o.c+o.w/2,PELICULA.color,false);}
 
  // ---- Sin caras que titilen (2026-10-16): dos cajas de distinto color con una cara en el mismo plano se alternan al
  // mover la cámara; la de la más chica se retira 3 mm (engine/titileo.js) ----

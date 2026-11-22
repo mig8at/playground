@@ -1276,6 +1276,8 @@ export function generateBlueprint({seed=1,team=3,parks=JUEGO.parques}={}){
  return bp;
 }
 // ---------- Etapa 9: la isla ----------
+// La casa moderna del monte (2026-11-22): techo plano, liso, sin chimenea, porche, postigos ni maceteros; el marco negro.
+const CASA_MODERNA={estilo:'moderna',techo:'plano',tejado:'liso',revestimiento:'liso',chimenea:false,porche:false,postigos:false,maceteros:false,canaletas:false,marco:'negro',zocalo:'gris'};
 // Las casillas de 6 m de la isla (fuera de la ciudad) con su zona, su altura y lo disparejo que es el terreno; las
 // casas (lotes de una casilla, con su plano como cualquier edificio: buildLot), el globo, el parapente, las salidas del
 // muro y los senderos. Con su propio azar: la ciudad no cambia. Los lotes de la isla siguen la numeración de la ciudad
@@ -1758,6 +1760,7 @@ const angC=CL.map(c=>angOf(c.x,c.y));
    const r3=rng(mix(seed,cx0,cy0,7717)),gap=3;
    const borde=M.front==='N'?cy0*CELL:M.front==='S'?(cy1+1)*CELL:M.front==='W'?cx0*CELL:(cx1+1)*CELL,hacia=M.front==='N'||M.front==='W'?1:-1,ry={N:Math.PI,S:0,W:-Math.PI/2,E:Math.PI/2}[M.front];
    // Casas armadas: para cada lugar, unas casas al azar y la primera que quepa.
+   // (2026-11-22, Miguel: «para las casas, pásalas a dúplex… arquitectura moderna»: todas del estilo moderno —CASA_MODERNA—)
    // (2026-10-12: desde la familia —hogar.js—: se sortea quién vive ahí y su casa sale de sus cuartos; el estilo, al azar)
    const familia=()=>{let t=r3()*Object.values(HOGAR_PESO).reduce((a,b)=>a+b,0);for(const [k,p] of Object.entries(HOGAR_PESO)){t-=p;if(t<0)return k;}return 'familia';};
    // los tramos donde van casas: toda la mitad, o los dos lados del pasaje
@@ -1766,7 +1769,7 @@ const angC=CL.map(c=>angOf(c.x,c.y));
    // deja la otra mitad—; con «fondo − 3», dos casas de 14,25 m quedaban a 2,5 m: validar-mundo, 2026-10-17)
    const fondoMax=fondo-2.5-gap/2;
    for(const [s0,s1] of tramos){if(s1-s0<7)continue;const elegidas=[];let libre=s1-s0;
-    if(ISLA_GEN.casasArmadas){for(let k=0;k<4;k++){let c=null;for(let t=0;t<10&&!c;t++){const sp=randomHouse(r3,{hogar:planHogar(familia(),{variant:Math.floor(r3()*4)}),garaje:'no'}),pl=planHouse(sp);if(pl.w<=libre-(elegidas.length?3:0)&&pl.d<=fondoMax)c={spec:pl.spec,w:pl.w,d:pl.d};}
+    if(ISLA_GEN.casasArmadas){for(let k=0;k<4;k++){let c=null;for(let t=0;t<10&&!c;t++){const sp=randomHouse(r3,{...CASA_MODERNA,hogar:planHogar(familia(),{variant:Math.floor(r3()*4)}),garaje:'no'}),pl=planHouse(sp);if(pl.w<=libre-(elegidas.length?3:0)&&pl.d<=fondoMax)c={spec:pl.spec,w:pl.w,d:pl.d};}
       if(!c)break;elegidas.push(c);libre-=c.w+(elegidas.length>1?3:0);if(r3()<.15)break;}}
     else for(let k=0;k<4;k++){const caben=CASAS_MONTE.filter(c=>c.w<=libre-(elegidas.length?3:0)&&c.d<=fondoMax&&!(c.otro&&elegidas.some(e=>e.otro)));if(!caben.length)break;let tiro=r3()*caben.reduce((a,c)=>a+(c.peso??3),0),c=caben[0];for(const k of caben){tiro-=k.peso??3;if(tiro<0){c=k;break;}}elegidas.push(c);libre-=c.w+(elegidas.length>1?3:0);if(r3()<.15)break;}
     if(!elegidas.length)continue;const total=elegidas.reduce((a,c)=>a+c.w,0)+gap*(elegidas.length-1);let u=s0+(s1-s0-total)/2;

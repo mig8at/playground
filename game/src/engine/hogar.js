@@ -80,9 +80,25 @@ export const EXTRA={solo:'estudio',pareja:'dormitorio_sencillo',familia:'estudio
 const DEPOSITO_CASA=['caja','caja?','estante:0.9x0.38?'];
 const PLANS=new Map();
 export function planHogar(kind='familia',opts={}){const v=(opts.variant|0)&3,key=kind+'#'+v;if(!PLANS.has(key)){const P=buildHogar(kind,{...opts,variant:v});P.variant=v;PLANS.set(key,P);}return PLANS.get(key);}
+// LA CASA MODERNA (2026-11-22, Miguel: «para las casas, pásalas a dúplex… arquitectura moderna»; y los departamentos
+// abiertos: «dejar sólo el espacio del baño… las divisiones serán decisión del usuario»). Planta abierta: sólo el baño
+// conserva sus paredes; entre los demás cuartos y el pasillo, el borde entero es un vano sin dintel (entero: true) —el
+// cuarto sigue en el plano con su tipo y sus muebles, que se pusieron antes de abrirlo—. Los vanos de 1,2 m entre la sala,
+// el comedor y la cocina quedan dentro del borde abierto y se quitan. Las ventanas, ventanales de hasta VENTANAL m.
+export const VENTANAL=3.2;
+const CERRADO=q=>q.type==='bano';
+function abrirPlanta(rooms,doors,hall){const abre=q=>q&&!CERRADO(q);
+ const borde=(p,o)=>{// (el borde que comparten p y o: eje, línea y tramo)
+  if(Math.abs(p.u1-o.u0)<1e-6||Math.abs(o.u1-p.u0)<1e-6){const at=Math.abs(p.u1-o.u0)<1e-6?p.u1:p.u0,a=Math.max(p.v0,o.v0),b=Math.min(p.v1,o.v1);return b-a>.05?{axis:'v',at,a,b}:null;}
+  if(Math.abs(p.v1-o.v0)<1e-6||Math.abs(o.v1-p.v0)<1e-6){const at=Math.abs(p.v1-o.v0)<1e-6?p.v1:p.v0,a=Math.max(p.u0,o.u0),b=Math.min(p.u1,o.u1);return b-a>.05?{axis:'u',at,a,b}:null;}
+  return null;};
+ for(let i=0;i<rooms.length;i++)for(let j=i+1;j<rooms.length;j++){const p=rooms[i],o=rooms[j];if(!abre(p)||!abre(o))continue;const e=borde(p,o);if(!e)continue;
+  // (lo que ya había en ese borde —la puerta al pasillo, el vano de 1,2 m— queda dentro del abierto: se quita)
+  for(let k=doors.length-1;k>=0;k--){const d=doors[k];if(!d.street&&!d.patio&&d.axis===e.axis&&Math.abs(d.at-e.at)<1e-6&&d.from>=e.a-1e-6&&d.from+d.len<=e.b+1e-6)doors.splice(k,1);}
+  doors.push({axis:e.axis,at:e.at,from:e.a,len:e.b-e.a,a:p.id,b:o.id,open:true,entero:true});}}
 // Con qué frecuencia vive cada una en el monte.
 export const HOGAR_PESO={solo:1,pareja:2,familia:3,familia_grande:1.5,estudiantes:1,abuelos:1.5};
-function buildHogar(kind='familia',{rounds=12,variant=0}={}){BUMP={};let P;const H=HOGARES[kind],list=variant&2&&EXTRA[kind]?[...H.rooms,EXTRA[kind]]:H.rooms,two=list.reduce((a,k)=>a+minOf(k)[0]*minOf(k)[1],0)>55;
+function buildHogar(kind='familia',{rounds=12,variant=0}={}){BUMP={};let P;const H=HOGARES[kind],list=variant&2&&EXTRA[kind]?[...H.rooms,EXTRA[kind]]:H.rooms,two=true;// (2026-11-22, Miguel: «para las casas, pásalas a dúplex»: toda casa del monte tiene dos pisos; antes, si pasaba de 55 m²)
  // (2026-10-16: y que se pueda recorrer caminando —nav-interior.js, con el radio del personaje—: un cuarto al que no se
  // llega desde la calle crece como el que no lleva sus muebles; si no se entra a la casa, crece el de la puerta de calle)
  for(let i=0;i<rounds;i++){P=layoutHogar(kind,two,list,variant&1);P.missing=missingOf(P);P.sinPaso=sinPasoDe(P);P.rounds=i+1;if(!P.missing.length&&!P.sinPaso.length)break;
@@ -142,19 +158,20 @@ function layoutHogar(kind,two,list,rev){const H=HOGARES[kind],keys=[...list];
    // (corrida hacia un extremo de la pared —2026-10-18, validar-vanos—: centrada, ocupaba el lugar de la ventana del cuarto)
    if(q)doors.push({axis:'u',at:q.v1,from:Math.max(q.u0+.35,q.u1-(Math.abs(q.u1-q.Lu)<.01?1.35:1.2)),len:.9,a:q.id,b:'patio',patio:true});}
   // Ventanas: en el medio de cada borde que da afuera (las de los baños, chicas), menos donde va la puerta de calle.
-  for(const q of rooms){if(q.type==='escalera'||q===hall)continue;const bano=q.type==='bano',wl=bano?.6:Math.min(1.2,(q.u1-q.u0)-.6);
+  for(const q of rooms){if(q.type==='escalera'||q===hall)continue;const bano=q.type==='bano',wl=bano?.6:Math.min(VENTANAL,(q.u1-q.u0)-.6);
    const add=(axis,at,c0,c1,len)=>{if(len<.5)return;windows.push({axis,at,from:(c0+c1)/2-len/2,len,a:q.id,small:bano});};
    // (una sola ventana por cuarto: la de adelante o la de atrás; la del costado, si no tiene otra)
    const n0=windows.length;if(q.v0===0&&!(level===0&&q===sala))add('u',0,q.u0,q.u1,wl);
    if(Math.abs(q.v1-D)<1e-6)add('u',D,q.u0,q.u1,wl);
-   if(windows.length===n0&&q.u0===0)add('v',0,q.v0,q.v1,bano?.6:Math.min(1.2,(q.v1-q.v0)-.6));
-   if(windows.length===n0&&Math.abs(q.u1-W)<1e-6)add('v',W,q.v0,q.v1,bano?.6:Math.min(1.2,(q.v1-q.v0)-.6));
+   if(windows.length===n0&&q.u0===0)add('v',0,q.v0,q.v1,bano?.6:Math.min(VENTANAL,(q.v1-q.v0)-.6));
+   if(windows.length===n0&&Math.abs(q.u1-W)<1e-6)add('v',W,q.v0,q.v1,bano?.6:Math.min(VENTANAL,(q.v1-q.v0)-.6));
    if(level===0&&q===sala){const c=(sala.u0+sala.u1)/2,side=(sala.u1-sala.u0)/2;if(side>1.6)add('u',0,c+.6,sala.u1,Math.min(1.2,side-.9));}}
   // Los muebles de cada cuarto (con sus puertas y ventanas), con el motor de la ciudad.
   // (2026-11-20: el depósito de la casa —lo que sobra de una franja— no tiene programa y quedaba vacío: 232 depósitos sin
   // un solo mueble en cuatro ciudades. Lleva lo de un depósito: cajas y, si entra, un estante.)
   const furniture=[];for(const q of rooms){const receta=PROGRAMS[q.prog]?.recipe||(q.type==='deposito'?DEPOSITO_CASA:null);if(!receta)continue;const open={doors:doors.filter(d=>d.a===q.id||d.b===q.id),windows:windows.filter(w=>w.a===q.id)};
    furniture.push(...furnishProgram(q,open,receta));}
+  abrirPlanta(rooms,doors,hall);
   return {level,rooms,doors,windows,furniture};});
 
  const used=keys.reduce((a,k)=>a+minOf(k)[0]*minOf(k)[1],0);

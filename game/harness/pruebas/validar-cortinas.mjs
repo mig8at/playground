@@ -9,7 +9,7 @@
 // Uso: node scripts/validar-cortinas.mjs [ciudades=4] [semilla0=1]
 import {readFileSync} from 'node:fs';
 import {generateBlueprint} from '../../src/engine/blueprint.js';
-import {cuartoDeVentana,peliculaCerrada} from '../../src/engine/cortinas.js';
+import {cuartoDeVentana,peliculaCerrada,PELICULA} from '../../src/engine/cortinas.js';
 import {CORTINA,ALTURA} from '../../src/engine/medidas.js';
 import {WINDOWS} from '../../src/engine/fachada.js';
 import {planHouse} from '../../src/engine/vivienda.js';
@@ -39,11 +39,11 @@ for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:3});
    const R=sum(tipo);for(const u of new Set([...telas.keys(),...abiertas])){R.u++;if(telas.has(u))R.c++;}}}
  for(const h of bp.isla.casas||[]){const P=h.spec?.hogar;if(!P)continue;casas++;const R=sum('casa');R.u++;if(!h.cortinas)continue;R.c++;casasC++;
   for(const k of h.cortinas.cuartos){const [lvl,id]=k.split(':').map(Number),q=P.levels[lvl]?.rooms.find(r=>r.id===id);if(!q||!CU.has(q.type))falla('casa con cortina cerrada en un cuarto que no lleva',{semilla:s,cuarto:q?.type});}
-  // (la casa armada, como la dibuja el 3D: cada ventana de esos cuartos con su tela corrida, más ancha y más alta que la ventana)
+  // (la casa armada, como la dibuja el 3D: cada ventana de esos cuartos con su película —2026-11-22, engine/cortinas.js
+  // PELICULA—, del ancho y el alto del vano)
   if(casasC<=12){const H=planHouse({...h.spec,colores2d:h.colores,cortinas2d:h.cortinas}),ws=H.openings.filter(o=>o.kind==='window'&&o.tela);
    if(!ws.length&&h.cortinas.cuartos.length)falla('casa con cortinas cerradas que no se dibujan',{semilla:s});
-   for(const o of ws){const tela=H.boxes.filter(b=>b.color===o.tela&&b.y1-b.y0>o.h);if(!tela.length)falla('ventana de casa sin su tela corrida',{semilla:s});
-    else if(!tela.some(b=>Math.max(b.x1-b.x0,b.z1-b.z0)>=o.w+.2&&b.y0<=o.y0&&b.y1>=o.y0+o.h))falla('la tela de la casa no tapa la ventana',{semilla:s,w:o.w});}}}}
+   for(const o of ws){const lam=H.boxes.filter(b=>b.color===PELICULA.color);if(!lam.some(b=>Math.max(b.x1-b.x0,b.z1-b.z0)>=o.w-.001&&b.y0<=o.y0+.001&&b.y1>=o.y0+o.h-.001))falla('ventana de casa sin su película',{semilla:s,w:o.w});}}}}
 console.log(`cortinas cerradas · ${paños} ventanas de edificios (${cruzan} con un vidrio más ancho que la pared del cuarto) · casas ${casasC}/${casas}`);
 console.log('reparto · '+Object.entries(rep).filter(([,v])=>v.u).map(([k,v])=>`${k} ${v.c}/${v.u} (${Math.round(100*v.c/v.u)} %, meta ${Math.round(100*(CORTINA.cerradas[k]??0))})`).join(' · '));
 // (la tolerancia: 8 puntos, o 3 desvíos de la binomial si la muestra es chica —con 98 casas de una ciudad, 41 % contra
