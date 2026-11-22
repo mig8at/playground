@@ -10,7 +10,7 @@ import '@fontsource/bungee/400.css';
 import '@fontsource-variable/rubik';
 import {planoDe} from '../lib/mapasGuardados.js';
 import {drawFachadaTecnica,LEYENDA} from '../lib/drawFachada.js';
-import {ladosDeCalle} from '../engine/fachada-medida.js';
+import {ladosDeCalle,tramosDe} from '../engine/fachada-medida.js';
 import {paredesPintables} from '../engine/muros.js';
 import {TYPES} from '../engine/blueprint.js';
 
@@ -18,7 +18,7 @@ const route=useRoute(),router=useRouter();
 const seed=ref(Math.max(1,Number(route.query.ciudad)||1)),team=ref(Number(route.query.jugadores)||16),cuadra=ref(Math.max(1,Number(route.query.cuadra)||1)),todos=ref(route.query.lados==='todos');
 const estado=ref('Armando el plano…'),cuadras=ref([]),medidos=ref({}),lienzos=ref({});let plano=null;
 const LADO={N:'Norte',S:'Sur',E:'Este',W:'Oeste'};
-const edificios=computed(()=>{const c=cuadras.value[cuadra.value-1];if(!c||!plano)return [];return c.lotes.map((L,i)=>({L,n:i+1,lados:todos.value?['N','E','S','W']:ladosDeCalle(L),pintables:paredesPintables(plano,L).length}));});
+const edificios=computed(()=>{const c=cuadras.value[cuadra.value-1];if(!c||!plano)return [];return c.lotes.map((L,i)=>({L,n:i+1,lados:todos.value?tramosDe(L).map(t=>t.codigo):ladosDeCalle(L),pintables:paredesPintables(plano,L).length}));});
 const resumen=computed(()=>{const M=Object.values(medidos.value);return {fachadas:M.length,paredes:M.reduce((a,m)=>a+m.paredes,0),pintables:M.reduce((a,m)=>a+m.pintables,0),vanos:M.reduce((a,m)=>a+m.vanos,0),mal:M.filter(m=>!m.cuadra).length};});
 async function cargar(){estado.value='Armando el plano…';const r=await planoDe({seed:seed.value,team:team.value,parks:true});if(!r.plano){estado.value='No se pudo armar el plano.';return;}plano=r.plano;
  const ids=[...new Set(plano.lots.filter(L=>L.levels?.length).map(L=>L.block))].sort((a,b)=>a-b);cuadras.value=ids.map(b=>({lotes:plano.lots.filter(L=>L.block===b&&L.levels?.length).sort((x,y)=>x.id-y.id)}));
@@ -37,7 +37,7 @@ onMounted(cargar);
    <label>Ciudad <input type="number" min="1" v-model.number="seed" @change="cargar"></label>
    <label>Tamaño <select v-model.number="team" @change="cargar"><option :value="3">Chica</option><option :value="5">Mediana</option><option :value="8">Grande</option><option :value="16">Enorme</option></select></label>
    <div class="pasos"><button :disabled="cuadra<=1" @click="cuadra--">−</button><span>Cuadra {{ String(cuadra).padStart(3,'0') }} de {{ cuadras.length }}</span><button :disabled="cuadra>=cuadras.length" @click="cuadra++">+</button></div>
-   <label class="chk"><input type="checkbox" v-model="todos"> los cuatro lados</label>
+   <label class="chk"><input type="checkbox" v-model="todos"> todos los tramos</label>
    <span class="res" v-if="resumen.fachadas">{{ resumen.fachadas }} fachadas · {{ resumen.paredes }} paredes · <b>{{ resumen.pintables }} se pintan</b> · {{ resumen.vanos }} vanos · <b :class="resumen.mal?'mal':'bien'">{{ resumen.mal?resumen.mal+' no cuadran':'todo cuadra' }}</b></span>
    <RouterLink class="ir" :to="{path:'/plano',query:{ciudad:seed,jugadores:team}}">Ver el plano</RouterLink>
   </header>
@@ -51,7 +51,7 @@ onMounted(cargar);
     <div class="fila">
      <figure v-for="l in e.lados" :key="l">
       <canvas :ref="c=>{if(c)lienzos[e.L.id+'-'+l]=c;}"></canvas>
-      <figcaption v-if="medidos[e.L.id+'-'+l]"><b>{{ LADO[l] }}<template v-if="l===e.L.front"> · frente</template></b> · grilla de {{ medidos[e.L.id+'-'+l].modulos }} × {{ medidos[e.L.id+'-'+l].pisos }} módulos de 2 × 3 m = {{ Math.round(medidos[e.L.id+'-'+l].ancho*20) }} × {{ Math.round(medidos[e.L.id+'-'+l].alto*20) }} píxeles de 5 cm · {{ medidos[e.L.id+'-'+l].paredes }} paredes ({{ medidos[e.L.id+'-'+l].cortes }} cortes de pared interna<template v-if="medidos[e.L.id+'-'+l].cortesMalos">, <b class="mal">{{ medidos[e.L.id+'-'+l].cortesMalos }} sobre un vano</b></template>) · {{ medidos[e.L.id+'-'+l].vanos }} vanos, {{ medidos[e.L.id+'-'+l].areaVanos }} m² ·
+      <figcaption v-if="medidos[e.L.id+'-'+l]"><b>{{ LADO[l[0]] }}<template v-if="+l.slice(1)"> {{ +l.slice(1)+1 }}</template><template v-if="l===e.L.front+'0'"> · frente</template> <code>{{ l }}</code></b> · grilla de {{ medidos[e.L.id+'-'+l].modulos }} × {{ medidos[e.L.id+'-'+l].pisos }} módulos de 2 × 3 m = {{ Math.round(medidos[e.L.id+'-'+l].ancho*20) }} × {{ Math.round(medidos[e.L.id+'-'+l].alto*20) }} píxeles de 5 cm · {{ medidos[e.L.id+'-'+l].paredes }} paredes ({{ medidos[e.L.id+'-'+l].cortes }} cortes de pared interna<template v-if="medidos[e.L.id+'-'+l].cortesMalos">, <b class="mal">{{ medidos[e.L.id+'-'+l].cortesMalos }} sobre un vano</b></template>) · {{ medidos[e.L.id+'-'+l].vanos }} vanos, {{ medidos[e.L.id+'-'+l].areaVanos }} m² ·
        <b class="si">{{ medidos[e.L.id+'-'+l].pintables }} se pintan</b><template v-if="medidos[e.L.id+'-'+l].pintables">, {{ medidos[e.L.id+'-'+l].areaPintable }} m²: <code>{{ medidos[e.L.id+'-'+l].numeros.join(' · ') }}</code></template> ·
        <b :class="medidos[e.L.id+'-'+l].cuadra?'bien':'mal'">{{ medidos[e.L.id+'-'+l].cuadra?'cuadra':'NO cuadra' }}</b></figcaption>
      </figure>

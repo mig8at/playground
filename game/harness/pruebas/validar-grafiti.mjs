@@ -14,7 +14,7 @@
 //    edificio (exterior) o del cuarto (interior), separadas por su ancho.
 // Uso: node harness/pruebas/validar-grafiti.mjs [ciudades=2] [semilla0=1]
 import {generateBlueprint} from '../../src/engine/blueprint.js';
-import {muroExterior,murosDeCuarto,muroDe,puntoDe,otroLoteDe,paredesDeFachada,paredesDelEdificio,componerFachada,partirFachada,MIN_PARED,paredesPintables,paredesDeLaCiudad,paredDeNumero,BANOS} from '../../src/engine/muros.js';
+import {muroExterior,murosDeCuarto,muroDe,puntoDe,otroLoteDe,paredesDeFachada,paredesDelEdificio,componerFachada,partirFachada,MIN_PARED,paredesPintables,paredesDeLaCiudad,paredDeNumero,BANOS,tramosDe} from '../../src/engine/muros.js';
 import {GRAFITI,lienzoDe,vacio,pintar,pintados,valido,pixelEn,mascaraDe,pintable,centroDe,aTexto,deTexto} from '../../src/engine/grafiti.js';
 const N=+(process.argv[2]||2),S0=+(process.argv[3]||1);const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};
 let ext=0,int=0,pix=0,libres=0,mayor=0,sale={},pfach=0,fachs=0,pint=0,pintF=0,tope={cuadra:0,edificio:0,piso:0,pared:0};
@@ -30,10 +30,10 @@ for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:3});
    if(w.clase==='exterior'){const x=w.c.x+w.n[0]*.3,z=w.c.z+w.n[1]*.3;if(bp.lots.some(o=>o.id!==w.lote&&o.floors>w.nivel&&(o.parts||[]).some(p=>x>p.x&&x<p.x+p.w&&z>p.y&&z<p.y+p.h)))falla('una pared pintable de fachada está tapada por el vecino',d);}}
   for(let k=0;k<T.length;k+=Math.max(1,Math.floor(T.length/150))){const w=T[k],v=paredDeNumero(bp,w.numero);if(!v||v.id!==w.id||v.ancho!==w.ancho)falla('el número no lleva de vuelta a su pared',{ciudad:s,numero:w.numero});}
   if(paredDeNumero(bp,'9999999999'))falla('un número que no existe devolvió una pared',{ciudad:s});}
- for(const L of bp.lots){if(!L.levels?.length)continue;const otro=otroLoteDe(bp,L),muros=['N','S','E','W'].map(l=>muroExterior(L,l));
+ for(const L of bp.lots){if(!L.levels?.length)continue;const otro=otroLoteDe(bp,L),muros=tramosDe(L).map(t=>muroExterior(L,t.codigo));
   L.levels.slice(0,L.floors).forEach((lv,nivel)=>{for(const q of lv.rooms)muros.push(...murosDeCuarto(L,nivel,q,otro));});
   // las paredes de cada fachada: la cubren entera, sin pisarse
-  for(const lado of ['N','S','E','W']){const F=muroExterior(L,lado),Z=lienzoDe(F),P=paredesDeFachada(L,lado),d={ciudad:s,lote:L.id,lado},cubre=new Uint8Array(Z.cols*Z.rows);fachs++;pfach+=P.length;muros.push(...P);
+  for(const lado of tramosDe(L).map(t=>t.codigo)){const F=muroExterior(L,lado),Z=lienzoDe(F),P=paredesDeFachada(L,lado),d={ciudad:s,lote:L.id,lado},cubre=new Uint8Array(Z.cols*Z.rows);fachs++;pfach+=P.length;muros.push(...P);
    for(const w of P){if(w.ancho<MIN_PARED-1e-6&&w.ancho<F.ancho-1e-6)falla('una pared de fachada más angosta que el mínimo',{...d,id:w.id,ancho:w.ancho});const c0=Math.round(w.u0/Z.px),c1=Math.round(w.u1/Z.px),f0=Z.rows-Math.round((w.y0+w.alto)/Z.px),f1=Z.rows-Math.round(w.y0/Z.px),zw=lienzoDe(w);
     if(zw.cols!==c1-c0||zw.rows!==f1-f0)falla('la grilla de una pared no es su recorte de la fachada',{...d,id:w.id,pared:[zw.cols,zw.rows],recorte:[c1-c0,f1-f0]});
     for(let f=f0;f<f1;f++)for(let c=c0;c<c1;c++)cubre[f*Z.cols+c]++;}
@@ -60,7 +60,7 @@ for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:3});
    // el identificador vuelve al mismo muro, y sus puntas caen donde deben
    const v=muroDe(bp,m.id);if(!v||v.ancho!==m.ancho||v.alto!==m.alto||v.c.x!==m.c.x||v.c.z!==m.c.z||v.huecos.length!==m.huecos.length||v.sale!==m.sale)falla('el identificador no lleva al mismo muro',d);
    const a=puntoDe(m,0),b=puntoDe(m,m.ancho);if(Math.abs(Math.hypot(b.x-a.x,b.z-a.z)-m.ancho)>.01)falla('las puntas no están a su ancho',d);
-   const R=m.clase==='exterior'?{x:L.rect.x,y:L.rect.y,w:L.rect.w,h:L.rect.h}:L.levels[m.nivel].rooms.find(q=>q.id===m.cuarto),enBorde=p=>Math.abs(p.x-R.x)<.01||Math.abs(p.x-R.x-R.w)<.01||Math.abs(p.z-R.y)<.01||Math.abs(p.z-R.y-R.h)<.01;
+   const Rs=m.clase==='exterior'?L.parts:[L.levels[m.nivel].rooms.find(q=>q.id===m.cuarto)],enBorde=p=>Rs.some(R=>p.x>=R.x-.01&&p.x<=R.x+R.w+.01&&p.z>=R.y-.01&&p.z<=R.y+R.h+.01&&(Math.abs(p.x-R.x)<.01||Math.abs(p.x-R.x-R.w)<.01||Math.abs(p.z-R.y)<.01||Math.abs(p.z-R.y-R.h)<.01));
    if(!enBorde(a)||!enBorde(b))falla('las puntas del muro no caen sobre su borde',{...d,a,b});}}}
 console.log(`grafiti · ${N} ciudades · ${fachs} fachadas partidas en ${pfach} paredes · ${int} caras de cuarto · ${(pix/1e6).toFixed(1)} millones de píxeles de ${GRAFITI.px*100} cm, ${Math.round(libres/pix*100)} % pintable · el muro más grande, ${mayor.toLocaleString('es-CO')} píxeles`);
 console.log(`  pintables (sin vanos, sin baños): ${pint.toLocaleString('es-CO')} con su número de 10 cifras, ${pintF.toLocaleString('es-CO')} de fachada · lo más alto de cada parte: cuadra ${tope.cuadra}, edificio ${tope.edificio}, piso ${tope.piso}, pared ${tope.pared}`);

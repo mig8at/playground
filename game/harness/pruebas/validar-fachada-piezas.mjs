@@ -11,7 +11,7 @@
 // Uso: node harness/pruebas/validar-fachada-piezas.mjs [ciudades=2] [semilla0=1] [equipo=3]
 await import('./sin-pantalla.mjs');
 const {generateBlueprint}=await import('../../src/engine/blueprint.js'),{buildWorld}=await import('../../src/lib/world3d.js'),{modulosDeFachada,VENTANAL,vanoDeModulo,PUERTA_VANO}=await import('../../src/engine/fachada-piezas.js');
-const {muroExterior,paredesDeFachada}=await import('../../src/engine/muros.js'),{piezaLowPoly}=await import('../../src/lib/fachada3d.js'),{readFileSync,existsSync}=await import('node:fs');
+const {muroExterior,paredesDeFachada,tramosDe}=await import('../../src/engine/muros.js'),{piezaLowPoly}=await import('../../src/lib/fachada3d.js'),{readFileSync,existsSync}=await import('node:fs');
 const N=+(process.argv[2]||2),S0=+(process.argv[3]||1),T=+(process.argv[4]||3);const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};
 const clave=m=>`${m.lote}|${m.x},${m.y}|${m.dx},${m.dy}|${m.k}|${m.f}`;let total=0,cortes=0;const tipos={};
 // los marcos de puerta, contra la pieza armada con las medidas de su .gltf
@@ -30,7 +30,7 @@ for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:T}),w=buildWorl
   if(m.tipo==='doble'&&plano.get(`${m.lote}|${m.x},${m.y}|${m.dx},${m.dy}|${m.k+1}|${m.f}`)?.tipo!=='doble2')falla('una ventana doble sin su otra mitad',{ciudad:s,k});}
  for(const [k,a] of armada)if(!plano.has(k))falla('el 3D arma un módulo que el plano no tiene',{ciudad:s,k,tipo:a.tipo});
  // ninguna pared interna corta un vano
- for(const L of bp.lots){if(!L.levels?.length)continue;for(const lado of ['N','S','E','W']){const F=muroExterior(L,lado);for(const p of paredesDeFachada(L,lado)){if(p.u0<=1e-6)continue;cortes++;
+ for(const L of bp.lots){if(!L.levels?.length)continue;for(const lado of tramosDe(L).map(t=>t.codigo)){const F=muroExterior(L,lado);for(const p of paredesDeFachada(L,lado)){if(p.u0<=1e-6)continue;cortes++;
    const h=F.huecos.find(q=>q.clase!=='zocalo'&&p.u0>q.u0+.02&&p.u0<q.u1-.02&&q.y1>p.y0+.05&&q.y0<p.y0+p.alto-.05);if(h)falla('una pared interna corta un vano',{ciudad:s,lote:L.id,lado,piso:p.nivel,en:p.u0,vano:[h.u0,h.u1,h.clase]});}}}}
 console.log(`fachada piezas · ${N} ciudades de ${T} · ${total.toLocaleString('es-CO')} módulos comparados entre el plano y el 3D · ${cortes.toLocaleString('es-CO')} cortes de pared interna, ninguno sobre un vano salvo fallas`);
 console.log('  '+Object.entries(tipos).sort((a,b)=>b[1]-a[1]).map(([k,n])=>`${k} ${n}`).join(' · '));

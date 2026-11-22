@@ -16,17 +16,20 @@ import {paredesDeFachada,fachadaPintable} from '../engine/muros.js';
 import {fachadaMedida} from '../engine/fachada-medida.js';
 
 const COLOR={ventana:['#cfe2f3','#3d7ab8'],puerta:['#e6d3bd','#8a5a3a'],vidriera:['#cdeef2','#1f8f9c'],balcon:['#e3d4ee','#6a3fa0'],doble:['#e3d4ee','#6a3fa0']};
-export const LEYENDA=[['#ffffff','#18a06a','pared que se pinta (con su número)'],['#e2e3e6','#9aa3a8','pared que no se pinta'],...Object.entries({ventana:'ventana',puerta:'puerta',vidriera:'vidriera',balcon:'balcón o ventana doble'}).map(([k,t])=>[COLOR[k][0],COLOR[k][1],t]),['#c9c4bb','#8a857c','zócalo'],['#d6332e','#d6332e','una pared interna corta acá']];
+export const LEYENDA=[['#ffffff','#18a06a','pared que se pinta (con su número)'],['#e2e3e6','#9aa3a8','pared que no se pinta'],['#8d9198','#4a5563','tapada por el edificio de al lado'],...Object.entries({ventana:'ventana',puerta:'puerta',vidriera:'vidriera',balcon:'balcón o ventana doble'}).map(([k,t])=>[COLOR[k][0],COLOR[k][1],t]),['#c9c4bb','#8a857c','zócalo'],['#d6332e','#d6332e','una pared interna corta acá']];
 
 export function drawFachadaTecnica(canvas,bp,L,lado,{width=640,cotas=true}={}){const F=fachadaPintable(bp,L,lado),paredes=paredesDeFachada(L,lado),FM=fachadaMedida(L,lado),H=ALTURA.piso,ancho=F.ancho,alto=F.alto;
  const dpr=window.devicePixelRatio||1,padL=46,padR=14,padT=22,padB=34,m=Math.min(34,(width-padL-padR)/ancho),w=ancho*m,h=alto*m,W=width,Hh=h+padT+padB;
  canvas.width=Math.round(W*dpr);canvas.height=Math.round(Hh*dpr);canvas.style.width=W+'px';canvas.style.height=Hh+'px';const g=canvas.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,Hh);
  const x0=padL+(W-padL-padR-w)/2,suelo=padT+h,X=u=>x0+u*m,Y=y=>suelo-y*m,pint=new Map(F.paredes.map(p=>[p.id,p]));
  g.fillStyle='#fbfaf7';g.fillRect(0,0,W,Hh);
- // las paredes: blanca la que se pinta, gris la que no
- for(const p of paredes){const P=pint.get(p.id);g.fillStyle=P?'#ffffff':'#e2e3e6';g.fillRect(X(p.u0),Y(p.y0+p.alto),(p.u1-p.u0)*m,p.alto*m);}
+ // (los pisos de este tramo que tapa el edificio de al lado —una medianera—: ahí el plano no pone ningún módulo de fachada)
+ const E=F.eje,conFachada=new Set((L.modulos||[]).filter(q=>(q.dy!==0)===E.horiz&&Math.abs((E.horiz?(q.y+.5+q.dy*.5):(q.x+.5+q.dx*.5))*6-E.linea)<.01&&(()=>{const c=E.horiz?(q.x+.5)*6:(q.y+.5)*6;return c>E.o&&c<E.o+E.ancho;})()).map(q=>q.f)),tapado=p=>!!L.modulos&&!conFachada.has(p.nivel);
+ // las paredes: blanca la que se pinta, gris la que no; rayada oscura la que tapa el vecino
+ for(const p of paredes){const P=pint.get(p.id),t=tapado(p);g.fillStyle=t?'#8d9198':P?'#ffffff':'#e2e3e6';g.fillRect(X(p.u0),Y(p.y0+p.alto),(p.u1-p.u0)*m,p.alto*m);
+  if(t){g.save();g.beginPath();g.rect(X(p.u0),Y(p.y0+p.alto),(p.u1-p.u0)*m,p.alto*m);g.clip();g.strokeStyle='rgba(40,46,56,.5)';g.lineWidth=1;g.beginPath();for(let d=-p.alto*m;d<(p.u1-p.u0)*m;d+=8){g.moveTo(X(p.u0)+d,Y(p.y0));g.lineTo(X(p.u0)+d+p.alto*m,Y(p.y0+p.alto));}g.stroke();g.restore();}}
  // el zócalo
- for(const z of F.huecos.filter(q=>q.clase==='zocalo')){g.fillStyle='#c9c4bb';g.fillRect(X(z.u0),Y(z.y1),(z.u1-z.u0)*m,(z.y1-z.y0)*m);g.strokeStyle='rgba(0,0,0,.18)';g.lineWidth=1;g.beginPath();for(let u=z.u0;u<z.u1;u+=.25){g.moveTo(X(u),Y(z.y0));g.lineTo(X(Math.min(z.u1,u+.2)),Y(z.y1));}g.stroke();}
+ for(const z of F.huecos.filter(q=>q.clase==='zocalo'&&conFachada.has(0))){g.fillStyle='#c9c4bb';g.fillRect(X(z.u0),Y(z.y1),(z.u1-z.u0)*m,(z.y1-z.y0)*m);g.strokeStyle='rgba(0,0,0,.18)';g.lineWidth=1;g.beginPath();for(let u=z.u0;u<z.u1;u+=.25){g.moveTo(X(u),Y(z.y0));g.lineTo(X(Math.min(z.u1,u+.2)),Y(z.y1));}g.stroke();}
  // los módulos de 2 m (puntos) y los pisos (llena)
  g.strokeStyle='rgba(60,70,84,.28)';g.lineWidth=1;g.setLineDash([2,4]);g.beginPath();for(let u=2;u<ancho-1e-6;u+=2){g.moveTo(X(u)+.5,Y(0));g.lineTo(X(u)+.5,Y(alto));}g.stroke();g.setLineDash([]);
  g.strokeStyle='rgba(60,70,84,.7)';g.beginPath();for(const P of FM.pisos.slice(1)){g.moveTo(X(0),Y(P.base)+.5);g.lineTo(X(ancho),Y(P.base)+.5);}g.stroke();
@@ -46,7 +49,7 @@ export function drawFachadaTecnica(canvas,bp,L,lado,{width=640,cotas=true}={}){c
  if(cotas){g.fillStyle='#4a5563';g.font='10px system-ui,sans-serif';g.textAlign='right';g.textBaseline='middle';for(const P of FM.pisos)g.fillText(P.nivel===0?'PB':'P'+P.nivel,x0-22,Y(P.base+H/2));
   g.textAlign='right';for(const P of FM.pisos)g.fillText((P.base+H).toFixed(1),x0-4,Y(P.base+H)+(P.nivel===FM.pisos.length-1?6:0));g.fillText('0',x0-4,Y(0)-4);
   g.textAlign='center';g.textBaseline='top';for(const p of paredes.filter(q=>q.nivel===0))if((p.u1-p.u0)*m>26)g.fillText((p.u1-p.u0).toFixed(1)+' m',X((p.u0+p.u1)/2),suelo+4);
-  g.fillStyle='#2a3340';g.font='600 11px system-ui,sans-serif';g.fillText(`${ancho} × ${alto.toFixed(1)} m · fachada ${({N:'norte',S:'sur',E:'este',W:'oeste'})[lado]}`,x0+w/2,suelo+18);}
+  g.fillStyle='#2a3340';g.font='600 11px system-ui,sans-serif';g.fillText(`${ancho} × ${alto.toFixed(1)} m · fachada ${({N:'norte',S:'sur',E:'este',W:'oeste'})[F.lado]}${F.eje?.recta?' '+(F.eje.recta+1):''}`,x0+w/2,suelo+18);}
  const areaP=F.paredes.reduce((a,p)=>{const z=Math.max(0,...(p.huecos||[]).filter(q=>q.clase==='zocalo').map(q=>q.y1));return a+p.ancho*(p.alto-z);},0);
  return {ancho,alto,modulos:Math.round(ancho/2),pisos:FM.pisos.length,paredes:paredes.length,pintables:F.paredes.length,cortes,cortesMalos,vanos:nV,areaVanos:+areaV.toFixed(1),areaPintable:+areaP.toFixed(1),numeros:F.paredes.map(p=>p.numero),
   // (lo que tiene que cuadrar: las paredes de cada piso suman el ancho; ningún hueco se sale)

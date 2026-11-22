@@ -73,7 +73,7 @@ const grafitiGuardado=m=>{const L=lienzoDe(m),s=deEstaCiudad()[m.numero||m.id];r
 // de sus paredes y al guardar se reparte. m.paredes: las de esa fachada, para dibujar dónde corta cada una)
 // (sólo se pintan las paredes sin puertas ni ventanas y que no son de un baño —engine/muros.js paredesPintables—, cada
 // una con su número de 10 cifras: cuadra, edificio, piso y pared; así se guardan)
-const pintablesDe=(L,lado)=>paredesPintables(planoEntero,L).filter(w=>w.clase==='exterior'&&w.lado===lado);
+const pintablesDe=(L,lado)=>{const cod=muroExterior(L,lado).codigo;return paredesPintables(planoEntero,L).filter(w=>w.clase==='exterior'&&w.codigo===cod);};
 const fachadaGuardada=(L,lado)=>componerFachada(L,lado,deEstaCiudad(),pintablesDe(L,lado));
 function abrirMuro(m){muro.value=m;eligePared.value=false;if(!m){graf=mascara=Lz=null;return;}Lz=lienzoDe(m);graf=(m.paredes?fachadaGuardada(elegido.value,m.lado):grafitiGuardado(m))||vacio(Lz.cols,Lz.rows);mascara=mascaraDe(m);for(let i=0;i<graf.d.length;i++)if(!mascara[i])graf.d[i]=0;/* (lo guardado encima de un vano, de antes de medirlos bien, se limpia) */pintadosAca.value=pintados(graf);
  nextTick(()=>{const w=lienzoGraf.value?.parentElement.clientWidth||400;zoomG.value=Math.max(2,Math.min(12,Math.floor(w/Lz.cols)));dibujarGraf();});}
