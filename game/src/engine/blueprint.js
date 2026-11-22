@@ -639,7 +639,15 @@ function openings(L,F,plan,level,r){// (PC: el ancho de la puerta de calle de es
     if(q.type==='local')for(const m of mods)if(!dm.includes(m)&&conVidriera(m,dm))windows.push({axis:'u',at:0,from:m+.1,len:1.8,a:i,shop:true});}}
  });
  // Casa sin pasillo: la puerta de calle en el primer cuarto.
- if(level===0&&Lv<=8&&rooms.length){const m=modulesIn(rooms[0].u0,rooms[0].u1)[0];if(m!=null)doors.push({axis:'u',at:0,from:m+(2-pcDe(rooms[0]))/2,len:pcDe(rooms[0]),a:0,b:'calle',street:true});}
+ if(level===0&&Lv<=8&&rooms.length){const m=modulesIn(rooms[0].u0,rooms[0].u1)[0];if(m!=null){doors.push({axis:'u',at:0,from:m+(2-pcDe(rooms[0]))/2,len:pcDe(rooms[0]),a:0,b:'calle',street:true});
+  // (2026-11-22, la auditoría de coherencia: «un local sin vidriera», 12 en dos ciudades —el local de un lote de una sola fila
+  // tenía su puerta por acá y nunca sus vidrieras—: como en los demás, vidriera y muro alternados desde la puerta)
+  // (y cada local de la fila, no sólo el primero: su puerta de calle —si no la tiene— y sus vidrieras; la ciudad de 720 m
+  // tenía filas de dos locales donde el segundo no tenía ni lo uno ni lo otro)
+  for(const q of rooms){if(q.type!=='local'||q.v0>1e-6)continue;const ms=modulesIn(q.u0,q.u1).filter(k=>['calle','avenida'].includes(F.at('front',k+1)));if(!ms.length)continue;
+   const suya=doors.find(d=>d.street&&d.axis==='u'&&Math.abs(d.at)<1e-6&&d.from>=q.u0-1e-6&&d.from+d.len<=q.u1+1e-6),dm=suya?Math.floor(suya.from/2)*2:ms[0];
+   if(!suya)doors.push({axis:'u',at:0,from:dm+(2-pcDe(q))/2,len:pcDe(q),a:q.id??rooms.indexOf(q),b:'calle',street:true});
+   for(const k of ms)if(k!==dm&&conVidriera(k,[dm]))windows.push({axis:'u',at:0,from:k+.1,len:1.8,a:q.id??rooms.indexOf(q),shop:true});}}}
  // Un edificio que se roba tiene al menos JUEGO.puertasRobable puertas de calle (2026-10-15): las que faltan, primero en
  // un costado que da a otra calle (lote de esquina: dos calles distintas, mejores escapes) y si no en otro módulo del
  // frente; en un cuarto de planta baja, en un módulo entero sin otra puerta.

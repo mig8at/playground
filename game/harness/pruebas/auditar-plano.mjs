@@ -40,6 +40,7 @@ const VACIOS_OK=new Set(['hall','entrada','vestibulo']);
 // ¿la puerta da a la calle o a la avenida? (la casilla de afuera, a 0,6 m de la puerta, es vía: contenedores.js K_VIA)
 const aLaCalle=(d,L)=>{const M=bpActual.map,h=Math.abs(d.y0-d.y1)<1e-6,mx=(d.x0+d.x1)/2,mz=(d.y0+d.y1)/2;for(const sg of [1,-1]){const x=mx+(h?0:sg*.6),z=mz+(h?sg*.6:0);if(L.parts.some(P=>x>P.x&&x<P.x+P.w&&z>P.y&&z<P.y+P.h))continue;const cx=Math.floor(x/6),cy=Math.floor(z/6);if(cx>=0&&cy>=0&&cx<M.W&&cy<M.H&&[0,1].includes(M.kind[cy*M.W+cx]))return true;}return false;};
 let bpActual=null;
+const BANOS_A=new Set(['bano','sanitario']);
 const HAB_BALCON=new Set(['dormitorio','sala','sala_cocina','estudio','habitacion','habitacion_h','oficina','abierta','reuniones','comedor']);// (de paso: pueden ir sin muebles)
 const firma=bp=>createHash('sha1').update(JSON.stringify([bp.lots.map(L=>[L.id,L.type,L.floors,L.rect,L.levels.map(lv=>[lv.rooms.length,lv.furniture.map(f=>[f.kind,f.x,f.y,f.w,f.h]),lv.doors.length,lv.windows.length])]),bp.equipamiento?.length,bp.vegetacion?.arboles?.length])).digest('hex').slice(0,12);
 const t00=Date.now();
@@ -128,6 +129,21 @@ for(let s=S0;s<S0+N;s++){const t0=Date.now(),bp=bpActual=generateBlueprint({seed
      const x=F.punto(F.ancho/2),n=F.eje.horiz?[0,F.eje.lado==='N'?-1:1]:[F.eje.lado==='W'?-1:1,0],px=x.x+n[0]*.6,pz=x.z+n[1]*.6,vecino=bp.lots.some(o=>o.id!==L.id&&(o.parts||[]).some(Q=>px>Q.x&&px<Q.x+Q.w&&pz>Q.y&&pz<Q.y+Q.h));
      if(!hay&&!vecino)anota('coherencia','fachada · una fachada a la calle sin ninguna ventana en un piso',ef(`piso ${P.nivel}, ${F.ancho} m`));}}
    for(const P of F.pisos){const alt=new Set(V.filter(h=>h.clase==='ventana'&&h.y0>=P.base-.01&&h.y1<=P.base+3.01).map(h=>h.y0.toFixed(2)+'-'+h.y1.toFixed(2)));if(alt.size>1)anota('coherencia','fachada · ventanas de un mismo piso a distinta altura',ef(`piso ${P.nivel}: ${[...alt].join(' · ')}`));}}
+  // EN ALTURA (la cuarta tanda): el piso típico —en un edificio de departamentos, oficinas u hotel los pisos de arriba se
+  // repiten: un piso distinto del primero se ve desde afuera—; los baños apilados, uno encima del otro —las tuberías—; y los
+  // balcones en columna.
+  if(['vivienda','oficinas','hotel','comercio','hospital'].includes(L.type)&&L.floors>=3){const firma=lv=>lv.rooms.map(q=>[q.type,q.x,q.y,q.w,q.h].join(',')).sort().join('|'),f1=firma(L.levels[1]);
+   for(let f=2;f<L.floors;f++)if(firma(L.levels[f])!==f1)anota('coherencia','altura · un piso de arriba distinto del primero',`ciudad ${s} lote ${L.id} (${L.type}) piso ${f}`);
+   for(let f=2;f<L.floors;f++)for(const q of L.levels[f].rooms.filter(q=>BANOS_A.has(q.type)))if(!L.levels[f-1].rooms.some(o=>BANOS_A.has(o.type)&&pisa(q,o,.3)))anota('coherencia','altura · un baño que no está encima de otro',`ciudad ${s} lote ${L.id} (${L.type}) piso ${f}: ${q.w}×${q.h} m`);}
+  {const B=new Set((L.modulos||[]).filter(m=>m.tipo==='balcon').map(m=>`${m.x},${m.y},${m.dx},${m.dy},${m.k},${m.f}`));
+   for(const m of (L.modulos||[]).filter(m=>m.tipo==='balcon'&&m.f>2))if(!B.has(`${m.x},${m.y},${m.dx},${m.dy},${m.k},${m.f-1}`))anota('coherencia','altura · un balcón sin el de abajo',`ciudad ${s} lote ${L.id} (${L.type}) piso ${m.f}`);}
+  // EL EDIFICIO ENTERO (la quinta tanda): con puerta de calle; cada vivienda con alguna ventana; cada local con su vidriera
+  {const lv0=L.levels[0];if(lv0&&!lv0.doors.some(d=>d.street))anota('coherencia','edificio · un edificio sin puerta de calle',`ciudad ${s} lote ${L.id} (${L.type})`);
+   for(const lv of L.levels.slice(0,L.floors)){const us=new Map();for(const q of lv.rooms)if(q.unit!=null)(us.get(q.unit)||us.set(q.unit,[]).get(q.unit)).push(q);
+    for(const [u,qs] of us){const conVentana=lv.windows.some(w=>{if(w.shop)return false;const cx=(w.x0+w.x1)/2,cy=(w.y0+w.y1)/2;return qs.some(q=>cx>=q.x-.01&&cx<=q.x+q.w+.01&&cy>=q.y-.01&&cy<=q.y+q.h+.01);});
+     if(!conVentana)anota('coherencia','edificio · una vivienda sin ninguna ventana',en(L,lv,`apto ${u}`));}
+    for(const q of lv.rooms.filter(q=>q.type==='local')){const vid=lv.windows.some(w=>{if(!w.shop)return false;const cx=(w.x0+w.x1)/2,cy=(w.y0+w.y1)/2;return cx>=q.x-.01&&cx<=q.x+q.w+.01&&cy>=q.y-.01&&cy<=q.y+q.h+.01;});
+     if(!vid)anota('coherencia','edificio · un local sin vidriera',en(L,lv,`${q.w}×${q.h} m`));}}}
   // PARA PINTAR: toda pared sin vanos y a la vista tiene cómo alcanzarse (muros.js accesoDe: su cuarto, la escalera de mano
   // o colgado desde la azotea); la que no, no se cuenta como pintable y acá se anota
   for(const w of paredesDelEdificio(bp,L)){if(w.clase!=='exterior'||!esPintable(w))continue;const x=w.c.x+w.n[0]*.3,z=w.c.z+w.n[1]*.3;if(bp.lots.some(o=>o.id!==L.id&&o.floors>w.nivel&&(o.parts||[]).some(p=>x>p.x&&x<p.x+p.w&&z>p.y&&z<p.y+p.h)))continue;
@@ -146,6 +162,8 @@ for(let s=S0;s<S0+N;s++){const t0=Date.now(),bp=bpActual=generateBlueprint({seed
    if(m.tipo==='balcon'&&(!q||!HAB_BALCON.has(q.type)))anota('coherencia','fachada · un balcón sin un cuarto habitable detrás',en(L,lv,`delante de ${q?q.type:'nada (pasillo o núcleo)'}`));}
   // la azotea
   for(const o of L.azotea?.objetos||[])if(!L.parts.some(P=>o.x-o.w/2>=P.x-.01&&o.x+o.w/2<=P.x+P.w+.01&&o.z-o.d/2>=P.y-.01&&o.z+o.d/2<=P.y+P.h+.01))anota('afuera','un objeto de azotea fuera de la huella',`ciudad ${s} lote ${L.id}: ${o.tipo}`);}
+ // (dos edificios que se pisan)
+ {const P=bp.lots.flatMap(L=>(L.parts||[]).map(p=>({...p,id:L.id})));for(let i=0;i<P.length;i++)for(let j=i+1;j<P.length;j++)if(P[i].id!==P[j].id&&pisa(P[i],P[j],.05))anota('coherencia','edificio · dos edificios que se pisan',`ciudad ${s}: lotes ${P[i].id} y ${P[j].id}`);}
  // las casas del monte (hogar.js anota lo que no le entró y los cuartos sin paso)
  for(const [i,c] of (bp.isla.casas||[]).entries()){const H=c.spec?.hogar;if(!H){anota('casas','una casa sin plano de hogar',`ciudad ${s} casa ${i}`);continue;}
   if(H.missing?.length)anota('casas','a una casa le faltó un mueble de su programa',`ciudad ${s} casa ${i} (${H.label}): ${[].concat(H.missing).join(', ')}`);
@@ -157,6 +175,9 @@ for(let s=S0;s<S0+N;s++){const t0=Date.now(),bp=bpActual=generateBlueprint({seed
   for(let j=i+1;j<E.length;j++)if(Math.hypot(E[i].x-E[j].x,E[i].z-E[j].z)<.8)anota('afuera','dos piezas de mobiliario encimadas',`ciudad ${s}: ${E[i].tipo} y ${E[j].tipo}`);}
  for(const c of bp.contenedores||[]){if(c.sinAnden)anota('afuera','un contenedor de basura sin andén (en la calle)',`ciudad ${s}: ${c.id} en ${c.x},${c.z}`);if(c.estorba)anota('afuera','un contenedor encima de un árbol, una pieza o frente a un vano',`ciudad ${s}: ${c.id} en ${c.x},${c.z}`);}
  const A=[...(bp.vegetacion?.arboles||[]),...(bp.vegetacion?.palmeras||[])];
+ // (sobre una cebra no va nada: ni un tronco ni una pieza de mobiliario —a menos de 1,5 m de su centro—)
+ {const C=(bp.equipamiento||[]).filter(e=>e.tipo==='cebra');for(const c of C){for(const a of A)if(a.tipo!=='bosque'&&Math.hypot(a.x-c.x,a.z-c.z)<1.5)anota('coherencia','afuera · un árbol sobre una cebra',`ciudad ${s}: ${a.tipo} en ${a.x},${a.z}`);
+   for(const e of E)if(Math.hypot(e.x-c.x,e.z-c.z)<1.5)anota('coherencia','afuera · mobiliario sobre una cebra',`ciudad ${s}: ${e.tipo} en ${e.x},${e.z}`);}}
  for(const a of A){if(enLote(a.x,a.z))anota('afuera','un tronco dentro de un edificio',`ciudad ${s}: ${a.tipo}`);if(a.tipo==='bosque')continue;
   const e=a.eje||0,ce=Math.cos(e),se=Math.sin(e);let toca=false;for(let k=0;k<32&&!toca;k++){const t=k/32*Math.PI*2,u=Math.cos(t)*a.r,v=Math.sin(t)*(a.ra??a.r);toca=enLote(a.x+u*ce-v*se,a.z+u*se+v*ce,.05);}
   if(toca)anota('afuera','una copa dentro de un edificio',`ciudad ${s}: ${a.tipo} en ${a.x},${a.z}`);
