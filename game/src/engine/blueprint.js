@@ -477,12 +477,17 @@ export const corridorAt=Lv=>Lv<=14?Lv-(FRANJA.fachada+FRANJA.interior):Math.min(
 // 2026-11-22, a metro entero, 7 + 4 + 7).
 export const pasilloDe=Lv=>Lv<=14?PASILLO.ancho:Math.max(PASILLO.ancho,Lv-2*corridorAt(Lv));
 const ALARGA_MAX=2;// (m de tramo ciego —un módulo; con 4, 13 de 346 edificios con un cuarto sin ventana— que un departamento se alarga para no dejar cuartos sueltos al pasillo: layoutFloor)
+// EL ASCENSOR, DESDE 6 PISOS (2026-11-22, decisión de Miguel: «¿vale la pena eliminar el ascensor y dejar sólo las
+// escaleras?» → «sí, desde 6 pisos»). Antes iba desde 4: un edificio de 4 o 5 pisos muchas veces no tiene ascensor, y sus
+// 2 m de núcleo vuelven a los departamentos. Desde 6 se queda: en primera persona subir 6 pisos o más por la escalera es
+// largo, y un edificio así lo tiene.
+export const ASCENSOR={desde:6};
 const ENSANCHE_MAX=4,TRASTEROS=[['ropas',2,2],['deposito',2,2],['deposito',2,2],['deposito',2,2]];// (m de tramo ciego que todavía es ensanche del pasillo; más largo, zona de ropas y trasteros: layoutFloor)
 function layoutFloor(L,F,level,r,opt={}){
  // Núcleo: la escalera (STAIR_W m: dos tramos de ~1,9 m, medidas reales y cómoda para jugar, 2026-10-15; antes 2 m,
- // tramos de 0,88 m) y, desde 4 pisos, el ascensor de 2 m al lado. Donde no cabe —un lote de 6 m de frente y una sola
+ // tramos de 0,88 m) y, desde ASCENSOR.desde pisos, el ascensor de 2 m al lado. Donde no cabe —un lote de 6 m de frente y una sola
  // fila de cuartos— la escalera vuelve a 2 m y sin ascensor, para que el piso tenga cuartos.
- const {Lu,Lv}=F,T=TYPES[L.type],sw=stairWidth(Lu,Lv),lift=L.floors>=4&&!(Lv<=8&&Lu-sw-2<4),cw=sw+(lift?2:0);
+ const {Lu,Lv}=F,T=TYPES[L.type],sw=stairWidth(Lu,Lv),lift=L.floors>=ASCENSOR.desde&&!(Lv<=8&&Lu-sw-2<4),cw=sw+(lift?2:0);
  const rooms=[],corr=[],units=[];let core;
  const homes=level>0&&(L.type==='vivienda'||L.type==='comercio'||L.type==='residencial');// pisos de departamentos
  const suite=level>0&&(L.type==='hotel'||L.type==='hospital')?(L.type==='hotel'?'habitacion':'habitacion_h'):null;// pisos de habitaciones en suite
@@ -1255,7 +1260,7 @@ export function generateBlueprint({seed=1,team=3,parks=JUEGO.parques}={}){
   buildLot(L,seed,stat);}
  const count=(fn)=>lots.reduce((a,L)=>a+L.levels.reduce((b,lv)=>b+fn(lv),0),0);
  const stats={blocks:blocks.length,byUse:blocks.reduce((a,b)=>(a[b.use]=(a[b.use]||0)+1,a),{}),lots:lots.length,byType:lots.reduce((a,L)=>(a[L.type]=(a[L.type]||0)+1,a),{}),
-  floors:lots.reduce((a,L)=>a+L.floors,0),lifts:lots.filter(L=>L.floors>=4).length,corners:lots.filter(L=>L.shape==='L').length,units:count(lv=>(lv.units||[]).length),rooms:count(lv=>lv.rooms.length),doors:count(lv=>lv.doors.length),windows:count(lv=>lv.windows.length),
+  floors:lots.reduce((a,L)=>a+L.floors,0),lifts:lots.filter(L=>L.floors>=ASCENSOR.desde).length,corners:lots.filter(L=>L.shape==='L').length,units:count(lv=>(lv.units||[]).length),rooms:count(lv=>lv.rooms.length),doors:count(lv=>lv.doors.length),windows:count(lv=>lv.windows.length),
   items:count(lv=>lv.furniture.length),pcs:count(lv=>lv.furniture.filter(f=>f.pc).length),boxes:count(lv=>lv.furniture.filter(f=>f.kind==='caja').length),withPc:lots.filter(L=>L.pcs>0).length};
  const isla=islaStage(map,lots,seed);
 
