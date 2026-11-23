@@ -59,8 +59,12 @@ Además están `GET /v1/merchants/creditop-x` y `GET /v1/merchants/storefronts`,
 En `infrastructure`, `environments/development/api-gateway-backoffice/terragrunt.hcl` publica
 `backoffice-api.dev.creditop.com` (stage `dev`). Las rutas pasan por el authorizer `backoffice-authorizer`, la lambda
 `backoffice-cognito-authorizer-development`, que cachea por token y por ruta porque decide ruta por ruta. El gateway
-reescribe el host hacia el servicio interno y agrega `x-cognito-identity-id`, `x-principal-id` y, en algunas rutas,
-`x-user-profile-id`, que salen de lo que devuelve el authorizer.
+reescribe el host hacia el servicio interno y agrega cuatro cabeceras que salen de lo que devuelve el authorizer:
+`x-cognito-identity-id`, `x-cognito-username`, `x-user-profile-id` y `x-principal-id`.
+
+Esas cabeceras se declaran una sola vez, en el mapa `authorizer_request_parameters` de `backoffice-authorizer`, y el
+módulo `api-gateway` las aplica a todas las rutas que usan ese authorizer. Cada ruta lleva solo `overwrite:header.host` y
+`overwrite:path`; no hay copias por ruta de las cabeceras de identidad.
 
 - Lo de legacy-backend va al host `leg-lab.develop.internal.creditop.com`: el despliegue de la rama `lab`, no el de
   `develop` ni el de `qa`. La base es la compartida de dev, qa y staging.
