@@ -404,7 +404,7 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
  const blankOut=(faces,y0,y1)=>{for(const f of faces)for(let fl=Math.max(1,Math.floor(y0/FLOOR));fl<=Math.floor((y1-.01)/FLOOR);fl++)blank.add(`${f.x},${f.y},${f.dx},${f.dy},${fl}`);};
  // El frente de cada puerta (y de cada portón): ahí no se pone nada que estorbe el paso (ver inDoor).
  const doorFronts=[],doorFrames=[];
- const stoopsByCell=new Map(),balconiesByCell=new Map(),lotFurniture=new Map(),surfByCell=new Map(),panios=new Map();let cortinaMesh=null,cortinaOrig=null,cortinaLote=null,cortinaSlot=null,cortinasVisibles=null;const panioDe=[];let stationInfo=null,lotPlaques=[],town=null,civ=null,civicFronts=[],elevators=[],setElevatorDoors=()=>{};const walls=new Map(),WALL_T=.3;let stairsByLot=new Map(),duplexByLot=new Map(),mansardaArmada_=[],cascarones_=[];
+ const stoopsByCell=new Map(),balconiesByCell=new Map(),lotFurniture=new Map(),surfByCell=new Map(),panios=new Map();const vidrioDe=new Map(),marcaVidrio=new Map();let stationInfo=null,lotPlaques=[],town=null,civ=null,civicFronts=[],elevators=[],setElevatorDoors=()=>{};const walls=new Map(),WALL_T=.3;let stairsByLot=new Map(),duplexByLot=new Map(),mansardaArmada_=[],cascarones_=[];
  if(downtown&&plan){
   // Los edificios del plano (town3d.js): fachadas, pisos, tabiques, ascensores, muebles y choques.
   adPlan=barrio||LOWPOLY.on?[]:planFacadeAds();// (van en la azotea: la fachada conserva sus ventanas; con LOWPOLY, sin publicidad)
@@ -439,17 +439,10 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
    if(ps.length){const g=partsMesh(ps);g.name='pasillo:adornos';group.add(g);g.traverse(o=>{if(o.isInstancedMesh)own.push(o);});}}
   fachadaArmada_=T.fachadaArmada;doorFronts.push(...T.doorFronts);stairsByLot=T.stairs;duplexByLot=T.duplexes||new Map();mansardaArmada_=T.mansardaArmada||[];for(const [k,v] of T.lotFurniture)lotFurniture.set(k,v);stationInfo=T.stationInfo;civicFronts.push(...T.civicFronts);
   setElevatorDoors=buildCabins(elevators,{FLOOR,group,own,instanced,base,addWall,S,W,H});
-  // Las cortinas cerradas (town3d T.cortinas): siempre, con la fachada —no con los muebles, que sólo se dibujan de cerca—.
-  if(T.cortinas.length){const cm=new THREE.MeshStandardMaterial({roughness:.95,flatShading:true}),cg=base(new THREE.BoxGeometry(1,1,1));own.push(cm,cg);cortinaMesh=instanced(group,cg,cm,T.cortinas,{cast:false});
-   // (cada paño, cerrado o corrido —abierto: sus cajas en escala cero—; el jugador lo cambia: cortina(key))
-   // (cada caja, descompuesta: al correrse, la tela se abre desde el centro del paño —su primera caja— a lo largo de la pared)
-   const M=new THREE.Matrix4();for(const p of T.panios){p.partes=[];for(let i=0;i<p.n;i++){cortinaMesh.getMatrixAt(p.i0+i,M);const pos=new THREE.Vector3(),q=new THREE.Quaternion(),sc=new THREE.Vector3();M.decompose(pos,q,sc);p.partes.push({pos,q,sc});}
-    const c0=p.partes[0];p.centro=c0.pos.clone();p.eje=c0.sc.x>=c0.sc.z?'x':'z';p.k=p.cerrada?1:0;panios.set(p.key,p);ponPanio(p);}cortinaMesh.instanceMatrix.needsUpdate=true;}
-   // (2026-10-16, medido en el navegador sin ventana: las cortinas de toda la ciudad son una sola malla —240 mil triángulos
-   // también desde adentro de un edificio—: se apagan con su lote, como las piezas de downtown3d; las matrices de cada una,
-   // guardadas para volver a ponerlas)
-   if(cortinaMesh){cortinaOrig=cortinaMesh.instanceMatrix.array.slice();cortinaLote=T.cortinas.map(c=>c.lote??-1);cortinaSlot=new Int32Array(cortinaLote.length).map((_,i)=>i);for(const p of T.panios)for(let i=0;i<p.n;i++)panioDe[p.i0+i]=p;}
-  WORLD_TIMES.lap('unir');lotPlaques=T.plaques;cascarones_=T.cascarones||[];town=buildDowntown(downtown,T.items,T.leaves,{cascarones:T.cascarones});group.add(town.group);
+  // Las ventanas (town3d T.panios): cada una, con su clave lote:piso:ventana, sus vidrios —claves de downtown3d vidrios: el
+  // vidrio mismo se pone opaco o transparente, sin paño aparte (2026-11-22, Miguel)— y su vano (caja, con la base abajo).
+  for(const p of T.panios){const c=p.caja;p.centro=new THREE.Vector3(c.x,c.y+c.sy/2,c.z);p.eje=c.sx>=c.sz?'x':'z';p.k=p.cerrada?1:0;panios.set(p.key,p);for(const g of p.vidrios)(vidrioDe.get(g)||vidrioDe.set(g,[]).get(g)).push(p);}
+  WORLD_TIMES.lap('unir');lotPlaques=T.plaques;cascarones_=T.cascarones||[];town=buildDowntown(downtown,T.items,T.leaves,{cascarones:T.cascarones});group.add(town.group);pintarVidrios(vidrioDe.keys());
   // Las escalinatas (town3d.js): por casilla, para el piso de afuera.
   for(const st of T.stoops||[]){const cx=Math.floor((st.x+st.nx*.5)/S),cy=Math.floor((st.z+st.nz*.5)/S),k=cy*W+cx;(stoopsByCell.get(k)||stoopsByCell.set(k,[]).get(k)).push(st);}
   // Los balcones (town3d.js): por casilla, para pisarlos.
@@ -1105,12 +1098,9 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
   }
   return false;
  }
- // Las cortinas que se están corriendo: k de 0 (abierta) a 1 (cerrada) en CORTINA_T s; cada caja, con su ancho a lo largo de la
- // pared por k y su lugar acercado al centro del paño por k (abierta, nada: escala casi cero).
- // (var: ponPanio se usa al armar el mundo, antes de esta línea)
- var CORTINA_T=.5,corriendo=corriendo||new Set(),mpC,vpC,spC;
- function ponPanio(p){if(!mpC){mpC=new THREE.Matrix4();vpC=new THREE.Vector3();spC=new THREE.Vector3();}const k=Math.max(.001,p.k);for(let i=0;i<p.n;i++){const a=p.partes[i];vpC.copy(a.pos);vpC[p.eje]=p.centro[p.eje]+(a.pos[p.eje]-p.centro[p.eje])*k;spC.copy(a.sc);spC[p.eje]*=k;if(p.k<=0)spC.set(0,0,0);mpC.compose(vpC,a.q,spC);const slot=cortinaSlot?cortinaSlot[p.i0+i]:p.i0+i;if(slot>=0)cortinaMesh.setMatrixAt(slot,mpC);}}
- function moverCortinas(dt){if(!corriendo.size||!cortinaMesh)return;for(const p of corriendo){const meta=p.cerrada?1:0;p.k+=Math.sign(meta-p.k)*Math.min(Math.abs(meta-p.k),dt/CORTINA_T);ponPanio(p);if(p.k===meta)corriendo.delete(p);}cortinaMesh.instanceMatrix.needsUpdate=true;}
+ // (el vidrio de una ventana: abierto si alguna de las ventanas del plano que lo comparten —las dos de una doble— lo está; con
+ // su marca de lo que se ve, si hay)
+ function pintarVidrios(gids){if(!town?.setVidrio)return;for(const g of gids){const ab=(vidrioDe.get(g)||[]).some(p=>!p.cerrada);town.setVidrio(g,ab?marcaVidrio.get(g)||'abierta':'cerrada');}}
  const groundAt=(px,pz)=>{const sx=Math.floor(px/SW),sy=Math.floor(pz/SW);if(sx>=0&&sy>=0&&sx<SWW&&sy<H*SUB&&curb[sy*SWW+sx]===2)return enPunta(px,pz)?CURB:0;return curbAt(sx,sy)?CURB:0;};
  // El piso bajo los pies: dentro de un edificio, el más alto de sus pisos que quede a menos de 45 cm por encima de los
  // pies (así no se «sube» un piso caminando: se llega con el ascensor); afuera, la calle o la vereda.
@@ -1209,9 +1199,10 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
   // azul las que están a la vista pero tapadas.
   // (2026-11-22, Miguel: «aterrízalo en el motor 2D»: con vistaFn —la ciudad: engine/portales.js vistaDesde, sobre el plano— lo
   // decide el motor; sin ella —los barrios del monte—, la cuenta de acá)
-  const vistos=new Set(),marcas=verPortales?{rojo:[],azul:[]}:null;
+  const vistos=new Set(),marcas=verPortales?{rojo:[],azul:[],vidrios:[]}:null;
   if(cam&&vistaFn){const v=vistaFn(cam);for(const id of v.lotes)vistos.add(String(id));
-   if(marcas){const caja=a=>({pos:new THREE.Vector3(a.x,(a.y0+a.y1)/2,a.z),q:new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),a.h?0:Math.PI/2),sc:new THREE.Vector3(a.ancho,a.y1-a.y0,.08)});marcas.rojo.push(...v.vistas.map(caja));marcas.azul.push(...v.tapadas.map(caja));}}
+   if(marcas){const caja=a=>({pos:new THREE.Vector3(a.x,(a.y0+a.y1)/2,a.z),q:new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),a.h?0:Math.PI/2),sc:new THREE.Vector3(a.ancho,a.y1-a.y0,.08)});
+    /* (una ventana se marca en su vidrio; una puerta, con su caja) */for(const [l,k] of [[v.vistas,'rojo'],[v.tapadas,'azul']])for(const a of l){if(a.tipo==='ventana'){const p=panios.get(a.clave);if(p?.vidrios.length){marcas.vidrios.push([p.vidrios,k]);continue;}}marcas[k].push(caja(a));}}}
   else if(cam){cam.updateMatrixWorld();_fr.setFromProjectionMatrix(_pm.multiplyMatrices(cam.projectionMatrix,cam.matrixWorldInverse));
    const ox=off?.x||0,oy=off?.y||0,oz=off?.z||0,ve=(x,y,z)=>Math.hypot(x-px,z-pz)<PORTAL&&_fr.containsPoint(_pv.set(x+ox,y+oy,z+oz));
    const loteEn=(x,z)=>{const i=Math.floor(x/S),j=Math.floor(z/S);if(i<0||j<0||i>=W||j>=H)return -1;const k=j*W+i;return hollow[k]?lotOf[k]:-1;};
@@ -1222,7 +1213,7 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
    // (una abertura: si está a la vista y libre, su lote cuenta; si está a la vista y tapada, sólo se marca)
    const mira=(id,x,y,z,caja)=>{if(id==null||!ve(x,y,z))return;const ok=libre(x,y,z);if(ok)vistos.add(String(id));if(marcas)(ok?marcas.rojo:marcas.azul).push(caja);};
    // (las ventanas abiertas: su paño corrido; el lote, de su clave lote:piso:ventana)
-   for(const p of panios.values())if(!p.cerrada&&p.centro){const c0=p.partes[0];mira(String(p.key).split(':')[0],p.centro.x,p.centro.y+c0.sc.y/2,p.centro.z,{pos:c0.pos.clone().setY(c0.pos.y+c0.sc.y/2),q:c0.q,sc:p.vano?c0.sc.clone().setComponent(p.eje==='x'?0:2,p.vano):c0.sc});/* (el paño tiene la base abajo: su centro, medio alto más arriba) */}
+   for(const p of panios.values())if(!p.cerrada&&p.centro){if(!ve(p.centro.x,p.centro.y,p.centro.z))continue;const ok=libre(p.centro.x,p.centro.y,p.centro.z);if(ok)vistos.add(String(p.lote??String(p.key).split(':')[0]));if(marcas)marcas.vidrios.push([p.vidrios,ok?'rojo':'azul']);}
    // (las puertas de calle abiertas: su lote, el que la tiene en el borde)
    const del=(x,z)=>{for(const [id,L] of lotFurniture)if((L.cells||[]).some(c=>Math.hypot(Math.max(c[0]-x,0,x-c[2]),Math.max(c[1]-z,0,z-c[3]))<.8))return String(id);return null;};
    const cajaPuerta=(seg,cx,cz,cy)=>{const ax=seg[2]-seg[0],az=seg[3]-seg[1],w=Math.max(.8,Math.hypot(ax,az));return {pos:new THREE.Vector3(cx,(cy||0)+1.1,cz),q:new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),-Math.atan2(az,ax)),sc:new THREE.Vector3(w,2.2,.06)};};
@@ -1232,6 +1223,7 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
    for(const [id,L] of lotFurniture){if(Math.hypot(L.x-px,L.z-pz)>PORTAL+L.r)continue;
     for(const lf of L.leaves||[])if(lf.mano&&!lf.fija&&[[.6,0],[-.6,0],[0,.6],[0,-.6]].some(([a,b])=>!en(L,lf.cx+a,lf.cz+b)))mira(String(id),lf.cx,(lf.cy||0)+1,lf.cz,cajaPuerta([lf.x,lf.z,2*lf.cx-lf.x,2*lf.cz-lf.z],lf.cx,lf.cz,lf.cy));}}
   if(marcas)dibujarPortales(marcas);else if(portalesMesh)portalesMesh.rojo.count=portalesMesh.azul.count=0;
+  {const antes=[...marcaVidrio.keys()];marcaVidrio.clear();if(marcas)for(const [gs,k] of marcas.vidrios)for(const g of gs)marcaVidrio.set(g,k);pintarVidrios(new Set([...antes,...marcaVidrio.keys()]));}
   const cf=Math.floor(Math.max(0,py-.5)/FLOOR),act=[...lotFurniture].filter(([id,L])=>cerradoFn?adentro(L)||vistos.has(String(id)):Math.hypot(L.x-px,L.z-pz)<15+L.r).map(([id])=>id),key=act.join(',')+'|'+cf;if(key===activeKey)return;activeKey=key;
   const near=it=>Math.abs(it.f-cf)<=1;
   for(const m of [...interior.children]){interior.remove(m);m.dispose?.();}
@@ -1269,7 +1261,7 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
     for(const lf of L.leaves||[]){if(lf.fija||Math.abs(lf.cy-y)>1.6||Math.hypot(lf.cx-x,lf.cz-z)>r)continue;
      out.push({cx:lf.cx,cz:lf.cz,cy:lf.cy,seg:[lf.x,lf.z,2*lf.cx-lf.x,2*lf.cz-lf.z],get a(){return lf.a;},get abierta(){return !!lf.mano;},alternar(){lf.mano=!lf.mano;},trancada:()=>!!trancadaFn?.(lf.cx,lf.cz,lf.cy)});}}
    return [...out,...(town?.puertasCerca?.(x,z,y,r,trancadaFn)||[])];},
-  updateDoors:(dt,people)=>{town?.updateDoors(dt,people,trancadaFn);updateLeaves(dt,people);moverCortinas(dt);},spawn,collide,groundAt,where,setNight,dispose,size:{w:W*S,h:H*S},ped:{W:SWW,H:SH,size:SW,cells:ped},fronts,
+  updateDoors:(dt,people)=>{town?.updateDoors(dt,people,trancadaFn);updateLeaves(dt,people);},spawn,collide,groundAt,where,setNight,dispose,size:{w:W*S,h:H*S},ped:{W:SWW,H:SH,size:SW,cells:ped},fronts,
   lights:[...heads.map(h=>({x:h.x,y:h.y-.15,z:h.z})),...globes.map(g=>({x:g.x,y:g.y-.3,z:g.z}))],roads:{W,H,at,road,junction,hRun,vRun,K,exits},
   // Si un punto está adentro de un edificio (en una casilla de lote hueco y por debajo de su techo): el demo prende ahí los
   // contornos de las paredes interiores, que desde afuera no se ven.
@@ -1283,15 +1275,11 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
    if(st)for(const [y0,y1] of st.solids(x,z))if(R+y0-.1<hi&&R+y1+.1>lo)return R+y0;return null;},
   // Las cortinas (las acciones, 2026-10-16): ¿está cerrada la de la ventana key (lote:piso:ventana)? y cerrarla o abrirla.
   // (las cortinas de los lotes que se ven —set, como downtown3d setVisibles; null: todas—)
-  setVisiblesCortinas(set){if(!cortinaMesh||set===cortinasVisibles)return;cortinasVisibles=set;const A=cortinaMesh.instanceMatrix.array,n=cortinaLote.length;
-   // (las que se ven, juntas al principio, y count: las demás no se mandan a dibujar; cortinaSlot: dónde quedó cada una, o −1)
-   let k=0;for(let i=0;i<n;i++){if(set&&!set.has(cortinaLote[i])){cortinaSlot[i]=-1;continue;}cortinaSlot[i]=k;for(let j=0;j<16;j++)A[k*16+j]=cortinaOrig[i*16+j];k++;}
-   cortinaMesh.count=k;for(const p of new Set(panioDe.filter(Boolean)))if(cortinaSlot[p.i0]>=0)ponPanio(p);cortinaMesh.instanceMatrix.needsUpdate=true;},
   setVista:fn=>{vistaFn=fn;activeKey='';clock=0;},
   portales:on=>{verPortales=on??!verPortales;activeKey='';clock=0;if(!verPortales&&portalesMesh)portalesMesh.rojo.count=portalesMesh.azul.count=0;return verPortales;},
   cortinaCerrada:key=>!!panios.get(key)?.cerrada,cortinaK:key=>panios.get(key)?.k,
   // (2026-11-22: la cortina es la película del vidrio —engine/cortinas.js peliculaCerrada—: cambia de una vez, como la de verdad)
-  cortina:(key,cerrar)=>{const p=panios.get(key);if(!p||!cortinaMesh)return false;p.cerrada=cerrar??!p.cerrada;p.k=p.cerrada?1:0;ponPanio(p);cortinaMesh.instanceMatrix.needsUpdate=true;activeKey='';clock=0;return p.cerrada;},// (al abrir o cerrar, los interiores se vuelven a mirar ya)
+  cortina:(key,cerrar)=>{const p=panios.get(key);if(!p)return false;p.cerrada=cerrar??!p.cerrada;p.k=p.cerrada?1:0;pintarVidrios(p.vidrios);activeKey='';clock=0;return p.cerrada;},// (al abrir o cerrar, los interiores se vuelven a mirar ya)
   // El techo sobre (x, z) por encima de la altura y: lo más bajo que haya arriba —la losa del piso siguiente (menos el hueco
   // de la escalera) o un tramo de escalera—, o null. Para la cámara de tercera persona, que se queda debajo en vez de
   // chocar y acercarse de un salto (2026-10-16).
