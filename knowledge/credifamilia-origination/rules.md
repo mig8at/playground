@@ -18,6 +18,32 @@ aprobado es `MontoMaximo` cuando es mayor que cero, y la preaprobación vence a 
 `legacy-backend` descarta la respuesta si su estado no es `approved` o si el producto no coincide
 con el de la solicitud.
 
+## Cómo se consulta: radicar una vez y después preguntar el estado
+
+El asistente pide la preaprobación con el slug (`credifamilia`; Materiales con `credifamilia-materiales`, que
+`Canonical()` lleva a `credifamilia`, y se distinguen por `lending_product_id`). pre-approvals-service le habla a la
+API REST de Credifamilia con OAuth2 de usuario y clave y certificado de cliente (mTLS); el usuario de Negozia y el id
+de oficina salen de la credencial. Sin certificado o llave no llama.
+
+La consulta es en dos tiempos (`CredifamiliaClient::CallAPI`):
+
+- **Sin una consulta anterior**, radica: `POST /servicescf/consumo/radicacion` con los datos del cliente que el
+  servicio pide a legacy-backend (nombre, primer apellido, documento, nacimiento, celular, correo, ingreso mensual y
+  tipo de ocupación; un tipo de documento u ocupación que no reconoce falla) y valores fijos: país «Colombia», día de
+  pago 16, tipo de tasa 1, autorización de datos, y una fecha de ingreso laboral de hoy menos 760 días, igual para
+  todos. Credifamilia devuelve un id de transacción y la preaprobación queda **pendiente**.
+- **Con una consulta anterior** de ese cliente, comercio, entidad y sucursal que no sea un error, toma de su
+  respuesta el id de transacción y sólo pregunta el estado (`POST …/radicacion/estado`): no vuelve a radicar. Así
+  también la vuelve a pedir el backend al armar el plan (`CredifamiliaPreApprovalInputs`).
+
+Mientras sigue pendiente, la misma fila se reemplaza (conserva id y fecha de creación) y se suma la latencia hasta el
+veredicto (`CheckPreApprovalUseCase`). Cómo se traduce cada estado está en la sección anterior.
+
+El asistente sondea las entidades del riel 4, no un id: si la entidad es `response_type` 4, repite la consulta hasta un
+estado final, con hasta 6 intentos en 3 minutos y esperas de 2 a 20 segundos (`DEFAULT_CREDIFAMILIA_POLL`). Cada
+intento espera 40 s, más que el corte de 30 s del servicio, para que un reintento no se cruce con una respuesta en
+curso. Fuera del riel no sondea, y un «pendiente» se muestra como error.
+
 ## Identidad: proveedor primario y respaldos
 
 Los proveedores salen de `lender_identity_validation_types` activos de la entidad: el de orden 1 es
