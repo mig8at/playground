@@ -305,7 +305,8 @@ func (c *cli) status() error {
 			fmt.Fprintf(w, "queued for the next run: %d source(s)\n", len(st.Look.Queued))
 		}
 	}
-	if look.Waiting != "" {
+	// El «waiting» es de la mirada anterior: mientras mira de nuevo, puede ya no valer (la corrida que nombra pasó).
+	if look.Waiting != "" && !look.Looking {
 		fmt.Fprintln(w, "waiting: "+look.Waiting)
 	}
 	if look.Error != "" {
