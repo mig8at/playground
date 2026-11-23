@@ -24,8 +24,10 @@ correo: [shopify]
 - [ ] Preparar para los revisores una sucursal de prueba DEDICADA (código y token) y las instrucciones para instalar y
       configurar Creditop; termina con la sucursal creada, probada en una tienda y la persona que entrega el token
       definida. Depende de: Miguel / Producto — qué sucursal y quién la entrega.
-- [ ] Escribir los pasos para probar Aprobar, Rechazar, Cancelar y reembolsos sin pedir un crédito real (modo de
-      prueba); termina con el texto listo para el formulario de revisión, en los artifacts.
+- [ ] Terminar las instrucciones para la revisión (instalar, configurar y probar Aprobar, Rechazar, Cancelar y
+      reembolso en modo de prueba): borrador en `artifacts/review-instructions-2026-11-23.md`; faltan el código y token de
+      la sucursal dedicada, el enlace de instalación, el contacto y confirmar con captura el nombre del interruptor del
+      modo de prueba. Termina con el texto sin corchetes.
 - [ ] Grabar un screencast corto: configuración de la app, checkout y reembolso; termina con el video listo para subir.
 - [ ] Completar en Partner Dashboard → la app pública → Distribution el listado y los requisitos de revisión y enviarla a
       «payments review» (guía: https://shopify.dev/docs/apps/build/payments/payments-extension-review); termina con la
