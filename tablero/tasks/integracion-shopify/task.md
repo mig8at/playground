@@ -13,15 +13,25 @@ correo: [shopify]
 
 ## Pendientes
 
-- [ ] Enviarle a Danny (Shopify Support, ticket 72090155) la respuesta con la prueba de punta a punta y pedir la
-      revisión y publicación de la app pública: borrador listo en `artifacts/respuesta-danny-2026-11-20.md`. Termina con
-      el correo enviado en el hilo del ticket. Depende de: Miguel — enviarlo.
-- [ ] Mandar la app pública a revisión con lo que Danny indique (listado, instrucciones de prueba con la página del modo
-      de prueba, credenciales para los revisores); termina con la app en revisión y su estado de pagos visible
-      (`make jarvis-recipe APP=shopify RECIPE=payments-app-status`). Depende de: Danny (Shopify Support) — los pasos.
-- [ ] Preparar credenciales de prueba para los revisores de Shopify (una sucursal de prueba con su token; la conectada
-      hoy en `creditop-dev-store` es `e5614c42`) y decidir quién de Creditop las entrega; termina con la sucursal lista
-      y la persona definida. Depende de: Miguel / Producto — quién las entrega.
+- [ ] Probar «Cancelar» de punta a punta en producción (modo de prueba, `creditop-dev-store`): la página de prueba
+      rechaza la sesión con `CANCELLED_PAYMENT`; termina con el comprador de vuelta en el checkout y el log
+      `creditop.test_page.decided { decision: 'cancel', ok: true }`. Lo pidió Danny el 2026-11-23.
+- [ ] Probar un reembolso de prueba iniciado desde el admin de Shopify sobre un pedido pagado con Creditop: en modo de
+      prueba `payments.refund` lo resuelve solo (`resolveRefundSession`); termina con el reembolso «completado» en el
+      pedido y el log `creditop.refund_session.test_resolved { ok: true }`. Lo pidió Danny el 2026-11-23.
+- [ ] Preparar para los revisores una sucursal de prueba DEDICADA (código y token) y las instrucciones para instalar y
+      configurar Creditop; termina con la sucursal creada, probada en una tienda y la persona que entrega el token
+      definida. Depende de: Miguel / Producto — qué sucursal y quién la entrega.
+- [ ] Escribir los pasos para probar Aprobar, Rechazar, Cancelar y reembolsos sin pedir un crédito real (modo de
+      prueba); termina con el texto listo para el formulario de revisión, en los artifacts.
+- [ ] Grabar un screencast corto: configuración de la app, checkout y reembolso; termina con el video listo para subir.
+- [ ] Completar en Partner Dashboard → la app pública → Distribution el listado y los requisitos de revisión y enviarla a
+      «payments review» (guía: https://shopify.dev/docs/apps/build/payments/payments-extension-review); termina con la
+      app en revisión. Si los controles no aparecen, captura de la página y del bloqueo al ticket 72090155.
+      Depende de: los cinco pendientes de arriba.
+- [ ] Después de aprobada y publicada: la app NO sale en la App Store (las apps de pago no se listan); se comparte el
+      enlace de instalación con los comercios. Salir en la lista de proveedores de pago de Shopify es otra solicitud,
+      más adelante.
 - [ ] Dejar la app anterior (custom, 317076176897) DESINSTALADA de `creditop-dev-store` y no borrar ninguna de las dos
       apps mientras Shopify revisa (lo pidió Danny el 2026-11-16 y el 2026-11-19); creditop-4 queda sin publicar.
       Reinstalarla después es con el enlace de su distribución personalizada en Partners y volver a cargarle sucursal y
