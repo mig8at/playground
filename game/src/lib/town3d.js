@@ -638,7 +638,7 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
    // lleva su paño —cerrada de fábrica: opaca, no deja ver ni armar adentro— y se abre y se cierra con E; lo abierto lo guarda
    // el estado del mundo —engine/estadoMundo.js—)
    lv.windows.forEach((w,wi)=>{const c=cuartoDeVentana(lv,w);if(!c)return;
-    const cj=peliculaCerrada(c,yb,FACE+.02).cajas;panios.push({key:id+':'+f+':'+wi,i0:cortinas.length,n:cj.length,cerrada:true,persiana:!!bp.entrega&&esVivienda(B,c.q)});cortinas.push(...cj);});
+    const cj=peliculaCerrada(c,yb,FACE+.02).cajas;panios.push({key:id+':'+f+':'+wi,i0:cortinas.length,n:cj.length,cerrada:true,persiana:!!bp.entrega&&esVivienda(B,c.q),vano:Math.abs(c.v-c.u)});/* (vano: el ancho de la ventana —el paño es más ancho—; lo usan las marcas de world3d portales) */cortinas.push(...cj);});
   });
   // ---------- La escalera: peldaños con huella y nariz, descanso, pared del medio, pasamanos y la baranda del último piso ----------
   // El material según el edificio (STAIRS, stairKind): madera, mármol, granito, concreto o acero.

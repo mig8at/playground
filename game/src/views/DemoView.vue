@@ -250,6 +250,8 @@ makeAvatar();lap('muñeco');
  for(const k of abiertas(estado,'puertas')){const [x,z,y]=k.split(',').map(Number),p=puertasCerca(x,z,y,.4).find(q=>puertaClave(q)===k);if(p&&!p.abierta&&!p.trancada?.())alternarPuerta(p,false);}
  // (2026-11-22: en el paseo, toda vivienda está cerrada hasta que se compre —engine/propiedad.js—: su puerta trancada y lo
  // de adentro sin armar)
+ // (?portales=1: las aberturas marcadas desde el arranque)
+ if(route.query.portales!=null){world.portales?.(true);barrios.portales?.(true);}
  if(!PRUEBA){const R=cerradurasDe(plan);trancar(R,conPlano);cerradoAlPasear=adentroCerrado(plan,R);world.setCerrados?.(cerradoAlPasear);}
  // (compilar los shaders ya, en paralelo, en vez de a la primera vez que cada cosa aparece en cámara: eso eran los tirones
  // al girar o al entrar a un edificio)
@@ -561,6 +563,8 @@ function onKey(e){
  if(e.type==='keydown'){
   if(e.code==='KeyN'){night.value=!night.value;applyLight();}
   if(e.code==='KeyM')showMap.value=!showMap.value;
+  // (P: las aberturas por donde la cámara ve adentro —rojo, cuentan; azul, tapadas—: world3d portales, para depurar)
+  if(e.code==='KeyP'){const on=world?.portales?.();barrios?.portales?.(on);}
   if(e.code==='KeyV')toggleDrone();// (volar: la cámara libre, para mirar la ciudad desde arriba)
   if(e.code==='KeyE'||e.code==='KeyQ'){const d=e.code==='KeyE'?1:-1;if(e.code==='KeyE'&&accionCerca?.puerta&&!drone.value){alternarPuerta(accionCerca.puerta);accionCerca=null;accionReloj=0;}else if(world.elevatorAt(player.x,player.z,player.feet))ride(d);
    else if(e.code==='KeyE'&&acciones?.activa)acciones.terminar();else if(e.code==='KeyE'&&!drone.value&&(accionCerca=acciones?.cerca())?.u){acciones.empezar(accionCerca);accionReloj=0;}}
@@ -610,7 +614,7 @@ onMounted(async()=>{
  // (el modo aristas —lib/aristas3d.js, 2026-11-22—: para leer una captura; ?aristas=1 o __demo.aristas(true))
 let matAristas=null;const aristas=(on=true)=>{if(!scene)return false;scene.overrideMaterial=on?(matAristas||(matAristas=materialAristas())):null;return !!on;};
 if(import.meta.env.DEV&&new URLSearchParams(location.search).get('aristas')==='1'){const prende=()=>{if(!aristas(true))setTimeout(prende,500);};setTimeout(prende,0);}// (hasta que la escena exista)
-if(import.meta.env.DEV)window.__demo={aristas,caminar,get mundo(){return world;},get plan(){return plan;},get ayudaEsquinas(){return ayudaEsquinas;},set ayudaEsquinas(v){ayudaEsquinas=v;},get cerraduras(){return cerraduras;},tiempos,WORLD_TIMES,THREE,fps,get scene(){return scene;},player,camera,euler,get avatar(){return avatar;},view,get world(){return world;},get city(){return city;},get plan(){return plan;},get composer(){return composer;},get renderer(){return renderer;},get crowd(){return crowd;},get traffic(){return traffic;},get island(){return island;},get folk(){return folk;},get animals(){return animals;},get indoor(){return indoor;},get viviendas(){return viviendas;},get casas(){return casas;},keys,step,dronePos,render:renderFrame,get visKey(){return visKey;},get acciones(){return acciones;},get estado(){return estado;},alternarPuerta,puertasCerca,get niebla(){return niebla;},get lugar(){return lugar.value;},fijarDron(x,y,z){Object.assign(dronePos,{x,y,z});despegue=null;},huecosTerrazas(){// (2026-10-16: rayos hacia abajo en 3×3 puntos de cada casilla de lote del monte: un hueco es ver más de 1 m bajo el lote y bajo la calle de al lado)
+if(import.meta.env.DEV)window.__demo={aristas,caminar,get mundo(){return world;},get plan(){return plan;},get ayudaEsquinas(){return ayudaEsquinas;},set ayudaEsquinas(v){ayudaEsquinas=v;},get cerraduras(){return cerraduras;},tiempos,WORLD_TIMES,THREE,fps,get scene(){return scene;},player,camera,euler,get avatar(){return avatar;},view,get world(){return world;},get city(){return city;},get plan(){return plan;},get composer(){return composer;},get renderer(){return renderer;},get crowd(){return crowd;},get traffic(){return traffic;},get island(){return island;},get folk(){return folk;},get animals(){return animals;},get indoor(){return indoor;},get viviendas(){return viviendas;},get casas(){return casas;},keys,step,dronePos,render:renderFrame,get visKey(){return visKey;},get acciones(){return acciones;},portales:on=>{const r=world?.portales?.(on);barrios?.portales?.(r);return r;},get estado(){return estado;},alternarPuerta,puertasCerca,get niebla(){return niebla;},get lugar(){return lugar.value;},fijarDron(x,y,z){Object.assign(dronePos,{x,y,z});despegue=null;},huecosTerrazas(){// (2026-10-16: rayos hacia abajo en 3×3 puntos de cada casilla de lote del monte: un hueco es ver más de 1 m bajo el lote y bajo la calle de al lado)
   const I=plan.isla,ray=new THREE.Raycaster(),out=[];let n=0;island.group.updateMatrixWorld(true);const objs=[];island.group.traverse(o=>{if(o.isMesh&&!o.isInstancedMesh)objs.push(o);});
   const ejes=I.carreteras.filter(c=>c.puntos).flatMap(c=>c.puntos.slice(1).map((p,i)=>({a:c.puntos[i],b:p})));
   const calle=(x,z)=>{let best=null,bd=1e9;for(const {a,b} of ejes){const dx=b.x-a.x,dz=b.z-a.z,L2=dx*dx+dz*dz||1,t=Math.max(0,Math.min(1,((x-a.x)*dx+(z-a.z)*dz)/L2)),dd=Math.hypot(x-a.x-t*dx,z-a.z-t*dz);if(dd<bd){bd=dd;best=a.h+(b.h-a.h)*t;}}return bd<14?best:null;};

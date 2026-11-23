@@ -1190,23 +1190,43 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
  // similar a lo que hace GTA» —oclusión por portales—): con los vidrios tapados por su paño, una fachada esconde todo lo de
  // adentro; se ve sólo por una puerta o una ventana ABIERTA que esté en el campo de visión de la cámara y a menos de PORTAL m.
  // cam: la cámara (sin ella, sólo el edificio donde se está); off: dónde queda este mundo en el de la cámara (los barrios).
- const PORTAL=35,_fr=new THREE.Frustum(),_pm=new THREE.Matrix4(),_pv=new THREE.Vector3();
+ const PORTAL=35,RAYO_PASO=.5,_fr=new THREE.Frustum(),_pm=new THREE.Matrix4(),_pv=new THREE.Vector3();
+ // (las marcas de las aberturas, para depurar: rojo transparente las que cuentan, azul las tapadas; un poco más grandes que la
+ // abertura y encima de todo)
+ let verPortales=false,portalesMesh=null;const _pM=new THREE.Matrix4(),_pS=new THREE.Vector3();
+ function dibujarPortales(m){if(!portalesMesh){const g=new THREE.BoxGeometry(1,1,1),hace=c=>{const mat=new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:.38,depthTest:false,depthWrite:false,fog:false});mat.userData.plano=true;
+   const im=new THREE.InstancedMesh(g,mat,512);im.count=0;im.renderOrder=20;im.frustumCulled=false;im.name='portales';group.add(im);own.push(g,mat);return im;};portalesMesh={rojo:hace('#ff2a2a'),azul:hace('#2a7bff')};}
+  for(const k of ['rojo','azul']){const im=portalesMesh[k],l=m[k].slice(0,512);l.forEach((c,i)=>{_pS.copy(c.sc).max(new THREE.Vector3(.1,.1,.1));_pS.x+=.06;_pS.y+=.06;im.setMatrixAt(i,_pM.compose(c.pos,c.q,_pS));});im.count=l.length;im.instanceMatrix.needsUpdate=true;}}
  function updateInteriors(px,pz,dt=.016,py=1.7,cam=null,off=null){if((lejosReloj-=dt)<=0){lejosReloj=.3;town?.setLejos?.(px,pz);}if(!furniture||!lotFurniture.size)return;if((clock-=dt)>0)return;clock=.2;
   // Se arma lo de adentro del edificio donde está la cámara y del que tiene una abertura abierta a la vista (y sólo los pisos
   // cerca de la altura de la cámara). Volando, para inspeccionar —sin viviendas cerradas: setCerrados(null)—, como antes: los
   // edificios a menos de 15 m.
   const adentro=L=>(L.cells||[]).some(c=>px>c[0]&&px<c[2]&&pz>c[1]&&pz<c[3])&&py<(L.floors||1)*FLOOR+(L.raise||0)+1;
-  const vistos=new Set();if(cam){cam.updateMatrixWorld();_fr.setFromProjectionMatrix(_pm.multiplyMatrices(cam.projectionMatrix,cam.matrixWorldInverse));
+  // (2026-11-22, Miguel: «agrega el rayo para que no cuente ventanas tapadas»): de la cámara a la abertura, cada RAYO_PASO m
+  // sobre la grilla de la ciudad; si pasa por un edificio —otro que el de la abertura o el de la cámara— por debajo de su
+  // techo, está tapada. Sin rayos contra la geometría: es la planta del 2D, y cuesta microsegundos.
+  // Y para verlo (?portales=1, la tecla P —DemoView—, __demo.portales): en rojo transparente las aberturas que cuentan, en
+  // azul las que están a la vista pero tapadas.
+  const vistos=new Set(),marcas=verPortales?{rojo:[],azul:[]}:null;if(cam){cam.updateMatrixWorld();_fr.setFromProjectionMatrix(_pm.multiplyMatrices(cam.projectionMatrix,cam.matrixWorldInverse));
    const ox=off?.x||0,oy=off?.y||0,oz=off?.z||0,ve=(x,y,z)=>Math.hypot(x-px,z-pz)<PORTAL&&_fr.containsPoint(_pv.set(x+ox,y+oy,z+oz));
+   const loteEn=(x,z)=>{const i=Math.floor(x/S),j=Math.floor(z/S);if(i<0||j<0||i>=W||j>=H)return -1;const k=j*W+i;return hollow[k]?lotOf[k]:-1;};
+   const deCamara=loteEn(px,pz);
+   const libre=(tx,ty,tz)=>{const propios=new Set([deCamara]);for(const [a,b] of [[.7,0],[-.7,0],[0,.7],[0,-.7],[0,0]])propios.add(loteEn(tx+a,tz+b));
+    const dx=tx-px,dy=ty-py,dz=tz-pz,L=Math.hypot(dx,dz);for(let t=RAYO_PASO;t<L-.6;t+=RAYO_PASO){const k=t/L,x=px+dx*k,z=pz+dz*k,o=loteEn(x,z);
+     if(o>=0&&!propios.has(o)&&py+dy*k<(lots[o].h||0)+(lots[o].raise||0))return false;}return true;};
+   // (una abertura: si está a la vista y libre, su lote cuenta; si está a la vista y tapada, sólo se marca)
+   const mira=(id,x,y,z,caja)=>{if(id==null||!ve(x,y,z))return;const ok=libre(x,y,z);if(ok)vistos.add(String(id));if(marcas)(ok?marcas.rojo:marcas.azul).push(caja);};
    // (las ventanas abiertas: su paño corrido; el lote, de su clave lote:piso:ventana)
-   for(const p of panios.values())if(!p.cerrada&&p.centro&&ve(p.centro.x,p.centro.y,p.centro.z))vistos.add(String(p.key).split(':')[0]);
+   for(const p of panios.values())if(!p.cerrada&&p.centro){const c0=p.partes[0];mira(String(p.key).split(':')[0],p.centro.x,p.centro.y+c0.sc.y/2,p.centro.z,{pos:c0.pos.clone().setY(c0.pos.y+c0.sc.y/2),q:c0.q,sc:p.vano?c0.sc.clone().setComponent(p.eje==='x'?0:2,p.vano):c0.sc});/* (el paño tiene la base abajo: su centro, medio alto más arriba) */}
    // (las puertas de calle abiertas: su lote, el que la tiene en el borde)
    const del=(x,z)=>{for(const [id,L] of lotFurniture)if((L.cells||[]).some(c=>Math.hypot(Math.max(c[0]-x,0,x-c[2]),Math.max(c[1]-z,0,z-c[3]))<.8))return String(id);return null;};
-   for(const d of town?.puertasCerca?.(px,pz,py-1.6,PORTAL,trancadaFn)||[])if(d.abierta&&ve(d.cx,(d.cy||0)+1,d.cz)){const id=del(d.cx,d.cz);if(id!=null)vistos.add(id);}
+   const cajaPuerta=(seg,cx,cz,cy)=>{const ax=seg[2]-seg[0],az=seg[3]-seg[1],w=Math.max(.8,Math.hypot(ax,az));return {pos:new THREE.Vector3(cx,(cy||0)+1.1,cz),q:new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),-Math.atan2(az,ax)),sc:new THREE.Vector3(w,2.2,.06)};};
+   for(const d of town?.puertasCerca?.(px,pz,py-1.6,PORTAL,trancadaFn)||[])if(d.abierta)mira(del(d.cx,d.cz),d.cx,(d.cy||0)+1,d.cz,cajaPuerta(d.seg,d.cx,d.cz,d.cy));
    // (y las hojas de cada edificio que están en su borde —las que dan afuera; las de adentro no se ven desde la calle—)
    const en=(L,x,z)=>(L.cells||[]).some(c=>x>c[0]&&x<c[2]&&z>c[1]&&z<c[3]);
-   for(const [id,L] of lotFurniture){if(vistos.has(String(id))||Math.hypot(L.x-px,L.z-pz)>PORTAL+L.r)continue;
-    for(const lf of L.leaves||[])if(lf.mano&&!lf.fija&&[[.6,0],[-.6,0],[0,.6],[0,-.6]].some(([a,b])=>!en(L,lf.cx+a,lf.cz+b))&&ve(lf.cx,(lf.cy||0)+1,lf.cz)){vistos.add(String(id));break;}}}
+   for(const [id,L] of lotFurniture){if(Math.hypot(L.x-px,L.z-pz)>PORTAL+L.r)continue;
+    for(const lf of L.leaves||[])if(lf.mano&&!lf.fija&&[[.6,0],[-.6,0],[0,.6],[0,-.6]].some(([a,b])=>!en(L,lf.cx+a,lf.cz+b)))mira(String(id),lf.cx,(lf.cy||0)+1,lf.cz,cajaPuerta([lf.x,lf.z,2*lf.cx-lf.x,2*lf.cz-lf.z],lf.cx,lf.cz,lf.cy));}}
+  if(marcas)dibujarPortales(marcas);else if(portalesMesh)portalesMesh.rojo.count=portalesMesh.azul.count=0;
   const cf=Math.floor(Math.max(0,py-.5)/FLOOR),act=[...lotFurniture].filter(([id,L])=>cerradoFn?adentro(L)||vistos.has(String(id)):Math.hypot(L.x-px,L.z-pz)<15+L.r).map(([id])=>id),key=act.join(',')+'|'+cf;if(key===activeKey)return;activeKey=key;
   const near=it=>Math.abs(it.f-cf)<=1;
   for(const m of [...interior.children]){interior.remove(m);m.dispose?.();}
@@ -1262,6 +1282,7 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
    // (las que se ven, juntas al principio, y count: las demás no se mandan a dibujar; cortinaSlot: dónde quedó cada una, o −1)
    let k=0;for(let i=0;i<n;i++){if(set&&!set.has(cortinaLote[i])){cortinaSlot[i]=-1;continue;}cortinaSlot[i]=k;for(let j=0;j<16;j++)A[k*16+j]=cortinaOrig[i*16+j];k++;}
    cortinaMesh.count=k;for(const p of new Set(panioDe.filter(Boolean)))if(cortinaSlot[p.i0]>=0)ponPanio(p);cortinaMesh.instanceMatrix.needsUpdate=true;},
+  portales:on=>{verPortales=on??!verPortales;activeKey='';clock=0;if(!verPortales&&portalesMesh)portalesMesh.rojo.count=portalesMesh.azul.count=0;return verPortales;},
   cortinaCerrada:key=>!!panios.get(key)?.cerrada,cortinaK:key=>panios.get(key)?.k,
   // (2026-11-22: la cortina es la película del vidrio —engine/cortinas.js peliculaCerrada—: cambia de una vez, como la de verdad)
   cortina:(key,cerrar)=>{const p=panios.get(key);if(!p||!cortinaMesh)return false;p.cerrada=cerrar??!p.cerrada;p.k=p.cerrada?1:0;ponPanio(p);cortinaMesh.instanceMatrix.needsUpdate=true;activeKey='';clock=0;return p.cerrada;},// (al abrir o cerrar, los interiores se vuelven a mirar ya)
