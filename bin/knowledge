@@ -1,0 +1,26 @@
+#!/bin/sh
+# knowledge — la consola de Knowledge, el vigía de knowledge/ (knowledge-flow/server/cli.go): si está al día con main,
+# las corridas paso a paso y destrabar una frenada (decidir una sección a mano, un archivo que main reemplazó,
+# retomarla). Las lecturas leen knowledge-flow/.data (no piden la API); look y resume van por la API. Lo compila la
+# primera vez y cada vez que cambia su código, a ~/.cache/my-tools/knowledge (como bin/sentinel).
+#
+#   bin/knowledge status                   bin/knowledge run [15]
+#   bin/knowledge sections 15              bin/knowledge decide 15 'tema#ancla' --verdict change --text-file t.md --why '…'
+#   bin/knowledge replace 15 <borrado> <nuevo>     bin/knowledge resume 15 --wait
+#   … --json para un agente · bin/knowledge help
+root=$(cd "$(dirname "$0")/.." && pwd -P) || exit 1
+bin="${XDG_CACHE_HOME:-$HOME/.cache}/my-tools/knowledge"
+stale=$(find "$root/knowledge-flow/server" "$root/connectors" "$root/lib" -name '*.go' -newer "$bin" 2>/dev/null | head -n 1)
+if [ ! -x "$bin" ] || [ -n "$stale" ] || [ "$root/go.mod" -nt "$bin" ]; then
+  mkdir -p "$(dirname "$bin")" || exit 1
+  tmp="$bin.$$"
+  if ! (cd "$root" && go build -o "$tmp" ./knowledge-flow/server) >&2; then
+    rm -f "$tmp"
+    echo "knowledge: no compila knowledge-flow/server" >&2
+    exit 1
+  fi
+  mv -f "$tmp" "$bin"
+fi
+# Sin argumentos, la ayuda: el binario pelado (con -serve) es el servidor, y acá se viene a consultar.
+[ $# -eq 0 ] && set -- help
+cd "$root" && MY_TOOLS_ROOT="$root" exec "$bin" "$@"

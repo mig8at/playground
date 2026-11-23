@@ -75,6 +75,8 @@ type Look struct {
 }
 
 func main() {
+	// La consola (cli.go): `knowledge status|runs|run|…`. Va antes de los flags del servidor y no arranca nada.
+	cliMain()
 	serve := flag.String("serve", "", "levantar la API y el vigía en host:puerto")
 	once := flag.Bool("once", false, "una mirada y, si hace falta, una corrida, por consola")
 	install := flag.Bool("install", false, "dejarlo de fondo (LaunchAgent)")

@@ -31,11 +31,11 @@ o en cola. La ruta es `#/run/<n>`.
 - **Si el modelo se cae A MITAD de una corrida, esa misma se retoma** desde el paso donde cayó apenas vuelve (`resume`,
   marcada «retomada»): no nace otra que repita los pasos 1 a 3.
 - **Una frenada se retoma a mano** (2026-11-23, la #15: `infrastructure` borró `pr-checks.yml` y `deploy-infra.yml`
-  por workflows por ambiente, el paquete no traía los archivos nuevos y el modelo dejó 2 secciones «sin decidir»). Se
-  decide lo que la frenó en `.data/runs/<n>/drift/overrides.json` (por sección: `veredicto`, `texto_nuevo`,
-  `titulo_nuevo`, `por_que`, `evidencia`) y, si main borró un archivo y lo reemplazó, `reemplazos.json`
-  (`{ruta_borrada: ruta_nueva}`); después, el botón **Retomar** del aviso (`POST /api/runs/{id}/resume`, con
-  `X-Knowledge: 1`). Corre otra vez desde el paso que frenó (desde «Juntar» si frenó en la verificación). Sólo la
+  por workflows por ambiente, el paquete no traía los archivos nuevos y el modelo dejó 2 secciones «sin decidir»). Por
+  consola, con `bin/knowledge` (abajo): `run <n>` dice qué la frenó y los comandos que siguen; `decide` escribe la
+  decisión de una sección en `.data/runs/<n>/drift/overrides.json` y `replace` el archivo que reemplazó a uno borrado
+  en `reemplazos.json`, los dos validados; `resume <n> --wait` la retoma. En la app, el botón **Retomar** del aviso
+  (`POST /api/runs/{id}/resume`, con `X-Knowledge: 1`). Corre otra vez desde el paso que frenó (desde «Juntar» si frenó en la verificación). Sólo la
   última corrida y sin otra en curso; la atiende el loop, así que si está mirando main arranca al terminar la mirada.
 - **La lista esconde lo superado** (Miguel, 2026-11-19: «que no quede ese ruido»): una corrida frenada o fallada queda
   «superada» cuando después pasó otra y ninguno de sus temas sigue viejo; «Ver todas» la muestra. No se borra del disco:
@@ -76,6 +76,22 @@ o en cola. La ruta es `#/run/<n>`.
 - **Si frena o falla después de aplicar**, la corrida deshace lo aplicado (`git checkout` de esos temas: aplicar sólo
   arranca con ellos limpios). Una corrida cortada por un reinicio queda «falló» y no se retoma a mitad.
 
+## Por consola: `bin/knowledge` (para un agente)
+
+| comando | qué |
+|---|---|
+| `status` | ¿al día con main? lo viejo, lo que corre, lo que espera, y si una corrida frenada te pide algo (con el comando) |
+| `runs [--all]` · `run [<n>]` | las corridas; una paso a paso, con el detalle del freno y los comandos que siguen |
+| `sections <n>` | las secciones de una corrida con su veredicto (del modelo o a mano) y su porqué: de acá salen los ids |
+| `decide <n> '<tema>#<ancla>' --verdict keep\|change --why '…' [--text-file f.md] [--title '…'] [--evidence repo:ruta]` | decide una sección a mano. Rechaza una sección que no existe, un `change` sin texto o con su `## ` adentro, y una evidencia de un repo que la corrida no lee (el verificador no la recibiría) |
+| `replace <n> <ruta-borrada> <ruta-nueva>` | main borró una fuente y otro archivo tomó su lugar: la nueva tiene que existir en main |
+| `resume <n> [--wait]` · `look [--wait]` | retomar una frenada · mirar main ya. Van por la API |
+
+Las lecturas leen `.data` sin la API. `--json` en todos; con `--json` también el error sale en JSON (`{"error","fix"}`).
+Sale 0 bien · 1 falló o frenó · 2 uso · 3 no existe. Lo que imprime va en inglés (regla de my-tools); los datos de la
+corrida, como están. Está en `server/cli.go`, en el mismo binario que el servidor (`bin/knowledge` lo compila a
+`~/.cache/my-tools/knowledge`).
+
 ## Dónde queda
 
 `knowledge-flow/.data/runs/<n>/run.json` (la corrida: pasos, estados, resumen) y `.../drift/` (los archivos de
@@ -98,4 +114,5 @@ salida: `~/Library/Logs/my-tools-knowledge.log`. Necesita la sesión de `playgro
 | una corrida y sus pasos, guardados | `server/run.go` |
 | los pasos de comando (drift.py, aplicar, comprobar, commitear) | `server/steps.go` |
 | los pasos con modelo y la verificación | `server/model.go` |
+| la consola (`bin/knowledge`) | `server/cli.go` |
 | la interfaz | `src/App.vue`, con la base de `tools/ui` (`make style-sync`) |

@@ -42,7 +42,7 @@ concreto vive al lado de ese algo, y se lee ahí:
 | Cockpit (la app de escritorio donde Miguel ve las herramientas: `bin/cockpit`, quién levanta cada servidor, agregar una app, reinstalar) | [`cockpit/CLAUDE.md`](cockpit/CLAUDE.md) |
 | Correo (los correos de los remitentes que se siguen en Gmail, con aviso: `make correo`, `bin/correo`, `bin/pg gmail`; el `correo:` de una tarea) | [`correo/CLAUDE.md`](correo/CLAUDE.md) |
 | conocimiento local: leerlo, verificarlo, editarlo | [`knowledge/CLAUDE.md`](knowledge/CLAUDE.md) |
-| Knowledge (el vigía de knowledge/: mira main y la pone al día sola, paso a paso; `make knowledge-flow`) | [`knowledge-flow/CLAUDE.md`](knowledge-flow/CLAUDE.md) |
+| Knowledge (el vigía de knowledge/: mira main y la pone al día sola, paso a paso; `make knowledge-flow`; por consola `bin/knowledge status\|run\|decide\|resume`) | [`knowledge-flow/CLAUDE.md`](knowledge-flow/CLAUDE.md) |
 | el Llavero (tus llaves en llaveros, cifradas; `bin/pg vault`, `make vault`, exportar e importar) | [`vault/CLAUDE.md`](vault/CLAUDE.md) |
 | Sabueso (encontrar comercios y entidades que no trabajan con CreditOp y llevar la relación: `make sabueso`) | [`sabueso/CLAUDE.md`](sabueso/CLAUDE.md) |
 | News (lo nuevo de Hugging Face cada semana: lo más innovador, los modelos documentados, los papers; `make news`) | [`news/CLAUDE.md`](news/CLAUDE.md) |
