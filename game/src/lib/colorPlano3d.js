@@ -33,9 +33,11 @@ export function createColorPlano(){const hechos=new Map(),own=[];
  const plano=(m,o)=>{if(!m||m.userData?.plano)return m;const clave=m.uuid+'|'+(/^suelo:/.test(o.name||'')?o.name:'');let p=hechos.get(clave);if(p)return p;
   // (un material propio —un sombreador a mano, líneas, puntos— no se toca: no se sabe qué dibuja)
   if(m.isShaderMaterial||m.isLineBasicMaterial||m.isPointsMaterial||m.isSpriteMaterial||m.customProgramCacheKey?.()==='ropa-cortes'){hechos.set(clave,m);return m;}
-  const vidrio=m.transparent&&m.opacity<.95;
+  // (vidrio: lo que viene transparente o lo que el modelo llama vidrio —«Glass», «Window»— aunque venga opaco: así toda ventana
+  // se ve igual y lo que la tapa es su paño —cerrada— o nada —abierta—)
+  const vidrio=m.transparent&&m.opacity<.95||/glass|vidrio/i.test(m.name||'');
   p=new THREE.MeshStandardMaterial({color:vidrio?COLOR.material.vidrio:colorPlanoDe(m,o),roughness:vidrio?.3:.92,metalness:0,side:m.side,vertexColors:!!m.vertexColors,
-   transparent:m.transparent,opacity:vidrio?Math.min(m.opacity,.35):m.opacity,depthWrite:vidrio?false:m.depthWrite,depthTest:m.depthTest,alphaTest:m.alphaTest||0,
+   transparent:vidrio||m.transparent,opacity:vidrio?Math.min(m.opacity,.35):m.opacity,depthWrite:vidrio?false:m.depthWrite,depthTest:m.depthTest,alphaTest:m.alphaTest||0,
    emissive:m.emissive||0x000000,emissiveIntensity:m.emissiveIntensity??1,polygonOffset:m.polygonOffset,polygonOffsetFactor:m.polygonOffsetFactor,polygonOffsetUnits:m.polygonOffsetUnits,visible:m.visible});
   p.userData.plano=true;p.userData.original=m;hechos.set(clave,p);own.push(p);return p;};
  const ir=o=>{if(SALVO(o))return 0;let n=0;

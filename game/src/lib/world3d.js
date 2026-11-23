@@ -1193,7 +1193,7 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
  const PORTAL=35,RAYO_PASO=.5,_fr=new THREE.Frustum(),_pm=new THREE.Matrix4(),_pv=new THREE.Vector3();
  // (las marcas de las aberturas, para depurar: rojo transparente las que cuentan, azul las tapadas; un poco más grandes que la
  // abertura y encima de todo)
- let verPortales=false,portalesMesh=null;const _pM=new THREE.Matrix4(),_pS=new THREE.Vector3();
+ let verPortales=false,portalesMesh=null,vistaFn=null;const _pM=new THREE.Matrix4(),_pS=new THREE.Vector3();
  function dibujarPortales(m){if(!portalesMesh){const g=new THREE.BoxGeometry(1,1,1),hace=c=>{const mat=new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:.38,depthTest:false,depthWrite:false,fog:false});mat.userData.plano=true;
    const im=new THREE.InstancedMesh(g,mat,512);im.count=0;im.renderOrder=20;im.frustumCulled=false;im.name='portales';group.add(im);own.push(g,mat);return im;};portalesMesh={rojo:hace('#ff2a2a'),azul:hace('#2a7bff')};}
   for(const k of ['rojo','azul']){const im=portalesMesh[k],l=m[k].slice(0,512);l.forEach((c,i)=>{_pS.copy(c.sc).max(new THREE.Vector3(.1,.1,.1));_pS.x+=.06;_pS.y+=.06;im.setMatrixAt(i,_pM.compose(c.pos,c.q,_pS));});im.count=l.length;im.instanceMatrix.needsUpdate=true;}}
@@ -1207,7 +1207,12 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
   // techo, está tapada. Sin rayos contra la geometría: es la planta del 2D, y cuesta microsegundos.
   // Y para verlo (?portales=1, la tecla P —DemoView—, __demo.portales): en rojo transparente las aberturas que cuentan, en
   // azul las que están a la vista pero tapadas.
-  const vistos=new Set(),marcas=verPortales?{rojo:[],azul:[]}:null;if(cam){cam.updateMatrixWorld();_fr.setFromProjectionMatrix(_pm.multiplyMatrices(cam.projectionMatrix,cam.matrixWorldInverse));
+  // (2026-11-22, Miguel: «aterrízalo en el motor 2D»: con vistaFn —la ciudad: engine/portales.js vistaDesde, sobre el plano— lo
+  // decide el motor; sin ella —los barrios del monte—, la cuenta de acá)
+  const vistos=new Set(),marcas=verPortales?{rojo:[],azul:[]}:null;
+  if(cam&&vistaFn){const v=vistaFn(cam);for(const id of v.lotes)vistos.add(String(id));
+   if(marcas){const caja=a=>({pos:new THREE.Vector3(a.x,(a.y0+a.y1)/2,a.z),q:new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),a.h?0:Math.PI/2),sc:new THREE.Vector3(a.ancho,a.y1-a.y0,.08)});marcas.rojo.push(...v.vistas.map(caja));marcas.azul.push(...v.tapadas.map(caja));}}
+  else if(cam){cam.updateMatrixWorld();_fr.setFromProjectionMatrix(_pm.multiplyMatrices(cam.projectionMatrix,cam.matrixWorldInverse));
    const ox=off?.x||0,oy=off?.y||0,oz=off?.z||0,ve=(x,y,z)=>Math.hypot(x-px,z-pz)<PORTAL&&_fr.containsPoint(_pv.set(x+ox,y+oy,z+oz));
    const loteEn=(x,z)=>{const i=Math.floor(x/S),j=Math.floor(z/S);if(i<0||j<0||i>=W||j>=H)return -1;const k=j*W+i;return hollow[k]?lotOf[k]:-1;};
    const deCamara=loteEn(px,pz);
@@ -1282,6 +1287,7 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
    // (las que se ven, juntas al principio, y count: las demás no se mandan a dibujar; cortinaSlot: dónde quedó cada una, o −1)
    let k=0;for(let i=0;i<n;i++){if(set&&!set.has(cortinaLote[i])){cortinaSlot[i]=-1;continue;}cortinaSlot[i]=k;for(let j=0;j<16;j++)A[k*16+j]=cortinaOrig[i*16+j];k++;}
    cortinaMesh.count=k;for(const p of new Set(panioDe.filter(Boolean)))if(cortinaSlot[p.i0]>=0)ponPanio(p);cortinaMesh.instanceMatrix.needsUpdate=true;},
+  setVista:fn=>{vistaFn=fn;activeKey='';clock=0;},
   portales:on=>{verPortales=on??!verPortales;activeKey='';clock=0;if(!verPortales&&portalesMesh)portalesMesh.rojo.count=portalesMesh.azul.count=0;return verPortales;},
   cortinaCerrada:key=>!!panios.get(key)?.cerrada,cortinaK:key=>panios.get(key)?.k,
   // (2026-11-22: la cortina es la película del vidrio —engine/cortinas.js peliculaCerrada—: cambia de una vez, como la de verdad)

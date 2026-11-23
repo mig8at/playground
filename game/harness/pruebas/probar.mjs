@@ -85,7 +85,8 @@ const NIVELES=[
   {n:'visibles',f:'validar-visibles.mjs',a:[2,S0,800],fallas:F,res:/^visibles/,lento:true}]},
  {n:9,t:'Ciudad',d:'los personajes, las viviendas, la sociedad (familias, trabajos y horarios), la gente caminando y la rutina (agenda y necesidades)',p:[
   {n:'personajes',f:'validar-personajes.mjs',a:[],fallas:F,res:/^personajes/},
-  {n:'estado',f:'validar-estado.mjs',a:[],fallas:F,res:/^estado/},// (2026-11-22: puertas y ventanas abiertas, como datos)
+  {n:'estado',f:'validar-estado.mjs',a:[],fallas:F,res:/^estado/},
+  {n:'portales',f:'validar-portales.mjs',a:[Math.min(N,2),S0],fallas:F,res:/^portales/},// (2026-11-22: lo que se ve por las aberturas, en el motor)// (2026-11-22: puertas y ventanas abiertas, como datos)
   {n:'viviendas',f:'validar-viviendas.mjs',a:[N,S0],fallas:F,res:/^viviendas/},
   {n:'sociedad',f:'validar-sociedad.mjs',a:[N,S0,14],fallas:F,res:/^sociedad/},
   {n:'caminar',f:'validar-caminar.mjs',a:[S0],fallas:F,res:/^caminar a las 15/},
