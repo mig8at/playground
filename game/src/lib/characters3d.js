@@ -51,13 +51,12 @@ export function lookFor(m,r){const pick=a=>a[Math.floor(r()*a.length)],quien=/Fe
 const NEUTRAL=['#2f3133','#3d5370','#26282a','#5c6340','#7d8284','#c8b48f','#2b3d5c','#6e4e35'];
 export const UNIFORME={top:{id:'camisa',color:'#24406b'},bottom:{id:'pantalon',color:'#1b2a40'},outer:{id:'chaleco',color:'#c6e83a'},shoes:{id:'botas',color:'#232425'},hat:{id:'gorra',color:'#1b2a40'}};
 export function outfitFor(L,r){if(/^BlueSoldier/.test(L.modelo||''))return {underwear:{id:'boxer'},...structuredClone(UNIFORME)};const pick=a=>a[Math.floor(r()*a.length)],oficio=/^(Chef|Worker)/.test(L.modelo||''),formal=/^(Suit|OldClassy|Doctor)/.test(L.modelo||'');
- const top=formal?pick(['camisa','camisa','polo','manga-larga']):pick(['camiseta','camiseta','manga-larga','polo','camisa','sudadera','sudadera-capucha','sin-mangas','rayas','vestido','tres-cuartos','ombliguera','cuello-v','cuello-alto']);
- const bottom=top==='vestido'?null:formal?'pantalon':pick(['jean','jean','pantalon','cargo','deportivo','bermuda','pantaloneta','leggings','falda-corta','falda-larga','short','pescador',...(oficio?['overol','overol']:['overol'])]);
- const o0={},outer=r()<(formal?.55:.28)?(formal?pick(['chaleco','chaqueta-abierta','abrigo']):pick(['chaqueta-abierta','chaqueta-cremallera','chaleco','abrigo'])):null;
- if(oficio&&!outer&&r()<.5&&bottom!=='overol')o0.outer={id:'delantal',color:pick(['#c8b48f','#f2f0ea','#2f3133'])};
+ const top=formal?pick(['camisa','camisa','polo','manga-larga']):pick(['camiseta','camiseta','manga-larga','polo','camisa','sudadera','sudadera-capucha','sin-mangas','rayas','cuadros','logo','franja','tres-cuartos','manga-codo','ombliguera','cuello-v','cuello-alto']);
+ const bottom=formal?'pantalon':pick(['jean','jean','pantalon','cargo','deportivo','bermuda','pantaloneta','leggings','short','pescador',...(oficio?['overol','overol']:['overol'])]);
+ // (2026-11-22: sólo prendas pegadas a la piel —ropa.js SUELTAS—: sin lo de encima, sin faldas ni vestido, sin gorras)
  const shoes=formal?'zapatos':pick(['tenis','tenis','botas','zapatos']),c1=pick(PALETTE);let c2=pick(NEUTRAL);while(c2===c1)c2=pick(NEUTRAL);
- const o={...o0,underwear:{id:'boxer'},top:{id:top,color:c1},bottom:bottom&&{id:bottom,color:c2},outer:o0.outer||outer&&{id:outer,color:pick(NEUTRAL)},shoes:{id:shoes,color:pick(['#232425','#34507a','#5b3b25','#f2f0ea'])}};
- if(r()<.12)o.accessory={id:'bufanda',color:pick(PALETTE)};if(r()<.15)o.hat={id:r()<.5?'gorra':'gorro-lana',color:pick(PALETTE)};return o;}
+ const o={underwear:{id:'boxer'},top:{id:top,color:c1},bottom:{id:bottom,color:c2},shoes:{id:shoes,color:pick(['#232425','#34507a','#5b3b25','#f2f0ea'])}};
+ return o;}
 export const uniformeDe=({gorra=true}={})=>{const u=structuredClone(UNIFORME);if(!gorra)delete u.hat;return {underwear:{id:'boxer'},...u};};
 
 // ---- Las plantillas ----

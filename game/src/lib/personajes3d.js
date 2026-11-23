@@ -46,16 +46,19 @@ export const PIEL=['#f1c9a5','#d9a47c','#b97f57','#8d5a3b','#5e3b26'],CAMISA=['#
 //  - el RELIEVE: cada punto de tela sabe a cuántos metros está del borde más cercano (gD); con eso la tela es un campo de
 //    alturas —sube `grosor` m en el borde y un poco más en la franja del dobladillo (ANCHO_DOBLADILLO)— y la luz se inclina como
 //    si la tela tuviera canto (la normal, por las derivadas en pantalla). Cero triángulos; la silueta no cambia;
+//  - los DETALLES de lo pegado a la piel («mejora sólo los detalles de las prendas que normalmente están sobre la piel»):
+//    `botones` (1 la tira de la camisa, 2 la del polo), `ribete` (el ancho del puño, el ruedo y el cuello), `costuras` (las del
+//    jean: la lateral —en el plano z=`costado`—, el cierre y los bolsillos de atrás) y `elastico` (la pretina de resorte);
 //  - el GROSOR: los vértices cubiertos por la prenda salen `bulto` m por su normal suavizada (el atributo `suave`): una sudadera
 //    o una chaqueta abultan más que una camiseta, y el jean más que la piel. grosorAbajo y bultoAbajo, lo mismo para el pantalón.
 export const CUELLOS={alto:0,redondo:1,v:2,nada:3},PATRONES={liso:0,rayas:1,cuadros:2},LOGOS={ninguno:0,circulo:1,rombo:2,franja:3,bolsillo:4},DOBLADILLO=.8,ANCHO_DOBLADILLO=.018;
 export function materialRopa(piel,{camisa='#ddd',antebrazo=null,pantalon='#333',zapatos='#111',pelo='#222',iris='#4a3220',mangaCorta=false,pantaloneta=false,
  manga=mangaCorta?.3:.98,largo=pantaloneta?.32:1,cuello='redondo',prof=.05,ombligo=0,abierto=0,debajo=null,rayas=0,raya='#f2f0ea',cintura=.12,patron=rayas?'rayas':'liso',logo='ninguno',
- grosor=.002,bulto=0,grosorAbajo=.003,bultoAbajo=.003}={}){
+ grosor=.002,bulto=0,grosorAbajo=.003,bultoAbajo=.003,botones=0,ribete=0,costuras=0,elastico=0,costado=.055}={}){
  const pal=[piel,camisa,antebrazo||camisa,pantalon,pantalon,zapatos,pelo,'#120d0a',pelo,'#f1eee6',iris,debajo||camisa,raya].map(c=>new THREE.Color(c));
- const corte=new THREE.Vector4(manga,largo,CUELLOS[cuello]??1,prof),corte2=new THREE.Vector4(abierto,ombligo,rayas,cintura),corte3=new THREE.Vector4(rayas?PATRONES[patron]||0:0,LOGOS[logo]||0,DOBLADILLO,ANCHO_DOBLADILLO),corte4=new THREE.Vector4(grosor,bulto,grosorAbajo,bultoAbajo);
+ const corte=new THREE.Vector4(manga,largo,CUELLOS[cuello]??1,prof),corte2=new THREE.Vector4(abierto,ombligo,rayas,cintura),corte3=new THREE.Vector4(rayas?PATRONES[patron]||0:0,LOGOS[logo]||0,DOBLADILLO,ANCHO_DOBLADILLO),corte4=new THREE.Vector4(grosor,bulto,grosorAbajo,bultoAbajo),corte5=new THREE.Vector4(botones,ribete||ANCHO_DOBLADILLO,costuras?1-costado:0,elastico);
  const m=new THREE.MeshStandardMaterial({roughness:.82});
- m.onBeforeCompile=sh=>{Object.assign(sh.uniforms,{paleta:{value:pal},corte:{value:corte},corte2:{value:corte2},corte3:{value:corte3},corte4:{value:corte4}});
+ m.onBeforeCompile=sh=>{Object.assign(sh.uniforms,{paleta:{value:pal},corte:{value:corte},corte2:{value:corte2},corte3:{value:corte3},corte4:{value:corte4},corte5:{value:corte5}});
   sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nattribute float zona;attribute float detalle;attribute vec4 tela;attribute vec2 largo;attribute vec3 suave;uniform vec4 corte;uniform vec4 corte2;uniform vec4 corte4;varying float vZona;varying float vDet;varying vec4 vTela;varying vec2 vLargo;')
    .replace('#include <begin_vertex>',`#include <begin_vertex>
 vZona=zona;vDet=detalle;vTela=tela;vLargo=largo;
@@ -65,15 +68,19 @@ if(zona<4.5&&tela.y<.06){float b=0.;
  else if(corte.z<2.5&&tela.w>corte2.w+corte2.y)b=corte4.y;
  transformed+=suave*b;}`);
   sh.fragmentShader=sh.fragmentShader.replace('#include <common>',`#include <common>
-uniform vec3 paleta[13];uniform vec4 corte;uniform vec4 corte2;uniform vec4 corte3;uniform vec4 corte4;varying float vZona;varying float vDet;varying vec4 vTela;varying vec2 vLargo;
-float gD=0.,gT=0.;
+uniform vec3 paleta[13];uniform vec4 corte;uniform vec4 corte2;uniform vec4 corte3;uniform vec4 corte4;uniform vec4 corte5;varying float vZona;varying float vDet;varying vec4 vTela;varying vec2 vLargo;
+float gD=0.,gT=0.,gW=.018;
 vec3 estampa(vec3 base){float s=corte2.z;if(corte3.x<.5)return base;
  if(corte3.x<1.5)return mod(vTela.y+9.,s)<s*.45?paleta[12]:base;
  return mix(base,paleta[12],(step(mod(vTela.x+9.,s),s*.5)+step(mod(vTela.y+9.,s),s*.5))*.42);}
 vec3 ropa(){int z=int(vZona+.5);vec3 c=paleta[z];
  if(z>4||vTela.y>.1)return c;
- if(vLargo.x>=0.){if(vLargo.x>=corte.x)return paleta[0];gD=(corte.x-vLargo.x)*.55;gT=corte4.x;return estampa(paleta[2]);}
- if(vTela.w<corte2.w){if(vLargo.y>=corte.y)return paleta[0];gT=corte4.z;gD=corte2.w-vTela.w;if(vLargo.y>=0.)gD=min(gD+.2,(corte.y-vLargo.y)*.85);return paleta[3];}
+ if(vLargo.x>=0.){if(vLargo.x>=corte.x)return paleta[0];gD=(corte.x-vLargo.x)*.55;gT=corte4.x;gW=corte5.y;return estampa(paleta[2]);}
+ if(vTela.w<corte2.w){if(vLargo.y>=corte.y)return paleta[0];gT=corte4.z;gW=corte3.w;float pr=corte2.w-vTela.w;gD=pr;if(vLargo.y>=0.)gD=min(gD+.2,(corte.y-vLargo.y)*.85);vec3 t=paleta[3];
+  if(corte5.w>.5&&pr<.03){gD=min(gD+.2,1.);t=mix(t,vec3(1.),.32)*(mod(vTela.x+9.,.008)<.004?1.:.9);}
+  if(corte5.z>.5){float s=1.,zc=vTela.z+corte5.z-1.;if(abs(zc)<.003)s=.66;if(zc>.03&&pr>.03&&pr<.15&&abs(vTela.x-.012)<.003)s=.66;
+   if(zc<-.03){vec2 q=vec2(abs(vTela.x)-.072,pr-.13);float m=max(abs(q.x)/.042,abs(q.y)/.05);if(m<1.&&m>.88)s=.66;}t*=s;}
+  return t;}
  float x=vTela.x,y=-vTela.y,f=vTela.z,d=1.;bool piel=false;
  if(corte.z<.5){d=.1-vTela.y;}
  else{float p=mix(corte.z<1.5?corte.w*.35:.025,corte.w,smoothstep(-.03,.03,f));
@@ -85,14 +92,15 @@ vec3 ropa(){int z=int(vZona+.5);vec3 c=paleta[z];
  if(piel)return paleta[0];
  d=min(d,ruedo);
  if(corte2.x>0.&&f>0.){if(abs(x)<corte2.x){gD=0.;gT=0.;return paleta[11];}d=min(d,abs(x)-corte2.x);}
- gD=max(d,0.);gT=corte4.x;
+ gD=max(d,0.);gT=corte4.x;gW=corte5.y;
  vec3 t=estampa(paleta[1]);
  if(corte3.y>.5){vec2 q=vec2(x,y-.2);bool l=corte3.y<1.5?(f>0.&&length(q)<.05):corte3.y<2.5?(f>0.&&abs(q.x)+abs(q.y)<.06):corte3.y<3.5?abs(q.y)<.035:(f>0.&&length(q-vec2(.075,-.04))<.02);if(l)t=paleta[12];}
+ if(corte5.x>.5&&f>0.){float yb=y-corte.w;if(yb>-.012&&(corte5.x<1.5||yb<.11)&&abs(x)<.014){t*=abs(x)>.0115?.76:.93;float by=mod(yb+.02,.08)-.04;if(yb>.015&&length(vec2(x,by))<.0055)t=paleta[12];}}
  return t;}
 vec3 relieve(vec3 N,float h){vec3 p=-vViewPosition,dx=dFdx(p),dy=dFdy(p);float hx=dFdx(h),hy=dFdy(h);vec3 r1=cross(dy,N),r2=cross(N,dx);float det=dot(dx,r1);
  vec3 g=sign(det)*(hx*r1+hy*r2);return normalize(abs(det)*N-g);}`)
-   .replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.rgb*=ropa()*vDet*(gT>0.&&gD<corte3.w?corte3.z:1.);')
-   .replace('#include <normal_fragment_maps>','#include <normal_fragment_maps>\n{float W=corte3.w;normal=relieve(normal,gT*smoothstep(0.,.004,gD)*(1.+.6*(1.-smoothstep(W-.002,W+.002,gD))));}');};
+   .replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.rgb*=ropa()*vDet*(gT>0.&&gD<gW?corte3.z:1.);')
+   .replace('#include <normal_fragment_maps>','#include <normal_fragment_maps>\n{float W=gW;normal=relieve(normal,gT*smoothstep(0.,.004,gD)*(1.+.6*(1.-smoothstep(W-.002,W+.002,gD))));}');};
  m.customProgramCacheKey=()=>'ropa-cortes';return m;}
 // (la de una persona; la mujer: falda —el pantalón con la pantorrilla de piel— o pantalón, a veces vestido)
 // (el pelo, que contraste con la piel: si la luz de los dos queda a menos de CONTRASTE, se elige otro)

@@ -49,7 +49,8 @@ function autorizar(){const via=conectando.value;conectando.value=null;Object.ass
 function salir(){Object.assign(cuenta,{conectado:false,via:null,perfilListo:false});guardar();paso.value='titulo';}
 const PIELES=Object.keys(COLORS.piel),PELOS=Object.keys(COLORS.pelo),PEINADOS=[['pelo:Casual2_Male','Corto'],['pelo:Casual_Male','Despeinado'],['pelo:Casual3_Male','Ondulado'],['pelo:Casual_Female','Largo'],['pelo:Casual2_Female','Melena'],['','Rapado']];
 const vistaPerfil=ref('calle'),slotSel=ref('top');
-const PARTES_ROPA=[['top','Arriba'],['outer','Encima'],['bottom','Abajo'],['shoes','Calzado'],['hat','Cabeza']];
+/* (sólo las partes que tienen prendas para ofrecer: por ahora las pegadas a la piel —ropa.js SUELTAS—) */
+const PARTES_ROPA=[['top','Arriba'],['outer','Encima'],['bottom','Abajo'],['shoes','Calzado'],['hat','Cabeza']].filter(([s])=>GARMENTS.some(g=>g.slot===s));
 const prendasDe=slot=>GARMENTS.filter(g=>g.slot===slot&&g.id!=='delantal');
 const ropaPerfil=computed(()=>vistaPerfil.value==='policia'?uniformeDe({gorra:cuenta.ropa.gorra}):{underwear:{id:'boxer',color:'#343d50'},...Object.fromEntries(Object.entries(cuenta.ropa.calle).filter(([,p])=>p))});
 function elegirPrenda(slot,id){const r=cuenta.ropa.calle;if(!id){if(slot==='outer'||slot==='hat')r[slot]=null;return;}r[slot]={id,color:r[slot]?.color||PALETTE[3]};if(id==='vestido')r.bottom=null;}

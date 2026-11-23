@@ -8,12 +8,14 @@
 //  · la ropa con sus cortes (ropa.js zonasDeRopa → los cortes del sombreador): el largo de cada manga y de cada pantalón,
 //    el escote, la ombliguera, la chaqueta abierta, las rayas, el chaleco sobre la camisa y el vestido; y cada atuendo de
 //    la gente (outfitFor) usa prendas del catálogo;
+//  · sólo se ofrecen y se le ponen a la gente prendas pegadas a la piel (ropa.js SUELTAS), y sus detalles —botones, ribete,
+//    costuras, elástico— llegan al material;
 //  · el uniforme de la policía: el chaleco reflectivo en el tronco y las mangas azules.
 // Uso: node harness/pruebas/validar-personajes.mjs [semillas=2000]
 import {COLORS} from '../../src/engine/vestuario.js';
 import {PEINADOS,CONTEXTURA} from '../../src/lib/personajes3d.js';
 import {lookFor,outfitFor,peinadoDe,uniformeDe,CIVILS} from '../../src/lib/characters3d.js';
-import {zonasDeRopa,garmentById} from '../../src/lib/ropa.js';
+import {zonasDeRopa,garmentById,SUELTAS,GARMENTS} from '../../src/lib/ropa.js';
 
 const N=+(process.argv[2]||2000);const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};
 const rng=s=>()=>(s=(s*16807)%2147483647)/2147483647;
@@ -24,7 +26,8 @@ for(let s=1;s<=N;s++){const r=rng(s*7919+1);for(const m of CIVILS){const L=lookF
  if(!COLORS.piel[L.piel]||!COLORS.pelo[L.pelo])falla('la piel o el pelo no están en la paleta',{piel:L.piel,pelo:L.pelo});
  const f=L.forma;if(!en(f.estatura,[R.estatura[0]*.97,R.estatura[1]])||!en(f.peso,R.peso)||!en(f.musculo,R.musculo))falla('la contextura se sale de los rangos',f);
  if(f.peso<-.35)cuenta.delgado++;if(f.peso>.5)cuenta.grueso++;if(f.estatura<.96)cuenta.bajo++;if(f.estatura>1.04)cuenta.alto++;if(f.musculo>.5)cuenta.musculoso++;
- const o=outfitFor(L,r);for(const [lugar,p] of Object.entries(o)){if(!p)continue;const g=garmentById(p.id);prendas.add(p.id);if(!g||g.slot!==lugar)falla('una prenda no está en el catálogo o va en otro lugar',{lugar,id:p.id});}}}
+ const o=outfitFor(L,r);for(const [lugar,p] of Object.entries(o)){if(!p)continue;const g=garmentById(p.id);prendas.add(p.id);if(!g||g.slot!==lugar)falla('una prenda no está en el catálogo o va en otro lugar',{lugar,id:p.id});
+  if(SUELTAS.has(p.id))falla('la gente lleva una prenda suelta (por ahora sólo las pegadas a la piel)',{lugar,id:p.id});}}}
 for(const [k,n] of Object.entries(cuenta))if(n<looks*.01)falla('falta variedad de contextura',{k,n,looks});
 // (el peinado del perfil)
 for(const [peinado,barba,quien] of [['pelo:Casual_Female','','mujer'],['pelo:Casual2_Female','','mujer'],['pelo:Casual2_Male','','hombre'],['','','hombre'],['pelo:Casual_Female','bigote:Viking_Male:corta','hombre']]){
@@ -45,6 +48,9 @@ const casos=[['manga corta: 0,3 del brazo',z({top:{id:'camiseta',color:'#111'}})
  ['las rayas contrastan',(()=>{const a=z({top:{id:'rayas',color:'#f2f0ea'}}),b=z({top:{id:'rayas',color:'#2b3d5c'}});return a.rayas>0&&a.raya!==b.raya;})()],
  ['la policía: chaleco reflectivo y mangas azules largas',(()=>{const k=z(uniformeDe());return k.camisa==='#c6e83a'&&k.antebrazo==='#24406b'&&k.manga>.9&&k.largo===1;})()]];
 for(const [n,ok] of casos)if(!ok)falla('ropa por zonas: '+n,{});
+// (lo que se ofrece: nada suelto; y los detalles de lo pegado llegan al material)
+for(const g of GARMENTS)if(SUELTAS.has(g.id))falla('el catálogo que se ofrece trae una prenda suelta',{id:g.id});
+if(z({top:{id:'camisa',color:'#fff'}}).botones!==1||z({top:{id:'polo',color:'#fff'}}).botones!==2||!z({top:{id:'sudadera',color:'#fff'}}).ribete||!z({bottom:{id:'jean',color:'#335'}}).costuras||!z({bottom:{id:'deportivo',color:'#335'}}).elastico)falla('faltan los detalles de las prendas pegadas',{});
 console.log(`personajes · ${looks} looks (${quienes.hombre} hombres, ${quienes.mujer} mujeres) · contexturas: ${Object.entries(cuenta).map(([k,n])=>`${k} ${(100*n/looks).toFixed(0)} %`).join(', ')} · ${prendas.size} prendas · ${casos.length} reglas de ropa por zonas`);
 console.log(`fallas: ${[...fallas.values()].reduce((a,f)=>a+f.n,0)}`);for(const [k,f] of fallas)console.log(`  ${f.n}\t${k}\n${f.ej.map(e=>'        '+JSON.stringify(e)).join('\n')}`);
 process.exit(fallas.size?1:0);

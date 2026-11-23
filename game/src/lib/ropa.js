@@ -19,8 +19,13 @@ const GRUESO={sudadera:{grosor:.004,bulto:.01},'sudadera-capucha':{grosor:.004,b
  jean:{grosor:.004,bulto:.005},pantalon:{grosor:.003,bulto:.004},cargo:{grosor:.004,bulto:.009},deportivo:{grosor:.004,bulto:.009},overol:{grosor:.004,bulto:.008},leggings:{grosor:.0015,bulto:.001},
  pescador:{grosor:.003,bulto:.004},bermuda:{grosor:.004,bulto:.007},pantaloneta:{grosor:.003,bulto:.007},short:{grosor:.004,bulto:.004},'falda-corta':{grosor:.003,bulto:.005},'falda-larga':{grosor:.003,bulto:.005},
  boxer:{grosor:.002,bulto:.001},calzon:{grosor:.002,bulto:.001},vestido:{grosor:.002,bulto:.003}};
+// Los detalles de cada prenda pegada a la piel, que dibuja el sombreador: `botones` (1 la tira entera de la camisa, 2 la corta
+// del polo), `ribete` (m: el ancho del puño, el ruedo y el cuello —el resorte de la sudadera—), `costuras` (las del jean: la
+// lateral, el cierre y los bolsillos de atrás) y `elastico` (la pretina de resorte, más clara).
+const DETALLE={camisa:{botones:1},cuadros:{botones:1},polo:{botones:2,ribete:.022},sudadera:{ribete:.045},'sudadera-capucha':{ribete:.045},'manga-larga':{ribete:.024},'tres-cuartos':{ribete:.02},'cuello-alto':{ribete:.03},
+ jean:{costuras:1},short:{costuras:1},bermuda:{costuras:1},cargo:{costuras:1},pescador:{costuras:1},boxer:{elastico:1},calzon:{elastico:1},pantaloneta:{elastico:1},deportivo:{elastico:1},leggings:{elastico:1}};
 // (id, nombre, lugar, color de fábrica, corte; patron: 'rayas' o 'cuadros' cada `rayas` m; logo: 'circulo', 'rombo', 'franja', 'bolsillo')
-export const GARMENTS=[
+const TODAS=[
  ['boxer','Bóxer','underwear','#343d50',{largo:.12}],
  ['calzon','Calzones','underwear','#e8e4dc',{largo:.06}],
  ['camiseta','Camiseta','top','#7fb2d6',{manga:.3,cuello:'redondo',prof:.045}],
@@ -60,10 +65,17 @@ export const GARMENTS=[
  ['falda-larga','Falda a la rodilla','bottom','#3f566e',{largo:A.rodilla+BORDE}],
  ['bufanda','Bufanda','accessory','#b8443a',{}],['gorro-lana','Gorro de lana','hat','#3a6f8f',{}],['gorra','Gorra','hat','#c4553d',{}],
  ['tenis','Tenis','shoes','#34507a',{}],['botas','Botas','shoes','#5b3b25',{}],['zapatos','Zapatos','shoes','#232425',{}],
-].map(([id,label,slot,color,corte])=>({id,label,slot,color,corte:{...corte,...GRUESO[id]}}));
+].map(([id,label,slot,color,corte])=>({id,label,slot,color,corte:{...corte,...GRUESO[id],...DETALLE[id]}}));
+// Lo que se ofrece por ahora: sólo lo que va PEGADO a la piel (2026-11-22, Miguel: «mejora sólo los detalles de las prendas
+// que normalmente están sobre la piel y no forzar por el momento faldas o chaquetas, que requieren estar despegadas de la
+// piel»). Las sueltas —faldas, vestido, lo de encima— y lo que es una pieza aparte —gorras, bufanda— siguen en el catálogo
+// entero (garmentById las conoce: un atuendo guardado que las lleve se sigue dibujando, y el chaleco del uniforme), pero no se
+// ofrecen en los menús ni se le ponen a la gente.
+export const SUELTAS=new Set(['vestido','falda-corta','falda-larga','delantal','chaleco','chaqueta-abierta','abrigo','chaqueta-cremallera','bufanda','gorro-lana','gorra']);
+export const GARMENTS=TODAS.filter(g=>!SUELTAS.has(g.id));
 export const SLOTS=[['top','Arriba'],['outer','Encima'],['bottom','Abajo'],['shoes','Calzado'],['hat','Cabeza'],['accessory','Cuello'],['underwear','Interior']];
 export const PALETTE=['#f2f0ea','#c9c9c4','#8a8e90','#2f3133','#c4553d','#7a2e33','#d9793a','#e0b83a','#4f8a55','#6b7340','#3a9a96','#7fb2d6','#3f6fa8','#2b3d5c','#6b4a8a','#d98aa0','#6e4e35','#c8b48f'];
-const POR_ID=new Map(GARMENTS.map(g=>[g.id,g]));
+const POR_ID=new Map(TODAS.map(g=>[g.id,g]));
 export const garmentById=id=>POR_ID.get(id);
 const corteDe=p=>p?POR_ID.get(p.id)?.corte||{}:null;
 
@@ -78,6 +90,6 @@ export function zonasDeRopa(o={},piel){const {top,outer,bottom,shoes,underwear}=
  const escote=cO?.cuello?cO:cT||(outer?{cuello:'redondo',prof:.05}:{cuello:'nada'});
  const pantalon=vestido?top.color:bottom?.color||underwear?.color||piel,largo=vestido?cT.largo:cB?.largo??cU?.largo??0;
  return {camisa,antebrazo,manga,pantalon,largo,pantaloneta:largo<.9,zapatos:shoes?.color||piel,cuello:escote.cuello||'redondo',prof:escote.prof??.05,
-  ombligo:outer?0:cT?.ombligo||0,abierto:cO?.abierto||0,debajo:top?.color||piel,rayas:outer?0:cT?.rayas||0,grosor:(cO||cT)?.grosor??.002,bulto:(cO||cT)?.bulto??0,grosorAbajo:vestido?cT.grosor:(cB||cU)?.grosor??.002,bultoAbajo:vestido?cT.bulto:(cB||cU)?.bulto??0,patron:outer?'liso':cT?.patron||'liso',logo:outer?'ninguno':cT?.logo||'ninguno',raya:claro(top?.color)?'#2b3d5c':'#f2f0ea'};}
+  ombligo:outer?0:cT?.ombligo||0,abierto:cO?.abierto||0,debajo:top?.color||piel,rayas:outer?0:cT?.rayas||0,botones:outer?0:cT?.botones||0,ribete:(cO||cT)?.ribete||0,costuras:cB?.costuras||0,elastico:vestido?0:(cB||cU)?.elastico||0,grosor:(cO||cT)?.grosor??.002,bulto:(cO||cT)?.bulto??0,grosorAbajo:vestido?cT.grosor:(cB||cU)?.grosor??.002,bultoAbajo:vestido?cT.bulto:(cB||cU)?.bulto??0,patron:outer?'liso':cT?.patron||'liso',logo:outer?'ninguno':cT?.logo||'ninguno',raya:claro(top?.color)?'#2b3d5c':'#f2f0ea'};}
 // (la raya contrasta con la prenda: oscura sobre una clara, blanca sobre una oscura)
 const claro=h=>{if(!h)return false;const n=parseInt(String(h).slice(1,7),16);return .299*(n>>16&255)+.587*(n>>8&255)+.114*(n&255)>150;};
