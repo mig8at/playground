@@ -9,8 +9,8 @@ El código permite comprobar qué se calcula, no certificar la regla comercial d
 El motor del plan y el SOAP sirven a dos entidades, listadas sólo en `CredifamiliaLenders`:
 Salud (24) y Materiales, cuyo id depende del ambiente (214 en producción, 216 fuera de ella; nunca
 los dos a la vez). Una solicitud sin entidad Credifamilia se calcula como Salud. Lo que cambia entre
-ellas vive en `CredifamiliaLenderProfile`; un id fuera de la lista lanza excepción en lugar de
-caer en Salud.
+ellas vive en su perfil del riel (`delegated_origination_profiles`, leído por
+`DelegatedOriginationLenderProfile`); una entidad sin perfil lanza excepción en lugar de caer en Salud.
 
 ## La fianza la decide el perfil de la entidad
 
