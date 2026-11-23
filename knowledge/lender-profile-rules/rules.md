@@ -47,9 +47,11 @@ Un perfil cuya fila de reglas tiene `capacity_method = finandina_v1` no usa ni l
 multiplicador: el monto lo calcula `FinandinaAmountCalculator`, con las condiciones que lee
 `FinandinaTerms`. La capacidad es el ingreso menos el porcentaje de ley y el de gastos de la banda del
 perfil (`income_bands`), menos las cuotas del buró (Tabla 3) y las de los créditos del cliente con la
-entidad autorizados en los últimos días, que el buró todavía no ve. Esa capacidad se lleva a monto con
-la tasa de modelado (`capacity_rate` de la línea; sin valor, `rate`), el plazo, el FGA y el seguro de
-vida. El cupo es el menor entre ese monto, el múltiplo de ingreso de la banda, el tope sin experiencia
+entidad autorizados en los últimos 60 días (`LenderMonthlyLimits::clientRecentInstallments`), que el buró
+todavía no ve. Esa capacidad se lleva a monto con la anualidad de la tasa de modelado (`capacity_rate` de la
+línea; sin valor, `rate`) y el plazo (`CapacityToAmount`). El FGA y el seguro de vida no entran: con
+`FinandinaPolicy::INSTALLMENT_INCLUDES_COSTS` en `false` la cuota se compara sin costos, y los plazos que ofrece
+el plan leen la misma constante. El cupo es el menor entre ese monto, el múltiplo de ingreso de la banda, el tope sin experiencia
 crediticia, el `max_amount` del perfil, su cupo mensual, lo que le queda a la entidad en el mes y el
 máximo de la línea. Sin SMMLV del año, con bandas inválidas o con un ingreso bajo la primera banda, el
 perfil no aplica. El monto mínimo de la línea no se aplica ahí: lo rechaza `available-quota` con

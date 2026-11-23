@@ -115,6 +115,42 @@
       "sections": [
         "el-motor-de-legacy-application"
       ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/RiskPolicy/Finandina/FinandinaAmountCalculator.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "6dce4aad604af83250c8810117188e1a96d12c1c",
+      "sections": [
+        "de-la-capacidad-mensual-al-cupo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/RiskPolicy/Finandina/CapacityToAmount.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "55ca4fd741ce10d060c8e660872c1730caf32cb7",
+      "sections": [
+        "de-la-capacidad-mensual-al-cupo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/RiskPolicy/Finandina/FinandinaPolicy.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "adf1dc3575878913e6c660fbb18c6a2a7b5e69d0",
+      "sections": [
+        "de-la-capacidad-mensual-al-cupo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Support/LenderMonthlyLimits.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "2fc085ee34f96b229da02f3f07791cd91402f353",
+      "sections": [
+        "de-la-capacidad-mensual-al-cupo"
+      ]
     }
   ]
 }
