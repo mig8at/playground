@@ -27,7 +27,7 @@ import {JUEGO} from '../engine/medidas.js';
 import {sociedadDe} from '../engine/sociedad.js';
 import {COLORS} from '../engine/vestuario.js';
 import {SECCIONES,CONTROLES,LO_BASICO} from '../lib/reglasJuego.js';
-import {GARMENTS,PALETTE} from '../lib/vestier3d.js';
+import {GARMENTS,PALETTE} from '../lib/ropa.js';
 import {uniformeDe} from '../lib/characters3d.js';
 import {precargar} from '../lib/mapasGuardados.js';
 

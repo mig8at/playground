@@ -8,7 +8,7 @@ import {clone as cloneSkinned} from 'three/addons/utils/SkeletonUtils.js';
 import {MeshoptSimplifier} from 'three/addons/libs/meshopt_simplifier.module.js';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import {NIVELES_PLANTA} from './nature3d.js';
-export const DIR='/models/prototipo/',BIBLIOTECAS=['UAL1_Standard.glb','UAL2_Standard.glb'];
+export const DIR='/models/gente/',BIBLIOTECAS=['UAL1_Standard.glb','UAL2_Standard.glb'];
 // (2026-11-22, Miguel: «mejor usa el esqueleto de las animaciones, no los cuerpos humanos: sólo el pelo sobre los maniquíes»: los
 // cuerpos son los maniquíes de las bibliotecas —el de UAL1 y el de mujer de UAL2—, con los peinados del paquete de personajes
 // base encima. Sin cara: la cabeza, piel)
@@ -28,8 +28,9 @@ export const PIEL=['#f1c9a5','#d9a47c','#b97f57','#8d5a3b','#5e3b26'],CAMISA=['#
 // pantaloneta o falda: la pantorrilla, piel)
 // (la cara: el atributo detalle —la luz de la cara que pintó el artista, pasada a cada vértice: labios, sombras, párpados—
 // multiplica el color de su zona; 1 en el resto del cuerpo)
-export function materialRopa(piel,{camisa='#ddd',pantalon='#333',zapatos='#111',pelo='#222',iris='#4a3220',mangaCorta=false,pantaloneta=false}={}){
- const pal=[piel,camisa,mangaCorta?piel:camisa,pantalon,pantaloneta?piel:pantalon,zapatos,pelo,'#120d0a',pelo,'#f1eee6',iris].map(c=>new THREE.Color(c));
+// (antebrazo: su propio color —las mangas de la camisa bajo un chaleco—; si no, el de la camisa o piel)
+export function materialRopa(piel,{camisa='#ddd',antebrazo=null,pantalon='#333',zapatos='#111',pelo='#222',iris='#4a3220',mangaCorta=false,pantaloneta=false}={}){
+ const pal=[piel,camisa,antebrazo||(mangaCorta?piel:camisa),pantalon,pantaloneta?piel:pantalon,zapatos,pelo,'#120d0a',pelo,'#f1eee6',iris].map(c=>new THREE.Color(c));
  const m=new THREE.MeshStandardMaterial({roughness:.82});
  m.onBeforeCompile=sh=>{sh.uniforms.paleta={value:pal};
   sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nattribute float zona;attribute float detalle;uniform vec3 paleta[11];varying vec3 vRopa;').replace('#include <begin_vertex>','#include <begin_vertex>\nvRopa=paleta[int(zona+.5)]*detalle;');
@@ -121,12 +122,35 @@ export function armarCuerpo(gCuerpo,gPelos,texCara=null,texOjo=null,ajuste=null,
  const zonaPieza=m=>{const t=m.name+' '+(m.material?.name||'')+' '+(m.parent?.name||'');return /brow/i.test(t)?Z.ceja:/eye/i.test(t)?Z.ojo:undefined;};
  const partes=ms.map(m=>pieza(m,zonaPieza(m)));
  for(const g of gPelos){g.scene.updateMatrixWorld(true);g.scene.traverse(o=>{if(o.isSkinnedMesh)partes.push(pieza(o,Z.pelo));});}
- const geo=mergeGeometries(partes,false);formasDeContextura(geo,quedan.map(i=>huesos[i].name),adel);
+ const geo=mergeGeometries(partes,false);formasDeContextura(geo,quedan.map(i=>huesos[i].name),adel);coordenadasDeTela(geo,quedan.map(i=>huesos[i].name),n=>pos(porNombre.get(n)),cuerpo.bindMatrix,adel);
  const malla=new THREE.SkinnedMesh(geo,materialRopa(PIEL[0]));
  for(const b of huesos)if(DEDO.test(b.name)&&!DEDO.test(b.parent?.name||''))b.parent.remove(b);
  cuerpo.parent.add(malla);malla.position.copy(cuerpo.position);malla.quaternion.copy(cuerpo.quaternion);malla.scale.copy(cuerpo.scale);
  malla.bind(new THREE.Skeleton(quedan.map(i=>huesos[i]),quedan.map(i=>sk.boneInverses[i])),cuerpo.bindMatrix);for(const m of ms)m.removeFromParent();
  malla.updateMorphTargets();malla.name='cuerpo'+(nVar++);if(conNiveles)NIV[malla.name]=niveles(geo);return raiz;}
+
+// ---- LA TELA: dónde está cada punto del cuerpo, para cortar la ropa en el sombreador (2026-11-22, Miguel: «agregarle vértices
+// al maniquí para el cuello redondo o en V… que en mangas y pantalones se vea el color bien lineal, como si fuera tela» →
+// «sí, en el sombreador») ----
+// Sin un vértice de más: cada vértice guarda dos atributos, y el sombreador decide en cada píxel si ahí hay tela o piel. Como
+// se interpolan en línea recta dentro de cada triángulo, el borde sale recto o curvo, nítido, aunque el triángulo sea grande, y
+// sigue igual en los niveles de detalle simplificados.
+//  - tela (x, y, z, w): la posición en la pose de origen, en metros: x al costado, y hacia arriba desde la base del cuello
+//    (neck_01), z hacia adelante; w, la altura sobre la cadera (pelvis). Con eso: el cuello redondo o en V, la cintura, la
+//    ombliguera, la abertura de la chaqueta y las rayas.
+//  - largo (brazo, pierna): cuánto se avanza por el brazo —0 el hombro, .5 el codo, 1 la muñeca— y por la pierna —0 la
+//    cadera, .5 la rodilla, 1 el tobillo—; -1 fuera de ellos. Con eso: el largo de la manga y del pantalón.
+function coordenadasDeTela(geo,nombres,hueso,bind,adel){const pa=geo.attributes.position,si=geo.attributes.skinIndex,sw=geo.attributes.skinWeight,zo=geo.attributes.zona,n=pa.count;
+ const cuello=hueso('neck_01'),cadera=hueso('pelvis'),arriba=cuello.clone().sub(cadera).normalize(),adelante=new THREE.Vector3(0,0,adel);adelante.addScaledVector(arriba,-adelante.dot(arriba)).normalize();
+ const lado=new THREE.Vector3().crossVectors(arriba,adelante),tela=new Float32Array(n*4),largo=new Float32Array(n*2).fill(-1),p=new THREE.Vector3(),d=new THREE.Vector3();
+ // (una cadena de tres huesos —hombro, codo, muñeca o cadera, rodilla, tobillo— y lo que avanza el punto por ella)
+ const cadena=(a,b,c)=>[hueso(a),hueso(b),hueso(c)],avance=([A,B,C],q)=>{const ab=B.clone().sub(A),t=d.copy(q).sub(A).dot(ab)/ab.lengthSq();if(t<1)return t*.5;const bc=C.clone().sub(B);return .5+d.copy(q).sub(B).dot(bc)/bc.lengthSq()*.5;};
+ const brazos={l:cadena('upperarm_l','lowerarm_l','hand_l'),r:cadena('upperarm_r','lowerarm_r','hand_r')},piernas={l:cadena('thigh_l','calf_l','foot_l'),r:cadena('thigh_r','calf_r','foot_r')};
+ for(let i=0;i<n;i++){p.fromBufferAttribute(pa,i).applyMatrix4(bind);d.copy(p).sub(cuello);tela.set([d.dot(lado),d.dot(arriba),d.dot(adelante),p.clone().sub(cadera).dot(arriba)],i*4);
+  if(zo.getX(i)>=Z.pelo)continue;let mk=0,mw=-1;for(let k=0;k<4;k++){const w=sw.getComponent(i,k);if(w>mw){mw=w;mk=si.getComponent(i,k);}}
+  const nom=nombres[mk]||'',m=nom.match(/^(upperarm|lowerarm|hand|thigh|calf|foot|ball)_([lr])/);if(!m)continue;
+  if(/arm|hand/.test(m[1]))largo[i*2]=Math.max(0,avance(brazos[m[2]],p));else largo[i*2+1]=Math.max(0,avance(piernas[m[2]],p));}
+ geo.setAttribute('tela',new THREE.BufferAttribute(tela,4));geo.setAttribute('largo',new THREE.BufferAttribute(largo,2));}
 
 // ---- LA CONTEXTURA (2026-11-22, Miguel: «¿ves posible alterar la contextura corporal?» → «dale, ármalo») ----
 // Dos formas de mezcla, hechas por código una vez por cuerpo, y la estatura por persona:

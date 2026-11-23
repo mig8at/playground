@@ -1,6 +1,6 @@
 // La ropa en palabras (2026-10-17, el menú del juego): lo que dice un retrato —«sudadera con capucha roja, jean azul,
 // gorra negra»—. El nombre de cada prenda es el del vestier (GARMENTS); el del color, el más parecido de una lista corta.
-import {GARMENTS} from './vestier3d.js';
+import {GARMENTS} from './ropa.js';
 
 const COLORES=[['blanca','#f2f0ea'],['gris','#9a9c9c'],['negra','#2a2b2d'],['roja','#c4553d'],['vinotinto','#7a2e33'],['naranja','#d9793a'],['amarilla','#e0b83a'],
  ['verde','#4f8a55'],['verde oliva','#6b7340'],['turquesa','#3a9a96'],['celeste','#7fb2d6'],['azul','#3f6fa8'],['azul oscuro','#2b3d5c'],['morada','#6b4a8a'],['rosada','#d98aa0'],

@@ -32,7 +32,7 @@ import {buildIsland,loadIslandBuildings,ISLAND_MARGIN,CLIFF,ISLA3D} from '../lib
 import {dibujarPlano,revisarContrato,revisarSuelo,revisarAndenes} from '../lib/plano3d.js';
 import {loadCharacters,loadPolice,LOD_CAM,makeCharacter,moveCharacter,vestirPlantilla,plantillaJugador,uniformeDe} from '../lib/characters3d.js';
 import {describirRopa,etiqueta} from '../lib/ropaTexto.js';
-import {GARMENTS,PALETTE} from '../lib/vestier3d.js';
+import {GARMENTS,PALETTE} from '../lib/ropa.js';
 import {buildWorld,CELL,EYE,FLOOR,WORLD_TIMES} from '../lib/world3d.js';
 import {createIndoor} from '../lib/indoor3d.js';
 import {createBarrios} from '../lib/barrios3d.js';

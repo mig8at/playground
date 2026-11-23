@@ -709,8 +709,9 @@ export const PINTURA={alto:.015,cebra:{franja:.5,paso:1},discontinua:{largo:2.4,
 //    clases, horarios.clases). Los demás cuidan la casa (o trabajan en ella) y los recogen al terminar las clases.
 export const RELOJ={escala:60,dia:86400};
 // La animación de caminar de los muñecos (characters3d moveCharacter): a ritmo 1 avanza paso m/s; el ritmo va de min a
-// max (fuera de eso, los pies patinan).
-export const ANIM={paso:1.35,min:.6,max:1.6};
+// max (fuera de eso, los pies patinan). (2026-11-22: los personajes nuevos —Walk_Loop de las Universal Animation Library—
+// pisan a 0,98 m/s a ritmo 1, medido por la velocidad del pie apoyado; antes 1,35 con los muñecos viejos)
+export const ANIM={paso:.98,min:.6,max:1.6};
 // El caminar natural (2026-10-18, Miguel: «saltos bruscos de movimiento»; lo mide validar-caminar): por cuadro, la
 // velocidad contra el paso de cada uno (p99 rapido, nunca más de salto), la aceleración p99 (m/s²: una persona arranca y
 // dobla a 1–2), el giro de la marcha p99 (°/s), lo que patinan los pies p95 (parte del avance) y hacia dónde mira contra

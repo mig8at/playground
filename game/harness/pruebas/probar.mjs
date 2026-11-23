@@ -85,7 +85,7 @@ const NIVELES=[
   {n:'visibles',f:'validar-visibles.mjs',a:[2,S0,800],fallas:F,res:/^visibles/,lento:true}]},
  {n:9,t:'Juego',d:'recorridos, distancias, reparto entre equipos, un solo cuerpo, las guaridas, las viviendas, el motor del modo «Botín», el allanamiento, la sociedad (familias, trabajos y horarios) y la rutina (agenda, necesidades, buses y eventos)',p:[
   {n:'juego',f:'validar-juego.mjs',a:[N,S0],fallas:F,res:/^a pie:/,node:grande},
-  {n:'cuerpo',f:'validar-cuerpo.mjs',a:[],fallas:F,res:/^cuerpo/},
+  {n:'personajes',f:'validar-personajes.mjs',a:[],fallas:F,res:/^personajes/},
   {n:'guaridas',f:'validar-guaridas.mjs',a:[N,S0],fallas:F,res:/^guaridas/},
   {n:'viviendas',f:'validar-viviendas.mjs',a:[N,S0],fallas:F,res:/^viviendas/},
   {n:'sociedad',f:'validar-sociedad.mjs',a:[N,S0,14],fallas:F,res:/^sociedad/},

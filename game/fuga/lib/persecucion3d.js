@@ -43,7 +43,7 @@ export const PERSECUCION={alcance:1.6,camara:8,vista:45,marca:2.35,persigue:30,r
 
 // los rasgos de un muñeco para el retrato (lo que no cambia con la ropa)
 const PELO={negro:'negro',castaño:'castaño',rubio:'rubio',canoso:'canoso',rojizo:'rojizo'};
-export function rasgosDe(look={}){const p=look.pzPelo||'',largo=/Female/.test(p),calvo=look.peinado==='calvo'||look.peinado==='rapado';
+export function rasgosDe(look={}){const p=look.pzPelo||'',largo=/Female|Hair_Long|Hair_Buns/.test(p),calvo=look.peinado==='calvo'||look.peinado==='rapado';
  return `piel ${look.piel||'media'}, ${calvo?(look.peinado==='calvo'?'calvo':'rapado'):`pelo ${PELO[look.pelo]||look.pelo||'castaño'} ${largo?'largo':'corto'}`}${look.pzBigote||look.barba?', con barba':''}`;}
 
 export function createPersecucion({scene,plan,player,characters,policeTemplates,suelo,equipo=3,ronda=0,gente=()=>null,guaridas3d=[],abrir=()=>{},papel='policia',adentro=()=>false,mochila=()=>0,onEstado=()=>{},onAllanada=()=>{}}){

@@ -13,7 +13,7 @@
 import {ref,computed,watch} from 'vue';
 import MunecoVista from '../../src/components/MunecoVista.vue';
 import MapaJuego from './MapaJuego.vue';
-import {PALETTE} from '../../src/lib/vestier3d.js';
+import {PALETTE} from '../../src/lib/ropa.js';
 
 const props=defineProps({papel:{type:String,default:'ladron'},datos:{type:Object,required:true},abierto:{type:Boolean,default:true},plano:{type:Object,default:null}});
 const emit=defineEmits(['cerrar','accion']);
