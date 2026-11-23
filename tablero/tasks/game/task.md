@@ -1,10 +1,9 @@
 ---
-id: 136
+id: 137
 title: "Game"
-clase: proyecto
-nivel: miguel
 stage: work
 created: "2026-11-21T12:00:00-05:00"
+knowledge: []
 jira: []
 jira_title: ""
 ---
