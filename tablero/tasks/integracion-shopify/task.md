@@ -13,10 +13,12 @@ correo: [shopify]
 
 ## Pendientes
 
-- [ ] Probar «Cancelar» de punta a punta en producción (modo de prueba, `creditop-dev-store`): la página de prueba
+- [x] ~~Probar «Cancelar» de punta a punta en producción~~ — 2026-11-23, sesión `r3v5JMCj2umApZCNrY1NMKJ3Q`: vuelve al checkout con «Se canceló tu pago».
+      Probar «Cancelar» de punta a punta en producción (modo de prueba, `creditop-dev-store`): la página de prueba
       rechaza la sesión con `CANCELLED_PAYMENT`; termina con el comprador de vuelta en el checkout y el log
       `creditop.test_page.decided { decision: 'cancel', ok: true }`. Lo pidió Danny el 2026-11-23.
-- [ ] Probar un reembolso de prueba iniciado desde el admin de Shopify sobre un pedido pagado con Creditop: en modo de
+- [x] ~~Probar un reembolso de prueba iniciado desde el admin~~ — 2026-11-23, pedido #1041: «Se reembolsó 800.000,00 $ COP a Creditop», pago neto $ 0.
+      Probar un reembolso de prueba iniciado desde el admin de Shopify sobre un pedido pagado con Creditop: en modo de
       prueba `payments.refund` lo resuelve solo (`resolveRefundSession`); termina con el reembolso «completado» en el
       pedido y el log `creditop.refund_session.test_resolved { ok: true }`. Lo pidió Danny el 2026-11-23.
 - [ ] Preparar para los revisores una sucursal de prueba DEDICADA (código y token) y las instrucciones para instalar y
