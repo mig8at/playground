@@ -16,13 +16,98 @@ EL JUEGO
              Diseño (2026-10-18): la ciudad del juego de fondo (public/fondos: capturas del 3D, la noche en el título),
              paneles de vidrio, ámbar los ladrones y azul la policía, títulos en Bungee y texto en Rubik (paquetes de
              @fontsource: sin internet). Lo prueba harness/pruebas/validar-entrada.mjs (nivel 10).
+  ENTREGA    (2026-11-21, engine/entrega.js): la vivienda se entrega vacía. Saca de un plano armado los muebles de quien
+             vive (camas, sofás, mesas, televisores) y deja lo de obra: baño y cocina. No toca locales ni oficinas. En
+             /plano es el botón «Viviendas vacías» (prendido de entrada); «Amueblado» muestra lo que puso el generador.
+  APARECER   (2026-11-21, engine/aparecer.js): una persona es un punto. sitiosDe da los lugares del andén donde se puede
+             aparecer; aparecerEn elige el menos poblado (gente a 30 m, pesada por distancia); cupoDe, el tope: una
+             persona por vivienda. En /plano: los puntos amarillos, el punto verde y «Entra una». Prueba: validar-aparecer.
+  PROPIEDADES (2026-11-21, engine/propiedades.js): cada departamento, local y casa como algo que se vende: identificador
+             que no cambia, dirección, área y precio base (área × 1.000 × clase × centro × piso × parque; todo sale
+             de PRECIO). En /plano: el total al pie y, en la ficha de un edificio, lo que se vende ahí. Prueba:
+             validar-propiedades.
+  FACHADA MEDIDA (2026-11-21, engine/fachada-medida.js): cada fachada en metros: los vanos de cada piso, los paños de
+             muro entre ellos, la textura que le toca (la misma en el alzado 2D y en el 3D) y cómo cuadra (hiladas
+             enteras por piso, módulos de 2 m). paniosPintables: lo que se puede pintar en la planta baja. Las
+             texturas del 3D se dibujan en lib/texturas3d.js. Prueba: validar-fachada-medida.
+  GRAFITI    (2026-11-21, engine/grafiti.js y engine/muros.js): pixel art sobre un muro ENTERO —una fachada o una pared de
+             un cuarto—, sin sus ventanas ni puertas: píxeles de 5 cm y 15 colores. En /plano se toca la fachada del
+             alzado, o «pintá una pared de adentro» y una pared del piso; el paseo 3D lo muestra en esa pared
+             (lib/grafitis3d.js). Prueba: validar-grafiti.
+  GUARDADO   (2026-11-21, servidor/pintura.mjs, lib/pinturaGuardada.js): lo pintado queda en SQLite
+             (datos/pintura.sqlite, fuera de git; el SQLite que trae node), por ciudad y por pared, con el número de 10
+             cifras y la HUELLA de la pared (lo que la pared es: piso, centro, hacia dónde mira, medidas). Al abrir una
+             ciudad se concilia con sus paredes de hoy: si el generador renumeró una pared, lo pintado se muda con ella;
+             si la pared cambió de medida o ya no está, queda apartado (tabla huerfana), no se borra. El navegador
+             guarda una copia ('fuga.grafitis'), que es lo que se usa sin servidor. API del servidor de desarrollo:
+             GET /api/pintura?ciudad=1|3 y POST /api/pintura. Prueba: validar-guardado.
+  COLOCAR    (2026-11-21, engine/colocar.js): una persona dice «acá» y el plano contesta dónde queda exactamente y si se
+             puede, con la razón. De pared (cuadro, espejo, reloj, repisa): se pega a la pared más cercana, a la grilla
+             de 5 cm; no pisa puertas ni ventanas ni otro colgado, ni queda detrás de un mueble alto. De piso (planta,
+             lámpara, sillón, mesa, cómoda): grilla de 10 cm; no pisa muebles ni tapa el paso de una puerta; R lo gira.
+             En el visor: clic en un edificio → «Colocar», debajo del plano del piso. Lo colocado se guarda en este
+             navegador. Lo prueba validar-colocar (nivel 4): 285.540 intentos en dos ciudades, 0 fallas.
+  /catalogo  EL CATÁLOGO (2026-11-21; ?seccion=muebles|fachadas|texturas): lo que el plano usa, de a una pieza y sin el
+             mapa. Muebles: cada uno con su símbolo, lo que el plano le reserva, lo que mide su modelo 3D y en qué
+             cuartos va. Fachadas: el alzado de todos los edificios de una ciudad con el paquete elegido. Texturas: cada
+             una sobre seis colores y la tabla de qué pone cada paquete.
+  CONTENEDORES  (2026-11-21, engine/contenedores.js → plano.contenedores): el motor elige la casilla de cada contenedor
+             de basura; el plano decide su lugar exacto en metros: sobre el andén, a CALLE.fachada + medio fondo de la
+             línea de edificación, paralelo a la fachada, corrido si cae frente a una puerta, sobre un árbol o una pieza,
+             y llevado al andén más cercano si el motor lo puso en un cruce. El 3D lo usa tal cual y el plano lo dibuja.
+  RUMBO      (2026-11-21, tarea Game #136 del tablero): el juego deja de ser policías y ladrones y pasa a ser una ciudad
+             donde se compran propiedades. La entrada abre el plano de COLOMBIA (ciudad 1, tamaño 16) y /ciudad o
+             /juego abren la ciudad sola. El juego viejo sólo arranca con ?fuga=1 o en /demo; su código sigue en el
+             árbol hasta que se mude a game/fuga/. El 3D todavía arma la ciudad entera de una vez: la grande no carga.
+  /ciudad         EL PASEO (2026-11-21): la ciudad sola en 3D, sin ronda, sin policía ni ladrones y sin la gente con su
+             rutina (nada de eso se arma ni se carga). Se camina; V despega y aterriza (en el aire: WASD hacia donde se
+             mira, Espacio sube, C baja, Shift acelera); N cambia el día. Arriba a la derecha, el rendimiento: cuadros
+             por segundo, ms por cuadro, el peor cuadro, llamadas de dibujo y triángulos. Es la entrada principal del
+             título («Entrar a la ciudad») y del visor del plano; el juego (las salas) quedó como enlace chico.
+  TAMAÑOS    (2026-11-21, engine/ciudad.js SIZES; en el visor, «Tamaño»; en la URL, jugadores=): 2 → 222 × 168 m,
+             3 → 276 × 192, 5 → 354 × 246, 8 → 444 × 312 (los cuatro del juego), y dos más para pasear y para otros
+             juegos: 12 → 576 × 396 m (55 manzanas, 466 edificios) y 16 → 720 × 492 m (96 manzanas, 811 edificios,
+             88.000 muebles; el plano tarda ~30 s la primera vez). La isla crece con la ciudad.
+             Las dos grandes tienen JERARQUÍA (ciudad.js GRANDE): los dos primeros cortes son avenidas —una cruz que
+             ordena la ciudad—, la manzana más cercana al centro es el parque central y los parques se reparten en más
+             zonas. Las cuatro del juego no cambian. En el plano, las esquinas de vereda van redondeadas.
+  /fachadas  Las fachadas en técnico, por cuadra (2026-11-21; ?ciudad=1&jugadores=16&cuadra=2): cada lado de cada
+             edificio sin adornos: muro, pisos, módulos, huecos con su medida, cortes de pared interna y las paredes
+             que se pintan con su número. Para validar la fachada antes del 3D.
+  /plano     El plano 2D entero, sin cargar el 3D (2026-11-19; ?ciudad=1&jugadores=3): rueda para acercar, arrastrar
+             para moverse, + y − para cambiar de piso (arriba del último, las azoteas), capas que se apagan (pintura de
+             vías, mobiliario, árboles, nombres de vías, botines) y clic en un edificio para su piso en grande con sus
+             medidas (área, % de pasillo, muebles, puertas, ventanas). Lo dibuja lib/drawPlan.js (drawExterior es lo
+             de afuera, que antes sólo se veía en el 3D).
+             Al acercar, lo que se ve se vuelve a dibujar nítido a la escala de la pantalla (hasta 42 px por metro:
+             drawIslaStage con region); los muebles van con su forma y su frente (drawItem).
+             Las casas del monte igual: sus muebles con símbolo, los nombres de sus cuartos y, con un clic, su ficha
+             (la familia que vive ahí, el plano de la casa y la medida de cada cuarto).
+             La ficha de un edificio trae su ALZADO (drawElevation): la fachada de frente, a escala, por cualquier
+             lado abierto, con los colores, el zócalo, la banda, la cornisa, los toldos, los balcones y el techo que
+             decide el plano; marca en naranja la ventana que no cae sobre la de abajo y dice cuánto vidrio hay por piso.
+             LAS TEXTURAS (2026-11-21, lib/texturas2d.js): baldosas chicas dibujadas en código, transparentes —sólo
+             juntas, sombras y brillos— y en metros, que van encima del color de cada edificio: ladrillo, sillar,
+             estuco, revoque, panel, hormigón, pizarra, teja, losa y piedra bola. Un PAQUETE (Liso, Clásico,
+             Rústico) dice cuál va en el muro de cada familia, en el zócalo y en la mansarda; se elige en la ficha,
+             sobre el alzado. Sumar un paquete es un renglón en PAQUETES; una textura, una función en TEXTURAS.
   /juego     La partida (?ciudad=1&jugadores=3&papel=policia). /demo es lo mismo (lo usan las pruebas de pantalla).
-             ?lab=1 muestra los botones de prueba (tamaño, papel, otra ciudad, vista, la cámara libre —V—, día/noche).
+             Lo visual (2026-11-19): pantalla de carga con barra mientras se arma la ciudad; el HUD con el diseño de la
+             entrada (vidrio, Bungee y Rubik); el día, el atardecer y la noche se mezclan de a poco (PAL y pasoLuz en
+             DemoView.vue: sol bajo y naranja de 16:30 a 19 y de 6 a 7:30) y el cielo tiene nubes que se corren.
+             El movimiento (2026-11-19): el jugador arranca y frena con inercia (INERCIA en DemoView.vue), el paso del
+             muñeco sigue a la velocidad real y el campo de visión se abre al correr.
+             La vista (2026-11-22, Miguel): SÓLO PRIMERA PERSONA. Se quitaron la vista de atrás, la de arriba con el
+             edificio cortado por pisos y el aclarado de paredes, con sus teclas (T, F, la rueda). Queda el dron (V).
+             ?lab=1 muestra los botones de prueba (tamaño, papel, otra ciudad, la cámara libre —V—, día/noche).
 
 EL MÉTODO: TODO SE PRUEBA EN EL 2D
   node harness/pruebas/probar.mjs              el probador por niveles (0 medidas … 10 pantalla); --nivel=3-5, --seguir
   node harness/pruebas/calibrar.mjs <exp>      el calibrador (harness/pruebas/experimentos: rutina, descanso, botin…)
   node harness/pruebas/ver-fachadas.mjs        fotos de las fachadas para revisar a ojo
+  node harness/pruebas/auditar-plano.mjs [n]   la auditoría del plano (2026-11-20): no es pasa o no pasa, mide en n ciudades lo que
+                                               queda por calibrar —modelos contra el plano, muebles, baños, ventanas, casas,
+                                               mobiliario, copas— y lo da como lista de más a menos casos, con ejemplos
 Las medidas y reglas viven en src/engine/medidas.js; el diseño, en REGLAS.md, GENERADOR.md, FACHADAS.md y MEJORAS.md.
 
 harness/

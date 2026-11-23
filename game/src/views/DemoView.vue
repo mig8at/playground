@@ -4,7 +4,9 @@ const LAB=new URLSearchParams(location.search).has('lab');
 /* /demo: caminar la ciudad en primera persona. Por ahora es sólo lo visual (sin reglas ni otros jugadores): la misma
    ciudad que juega el motor, a escala de persona, como base para llevar el juego a multijugador.
    ?jugadores=3&ciudad=1234 */
-import {ref,onMounted,onBeforeUnmount} from 'vue';
+import {ref,onMounted,onBeforeUnmount,defineAsyncComponent} from 'vue';
+import '@fontsource/bungee/400.css';
+import '@fontsource-variable/rubik';
 import {useRoute,useRouter} from 'vue-router';
 import * as THREE from 'three';
 import {PointerLockControls} from 'three/addons/controls/PointerLockControls.js';
@@ -12,10 +14,9 @@ import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
 import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
 import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';
 import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
-import {createViewmodel,ViewmodelPass} from '../lib/viewmodel3d.js';
-import {createShooting} from '../lib/disparo3d.js';
 import {COLORS} from '../engine/vestuario.js';
 import {EdgePass} from '../lib/edges3d.js';
+import {materialAristas} from '../lib/aristas3d.js';
 import {City} from '../engine/index.js';
 import {generateBlueprint} from '../engine/blueprint.js';
 import {planoDe} from '../lib/mapasGuardados.js';
@@ -30,43 +31,63 @@ import {createHouses} from '../lib/vivienda3d.js';
 import {buildIsland,loadIslandBuildings,ISLAND_MARGIN,CLIFF,ISLA3D} from '../lib/island3d.js';
 import {dibujarPlano,revisarContrato,revisarSuelo,revisarAndenes} from '../lib/plano3d.js';
 import {loadCharacters,loadPolice,LOD_CAM,makeCharacter,moveCharacter,vestirPlantilla,plantillaJugador,uniformeDe} from '../lib/characters3d.js';
-import MenuJuego from '../components/MenuJuego.vue';
 import {describirRopa,etiqueta} from '../lib/ropaTexto.js';
-import {GARMENTS,PALETTE} from '../lib/vestier3d.js';
+import {GARMENTS,PALETTE} from '../lib/ropa.js';
 import {buildWorld,CELL,EYE,FLOOR,WORLD_TIMES} from '../lib/world3d.js';
 import {createIndoor} from '../lib/indoor3d.js';
 import {createBarrios} from '../lib/barrios3d.js';
 import {createCasas} from '../lib/casas3d.js';
-import {createCut} from '../lib/cutaway3d.js';
 import {drawWorldStage} from '../lib/drawPlan.js';
 import {CIRCULACION,ATERRIZAJE,ALCANCE,VIDA} from '../engine/medidas.js';
 import {danoDeCaida} from '../engine/juego/huida.js';
 import {ubicacionDe} from '../engine/direcciones.js';
 import {crearNiebla} from '../lib/niebla3d.js';
-import {paredesAClarar,VISIBILIDAD} from '../engine/visibilidad.js';
 import {visiblesDesde} from '../engine/visibles.js';
-import {createAclarado} from '../lib/aclarado3d.js';
 import {createAcciones} from '../lib/acciones3d.js';
-import {crearRonda,robar,guardar,sacar,incautar,perseguido,precio,gano,hayGente,empezarForzar,tickForzar,trancada,puertaTrancadaEn,robadoEn} from '../engine/juego/ronda.js';
 import {placeParts,partsMesh,OBJETOS} from '../lib/objetos3d.js';
-import {createPersecucion,rasgosDe} from '../lib/persecucion3d.js';
 import {createSociedad3d} from '../lib/sociedad3d.js';
-import {createPatrullas} from '../lib/patrulla3d.js';
 import {sociedadDe,puertasDeLugares,abierto,horaTexto,ocupacionSociedad,direccionHogar} from '../engine/sociedad.js';
 import {rng} from '../engine/veredas.js';
 import {mapaDeJuego} from '../engine/juego/mapa.js';
+import {entregaDe,entregaCasa} from '../engine/entrega.js';
+import {sitiosDe,aparecerEn} from '../engine/aparecer.js';
+import {createGrafitis,createMapaPintable} from '../lib/grafitis3d.js';
+import {claveCiudad} from '../engine/grafiti.js';
+import {sincronizar} from '../lib/pinturaGuardada.js';
+import {createBoceto} from '../lib/boceto3d.js';
+import {cerradurasDe,puertaTrancadaEn,trancada,adentroCerrado} from '../engine/propiedad.js';
+import {paredesDeLaCiudad} from '../engine/muros.js';
 import {RELOJ,MODO_BOTIN,PATRULLA} from '../engine/medidas.js';
 
 // (el salto, el del 2D —CIRCULACION.peaton.salto—: de ahí sale ALCANCE, a qué muebles se sube; CHOQUE_MUEBLE)
 const WALK=CIRCULACION.peaton.velocidad.camina,RUN=CIRCULACION.peaton.velocidad.corre,RADIUS=.26,GRAVITY=CIRCULACION.peaton.salto.gravedad,JUMP=CIRCULACION.peaton.salto.velocidad,MAP_CELL=2,STREET_LIGHTS=12;
 const route=useRoute(),router=useRouter();
-const team=ref(SIZES.includes(+route.query.jugadores)?+route.query.jugadores:3);
+// (los dos tamaños grandes —12 y 16: engine/ciudad.js— sólo en el paseo: el juego sigue con los cuatro de SIZES)
+const team=ref(SIZES.includes(+route.query.jugadores)||(route.name!=='demo'&&route.query.fuga==null)&&[12,16].includes(+route.query.jugadores)?+route.query.jugadores:3);
 // La demo usa los parques repartidos (opción del generador en prueba); ?parques=0 muestra la ciudad de siempre.
 const parks=route.query.parques!=='0';
 const pickCity=t=>{if(!parks)return randomCity(t);for(let i=0;i<200;i++){const s=1+Math.floor(Math.random()*99999);if(City.analyze(City.generate({seed:s,team:t,parks})).ok)return s;}return 1;};
 // El edificio de prueba (2026-10-18, Miguel: «hagamos un edificio de prueba y te digo cómo me gustaría moverme»):
 // /juego?prueba=edificio dibuja sólo unos lotes de una ciudad (lotes=32,34 de la ciudad 2 —un edificio de vivienda de 4
 // pisos y la casa de al lado—), sin ronda, sin gente y sin las casas del monte; se aparece frente a la puerta del primero.
+// EL PASEO (2026-11-21, Miguel: «quitá por ahora el jugar: que yo entre, camine y sobrevuele la ciudad y vea cómo están
+// los FPS»): /juego?paseo=1 es la ciudad sola. Sin ronda, sin policía ni ladrones, sin la sociedad (la gente con su rutina):
+// nada de eso se arma ni se carga. Se camina, V despega y vuelve a tierra, N cambia el día, y arriba a la derecha va el
+// rendimiento: cuadros por segundo, milisegundos por cuadro, llamadas de dibujo y triángulos.
+// (2026-11-21, Miguel: «quitemos todo lo que sea lógica de policías y ladrones… dejá sólo lo de la ciudad»): el paseo es
+// ahora el modo de /juego y de /ciudad. El juego viejo sólo arranca con ?fuga=1, o en /demo, que es la ruta que usan sus
+// pruebas de pantalla.
+// EL JUEGO VIEJO VIVE EN game/fuga/ (2026-11-21): la ronda, la persecución, las patrullas, las armas y el menú se mudaron
+// allá. Esta pantalla ya no los importa: sus funciones son estas variables, que quedan sin definir en la ciudad —nadie
+// las llama, porque la ronda no se arma— y se llenan con cargarFuga() sólo cuando se pide el juego viejo.
+const PASEO=route.query.paseo!=null||(route.name!=='demo'&&route.query.fuga==null);
+let createViewmodel,ViewmodelPass,createShooting,crearRonda,robar,guardar,sacar,incautar,perseguido,precio,gano,hayGente,empezarForzar,tickForzar,robadoEn,usosRonda,createPersecucion,rasgosDe,createPatrullas;
+async function cargarFuga(){({createViewmodel,ViewmodelPass,createShooting,crearRonda,robar,guardar,sacar,incautar,perseguido,precio,gano,hayGente,empezarForzar,tickForzar,robadoEn,usosRonda,createPersecucion,rasgosDe,createPatrullas}=await import('../../fuga/index.js'));}
+const MenuJuego=defineAsyncComponent(()=>import('../../fuga/components/MenuJuego.vue'));
+// (2026-11-22, Miguel: «la idea es eliminar todo el ruido y centrarnos en las medidas… bórralos, no los dejes ahí, porque
+// la idea es ir progresivamente»): el paseo es un BOCETO —todo blanco, lib/boceto3d.js— y no hay cómo volver a los
+// colores ni a los muebles desde la pantalla. Sin bordes negros: se probaron y Miguel los sacó.
+const EN_BOCETO=PASEO;let boceto=null;
 const PRUEBA=route.query.prueba==='edificio',PRUEBA_LOTES=PRUEBA?String(route.query.lotes||'32,34').split(',').map(Number):null;
 const seed=ref(+route.query.ciudad||(PRUEBA?2:pickCity(team.value)));
 // characters: los personajes animados (se cargan una vez al entrar); mientras tanto, «Cargando gente…».
@@ -97,28 +118,20 @@ async function muñecoDelPerfil(){const c=cuentaPerfil();if(!c?.cuerpo||!c.ropa)
  try{const t=await plantillaJugador(c.cuerpo,outfit,POLICIA);if(world!==w0)return;makeAvatar(t);}catch(e){console.warn('el muñeco del perfil',e);}}
 const nombreCuenta=()=>{try{return JSON.parse(sessionStorage.getItem('fuga:cuenta')||'null')?.nombre||'';}catch{return '';}};const horaVista=ref(''),quienVista=ref(null);// (las puertas de las viviendas: las de la ronda del ladrón, o de policía todas trancadas)
 let persec=null,persecReloj=0,avisosVistos=0;const policiaVista=ref(null);
+// La carga (2026-11-19): antes eran ~20 s de pantalla negra. `carga.parte` va de 0 a 1 y `lista` la quita.
+const carga=ref({parte:0,etapa:'Trayendo la ciudad…',lista:false});
+const rinde=ref(null);let rindeN=0,rindeT=0,rindeLlamadas=0,rindeTris=0,rindePeor=0;
 const accionTexto=ref(''),accionAlterna=ref(''),aiming=ref(false),hitMark=ref(0),host=ref(null),mini=ref(null),locked=ref(false),sinCaptura=ref(false),night=ref(false),showMap=ref(true),place=ref(''),drone=ref(false),lugar=ref(null);let niebla=null;
 // Modo dron: la cámara vuela libre (sin choques) y el jugador se queda donde estaba, marcado desde arriba.
 const DRONE_SPEED=22,DRONE_FAST=60,DRONE_MIN=-320,DRONE_MAX=260;
-const dronePos={x:0,y:0,z:0};let marker;
-// Tercera persona (2026-10-14, T alterna): el jugador es un muñeco del vestier (una plantilla de la gente) y la cámara va
-// detrás, a CAM_DIST, mirando hacia donde apunta el mouse. Si una pared queda entre la cámara y el muñeco, la cámara se
-// acerca; bajo techo no sube más que CAM_ROOF sobre los pies.
-// Dos vistas, como un shooter (Miguel, 2026-10-15): detrás del muñeco (Fortnite, la de por defecto) y primera persona
-// (Call of Duty). La vista desde arriba con los edificios cortados (cutaway3d.js) se retiró: daba muchas complicaciones
-// —muebles flotando, medianeras, el techo—; su código sigue en thirdPerson pero no se entra (VIEWS no la tiene) y el
-// corte no se crea. T y F alternan detrás ⇄ primera.
-// (2026-10-18, Miguel: «que por defecto sea la vista cenital que tenemos»: 'arriba' de entrada; T la cambia por la de
-// detrás y F por la primera persona)
-const VIEWS=['arriba','tercera','primera'],view=ref(VIEWS.includes(route.query.vista)?route.query.vista:'arriba'),third={get value(){return view.value!=='primera';}};
-const ARRIBA_ADENTRO=true;let enArriba=false,cambioT=9;
-const TOP_DIST=8,TOP_PITCH=-.95,CUT_H=2.55,STUB=.8,CUT_T=.3;let aclarado=null,aclPrev=null,acciones=null,accionCerca=null,accionReloj=0,cut=null,cutA=0,lastBox=null,lastShared=null,lastFeet=0,topTurn=null,topZoom=8,topZoomAfuera=15,zoomAdentro=false,topDist=8;
-// ORIENTAR (2026-10-16, Miguel: «girar la cámara mientras camino se siente incómodo»): 'camara' —el cuerpo mira hacia la
-// cámara y se desplaza de costado, como en Fortnite— o 'movimiento' —el cuerpo gira hacia donde camina: con A/D y la cámara
-// girando, daba vueltas alrededor de ella—.
-// (2026-10-18, Miguel: «que donde mueva las direcciones gire el muñeco, no que se vaya de espaldas»: 'movimiento')
-const ORIENTAR='movimiento';
-const CAM_NEAR_CERCA=.05,CAM_DIST=4,CAM_HEAD=1.75,CAM_LIFT=.55,CAM_ROOF=2.3,CAM_CAMBIO=.5,CAM_ALARGA=3,CAM_ACORTA=8,CAM_SOSTEN=.25;let camWay=0,camWayT=0,camDistS=CAM_DIST,camHeadY=null,camPosY=null;let avatar=null,avatarYaw=0;
+const dronePos={x:0,y:0,z:0};let marker,cerradoAlPasear=null,lejosPlantas=0;// (cada 0,3 s, la versión de lejos de las plantas)// (lo de adentro de las viviendas cerradas, para devolverlo al aterrizar)
+// SÓLO PRIMERA PERSONA (2026-11-22, Miguel: «para este estilo de juego es mejor primera persona: quita lo de la cámara y lo
+// que corta el edificio en capas»). Se quitaron la vista de atrás del muñeco, la de arriba con el edificio cortado por
+// pisos (cutaway3d.js), el aclarado de paredes y sus teclas (T, F, la rueda). El dron —V, volar— sigue: es la misma
+// primera persona en el aire. (Las vistas estuvieron del 2026-10-14 al 2026-11-22; su código, en la historia de git.)
+const view=ref('primera'),third={value:false};
+let acciones=null,accionCerca=null,accionReloj=0;
+let avatar=null,avatarYaw=0;
 // Ascensor: el aviso mientras se está en una cabina, y el fundido a negro al cambiar de piso.
 const lift=ref(null),fading=ref(false);let lifting=false;
 function ride(d){const at=world.elevatorAt(player.x,player.z,player.feet);if(!at||lifting)return;const to=at.floor+d;if(to<0||to>=at.floors)return;
@@ -127,7 +140,9 @@ function ride(d){const at=world.elevatorAt(player.x,player.z,player.feet);if(!at
 // La ciudad limpia (2026-10-15, decisión de Miguel): sin gente ni árboles mientras la ciudad se define con cálculos; el
 // muñeco del jugador sí.
 const CIUDAD_LIMPIA=true;
-const tiempos={};let planoVista=null,shadowTick=0,animalKit=null,animals=null,casas=null,viviendas=null,barrios=null,edgePass=null,renderer,composer,bloom,scene,camera,controls,world,crowd,traffic,island,folk,city,plan=null,streetLights=[],lightClock=0,sky,stars,sun,hemi,frame=0,last=0,baseMap=null,mapOff={x:0,y:0};
+const INERCIA={arranca:14,frena:18};// (1/s: qué tan rápido la velocidad del jugador alcanza a la que piden las teclas)
+const SIN_ANIMAR=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+const tiempos={};let mapaPint=null,grafitis=null,planoVista=null,shadowTick=0,animalKit=null,animals=null,casas=null,viviendas=null,barrios=null,edgePass=null,renderer,composer,bloom,scene,camera,controls,world,crowd,traffic,island,folk,city,plan=null,streetLights=[],lightClock=0,sky,stars,sun,hemi,frame=0,last=0,baseMap=null,mapOff={x:0,y:0};
 // (esJugador: las puertas no se le abren solas —2026-10-18, Miguel: «que toque abrir y cerrar con E»—; a la gente, sí)
 const keys=new Set(),player={x:0,z:0,feet:0,vy:0,ground:true,bob:0,esJugador:true};
 const euler=new THREE.Euler(0,0,0,'YXZ');
@@ -135,11 +150,20 @@ const euler=new THREE.Euler(0,0,0,'YXZ');
 // Cielo: un domo con degradé y el sol (o la luna); no lo toca la niebla.
 function makeSky(){
  const m=new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,fog:false,
-  uniforms:{top:{value:new THREE.Color()},horizon:{value:new THREE.Color()},bottom:{value:new THREE.Color()},sunDir:{value:new THREE.Vector3()},sunColor:{value:new THREE.Color()}},
+  uniforms:{top:{value:new THREE.Color()},horizon:{value:new THREE.Color()},bottom:{value:new THREE.Color()},sunDir:{value:new THREE.Vector3()},sunColor:{value:new THREE.Color()},cloudColor:{value:new THREE.Color()},cloud:{value:.5},time:{value:0}},
   vertexShader:'varying vec3 vDir;void main(){vDir=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
-  fragmentShader:`uniform vec3 top,horizon,bottom,sunColor;uniform vec3 sunDir;varying vec3 vDir;
+  // Las nubes (2026-11-19): ruido en un techo plano que se corre despacio con el viento. Se desvanecen hacia el
+  // horizonte (donde se estirarían) y toman el color de la hora: blancas de día, naranjas al atardecer, casi negras de noche.
+  fragmentShader:`uniform vec3 top,horizon,bottom,sunColor,cloudColor;uniform vec3 sunDir;uniform float cloud,time;varying vec3 vDir;
+   float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+   float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}
+   float fbm(vec2 p){float a=.5,v=0.0;for(int i=0;i<4;i++){v+=a*noise(p);p=p*2.03+vec2(17.0,9.0);a*=.5;}return v;}
    void main(){vec3 d=normalize(vDir);float h=d.y;vec3 c=h>0.0?mix(horizon,top,pow(h,.55)):mix(horizon,bottom,pow(-h,.35));
-    float s=max(dot(d,normalize(sunDir)),0.0);c+=sunColor*(pow(s,900.0)*3.0+pow(s,10.0)*.18);gl_FragColor=vec4(c,1.0);
+    float s=max(dot(d,normalize(sunDir)),0.0);c+=sunColor*(pow(s,900.0)*3.0+pow(s,10.0)*.18);
+    if(h>.02&&cloud>0.0){vec2 uv=d.xz/(h+.12)*1.15+vec2(time*.006,time*.0025);float n=fbm(uv)+.35*fbm(uv*2.7+3.0);
+     float k=smoothstep(.78-.3*cloud,1.08-.3*cloud,n)*smoothstep(.02,.22,h);
+     c=mix(c,cloudColor+sunColor*pow(s,6.0)*.25,k*.85);}
+    gl_FragColor=vec4(c,1.0);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
    }`});
@@ -151,27 +175,54 @@ function makeStars(){
  return new THREE.Points(g,new THREE.PointsMaterial({color:0xffffff,size:1.6,sizeAttenuation:false,fog:false,transparent:true,opacity:.8}));
 }
 
-function applyLight(){
- const n=night.value,u=sky.material.uniforms;
- const dir=n?new THREE.Vector3(-.45,.6,-.5):new THREE.Vector3(.55,.72,.38);dir.normalize();
- // De noche el horizonte guarda el resplandor anaranjado de la ciudad.
- u.top.value.set(n?'#03050b':'#4f88c6');u.horizon.value.set(n?'#33293a':'#d4e3ec');u.bottom.value.set(n?'#141a2a':'#9fbfd8');
- u.sunDir.value.copy(dir);u.sunColor.value.set(n?'#9fb0d0':'#fff2d6');
+// LA LUZ (2026-11-19). Antes el día y la noche eran dos estados y el cambio, un salto. Ahora son paletas que se mezclan:
+// `luz.n` va de 0 (día) a 1 (noche) y `luz.w` de 0 a 1 es el atardecer o el amanecer (sol bajo y naranja, sombras
+// largas). applyLight() fija a dónde hay que llegar y el bucle (pasoLuz) va hacia ahí en un par de segundos.
+const PAL={
+ dia:{top:'#3f7fc9',horizon:'#cfe2ee',bottom:'#9fbfd8',sunSky:'#fff2d6',cloud:'#ffffff',fog:'#cad9e2',sun:'#fff1dc',sunI:2.6,hemi:'#e3eef8',ground:'#8a8170',hemiI:1.25,exp:1,dir:[.55,.72,.38],nubes:.5},
+ tarde:{top:'#3d5fa8',horizon:'#f7b98a',bottom:'#d2a08c',sunSky:'#ffc27a',cloud:'#ffd2a8',fog:'#e9c7a8',sun:'#ffbf85',sunI:2.3,hemi:'#ecd9cf',ground:'#8a705c',hemiI:1.05,exp:1.02,dir:[.78,.3,.46],nubes:.6},
+ noche:{top:'#03050b',horizon:'#33293a',bottom:'#141a2a',sunSky:'#9fb0d0',cloud:'#1b2030',fog:'#1c1f2c',sun:'#8ea6e0',sunI:.35,hemi:'#4a5a7a',ground:'#1a1410',hemiI:.3,exp:1.05,dir:[-.45,.6,-.5],nubes:.35}};
+for(const P of Object.values(PAL)){for(const k of ['top','horizon','bottom','sunSky','cloud','fog','sun','hemi','ground'])P[k]=new THREE.Color(P[k]);P.dir=new THREE.Vector3(...P.dir).normalize();}
+const luz={n:0,w:0,tn:0,tw:0,aplicada:null,lista:false},cA=new THREE.Color(),vA=new THREE.Vector3();
+const mezcla=(k,out)=>out.copy(PAL.dia[k]).lerp(PAL.tarde[k],luz.w).lerp(PAL.noche[k],luz.n),num=k=>(PAL.dia[k]+(PAL.tarde[k]-PAL.dia[k])*luz.w)*(1-luz.n)+PAL.noche[k]*luz.n;
+function pintarLuz(){
+ const n=luz.n,u=sky.material.uniforms,lerp=(a,b)=>a+(b-a)*n;
+ mezcla('top',u.top.value);mezcla('horizon',u.horizon.value);mezcla('bottom',u.bottom.value);mezcla('sunSky',u.sunColor.value);mezcla('cloud',u.cloudColor.value);u.cloud.value=num('nubes');
+ const dir=(sun.userData.dir||(sun.userData.dir=new THREE.Vector3())).copy(mezcla('dir',vA)).normalize();u.sunDir.value.copy(dir);
  // Desde el dron se ve lejos: la niebla se corre para que entre la ciudad entera.
- scene.fog.color.set(n?'#1c1f2c':'#cad9e2');scene.fog.near=drone.value?(n?80:150):(n?22:45);scene.fog.far=drone.value?(n?480:720):(n?170:240);
- sun.color.set(n?'#8ea6e0':'#fff1dc');sun.intensity=n?.35:2.6;sun.userData.dir=dir;
- hemi.color.set(n?'#4a5a7a':'#e3eef8');hemi.groundColor.set(n?'#1a1410':'#8a8170');hemi.intensity=n?.3:1.25;
- renderer.toneMappingExposure=n?1.05:1;stars.visible=n;world?.setNight(n);traffic?.setNight(n);island?.setNight(n);barrios?.setNight(n);viviendas?.setNight(n);
- // El brillo (bloom) y las luces de los postes cercanos, sólo de noche: de día no se ven y cuestan.
- bloom.enabled=n;for(const l of streetLights)l.visible=n;
+ mezcla('fog',scene.fog.color);scene.fog.near=drone.value?lerp(150,80):lerp(45,22);scene.fog.far=drone.value?lerp(720,480):lerp(240,170);
+ mezcla('sun',sun.color);sun.intensity=num('sunI');mezcla('hemi',hemi.color);mezcla('ground',hemi.groundColor);hemi.intensity=num('hemiI');
+ renderer.toneMappingExposure=num('exp');stars.visible=n>.02;stars.material.opacity=.8*n;
+ // El brillo (bloom) entra de a poco con la noche: de día no se ve y cuesta.
+ bloom.enabled=n>.02;bloom.strength=.55*n;
+ // Lo que es de un estado o del otro (ventanas encendidas, faros, postes) cambia a mitad de camino.
+ const noche=n>.5;if(noche!==luz.aplicada){luz.aplicada=noche;world?.setNight(noche);traffic?.setNight(noche);island?.setNight(noche);barrios?.setNight(noche);viviendas?.setNight(noche);for(const l of streetLights)l.visible=noche;}
 }
+// ya=true: sin transición (la primera vez, las pruebas de pantalla y quien pide menos movimiento).
+function applyLight(ya=false){
+ luz.tn=night.value?1:0;if(ya||!luz.lista||SIN_ANIMAR){luz.n=luz.tn;luz.w=luz.tw;luz.lista=true;}
+ luz.aplicada=null;pintarLuz();// (aplicada=null: una ciudad recién armada también recibe su noche)
+}
+function pasoLuz(dt,t){
+ sky.material.uniforms.time.value=t/1000;
+ if(Math.abs(luz.tn-luz.n)<.002&&Math.abs(luz.tw-luz.w)<.002)return;
+ const k=1-Math.exp(-dt*1.8);luz.n+=(luz.tn-luz.n)*k;luz.w+=(luz.tw-luz.w)*k;
+ if(Math.abs(luz.tn-luz.n)<.002)luz.n=luz.tn;if(Math.abs(luz.tw-luz.w)<.002)luz.w=luz.tw;
+ pintarLuz();
+}
+// Cuánto atardecer o amanecer hay a esta hora: sube desde las 16:30 hasta las 18:30 y baja de 6 a 7:30.
+const calidez=h=>h>=6&&h<7.5?1-(h-6)/1.5:h>=16.5&&h<19?Math.min(1,(h-16.5)/2):h<6||h>=19?1:0;
 
 function load(ready=null){
  const L0=performance.now();let Lp=L0;const lap=n=>{const t=performance.now();(tiempos.mundo||(tiempos.mundo={}))[n]=Math.round(t-Lp);Lp=t;};
  shooting?.clear();if(world){scene.remove(world.group);world.dispose();barrios?.dispose();casas?.dispose();viviendas?.dispose();crowd.dispose();traffic.dispose();island.dispose();folk.dispose();planoVista?.dispose();indoor?.dispose();patrol?.dispose();animals?.dispose();}
  persec?.dispose();persec=null;finVista.value=null;presoVista.value=null;patrullas=null;velocidad.value=null;menuAbierto.value=false;menuDatos.value=null;retratoLadron=null;titulares=[];ropaMochila=[];censoMenu=null;marcaPlano=null;cerraduras=null;soc?.dispose();soc=null;cierres=null;horaVista.value='';quienVista.value=null;nocheAuto=null;policiaVista.value=null;avisosVistos=0;
  // La ciudad del plano por etapas (/generador): el 3D dibuja sus edificios tal cual.
- const want={seed:seed.value,team:team.value,parks};plan=ready&&ready.seed===want.seed&&ready.team===want.team?ready:generateBlueprint(want);city=plan.map;lap('plano');let vs=7;const vr=()=>((vs=(vs*9301+49297)%233280)/233280);
+ const want={seed:seed.value,team:team.value,parks};plan=ready&&ready.seed===want.seed&&ready.team===want.team?ready:generateBlueprint(want);
+ // (2026-11-21, Miguel: la ciudad se muestra como se vende, con las viviendas vacías —engine/entrega.js—: sólo el baño y
+ // la cocina. El juego viejo y sus pruebas siguen con todo amueblado)
+ if(PASEO&&!plan.entrega)plan=entregaDe(plan);
+ city=plan.map;lap('plano');let vs=7;const vr=()=>((vs=(vs*9301+49297)%233280)/233280);
  // (prueba: el plano con sólo sus lotes —renumerados: el 3D supone que el número de cada lote es su lugar en la lista—, y
  // nada dibujado a más de 2 casillas de ellos)
  let vacio=null;
@@ -190,9 +241,12 @@ function load(ready=null){
  barrios=createBarrios(PRUEBA?{...plan,isla:{...plan.isla,barrios:[]}}:plan,{downtown,nature,furniture:furniture||office?{...(furniture||{}),...(office||{})}:null,ocultar:island.rampaEn,mobiliario:!plan.equipamiento});world.group.add(barrios.group);lap('barrios');
  // La gente de la isla rodea los edificios de los barrios (y los árboles y faroles de sus jardines).
  // Las casas de las manzanas de la montaña, con su jardín.
+ // (los grafitis guardados en el plano —'fuga.grafitis', engine/grafiti.js—: cada uno, en su paño de muro)
+ // (2026-11-21: vienen de la base —lib/pinturaGuardada.js—, conciliados con las paredes de este plano; llegan cuando llegan)
+ grafitis?.dispose();grafitis=null;{const s0=seed.value,t0=team.value,W=world;sincronizar(s0,t0,paredesDeLaCiudad(plan)).then(r=>{if(world!==W||seed.value!==s0||team.value!==t0)return;grafitis?.dispose();if(grafitis)W.group.remove(grafitis.group);grafitis=createGrafitis(plan,r.vigentes);W.group.add(grafitis.group);});}
  casas=createCasas(PRUEBA?{...plan,isla:{...plan.isla,casas:[]}}:plan,{nature,nature2,rampaEn:island.rampaEn});world.group.add(casas.group);lap('casas');
  // Las casas armadas (vivienda3d.js): se entra, se sube y se ve por las ventanas.
- viviendas=createHouses((PRUEBA?[]:plan.isla?.casas||[]).filter(c=>c.spec).map(c=>({spec:c.colores||c.cortinas?{...c.spec,...(c.colores?{colores2d:c.colores}:{}),...(c.cortinas?{cortinas2d:c.cortinas}:{})}:c.spec,x:c.x,y:c.nivel,z:c.z,ry:c.ry})),{kit:furniture||casa2?{...(furniture||{}),...(casa2||{}),...(tienda||{})}:null});world.group.add(viviendas.group);lap('viviendas');
+ viviendas=createHouses((PRUEBA?[]:plan.isla?.casas||[]).filter(c=>c.spec).map(c=>PASEO?{...c,spec:entregaCasa(c.spec)}:c).map(c=>({spec:c.colores||c.cortinas?{...c.spec,...(c.colores?{colores2d:c.colores}:{}),...(c.cortinas?{cortinas2d:c.cortinas}:{})}:c.spec,x:c.x,y:c.nivel,z:c.z,ry:c.ry})),{kit:furniture||casa2?{...(furniture||{}),...(casa2||{}),...(tienda||{})}:null});world.group.add(viviendas.group);lap('viviendas');
  // (lo que queda entero detrás de la niebla no se dibuja: las casas del monte, por baldosas —niebla3d.js—)
  niebla=crearNiebla([viviendas.group]);// (el plano se suma al dibujarlo, más abajo)
  // La vegetación y el equipamiento del plano, por el contrato del 2D con el 3D (src/engine/contrato3d.js): cada cosa en
@@ -229,24 +283,32 @@ function load(ready=null){
  patrol=createCitizens(world,{count:!CIUDAD_LIMPIA&&policeTemplates.length?4+team.value*2:0,seed:seed.value+101,templates:policeTemplates,home:world.station?.doors||null,homeBias:.25,startHome:.5,speed:[1.05,1.3],seats:world.benchSeats});world.group.add(patrol.group);lap('patrulla');
  scene.add(world.group);
  makeAvatar();lap('muñeco');muñecoDelPerfil();
- patrullas=createPatrullas({scene:world.group,plan,models:carModels,equipo:team.value,suelo:(x,z,y)=>groundHere(x,z,y??0),bloquea:bloqueaAuto,gente:()=>[...(soc?.personas()||[]),...patrol.positions(),...folk.positions(),...(persec?.P?.agentes.filter(a=>!a.humano&&a.estado==='libre')||[])]});lap('patrullas');
- if(cut){patchCut();for(const t of [...characters,...policeTemplates])cut.patchTree(t.scene);lap('corte');}
+ patrullas=PASEO?null:createPatrullas({scene:world.group,plan,models:carModels,equipo:team.value,suelo:(x,z,y)=>groundHere(x,z,y??0),bloquea:bloqueaAuto,gente:()=>[...(soc?.personas()||[]),...patrol.positions(),...folk.positions(),...(persec?.P?.agentes.filter(a=>!a.humano&&a.estado==='libre')||[])]});lap('patrullas');
  // (las paredes que se aclaran: los edificios y las casas, no la gente ni los autos)
  // (la casa del 3D y la del plano: el 3D sólo arma las que tienen plano de casa; la ronda cuenta en las del plano)
  const conPlano=(plan.isla?.casas||[]).map((c,i)=>c.spec?i:-1).filter(i=>i>=0);
- acciones=createAcciones({plan,world,player,avatar:()=>avatar,viviendas:()=>viviendas,ronda:()=>ronda,enRonda:usarRonda,casaPlan:i=>conPlano[i]});accionTexto.value='';
- ronda=null;rondaVista.value=null;if(!PRUEBA)setTimeout(()=>POLICIA?armarPolicia(conPlano):armarRonda(conPlano),400);// (después de mostrar el mundo: elegir las guaridas toma unos segundos)
- // (2026-10-18, Miguel: «quita el efecto que oculta paredes»: sin aclarado —createAclarado({max:VISIBILIDAD.maximo}) lo
- // volvía a poner— ni muñón de las paredes del lado de la cámara en la vista de arriba)
- aclarado=null;aclPrev=null;
+ acciones=createAcciones({plan,world,player,avatar:()=>avatar,viviendas:()=>viviendas,ronda:()=>ronda,enRonda:usarRonda,casaPlan:i=>conPlano[i],usosRonda:(...a)=>usosRonda(...a)});accionTexto.value='';
+ // (2026-11-22: en el paseo, toda vivienda está cerrada hasta que se compre —engine/propiedad.js—: su puerta trancada y lo
+ // de adentro sin armar)
+ if(PASEO&&!PRUEBA){const R=cerradurasDe(plan);trancar(R,conPlano);cerradoAlPasear=adentroCerrado(plan,R);world.setCerrados?.(cerradoAlPasear);}
+ ronda=null;rondaVista.value=null;if(!PRUEBA&&!PASEO)setTimeout(()=>POLICIA?armarPolicia(conPlano):armarRonda(conPlano),400);// (después de mostrar el mundo: elegir las guaridas toma unos segundos)
  // (compilar los shaders ya, en paralelo, en vez de a la primera vez que cada cosa aparece en cámara: eso eran los tirones
  // al girar o al entrar a un edificio)
+ // (2026-11-22, Miguel: «al entrar al 3D sigo teniendo un flash de cambio de color»: el blanco del boceto se ponía recién en
+ // el bucle, después de compilar con los materiales de color, y los primeros cuadros salían con color. Ahora se pone acá,
+ // antes de compilar: lo que se compila y lo primero que se ve ya es blanco)
+ if(EN_BOCETO){boceto||(boceto=createBoceto());boceto.aplicar(world.group);}
  renderer.compileAsync?.(scene,camera).catch(()=>{}).then(()=>setTimeout(()=>shooting?.warm().catch(()=>{}),300));
+ // (en la ciudad sola se aparece donde dice el plano —engine/aparecer.js—: el sitio del andén con menos gente. Todavía no
+ // hay gente de verdad, así que es el más cercano al centro; cuando la haya, se le pasa acá)
+ if(PASEO&&!PRUEBA){const a=aparecerEn(plan,[],{sitios:sitiosDe(plan)});if(a.ok)world.spawn={...world.spawn,x:a.x,z:a.z};}
  Object.assign(player,{x:world.spawn.x,z:world.spawn.z,feet:world.groundAt(world.spawn.x,world.spawn.z),vy:0});
+ // (?pintables=1: sobre las fachadas cercanas, blanco lo que se pinta y gris lo que no —lib/grafitis3d.js—)
+ mapaPint?.dispose();mapaPint=null;if(route.query.pintables!=null){mapaPint=createMapaPintable(plan,{x:player.x,z:player.z,radio:+route.query.pintables>1?+route.query.pintables:90});world.group.add(mapaPint.group);}
  if(PRUEBA){const L=plan.lots[0],d=L?.levels?.[0]?.doors?.find(d=>d.street);
   if(d){const mx=(d.x0+d.x1)/2,mz=(d.y0+d.y1)/2,h=Math.abs(d.y1-d.y0)<1e-6,adentro=L.parts.some(p=>(h?mx:mx+.5)>p.x&&(h?mx:mx+.5)<p.x+p.w&&(h?mz+.5:mz)>p.y&&(h?mz+.5:mz)<p.y+p.h),s=adentro?-1:1,
    ox=h?0:s,oz=h?s:0;world.spawn={x:mx+ox*2.5,z:mz+oz*2.5,yaw:Math.atan2(ox,oz)};Object.assign(player,{x:world.spawn.x,z:world.spawn.z,feet:world.groundAt(world.spawn.x,world.spawn.z)});}}
- euler.set(view.value==='arriba'?TOP_PITCH:-.05,world.spawn.yaw,0);camera.quaternion.setFromEuler(euler);syncTop();cutA=0;lastBox=null;
+ euler.set(-.05,world.spawn.yaw,0);camera.quaternion.setFromEuler(euler);
  if(drone.value){Object.assign(dronePos,{x:world.spawn.x,y:30,z:world.spawn.z});euler.x=-.6;camera.quaternion.setFromEuler(euler);}
  world.setNight(night.value);traffic.setNight(night.value);island.setNight(night.value);barrios.setNight(night.value);viviendas.setNight(night.value);lightClock=0;
  // El minimapa: el mundo entero del plano (la isla, el monte con sus carreteras y casas, y la ciudad), el mismo de
@@ -254,15 +316,7 @@ function load(ready=null){
  baseMap=document.createElement('canvas');const o=drawWorldStage(baseMap,plan,{cell:MAP_CELL,stage:3,fronts:false});mapOff={x:o.x0,y:o.y0};
  router.replace({query:{...route.query,jugadores:team.value,ciudad:seed.value}});
 }
-// El corte en todo lo que hay: edificios (con canto) y la gente, autos y animales (sin canto). Hay piezas que se arman
-// después (instancias que aparecen al acercarse, la gente de adentro): se vuelve a pasar una vez por segundo; lo ya
-// parcheado se saltea.
-function patchCut(){if(!cut||!world)return;const people=[crowd,traffic,folk,animals,indoor,patrol].filter(Boolean).map(g=>g.group);
- // (las fachadas primero: cortadas por arriba, pero sin bajar a muñón las del lado de la cámara)
- if(world.buildings?.group)cut.patchTree(world.buildings.group,[],{building:true,fachada:true});
- cut.patchTree(world.group,[island.group,...people],{building:true});for(const g of people)cut.patchTree(g);}
 // (la cámara de arriba toma el ángulo fijo más cercano a hacia donde mira)
-function syncTop(){topTurn=null;}
 // ---------- La ronda jugable (REGLAS.md, paso 1: el ladrón) ----------
 // Sus guaridas con su caja dibujada (un baúl), lo que se roba en el mundo con su precio, y el panel de arriba.
 function armarRonda(conPlano){if(!plan||!world)return;ronda=crearRonda(plan,{equipo:team.value,ronda:0});trancar(ronda,conPlano);
@@ -394,7 +448,7 @@ function pasoCierres(ya,dt=0){if(!cierres||!soc)return;if(!ya&&(cierresReloj-=dt
  cierres.puertas=cierres.todas.filter(p=>p.lote!==aqui&&!abierto(soc.S,p.lugar,t));
  horaVista.value=horaTexto(t);
  // (la noche: de 19 a 6; sólo cuando cambia, así N la sigue cambiando a mano)
- const h=(t%RELOJ.dia)/3600,n=h<6||h>=19;if(n!==nocheAuto){nocheAuto=n;if(night.value!==n){night.value=n;applyLight();}}}
+ const h=(t%RELOJ.dia)/3600,n=h<6||h>=19;luz.tw=calidez(h);if(n!==nocheAuto){nocheAuto=n;if(night.value!==n){night.value=n;applyLight();}}}
 // (dónde choca una patrulla: lo mismo que el jugador, con el ancho del auto, y los autos del tránsito)
 const enAuto=(v,x,z,m)=>{const fx=Math.sin(v.yaw),fz=Math.cos(v.yaw),dx=x-v.x,dz=z-v.z;return Math.abs(dx*fx+dz*fz)<v.len/2+m&&Math.abs(dx*fz-dz*fx)<v.wid/2+m;};
 const bloqueaAuto=(x,z,y)=>{const R=PATRULLA.radio;return world.collide(x,z,R,true,y)||!!world.dentro?.(x,z,y+1)||!island.walkable(x,z,y)||barrios.collide(x,z,R,true,y)||viviendas.collide(x,z,R,true,y)||casas.collide(x,z,R)||trancadoEn(x,z,R,y)||traffic.positions().some(v=>enAuto(v,x,z,.2))||!!patrullas?.cars.some(c=>c!==patrullas.manejando&&enAuto(c,x,z,.2));};
@@ -554,7 +608,7 @@ function step(dt){
  // el uso más cercano y su tecla.
  const quiere=['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].some(k=>keys.has(k));
  if(acciones?.activa){acciones.update(dt,quiere);accionAlterna.value='';const m=acciones.mirada();accionTexto.value=acciones.fase==='quieto'?(acciones.accion==='asomarse'?'Volver':'Levantarse'):'';
-  if(m){ventana(dt,m);return;}if(asomo)dejarVentana();if(third.value)thirdPerson(dt,false);else fps.step(dt,false,0);return;}
+  if(m){ventana(dt,m);return;}if(asomo)dejarVentana();fps.step(dt,false,0);return;}
  if(asomo)dejarVentana();
  if(acciones&&(accionReloj-=dt)<=0){accionReloj=.15;quienVista.value=persec?.quien(player.x,player.z)||(q=>q&&cartelDe({aspecto:q.aspecto,identidad:q.identidad,documentado:!!persec?.documentado?.(q.id)}))(soc?.quien(player.x,player.z))||null;const pc0=persec?.cerca(),pt=POLICIA?patrullas?.cerca(player.x,player.z):null,pc=pc0&&(pt==null||pc0.accion==='atrapar'||pc0.accion==='papeles')?pc0:null;// (la patrulla gana, salvo atrapar o pedirle papeles a un ladrón)
   accionCerca=pc?{persec:pc,texto:pc.texto}:pt!=null?{patrulla:pt,texto:'Subir a la patrulla'}:pc0?{persec:pc0,texto:pc0.texto}:acciones.cerca();{const pu=puertaParaE();if(pu&&(!accionCerca||pu.d<.9&&!accionCerca.persec&&accionCerca.patrulla==null))accionCerca={puerta:pu.p,texto:pu.p.abierta?(pu.p.garaje?'Cerrar el garaje':'Cerrar la puerta'):(pu.p.garaje?'Abrir el garaje':'Abrir la puerta')};}
@@ -563,20 +617,29 @@ function step(dt){
  if(menuAbierto.value&&(menuReloj-=dt)<=0){menuReloj=.5;menuDatos.value=datosMenu();}
  pasoNoticias();
  // (cambiándose de ropa: quieto VESTIR_S s)
- if(performance.now()<vistiendo){accionTexto.value='Cambiándote de ropa…';if(third.value)thirdPerson(dt,false);else fps.step(dt,false,0);return;}
- if(persec?.quieto()){accionTexto.value=POLICIA?'Pidiendo papeles…':persec.quietoPorPapeles()?'La policía te pide los papeles…':'';if(third.value)thirdPerson(dt,false);else fps.step(dt,false,0);return;}
+ if(performance.now()<vistiendo){accionTexto.value='Cambiándote de ropa…';fps.step(dt,false,0);return;}
+ if(persec?.quieto()){accionTexto.value=POLICIA?'Pidiendo papeles…':persec.quietoPorPapeles()?'La policía te pide los papeles…':'';fps.step(dt,false,0);return;}
  const f=new THREE.Vector3();camera.getWorldDirection(f);f.y=0;f.normalize();const r=new THREE.Vector3(-f.z,0,f.x);
  const fw=(keys.has('KeyW')||keys.has('ArrowUp')?1:0)-(keys.has('KeyS')||keys.has('ArrowDown')?1:0);
  const st=(keys.has('KeyD')||keys.has('ArrowRight')?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')?1:0);
- // (hacia dónde mira el cuerpo en tercera persona, ORIENTAR='camara': hacia la cámara, como en Fortnite; de costado o en
- // diagonal gira como mucho 45° hacia donde va, y para atrás camina de espaldas sin darse vuelta)
+ // (hacia dónde mira el cuerpo: hacia la cámara; de costado o en diagonal gira como mucho 45° hacia donde va, y para atrás
+ // camina de espaldas sin darse vuelta)
  {const cam=Math.atan2(f.x,f.z),rel=Math.atan2(st,fw);player.face=fw<0?cam:cam-Math.max(-Math.PI/4,Math.min(Math.PI/4,rel));}
- const move=f.multiplyScalar(fw).add(r.multiplyScalar(st)),moving=move.lengthSq()>0;
+ // EL ARRANQUE Y LA FRENADA (2026-11-19): antes la velocidad era todo o nada —de quieto a 5,2 m/s en un cuadro, y al
+ // soltar la tecla, clavado—. Ahora la velocidad va hacia la que piden las teclas (INERCIA: llega al 95 % en ~0,2 s
+ // al arrancar y frena un poco más rápido), así que arrancar, frenar y cambiar de rumbo se ven como un movimiento. Con
+ // «menos movimiento» pedido en el sistema, queda como antes.
+ const want=f.multiplyScalar(fw).add(r.multiplyScalar(st)),pide=want.lengthSq()>0,corre=keys.has('ShiftLeft')||keys.has('ShiftRight');
+ if(pide)want.normalize().multiplyScalar(corre?RUN:WALK);
+ {const k=SIN_ANIMAR?1:1-Math.exp(-dt*(pide?INERCIA.arranca:INERCIA.frena));player.vx=(player.vx||0)+(want.x-(player.vx||0))*k;player.vz=(player.vz||0)+(want.z-(player.vz||0))*k;}
+ const rapidez=Math.hypot(player.vx,player.vz),moving=rapidez>.35;if(!pide&&!moving)player.vx=player.vz=0;
+ player.rapidez=moving?rapidez:0;
  if(moving){
-  const speed=keys.has('ShiftLeft')||keys.has('ShiftRight')?RUN:WALK;move.normalize().multiplyScalar(speed*dt);
-  player.dir=Math.atan2(move.x,move.z);player.run=speed>WALK;
-  caminar(move.x,move.z);
-  if(player.ground)player.bob+=dt*(speed>WALK?11:8);
+  player.dir=Math.atan2(player.vx,player.vz);player.run=rapidez>(WALK+RUN)/2;// (corre desde la mitad del camino entre las dos: el muñeco no cambia de paso con cada cuadro)
+  const x0=player.x,z0=player.z;caminar(player.vx*dt,player.vz*dt);
+  // (contra una pared la velocidad se pierde: si no, al despegarse saldría disparado)
+  {const hecho=Math.hypot(player.x-x0,player.z-z0)/(rapidez*dt||1);if(hecho<.5){player.vx*=hecho+.5;player.vz*=hecho+.5;}}
+  if(player.ground)player.bob+=dt*(player.run?11:8)*Math.min(1,rapidez/(player.run?RUN:WALK));
  }
  // Un vehículo que lo alcanza lo empuja hacia afuera (sin meterlo en una pared: las de la ciudad, las casas y los barrios).
  const out=player.feet>1?player:traffic.pushOut(player.x,player.z,RADIUS);if((out.x!==player.x||out.z!==player.z)&&!enPared(out.x,out.z)){player.x=out.x;player.z=out.z;}
@@ -590,158 +653,10 @@ function step(dt){
   // el golpe: lo que cayó desde lo más alto del salto (no al bajar del dron ni al salir del ascensor)
   const h=(player.caidaDesde??g)-g;if(!player.sinDano&&!lifting)golpe(danoDeCaida(h),h);player.caidaDesde=null;player.sinDano=false;}
  if(player.feet<=g){player.feet=player.ground&&g>player.feet?player.feet+(g-player.feet)*Math.min(1,dt*18):g;player.feet=Math.max(player.feet,g-.0001);player.vy=0;player.ground=true;}
- if(third.value)thirdPerson(dt,moving);else{fadeTo=1;fadeAvatar(1);fps.step(dt,moving,landed);cut?.set(false);cut?.look(false);aclarado?.set([]);aclPrev=null;}
+ fadeTo=1;fadeAvatar(1);fps.step(dt,moving,landed);
  actualizarVisibles();
  followCamera();
 }
-// El muñeco donde está el jugador, girando de a poco hacia donde camina, y la cámara detrás.
-// El edificio donde está el muñeco, en planta: desde sus pies se recorre (de a medio metro, hasta 70 m) todo lo techado
-// conectado a esa altura; su rectángulo, con medio metro de más para las paredes, es lo único que se corta. Se rehace
-// sólo al cambiar de piso o al salir del rectángulo.
-let cutBox=null;
-function buildingBox(){
- // (en la ciudad, el lote exacto: sus casillas en planta)
- for(const [,L] of world.lots||[])if(L.cells?.some(c=>player.x>=c[0]&&player.x<=c[2]&&player.z>=c[1]&&player.z<=c[3])){
-  const b=[Infinity,Infinity,-Infinity,-Infinity];for(const c of L.cells){b[0]=Math.min(b[0],c[0]);b[1]=Math.min(b[1],c[1]);b[2]=Math.max(b[2],c[2]);b[3]=Math.max(b[3],c[3]);}
-  // (los lados pegados a otro lote: alguna casilla ajena toca ese borde)
-  const touch=(c,i)=>i===0?Math.abs(c[2]-b[0])<.01&&c[3]>b[1]&&c[1]<b[3]:i===1?Math.abs(c[3]-b[1])<.01&&c[2]>b[0]&&c[0]<b[2]:i===2?Math.abs(c[0]-b[2])<.01&&c[3]>b[1]&&c[1]<b[3]:Math.abs(c[1]-b[3])<.01&&c[2]>b[0]&&c[0]<b[2];
-  // (y hasta qué altura llega el vecino de ese lado —su azotea—: la medianera queda en pie sólo hasta ahí; 0, sin vecino)
-  const shared=[0,1,2,3].map(i=>Math.max(0,...[...world.lots].filter(([,o])=>o!==L&&o.cells?.some(c=>touch(c,i))).map(([,o])=>(o.raise||0)+(o.floors||0)*FLOOR)));
-  // (del lado de un vecino, el borde va justo en el límite del lote: la pared del vecino queda fuera y no se corta)
-  // (sólo si el vecino llega al menos a la altura de éste: si es más bajo, la fachada de este lado es del edificio —con
-  // ventanas— y se corta como las otras; antes quedaba entera, afuera de la caja)
-  const top=(L.raise||0)+(L.floors||0)*FLOOR,m=shared.map(v=>v>=top-.1?-.05:.4);
-  return {box:[b[0]-m[0],b[1]-m[1],b[2]+m[2],b[3]+m[3]],shared,feet:Math.round(player.feet*2)/2};}
- // (en una casa del monte —vivienda3d—, la casa entera: su rectángulo girado, con medio metro de alero; el recorrido de abajo
- // se quedaba en los cuartos conectados al del muñeco y el resto del piso de arriba no se cortaba —2026-10-18—)
- {const i=viviendas?.houseAt?.(player.x,player.z),h=i!=null?viviendas.houses[i]:null;
-  if(h){const xs=[],zs=[];for(const [a,b] of [[-1,-1],[1,-1],[1,1],[-1,1]]){const lx=a*h.hw,lz=b*h.hd;xs.push(h.x+lx*h.c+lz*h.s);zs.push(h.z-lx*h.s+lz*h.c);}
-   return {box:[Math.min(...xs),Math.min(...zs),Math.max(...xs),Math.max(...zs)],feet:Math.round(player.feet*2)/2};}}
- const y=player.feet+1,S=.5,M=140,seen=new Set(),q=[[0,0]],roof=(x,z)=>!!(world.dentro?.(x,z,y)||barrios.dentro(x,z,y)||viviendas.dentro(x,z,y));
- let x0=0,z0=0,x1=0,z1=0;seen.add('0,0');
- for(let h=0;h<q.length&&q.length<12000;h++){const [i,j]=q[h];for(const [di,dj] of [[1,0],[-1,0],[0,1],[0,-1]]){const a=i+di,b=j+dj,k=a+','+b;if(seen.has(k)||Math.abs(a)>M||Math.abs(b)>M)continue;seen.add(k);
-  // (no se cruzan paredes: a medio metro, el techado de dos edificios pegados se toca a través de la medianera)
-  const px=player.x+(i+di*.5)*S,pz=player.z+(j+dj*.5)*S,F=player.feet;if(!roof(player.x+a*S,player.z+b*S)||world.collide(px,pz,.26,false,F)||barrios.collide(px,pz,.26,false,F)||viviendas.collide(px,pz,.26,false,F))continue;q.push([a,b]);x0=Math.min(x0,a);x1=Math.max(x1,a);z0=Math.min(z0,b);z1=Math.max(z1,b);}}
- // (fuera de la ciudad las casas tienen alero: el techo sale hasta dos metros de las paredes)
- return {box:[player.x+x0*S-2.2,player.z+z0*S-2.2,player.x+x1*S+2.2,player.z+z1*S+2.2],feet:Math.round(player.feet*2)/2};}
-function cutBoxFor(){const f=Math.round(player.feet*2)/2,b=cutBox?.box;if(!cutBox||cutBox.feet!==f||player.x<b[0]||player.x>b[2]||player.z<b[1]||player.z>b[3])cutBox=buildingBox();return cutBox.box;}
-const insideAny=(x,z,y)=>!!(world.dentro?.(x,z,y)||barrios.dentro(x,z,y)||viviendas.dentro(x,z,y)||world.collide(x,z,.05,false,y-1.2));
-// El piso que muestra el corte (2026-10-18, Miguel: «que no se cargue de a poco cuando subo: pasada la mitad de la escalera
-// o del ascensor, todo el piso siguiente; lo mismo hacia abajo»): en un edificio de la ciudad, el piso más cercano a los
-// pies —de a FLOOR m desde su planta baja—; en otro lado, los pies.
-function pisoDelCorte(){const lot=world.lotAt(player.x,player.z),L=lot>=0?world.lots.get(lot):null;
- // (en una casa del monte —vivienda3d—: su planta baja o su planta alta, la que quede más cerca de los pies)
- if(!L){const i=viviendas?.houseAt?.(player.x,player.z),h=i!=null?viviendas.houses[i]:null;if(!h)return player.feet;const y0=h.y+(h.plan.FLOOR0||0),y1=h.plan.H1?h.y+h.plan.H1:null;
-  return y1!=null&&player.feet>(y0+y1)/2?y1:y0;}
- // (hasta la azotea —n = floors—: si no, en el techo se mostraba el último piso de adentro y el muñeco flotaba encima —2026-10-18—)
- const R=L.raise||0,n=Math.max(0,Math.min(L.floors??99,Math.round((player.feet-R)/FLOOR)));return R+n*FLOOR+.02;}
-function thirdPerson(dt,moving){
- if(avatar&&!acciones?.activa){const h=avatar.holder;h.visible=true;h.position.set(player.x,player.feet,player.z);
-  if(moving){const meta=ORIENTAR==='camara'?player.face:player.dir;let d=meta-avatarYaw;d=Math.atan2(Math.sin(d),Math.cos(d));avatarYaw+=d*Math.min(1,dt*12);}h.rotation.y=avatarYaw;
-  moveCharacter(avatar,moving?(player.run?'run':'walk'):'idle',moving?(player.run?RUN:WALK)/3.5:0,dt);}
- const roofed=world.dentro?.(player.x,player.z,player.feet+1)||barrios.dentro(player.x,player.z,player.feet+1)||viviendas.dentro(player.x,player.z,player.feet+1);
- // (arriba: adentro de un edificio o casa, sólo el piso del jugador; afuera, todo entero. La inclinación se lee de la
- // cámara misma, que la mueven el mouse capturado o el arrastre, y se acota)
- // (arriba, como Los Sims: la cámara en 4 ángulos fijos a 45° —el mouse o Q/E la pasan al siguiente, con un giro
- // suave— y la inclinación fija. Adentro de un edificio, sólo su piso y las paredes del lado de la cámara bajas; el corte
- // entra y sale en CUT_T segundos)
- // (2026-10-18, Miguel, con una captura de un juego así: «cuando entre a un edificio, que vea todo así»): adentro de un
- // edificio la vista de arriba se pone sola —la cámara sube en diagonal, sin techo ni pisos de arriba— y al salir vuelve
- // la de atrás; la inclinación pasa de una a otra en un momento, no de golpe.
- const arriba=view.value==='arriba'||ARRIBA_ADENTRO&&view.value==='tercera'&&(roofed||cutA>0);
- if(arriba!==enArriba){enArriba=arriba;cambioT=0;planoVista?.setArboles?.(!arriba);casas?.setArboles?.(!arriba);}cambioT+=dt;
- if(arriba){const g0=groundHere(player.x,player.z,-1e3);aclarado?.set([]);aclPrev=null;
-  if(cambioT<.8){euler.setFromQuaternion(camera.quaternion,'YXZ');euler.x+=(TOP_PITCH-euler.x)*Math.min(1,dt*8);camera.quaternion.setFromEuler(euler);}
-  if(roofed){lastBox=cutBoxFor();lastShared=cutBox?.shared;lastFeet=pisoDelCorte();}else cutBox=null;
-  cutA=Math.max(0,Math.min(1,cutA+(roofed?1:-1)*dt/CUT_T));const up=(1-cutA)*(1-cutA)*14,F=lastFeet;
-  // (en la escalera, el piso que se muestra puede quedar hasta medio piso arriba o abajo de los pies: el muñeco no se corta
-  // —sus materiales son suyos, sin el corte: makeAvatar— y, por debajo del piso que se muestra, no se corta lo de abajo:
-  // es el peldaño en que está)
-  const yCorte=F+CUT_H+up,yBajo=player.feet<F-.3?-1e9:F-.35;
-  cut?.set(cutA>0&&!!lastBox,player.x,player.z,yCorte,F>g0+1.5&&cutA>.99?yBajo:-1e9,lastBox,g0+.25,lastShared);
-  // (giro libre: el mouse capturado o el arrastre mueven la cámara a cualquier ángulo e inclinación —acotada—; Q/E giran
-  // 90° con un giro suave; la rueda acerca o aleja)
-  euler.setFromQuaternion(camera.quaternion,'YXZ');
-  if(topTurn){let d=topTurn.goal-euler.y;d=Math.atan2(Math.sin(d),Math.cos(d));if(Math.abs(d)<.01)topTurn=null;else euler.y+=d*Math.min(1,dt*8);}
-  // (2026-10-18, Miguel: «afuera, ¿podría mover toda la cámara aunque esté en la cenital?»: afuera la inclinación es libre
-  // —hasta un poco por encima del horizonte—; adentro vuelve, suave, a la de arriba: el corte la necesita)
-  if(roofed&&euler.x>-.45)euler.x+=(-.45-euler.x)*Math.min(1,dt*6);
-  euler.x=Math.max(-1.35,Math.min(roofed?-.3:.35,euler.x));euler.z=0;camera.quaternion.setFromEuler(euler);
-  // (2026-10-30, Miguel: «que la vista arranque más alejada»: afuera, 15 m —la calle y lo que rodea—; adentro, 8 —el piso
-  // cortado—. La rueda cambia la de donde se está; el paso de una a otra es suave)
-  zoomAdentro=!!roofed;const zoom=roofed?topZoom:topZoomAfuera;
-  topDist+=(zoom-topDist)*Math.min(1,dt*(cutA>0&&cutA<1?4:10));const TOP=topDist;
-  const f=new THREE.Vector3();camera.getWorldDirection(f);const head=new THREE.Vector3(player.x,player.feet+1,player.z);
-  // (si la cámara queda metida en OTRO edificio —los vecinos no se cortan—, se acerca; el propio no cuenta: está cortado)
-  const box=roofed?lastBox:null,own=(x,z)=>box&&x>=box[0]&&x<=box[2]&&z>=box[1]&&z<=box[3];
-  let dist=TOP;for(let s=1.5;s<=TOP;s+=.25){const q=head.clone().addScaledVector(f,-s);if(!own(q.x,q.z)&&insideAny(q.x,q.z,q.y)){dist=Math.max(roofed?4.5:1.5,s-.4);break;}}
-  camera.position.copy(head).addScaledVector(f,-dist);
-  // (mirando hacia arriba —afuera se puede—, la cámara no baja del suelo: queda a 40 cm de él como mínimo)
-  {const gc=groundHere(camera.position.x,camera.position.z,-1e3)+.4;if(camera.position.y<gc)camera.position.y=gc;}
-  cut?.front(new THREE.Vector2(-f.x,-f.z).normalize(),1e9);// (sin muñón: las paredes enteras hasta el corte)
-  // (sin «ver a través»: hacía un círculo alrededor del muñeco —2026-10-18, Miguel: «elimina el círculo»—; los árboles ya
-  // se ocultan todos en esta vista)
-  cut?.look(false);return;}
- cut?.set(false);
- if(cambioT<.8){euler.setFromQuaternion(camera.quaternion,'YXZ');if(euler.x<-.15){euler.x+=(-.12-euler.x)*Math.min(1,dt*8);camera.quaternion.setFromEuler(euler);}}
- // (la cabeza que sigue la cámara, con la altura suavizada —en la escalera los pies suben de a peldaño—; un salto de más de
- // un metro —el ascensor, aparecer— se toma de una)
- const hy=player.feet+CAM_HEAD;camHeadY=camHeadY==null||Math.abs(hy-camHeadY)>1?hy:camHeadY+(hy-camHeadY)*Math.min(1,dt*14);
- const f=new THREE.Vector3();camera.getWorldDirection(f);const head=new THREE.Vector3(player.x,camHeadY,player.z);
- // (hacia atrás por la línea de mira, de a 20 cm, hasta la primera pared)
- // Como el «spring arm» de los juegos en tercera persona: de la cabeza hacia atrás, de a 15 cm, hasta lo primero que la
- // cámara tocaría —una pared, probada a la altura de ESE punto (no de los pies: en la escalera la cámara está un piso
- // más arriba), o una losa que cruce o le quede encima/debajo—; se queda 25 cm antes. Antes sólo miraba paredes a la
- // altura de los pies y nunca losas, y al subir la escalera la cámara pasaba al piso de arriba (2026-10-15).
- const wall=(x,z,y)=>{const sz=world.size,F=y-.5;return x>=0&&z>=0&&x<=sz.w&&z<=sz.h?world.collide(x,z,.15,false,y-.2,.4):barrios.collide(x,z,.15,false,F)||viviendas.collide(x,z,.15,false,F)||casas.collide(x,z,.15);};
- // (un poco más arriba que la cabeza: el muñeco queda abajo del centro y se ve hacia dónde camina)
- // Tres caminos: el normal (atrás y arriba), a la altura de la cabeza y un poco por debajo; gana el que llega más lejos
- // (en la escalera, atrás y arriba está el tramo del piso siguiente: bajando, la cámara se aleja del muñeco).
- const at=(s,k)=>{const q=head.clone().addScaledVector(f,-s);q.y=k===0?q.y+CAM_LIFT*s/CAM_DIST:k===1?head.y:head.y-.35*s/CAM_DIST;const gq=groundHere(q.x,q.z,player.feet);// (bajo techo, a CAM_ROOF del piso que hay DEBAJO DE LA CÁMARA: subiendo la escalera, el de los pies la metía en la losa del pasillo de atrás y se acercaba de un salto)
-  // (y debajo del techo de verdad de ese punto —el tramo de arriba de la escalera—, 40 cm: la prueba de losas pide 30)
-  if(roofed){q.y=Math.min(q.y,gq+CAM_ROOF);const tc=world.techoEn?.(q.x,q.z,gq+.5);if(tc!=null)q.y=Math.min(q.y,tc-.4);}q.y=Math.max(q.y,gq+.3);return q;};
- // (adentro de un edificio la cámara no sale de él: cada punto, con el grosor de la fachada de margen, en el mismo lote)
- const lot=world.lotAt(player.x,player.z),M=.35,outOf=(x,z)=>lot>=0&&[[0,0],[M,0],[-M,0],[0,M],[0,-M]].some(([dx,dz])=>world.lotAt(x+dx,z+dz)!==lot);
- // Las paredes que se aclaran (2026-10-16, engine/visibilidad.js: el 2D decide; aclarado3d trama): con la cámara donde
- // quedaría sin paredes —CAM_DIST atrás, sin salir del lote, como la prueba el validador—, y las aclaradas no la frenan.
- let acl=null,aclBase=0;
- if(aclarado&&lot>=0&&roofed){const R=world.lots.get(lot)?.raise||0,nivel=Math.max(0,Math.floor((player.feet-R+.3)/3)),hx=f.x,hz=f.z,hn=Math.hypot(hx,hz)||1;aclBase=R+nivel*3;
-  let s=0;for(let t=.15;t<=CAM_DIST+1e-6;t+=.15){if(outOf(head.x-hx/hn*t,head.z-hz/hn*t))break;s=t;}
-  acl=paredesAClarar(plan,{x:player.x,z:player.z,nivel},{x:head.x-hx/hn*s,z:head.z-hz/hn*s},aclPrev);aclPrev=acl;
-  }
- else aclPrev=null;
- aclarado?.set(acl||[],aclBase);
- const reach=k=>{let prev=head;for(let s=.3;s<=CAM_DIST+1e-6;s+=.15){const q=at(s,k);
-  // (por qué se frena: lo guarda camDbg.por —para __demo.probarCamara—)
-  const r_=outOf(q.x,q.z)?'lote':wall(q.x,q.z,q.y)&&!aclarado?.dentro(acl,aclBase,q.x,q.y,q.z)?'pared':world.slabAt(q.x,q.z,Math.min(prev.y,q.y)-.1,Math.max(prev.y,q.y)+.2)!=null?'losa':null;
-  if(r_){camDbg.por[k]=[r_,+s.toFixed(2),+q.x.toFixed(2),+q.y.toFixed(2),+q.z.toFixed(2)];return Math.max(.3,s-.25);}prev=q;}return CAM_DIST;};
- // (2026-10-16, Miguel: «cuando subo escaleras o paso por debajo de puertas la cámara tiembla»: medido, en la escalera
- // cambiaba 14 veces de camino en 3 s —y con él de altura— y la distancia saltaba de 4 m a 0,3 y a 2,75 de un cuadro al
- // otro. Ahora el camino se cambia sólo si el otro llega CAM_CAMBIO más lejos, y la distancia se acorta de una —que no
- // atraviese lo que tapa— pero se alarga de a CAM_ALARGA m/s.)
- camDbg.por={};const ds=[reach(0),null,null];const best=k=>ds[k]??(ds[k]=reach(k));if(ds[0]<CAM_DIST){best(1);best(2);}
- // (el cambio de camino tiene que sostenerse CAM_SOSTEN s —en una puerta el de arriba quedaba libre un cuadro sí y otro
- // no—; si el actual se tapa casi del todo, de una)
- let cand=camWay;for(const w of [0,1,2])if(best(w)>best(cand)+CAM_CAMBIO||w===0&&cand!==0&&best(0)>=CAM_DIST)cand=w;
- if(cand!==camWay){camWayT+=dt;if(camWayT>=CAM_SOSTEN||best(camWay)<.6){camWay=cand;camWayT=0;}}else camWayT=0;
- // (si el camino de ahora se tapa de golpe —el dintel de una puerta, el tramo de arriba de la escalera— y otro sigue
- // casi tan lejos como estaba la cámara, se pasa a ése en el acto: baja por debajo en vez de acercarse de un salto)
- if(best(camWay)<camDistS-1)for(const w of [1,2,0])if(w!==camWay&&best(w)>=camDistS-.3){camWay=w;camWayT=0;break;}
- const way=camWay;
- // (la distancia: si lo que tapa aparece más de 1 m más cerca, de una —que no se meta en la pared—; si no, se acorta a
- // CAM_ACORTA m/s y se alarga a CAM_ALARGA)
- const target=best(way);camDistS=target<camDistS-1?target:target<camDistS?Math.max(target,camDistS-CAM_ACORTA*dt):Math.min(target,camDistS+CAM_ALARGA*dt);const dist=camDistS;
- camDbg.dist=dist;camDbg.way=way;camDbg.acl=acl?.length||0;
- // (y la altura, suave al pasar de un camino a otro)
- const pos=at(dist,way);camPosY=camPosY==null||Math.abs(pos.y-camPosY)>1.2?pos.y:camPosY+(pos.y-camPosY)*Math.min(1,dt*10);pos.y=camPosY;
- camera.position.copy(pos);
- // (2026-10-18, Miguel: «por los pasillos angostos las paredes se atraviesan»: la cámara se frena a 15 cm de la pared, pero
- // su plano cercano estaba a 15 cm y en las esquinas de la pantalla llega a ~27: cortaba la pared y se veía a través. Bajo
- // techo o con la cámara cerca, a 5 cm; afuera, 15 —con 5 a lo lejos el suelo titila—)
- {const nq=roofed||dist<1.6?CAM_NEAR_CERCA:.15;if(camera.near!==nq){camera.near=nq;camera.updateProjectionMatrix();}}
- // Con la cámara a menos de un metro de la cabeza (un pasillo, la escalera), el muñeco se desvanece, como en los juegos
- // en tercera persona: si no, la pantalla es la nuca. Entero desde 1 m, invisible a 45 cm; suave (2026-10-15).
- const k=Math.min(1,Math.max(0,(dist-.45)/.55));fadeTo+=(k*k*(3-2*k)-fadeTo)*Math.min(1,dt*12);fadeAvatar(fadeTo);}
 // Sólo dibujar lo que se ve (2026-10-16, engine/visibles.js): adentro de un edificio, de las fachadas de la ciudad sólo
 // los lotes que se pueden ver desde ese piso por sus aberturas; en la escalera, entre dos pisos, lo de los dos; afuera,
 // todo (y three.js descarta por cámara cada lote). Se recalcula sólo al cambiar de lote o de piso.
@@ -755,34 +670,11 @@ function actualizarVisibles(){const B=world?.buildings;if(!B?.setVisibles)return
  const lote=+key.split(':')[0],n0=parseInt(key.split(':')[1]),uno=visiblesDesde(plan,lote,n0),dos=key.endsWith('+')?visiblesDesde(plan,lote,n0+1):null;if(!uno){B.setVisibles(null);world.setVisiblesCortinas?.(null);planoVista?.setCeldas?.(null);return;}
  {const ls=dos?new Set([...uno.lotes,...dos.lotes]):uno.lotes;B.setVisibles(ls);world.setVisiblesCortinas?.(ls);}planoVista?.setCeldas?.(dos?new Set([...uno.celdas,...dos.celdas]):uno.celdas,uno.W);}
 const camDbg={};
-// La prueba de la cámara (2026-10-16, Miguel: «cuando subo escaleras o paso por debajo de puertas, tiembla»): camina con
-// la física del juego —W apretada, de a 1/60 s— por las escaleras y las puertas de los primeros edificios y mide, cuadro
-// por cuadro: los sacudones (la segunda diferencia de la posición de la cámara, más de 5 cm), las idas y vueltas de su
-// distancia a la cabeza, los cambios de camino y el salto más grande. Desde la consola: __demo.probarCamara().
-function probarCamara({escaleras=4,puertas=8}={}){const w=world,out={escaleras:[],puertas:[]};
- // (medio segundo quieto antes de caminar: el salto de la cámara al aparecer no cuenta)
- const medir=(x,z,yaw,seg)=>{const feet=w.floorAt(x,z,-5);Object.assign(player,{x,z,feet,ground:true,vy:0});for(let k=0;k<30;k++){euler.set(-.15,yaw,0,'YXZ');camera.quaternion.setFromEuler(euler);step(1/60);}const log=[];keys.add('KeyW');
-  for(let k=0;k<seg*60;k++){euler.set(-.15,yaw,0,'YXZ');camera.quaternion.setFromEuler(euler);step(1/60);const c=camera.position;log.push([c.x,c.y,c.z,camDbg.dist,camDbg.way]);}
-  keys.delete('KeyW');let a=0,sac=0,vu=0,pr=0,cc=0;
-  for(let i=1;i<log.length;i++){if(log[i][4]!==log[i-1][4])cc++;if(i<2)continue;const j=Math.hypot(log[i][0]-2*log[i-1][0]+log[i-2][0],log[i][1]-2*log[i-1][1]+log[i-2][1],log[i][2]-2*log[i-1][2]+log[i-2][2]);a=Math.max(a,j);if(j>.05)sac++;const dd=log[i][3]-log[i-1][3];if(Math.abs(dd)>.03){const sg=Math.sign(dd);if(pr&&sg!==pr)vu++;pr=sg;}}
-  return {sacudones:sac,vueltas:vu,cambiosCamino:cc,saltoMax:+a.toFixed(2),segundos:seg};};
- for(const L of plan.lots){if(out.escaleras.length>=escaleras)break;const s=L.levels?.[0]?.stair;if(!s||L.levels.length<2)continue;const x=s.x+s.ux*.8+s.vx*(s.fr-.8),z=s.z+s.uz*.8+s.vz*(s.fr-.8);out.escaleras.push(medir(x,z,Math.atan2(-s.vx,-s.vz),3));}
- for(const B of plan.lots){if(out.puertas.length>=puertas)break;const lv=B.levels?.[0];for(const dr of lv?.doors||[]){if(dr.street||dr.core||dr.stair)continue;const q=lv.rooms.find(r=>r.id===dr.a)||lv.rooms.find(r=>r.id===dr.b),h=Math.abs(dr.y1-dr.y0)<1e-6;if(!q||(h?q.h:q.w)<3.5)continue;
-  const mx=(dr.x0+dr.x1)/2,mz=(dr.y0+dr.y1)/2,sg=h?Math.sign(q.y+q.h/2-mz):Math.sign(q.x+q.w/2-mx),nx=h?0:sg,nz=h?sg:0,sx=mx-nx*2.2,sz=mz-nz*2.2;if(w.lotAt(sx,sz)!==B.id||w.collide(sx,sz,RADIUS,true,w.floorAt(sx,sz,-5)))continue;out.puertas.push(medir(sx,sz,Math.atan2(-nx,-nz),1.4));break;}}
- const suma=l=>({casos:l.length,sacudones:l.reduce((p,r)=>p+r.sacudones,0),vueltas:l.reduce((p,r)=>p+r.vueltas,0),cambiosCamino:l.reduce((p,r)=>p+r.cambiosCamino,0),saltoMax:Math.max(0,...l.map(r=>r.saltoMax))});
- return {escaleras:suma(out.escaleras),puertas:suma(out.puertas),detalle:out};}
 let fadeTo=1;
 function fadeAvatar(a){if(!avatar?.fadeMats)return;if(a>.995)a=1;if(a<=.04)avatar.holder.visible=false;if(avatar.fade===a)return;avatar.fade=a;
  // (sigue escribiendo profundidad: así sólo se mezcla la cara de afuera, no las capas de ropa de adentro)
  for(const m of avatar.fadeMats){const t=a<1;if(m.transparent!==t){m.transparent=t;m.needsUpdate=true;}m.opacity=a;m.depthWrite=true;}
  for(const m of avatar.silMats||[])m.opacity=.55*a;}
-// T: arriba ⇄ detrás; F: primera persona (y de vuelta a la de antes).
-let lastThird=view.value==='primera'?'arriba':view.value;
-function toggleFirst(){setView(view.value==='primera'?lastThird:'primera');}
-function toggleThird(){setView(view.value==='arriba'?'tercera':'arriba');}
-function setView(v){if(v!=='primera')lastThird=v;view.value=v;fps.on=v==='primera';if(fps.on)fps.enter();else fps.leave();if(avatar)avatar.holder.visible=(third.value||fps.on)&&!drone.value;if(view.value==='arriba'){euler.x=TOP_PITCH;camera.quaternion.setFromEuler(euler);syncTop();}else if(euler.x<-.5){euler.x=-.1;camera.quaternion.setFromEuler(euler);}if(view.value==='primera')cut?.set(false);
- router.replace({query:{...route.query,vista:view.value==='arriba'?undefined:view.value}});}
-
 // El cielo, las estrellas y la caja de sombras van con la cámara (camine o vuele).
 function followCamera(){
  sky.position.copy(camera.position);stars.position.copy(camera.position);
@@ -799,12 +691,13 @@ function droneStep(dt){
  const move=f.multiplyScalar(fw).add(r.multiplyScalar(st)).add(new THREE.Vector3(0,up,0));
  // (el despegue: sube solo hasta 28 m sobre donde arrancó, salvo que se pida subir o bajar)
  if(despegue!=null){if(up||Math.abs(despegue-dronePos.y)<.3)despegue=null;else dronePos.y+=(despegue-dronePos.y)*Math.min(1,dt*2.5);}
- // (no entra a los edificios ni a las casas: el paso que lo metería se corta, eje por eje, para que resbale por la fachada)
+ // (2026-11-22, Miguel: «en el modo volar déjame atravesar las paredes para inspeccionar y decirte qué veo mal»: el dron pasa
+ // por paredes, techos y pisos; sólo no se mete en el terreno. Antes no entraba a los edificios: resbalaba por la fachada)
  if(move.lengthSq()>0){move.normalize().multiplyScalar((keys.has('ShiftLeft')||keys.has('ShiftRight')?DRONE_FAST:DRONE_SPEED)*dt);
-  for(const k of ['y','x','z']){const antes=dronePos[k];dronePos[k]+=move[k];if(dronAdentro(dronePos.x,dronePos.z,dronePos.y))dronePos[k]=antes;}}
+  dronePos.x+=move.x;dronePos.y+=move.y;dronePos.z+=move.z;}
  const sz=world.size,M=ISLAND_MARGIN;dronePos.x=Math.max(-M,Math.min(sz.w+M,dronePos.x));dronePos.z=Math.max(-M,Math.min(sz.h+M,dronePos.z));
  // Sobre la isla no se mete en el suelo ni en la montaña; por debajo del borde vuela libre (para ver la roca que cuelga).
- if(dronePos.y>CLIFF)dronePos.y=Math.max(dronePos.y,(island.techo||island.height)(dronePos.x,dronePos.z)+3);// nunca por dentro de un lote ni de una rampa
+ if(dronePos.y>CLIFF)dronePos.y=Math.max(dronePos.y,island.height(dronePos.x,dronePos.z)+.3);// (no por dentro del terreno; los edificios sí se atraviesan)
  // Cuanto más alto, más lejos se ve: la niebla se corre con la altura.
  {const n=night.value,sz=world.size,away=Math.hypot(dronePos.x-sz.w/2,dronePos.z-sz.h/2,dronePos.y);scene.fog.near=(n?120:220)+away*.5;scene.fog.far=(n?700:1000)+away*.6;}dronePos.y=Math.max(DRONE_MIN,Math.min(DRONE_MAX,dronePos.y));
  camera.position.set(dronePos.x,dronePos.y,dronePos.z);
@@ -821,14 +714,19 @@ function droneStep(dt){
 // las casas (dronAdentro). La regla del aterrizaje (aterrizaje.js) queda en el motor, sin uso en el 3D.
 let zonaAterrizaje=null,despegue=null;
 const CASA_ALTO=7;// m: las casas armadas como modelo (casas3d) no dicen su alto; el dron pasa por encima de eso
+// (adentro de algo: un edificio, un barrio, una casa, o contra un muro —lo usa el dron para no meterse—)
+const insideAny=(x,z,y)=>!!(world.dentro?.(x,z,y)||barrios.dentro(x,z,y)||viviendas.dentro(x,z,y)||world.collide(x,z,.05,false,y-1.2));
 const dronAdentro=(x,z,y)=>insideAny(x,z,y)||world.collide(x,z,.4,false,y-1.2)||(casas.collide(x,z,.4)&&y<island.ground(x,z)+CASA_ALTO);
 function toggleDrone(){
  if(acciones?.activa)return;// (sentado o acostado no se despega: primero hay que levantarse)
  drone.value=!drone.value;
  if(drone.value){Object.assign(dronePos,{x:camera.position.x,y:camera.position.y,z:camera.position.z});despegue=camera.position.y+28;euler.setFromQuaternion(camera.quaternion,'YXZ');euler.x=-.6;camera.quaternion.setFromEuler(euler);
-  // (despegando desde adentro de algo, arranca sobre el techo)
-  for(let k=0;k<300&&dronAdentro(dronePos.x,dronePos.z,dronePos.y);k++)dronePos.y+=1;despegue=Math.max(despegue,dronePos.y+3);}
- else{marker.visible=false;despegue=null;euler.setFromQuaternion(camera.quaternion,'YXZ');euler.x=0;camera.quaternion.setFromEuler(euler);}
+  // (despegando desde adentro de un edificio, se queda adentro —para inspeccionarlo—: sin el despegue de 28 m ni la mirada hacia abajo)
+  if(dronAdentro(dronePos.x,dronePos.z,dronePos.y)){despegue=null;euler.x=0;camera.quaternion.setFromEuler(euler);}
+  // (y mientras vuela se arma también lo de adentro de las viviendas cerradas: se ve lo que hay para inspeccionar)
+  world.setCerrados?.(null);world.refrescarInteriores?.();}
+ else{marker.visible=false;despegue=null;euler.setFromQuaternion(camera.quaternion,'YXZ');euler.x=0;camera.quaternion.setFromEuler(euler);
+  if(cerradoAlPasear){world.setCerrados?.(cerradoAlPasear);world.refrescarInteriores?.();}}
  lightClock=0;applyLight();
 }
 
@@ -860,24 +758,34 @@ function drawMini(){
 // __demo.render() con la pestaña oculta, donde el bucle no corre) se pide ya: sin mapa, three r186 ata en
 // directionalShadowMap[0] una textura de profundidad vacía SIN modo de comparación (la ruta de arreglos de samplers no se
 // lo pone) y cada dibujo que recibe sombra falla con GL_INVALID_OPERATION y no se pinta.
+// (el rendimiento: se junta medio segundo y se muestra el promedio; llamadas y triángulos, sumando todas las pasadas del
+// cuadro —la escena, los contornos, el brillo—, por eso el contador del renderizador se pone en cero a mano)
+let rindeUlt=0;
+function medir(){
+ const ahora=performance.now(),dt=rindeUlt?(ahora-rindeUlt)/1000:0;rindeUlt=ahora;if(!dt||dt>1)return;// (el tiempo de verdad entre cuadros: el del bucle va recortado a 50 ms)
+ const I=renderer.info.render;rindeN++;rindeT+=dt;rindeLlamadas+=I.calls;rindeTris+=I.triangles;rindePeor=Math.max(rindePeor,dt);renderer.info.reset();
+ if(rindeT>=.5){rinde.value={fps:Math.round(rindeN/rindeT),ms:(rindeT/rindeN*1000).toFixed(1),peor:Math.round(rindePeor*1000),llamadas:Math.round(rindeLlamadas/rindeN),tris:Math.round(rindeTris/rindeN/1000)};rindeN=rindeT=rindeLlamadas=rindeTris=rindePeor=0;}
+}
 function renderFrame(){
  if((shadowTick=(shadowTick+1)%2)===0||!sun.shadow.map)renderer.shadowMap.needsUpdate=true;
  composer.render();}
 
 function loop(t){
  frame=requestAnimationFrame(loop);const dt=Math.min(.05,(t-last)/1000||0);last=t;
- step(dt);actualizarVisibles();shooting?.update(dt);if(Math.floor(t/250)!==Math.floor((t-dt*1000)/250))patchCut();
- // (los interiores —tabiques, muebles— se arman al acercarse: una vez por segundo se parchean los nuevos para el aclarado)
- if(aclarado&&world&&Math.floor(t/1000)!==Math.floor((t-dt*1000)/1000))aclarado.patchTree(world.group,[crowd,traffic,folk,animals,indoor,patrol].filter(Boolean).map(g=>g.group));
+ step(dt);pasoLuz(dt,t);actualizarVisibles();shooting?.update(dt);
  // (los interiores —muebles del piso, casa armada— se eligen por donde está el muñeco, no la cámara: desde arriba la
  // cámara queda dos pisos más alta)
- const eye=third.value&&!drone.value?{x:player.x,y:player.feet+1.7,z:player.z}:camera.position;island.update(t/1000);const people=[...crowd.positions(),...patrol.positions(),...(soc?.personas()||[])];crowd.update(dt,player);LOD_CAM.x=camera.position.x;LOD_CAM.y=camera.position.y;LOD_CAM.z=camera.position.z;folk.update(dt,player);animals?.update(dt,camera.position);indoor.update(dt,camera.position);const adentro=island.insideHouse(eye.x,eye.z);casas?.adentro(island.casaDentro?.(eye.x,eye.z)??null);island.setEdges(adentro);
+ const eye=third.value&&!drone.value?{x:player.x,y:player.feet+1.7,z:player.z}:camera.position;island.update(t/1000);const people=[...crowd.positions(),...patrol.positions(),...(soc?.personas()||[])];crowd.update(dt,player);LOD_CAM.x=camera.position.x;LOD_CAM.y=camera.position.y;LOD_CAM.z=camera.position.z;folk.update(dt,player);animals?.update(dt,camera.position);indoor.update(dt,camera.position);const adentro=island.insideHouse(eye.x,eye.z);island.setEdges(adentro);
  // Los contornos sólo delinean paredes interiores: afuera no se ven y el paso costaba más de la mitad del cuadro.
- if(edgePass)edgePass.enabled=adentro||!!world.dentro?.(camera.position.x,camera.position.z,camera.position.y)||barrios.dentro(camera.position.x,camera.position.z,camera.position.y)||viviendas.dentro(camera.position.x,camera.position.z,camera.position.y);patrol.update(dt,player);traffic.update(dt,{player,people});world.updateDoors(dt,[player,...people,...(indoor.positions?.()||[])]);island.updateDoors(dt,[player,...folk.positions()]);viviendas.updateDoors(dt,[player,...folk.positions()]);viviendas.update(eye.x,eye.z);casas.update(eye.x,eye.z,scene.fog.far);world.updateAds(t/1000);world.updateInteriors(eye.x,eye.z,dt,eye.y);barrios.updateInteriors(eye.x,eye.z,dt,eye.y);barrios.updateDoors(dt,[player,...folk.positions()]);world.updateElevators(dt,player);
+ // (en cada cuadro, antes de dibujar: lo que se arma al acercarse —un interior— nunca llega a verse con su color. Medido:
+ // 0,12 ms recorrer las 3.831 piezas de la ciudad chica)
+ if(edgePass)edgePass.enabled=adentro||!!world.dentro?.(camera.position.x,camera.position.z,camera.position.y)||barrios.dentro(camera.position.x,camera.position.z,camera.position.y)||viviendas.dentro(camera.position.x,camera.position.z,camera.position.y);patrol.update(dt,player);traffic.update(dt,{player,people});world.updateDoors(dt,[player,...people,...(indoor.positions?.()||[])]);island.updateDoors(dt,[player,...folk.positions()]);viviendas.updateDoors(dt,[player,...folk.positions()]);viviendas.update(eye.x,eye.z);casas.update(eye.x,eye.z,scene.fog.far);world.updateAds(t/1000);(lejosPlantas-=dt)<=0&&(lejosPlantas=.3,planoVista?.setLejos?.(eye.x,eye.z));world.updateInteriors(eye.x,eye.z,dt,eye.y);barrios.updateInteriors(eye.x,eye.z,dt,eye.y);barrios.updateDoors(dt,[player,...folk.positions()]);world.updateElevators(dt,player);
  {const at=drone.value?null:world.elevatorAt(player.x,player.z,player.feet);lift.value=at?{floor:at.floor,floors:at.floors,roof:at.roof}:null;}
  // Las luces reales van a los postes más cercanos; se reparten de nuevo cada tanto, no en cada cuadro.
- if(night.value&&(lightClock-=dt)<=0){lightClock=.35;const cp=camera.position,near=[...world.lights,...(island?.lights||[]),...(barrios?.lights||[]),...(viviendas?.lights||[]),...(planoVista?.lights||[])].map(l=>({l,d:(l.x-cp.x)**2+(l.z-cp.z)**2})).sort((a,b)=>a.d-b.d);streetLights.forEach((s,i)=>{const n=near[i];if(n)s.position.set(n.l.x,n.l.y,n.l.z);s.intensity=n?6:0;});}
- renderFrame();drawMini();
+ if(luz.n>.5&&(lightClock-=dt)<=0){lightClock=.35;const cp=camera.position,near=[...world.lights,...(island?.lights||[]),...(barrios?.lights||[]),...(viviendas?.lights||[]),...(planoVista?.lights||[])].map(l=>({l,d:(l.x-cp.x)**2+(l.z-cp.z)**2})).sort((a,b)=>a.d-b.d);streetLights.forEach((s,i)=>{const n=near[i];if(n)s.position.set(n.l.x,n.l.y,n.l.z);s.intensity=n?6:0;});}
+ // (justo antes de dibujar: lo que se armó en este cuadro —un interior al acercarse— tampoco llega a verse con color)
+ if(EN_BOCETO&&world){boceto||(boceto=createBoceto());boceto.aplicar(world.group);}
+ renderFrame();medir();drawMini();
  if(Math.floor(t/250)!==Math.floor((t-dt*1000)/250)){niebla?.actualizar(camera,scene.fog.far);
   // Dónde estoy (direcciones.js ubicacionDe, validada en validar-ubicacion): la calle y la carrera del punto donde está el
   // jugador o, en el dron, del punto de abajo; y el nombre del lugar (el edificio, el parque, la playa) si dice algo más.
@@ -908,10 +816,8 @@ function onKey(e){
   if(e.code==='KeyN'){night.value=!night.value;applyLight();}
   if(e.code==='Enter'&&muerto.value)revivir();
   if(e.code==='KeyM')showMap.value=!showMap.value;
-  if(e.code==='KeyV'&&LAB)toggleDrone();// (la cámara libre: sólo en el laboratorio, ?lab=1 —2026-10-18: el dron salió del juego—)
-  if(e.code==='KeyT')toggleThird();
-  if(e.code==='KeyF')toggleFirst();
-  // R: la acción alterna de lo que está cerca (correr la cortina de la ventana, mirar por el visor de una puerta)
+  if(e.code==='KeyV'&&(LAB||PASEO))toggleDrone();// (la cámara libre: sólo en el laboratorio, ?lab=1 —2026-10-18: el dron salió del juego—)
+  // R: la acción alterna de lo que está cerca (aclarar u opacar el vidrio de la ventana, mirar por el visor de una puerta)
   // (estaba adentro del «if» de E y Q: nunca llegaba; 2026-10-17, lo encontró validar-ronda al apretar la tecla)
   if(e.code==='KeyR'&&!acciones?.activa&&(accionCerca?.cortina||accionCerca?.alterna)){acciones.empezar(accionCerca.cortina||accionCerca.alterna);accionReloj=0;}
   if(e.code==='KeyE'||e.code==='KeyQ'){const d=e.code==='KeyE'?1:-1;if(e.code==='KeyE'&&patrullas?.manejando)bajarPatrulla();else if(e.code==='KeyE'&&accionCerca?.patrulla!=null&&!drone.value){subirPatrulla(accionCerca.patrulla);accionCerca=null;}else if(e.code==='KeyE'&&accionCerca?.puerta&&!drone.value){alternarPuerta(accionCerca.puerta);accionCerca=null;accionReloj=0;}else if(world.elevatorAt(player.x,player.z,player.feet))ride(d);
@@ -922,17 +828,15 @@ function onKey(e){
 }
 function onBlur(){keys.clear();}
 // (la rueda: acercar y alejar la cámara de arriba, entre 4 y 18 m)
-function onWheel(e){if(!enArriba||drone.value)return;e.preventDefault();const z=v=>Math.max(4,Math.min(zoomAdentro?18:30,v*(1+Math.sign(e.deltaY)*.12)));if(zoomAdentro)topZoom=z(topZoom);else topZoomAfuera=z(topZoomAfuera);}
 
 let resize;
 onMounted(async()=>{
+ if(!PASEO)await cargarFuga();// (el juego viejo: sólo con ?fuga=1 o en /demo)
  renderer=new THREE.WebGLRenderer({antialias:true});renderer.localClippingEnabled=true;renderer.setPixelRatio(Math.min(1.5,window.devicePixelRatio));// 1,5 y no 2: en pantallas retina casi no se nota y dibuja ~44 % menos píxeles
- renderer.shadowMap.enabled=true;renderer.shadowMap.autoUpdate=false;renderer.shadowMap.type=THREE.PCFShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;
+ renderer.info.autoReset=false;renderer.shadowMap.enabled=true;renderer.shadowMap.autoUpdate=false;renderer.shadowMap.type=THREE.PCFShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;
  host.value.appendChild(renderer.domElement);
  scene=new THREE.Scene();scene.fog=new THREE.Fog(0xcad9e2,45,240);
  camera=new THREE.PerspectiveCamera(72,1,.15,2400);
- // (el corte de lo de arriba —cutaway3d.js—: lo usa la vista de arriba, que se pone sola adentro de un edificio)
- cut=createCut({radius:1e4});// (sin radio: el corte llega a todo el edificio, sin borde redondo)
  sky=makeSky();sky.renderOrder=-1;stars=makeStars();scene.add(sky,stars);
  hemi=new THREE.HemisphereLight(0xe3eef8,0x8a8170,1.25);scene.add(hemi);
  sun=new THREE.DirectionalLight(0xfff1dc,2.6);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
@@ -952,24 +856,33 @@ onMounted(async()=>{
  document.addEventListener('pointerlockerror',onLockError);controls.addEventListener('unlock',()=>{locked.value=false;keys.clear();});
  marker=new THREE.Mesh(new THREE.ConeGeometry(.7,1.5,4).rotateX(Math.PI),new THREE.MeshStandardMaterial({color:'#e3907c',emissive:'#e3907c',emissiveIntensity:.6}));marker.visible=false;scene.add(marker);
  // (tiempos de carga, para revisar desde la consola: __demo.tiempos)
- const t0=performance.now(),T=(n,pr)=>pr.then(v=>{tiempos[n]=Math.round(performance.now()-t0);return v;});
+ const PIEZAS=14;let hechas=0;// (13 paquetes de modelos y el plano)
+ const t0=performance.now(),T=(n,pr)=>pr.then(v=>{tiempos[n]=Math.round(performance.now()-t0);carga.value.parte=Math.min(.8,++hechas/PIEZAS*.8);return v;});
+ const cuadro=()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
  // El plano, en un worker mientras bajan los modelos (si el worker falla, load() lo arma acá).
  // (el plano: el guardado en IndexedDB —mapasGuardados.js, las salas precargadas— o armado en un worker y guardado)
  const planReady=T('plano',planoDe({seed:seed.value,team:team.value,parks}).then(r=>{tiempos.planoGuardado=r.guardado;return r.plano;}));
- [characters,carModels,buildings,downtown,plants,nature,furniture,policeTemplates,office,nature2,casa2,tienda,animalKit]=await Promise.all([T('gente',loadCharacters().catch(()=>[])),T('autos',loadCars().catch(()=>null)),T('edificios',loadIslandBuildings().catch(()=>null)),T('centro',loadDowntown().catch(()=>null)),T('plantas',loadPlants().catch(()=>null)),T('naturaleza',loadNature().catch(()=>null)),T('muebles',loadHouseKit().catch(()=>null)),T('policía',loadPolice().catch(()=>[])),T('oficina',loadOffice().catch(()=>null)),T('naturaleza2',loadNature2().catch(()=>null)),T('casa2',loadCasa2().catch(()=>null)),T('tienda',loadTienda().catch(()=>null)),T('animales',loadAnimals().catch(()=>null))]);if(casa2)office={...(office||{}),...casa2};if(tienda)office={...(office||{}),...tienda};/* (y la comida de Tienda, F_*; los muebles de Casa2 van con los de oficina, C2_*) */loadingPeople.value=false;
- {const ready=await planReady,a=performance.now();load(ready);tiempos.armarMundo=Math.round(performance.now()-a);}tiempos.total=Math.round(performance.now()-t0);applyLight();
+ [characters,carModels,buildings,downtown,plants,nature,furniture,policeTemplates,office,nature2,casa2,tienda,animalKit]=await Promise.all([T('gente',loadCharacters().catch(()=>[])),T('autos',loadCars().catch(()=>null)),T('edificios',loadIslandBuildings().catch(()=>null)),T('centro',loadDowntown().catch(()=>null)),T('plantas',loadPlants().catch(()=>null)),T('naturaleza',loadNature().catch(()=>null)),T('muebles',loadHouseKit().catch(()=>null)),T('policía',(PASEO?Promise.resolve([]):loadPolice()).catch(()=>[])),T('oficina',loadOffice().catch(()=>null)),T('naturaleza2',loadNature2().catch(()=>null)),T('casa2',loadCasa2().catch(()=>null)),T('tienda',loadTienda().catch(()=>null)),T('animales',loadAnimals().catch(()=>null))]);if(casa2)office={...(office||{}),...casa2};if(tienda)office={...(office||{}),...tienda};/* (y la comida de Tienda, F_*; los muebles de Casa2 van con los de oficina, C2_*) */loadingPeople.value=false;
+ carga.value.etapa='Trazando las calles…';
+ {const ready=await planReady;carga.value={parte:.82,etapa:'Levantando los edificios…',lista:false};await cuadro();// (armar el mundo ocupa el hilo unos segundos: el texto se pinta antes)
+  const a=performance.now();load(ready);tiempos.armarMundo=Math.round(performance.now()-a);}tiempos.total=Math.round(performance.now()-t0);applyLight(true);
+ carga.value={parte:1,etapa:'Listo',lista:false};
  // Para revisar desde la consola: mover al jugador y la cámara sin teclado.
- if(import.meta.env.DEV)window.__demo={caminar,get ayudaEsquinas(){return ayudaEsquinas;},set ayudaEsquinas(v){ayudaEsquinas=v;},usarRonda,rondaT,get finVista(){return finVista.value;},get presoVista(){return presoVista.value;},muñecoDelPerfil,abrirMenu,cerrarMenu,accionMenu,get menuAbierto(){return menuAbierto.value;},get menuDatos(){return menuDatos.value;},get retratoLadron(){return retratoLadron;},get patrullas(){return patrullas;},subirPatrulla,bajarPatrulla,get velocidad(){return velocidad.value;},curar(){muerto.value=false;vidaVista.value=VIDA.max;},get soc(){return soc;},get cierres(){return cierres;},fijarHora,get hora(){return horaVista.value;},get quien(){return quienVista.value;},get ronda(){return ronda;},get cerraduras(){return cerraduras;},get persec(){return persec;},get policia(){return policiaVista.value;},get vida(){return vidaVista.value;},get muerto(){return muerto.value;},tiempos,WORLD_TIMES,THREE,fps,aiming,get shooting(){return shooting;},get vm(){return vm;},get scene(){return scene;},player,camera,euler,get avatar(){return avatar;},view,get cut(){return cut;},get world(){return world;},get city(){return city;},get plan(){return plan;},get composer(){return composer;},get renderer(){return renderer;},get crowd(){return crowd;},get traffic(){return traffic;},get island(){return island;},get folk(){return folk;},get animals(){return animals;},get indoor(){return indoor;},get patrol(){return patrol;},get viviendas(){return viviendas;},get casas(){return casas;},keys,step,dronePos,render:renderFrame,get aclarado(){return aclarado;},get visKey(){return visKey;},get acciones(){return acciones;},get niebla(){return niebla;},get lugar(){return lugar.value;},fijarDron(x,y,z){Object.assign(dronePos,{x,y,z});despegue=null;},huecosTerrazas(){// (2026-10-16: rayos hacia abajo en 3×3 puntos de cada casilla de lote del monte: un hueco es ver más de 1 m bajo el lote y bajo la calle de al lado)
+ // (el modo aristas —lib/aristas3d.js, 2026-11-22—: para leer una captura; ?aristas=1 o __demo.aristas(true))
+let matAristas=null;const aristas=(on=true)=>{if(!scene)return false;scene.overrideMaterial=on?(matAristas||(matAristas=materialAristas())):null;return !!on;};
+if(import.meta.env.DEV&&new URLSearchParams(location.search).get('aristas')==='1'){const prende=()=>{if(!aristas(true))setTimeout(prende,500);};setTimeout(prende,0);}// (hasta que la escena exista)
+if(import.meta.env.DEV)window.__demo={aristas,caminar,get mundo(){return world;},get plan(){return plan;},get ayudaEsquinas(){return ayudaEsquinas;},set ayudaEsquinas(v){ayudaEsquinas=v;},usarRonda,rondaT,get finVista(){return finVista.value;},get presoVista(){return presoVista.value;},muñecoDelPerfil,abrirMenu,cerrarMenu,accionMenu,get menuAbierto(){return menuAbierto.value;},get menuDatos(){return menuDatos.value;},get retratoLadron(){return retratoLadron;},get patrullas(){return patrullas;},subirPatrulla,bajarPatrulla,get velocidad(){return velocidad.value;},curar(){muerto.value=false;vidaVista.value=VIDA.max;},get soc(){return soc;},get cierres(){return cierres;},fijarHora,get hora(){return horaVista.value;},get quien(){return quienVista.value;},get ronda(){return ronda;},get cerraduras(){return cerraduras;},get persec(){return persec;},get policia(){return policiaVista.value;},get vida(){return vidaVista.value;},get muerto(){return muerto.value;},tiempos,WORLD_TIMES,THREE,fps,aiming,get shooting(){return shooting;},get vm(){return vm;},get scene(){return scene;},player,camera,euler,get avatar(){return avatar;},view,get cut(){return cut;},get world(){return world;},get city(){return city;},get plan(){return plan;},get composer(){return composer;},get renderer(){return renderer;},get crowd(){return crowd;},get traffic(){return traffic;},get island(){return island;},get folk(){return folk;},get animals(){return animals;},get indoor(){return indoor;},get patrol(){return patrol;},get viviendas(){return viviendas;},get casas(){return casas;},keys,step,dronePos,render:renderFrame,get aclarado(){return aclarado;},get visKey(){return visKey;},get acciones(){return acciones;},get niebla(){return niebla;},get lugar(){return lugar.value;},fijarDron(x,y,z){Object.assign(dronePos,{x,y,z});despegue=null;},huecosTerrazas(){// (2026-10-16: rayos hacia abajo en 3×3 puntos de cada casilla de lote del monte: un hueco es ver más de 1 m bajo el lote y bajo la calle de al lado)
   const I=plan.isla,ray=new THREE.Raycaster(),out=[];let n=0;island.group.updateMatrixWorld(true);const objs=[];island.group.traverse(o=>{if(o.isMesh&&!o.isInstancedMesh)objs.push(o);});
   const ejes=I.carreteras.filter(c=>c.puntos).flatMap(c=>c.puntos.slice(1).map((p,i)=>({a:c.puntos[i],b:p})));
   const calle=(x,z)=>{let best=null,bd=1e9;for(const {a,b} of ejes){const dx=b.x-a.x,dz=b.z-a.z,L2=dx*dx+dz*dz||1,t=Math.max(0,Math.min(1,((x-a.x)*dx+(z-a.z)*dz)/L2)),dd=Math.hypot(x-a.x-t*dx,z-a.z-t*dz);if(dd<bd){bd=dd;best=a.h+(b.h-a.h)*t;}}return bd<14?best:null;};
   for(const c of I.cells){if(!c.lote||c.manzana==='mirador')continue;for(const u of [.1,.5,.9])for(const v of [.1,.5,.9]){const x=(c.x+u)*CELL,z=(c.y+v)*CELL;n++;ray.set(new THREE.Vector3(x,c.terraza+40,z),new THREE.Vector3(0,-1,0));const h=ray.intersectObjects(objs,false)[0];const ys=h?h.point.y:-99,cal=calle(x,z);if(ys<Math.min(c.terraza,cal??c.terraza)-1)out.push({c:[c.x,c.y],visto:+ys.toFixed(2),lote:c.terraza});}}
-  return {muestras:n,huecos:out.length,ej:out.slice(0,5)};},get zonaAterrizaje(){return zonaAterrizaje;},toggleDrone,camDbg,probarCamara,get planoVista(){return planoVista;},parchearAclarado(){aclarado?.patchTree(world.group,[crowd,traffic,folk,animals,indoor,patrol].filter(Boolean).map(g=>g.group));},get acl(){return aclPrev;},setNight(v){night.value=v;applyLight();}};
+  return {muestras:n,huecos:out.length,ej:out.slice(0,5)};},get zonaAterrizaje(){return zonaAterrizaje;},toggleDrone,camDbg,get planoVista(){return planoVista;},setNight(v){night.value=v;applyLight(true);},get luz(){return luz;},get jugador(){return player;},get plan(){return plan;},get camara(){return camera;}};
  resize=new ResizeObserver(()=>{const w=host.value.clientWidth,h=host.value.clientHeight;renderer.setSize(w,h);composer.setPixelRatio(renderer.getPixelRatio());composer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();vm?.resize(w/h);});
  resize.observe(host.value);
- renderer.domElement.addEventListener('pointerdown',onDown);renderer.domElement.addEventListener('wheel',onWheel,{passive:false});window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp);
+ renderer.domElement.addEventListener('pointerdown',onDown);window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp);
  window.addEventListener('keydown',onKey);window.addEventListener('keyup',onKey);document.addEventListener('mousedown',onShoot);document.addEventListener('mouseup',onShoot);window.addEventListener('contextmenu',noMenu);window.addEventListener('blur',onBlur);
  frame=requestAnimationFrame(loop);
+ await cuadro();carga.value={parte:1,etapa:'Listo',lista:true};
 });
 onBeforeUnmount(()=>{
  cancelAnimationFrame(frame);resize?.disconnect();controls?.unlock();controls?.dispose();
@@ -982,13 +895,14 @@ onBeforeUnmount(()=>{
 <template>
  <div class="demo">
   <div ref="host" class="view"></div>
+  <div class="vineta" aria-hidden="true"></div>
   <div class="cross" v-if="locked&&view==='primera'&&!aiming" aria-hidden="true"></div>
   <div class="hitmark" v-if="hitMark" aria-hidden="true"></div>
   <div class="lift" v-if="lift">Ascensor · {{ lift.roof?'azotea':lift.floor===0?'planta baja':'piso '+lift.floor }}<span><kbd>E</kbd> subir · <kbd>Q</kbd> bajar</span></div>
   <div class="fade" :class="{on:fading}" aria-hidden="true"></div>
 
   <header class="hud">
-   <RouterLink to="/?paso=home" class="back" title="Volver a las salas">FUGA</RouterLink>
+   <RouterLink to="/?paso=home" class="back" title="Volver a las salas">mycity</RouterLink>
    <div v-if="rondaVista" class="ronda" aria-live="polite">
     <div v-if="horaVista" class="r-fila"><span>Hora</span><b class="hora">{{ horaVista }}</b></div>
     <div class="r-fila"><span>Vida</span><b>{{ Math.round(vidaVista) }}</b></div>
@@ -1012,12 +926,16 @@ onBeforeUnmount(()=>{
    <div v-if="presoVista&&!finVista" class="r-muerto preso" role="alert"><b>{{ presoVista.titulo }}</b><span>{{ presoVista.sub }}</span></div>
    <div v-if="finVista" class="r-muerto fin" :class="finVista.gana" role="alert"><small class="quien-gana">{{ finVista.yoGano?'¡Ganaste!':'Perdiste' }}</small><b>{{ finVista.titulo }}</b><span>{{ finVista.sub }}</span>
     <div class="fin-botones"><button @click="otraRonda">Otra ronda</button><RouterLink to="/?paso=home" class="boton">Volver al inicio</RouterLink></div></div>
-   <div v-if="rondaMsg" class="r-msg" role="status">{{ rondaMsg }}</div>
+   <Transition name="aviso"><div v-if="rondaMsg" class="r-msg" role="status">{{ rondaMsg }}</div></Transition>
    <div v-if="muerto" class="r-muerto" role="alert"><b>Te mataste en la caída</b><span>Quedás fuera de la ronda y perdiste lo que llevabas.</span><small>Enter: volver a la guarida (sólo para probar)</small></div>
+   <div v-if="rinde&&(PASEO||LAB)" class="rinde" aria-live="off" :class="{lento:rinde.fps<40,malo:rinde.fps<25}">
+    <b>{{ rinde.fps }}</b><span>cuadros/s</span>
+    <dl><dt>cuadro</dt><dd>{{ rinde.ms }} ms</dd><dt>el peor</dt><dd>{{ rinde.peor }} ms</dd><dt>dibujos</dt><dd>{{ rinde.llamadas.toLocaleString('es-CO') }}</dd><dt>triángulos</dt><dd>{{ rinde.tris.toLocaleString('es-CO') }} mil</dd></dl>
+   </div>
    <div v-if="velocidad!=null" class="velocimetro" aria-live="off"><b>{{ velocidad }}</b> km/h</div>
-   <div v-if="quienVista" class="quien" role="status"><b>{{ quienVista.nombre }}</b><span>{{ quienVista.oficio }}<template v-if="quienVista.edad!=null"> · {{ quienVista.edad }} años</template></span></div>
-   <div v-if="accionTexto" class="accion"><kbd>E</kbd> {{ accionTexto }}<template v-if="accionAlterna"> · <kbd>R</kbd> {{ accionAlterna }}</template></div>
-   <div class="where"><b>{{ lugar?.titulo }}</b><span v-if="lugar?.sub" class="via">{{ lugar.sub }}</span><small><kbd class="tabk">Tab</kbd> menú<template v-if="LAB"> · Ciudad {{ seed }} · {{ team }} vs {{ team }}</template><template v-if="horaVista"> · {{ horaVista }}</template></small></div>
+   <Transition name="sube"><div v-if="quienVista" class="quien" role="status"><b>{{ quienVista.nombre }}</b><span>{{ quienVista.oficio }}<template v-if="quienVista.edad!=null"> · {{ quienVista.edad }} años</template></span></div></Transition>
+   <Transition name="sube"><div v-if="accionTexto" class="accion"><kbd>E</kbd> {{ accionTexto }}<template v-if="accionAlterna"> · <kbd>R</kbd> {{ accionAlterna }}</template></div></Transition>
+   <div class="where"><b>{{ lugar?.titulo }}</b><span v-if="lugar?.sub" class="via">{{ lugar.sub }}</span><small><template v-if="PASEO"><kbd class="tabk">V</kbd> {{ drone?'aterrizar':'volar' }} · <kbd class="tabk">N</kbd> día/noche</template><template v-else><kbd class="tabk">Tab</kbd> menú</template><template v-if="LAB"> · Ciudad {{ seed }} · {{ team }} vs {{ team }}</template><template v-if="horaVista"> · {{ horaVista }}</template></small></div>
    <!-- (los botones de prueba —tamaño, papel, otra ciudad, vista, dron, día/noche—: sólo con ?lab=1; quedan en la página,
    ocultos, porque las pruebas de pantalla los usan) -->
    <div class="actions" v-show="LAB">
@@ -1026,7 +944,6 @@ onBeforeUnmount(()=>{
     </div>
     <button @click="cambiarPapel" :class="{on:POLICIA}" title="Jugar de ladrón o de policía (contra los bots del motor)">{{ POLICIA?'Papel: policía':'Papel: ladrón' }}</button>
     <button @click="otherCity">Otra ciudad</button>
-    <button @click="toggleThird" :class="{on:view!=='primera'}" title="T cambia la vista · F primera persona">{{ {arriba:'Vista: arriba',tercera:'Vista: detrás',primera:'Vista: primera persona'}[view] }}</button>
     <button @click="toggleDrone" :class="{on:drone}">{{ drone?'Caminar':'Dron' }}</button>
     <button @click="night=!night;applyLight()">{{ night?'Día':'Noche' }}</button>
    </div>
@@ -1035,12 +952,24 @@ onBeforeUnmount(()=>{
   <canvas v-show="showMap" ref="mini" class="mini" aria-label="Plano de la ciudad"></canvas>
 
   <MenuJuego v-if="menuDatos" :papel="POLICIA?'policia':'ladron'" :datos="menuDatos" :abierto="menuAbierto" :plano="plan" @cerrar="cerrarMenu" @accion="accionMenu" />
-  <div v-if="!locked&&!sinCaptura&&!menuAbierto&&!finVista" class="start">
+  <Transition name="carga">
+   <div v-if="!carga.lista" class="carga" role="status" aria-live="polite">
+    <div class="carga-centro">
+     <b class="carga-logo">mycity</b>
+     <p class="carga-papel" :class="POLICIA?'policia':'ladron'">{{ PASEO?'La ciudad':POLICIA?'Hoy sos policía':'Hoy sos ladrón' }}</p>
+     <div class="carga-barra" role="progressbar" :aria-valuenow="Math.round(carga.parte*100)" aria-valuemin="0" aria-valuemax="100"><i :style="{transform:`scaleX(${carga.parte})`}"></i></div>
+     <p class="carga-etapa">{{ carga.etapa }}</p>
+     <p class="carga-pista">{{ PASEO?'En boceto: todo blanco y vacío, sólo el baño y la cocina. Primero las medidas.':POLICIA?'Un ladrón corriendo llama la atención; uno caminando se pierde entre la gente.':'Caminá: correr llama la atención. Lo robado no cuenta hasta que llega a una guarida.' }}</p>
+    </div>
+   </div>
+  </Transition>
+  <div v-if="carga.lista&&!locked&&!sinCaptura&&!menuAbierto&&!finVista" class="start">
    <div class="card" @click="controls.lock()">
-    <b>{{ loadingPeople?'Cargando gente…':'Clic para caminar' }}</b>
+    <b>{{ PASEO?'Clic para pasear':loadingPeople?'Cargando gente…':'Clic para caminar' }}</b>
+    <p v-if="PASEO" class="paseo-nota">La ciudad sola: sin gente, sin policía y sin ronda. <kbd>V</kbd> despega y aterriza; en el aire se avanza hacia donde se mira con WASD, Espacio sube, C baja y Shift acelera.</p>
     <dl>
      <dt>WASD</dt><dd>moverse</dd><dt>Ratón</dt><dd>mirar</dd><dt>Shift</dt><dd>correr</dd><dt>Espacio</dt><dd>saltar</dd>
-     <dt>N</dt><dd>día / noche</dd><dt>M</dt><dd>plano</dd><dt>T · F</dt><dd>vista: arriba o atrás · primera persona</dd><dt>E · Q</dt><dd>en un ascensor: subir · bajar</dd><template v-if="POLICIA"><dt>E</dt><dd>de policía: revisar la cámara de un aviso · atrapar · pedir papeles · subir y bajar de la patrulla</dd><dt>W/S · A/D</dt><dd>en la patrulla: acelerar y frenar · girar</dd></template><dt>E · R</dt><dd>usar lo de cerca (abrir y cerrar puertas, sentarse, asomarse…) · correr la cortina de la ventana</dd><dt>Esc</dt><dd>soltar el ratón</dd>
+     <dt>N</dt><dd>día / noche</dd><dt>M</dt><dd>plano</dd><dt>E · Q</dt><dd>en un ascensor: subir · bajar</dd><template v-if="POLICIA"><dt>E</dt><dd>de policía: revisar la cámara de un aviso · atrapar · pedir papeles · subir y bajar de la patrulla</dd><dt>W/S · A/D</dt><dd>en la patrulla: acelerar y frenar · girar</dd></template><dt>E · R</dt><dd>usar lo de cerca (abrir y cerrar puertas, sentarse, asomarse…) · aclarar u opacar el vidrio de la ventana</dd><dt>Esc</dt><dd>soltar el ratón</dd>
     </dl>
    </div>
   </div>
@@ -1096,4 +1025,73 @@ onBeforeUnmount(()=>{
 .card dt{font:12px ui-monospace,SFMono-Regular,monospace;background:rgba(255,255,255,.12);border-radius:5px;padding:1px 7px;justify-self:start}
 .card dd{margin:0;opacity:.85}
 @media (max-width:640px){.mini{max-width:44vw}.where{min-width:0}}
+
+/* EL HUD CON EL DISEÑO DE LA ENTRADA (2026-11-19): la partida usaba la letra del sistema y cajas grises; ahora comparte
+   con InicioView los paneles de vidrio, Bungee en los títulos, Rubik en el texto, ámbar los ladrones y azul la policía.
+   Van al final para pisar lo de arriba sin reordenar la hoja. */
+.demo{--tx:#f5f2ea;--tx2:#c3cad6;--tx3:#8e97a6;--panel:rgba(14,20,33,.72);--borde:rgba(255,255,255,.12);--ladron:#ffa94d;--ladron2:#ff7a3d;--policia:#5aa9ff;--policia2:#3d7eff;--ok:#45d483;
+ --t:'Bungee',Impact,system-ui,sans-serif;--c:'Rubik Variable','Rubik',system-ui,-apple-system,'Segoe UI',sans-serif;color:var(--tx);font:14px/1.4 var(--c)}
+/* (un oscurecido suave en los bordes: junta la imagen y le da aire de cámara; no tapa nada porque no recibe el ratón) */
+.rinde{position:fixed;right:16px;top:14px;z-index:7;background:var(--panel);border:1px solid var(--borde);border-radius:12px;padding:8px 12px;backdrop-filter:blur(12px);display:grid;grid-template-columns:auto auto;align-items:baseline;gap:0 6px;pointer-events:none;font-variant-numeric:tabular-nums}
+.rinde>b{font:400 26px var(--t);color:var(--ok)}.rinde.lento>b{color:var(--ladron)}.rinde.malo>b{color:#ff6b6b}.rinde>span{font-size:11px;color:var(--tx3)}
+.rinde dl{grid-column:1/-1;display:grid;grid-template-columns:auto auto;gap:1px 10px;margin:4px 0 0;font-size:11px}.rinde dt{color:var(--tx3)}.rinde dd{margin:0;text-align:right;color:var(--tx2)}
+.paseo-nota{margin:0 0 12px;max-width:380px;color:var(--tx2);font-size:13px;line-height:1.45}.paseo-nota kbd{background:#f5f2ea;color:#1b2130;border-radius:5px;padding:0 6px;font:600 11px/1.6 var(--c)}
+.vineta{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 46%,transparent 58%,rgba(6,9,16,.34) 100%)}
+.back{font:400 12px var(--t);letter-spacing:.5px;background:linear-gradient(135deg,var(--ladron),var(--ladron2));color:#2a1705;box-shadow:0 6px 18px rgba(255,122,61,.35),inset 0 1px 0 rgba(255,255,255,.35);transition:transform .18s}
+.back:hover{transform:rotate(-4deg) scale(1.06)}
+.where,.ronda,.velocimetro,.quien,.accion,.r-msg,.lift,.card{background:var(--panel);border:1px solid var(--borde);backdrop-filter:blur(12px) saturate(1.2);box-shadow:0 10px 30px rgba(0,0,0,.28)}
+.where{border-radius:12px;padding:7px 14px}
+.where b{font:400 14px var(--t);letter-spacing:.4px}
+.where small{font:11px var(--c);color:var(--tx3);opacity:1}
+.ronda{border-radius:14px;padding:12px 14px;width:268px}
+.ronda .r-fila{align-items:baseline;line-height:1.7}
+.ronda .r-fila span{font-size:11px;letter-spacing:.9px;text-transform:uppercase;color:var(--tx3)}
+.ronda .r-fila b{font-weight:600;font-variant-numeric:tabular-nums}
+.ronda .r-barra{height:8px;border-radius:99px;background:rgba(255,255,255,.1);margin:4px 0 8px}
+.ronda .r-barra i{border-radius:99px;background:linear-gradient(90deg,var(--ladron),var(--ladron2));transition:width .45s cubic-bezier(.2,.8,.2,1)}
+.ronda .r-barra.vida i{background:linear-gradient(90deg,#ff6b6b,#ff9a7a)}
+.ronda .r-barra.ladrones i{background:linear-gradient(90deg,var(--ladron),var(--ladron2))}
+.ronda summary{font-size:12px;color:var(--tx2);opacity:1}
+.velocimetro{border-radius:12px}.velocimetro b{font:400 22px var(--t)}
+.quien,.accion,.r-msg,.lift{border-radius:12px}
+.accion kbd,.lift kbd,.where kbd.tabk{background:#f5f2ea;color:#1b2130;border-radius:6px;box-shadow:0 2px 0 rgba(0,0,0,.35);font:600 12px/1.5 var(--c);padding:0 7px}
+.where kbd.tabk{font-size:10px;padding:0 5px;margin-right:2px}
+.r-msg{font-weight:500}
+.r-muerto{backdrop-filter:blur(6px);animation:entra .35s ease-out}
+.r-muerto b{font:400 34px var(--t);letter-spacing:1px;text-shadow:0 4px 0 rgba(0,0,0,.25)}
+.quien-gana{font:400 15px var(--t);letter-spacing:3px;color:var(--ladron)}
+.fin-botones button,.fin-botones .boton{background:linear-gradient(135deg,var(--ladron),var(--ladron2));color:#2a1705;border-radius:12px;transition:transform .15s,filter .15s}
+.fin-botones .boton{background:rgba(255,255,255,.14);color:var(--tx);border:1px solid var(--borde)}
+.fin-botones button:hover,.fin-botones .boton:hover{transform:translateY(-1px);filter:brightness(1.08)}
+.mini{border-radius:14px;border:1px solid var(--borde);box-shadow:0 10px 30px rgba(0,0,0,.4);opacity:.95}
+.start{background:rgba(6,9,16,.3)}
+.card{border-radius:18px;padding:22px 28px;animation:entra .35s cubic-bezier(.2,.8,.2,1);transition:transform .18s,border-color .18s}
+.card:hover{transform:translateY(-2px);border-color:rgba(255,169,77,.55)}
+.card b{font:400 22px var(--t);letter-spacing:.5px;margin-bottom:14px;color:var(--ladron)}
+.card dl{gap:6px 16px}
+.card dt{font:600 11px/1.6 var(--c);background:#f5f2ea;color:#1b2130;border-radius:6px;padding:0 8px;box-shadow:0 2px 0 rgba(0,0,0,.35)}
+.card dd{color:var(--tx2);opacity:1}
+.actions button,.sizes button{font:inherit}
+.actions button.on,.sizes button.on{background:linear-gradient(135deg,var(--ladron),var(--ladron2));color:#2a1705}
+@keyframes entra{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+/* (los avisos entran y salen en vez de aparecer de golpe; el translateX es el centrado que ya traían) */
+.sube-enter-active,.sube-leave-active,.aviso-enter-active,.aviso-leave-active{transition:opacity .2s,transform .2s cubic-bezier(.2,.8,.2,1)}
+.sube-enter-from,.sube-leave-to{opacity:0;transform:translateX(-50%) translateY(8px)}
+.aviso-enter-from,.aviso-leave-to{opacity:0;transform:translateX(-50%) translateY(-8px)}
+/* LA CARGA: la ciudad de noche de la entrada, el título y una barra. La barra crece con transform (lo anima el
+   compositor: sigue moviéndose aunque armar el mundo tenga ocupado el hilo). */
+.carga{position:absolute;inset:0;z-index:20;display:grid;place-items:center;background:linear-gradient(rgba(8,11,20,.72),rgba(8,11,20,.9)),url(/fondos/noche.jpg) center/cover #0b0f15}
+.carga-centro{display:flex;flex-direction:column;align-items:center;gap:12px;width:min(420px,84vw);text-align:center}
+.carga-logo{font:400 64px/1 var(--t);letter-spacing:4px;color:#fff3df;text-shadow:0 5px 0 var(--ladron2),0 14px 40px rgba(255,122,61,.4);transform:rotate(-3deg);animation:late 2.4s ease-in-out infinite}
+.carga-papel{margin:0;font:400 13px var(--t);letter-spacing:2px;text-transform:uppercase}
+.carga-papel.ladron{color:var(--ladron)}.carga-papel.policia{color:var(--policia)}
+.carga-barra{width:100%;height:10px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:10px;position:relative}
+.carga-barra i{display:block;height:100%;border-radius:99px;transform-origin:left;background:linear-gradient(90deg,var(--ladron),var(--ladron2));transition:transform .6s cubic-bezier(.2,.8,.2,1)}
+.carga-barra::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent);animation:brillo 1.4s linear infinite}
+.carga-etapa{margin:0;color:var(--tx2);font-size:13px}
+.carga-pista{margin:14px 0 0;color:var(--tx3);font-size:12.5px;line-height:1.5}
+.carga-leave-active{transition:opacity .7s ease}.carga-leave-to{opacity:0}
+@keyframes late{50%{transform:rotate(-3deg) scale(1.03)}}
+@keyframes brillo{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+@media (prefers-reduced-motion:reduce){.carga-logo,.carga-barra::after,.card,.r-muerto{animation:none}.carga-barra i,.ronda .r-barra i{transition:none}}
 </style>

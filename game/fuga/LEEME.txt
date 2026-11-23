@@ -1,0 +1,25 @@
+FUGA · el juego de policías y ladrones, guardado (2026-11-21)
+
+Miguel cambió el rumbo del juego: de policías y ladrones a una ciudad donde se compran propiedades (tarea Game #136 del
+tablero). Todo lo de la persecución se mudó de game/src/ y game/harness/pruebas/ a esta carpeta, para que la ciudad
+quede sola. No está borrado y todavía corre.
+
+QUÉ HAY
+  engine/     ronda.js (la ronda jugable: robar, guardar, forzar puertas), partida.js y bots.js (el modo «Botín» y sus
+              bots), game.js (el motor de la versión de casillas, Lab)
+  lib/        persecucion3d.js (policías y ladrones en el 3D), patrulla3d.js, disparo3d.js y viewmodel3d.js (las armas)
+  components/ MenuJuego.vue y MapaJuego.vue (el menú de la partida, con Tab)
+  pruebas/    validar-botin, -policia, -ladron, -ronda, -allanamiento, -allanar3d, medir-botin y experimentos/botin
+  index.js    lo que la pantalla de la ciudad necesita de acá, en un solo lugar
+
+CÓMO SE CORRE
+  http://127.0.0.1:5181/juego?fuga=1&papel=policia     el juego viejo (o /demo, la ruta de sus pruebas de pantalla)
+  node fuga/pruebas/validar-botin.mjs 1 1 3             una prueba suelta (desde game/)
+Estas pruebas ya no están en el probador (harness/pruebas/probar.mjs): el probador es de la ciudad.
+
+LO QUE NO SE MUDÓ, Y POR QUÉ
+  src/engine/guaridas.js y botin.js   los usan los transeúntes y el generador del plano (bp.botines)
+  src/engine/juego/mapa.js, transeuntes.js, identidad.js, huida.js   son de la ciudad: la gente, sus rutas, las caídas
+  src/views/DemoView.vue    la pantalla de la ciudad todavía trae adentro el código que llama a todo esto (la ronda, el
+                            menú, las patrullas); sólo se ejecuta con el juego viejo. Limpiarla es el paso que sigue.
+  src/views/InicioView.vue  las pantallas de salas y perfil siguen ahí, sin enlace desde el título.

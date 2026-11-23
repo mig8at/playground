@@ -647,7 +647,12 @@ el centro.
   (`plan.pisables`; vivienda3d floorAt). Probado en el navegador con la física: sin saltar choca con la caja; saltando
   cae encima (0,82 m).
 
-## Paredes que se aclaran para ver adentro (2026-10-16)
+## Paredes que se aclaran para ver adentro (2026-10-16) — RETIRADO el 2026-11-22
+
+> El juego quedó sólo en primera persona (Miguel: «para este estilo de juego es mejor primera persona: quita lo de la
+> cámara y lo que corta el edificio en capas»). Se borraron `engine/visibilidad.js`, `lib/aclarado3d.js`,
+> `lib/cutaway3d.js` y `validar-visibilidad.mjs`; lo de abajo queda como historia (el código, en git).
+
 
 - Miguel: «si entro a un cuarto, que se ponga semitransparente la pared que acabo de atravesar, para ver todo adentro».
 - 2D, `engine/visibilidad.js` `paredesAClarar(bp, jugador, camara, previo)`: los bordes de los espacios del plano (cuartos,
@@ -845,7 +850,7 @@ el centro.
 - Los niveles: 0 Medidas · 1 Mundo (mundo, zonas) · 2 Vías y manzanas (circulación, terrazas, tráfico, direcciones,
   ubicación) · 3 Lotes y edificios (ciudad, núcleos, escaleras de casa, fachada 3D) · 4 Interiores (pasillos, interiores,
   muebles, usos, cortinas) · 5 Exterior (vegetación, equipamiento, pintura, color, botín) · 6 Geometría sin pantalla
-  (titileo, contrato 3D) · 7 Física (colisiones) · 8 Visibilidad (visibilidad, visibles) · 9 Juego.
+  (titileo, contrato 3D) · 7 Física (colisiones) · 8 Visibilidad (visibles) · 9 Juego.
 - Nivel 0, nuevo: `validar-medidas` cruza 41 reglas que salen de otras (ALCANCE del salto, muebles pisables alcanzables,
   la ladera de TERRAZA, el generador con las de TERRAZA, el paso de la grilla, el aterrizaje y los balcones, la pintura y
   el cordón). `PROBAR_FALLA_ADREDE=1` la hace fallar a propósito: así se comprobó que el probador corta en el nivel 0.

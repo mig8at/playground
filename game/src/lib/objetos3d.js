@@ -462,19 +462,6 @@ export const OBJETOS={
     p(0,1.98,D/2-.03,W-.02,.03,.03,al),...[-1,1].map(s=>p(s*(W/2-.02),.1,D/2-.03,.025,1.9,.03,al)),p(W/2-.12,1.0,D/2,.02,.25,.03,al),// el marco y la manija
     p(-W/4,.9,-D/2+.04,.025,1.15,.025,al),p(-W/4,1.98,-D/2+.12,.025,.025,.18,al),p(-W/4,1.92,-D/2+.21,.14,.03,.14,al,{cyl:true}),// el caño y la regadera
     p(-W/4,1.05,-D/2+.04,.1,.1,.05,al)];}},// la llave
- cortina:{nombre:'Cortinas',grupo:'Decoración',medida:[1.3,.12],alto:o=>o.h||2.5,variantes:['crema','azul','verde','terracota'],
-  antes:()=>[],
-  // (frente a una ventana de ancho o.w: el barral a o.h de alto y los dos paños, plegados, a los costados; la espalda en
-  // z=0, contra la pared; o.bajo: hasta dónde llegan)
-  // (o.cerrada: un color —engine/cortinas.js— y la tela corrida de lado a lado, 15 cm más ancha que la ventana por lado,
-  // con dos pliegues; tapa el cuarto desde la calle)
-  piezas:o=>{const W=o.w||1.3,H=o.h||2.5,B=o.bajo??.1,c={crema:['#efe6d6','#e2d6c0'],azul:['#7b98b8','#6a87a6'],verde:['#9fb89a','#8aa685'],terracota:['#c98a6a','#b77a5c']}[o.variante||'crema'];
-   const pl=o.pliegues||3,rb=.06+.09*(pl-1)+.08;// (el barral, hasta pasar el último pliegue)
-   const out=[p(0,H,.07,W+2*rb,.03,.03,C.maderaOscura),...[-1,1].map(s=>p(s*(W/2+rb-.03),H-.02,.07,.07,.07,.07,C.maderaOscura))];// (el barral, una caja: las casas no giran piezas)
-   if(o.cerrada){const t=o.cerrada,d='#'+[1,3,5].map(i=>Math.round(parseInt(t.slice(i,i+2),16)*.82).toString(16).padStart(2,'0')).join('');
-    out.push(p(0,B,.04,W+.3,H-B-.02,.03,t));for(const s of [-1,1])out.push(p(s*(W+.3)/6,B,.065,.12,H-B-.06,.02,d));return out;}
-   const np=o.pliegues||3;for(const s of [-1,1])for(let k=0;k<np;k++)out.push(p(s*(W/2+.06+k*.09),B,.04+(k%2)*.025,.1,H-B-.02,.02,c[k%2]));// tres pliegues por paño (o.pliegues: menos, si la pared no da)
-   return out;}},
 
  // La biblioteca (2026-10-12): reemplaza a las del paquete, con libros (C2_BookCaseBooks 1.456 triángulos,
  // C2_BookCaseLargeBooks 3.500, Bookcase_Books de Oficina 10.948) y vacías. Cuatro tablas; en cada una, una fila de
@@ -591,9 +578,15 @@ export const OBJETOS={
  // La hoja de la puerta de un cuarto (2026-10-12), a la medida del vano (o.w × o.h; 4 cm de grueso; el frente a +z,
  // centrada): de tablero (cuatro paneles, en los dormitorios), lisa, con vidrio arriba (la cocina) o con rejilla abajo (el
  // baño). La manija, de los dos lados, a 1 m y a 7 cm del canto que no lleva bisagra (el de −x).
- puerta:{nombre:'Puerta de cuarto',grupo:'Casa',medida:[.85,.04],alto:o=>o.h||2.05,variantes:['tablero','lisa','vidrio','rejilla'],
+ // (LA MINIMALISTA —2026-11-22, Miguel: «puertas más minimalistas, planas y quizás con unas líneas»—: la hoja plana, dos
+ // ranuras a los tercios de su alto en las dos caras y un tirador vertical en vez de la manija: 6 cajas, 72 triángulos, contra
+ // 13 cajas —156— de la de tablero y 19 —228— de la de rejilla)
+ puerta:{nombre:'Puerta de cuarto',grupo:'Casa',medida:[.85,.04],alto:o=>o.h||2.05,variantes:['minimal','tablero','lisa','vidrio','rejilla'],
   antes:()=>[],
-  piezas:o=>{const W=o.w||.85,H=o.h||2.05,T=.04,v=o.variante||'tablero',wd=o.color||(v==='lisa'||v==='rejilla'?'#ece7dc':C.maderaClara),dk=shadeHex(wd,.86),out=[p(0,0,0,W,H,T,wd)];
+  piezas:o=>{const W=o.w||.85,H=o.h||2.05,T=.04,v=o.variante||'tablero',wd=o.color||(v==='lisa'||v==='rejilla'||v==='minimal'?'#ece7dc':C.maderaClara),dk=shadeHex(wd,.86),out=[p(0,0,0,W,H,T,wd)];
+   // (las líneas son ranuras de verdad —1,2 cm de ancho, 1 cm de hondo por cada cara—: tres paños de la hoja con su alma
+   // más delgada entre ellos; se leen con la luz aunque todo sea de un color)
+   if(v==='minimal'){const g=.012,h=(H-2*g)/3;out.length=0;out.push(p(0,0,0,W,H,T-.02,wd));for(let i=0;i<3;i++)out.push(p(0,i*(h+g),0,W,h,T,wd));for(const sx of [-1,1])out.push(p(-W/2+.08,.75,sx*(T/2+.008),.02,.6,.02,C.aceroClaro));return out;}
    const panel=(x,y,w,h,c=dk)=>{for(const s of [-1,1])out.push(p(x,y,s*(T/2+.004),w,h,.008,c));};
    if(v==='tablero'){const pw=(W-.3)/2;for(const sx of [-1,1]){panel(sx*(pw/2+.05),.18,pw,.78);panel(sx*(pw/2+.05),1.12,pw,H-1.32);}}
    else if(v==='lisa')panel(0,.08,W-.12,H-.16,shadeHex(wd,.94));
@@ -643,11 +636,30 @@ export const OBJETOS={
   antes:()=>[],
   piezas:o=>{const W=o.w||1.2,D=o.d||.6,f=D/2,n=Math.max(2,Math.round(W/.5)),dw=(W-.06)/n,wd=C.maderaClara;
    return [p(0,0,0,W-.04,.08,D-.06,C.maderaOscura),p(0,.08,0,W,1.86,D,wd),p(0,1.94,0,W+.04,.06,D+.03,C.maderaOscura),// zócalo, cuerpo y cornisa
-    ...Array.from({length:n},(_,k)=>{const x=-W/2+.03+dw*(k+.5),side=k%2?-1:1;return [p(x,.14,f,dw-.03,1.74,.015,C.madera),p(x+side*(dw/2-.07),.9,f+.012,.025,.3,.02,C.cobre)];}).flat()];}},// las puertas con su tirador (de a pares)
+    ...Array.from({length:n},(_,k)=>{const x=-W/2+.03+dw*(k+.5),side=k%2?-1:1;return [p(x,.14,f,dw-.03,1.74,.015,C.madera),p(x+side*(dw/2-.07),.9,f+.012,.025,.3,.02,C.cobre)];}).flat()];}},// las puertas con su tirador (de a pares),
+ // ---------- El dúplex (2026-11-22): el plano los coloca —engine/duplex.js— y acá se arman; se ven en el taller ----------
+ // (Miguel: «eso debería estar en los objetos 3D, no en el plano, como objetos que se agregan al plano»)
+ // LA ESCALERA FLOTANTE —«escalones flotantes; y si puede estar sin una pared, un apoyo en el centro de la escalera, como
+ // simulando el soporte»—: o.w de ancho, o.d de largo, sube o.sube en o.n peldaños; el pie al frente (+z), la llegada atrás.
+ // Cada peldaño, una tabla de 7 cm con 2 cm de luz; con o.apoyo 'centro', una viga escalonada de 22 cm bajo el medio.
+ escalera_flotante:{nombre:'Escalera de escalones flotantes',grupo:'Dúplex',medida:[1,4],alto:o=>o.sube||3,variantes:['muro','centro'],
+  piezas:o=>{const W=o.w,D=o.d,S=o.sube||3,n=o.n||15,G=.07,luz=.02,rise=S/n,tread=D/n,out=[];
+   for(let k=0;k<n;k++){const z=D/2-tread*(k+.5),top=rise*(k+1);out.push(p(0,top-G,z,W-.02,G,tread-luz,C.maderaClara));
+    if((o.apoyo||o.variante)==='centro'){const h=Math.min(top-G,rise*1.6);out.push(p(0,top-G-h,z,.22,h,tread+.004,C.grafito));}}
+   return out;}},
+ // LA BARANDA DEL ENTREPISO: o.w de largo; un poste cada metro, el pasamanos y un riel al medio, de 95 cm (en x)
+ baranda_entrepiso:{nombre:'Baranda del entrepiso',grupo:'Dúplex',medida:[3,.05],alto:()=>.95,
+  piezas:o=>{const L=o.w,H=.95,k=Math.max(1,Math.round(L)),out=[p(0,H-.05,0,L,.05,.05,C.negro),p(0,H/2,0,L,.03,.05,C.negro)];
+   for(let i=0;i<=k;i++)out.push(p(-L/2+L*i/k,0,0,.04,H-.05,.04,C.negro));return out;}},
+ // LA ISLA DE LA COCINA: un bloque de mesón de o.w × o.d y 90 cm, con su cubierta que sobresale 2 cm y el zócalo metido
+ isla_cocina:{nombre:'Isla de cocina',grupo:'Dúplex',medida:[2.4,.9],alto:()=>.9,
+  piezas:o=>[p(0,0,0,o.w-.1,.1,o.d-.1,C.grafito),p(0,.1,0,o.w-.04,.76,o.d-.04,'#e3ddd2'),p(0,.86,0,o.w+.04,.04,o.d+.04,C.piedra)]}
 };
 // (2026-10-16: ninguna pieza con una cara en el mismo plano que otra de otro color —titilan al mover la cámara—:
 // engine/titileo.js las corrige al armarlas; lo comprueba validar-titileo)
-for(const o of Object.values(OBJETOS))if(o.piezas){const f=o.piezas;o.piezas=x=>piezasSinTitilar(f(x));}
+// (2026-11-21: con memoria. La misma silla con las mismas opciones se pedía —y se corregía— miles de veces al armar una
+// ciudad; las piezas de un objeto salen sólo de sus opciones, y quien las usa las copia al ubicarlas —placeParts—)
+for(const o of Object.values(OBJETOS))if(o.piezas){const f=o.piezas,memo=new Map();o.piezas=x=>{let k;try{k=JSON.stringify(x)??'';}catch{return piezasSinTitilar(f(x));}let r=memo.get(k);if(!r){r=piezasSinTitilar(f(x));if(memo.size<4000)memo.set(k,r);}return r;};}
 
 // Las paletas de las alfombras (las de costumbre: persas rojas y azules, de lana cruda, verdes y grises).
 const RUGS=[{base:'#7a2b2b',borde:'#e3c79a',campo:'#9c3a35',acento:'#2f4a6b',fleco:'#efe6d6'},{base:'#2f4a6b',borde:'#e3c79a',campo:'#3c5d84',acento:'#9c3a35',fleco:'#efe6d6'},

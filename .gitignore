@@ -51,6 +51,8 @@ radar/.cache/
 
 # FUGA (game/): lo pesado que no se versiona —las fuentes de los modelos, lo viejo y las capturas— (2026-10-18)
 /game/assets-fuente/
+# (el modelo del prototipo de personajes —15 MB, Universal Animation Library—: local hasta decidir si se adopta, 2026-11-22)
+/game/public/models/prototipo/
 /game/before/
 /game/capturas/
 tablero/tasks/*/artifacts/*.log.json

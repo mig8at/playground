@@ -144,7 +144,15 @@ export const PASILLO={ancho:2,hall:1.5};
 // Las franjas de un departamento, derivadas de los cuartos (harness/pruebas/derivar-edificio.mjs, 2026-10-15): la interior
 // (junto al pasillo) lleva el baño completo (2,25) y el hall (1,2 libres) → 2,5; la de fachada, lo que piden de fondo
 // alcobas y sala (≤ 3,25) → 3,5. Juntas, 6 m: una casilla (antes 4 + 2).
-export const FRANJA={interior:2.5,fachada:3.5};
+// (2026-11-21, calibración —Miguel: «que las medidas faciliten los cálculos pero siga generando un mapa agradable», «sacar
+// los números exactos para poder construir la ciudad a medida»—: la franja interior pasa de 2,5 a 2 m y la de fachada de
+// 3,5 a 4: las dos son módulos enteros de la grilla de 2 m, así el tabique entre ellas llega a las fachadas laterales en una
+// línea de módulo. Lo que lo impedía: con la franja en 2 m el baño ganaba una ventana en su pared corta y no entraban la
+// ducha ni el lavamanos; ese baño va ahora sin ventana —blueprint.js—. Medido en tres ciudades chicas: los tabiques que
+// llegan a la fachada en un metro entero pasan de 91 a 94 % y en línea de módulo de 87 a 89 %, con las mismas viviendas y
+// los mismos dormitorios, que ganan medio metro de fondo. FUGA_FRANJA: sólo para medir alternativas)
+const _fi=+(globalThis.process?.env?.FUGA_FRANJA||2);
+export const FRANJA={interior:_fi,fachada:6-_fi};
 
 // Los mínimos contra los que se valida (normas de vivienda y de edificios públicos; redondeados).
 export const MINIMO={
@@ -176,7 +184,9 @@ export const copias={
 // El fondo máximo de una franja que se puede iluminar (2026-10-15): con una ventana por módulo de 2 m, un cuarto recibe
 // como mucho (vidrio de la ventana)/2 m² por metro de fachada y la luz pide fondo × MINIMO.luz: fondo ≤ vidrio/2/luz. Con
 // la ventana más grande de ladrillo y piedra (1,99 m²): 7,96 → 7,5 en la grilla de 0,5. Más hondo, ninguna ventana alcanza.
-FRANJA.maxLuz=Math.floor(Math.min(...Object.values(VENTANAS_FAMILIA).map(f=>Math.max(...f.map(k=>VIDRIO.ventana[k]))))/2/MINIMO.luz*2+1e-9)/2;
+// (2026-11-22, a metro entero: 7,96 → 7, no 7,5. En un lote de 18 m de fondo las franjas eran 7,5 + 3 + 7,5 y todo lo que
+// cortaba esas franjas quedaba en medio metro; ahora 7 + 4 + 7, con el pasillo de 4 m)
+FRANJA.maxLuz=Math.floor(Math.min(...Object.values(VENTANAS_FAMILIA).map(f=>Math.max(...f.map(k=>VIDRIO.ventana[k]))))/2/MINIMO.luz+1e-9);
 
 // ======== EL JUEGO: rangos que el generador garantiza (2026-10-15) ========
 // robables: los edificios que se roban (plano.js); puertasRobable: las puertas de calle mínimas de cada uno —con una sola,
@@ -375,6 +385,12 @@ export const TRANSITO={semaforo:{verde:15,amarillo:3,todoRojo:1.5},frena:{comoda
 //    va en la pared—.
 // alto: la superficie (pisable) o hasta dónde estorba (sólido); nunca más que lo que mide su modelo (MUEBLES_MEDIDOS).
 // Lo comprueba validar-muebles.
+// PINTAR UNA PARED DE AFUERA (2026-11-22, Miguel: «valida que las paredes sean accesibles para pintar: las del exterior,
+// por la escalera o el ascensor a la terraza»; y «para pintar pisos arriba el jugador puede usar una escalera»). Como lo
+// hace un pintor de verdad: con una escalera de mano desde donde se pueda parar delante del muro —la vereda, el patio o el
+// techo del vecino más bajo— se llega hasta `escaleraDeMano` metros (una de 6 m y el brazo); más arriba, colgado desde la
+// azotea del propio edificio, si se sube a ella por la escalera del núcleo.
+export const PINTAR={escaleraDeMano:8};
 export const ALCANCE=(()=>{const S=CIRCULACION.peaton.salto;return +(S.velocidad**2/(2*S.gravedad)+CIRCULACION.peaton.escalon).toFixed(2);})();
 const P=(alto)=>({choque:'pisable',alto}),SOL=(alto,razon)=>({choque:'solido',alto,...(razon?{razon}:{})}),NO=razon=>({choque:'ninguno',razon});
 export const CHOQUE_MUEBLE={
@@ -629,7 +645,14 @@ export const PALETA={
   moderno:{t:'Moderno (concreto)',pared:['#ecebe6','#cfcfcb','#9ea3a8','#4a4f57','#e5dccb'],moldura:{oscura:.5,clara:.5},uniforme:true,acentoClaro:true,
    acento:['#e0712c','#f2c230','#d6332e','#2d63b5','#2f9e6b'],marco:{moldura:1},zocalo:{piedra:.5,ninguno:.5}}},
  // qué tradiciones caben en cada familia de barrio de la ciudad (fachada.js BARRIOS) y en las manzanas del monte
- tradicionesDe:{historico:['caribe','nordico','holandes','lisboa','laboca'],elegante:['haussmann','victoriano','charleston','lisboa'],moderno:['moderno','nordico','caribe'],
+ // (2026-11-21, Miguel, viendo el 3D: «hay fachadas con colores diferentes; que queden uniformes, para que sea más
+ // bonito». Cada barrio usa ahora sólo tradiciones de pared pareja —la piedra crema, el encalado blanco, el ladrillo
+ // oscuro, el concreto—: las fachadas de una cuadra son del mismo tono y se distinguen por la textura, los marcos y el
+ // zócalo. Las de muchos colores —Caribe, Burano, La Boca, las victorianas…— siguen definidas arriba y quedan en
+ // tradicionesVariadas, por si se quiere un barrio así)
+ tradicionesDe:{historico:['holandes','haussmann','mediterraneo'],elegante:['haussmann','mediterraneo'],moderno:['moderno','haussmann'],
+  monte:['mediterraneo','haussmann','antioqueno']},
+ tradicionesVariadas:{historico:['caribe','nordico','holandes','lisboa','laboca'],elegante:['haussmann','victoriano','charleston','lisboa'],moderno:['moderno','nordico','caribe'],
   monte:['antioqueno','mediterraneo','burano','caribe','charleston','victoriano']},
  // (la diferencia mínima entre vecinos —ΔE de CIE76—: dos cuartos que se tocan, dos fachadas de lotes vecinos; la
  // moldura contra la pared, en contraste de luminancia WCAG)
@@ -686,8 +709,9 @@ export const PINTURA={alto:.015,cebra:{franja:.5,paso:1},discontinua:{largo:2.4,
 //    clases, horarios.clases). Los demás cuidan la casa (o trabajan en ella) y los recogen al terminar las clases.
 export const RELOJ={escala:60,dia:86400};
 // La animación de caminar de los muñecos (characters3d moveCharacter): a ritmo 1 avanza paso m/s; el ritmo va de min a
-// max (fuera de eso, los pies patinan).
-export const ANIM={paso:1.35,min:.6,max:1.6};
+// max (fuera de eso, los pies patinan). (2026-11-22: los personajes nuevos —Walk_Loop de las Universal Animation Library—
+// pisan a 0,98 m/s a ritmo 1, medido por la velocidad del pie apoyado; antes 1,35 con los muñecos viejos)
+export const ANIM={paso:.98,min:.6,max:1.6};
 // El caminar natural (2026-10-18, Miguel: «saltos bruscos de movimiento»; lo mide validar-caminar): por cuadro, la
 // velocidad contra el paso de cada uno (p99 rapido, nunca más de salto), la aceleración p99 (m/s²: una persona arranca y
 // dobla a 1–2), el giro de la marcha p99 (°/s), lo que patinan los pies p95 (parte del avance) y hacia dónde mira contra

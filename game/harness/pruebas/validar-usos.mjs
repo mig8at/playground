@@ -39,7 +39,7 @@ for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:3});
    const muebles=(lv.furniture||[]).map(f=>({kind:f.kind,x0:f.x,x1:f.x+f.w,z0:f.y,z1:f.y+f.h,fx:Math.sin(f.ry||0),fz:Math.cos(f.ry||0)}));
    const cuartos=[...lv.rooms,...(lv.corridor||[])].map(q=>({x0:q.x,x1:q.x+q.w,z0:q.y,z1:q.y+q.h,tipo:q.type}));
    const ventanas=[];for(const w of lv.windows||[]){if(w.shop)continue;const c=cuartoDeVentana(lv,w);if(!c||!CU.has(c.q.type))continue;const m=(c.u+c.v)/2;ventanas.push(c.h?{x0:c.u,x1:c.v,z0:c.at,z1:c.at,nx:0,nz:c.edge}:{x0:c.at,x1:c.at,z0:c.u,z1:c.v,nx:c.edge,nz:0});}
-   revisar(muebles,ventanas,cuartos,piso,{semilla:s,lote:L.type,piso:lv.level},miradoresDePiso(lv));}}
+   revisar(muebles,ventanas,cuartos,piso,{semilla:s,lote:L.type,id:L.id,piso:lv.level},miradoresDePiso(lv));}}
  for(const h of bp.isla.casas||[]){const P=h.spec?.hogar;if(!P)continue;const pisos=navCasa(h);
   for(const lv of P.levels){const piso=pisos.find(p=>p.nivel===lv.level);if(!piso)continue;
    const muebles=(lv.furniture||[]).map(f=>({kind:f.kind,x0:f.u0,x1:f.u1,z0:f.v0,z1:f.v1,fx:(f.dir||[0,1])[0],fz:(f.dir||[0,1])[1]}));

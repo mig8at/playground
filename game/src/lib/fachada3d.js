@@ -8,9 +8,10 @@
    cada material de la pieza original (las mismas en el navegador y en el validador, que las lee de los .gltf). */
 
 // Las piezas que se cambian: las de muro, ventana, vidriera, puerta, cornisa, columna y banda. Los accesorios (escaleras,
-// barandas, aire acondicionado, mansarda, losas, hojas de puerta) siguen siendo del paquete, ya lisos.
+// barandas, aire acondicionado, mansarda, losas) siguen siendo del paquete, ya lisos. (2026-11-22: las hojas de puerta, también
+// propias: la minimalista —ver piezaBase—)
 import {COLUMNA} from '../engine/medidas.js';
-export const ES_DE_FACHADA=n=>/(Window|FirstFloor|Plain|BottomTrim|TopTrim|Inset|Cornice_|Column|Ornament|DoorFrame)/.test(n)&&!/InteriorWall|Wall_Guard|SlateCornice/.test(n);
+export const ES_DE_FACHADA=n=>(/(Window|FirstFloor|Plain|BottomTrim|TopTrim|Inset|Cornice_|Column|Ornament|DoorFrame)/.test(n)||/^Door_\d$/.test(n))&&!/InteriorWall|Wall_Guard|SlateCornice/.test(n);
 // Medidas del acabado (m): el marco alrededor del vidrio, lo que sobresale, el alféizar y el dintel.
 export const ACABADO={marco:.08,saliente:.05,alfeizar:{alto:.06,sale:.1,sobra:.08},dintel:{alto:.12,sale:.06,sobra:.06},zocalo:.8,capa:.1};
 // Los materiales propios de las zonas del esquema (color.js esquemaDe, 2026-10-18): los marcos de ventanas y puertas, y el
@@ -49,10 +50,19 @@ function sinTitilar(C){const ejes=[['x','y','z'],['y','x','z'],['z','x','y']];
   if(!cambios)break;}
  for(const c of C)delete c.muro;return C;}
 export function piezaLowPoly(nombre,M){return sinTitilar(piezaBase(nombre,M));}
-function piezaBase(nombre,M){const out=[],X=M.__x||[-1,1],Y=M.__y||[0,3],pared=paredDe(M),A=ACABADO,mol='MI_Trim',g=M.MI_Glass;
+// (2026-11-21, lo encontró validar-fachada-piezas: el marco de madera del paquete mide 2,30 m y la pieza salía 15 cm de
+// cada lado de su módulo de 2 m, sobre los vecinos. Un marco de puerta va en UN módulo: su huella se recorta a ±1 m)
+function piezaBase(nombre,M){const out=[],X0=M.__x||[-1,1],X=/DoorFrame/.test(nombre)?[Math.max(-1,X0[0]),Math.min(1,X0[1])]:X0,Y=M.__y||[0,3],pared=paredDe(M),A=ACABADO,mol='MI_Trim',g=M.MI_Glass;
  const x0=X[0],x1=X[1],y0=Y[0],y1=Y[1];
  // (la caja de toda la pieza original, en z también)
  const Zs=Object.entries(M).filter(([k])=>!k.startsWith('__')).map(([,v])=>v),z0=Math.min(...Zs.map(v=>v.min[2])),z1=Math.max(...Zs.map(v=>v.max[2]));
+ // (LA HOJA MINIMALISTA —2026-11-22, Miguel: «las puertas más minimalistas, planas y quizás con unas líneas»—: en la caja de
+ // la hoja original, un alma un poco más delgada y tres paños con dos ranuras de 1,2 cm entre ellos, a los tercios de su
+ // alto; si el original lleva vidrio, arriba va ese mismo vidrio con su marco, y las ranuras, en lo macizo de abajo)
+ if(/^Door_\d$/.test(nombre)){const m=Object.keys(M).filter(k=>!k.startsWith('__')&&k!=='MI_Glass').sort((a,b)=>{const A_=M[a],B_=M[b];return (B_.max[1]-B_.min[1])*(B_.max[0]-B_.min[0])-(A_.max[1]-A_.min[1])*(A_.max[0]-A_.min[0]);})[0]||pared,G=.012,e=.008;
+  const tope=g?g.min[1]-.06:y1,h=(tope-y0-2*G)/3;out.push(caja(x0,x1,y0,tope,z0+e,z1-e,m));for(let i=0;i<3;i++)out.push(caja(x0,x1,y0+i*(h+G),y0+i*(h+G)+h,z0,z1,m));
+  if(g){out.push(caja(x0,x1,tope,g.min[1],z0,z1,m),caja(x0,g.min[0],g.min[1],y1,z0,z1,m),caja(g.max[0],x1,g.min[1],y1,z0,z1,m),caja(x0,x1,g.max[1],y1,z0,z1,m),caja(g.min[0],g.max[0],g.min[1],g.max[1],g.min[2],g.max[2],'MI_Glass'));}
+  return out;}
  // la columna de esquina (COLUMNA): un pilar cuadrado centrado en el origen —town3d lo corre hacia afuera de la esquina—,
  // con base y capitel, del color del material más grande del original (la de ladrillo era una L de 1 m por lado que
  // tapaba media ventana)

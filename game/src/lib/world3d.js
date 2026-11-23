@@ -400,11 +400,11 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
  // centrado en (x,z) que corre a lo largo de (tx,tz): para que ninguna valla quede metida en la pared de un vecino.
  const builtH=(px,pz)=>{const cx=Math.floor(px/S),cy=Math.floor(pz/S),k=at(cx,cy);return OPEN.has(k)||k===K.border?0:info(cx,cy).h;};
  const clearance=(x,z,tx,tz,half,nx,nz)=>{let m=0;for(let t=-half-.3;t<=half+.3;t+=.4)for(const d of [-.35,0,.35])m=Math.max(m,builtH(x+tx*t+nx*d,z+tz*t+nz*d));return m;};
- let adPlan=null;const blank=new Set(); // «x,y,dx,dy,piso»: tramos de fachada sin ventanas (detrás de un cartel)
+ let fachadaArmada_=null;let adPlan=null;const blank=new Set(); // «x,y,dx,dy,piso»: tramos de fachada sin ventanas (detrás de un cartel)
  const blankOut=(faces,y0,y1)=>{for(const f of faces)for(let fl=Math.max(1,Math.floor(y0/FLOOR));fl<=Math.floor((y1-.01)/FLOOR);fl++)blank.add(`${f.x},${f.y},${f.dx},${f.dy},${fl}`);};
  // El frente de cada puerta (y de cada portón): ahí no se pone nada que estorbe el paso (ver inDoor).
  const doorFronts=[],doorFrames=[];
- const stoopsByCell=new Map(),balconiesByCell=new Map(),lotFurniture=new Map(),surfByCell=new Map(),panios=new Map();let cortinaMesh=null,cortinaOrig=null,cortinaLote=null,cortinaSlot=null,cortinasVisibles=null;const panioDe=[];let stationInfo=null,lotPlaques=[],town=null,civ=null,civicFronts=[],elevators=[],setElevatorDoors=()=>{};const walls=new Map(),WALL_T=.3;let stairsByLot=new Map();
+ const stoopsByCell=new Map(),balconiesByCell=new Map(),lotFurniture=new Map(),surfByCell=new Map(),panios=new Map();let cortinaMesh=null,cortinaOrig=null,cortinaLote=null,cortinaSlot=null,cortinasVisibles=null;const panioDe=[];let stationInfo=null,lotPlaques=[],town=null,civ=null,civicFronts=[],elevators=[],setElevatorDoors=()=>{};const walls=new Map(),WALL_T=.3;let stairsByLot=new Map(),duplexByLot=new Map(),mansardaArmada_=[],cascarones_=[];
  if(downtown&&plan){
   // Los edificios del plano (town3d.js): fachadas, pisos, tabiques, ascensores, muebles y choques.
   adPlan=barrio||LOWPOLY.on?[]:planFacadeAds();// (van en la azotea: la fachada conserva sus ventanas; con LOWPOLY, sin publicidad)
@@ -414,12 +414,15 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
   // (las superficies de los muebles pisables, por casilla: para pararse encima —floorAt—)
   for(const p of T.superficies)for(let cy=Math.floor(p.z0/S);cy<=Math.floor((p.z1-1e-6)/S);cy++)for(let cx=Math.floor(p.x0/S);cx<=Math.floor((p.x1-1e-6)/S);cx++){const k=cy*W+cx;(surfByCell.get(k)||surfByCell.set(k,[]).get(k)).push(p);}
   // (lo de las azoteas —town3d roofProps, engine/azoteas.js—: del catálogo, en una malla por color, siempre a la vista)
+  // (el último tramo de las escaleras que suben a la azotea: siempre a la vista, town3d escalerasAire)
+  if(T.escalerasAire?.length){const g=base(new THREE.BoxGeometry(1,1,1)),m=new THREE.MeshStandardMaterial({roughness:.85});own.push(g,m);const im=instanced(group,g,m,T.escalerasAire,{cast:false});if(im)im.name='escaleras-azotea';}
   if(T.roofProps.length){const ps=T.roofProps.flatMap(e=>placeParts(OBJETOS[e.modelo].piezas(e.o),{x:e.x,y:e.y,z:e.z,ry:e.ry}));const g=partsMesh(ps);group.add(g);g.traverse(o=>{if(o.isInstancedMesh)own.push(o);});}
   // Los ensanches del pasillo (blueprint, 2026-10-18, Miguel: «en vez de los cuartos, más pasillo, con floreros y
   // cuadros»): el tramo ciego de los pisos de departamentos. En su pared del fondo —la de enfrente del lado por el que se
   // llega del pasillo—, un cuadro cada ~2 m y, entre ellos, una mesita con un florero; la mesita choca (una caja de su
   // huella y su alto, como las paredes —addWall—).
-  {const ps=[];plan.lots.forEach(B=>{const R0=lots[B.id]?.raise||0;for(const lv of B.levels||[])for(const e of lv.corridor||[]){if(!e.ensanche)continue;
+  // (2026-11-22: en la ciudad entregada vacía —plan.entrega—, sin adornos)
+  if(!plan.entrega){const ps=[];plan.lots.forEach(B=>{const R0=lots[B.id]?.raise||0;for(const lv of B.levels||[])for(const e of lv.corridor||[]){if(!e.ensanche)continue;
    const otros=lv.corridor.filter(o=>o!==e),cruza=(a0,a1,b0,b1)=>a0<b1-.05&&a1>b0+.05;
    const bordes=[{h:true,at:e.y,n:[0,1],t:o=>Math.abs(o.y+o.h-e.y)<.05&&cruza(o.x,o.x+o.w,e.x,e.x+e.w)},{h:true,at:e.y+e.h,n:[0,-1],t:o=>Math.abs(o.y-e.y-e.h)<.05&&cruza(o.x,o.x+o.w,e.x,e.x+e.w)},
     {h:false,at:e.x,n:[1,0],t:o=>Math.abs(o.x+o.w-e.x)<.05&&cruza(o.y,o.y+o.h,e.y,e.y+e.h)},{h:false,at:e.x+e.w,n:[-1,0],t:o=>Math.abs(o.x-e.x-e.w)<.05&&cruza(o.y,o.y+o.h,e.y,e.y+e.h)}];
@@ -434,7 +437,7 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
      for(let cy=Math.floor(z0/S);cy<=Math.floor(z1/S);cy++)for(let cx=Math.floor(x0/S);cx<=Math.floor(x1/S);cx++)addWall(cx,cy,x0,z0,x1,z1,y,y+.56);}
     ps.push(...placeParts(OBJETOS.mesa_noche.piezas({}),{x:mx,y,z:mz,ry}),...placeParts(OBJETOS.florero.piezas({variante:['rojas','amarillas','lilas'][Math.floor(hs(3)*3)],paleta:Math.floor(hs(4)*3)}),{x:mx,y:y+OBJETOS.mesa_noche.alto({}),z:mz,ry}));}}});
    if(ps.length){const g=partsMesh(ps);g.name='pasillo:adornos';group.add(g);g.traverse(o=>{if(o.isInstancedMesh)own.push(o);});}}
-  doorFronts.push(...T.doorFronts);stairsByLot=T.stairs;for(const [k,v] of T.lotFurniture)lotFurniture.set(k,v);stationInfo=T.stationInfo;civicFronts.push(...T.civicFronts);
+  fachadaArmada_=T.fachadaArmada;doorFronts.push(...T.doorFronts);stairsByLot=T.stairs;duplexByLot=T.duplexes||new Map();mansardaArmada_=T.mansardaArmada||[];for(const [k,v] of T.lotFurniture)lotFurniture.set(k,v);stationInfo=T.stationInfo;civicFronts.push(...T.civicFronts);
   setElevatorDoors=buildCabins(elevators,{FLOOR,group,own,instanced,base,addWall,S,W,H});
   // Las cortinas cerradas (town3d T.cortinas): siempre, con la fachada —no con los muebles, que sólo se dibujan de cerca—.
   if(T.cortinas.length){const cm=new THREE.MeshStandardMaterial({roughness:.95,flatShading:true}),cg=base(new THREE.BoxGeometry(1,1,1));own.push(cm,cg);cortinaMesh=instanced(group,cg,cm,T.cortinas,{cast:false});
@@ -446,7 +449,7 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
    // también desde adentro de un edificio—: se apagan con su lote, como las piezas de downtown3d; las matrices de cada una,
    // guardadas para volver a ponerlas)
    if(cortinaMesh){cortinaOrig=cortinaMesh.instanceMatrix.array.slice();cortinaLote=T.cortinas.map(c=>c.lote??-1);cortinaSlot=new Int32Array(cortinaLote.length).map((_,i)=>i);for(const p of T.panios)for(let i=0;i<p.n;i++)panioDe[p.i0+i]=p;}
-  WORLD_TIMES.lap('unir');lotPlaques=T.plaques;town=buildDowntown(downtown,T.items,T.leaves);group.add(town.group);
+  WORLD_TIMES.lap('unir');lotPlaques=T.plaques;cascarones_=T.cascarones||[];town=buildDowntown(downtown,T.items,T.leaves,{cascarones:T.cascarones});group.add(town.group);
   // Las escalinatas (town3d.js): por casilla, para el piso de afuera.
   for(const st of T.stoops||[]){const cx=Math.floor((st.x+st.nx*.5)/S),cy=Math.floor((st.z+st.nz*.5)/S),k=cy*W+cx;(stoopsByCell.get(k)||stoopsByCell.set(k,[]).get(k)).push(st);}
   // Los balcones (town3d.js): por casilla, para pisarlos.
@@ -922,7 +925,10 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
  }
  // Los escondites (contenedores) los pone el motor; si en el 3D uno cae frente a una puerta, se corre a lo largo de la
  // fachada hasta un lugar libre (en el 2D sigue donde estaba).
- for(const h of map.hideouts){let x=h.x*S,z=h.y*S;
+ // (2026-11-21: si el plano ya dice dónde va cada uno —engine/contenedores.js: sobre el andén, contra la fachada y
+ // paralelo a ella—, va ahí tal cual; lo de abajo queda para un mapa sin plano)
+ if(plan?.contenedores?.length){for(const c of plan.contenedores){dumpsters.push({x:c.x,z:c.z,ry:c.ang});addCollider(c.x,c.z,.9);}}
+ else for(const h of map.hideouts){let x=h.x*S,z=h.y*S;
   if(inDoor(x,z,.9)){const d=doorFronts.find(d=>{const ax=x-d.x,az=z-d.z;return Math.abs(ax*d.nz-az*d.nx)<d.half+1.2&&ax*d.nx+az*d.nz<3.6;});
    if(d)for(const off of [2.6,-2.6,3.4,-3.4,4.2,-4.2]){const nx=x+d.nz*off,nz=z-d.nx*off;const cx2=Math.floor(nx/S),cy2=Math.floor(nz/S),k2=at(cx2,cy2),wallNear=(walls.get(cy2*W+cx2)||[]).some(([a0,b0,a1,b1])=>nx>a0-.9&&nx<a1+.9&&nz>b0-.9&&nz<b1+.9);
     if(!inDoor(nx,nz,.9)&&OPEN.has(k2)&&!wallNear){x=nx;z=nz;break;}}}
@@ -1026,11 +1032,15 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
  };
  // El techo de un edificio (con la mansarda y la planta baja levantada).
  const topOf=inf=>(inf.h||0)+(inf.fs?.mansard?MANSARDA.alto:0)+(inf.raise||0);
+ // ¿el rectángulo (x0, z0)–(x1, z1) pisa la salida de una escalera a la azotea? (2026-11-22: los avisos de azotea caían con
+ // sus postes dentro del hueco —lo vio Miguel—; town3d stairs, con 60 cm de aire alrededor)
+ const pisaEscalera=(x0,z0,x1,z1)=>{for(const [,st] of stairsByLot||[]){if(!st.azotea)continue;const r=st.rect(-.6,-.6,st.W+.6,st.sd.d+.6);if(Math.min(x1,r.x+r.w)>Math.max(x0,r.x)&&Math.min(z1,r.z+r.h)>Math.max(z0,r.z))return true;}return false;};
+ const tablero=(cx,cz,tx,tz,nx,nz,w)=>{const xs=[],zs=[];for(const s of [-1,1])for(const d of [-1,.3]){xs.push(cx+tx*s*w/2+nx*d);zs.push(cz+tz*s*w/2+nz*d);}return pisaEscalera(Math.min(...xs),Math.min(...zs),Math.max(...xs),Math.max(...zs));};
  // Los avisos de los edificios (planFacadeAds: tramos de dos casillas o más): ya no van pegados a la fachada (tapaban
  // ventanas) sino en la azotea, al frente, sobre dos postes y mirando a la calle.
  const roofBoards=[];
  for(const a of adPlan||planFacadeAds()){const inf=a.run[0].inf,roof=topOf(inf),bottom=roof+1.2,y=bottom+a.h/2,tx=a.dy,tz=-a.dx,ex=a.cx-a.dx*.7,ez=a.cz-a.dy*.7;
-  if(roofBoards.some(b=>Math.hypot(b.x-ex,b.z-ez)<6))continue;roofBoards.push({x:ex,z:ez,tx,tz,nx:a.dx,nz:a.dy,roof,bottom});
+  if(roofBoards.some(b=>Math.hypot(b.x-ex,b.z-ez)<6)||tablero(ex,ez,tx,tz,a.dx,a.dy,a.w))continue;roofBoards.push({x:ex,z:ez,tx,tz,nx:a.dx,nz:a.dy,roof,bottom});
   panel(a.w,a.h,ex,y,ez,a.dx,a.dy,a.ad,.2);
   for(const s of [-1,1]){const l=new THREE.Mesh(geo(new THREE.CylinderGeometry(.09,.11,bottom-roof+.2,10)),frameMat);l.position.set(ex-a.dx*.4+tx*s*(a.w/2-.5),roof+(bottom-roof+.2)/2,ez-a.dy*.4+tz*s*(a.w/2-.5));l.castShadow=true;group.add(l);}}
 
@@ -1047,7 +1057,7 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
     // si tuviera que subir más de 10 m, esa azotea queda sin valla.
     const bottom=Math.max(roof+1.1,clearance(ex,ez,f.dy,-f.dx,3.5,f.dx,f.dy)+.6);if(bottom>roof+10)continue;
     // Ni encima de la valla de otra manzana: a menos de 8 m se pisarían.
-    if(roofBoards.some(b=>Math.hypot(b.x-ex,b.z-ez)<8))continue;
+    if(roofBoards.some(b=>Math.hypot(b.x-ex,b.z-ez)<8)||tablero(ex,ez,f.dy,-f.dx,f.dx,f.dy,10.5))continue;
     const y=bottom+1.75,len=y-roof;roofBoards.push({x:ex,z:ez,tx:f.dy,tz:-f.dx,nx:f.dx,nz:f.dy,roof,bottom});
     panel(7,3.5,ex,y,ez,f.dx,f.dy,Math.floor(hash(f.x,f.y,21)*99),.2);
     for(const s of [-1,1]){const l=new THREE.Mesh(geo(new THREE.CylinderGeometry(.09,.11,len,10)),frameMat);l.position.set(ex-f.dx*.4+f.dy*s*2.6,roof+len/2,ez-f.dy*.4-f.dx*s*2.6);l.castShadow=true;group.add(l);}
@@ -1066,7 +1076,9 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
  // ---------- Techos: tanques de agua, aires acondicionados y antenas ----------
  const tanks=[],tankBase=[],acs=[],antennas=[];
  for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){
-  const k=kind[y*W+x];if(OPEN.has(k)||k===K.border||DIRS.some(([dx,dy])=>OPEN.has(at(x+dx,y+dy))))continue;
+  // (2026-11-22: no en los edificios del plano —hollow—: su azotea la reparte engine/azoteas.js y deja libre la escalera; acá
+  // caían tanques y antenas al azar, también dentro del hueco de la escalera que sube al techo —lo vio Miguel—)
+  const k=kind[y*W+x];if(OPEN.has(k)||k===K.border||hollow[y*W+x]||DIRS.some(([dx,dy])=>OPEN.has(at(x+dx,y+dy))))continue;
   const hh=info(x,y).h,r=hash(x,y,map.seed+71),cx=(x+.3+.4*hash(y,x,5))*S,cz=(y+.3+.4*hash(x,y,6))*S;
   if(r<.07){tankBase.push({x:cx,y:hh,z:cz});tanks.push({x:cx,y:hh+.45,z:cz,color:r<.035?'#2b3a4a':'#d9d4c8'});}
   else if(r<.17)acs.push({x:cx,y:hh,z:cz,ry:Math.floor(r*40)*Math.PI/2});
@@ -1108,12 +1120,16 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
   const id=lotOf[cy*W+cx],L=lots[id],st=stairsByLot.get(id),R=L.raise||0,fe=feet-R;let g=0;
   // La azotea (se llega en ascensor): el techo plano, o el de arriba de la mansarda.
   // (la mansarda: su pendiente desde cada fachada y la cubierta arriba —techos.js, la misma altura que mide el 2D—)
-  const roof=L.h+(L.mansarda?alturaMansarda(L.mansarda,px,pz):0);if(fe>=roof-.45)return roof+R;
+  // (sobre el hueco de la escalera que sube a la azotea no hay techo: se sigue por los peldaños)
+  const roof=L.h+(L.mansarda?alturaMansarda(L.mansarda,px,pz):0);if(fe>=roof-.45&&!(st?.azotea&&st.inHole(px,pz,L.floors)))return roof+R;
+  // (un dúplex: arriba, el piso del altillo —la losa del último piso—, menos el hueco de su escalera; en el hueco, los peldaños)
+  const dx=duplexByLot.get(id);if(dx&&fe>=L.h-.45&&dx.arriba(px,pz)&&!dx.hueco(px,pz))return L.h+R;
   for(let f=L.floors-1;f>0;f--)if(f*FLOOR<=fe+.45&&!(st&&st.inHole(px,pz,f))){g=f*FLOOR;break;}
   // (la planta baja se dibuja 2 cm arriba del suelo, para que no titile con él —town3d yb, piezasSinTitilar—: se pisa ahí.
   // 2026-10-16, medido sin pantalla —validar-pisos—: los pies quedaban 2 cm dentro del piso en toda planta baja)
   if(g===0)g=.02;
   if(st){const h=st.surface(px,pz,fe);if(h!==null&&h>g)g=h;}
+  if(dx){const h=dx.surface(px,pz,fe);if(h!==null&&h>g)g=h;}
   // (encima de un mueble pisable: la mesa, el sofá, el mesón —town3d T.superficies, con la planta baja ya subida—)
   let top=g+R;for(const p of surfByCell.get(cy*W+cx)||[])if(px>p.x0&&px<p.x1&&pz>p.z0&&pz<p.z1&&p.y<=feet+.45&&p.y>top)top=p.y;return top;}
  // El balcón bajo un punto (para quien está a su altura: los de la calle pasan por debajo).
@@ -1166,19 +1182,24 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
  const interior=new THREE.Group();group.add(interior);let activeKey='',clock=0;const bedMat=new THREE.MeshStandardMaterial({roughness:.85});own.push(bedMat);
  // La ronda (2026-10-17): lo robado no se dibuja (oculto(it, lote) → true) y las puertas trancadas no se abren solas
  // (trancada(x, z, y) → true). El 3D las fija con setOcultos / setTrancadas; refrescarInteriores rearma lo de adentro.
- let ocultoFn=null,trancadaFn=null;
- function updateInteriors(px,pz,dt=.016,py=1.7){if(!furniture||!lotFurniture.size)return;if((clock-=dt)>0)return;clock=.4;
+ let ocultoFn=null,trancadaFn=null,cerradoFn=null;
+ // (la caja de lejos de cada edificio —downtown3d setLejos—, cada 0,3 s según dónde está la cámara)
+ let lejosReloj=0;
+ function updateInteriors(px,pz,dt=.016,py=1.7){if((lejosReloj-=dt)<=0){lejosReloj=.3;town?.setLejos?.(px,pz);}if(!furniture||!lotFurniture.size)return;if((clock-=dt)>0)return;clock=.4;
   // Los edificios a menos de 15 m de la cámara, y sólo los pisos cerca de su altura (el de la cámara y los vecinos).
   const cf=Math.floor(Math.max(0,py-.5)/FLOOR),act=[...lotFurniture].filter(([id,L])=>Math.hypot(L.x-px,L.z-pz)<15+L.r).map(([id])=>id),key=act.join(',')+'|'+cf;if(key===activeKey)return;activeKey=key;
   const near=it=>Math.abs(it.f-cf)<=1;
   for(const m of [...interior.children]){interior.remove(m);m.dispose?.();}
-  const by={};const beds=[],glass=[];for(const id of act){const L=lotFurniture.get(id);for(const it of L.items)if(near(it)&&!(ocultoFn&&ocultoFn(it,id)))(by[it.name]||(by[it.name]=[])).push(it);beds.push(...L.beds.filter(near));glass.push(...(L.glass||[]).filter(near));}
+  // (2026-11-22: lo de adentro de una vivienda cerrada —sin dueño, con sus persianas cerradas— no se arma: cerradoFn(lote, piso,
+  // x, z), engine/propiedad.js adentroCerrado. Ni sus aparatos, ni sus camas, ni sus vidrios, ni las hojas de sus puertas)
+  const fuera=(it,id,x,z)=>!(cerradoFn&&cerradoFn(id,it.f,x??it.x,z??it.z));
+  const by={};const beds=[],glass=[];for(const id of act){const L=lotFurniture.get(id);for(const it of L.items)if(near(it)&&fuera(it,id)&&!(ocultoFn&&ocultoFn(it,id)))(by[it.name]||(by[it.name]=[])).push(it);beds.push(...L.beds.filter(b=>near(b)&&fuera(b,id)));glass.push(...(L.glass||[]).filter(g=>near(g)&&fuera(g,id)));}
   for(const [n,list] of Object.entries(by))plantInstances(furniture,n,list,interior,{shadow:false});
   if(beds.length)instanced(interior,bedBox,bedMat,beds,{cast:false});
   if(glass.length){const g=instanced(interior,bedBox,glassMat,glass,{cast:false});g.renderOrder=2;}
   // Las hojas de las puertas de los cuartos (town3d innerLeaves): una instancia por puerta, por estilo; se mueven en
   // updateDoors.
-  activeLeaves.length=0;const byStyle={};for(const id of act){const L=lotFurniture.get(id);for(const lf of L.leaves||[])if(near(lf))(byStyle[lf.style]||(byStyle[lf.style]=[])).push(lf);}
+  activeLeaves.length=0;const byStyle={};for(const id of act){const L=lotFurniture.get(id);for(const lf of L.leaves||[])if(near(lf)&&fuera(lf,id,lf.cx,lf.cz))(byStyle[lf.style]||(byStyle[lf.style]=[])).push(lf);}
   for(const [st,list] of Object.entries(byStyle)){const M=leafModel(st),im=new THREE.InstancedMesh(M.parts[0].geometry,M.parts[0].materials,list.length);im.castShadow=false;im.receiveShadow=true;im.frustumCulled=false;
    list.forEach((lf,j)=>{activeLeaves.push({lf,im,j,M});setLeaf(im,j,lf,M);});im.instanceMatrix.needsUpdate=true;interior.add(im);}}
  // La hoja: la bisagra en (x, z), girada th0 (cerrada, a lo largo del vano) más sgn·a·85° (abierta, hacia el cuarto).
@@ -1194,9 +1215,9 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
  const glassMat=new THREE.MeshStandardMaterial({color:'#bcd6e2',transparent:true,opacity:.28,roughness:.05,metalness:.1,depthWrite:false});own.push(glassMat);
  const bedBox=base(new THREE.BoxGeometry(1,1,1));own.push(bedBox);
  WORLD_TIMES.lap("fin");
- return {group,doorFronts,station:stationInfo,updateAds,updateInteriors,lots:lotFurniture,
+ return {group,doorFronts,station:stationInfo,updateAds,updateInteriors,lots:lotFurniture,duplexes:duplexByLot,get mansardaArmada(){return mansardaArmada_;},get cascarones(){return cascarones_;},fachadaArmada:fachadaArmada_,
   // Las bancas de parques y plazas: dos puestos por banca, para la gente de la calle (se sientan mirando hacia ry).
-  setOcultos:fn=>{ocultoFn=fn;activeKey=null;clock=0;},setTrancadas:fn=>{trancadaFn=fn;},refrescarInteriores:()=>{activeKey=null;clock=0;},get lotFurniture(){return lotFurniture;},
+  setOcultos:fn=>{ocultoFn=fn;activeKey=null;clock=0;},setCerrados:fn=>{cerradoFn=fn;activeKey=null;clock=0;},setTrancadas:fn=>{trancadaFn=fn;},refrescarInteriores:()=>{activeKey=null;clock=0;},get lotFurniture(){return lotFurniture;},
   benchSeats:benches.flatMap(b=>[-.42,.42].map(o=>({x:b.x+Math.cos(b.ry||0)*o,y:0,z:b.z-Math.sin(b.ry||0)*o,yaw:b.ry||0,lift:.24,ap:.45,by:null}))),roofBoards,clearance,floorAt,curbAt:(x,z)=>curbAt(Math.floor(x/SW),Math.floor(z/SW)),kindAt:(x,z)=>at(Math.floor(x/S),Math.floor(z/S)),elevatorAt,updateElevators,buildings:town,// las puertas cerca de (x, z) a la altura y —las de los cuartos y las de calle—: para abrirlas y cerrarlas con E y para
   // que la cerrada frene al jugador. Cada una: {cx, cz, cy, seg: [ax, az, bx, bz], a, abierta, alternar(), trancada()}
   puertasCerca:(x,z,y,r=1.5)=>{const out=[];for(const L of lotFurniture.values()){if(Math.hypot(L.x-x,L.z-z)>L.r+r+2)continue;
@@ -1222,7 +1243,8 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
    let k=0;for(let i=0;i<n;i++){if(set&&!set.has(cortinaLote[i])){cortinaSlot[i]=-1;continue;}cortinaSlot[i]=k;for(let j=0;j<16;j++)A[k*16+j]=cortinaOrig[i*16+j];k++;}
    cortinaMesh.count=k;for(const p of new Set(panioDe.filter(Boolean)))if(cortinaSlot[p.i0]>=0)ponPanio(p);cortinaMesh.instanceMatrix.needsUpdate=true;},
   cortinaCerrada:key=>!!panios.get(key)?.cerrada,cortinaK:key=>panios.get(key)?.k,
-  cortina:(key,cerrar)=>{const p=panios.get(key);if(!p||!cortinaMesh)return false;p.cerrada=cerrar??!p.cerrada;(corriendo||(corriendo=new Set())).add(p);return p.cerrada;},
+  // (2026-11-22: la cortina es la película del vidrio —engine/cortinas.js peliculaCerrada—: cambia de una vez, como la de verdad)
+  cortina:(key,cerrar)=>{const p=panios.get(key);if(!p||!cortinaMesh)return false;p.cerrada=cerrar??!p.cerrada;p.k=p.cerrada?1:0;ponPanio(p);cortinaMesh.instanceMatrix.needsUpdate=true;return p.cerrada;},
   // El techo sobre (x, z) por encima de la altura y: lo más bajo que haya arriba —la losa del piso siguiente (menos el hueco
   // de la escalera) o un tramo de escalera—, o null. Para la cámara de tercera persona, que se queda debajo en vez de
   // chocar y acercarse de un salto (2026-10-16).

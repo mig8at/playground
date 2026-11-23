@@ -2,7 +2,10 @@
    en cuatro etapas (_1 a _4: de brote a crecida) y el fruto cosechado (_Crop, que no se usa acá). Sin texturas: el color
    de cada parte va en su .mtl. Se cargan una vez y se dibujan con instancias (una malla por modelo y material). */
 import * as THREE from 'three';
+import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import {OBJLoader} from 'three/addons/loaders/OBJLoader.js';
+import {MeshoptSimplifier} from 'three/addons/libs/meshopt_simplifier.module.js';
+await MeshoptSimplifier.ready;
 import {REEMPLAZOS,kitModel} from './objetos3d.js';
 
 const BASE='/models/Cultivos/';
@@ -143,16 +146,40 @@ export function plantInstances(kit,name,items,group,{shadow=true}={}){
 // dibujaba—. Una BatchedMesh por pieza y por material (no acepta varios materiales): three.js descarta por cámara cada
 // planta, y setCeldas apaga las de las casillas que no se ven (engine/visibles.js, desde adentro de un edificio).
 // Devuelve {setCeldas(celdas|null, W, S), n}.
+// LOS NIVELES DE UNA PLANTA (2026-11-22, Miguel: «cuando me alejo se nota mucho el cambio, parecen bolas los árboles… que se
+// reduzcan los polígonos del árbol original, que se mantenga la silueta y se pierda un poco la parte corrugada»). Antes, más
+// allá de 45 m cada planta se cambiaba por una pieza a mano —un tronco y una copa de 20 caras—: un salto brusco. Ahora la
+// versión de lejos es EL MISMO modelo simplificado (meshoptimizer: junta los vértices que se pueden juntar con el menor error
+// en la forma, así que la silueta queda y se va el detalle chico), en dos pasos: NIVELES_PLANTA. Las tres geometrías van en la
+// misma malla por lotes de cada material y cada planta cambia la suya según la distancia (con margen para no titilar).
+export const NIVELES_PLANTA=[{ratio:1,desde:0},{ratio:.45,desde:25},{ratio:.18,desde:50},{ratio:.08,desde:90}],VUELVE_PLANTA=.85;// (2026-11-22: el tercer paso, 8 % desde 90 m —Miguel: «agrega el tercer paso»—)
+// (los índices de una parte, simplificados a ratio de sus triángulos: se juntan antes los vértices repetidos —los de las
+// costuras de normales— para que el simplificador vea una sola malla)
+function simplificar(posAttr,idx,ratio){if(ratio>=1)return idx;const n=posAttr.count,pos=new Float32Array(n*3);for(let i=0;i<n;i++){pos[i*3]=posAttr.getX(i);pos[i*3+1]=posAttr.getY(i);pos[i*3+2]=posAttr.getZ(i);}
+ // (soldar por posición y compactar: el simplificador no reduce nada si quedan vértices repetidos sin usar; el resultado vuelve a
+ // los índices del modelo, que conserva sus atributos)
+ const remap=MeshoptSimplifier.generatePositionRemap(pos,3),uso=[...new Set(Array.from(idx,i=>remap[i]))],nuevo=new Map(uso.map((v,k)=>[v,k])),p2=new Float32Array(uso.length*3);
+ uso.forEach((v,k)=>p2.set(pos.subarray(v*3,v*3+3),k*3));const i2=Uint32Array.from(idx,i=>nuevo.get(remap[i]));
+ const meta=Math.max(12,Math.floor(idx.length*ratio/3)*3),[out]=MeshoptSimplifier.simplify(i2,p2,3,Math.min(meta,i2.length),.1,[]);
+ return out.length>=12?Uint32Array.from(out,k=>uso[k]):idx;}
 export function plantBatched(kit,name,items,group,{shadow=true}={}){
  const m=kit?.[name];if(!m||!items.length)return null;const o=new THREE.Object3D(),c=new THREE.Color(),todas=[];
  for(const p of m.parts){const g=p.geometry,mats=Array.isArray(p.materials)?p.materials:[p.materials],grupos=g.groups?.length?g.groups:[{start:0,count:g.index?g.index.count:g.attributes.position.count,materialIndex:0}];
   for(const gr of grupos){const mat=mats[gr.materialIndex??0]||mats[0];if(!mat)continue;
-   // (la parte de la geometría de ese material, con todos sus vértices y sólo sus triángulos)
-   const sub=new THREE.BufferGeometry();for(const [k,a] of Object.entries(g.attributes))sub.setAttribute(k,a);
-   const idx=g.index?g.index.array.slice(gr.start,gr.start+gr.count):Uint32Array.from({length:gr.count},(_,i)=>gr.start+i);sub.setIndex(new THREE.BufferAttribute(idx,1));
-   const bm=new THREE.BatchedMesh(items.length,g.attributes.position.count,idx.length,mat);bm.sortObjects=!!mat.transparent;const gid=bm.addGeometry(sub),ids=[];
-   items.forEach(it=>{const iid=bm.addInstance(gid);o.position.set(it.x,it.y,it.z);o.rotation.set(0,it.ry||0,0);o.scale.set(it.sx??it.s??1,it.sy??it.s??1,it.sz??it.sx??it.s??1);o.updateMatrix();bm.setMatrixAt(iid,o.matrix);if(it.tint)bm.setColorAt(iid,c.set(it.tint));ids.push(iid);});
-   bm.castShadow=shadow;bm.receiveShadow=true;group.add(bm);todas.push({bm,ids});}}
- let antes=null;
- const setCeldas=(celdas,W,S=6)=>{if(celdas===antes)return;antes=celdas;for(const {bm,ids} of todas)items.forEach((it,i)=>bm.setVisibleAt(ids[i],!celdas||celdas.has(Math.floor(it.z/S)*W+Math.floor(it.x/S))));};
- return {setCeldas,n:items.length,meshes:todas.map(t=>t.bm)};}
+   // (la parte de la geometría de ese material, con todos sus vértices y sólo sus triángulos; y sus versiones simplificadas)
+   const idx=g.index?g.index.array.slice(gr.start,gr.start+gr.count):Uint32Array.from({length:gr.count},(_,i)=>gr.start+i);
+   const subs=NIVELES_PLANTA.map(N=>{const sub=new THREE.BufferGeometry();for(const [k,a] of Object.entries(g.attributes))sub.setAttribute(k,a);sub.setIndex(new THREE.BufferAttribute(simplificar(g.attributes.position,idx,N.ratio),1));return sub;});
+   const bm=new THREE.BatchedMesh(items.length,g.attributes.position.count*subs.length,subs.reduce((t,x)=>t+x.index.count,0),mat);bm.sortObjects=!!mat.transparent;const gids=subs.map(x=>bm.addGeometry(x)),ids=[];
+   items.forEach(it=>{const iid=bm.addInstance(gids[0]);o.position.set(it.x,it.y,it.z);o.rotation.set(0,it.ry||0,0);o.scale.set(it.sx??it.s??1,it.sy??it.s??1,it.sz??it.sx??it.s??1);o.updateMatrix();bm.setMatrixAt(iid,o.matrix);if(it.tint)bm.setColorAt(iid,c.set(it.tint));ids.push(iid);});
+   bm.castShadow=shadow;bm.receiveShadow=true;bm.name='plantas';bm.userData.niveles=subs.map(x=>x.index.count/3);group.add(bm);todas.push({bm,ids,gids});}}
+ let antes=null,celdasW=0;const nivel=new Uint8Array(items.length);
+ const enCelda=it=>!antes||antes.has(Math.floor(it.z/6)*celdasW+Math.floor(it.x/6));
+ const aplicar=i=>{const v=enCelda(items[i]);for(const {bm,ids} of todas)bm.setVisibleAt(ids[i],v);};
+ const setCeldas=(celdas,W,S=6)=>{if(celdas===antes)return;antes=celdas;celdasW=W;items.forEach((it,i)=>aplicar(i));};
+ // (el nivel de cada planta según la distancia: sube al pasar NIVELES_PLANTA[k].desde y vuelve más acá de VUELVE_PLANTA de eso)
+ const setLejos=(x,z)=>{items.forEach((it,i)=>{const d=Math.hypot(it.x-x,it.z-z);let k=nivel[i];
+   while(k+1<NIVELES_PLANTA.length&&d>NIVELES_PLANTA[k+1].desde)k++;while(k>0&&d<NIVELES_PLANTA[k].desde*VUELVE_PLANTA)k--;
+   if(k!==nivel[i]){nivel[i]=k;for(const t of todas)t.bm.setGeometryIdAt(t.ids[i],t.gids[k]);}});};
+ return {setCeldas,setLejos,n:items.length,meshes:todas.map(t=>t.bm)};}
+// (compatibilidad: la distancia del último nivel)
+export const LEJOS_PLANTA={lejos:NIVELES_PLANTA.at(-1).desde,cerca:NIVELES_PLANTA.at(-1).desde*VUELVE_PLANTA};

@@ -43,7 +43,9 @@ export function volumesOf(L){
     for(let [p,q] of pieces){const m=(p+q)/2,[px,py]=h?[m,at]:[at,m];
      if(h?outside(px,py-.1)||outside(px,py+.1):outside(px-.1,py)||outside(px+.1,py))continue;// borde de afuera: es fachada
      // la punta que llega a una fachada se corta donde empieza la cara de adentro de la fachada
-     const fa=MURO.fachada;if(h?outside(p-.05,at):outside(at,p-.05))p+=fa;if(h?outside(q+.05,at):outside(at,q+.05))q-=fa;
+     // (con los bordes incluidos: en la costura entre dos partes de un edificio —en L— el punto no cae estrictamente en ninguna y
+     // se tomaba por fachada, y el muro que llegaba ahí se cortaba 25 cm —2026-11-22, el grafo de muros: 10 «columnas sueltas» falsas—)
+     const fa=MURO.fachada,afuera=(x,y)=>!parts.some(r=>x>=r.x&&x<=r.x+r.w&&y>=r.y&&y<=r.y+r.h);if(h?afuera(p-.05,at):afuera(at,p-.05))p+=fa;if(h?afuera(q+.05,at):afuera(at,q+.05))q-=fa;
      const t=MURO.tabique,len=q-p;walls.push({h,at,a:p,b:q,t,kind:KIND[rank],len,rect:h?{x:p,y:at-t/2,w:len,h:t}:{x:at-t/2,y:p,w:t,h:len}});}}}
   // Las fachadas: los bordes de las partes que dan afuera, con su grosor hacia adentro.
   for(const r of parts)for(const [h,at,a,b,dir] of [[true,r.y,r.x,r.x+r.w,1],[true,r.y+r.h,r.x,r.x+r.w,-1],[false,r.x,r.y,r.y+r.h,1],[false,r.x+r.w,r.y,r.y+r.h,-1]]){

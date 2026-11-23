@@ -13,7 +13,8 @@ import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import {FACADE_PIECES} from '../engine/fachada.js';
-import {ES_DE_FACHADA,piezaLowPoly,medidasDePartes,PARED,PUERTA_DOBLE,puertaDobleLowPoly,MARQUESINA,marquesinaLowPoly,VENTANAL,ventanalLowPoly} from './fachada3d.js';
+import {TEXTURAS3D,TEXTURA_FIJA,texturaPared,texturaDe,uvDelMundo} from './texturas3d.js';
+import {ACABADO,ES_DE_FACHADA,piezaLowPoly,medidasDePartes,PARED,PUERTA_DOBLE,puertaDobleLowPoly,MARQUESINA,marquesinaLowPoly,VENTANAL,ventanalLowPoly} from './fachada3d.js';
 import {VIDRIO_VENTANAL} from '../engine/fachada.js';
 import {PUERTA} from '../engine/medidas.js';
 
@@ -71,10 +72,14 @@ export function loadDowntown(){
 // La pieza low poly propia (fachada3d.js) en el formato del paquete: una geometría por material, con la misma huella.
 function lowPolyDe(nombre,piece){
  const parts=piece.parts.filter(p=>!p.mat.startsWith('MI_FakeInterior')).map(p=>{p.geo.computeBoundingBox();const b=p.geo.boundingBox;return {mat:p.mat,box:{min:b.min.toArray(),max:b.max.toArray()}};});
- return deCajas(piezaLowPoly(nombre,medidasDePartes(parts)));}
-function deCajas(cajas){const porMat=new Map();
- for(const c of cajas){const g=new THREE.BoxGeometry(c.x1-c.x0,c.y1-c.y0,c.z1-c.z0).translate((c.x0+c.x1)/2,(c.y0+c.y1)/2,(c.z0+c.z1)/2);(porMat.get(c.mat)||porMat.set(c.mat,[]).get(c.mat)).push(g);}
- return {parts:[...porMat].map(([mat,gs])=>{const geo=mergeGeometries(gs,false);for(const g of gs)g.dispose();return {geo,mat,color:new THREE.Color('#ffffff')};}),lowpoly:true,cajas};}
+ return deCajas(piezaLowPoly(nombre,medidasDePartes(parts)),nombre);}
+// (2026-11-21: las cajas de PARED —la capa de afuera del muro, de ACABADO.capa de espesor, o una columna entera— van
+// aparte de las demás del mismo material, marcadas `pared`: son las que llevan textura —texturas3d.js—; un marco o una
+// puerta del mismo material sigue liso)
+const esPared=(c,columna)=>PARED.includes(c.mat)&&(columna||Math.abs(c.z1)<.02&&Math.abs(c.z1-c.z0-ACABADO.capa)<.02);
+function deCajas(cajas,nombre=''){const porMat=new Map(),columna=/Column/.test(nombre);
+ for(const c of cajas){const g=new THREE.BoxGeometry(c.x1-c.x0,c.y1-c.y0,c.z1-c.z0).translate((c.x0+c.x1)/2,(c.y0+c.y1)/2,(c.z0+c.z1)/2),k=c.mat+(esPared(c,columna)?'§pared':'');(porMat.get(k)||porMat.set(k,[]).get(k)).push(g);}
+ return {parts:[...porMat].map(([k,gs])=>{const geo=mergeGeometries(gs,false);for(const g of gs)g.dispose();const [mat,pared]=k.split('§');return {geo,mat,pared:!!pared,color:new THREE.Color('#ffffff')};}),lowpoly:true,cajas};}
 
 function textures(){
  const tl=new THREE.TextureLoader(),seen=new Map();
@@ -117,13 +122,49 @@ function bake(list){
   U.set(g.attributes.uv.array,v0*2);const ix=g.index.array;for(let j=0;j<ix.length;j++)I[i0+j]=ix[j]+v0;v0+=c;i0+=ix.length;}
  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(P,3));geo.setAttribute('normal',new THREE.BufferAttribute(N,3));geo.setAttribute('uv',new THREE.BufferAttribute(U,2));geo.setIndex(new THREE.BufferAttribute(I,1));return geo;}
 
-export function buildDowntown(kit,items,leaves=[]){
+// (la buhardilla de la mansarda, recortada por la pendiente —2026-11-22, Miguel, desde adentro de un penthouse: «quita los
+// polígonos que no aportan»—: su moldura atravesaba el plano de la pizarra —z = −y/3 en la pieza: de la base, en z = 0, a la
+// cornisa, en z = −1 y 3 m de alto— y por dentro asomaban orejas y un costado hasta el piso. Se quedan sólo los triángulos de
+// afuera; la pizarra y el vidrio, enteros. Una vez por pieza)
+// (cada triángulo se corta exacto por el plano —d = z + y/3, adentro si d < 0—: lo de afuera queda, con su normal y su uv)
+function recortarBuhardilla(piece){if(piece._recortada)return;piece._recortada=true;
+ for(const part of piece.parts){if(part.mat==='MI_Roof_Slate'||part.mat==='MI_Glass')continue;part.geo=cortarPorPendiente(part.geo);}}
+function cortarPorPendiente(geo){{const g=geo.index?geo.toNonIndexed():geo;
+  const P=g.attributes.position.array,N=g.attributes.normal?.array,U=g.attributes.uv?.array,oP=[],oN=[],oU=[],d=i=>P[i*3+2]+P[i*3+1]/3+.005;
+  const vtx=(i,j,t)=>({p:[0,1,2].map(k=>P[i*3+k]+(P[j*3+k]-P[i*3+k])*t),n:N?[0,1,2].map(k=>N[i*3+k]+(N[j*3+k]-N[i*3+k])*t):null,u:U?[0,1].map(k=>U[i*2+k]+(U[j*2+k]-U[i*2+k])*t):null});
+  for(let t=0;t<P.length/3;t+=3){const ids=[t,t+1,t+2],ds=ids.map(d);if(ds.every(x=>x>=0)){for(const i of ids){oP.push(P[i*3],P[i*3+1],P[i*3+2]);if(N)oN.push(N[i*3],N[i*3+1],N[i*3+2]);if(U)oU.push(U[i*2],U[i*2+1]);}continue;}if(ds.every(x=>x<0))continue;
+   // (Sutherland–Hodgman contra un plano: el polígono de afuera, en abanico)
+   const poly=[];for(let k=0;k<3;k++){const a=ids[k],b=ids[(k+1)%3],da=ds[k],db=ds[(k+1)%3];if(da>=0)poly.push(vtx(a,a,0));if((da>=0)!==(db>=0))poly.push(vtx(a,b,da/(da-db)));}
+   for(let k=1;k+1<poly.length;k++)for(const v of [poly[0],poly[k],poly[k+1]]){oP.push(...v.p);if(N)oN.push(...v.n);if(U)oU.push(...v.u);}}
+  const ng=new THREE.BufferGeometry();ng.setAttribute('position',new THREE.Float32BufferAttribute(oP,3));if(N)ng.setAttribute('normal',new THREE.Float32BufferAttribute(oN,3));if(U)ng.setAttribute('uv',new THREE.Float32BufferAttribute(oU,2));
+  ng.setIndex([...Array(oP.length/3).keys()]);return ng;}}
+
+// LA BUHARDILLA MODERNA DEL DÚPLEX (2026-11-22, Miguel: «ventanas más modernas en los dúplex, para que se vea más bonito y
+// moderno»): una caja de techo plano en metal oscuro —los costados y el techo de 6 cm— con un solo paño de vidrio de 1 × 2,3 m
+// y marco delgado, en vez del frontón clásico. Sale de la pizarra con su hueco de la buhardilla del paquete; las cajas se
+// cortan por la pendiente como la otra, para que por dentro no atraviesen nada. Pocos polígonos: siete cajas
+export const BUHARDILLA_MODERNA='Roof_Buhardilla_Moderna';
+// (la distancia a la que un edificio pasa a su caja de lejos, y a la que vuelve su detalle: m)
+export const LEJOS={lejos:120,cerca:100};
+function buhardillaModerna(kit){if(kit.pieces[BUHARDILLA_MODERNA]||!kit.pieces['Roof_SlateCornice_Window_1'])return;const base=kit.pieces['Roof_SlateCornice_Window_1'];
+ const B=(x0,x1,y0,y1,z0,z1)=>{const g=new THREE.BoxGeometry(x1-x0,y1-y0,z1-z0);g.translate((x0+x1)/2,(y0+y1)/2,(z0+z1)/2);return g;};
+ const metal=mergeGeometries([B(-.62,.62,2.55,2.61,-.95,.06),B(-.62,-.56,.1,2.55,-.95,.06),B(.56,.62,.1,2.55,-.95,.06),B(-.62,.62,.08,.16,-.35,.08),B(-.56,.56,2.47,2.55,-.07,0),B(-.56,-.5,.16,2.47,-.07,0),B(.5,.56,.16,2.47,-.07,0)].map(g=>g.toNonIndexed()),false);
+ const vidrio=B(-.5,.5,.16,2.47,-.045,-.03);
+ const de=m=>base.parts.find(p=>p.mat===m),slate=de('MI_Roof_Slate'),gl=de('MI_Glass'),mt=de('MI_Trim_MetalConcrete')||de('MI_Trim');
+ kit.pieces[BUHARDILLA_MODERNA]={...base,parts:[slate,{...(mt||{}),mat:'MI_Trim_MetalConcrete',geo:cortarPorPendiente(metal),color:mt?.color||new THREE.Color('#3a3d40')},{...(gl||{}),mat:'MI_Glass',geo:vidrio}].filter(p=>p&&p.geo)};}
+
+export function buildDowntown(kit,items,leaves=[],{cascarones=[]}={}){
+ for(const [n,pc] of Object.entries(kit.pieces||{}))if(/^Roof_SlateCornice_Window/.test(n))recortarBuhardilla(pc);
+ if(kit.pieces)buhardillaModerna(kit);
  const tex=textures(),mats=new Map(),buckets=new Map(),group=new THREE.Group(),own=[],litMats=[],bounce=[];
- const material=(name,color,tint,lit)=>{
-  const key=name+'|'+(tint||'')+'|'+(name==='MI_Glass'?lit>=0:'');if(mats.has(key))return key;
+ const material=(name,color,tint,lit,pared=false,textura=null)=>{
+  // (pared: la capa de afuera de un muro; con TEXTURAS3D lleva la textura que le toca a su material y su color)
+  const tx=TEXTURAS3D.on&&LOWPOLY.on?(pared?(textura||texturaDe(name,tint)):TEXTURA_FIJA[name]||null):null;// (textura: la que trae el edificio del plano)
+  const key=name+'|'+(tint||'')+'|'+(name==='MI_Glass'?lit>=0:'')+(tx?'|T:'+tx:'');if(mats.has(key))return key;
   let m;
   if(name==='MI_Glass'){m=new THREE.MeshStandardMaterial({color:'#9fb4c2',transparent:true,opacity:.22,roughness:.05,metalness:.1,depthWrite:false,emissive:new THREE.Color(0)});if(lit>=0)litMats.push(m);}
   else if(LOWPOLY.on){const o=(MATS[name]||[])[1]||{};m=new THREE.MeshStandardMaterial({color:tint||LOWPOLY.BASE[name]||'#c9c4bb',roughness:o.roughness??.9,metalness:o.metalness??0,flatShading:true,side:THREE.DoubleSide});
+   if(tx){const t=texturaPared(tx);m.map=t;m.bumpMap=t;m.bumpScale=1.2;m.userData.uvMundo=true;}
    // (adentro, sin lámparas: un rebote parejo del mismo tono, en vez del de la textura)
    if(/^MI_Interior/.test(name)){m.emissive=new THREE.Color(o.plain?BOUNCE_PLAIN:BOUNCE_DAY);m.userData.day=o.plain?BOUNCE_PLAIN:BOUNCE_DAY;bounce.push(m);}}
   else{const [base,o={}]=MATS[name]||['T_Concrete'];m=new THREE.MeshStandardMaterial({map:o.plain?null:tint&&(base==='T_RedBrick'||base==='T_MetalConcrete'||base==='T_Trim')?tex.gray(base+'_BaseColor'):tex(base+'_BaseColor'),normalMap:tex((o.normal||base)+'_Normal',false),color:color.clone(),
@@ -143,7 +184,12 @@ export function buildDowntown(kit,items,leaves=[]){
   for(const part of piece.parts){if(part.mat.startsWith('MI_FakeInterior'))continue;
    // El color del edificio va sólo en sus paredes (tint.on); el resto queda con su color.
    const tint=tintOf(it.tint,part.mat);
-   const key=material(part.mat,part.color,tint,it.lit??-1)+(DOWNTOWN.zona?'@'+Math.floor(it.x/DOWNTOWN.zona)+','+Math.floor(it.z/DOWNTOWN.zona):'')+'§'+(it.lote??-1);(buckets.get(key)||buckets.set(key,[]).get(key)).push([part.geo,M]);}}
+   // (las molduras de la cornisa de la mansarda, de un solo lado: por fuera se ven igual y por dentro del dúplex no asoman.
+   // Miguel, 2026-11-22: «mejora y quita los polígonos innecesarios». La buhardilla no: se recorta por la pendiente
+   // —recortarBuhardilla— y queda de los dos lados, para que por dentro se vea su nicho con el marco)
+   let k0=material(part.mat,part.color,tint,it.lit??-1,part.pared,it.tint?.textura);
+   if(/^Roof_SlateCornice_(?!Window)/.test(it.piece)&&part.mat!=='MI_Roof_Slate'&&part.mat!=='MI_Glass'){const k1=k0+'|afuera';if(!mats.has(k1)){const m=mats.get(k0).clone();m.side=THREE.FrontSide;mats.set(k1,m);}k0=k1;}
+   const key=k0+(DOWNTOWN.zona?'@'+Math.floor(it.x/DOWNTOWN.zona)+','+Math.floor(it.z/DOWNTOWN.zona):'')+'§'+(it.lote??-1);(buckets.get(key)||buckets.set(key,[]).get(key)).push([part.geo,M]);}}
  // Hojas de puerta (1 m × 2,2 m, con la bisagra en su origen): instancias que se abren hacia adentro cuando alguien
  // se acerca a menos de 2,5 m y se cierran solas. No se suman a las mallas juntadas porque se mueven.
  const doors=leaves.map(l=>({...l,a:0})),inst=[],byPiece=new Map();
@@ -162,15 +208,31 @@ export function buildDowntown(kit,items,leaves=[]){
  // adentro (engine/visibles.js).
  // (el lote va después de §: la clave del material lleva colores con #)
  let triangles=0;const porMat=new Map(),piezas=[];
- for(const [key,list] of buckets){const geo=bake(list);if(!geo)continue;triangles+=geo.index.count/3;const mk=key.split('§')[0],lote=+key.split('§')[1];(porMat.get(mk)||porMat.set(mk,[]).get(mk)).push({geo,lote});}// (la geometría se copia a la BatchedMesh: no se guarda)
+ for(const [key,list] of buckets){const geo=bake(list);if(!geo)continue;if(mats.get(key.split('§')[0].split('@')[0])?.userData.uvMundo)uvDelMundo(geo);triangles+=geo.index.count/3;const mk=key.split('§')[0],lote=+key.split('§')[1];(porMat.get(mk)||porMat.set(mk,[]).get(mk)).push({geo,lote});}// (la geometría se copia a la BatchedMesh: no se guarda)
  for(const [key,list] of porMat){const m=mats.get(key.split('@')[0]),nv=list.reduce((a,g)=>a+g.geo.attributes.position.count,0),ni=list.reduce((a,g)=>a+g.geo.index.count,0);
   const bm=new THREE.BatchedMesh(list.length,nv,ni,m);bm.sortObjects=!!m.transparent;
   for(const {geo,lote} of list){const gid=bm.addGeometry(geo),iid=bm.addInstance(gid);piezas.push({bm,iid,lote});}
   // El contorno gris (edges3d.js) va sólo por dentro: paredes, pisos y cielos rasos interiores.
   if(/^MI_Interior/.test(key))bm.userData.edges=true;bm.castShadow=!m.transparent;bm.receiveShadow=true;if(m.transparent)bm.renderOrder=1;group.add(bm);own.push(bm);}
- let visibles=null;
- const setVisibles=set=>{if(set===visibles)return;visibles=set;for(const p of piezas)p.bm.setVisibleAt(p.iid,!set||set.has(p.lote));};
- return {group,triangles,meshes:group.children.length,doors:doors.length,setVisibles,lotesConPiezas:()=>new Set(piezas.map(p=>p.lote)),
+ // LA CAJA DE LEJOS (2026-11-22, la versión baja de cada edificio, como en los juegos de Rockstar): cada lote tiene además su caja
+ // —town3d cascarones: sus partes hasta su altura, con la mansarda—, en una BatchedMesh propia, una instancia por lote. Más allá
+ // de LEJOS.lejos de la cámara se dibuja la caja y no sus piezas; vuelve el detalle más acá de LEJOS.cerca (el margen, para que
+ // no parpadee en el borde). La distancia, al rectángulo del lote. setVisibles —lo que se ve desde adentro— manda sobre las dos.
+ const cajaGeo=(cs)=>mergeGeometries(cs.map(c=>{const g=new THREE.BoxGeometry(c.w,c.h,c.d);g.translate(c.x,c.y+c.h/2,c.z);return g;}),false);
+ const cajas=new Map();let cajasBM=null;
+ if(cascarones.length){const geos=cascarones.map(c=>({lote:c.lote,geo:cajaGeo(c.cajas),rect:c.cajas.reduce((r,b)=>({x0:Math.min(r.x0,b.x-b.w/2),x1:Math.max(r.x1,b.x+b.w/2),z0:Math.min(r.z0,b.z-b.d/2),z1:Math.max(r.z1,b.z+b.d/2)}),{x0:1e9,x1:-1e9,z0:1e9,z1:-1e9})}));
+  const nv=geos.reduce((t,g)=>t+g.geo.attributes.position.count,0),ni=geos.reduce((t,g)=>t+g.geo.index.count,0);
+  cajasBM=new THREE.BatchedMesh(geos.length,nv,ni,new THREE.MeshStandardMaterial({color:'#e9e6df',roughness:.9,flatShading:true}));cajasBM.castShadow=true;cajasBM.receiveShadow=true;cajasBM.name='cajas de lejos';
+  for(const g of geos){const iid=cajasBM.addInstance(cajasBM.addGeometry(g.geo));cajasBM.setVisibleAt(iid,false);cajas.set(g.lote,{iid,rect:g.rect});g.geo.dispose();}
+  group.add(cajasBM);own.push(cajasBM);}
+ let visibles=null;const lejos=new Set();
+ const aplicar=()=>{for(const p of piezas)p.bm.setVisibleAt(p.iid,(!visibles||visibles.has(p.lote))&&!lejos.has(p.lote));
+  if(cajasBM)for(const [lote,c] of cajas)cajasBM.setVisibleAt(c.iid,(!visibles||visibles.has(lote))&&lejos.has(lote));};
+ const setVisibles=set=>{if(set===visibles)return;visibles=set;aplicar();};
+ const setLejos=(x,z)=>{if(!cajasBM)return;let cambio=false;
+  for(const [lote,c] of cajas){const r=c.rect,d=Math.hypot(Math.max(r.x0-x,0,x-r.x1),Math.max(r.z0-z,0,z-r.z1)),era=lejos.has(lote),es=era?d>LEJOS.cerca:d>LEJOS.lejos;if(es!==era){cambio=true;es?lejos.add(lote):lejos.delete(lote);}}
+  if(cambio)aplicar();};
+ return {group,triangles,meshes:group.children.length,doors:doors.length,setVisibles,setLejos,lejos:()=>new Set(lejos),lotesConPiezas:()=>new Set(piezas.map(p=>p.lote)),
   // people: [{x,z}]. Abre las puertas con alguien cerca; sólo se recalculan si alguna se movió. trancada(x, z, y): la
   // puerta de calle de una vivienda trancada (o de un lugar cerrado) no se abre sola (la ronda, como las de adentro).
   // (2026-10-18: al jugador —o.esJugador— no se le abren solas: d.mano, la abrió él con E)

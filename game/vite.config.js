@@ -7,6 +7,7 @@ import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {readdirSync,readFileSync,statSync} from 'node:fs';
+import {abrir,atender} from './servidor/pintura.mjs';
 
 const here=path.dirname(fileURLToPath(import.meta.url));
 const PORT=5181;
@@ -22,8 +23,12 @@ function firmaMotor(){
   configureServer(server){server.watcher.on('change',f=>{if(f.startsWith(dir)){const m=server.moduleGraph.getModuleById(RID);if(m)server.moduleGraph.invalidateModule(m);}});}};
 }
 
+// Lo pintado en las paredes, en SQLite (servidor/pintura.mjs): /api/pintura. La base se abre con el primer pedido.
+function pintura(){let base=null;const perezosa={leer:(...a)=>(base||(base=abrir(path.join(here,'datos/pintura.sqlite')))).leer(...a),guardar:(...a)=>(base||(base=abrir(path.join(here,'datos/pintura.sqlite')))).guardar(...a)};
+ return {name:'fuga-pintura',configureServer(server){server.middlewares.use(atender(perezosa));}};}
+
 export default defineConfig({
- plugins:[vue(),firmaMotor()],
+ plugins:[vue(),firmaMotor(),pintura()],
  resolve:{alias:{'@':path.join(here,'src')}},
  server:{host:'127.0.0.1',port:PORT,strictPort:true},
  worker:{format:'es'},

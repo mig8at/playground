@@ -23,7 +23,7 @@ export function createBarrios(plan,{downtown=null,nature=null,furniture=null,ocu
   // Un parque por mitad de manzana (su rectángulo), como jardín (buildWorld con barrio): pasto entero con árboles,
   // arbustos, alguna banca y un farol cada tres casillas; las casillas del edificio quedan como edificio. Sin publicidad.
   const map={W,H,seed:Math.round(b.nivel*100)+b.ox*7+b.oy*13,kind,blocks:[],sites:[],houses:[],hideouts:[],thiefSpawns:[],station:null,parks:b.parques,names:null};
-  const world=buildWorld(map,{plan:{lots:b.lotes,courts:[],isla:null},downtown,nature,furniture,vacio,barrio:true,mobiliario});
+  const world=buildWorld(map,{plan:{lots:b.lotes,courts:[],isla:null,entrega:plan.entrega},downtown,nature,furniture,vacio,barrio:true,mobiliario});
   const ox=b.ox*CELL,oz=b.oy*CELL,y=b.nivel+ALZA;world.group.position.set(ox,y,oz);group.add(world.group);
   lista.push({world,ox,oz,y,x1:ox+W*CELL,z1:oz+H*CELL,celdas:new Set(celdas.map(([x,y])=>x+','+y))});}
  // El barrio de un punto: el que tiene esa casilla como suya (de sus lotes o su parque).

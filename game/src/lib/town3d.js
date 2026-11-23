@@ -10,13 +10,18 @@ import {facadeStyle,LEGACY,WINDOWS,VIDRIO_PIEZA,VIDRIO_VENTANAL} from '../engine
 import {liftFor} from './sitting3d.js';
 import {OBJETOS,placeParts,RUG_COUNT,kitModel,REEMPLAZOS} from './objetos3d.js';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
-import {LOWPOLY} from './downtown3d.js';
+import {LOWPOLY,BUHARDILLA_MODERNA} from './downtown3d.js';
+import {texturaDeMuro} from '../engine/fachada-medida.js';
+import {modulosDeFachada,VENTANAL as VENTANAL_PLANO,TERRAZA} from '../engine/fachada-piezas.js';
 import {PUERTA_DOBLE,MARQUESINA,VENTANAL} from './fachada3d.js';
 import {pendienteEn} from '../engine/techos.js';
 import {ALTURA,COLUMNA,CHOQUE_MUEBLE,CORTINA,AZOTEA,MANSARDA,esVidriera} from '../engine/medidas.js';
 const CORTINA_CU=new Set(CORTINA.cuartos);
-import {cuartoDeVentana,panioCerrado,cortinaAbierta,juntarCortinas,telaDe} from '../engine/cortinas.js';
+import {cuartoDeVentana,peliculaCerrada} from '../engine/cortinas.js';
+import {esVivienda} from '../engine/entrega.js';
 import {piezasSinTitilar} from '../engine/titileo.js';
+import {duplexDeLote} from './duplex3d.js';
+import {grafoDePiso,regionesDe} from '../engine/grafo-muros.js';
 
 // Qué modelo usa cada mueble del plano (el primero que esté cargado) y, si no hay, una caja: [alto, color, desde].
 export const MODEL={lampara:['C2_Lamp'],sillon:['C2_Sofa','Sofa_individual'],sofa:['C2_SofaDouble','Sofa2','Couch_Medium2'],cama:['C2_Bed','Bed_King','BedDouble'],comoda:['C2_Closet2','Drawer_1'],cama_s:['Bed_Single','BedTwin'],cama_h:['HospitalBed','BedTwin'],catre:['Bed_Single'],litera:['Bed_Bunk'],
@@ -41,7 +46,6 @@ const DECO_RUG=new Set(['sala','dormitorio','dormitorio_b','habitacion','estudio
 const DECO_ART=new Set(['sala','dormitorio','dormitorio_b','habitacion','habitacion_h','estudio','sala_cocina','comedor','recepcion','oficina','reuniones','sala_prof','consultorio','lectura','vestibulo','infantil','secretaria']);
 // El reloj de pared y las cortinas, en qué cuartos.
 const CLOCK=new Set(['cocina','cocineta','sala_cocina','comedor','oficina','abierta','reuniones','aula','sala_prof','recepcion','secretaria','consultorio','urgencias','prestamo']);
-const CURTAIN=new Set(['sala','dormitorio','dormitorio_b','habitacion','habitacion_h','estudio','sala_cocina','comedor','infantil','consultorio','oficina','reuniones']);
 const TALL=new Set(['perchero','estanteria_ropa','probador','espejo_pared','caminadora','casillero','armario','estante','nevera','archivador','repisa','vitrina','buzones','tablero','litera','caja_fuerte','horno','comoda','lavadora','ducha','tina','estufa','tv','meson','plancha']);
 const SIGN={pizzeria:['#b8322a','#fff3d6'],hamburgueseria:['#f2b632','#3a2416'],panaderia:['#8a5a2b','#fbe9c9'],heladeria:['#f4b6c8','#5a2a3a'],
  fruteria:['#4f8a3a','#f4f1d0'],gimnasio:['#1f2a36','#f2c230'],ropa:['#2b2b2b','#f4e9dc'],sushi:['#1f2326','#e8463a']};
@@ -95,6 +99,16 @@ export const STAIRS={
  granito:[{body:'#c9c4ba',tread:'#d9d4cb',nose:'#6b6f73',rail:'#5a6066',post:'#5a6066'},{body:'#c3c7c4',tread:'#cfd4d0',nose:'#4c6a5a',rail:'#4f5a60',post:'#4f5a60'}],
  concreto:[{body:'#a9a69f',tread:'#bdbab3',nose:'#3a3e43',rail:'#a9b2b8',post:'#a9b2b8'},{body:'#b3b0aa',tread:'#c6c3bc',nose:'#2f3337',rail:'#2f3337',post:'#2f3337'}],
  acero:[{body:'#4a4e52',tread:'#5c6166',nose:'#c99a2e',rail:'#2f3337',post:'#2f3337'}]};
+// EL MÓDULO RECORTADO (2026-11-22, Miguel: «arranca así» —en la esquina donde llega una fachada o medianera de 25 cm, muro liso
+// ahí—): el plano ya trae m.recorte={lado, r} —engine/grafo-muros.js recortarModulos— y su vano —fachada-piezas vanoDeModulo—.
+// Acá sólo se dibuja eso: lo que se puso en el módulo (su pieza, sus hojas, la losa y la baranda de la terraza) se corre y se
+// angosta a los 2 − r m que sobran —x' = d + x·e, la misma cuenta del plano—, y del lado del muro va un paño de muro liso de r.
+function recortarModulo3d(items,leaves,i0,l0,{Rc,mx,mz,tx,tz,ry,yb,band,muro,tint}){const e=(2-Rc.r)/2,d=-Rc.lado*Rc.r/2;
+ const correr=(it,escala)=>{const u=(it.x-mx)*tx+(it.z-mz)*tz,du=d+u*e-u;it.x+=tx*du;it.z+=tz*du;if(it.cx!=null){it.cx+=tx*d;it.cz+=tz*d;}if(escala)it.sx=(it.sx??1)*e;};
+ for(let i=i0;i<items.length;i++){const it=items[i];if(it.piece===band)continue;correr(it,Math.abs((it.ry??0)-ry)<1e-6);}
+ for(let i=l0;i<leaves.length;i++)correr(leaves[i],true);
+ const c=Rc.lado*(1-Rc.r/2);items.push({piece:muro,x:mx+tx*c,y:yb,z:mz+tz*c,ry,sx:Rc.r/2,tint});}
+
 export function stairKind(type,fs){const e=fs?.spec?.estilo,fam=fs?.spec?.familia;
  if(['hospital','colegio','biblioteca','comisaria','puesto','bomberos','objetivo'].includes(type))return 'granito';
  if(e==='industrial')return 'acero';
@@ -136,10 +150,15 @@ export function stairOf(sd,floors,FLOOR){
     if(h<=feet+.45&&(best===null||h>best))best=h;}return best;}};
 }
 
-export function buildTown(bp,ctx){
+// (la ciudad entregada vacía —bp.entrega—: sin el cuadro del descanso de la escalera; lo lee stairBoxes)
+let SIN_DECO=false;
+export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
  const {S,FLOOR,CEIL,W,H,lots,lotOf,hash,seed,blank,addWall,furniture,clearance,CIVIC,group,own,instanced,base}=ctx;
- const roofProps=[],items=[],leaves=[],doorFronts=[],plaques=[],lotFurniture=new Map(),civics=[],civicFronts=[],awnings=[],stoops=[],balconies=[],cortinas=[],superficies=[],panios=[];let stationInfo=null;
- const columns=new Set(),stairs=new Map();
+ // (armada: lo que de verdad se puso en cada módulo de fachada —lote, casilla, lado, módulo, piso, tipo y pieza—, para
+ // comparar con lo que dice el plano: engine/fachada-piezas.js, validar-fachada-piezas)
+ const armada=[],mansardaArmada=[];
+ const cascarones=[],escalerasAire=[],roofProps=[],items=[],leaves=[],doorFronts=[],plaques=[],lotFurniture=new Map(),civics=[],civicFronts=[],awnings=[],stoops=[],balconies=[],cortinas=[],superficies=[],panios=[];let stationInfo=null;
+ const columns=new Set(),stairs=new Map(),duplexes=new Map();
  // Un rectángulo menos otro (los dos alineados a los ejes): hasta cuatro pedazos.
  const minus=(R,Hh)=>{const x0=Math.max(R.x,Hh.x),z0=Math.max(R.z,Hh.z),x1=Math.min(R.x+R.w,Hh.x+Hh.w),z1=Math.min(R.z+R.h,Hh.z+Hh.h);if(x1<=x0+1e-6||z1<=z0+1e-6)return [R];
   return [{x:R.x,z:R.z,w:R.w,h:z0-R.z},{x:R.x,z:z1,w:R.w,h:R.z+R.h-z1},{x:R.x,z:z0,w:x0-R.x,h:z1-z0},{x:x1,z:z0,w:R.x+R.w-x1,h:z1-z0}].filter(q=>q.w>.01&&q.h>.01);};
@@ -169,7 +188,9 @@ export function buildTown(bp,ctx){
   const tzC=C2?.acento?[C2.acento,(tz[2]?.[1]?.length?tz[2][1]:['MI_Trim_MetalConcrete','MI_Trim_Green','MI_Trim_Dark'])]:tz[2];
   const tint={zones:[tz[0]||Z0,tz[1]||Z0,tzC||Z0,[hallC,['MI_InteriorWall']],[C2?.marco||tz[1]?.[0]||null,['MI_Marco']],[C2?.zocalo||null,['MI_Zocalo']],[C2?.techo||null,['MI_Roof_Slate']]]};
   // (la culata —el muro ciego sobre el vecino más bajo—: del color de C2.culata, ladrillo a la vista; FACHADAS.md mejora 2)
-  const tintCul=C2?.culata?{zones:[[C2.culata,(tz[0]?.[1])||fs.paintOn||[]],...tint.zones.slice(1)]}:tint;
+  // (la textura del muro: la que dice el plano para esta familia y este color —engine/fachada-medida.js—; la culata, ladrillo)
+  tint.textura=texturaDeMuro(fs.spec?.familia,C2?.fachada||fs.paint);
+  const tintCul=C2?.culata?{zones:[[C2.culata,(tz[0]?.[1])||fs.paintOn||[]],...tint.zones.slice(1)],textura:'ladrillo'}:tint;
   // La planta baja levantada (escalinata, fachada.js): todo lo del lote se arma a nivel y al final sube R; el zócalo, las
   // escalinatas y el muro que asoma junto a un vecino más bajo (fixed) van a su altura de verdad.
   const R=L.raise||0,i0=items.length,l0=leaves.length,p0=plaques.length,a0=awnings.length,k0=cortinas.length,s0=superficies.length,fixed=[];wallLift=R;
@@ -179,19 +200,29 @@ export function buildTown(bp,ctx){
   // de 4,5 millones de triángulos y el juego se arrastraba (medido el 2026-10-10).
   const winBig=fs.win1,winLight=fs.win;
   const lines=B.levels.map(lv=>({w:byLine(lv.windows),d:byLine(lv.doors.filter(d=>d.street))}));
+  // (los barrios del monte llegan como un plano chico, sin mapa ni módulos guardados: se calculan acá, con su lista de lotes)
+  const modDe=new Map((B.modulos||modulosDeFachada({map:{W,H},lots:P},B)).map(m=>[`${m.x},${m.y},${m.dx},${m.dy},${m.k},${m.f}`,m]));
   const lit=f=>hash(id*7+f,f*3+1,seed+67)<(f?.5:.8)?0:-1;
   // (la mansarda del 2D —techos.js—: su cubierta plana, a MANSARDA.alto, en los rectángulos que da el plano; la física la
   // lee de L.mansarda —world3d floorAt—)
   L.mansarda=B.mansarda||null;if(fs.mansard&&B.mansarda)for(const c of B.mansarda.cubierta)items.push({piece:'Roof_4x4',x:(c.x0+c.x1)/2,y:L.h+MANSARDA.alto+.2,z:(c.z0+c.z1)/2,sx:(c.x1-c.x0)/4,sz:(c.z1-c.z0)/4});
   let plaqueDone=false;const signAt=[];const streetDoors=[],vidrios=[];
   const cells=[];for(const p of B.parts)for(let y=p.y/S;y<(p.y+p.h)/S;y++)for(let x=p.x/S;x<(p.x+p.w)/S;x++)cells.push([x,y]);
-  const ST=B.levels[0].stair&&L.floors>=2?stairOf(B.levels[0].stair,L.floors,FLOOR):null;if(ST)stairs.set(id,ST);
+  // (2026-11-22, Miguel: «que las escaleras lleguen a la terraza»: con techo plano, la azotea cuenta como un piso más de la
+  // escalera —un tramo más, del último piso al techo, y el hueco en la losa del techo—. Arriba, al aire libre: sin caseta
+  // —Miguel: «que no tengan paredes ni techo, es mejor para la jugabilidad»— y sin reja: el hueco abierto)
+  const alAzotea=!!B.levels[0].stair&&L.floors>=2&&!fs.mansard;
+  const ST=B.levels[0].stair&&L.floors>=2?stairOf(B.levels[0].stair,L.floors+(alAzotea?1:0),FLOOR):null;if(ST){ST.azotea=alAzotea;stairs.set(id,ST);}
   // ---------- Pisos, cielo raso y techo (por casilla) ----------
+  // (los dúplex —engine/duplex.js—: el hueco de su escalera privada y el vacío de la sala a doble altura, en la losa del
+  // último piso, que es el piso de arriba)
+  const huecosDuplex=(B.duplex?.unidades||[]).flatMap(u=>[u.escalera,...(u.vacios||[])].map(r=>({x:r.x,z:r.y,w:r.w,h:r.h})));
   for(const [x,y] of cells){const cx=(x+.5)*S,cz=(y+.5)*S,fs4=S/4;
    for(let f=0;f<L.floors;f++){const hole=ST?.hole(f),C={x:x*S,z:y*S,w:S,h:S};
     // La losa de cada piso, menos el hueco de la escalera (en rectángulos: la pieza de piso del paquete se estira).
     for(const q of hole?minus(C,hole):[C])items.push({piece:'Floor_4x4',x:q.x+q.w/2,y:f?f*FLOOR:.02,z:q.z+q.h/2,sx:q.w/4,sz:q.h/4});}
-   items.push({piece:'Floor_4x4',x:cx,y:L.h-.03,z:cz,sx:fs4,sz:fs4});if(!fs.mansard)items.push({piece:'Roof_4x4',x:cx,y:L.h+.2,z:cz,sx:fs4,sz:fs4});
+   // (el techo, menos el hueco de la escalera si sube a la azotea)
+   {const C={x:x*S,z:y*S,w:S,h:S},hr=ST?.azotea?ST.hole(L.floors):null;let qs=hr?minus(C,hr):[C];for(const hd of huecosDuplex)qs=qs.flatMap(q=>minus(q,hd));for(const q of qs){items.push({piece:'Floor_4x4',x:q.x+q.w/2,y:L.h-.03,z:q.z+q.h/2,sx:q.w/4,sz:q.h/4});if(!fs.mansard)items.push({piece:'Roof_4x4',x:q.x+q.w/2,y:L.h+.2,z:q.z+q.h/2,sx:q.w/4,sz:q.h/4});}}
    // (la mansarda: su cubierta, abajo, sólo donde el 2D la pone —techos.js—; antes la losa iba en toda la casilla y tapaba la pizarra)
   }
   // Lo de la azotea (engine/azoteas.js —el 2D lo reparte con la pista del borde libre—): el tanque, la antena, el tendedero y
@@ -213,19 +244,9 @@ export function buildTown(bp,ctx){
     if(O.floors>=L.floors){// con mansarda, por encima del vecino asoma el muro de la mansarda (3 m)
      if(fs.mansard&&O.floors===L.floors&&!(O.fs?.mansard))for(let k=0;k<3;k++){const c=-S/2+1+2*k;items.push({piece:fs.plain,x:ex+tx*c,y:L.h,z:ez+tz*c,ry,tint});}
      continue;}f0=O.floors;}
-   // Ventanas de 4 m (fs.double): en cada piso de arriba, si dos módulos seguidos son ventana, una sola pieza doble
-   // centrada entre los dos (primero los de la izquierda).
-   const winMod=(k,f)=>{const c=-S/2+1+2*k,coord=h?ex+tx*c:ez+tz*c,hit=list=>(list||[]).some(s=>{const [a,b]=along(s,h);return coord>a-.01&&coord<b+.01;});
-    return f>0&&hit(lines[f].w.get(lineKey))&&!blank.has(`${x},${y},${dx},${dy},${f}`);};
-   // Los tabiques que llegan a esta fachada en el piso f (su coordenada a lo largo): una ventana doble no se pone sobre
-   // uno (quedaría con la pared divisoria en el medio).
-   const line=h?ez:ex,partsAt=f=>{const lv=B.levels[f],out=[];for(const q of [...lv.rooms,...lv.corridor,lv.core].filter(Boolean)){
-     const touch=h?Math.abs(q.y-line)<.05||Math.abs(q.y+q.h-line)<.05:Math.abs(q.x-line)<.05||Math.abs(q.x+q.w-line)<.05;if(touch)out.push(...(h?[q.x,q.x+q.w]:[q.y,q.y+q.h]));}return out;};
-   const freeEdge=(f,k)=>{const cb=-S/2+2+2*k,at=h?ex+tx*cb:ez+tz*cb;return !partsAt(f).some(p=>Math.abs(p-at)<.35);};
-   // Balcón (fs.balconies): frente a la ventana del medio, del segundo piso para arriba y sólo hacia afuera; ese módulo
-   // pasa a ser una puerta (y en ese piso no hay ventana doble).
-   const balconyAt=f=>fs.balconies&&f>=2&&other<0&&winMod(1,f);
-   const pairOf=[];for(let f=0;f<L.floors;f++)pairOf[f]=fs.double&&f>=Math.max(1,f0)&&!balconyAt(f)?(winMod(0,f)&&winMod(1,f)&&freeEdge(f,0)?0:winMod(1,f)&&winMod(2,f)&&freeEdge(f,1)?1:-1):-1;
+   // (2026-11-21: qué va en cada módulo —muro, ventana y cuál, vidriera, balcón, ventana doble— ya no se decide acá: lo
+   // trae el plano, B.modulos —engine/fachada-piezas.js—, con las mismas reglas con las que se decidía; validar-fachada-piezas
+   // compara lo que se arma con lo que dice el plano)
    for(let k=0;k<3;k++){const c=-S/2+1+2*k,mx=ex+tx*c,mz=ez+tz*c,m0=c-1,m1=c+1,coord=h?mx:mz;
     const hitSeg=list=>(list||[]).find(s=>{const [a,b]=along(s,h);return coord>a-.01&&coord<b+.01;});
     // Choques del módulo: muro entero, salvo la puerta o el portón (libres abajo, pared desde 2,5 m).
@@ -238,8 +259,9 @@ export function buildTown(bp,ctx){
     // (cada ventana que se dibuja, con su vidrio —VIDRIO_PIEZA—, para las cortinas: el vidrio a lo largo de la fachada,
     // en la coordenada de la línea; la pieza mira hacia afuera y su x local va hacia (tx, tz))
     const vidrio=(pz,px_,pz_,cur)=>{const g=VIDRIO_PIEZA[pz]||(pz.startsWith('LP_Ventanal_')?VIDRIO_VENTANAL:null);if(!g)return;const c=h?px_:pz_,sg=h?tx:tz;vidrios.push({f:cur,h,at:h?ez:ex,c,x0:Math.min(g[0]*sg,g[1]*sg),x1:Math.max(g[0]*sg,g[1]*sg),y0:g[2],y1:g[3],pieza:pz});};
-    for(let f=f0;f<L.floors;f++){const yb=f*FLOOR,lv=lines[f],win=hitSeg(lv.w.get(lineKey)),door=f===0?hitSeg(lv.d.get(lineKey)):null;
-     if(door&&door.bay){// portón: dos columnas, sin pared (el vehículo lo pone civic3d)
+    for(let f=f0;f<L.floors;f++){const i0=items.length,l0=leaves.length,Rc=modDe.get(`${x},${y},${dx},${dy},${k},${f}`)?.recorte;try{const yb=f*FLOOR,lv=lines[f],win=hitSeg(lv.w.get(lineKey)),door=f===0?hitSeg(lv.d.get(lineKey)):null;
+     const anota=(tipo,pieza=null)=>armada.push({lote:id,x,y,dx,dy,k,f,tipo,pieza});
+     if(door&&door.bay){anota('porton');// portón: dos columnas, sin pared (el vehículo lo pone civic3d)
       items.push({piece:fs.column,x:ex+tx*m0,y:0,z:ez+tz*m0,tint},{piece:fs.column,x:ex+tx*m1,y:0,z:ez+tz*m1,tint});wseg(m0,m1,2.5);
       if(!streetDoors.some(d=>d.bay&&Math.hypot(d.x-((door.x0+door.x1)/2),d.z-((door.y0+door.y1)/2))<.1))streetDoors.push({x:(door.x0+door.x1)/2,z:(door.y0+door.y1)/2,nx:dx,nz:dy,bay:true,len:Math.hypot(door.x1-door.x0,door.y1-door.y0)});
       doorFronts.push({x:mx,z:mz,nx:dx,nz:dy,half:1.2});continue;}
@@ -251,11 +273,11 @@ export function buildTown(bp,ctx){
      // (la marquesina de la entrada principal del hospital y del hotel —blueprint marcarEntradas—, sobre la puerta)
      if(door?.entrada)items.push({piece:MARQUESINA(door.entrada),x:mx,y:0,z:mz,ry,tint});
      if(door&&doble){const tienda=['comercio','local'].includes(B.type)||B.levels[0].rooms.some(q=>q.type==='local'&&q.id===door.a),hoja=tienda?'Door_2':fs.leaf,h2=dw/2;
-      items.push({piece:PUERTA_DOBLE((fs.paintOn||[])[0]||'MI_RedBrick'),x:mx,y:0,z:mz,ry,tint,lit:lit(0)});
+      anota('puerta_doble');items.push({piece:PUERTA_DOBLE((fs.paintOn||[])[0]||'MI_RedBrick'),x:mx,y:0,z:mz,ry,tint,lit:lit(0)});
       leaves.push({piece:hoja,x:mx+tx*h2-dx*.12,y:0,z:mz+tz*h2-dy*.12,ry,sx:h2,cx:mx,cz:mz,tint},{piece:hoja,x:mx-tx*h2-dx*.12,y:0,z:mz-tz*h2-dy*.12,ry:ry+Math.PI,sx:h2,dir:-1,cx:mx,cz:mz,tint});
       gaps.push([-1e3,2.5]);hg=h2+.02;doorFronts.push({x:mx,z:mz,nx:dx,nz:dy,half:h2+.4});streetDoors.push({x:mx,z:mz,nx:dx,nz:dy,w:dw});
       if(!plaqueDone){plaques.push({x:mx+dx*.08,z:mz+dy*.08,ry,name:L.bname});plaqueDone=true;}continue;}
-     if(door){items.push({piece:fs.door,x:mx,y:0,z:mz,ry,tint,lit:lit(0)});
+     if(door){anota('puerta',fs.door);items.push({piece:fs.door,x:mx,y:0,z:mz,ry,tint,lit:lit(0)});
       leaves.push({piece:fs.leaf,x:mx+tx*.5-dx*.12,y:0,z:mz+tz*.5-dy*.12,ry,cx:mx,cz:mz,tint});
       gaps.push([-1e3,2.5]);doorFronts.push({x:mx,z:mz,nx:dx,nz:dy,half:1});streetDoors.push({x:mx,z:mz,nx:dx,nz:dy});
       if(!plaqueDone){plaques.push({x:mx+dx*.08,z:mz+dy*.08,ry,name:L.bname});plaqueDone=true;}continue;}
@@ -265,25 +287,44 @@ export function buildTown(bp,ctx){
      // (2026-10-18, FACHADAS.md A1: la vidriera, sólo donde el plano dice local —win.shop—; en la planta baja de una casa,
      // una oficina o un hotel, la ventana de su familia: antes toda ventana de planta baja era vidriera y desde la calle se
      // veían el dormitorio y la cocina)
-     const vidriera=f===0&&win&&esVidriera(B.type,win);
+     const D=modDe.get(`${x},${y},${dx},${dy},${k},${f}`)||{tipo:'muro',pieza:fs.plain},vidriera=D.tipo==='vidriera';
      if(vidriera&&B.giro)signAt.push({x:mx+dx*.12,z:mz+dy*.12,ry});
-     const len=win?Math.hypot(win.x1-win.x0,win.y1-win.y0):0,piece=f===0&&!(win&&!vidriera)?(win?fs.shop:fs.wall):(win&&!bl?(win.pieza==='ventanal'?VENTANAL((fs.paintOn||[])[0]||'MI_RedBrick'):win.pieza&&WINDOWS[win.pieza]?WINDOWS[win.pieza].p:f<=1&&len>=1?winBig:winLight):fs.plain);// (win.pieza: la que eligió el plano para que el cuarto tenga luz)
-     const bal=k===1&&balconyAt(f);
-     if(bal){// el balcón: puerta (marco y hoja de la de calle, que se abre al acercarse en ese piso), la losa de concreto (la
+     const piece=D.pieza===VENTANAL_PLANO?VENTANAL((fs.paintOn||[])[0]||'MI_RedBrick'):D.pieza||fs.plain;
+     const bal=D.tipo==='balcon';
+     if(D.tipo==='terraza'){// LA TERRAZA DEL DÚPLEX (fachada-piezas TERRAZA): la casilla entera; en el medio el paso —el marco sin hoja—,
+      // a los costados paños de vidrio; la losa de TERRAZA.fondo y la baranda de vidrio con marco metálico —el mismo paño, bajo—
+      // adelante y en las puntas. Se pisa (balconies) y la baranda frena
+      const Fd=TERRAZA.fondo,Hb=TERRAZA.baranda,sb=Hb/3,mt=tint&&{zones:[tint.zones?.[2]||[null,[]]]};anota('terraza',D.pieza);
+      items.push({piece:D.pieza,x:mx,y:yb,z:mz,ry,tint,lit:lit(f)});if(k!==1)vidrio(D.pieza,mx,mz,f);
+      items.push({piece:'Entrance_Concrete_2x1',x:mx,y:yb-.15,z:mz,ry,sy:.15,sz:Fd});
+      items.push({piece:TERRAZA.vidrio,x:mx+dx*Fd,y:yb,z:mz+dy*Fd,ry,sy:sb,tint:mt});
+      const bw=(a0,b0,a1,b1)=>wallAny(Math.min(a0,a1),Math.min(b0,b1),Math.max(a0,a1),Math.max(b0,b1),yb,yb+1.1);
+      bw(mx-tx*1+dx*(Fd-.08),mz-tz*1+dy*(Fd-.08),mx+tx*1+dx*Fd,mz+tz*1+dy*Fd);
+      // (las puntas: la baranda de costado, de vidrio, sólo en los módulos de los extremos)
+      // (si la casilla de al lado también es terraza, sigue de corrido: sin baranda entre las dos —las dos se ponían en el mismo
+      // lugar y titilaban, validar-triangulos—)
+      // (contra la terraza de OTRO edificio, la baranda queda —no se pasa de una casa a otra—, pero una sola: la pone el lote de
+      // número menor)
+      for(const sg of k===0?[-1]:k===2?[1]:[]){const nx=x+tx*sg,ny=y+tz*sg,vk=sg<0?2:0,vl=lotAtCell(nx,ny);
+       if(vl===id&&modDe.get(`${nx},${ny},${dx},${dy},${vk},${f}`)?.tipo==='terraza')continue;
+       if(vl>=0&&vl<id&&(P[vl]?.modulos||[]).some(m=>m.x===nx&&m.y===ny&&m.dx===dx&&m.dy===dy&&m.k===vk&&m.f===f&&m.tipo==='terraza'))continue;const px=mx+tx*sg+dx*Fd/2,pz=mz+tz*sg+dy*Fd/2;items.push({piece:TERRAZA.vidrio,x:px,y:yb,z:pz,ry:ry+Math.PI/2,sx:Fd/2,sy:sb,tint:mt});bw(px-dx*Fd/2,pz-dy*Fd/2,px+dx*Fd/2+tx*sg*.08,pz+dy*Fd/2+tz*sg*.08);}
+      if(k===1)gaps.push([yb-.3,yb+2.5]);balconies.push({x:mx,z:mz,nx:dx,nz:dy,w:2,d:Fd,y:yb+R});}
+     else if(bal){// el balcón: puerta (marco y hoja de la de calle, que se abre al acercarse en ese piso), la losa de concreto (la
       // entrada del paquete, de 15 cm), las barandas de los costados (las de una escalera recta) y adelante la baranda baja.
       // Se pisa (balconies) y sus barandas frenan (paredes de 1,1 m).
-      items.push({piece:fs.door,x:mx,y:yb,z:mz,ry,tint,lit:lit(f)});leaves.push({piece:fs.leaf,x:mx+tx*.5-dx*.12,y:yb,z:mz+tz*.5-dy*.12,ry,cx:mx,cz:mz,cy:yb,tint});
+      /* (2026-11-22: el marco de una puerta sencilla y sin hoja —fachada-piezas.js BALCON_MARCO—: se sale caminando) */anota('balcon',D.pieza||fs.door);items.push({piece:D.pieza||fs.door,x:mx,y:yb,z:mz,ry,tint,lit:lit(f)});
       items.push({piece:'Entrance_Concrete_2x1',x:mx,y:yb-.15,z:mz,ry,sy:.15},{piece:'Stairs_Rails_Metal_Straight_1',x:mx,y:yb-.97,z:mz,ry,tint:tint&&{zones:[tint.zones?.[2]||[null,[]]]}},{piece:'Trim_Wall_Guard',x:mx+dx*.88,y:yb,z:mz+dy*.88,ry,sy:1.5,tint:tint&&{zones:[tint.zones?.[2]||[null,[]]]}});
       gaps.push([yb-.3,yb+2.5]);balconies.push({x:mx,z:mz,nx:dx,nz:dy,w:2,d:1,y:yb+R});
       const bw=(a0,b0,a1,b1)=>wallAny(Math.min(a0,a1),Math.min(b0,b1),Math.max(a0,a1),Math.max(b0,b1),yb,yb+1.1);
       bw(mx-tx*1+dx*.9,mz-tz*1+dy*.9,mx+tx*1+dx*1,mz+tz*1+dy*1);bw(mx-tx*1,mz-tz*1,mx-tx*.9+dx*1,mz-tz*.9+dy*1);bw(mx+tx*.9,mz+tz*.9,mx+tx*1+dx*1,mz+tz*1+dy*1);}
-     else if(pairOf[f]===k){items.push({piece:fs.double,x:mx+tx,y:yb,z:mz+tz,ry,tint,lit:lit(f)});vidrio(fs.double,mx+tx,mz+tz,f);}// la doble, entre este módulo y el siguiente
-     else if(pairOf[f]<0||pairOf[f]!==k-1){items.push({piece,x:mx,y:yb,z:mz,ry,tint:other>=0&&!win&&f>0?tintCul:tint,lit:win?lit(f):-1});if((f>0||!vidriera)&&win&&!bl)vidrio(piece,mx,mz,f);}
+     else if(D.tipo==='doble'){anota('doble',fs.double);items.push({piece:fs.double,x:mx+tx,y:yb,z:mz+tz,ry,tint,lit:lit(f)});vidrio(fs.double,mx+tx,mz+tz,f);}// la doble, entre este módulo y el siguiente
+     else if(D.tipo!=='doble2'){anota(vidriera?'vidriera':win&&!bl&&(f>0||!vidriera)&&piece!==fs.plain&&piece!==fs.wall?'ventana':'muro',piece);items.push({piece,x:mx,y:yb,z:mz,ry,tint:other>=0&&!win&&f>0?tintCul:tint,lit:win?lit(f):-1});if((f>0||!vidriera)&&win&&!bl)vidrio(piece,mx,mz,f);}
+     else anota('doble2');
      // Toldo (fs.awnings) sobre la vidriera de la planta baja.
      if(fs.awnings&&vidriera&&other<0)awnings.push({x:mx+dx*.02,y:2.97,z:mz+dy*.02,ry,color:fs.awningColor});// arriba de la vidriera (el vidrio llega a 2,94 m)
      // Las columnas de la vidriera (planta baja) y la banda sobre la planta baja.
      if(vidriera&&fs.shopColumns)items.push({piece:'Trim_FirstFloor_Window_Columns',x:mx,y:0,z:mz,ry,tint});
-     if(f===1&&fs.band)items.push({piece:fs.band,x:mx,y:FLOOR,z:mz,ry,tint});}
+     if(f===1&&fs.band)items.push({piece:fs.band,x:mx,y:FLOOR,z:mz,ry,tint});}finally{if(Rc)recortarModulo3d(items,leaves,i0,l0,{Rc,mx,mz,tx,tz,ry,yb:f*FLOOR,band:fs.band,muro:f===0&&fs.wall||fs.plain,tint});}}
     // muro entero en los módulos sin puerta (todos los pisos)
     // (con vanos: los costados enteros y, en el medio, pared salvo en los vanos)
     if(!f0){if(!gaps.length)wseg(m0,m1);else{wseg(m0,c-hg);wseg(c+hg,m1);gaps.sort((p,q)=>p[0]-q[0]);let y0=-1e3;
@@ -292,7 +333,13 @@ export function buildTown(bp,ctx){
     // (la caseta del ascensor —techos.js: sin pendiente en ese tramo—: muro derecho hasta la cubierta, y choca hasta ahí)
     else if(B.mansarda&&!pendienteEn(B.mansarda,mx,mz)){items.push({piece:fs.plain,x:mx,y:L.h,z:mz,ry,tint});wseg(m0,m1,L.h-.1,L.h+MANSARDA.alto);}
     else{const endS=k===0?-1:k===2?1:0,outer=endS&&lotAtCell(x+tx*endS,y+tz*endS)<0;// en la punta de una esquina, la pieza de esquina
-     if(!outer)items.push({piece:k===1&&hash(x*3+k,y*5+id,seed+97)<.75?'Roof_SlateCornice_Window_1':'Roof_SlateCornice_Center',x:mx,y:L.h,z:mz,ry,tint});
+     // (en un dúplex —engine/duplex.js— la buhardilla va donde el plano pone una —la ventana de un cuarto de arriba—, y nunca
+     // sobre el vacío de la sala a doble altura: desde abajo se veía por dentro, con su fondo flotando. Miguel: «elimina los
+     // polígonos que no aportan». Fuera de los dúplex, la de antes: el módulo del medio, a veces)
+     const ud=(B.duplex?.unidades||[]).find(u=>{const xs=u.rooms.flatMap(q=>[q.x,q.x+q.w]),zs=u.rooms.flatMap(q=>[q.y,q.y+q.h]);return mx>Math.min(...xs)-.05&&mx<Math.max(...xs)+.05&&mz>Math.min(...zs)-.05&&mz<Math.max(...zs)+.05;});
+     const buh=ud?ud.windows.some(w=>w.buhardilla&&Math.hypot((w.x0+w.x1)/2-mx,(w.y0+w.y1)/2-mz)<.6)&&!(ud.vacios||[]).some(v=>mx>v.x-.05&&mx<v.x+v.w+.05&&mz>v.y-.05&&mz<v.y+v.h+.05):k===1&&hash(x*3+k,y*5+id,seed+97)<.75;
+     // (y en un dúplex, la buhardilla moderna —downtown3d BUHARDILLA_MODERNA: caja de techo plano y un solo vidrio—)
+     if(!outer){const pz=buh?(ud?BUHARDILLA_MODERNA:'Roof_SlateCornice_Window_1'):'Roof_SlateCornice_Center';items.push({piece:pz,x:mx,y:L.h,z:mz,ry,tint});mansardaArmada.push({lote:id,x,y,dx,dy,k,tipo:buh?'buhardilla':'mansarda',pieza:pz,mx,mz});}// (anotada aparte de fachadaArmada —que es el plano de fachada—: validar-duplex-3d cruza cada buhardilla con las ventanas del plano)
      else{// La pieza de esquina ocupa el cuadro de 2 × 2 m del módulo de la punta y cae hacia su −x: en la punta izquierda
       // va tal cual; en la derecha, girada 90° sobre el centro del cuadro. Las dos fachadas de la esquina la piden: va una vez.
       const cxq=mx-dx,czq=mz-dy,key='m'+cxq.toFixed(2)+','+czq.toFixed(2);
@@ -320,7 +367,7 @@ export function buildTown(bp,ctx){
   const trim=(p,q,h,at)=>{if(h?facadeAt(p-.05,at):facadeAt(at,p-.05))p+=FACE;if(h?facadeAt(q+.05,at):facadeAt(at,q+.05))q-=FACE;return [p,q];};
   // staff: dónde trabaja la gente de los locales con giro (el cocinero frente al horno o la plancha, el cajero junto al
   // mostrador): {x, z, yaw, f}.
-  const pcs=[],staff=[],boxes=[],models=[],seats=[],sleeps=[],innerLeaves=[],cortinasLote=[],who=B.type==='comisaria'?'police':B.type==='hospital'?'doctor':'civil';
+  let escI0=-1;const pcs=[],staff=[],boxes=[],models=[],seats=[],sleeps=[],innerLeaves=[],cortinasLote=[],who=B.type==='comisaria'?'police':B.type==='hospital'?'doctor':'civil';
   const box=(x,y,z,sx,sy,sz,color,f,ry=0)=>boxes.push({x,y,z,sx,sy,sz,color,f,ry});
   // Una pieza de Tienda (F_*) apoyada en (x, y, z): centrada por su caja, con la base en y.
   const food=(name,x,y,z,ry,f)=>{const m=furniture?.[name];if(!m)return;const sc=m.scale||1,b=m.box,ox=(b.max.x+b.min.x)/2*sc,oz=(b.max.z+b.min.z)/2*sc,c2=Math.cos(ry),s2=Math.sin(ry);
@@ -387,16 +434,23 @@ export function buildTown(bp,ctx){
    const face=(h,at,p,q,side,y,hh,th,c=at+side*th/2)=>{const cs=[p,...edges(h).filter(e=>e>p+.01&&e<q-.01).sort((a,b)=>a-b),q];let s0=p,col=null;
     const flush=e=>{if(e-s0<.01)return;const m=(s0+e)/2;if(h)box(m,y,c,e-s0,hh,th,col,f);else box(c,y,m,th,hh,e-s0,col,f);};
     for(let i=0;i+1<cs.length;i++){const m=(cs[i]+cs[i+1])/2,cc=h?wallAt(m,at+side*.25):wallAt(at+side*.25,m);if(col!==null&&cc!==col){flush(cs[i]);s0=cs[i];}col=cc;}flush(q);};
-   const solid=(h,at,p,q,y,hh)=>{face(h,at,p,q,-1,y,hh,THIN/2);face(h,at,p,q,1,y,hh,THIN/2);};
+   // (un tabique macizo, UNA caja de espesor completo —2026-11-22, el grafo de muros: Miguel, «al pasar al 3D ahorrar polígonos»—:
+   // antes eran dos medias cajas, una por lado y partidas donde cambiaba el cuarto, para pintar cada cara de su color; el paseo es
+   // un boceto blanco y esos colores no se ven)
+   const solid=(h,at,p,q,y,hh)=>{const m=(p+q)/2,l=q-p;if(l<.01)return;if(h)box(m,y,at,l,hh,THIN,WALL_COLOR,f);else box(at,y,m,THIN,hh,l,WALL_COLOR,f);};
    const segs=new Map(),add=(k,a,b,rank)=>{(segs.get(k)||segs.set(k,[]).get(k)).push([a,b,rank]);};
-   for(const q of lv.rooms){for(const [k,a,b,h,at,dir] of [['h:'+q.y.toFixed(2),q.x,q.x+q.w,true,q.y,-1],['h:'+(q.y+q.h).toFixed(2),q.x,q.x+q.w,true,q.y+q.h,1],['v:'+q.x.toFixed(2),q.y,q.y+q.h,false,q.x,-1],['v:'+(q.x+q.w).toFixed(2),q.y,q.y+q.h,false,q.x+q.w,1]]){
-     // (las celdas: rejas hacia el pasillo, rango 1,5; entre celdas, pared)
-     const m=(a+b)/2,[px,pz]=h?[m,at+dir*.15]:[at+dir*.15,m],rank=OPEN.has(q.type)&&inCorr(px,pz)?0:q.type==='celda'?(inCorr(px,pz)?1.5:2):GLASS.has(q.type)?1:2;add(k,a,b,rank);}}
+   // (las líneas de tabique, del GRAFO DE MUROS del plano —engine/grafo-muros.js: la misma fuente que mide y corrige el plano—;
+   // cada pedazo con su rango según los cuartos que separa. Las celdas: rejas hacia el pasillo, rango 1,5; entre celdas, pared)
+   {const G=grafoDePiso(B,f),reg=new Map(regionesDe(lv).map(r=>[r.id,r])),rangoDe=(id,otro)=>{if(id==='nucleo')return 2;const r=reg.get(id);if(!r||r.tipo==='pasillo')return -1;const haciaPasillo=otro==='pasillo';
+     return OPEN.has(r.tipo)&&haciaPasillo?0:r.tipo==='celda'?(haciaPasillo?1.5:2):GLASS.has(r.tipo)?1:2;};
+    for(const t of G.tramos){if(t.clase!=='tabique'&&t.clase!=='nucleo')continue;const k=(t.h?'h:':'v:')+t.f.toFixed(2);
+     for(const l of t.lados){const [A,B2]=l.lados,r=Math.max(rangoDe(A,B2),rangoDe(B2,A));if(r>=0)add(k,l.a0,l.a1,r);}}}
    // El núcleo es un módulo cerrado (2026-10-12): su contorno y, si hay ascensor, la caja del ascensor entera —el tabique
    // entre el hueco del ascensor y la escalera iba sin hacer: se veían uno al otro y el pasamanos del carril de ese lado
    // quedaba frente a la nada—. La escalera queda entre ese tabique, el contorno y su pared del medio (stairBoxes).
    const rectWalls=q=>{add('h:'+q.y.toFixed(2),q.x,q.x+q.w,2);add('h:'+(q.y+q.h).toFixed(2),q.x,q.x+q.w,2);add('v:'+q.x.toFixed(2),q.y,q.y+q.h,2);add('v:'+(q.x+q.w).toFixed(2),q.y,q.y+q.h,2);};
-   if(lv.core)rectWalls(lv.core);if(lv.core&&lv.liftRect){const C=lv.core,Q=lv.liftRect;// (el hueco: los 2 m del ascensor por todo el fondo del núcleo)
+   // (el contorno del núcleo ya viene del grafo; acá queda la caja del ascensor, adentro del núcleo)
+   if(lv.core&&lv.liftRect){const C=lv.core,Q=lv.liftRect;// (el hueco: los 2 m del ascensor por todo el fondo del núcleo)
     // (a lo ancho, según hacia dónde corren los carriles de la escalera: comparar anchos fallaba en un núcleo cuadrado
     // de 4 × 4 con los carriles a lo largo de z, y el tabique cruzaba la escalera a media subida)
     const ux=lv.stair?Math.abs(lv.stair.ux)>.5:Math.abs(Q.w-C.w)>.01;
@@ -456,8 +510,10 @@ export function buildTown(bp,ctx){
    // entre espacios sociales, vano abierto. Abre hacia el cuarto del lado a, o del b si a es el pasillo)
    for(const d of lv.doors){if(d.street||d.core||d.stair||d.wide||d.bay||d.hoja===false)continue;const q=lv.rooms.find(r=>r.id===d.a)||lv.rooms.find(r=>r.id===d.b);if(!q||OPEN.has(q.type))continue;// (del hall a la sala, un vano: una hoja ahí tapaba las puertas del hall)
     const dx=d.x1-d.x0,dz=d.y1-d.y0,len=Math.hypot(dx,dz);if(len>1.25||len<.6)continue;const ux=dx/len,uz=dz/len,cx=(d.x0+d.x1)/2,cz=(d.y0+d.y1)/2;
-    const nx=q.x+q.w/2-cx,nz=q.y+q.h/2-cz,th0=Math.atan2(-uz,ux),sgn=Math.sign((-Math.sin(th0))*nx+(-Math.cos(th0))*nz)||1;
-    const style=/dormitorio|habitacion|infantil/.test(q.type)?'tablero':/bano|sanitario|vestuario/.test(q.type)?'rejilla':/cocina|oficina|consultorio/.test(q.type)?'vidrio':'lisa';
+    const nx=q.x+q.w/2-cx,nz=q.y+q.h/2-cz,th0=Math.atan2(-uz,ux),sgn=(Math.sign((-Math.sin(th0))*nx+(-Math.cos(th0))*nz)||1)*(d.abreAfuera?-1:1);// (abreAfuera: hacia el otro lado —blueprint, la bisagra—)
+    // (2026-11-22, Miguel: «puertas más minimalistas, planas y con unas líneas»: en las viviendas, la minimalista en todas;
+    // en lo demás —oficinas, lo público—, la de siempre)
+    const style=esVivienda(B,q)||B.type==='vivienda'?'minimal':/dormitorio|habitacion|infantil/.test(q.type)?'tablero':/bano|sanitario|vestuario/.test(q.type)?'rejilla':/cocina|oficina|consultorio/.test(q.type)?'vidrio':'lisa';
     // (la que el plano deja siempre abierta —d.abierta, engine/puertas.js— va sin hoja: sólo el marco. 2026-10-18, Miguel:
     // «las puertas que siempre están abiertas, quítalas; deja el marco»)
     if(d.abierta)continue;
@@ -471,7 +527,9 @@ export function buildTown(bp,ctx){
     cab={cx:mx+nx*(.1+prof/2),cz:mz+nz*(.1+prof/2),fx:-nx,fz:-nz,prof};}
    // Una lámpara de techo por cuarto.
    const lamp=['Light_Ceiling1','Light_Ceiling3'].filter(n=>furniture?.[n]);
-   if(lamp.length)for(const q of lv.rooms)if(q.w*q.h>=4)models.push({name:lamp[(q.id+id)%lamp.length],x:q.x+q.w/2,y:yb+2.78,z:q.y+q.h/2,ry:0,s:furniture[lamp[0]].scale||.52,f});
+   // (no en el último piso de un dúplex bajo su vacío a doble altura —engine/duplex.js—: ahí no hay techo de donde colgarla)
+   const enVacio=(x,z)=>f===L.floors-1&&(B.duplex?.unidades||[]).some(u=>(u.vacios||[]).some(v=>x>v.x&&x<v.x+v.w&&z>v.y&&z<v.y+v.h));
+   if(lamp.length)for(const q of lv.rooms)if(q.w*q.h>=4&&!enVacio(q.x+q.w/2,q.y+q.h/2))models.push({name:lamp[(q.id+id)%lamp.length],x:q.x+q.w/2,y:yb+2.78,z:q.y+q.h/2,ry:0,s:furniture[lamp[0]].scale||.52,f});
    // Los muebles.
    for(const it of lv.furniture){const cx=it.x+it.w/2,cz=it.y+it.h/2,turned=Math.abs(Math.sin(it.ry))>.5,wAlong=turned?it.h:it.w,dIn=turned?it.w:it.h;
     // La silla: de oficina junto a un escritorio; acolchada en comedores, cocinas y salas de reuniones; de madera en
@@ -488,7 +546,10 @@ export function buildTown(bp,ctx){
      if(cid&&OBJETOS[cid]){const va=OBJETOS[cid].variantes&&!REEMPLAZOS[name]?variante(OBJETOS[cid],it):null,key=cid+'@'+wAlong.toFixed(2)+'x'+dIn.toFixed(2)+(va?'@'+va:'');if(!furniture[key])furniture[key]=kitModel(cid,{...(REEMPLAZOS[name]?.[1]||{}),w:wAlong,d:dIn,...(va?{variante:va}:{})});name=key;}}
     let top=.75;
     // El mesón: varios muebles de cocina en fila a lo largo de su lugar (el lavaplatos al medio).
-    if(it.kind==='meson'&&furniture?.Kitchen_2Drawers){const parts=['Kitchen_2Drawers','Kitchen_Sink','Kitchen_Cabinet1'].filter(n=>furniture[n]),m0=furniture[parts[0]],sc=m0.scale||.52,mw=(m0.box.max.x-m0.box.min.x)*sc;
+    // (la isla de la cocina de un dúplex —engine/duplex.js islaDe—: un solo bloque de mesón, del tamaño del plano; con los
+    // muebles del paquete en fila salían bloques sueltos de distinta altura. Miguel, «reducimos polígonos»)
+    if(it.kind==='meson'&&it.isla){boxes.push(...placeParts(OBJETOS.isla_cocina.piezas({w:wAlong,d:dIn}),{x:cx,y:yb,z:cz,ry:it.ry},{f}));top=.9;}// (del catálogo: objetos3d isla_cocina)
+    else if(it.kind==='meson'&&furniture?.Kitchen_2Drawers){const parts=['Kitchen_2Drawers','Kitchen_Sink','Kitchen_Cabinet1'].filter(n=>furniture[n]),m0=furniture[parts[0]],sc=m0.scale||.52,mw=(m0.box.max.x-m0.box.min.x)*sc;
      const n=Math.max(1,Math.floor((wAlong+.02)/mw)),tX=Math.cos(it.ry),tZ=-Math.sin(it.ry);
      for(let k=0;k<n;k++){const nm=k===Math.floor(n/2)&&furniture.Kitchen_Sink?'Kitchen_Sink':parts[k%parts.length]==='Kitchen_Sink'?parts[0]:parts[k%parts.length],m=furniture[nm],b=m.box,ox=(b.max.x+b.min.x)/2*sc,oz=(b.max.z+b.min.z)/2*sc,c2=Math.cos(it.ry),s2=Math.sin(it.ry);
       const off=(k-(n-1)/2)*mw,px=cx+tX*off,pz=cz+tZ*off;models.push({name:nm,x:px-(ox*c2+oz*s2),y:yb+.04,z:pz-(-ox*s2+oz*c2),ry:it.ry,s:sc,f});}top=m0.box.max.y*sc;}
@@ -519,7 +580,8 @@ export function buildTown(bp,ctx){
      // un florero en las mesas de la casa, la de centro y las de reunión o de lectura (no en las de los locales)
      if(!it.giro&&['mesa','mesa_centro','mesa_reunion','mesa_lectura'].includes(it.kind)&&k<.75)boxes.push(...placeParts(OBJETOS.florero.piezas({variante:['rojas','amarillas','lilas'][Math.floor(k*30)%3],paleta:Math.floor(k*70)}),{x:cx,y:sy,z:cz,ry:k*6},{f}));
      // en la estufa, una olla y una sartén
-     if(it.kind==='estufa'&&furniture?.F_CookingPot_Soup){food('F_CookingPot_Soup',cx-tX*.12,sy,cz-tZ*.12,it.ry,f);food('F_FryingPan',cx+tX*.13,sy,cz+tZ*.13,it.ry+.5,f);}}
+     // (2026-11-21: en una vivienda entregada vacía —bp.entrega, engine/entrega.js— la estufa va limpia; la de un local sigue)
+     if(it.kind==='estufa'&&furniture?.F_CookingPot_Soup&&!(bp.entrega&&!it.giro)){food('F_CookingPot_Soup',cx-tX*.12,sy,cz-tZ*.12,it.ry,f);food('F_FryingPan',cx+tX*.13,sy,cz+tZ*.13,it.ry+.5,f);}}
     // Computador sobre el escritorio: base, pie, monitor y pantalla, mirando a la silla.
     // (el del catálogo de objetos: monitor, teclado y mouse, mirando a la silla)
     if(it.pc)pcs.push({x:cx,z:cz,f});
@@ -539,7 +601,7 @@ export function buildTown(bp,ctx){
    // ni la abierta al pasillo), sin ventana, puerta ni mueble alto delante; a 1,55 m de alto su centro.
    for(const [qi,q] of lv.rooms.entries()){const r=hash(id*31+qi,f*13+5,seed+171),r2=hash(id*7+qi,f*5+9,seed+173);
     if(DECO_RUG.has(q.type)&&Math.min(q.w,q.h)>=2.6){const long=q.w>=q.h,W=Math.min(Math.max(q.w,q.h)-1.2,3),D=Math.min(Math.min(q.w,q.h)-1.2,2);
-     if(W>1.2&&D>.9)boxes.push(...placeParts(OBJETOS.alfombra.piezas({w:W,d:D,variante:['persa','rayas','moderna'][Math.floor(r*3)],paleta:Math.floor(r2*RUG_COUNT)}),{x:q.x+q.w/2,y:yb+.004,z:q.y+q.h/2,ry:long?0:Math.PI/2},{f}));}
+     if(W>1.2&&D>.9)if(!bp.entrega)boxes.push(...placeParts(OBJETOS.alfombra.piezas({w:W,d:D,variante:['persa','rayas','moderna'][Math.floor(r*3)],paleta:Math.floor(r2*RUG_COUNT)}),{x:q.x+q.w/2,y:yb+.004,z:q.y+q.h/2,ry:long?0:Math.PI/2},{f}));}
     if(!DECO_ART.has(q.type)&&!(q.type==='local'&&q.giro))continue;
     const cands=[];
     for(const [h,at,a,b,dir] of [[true,q.y,q.x,q.x+q.w,1],[true,q.y+q.h,q.x,q.x+q.w,-1],[false,q.x,q.y,q.y+q.h,1],[false,q.x+q.w,q.y,q.y+q.h,-1]]){
@@ -555,30 +617,29 @@ export function buildTown(bp,ctx){
      for(const [c0,c1] of cuts)if(c1-c0>=.8)cands.push({h,at,dir,off,len:c1-c0,m:(c0+c1)/2,c1});}
     cands.sort((a,b)=>b.len-a.len);const best=cands[0];
     if(best){const W=Math.min(1.2,best.len-.2),H=+(W*.7).toFixed(2),[px,pz]=best.h?[best.m,best.at+best.dir*best.off]:[best.at+best.dir*best.off,best.m],ry=best.h?(best.dir>0?0:Math.PI):(best.dir>0?Math.PI/2:-Math.PI/2);
-     boxes.push(...placeParts(OBJETOS.cuadro.piezas({w:W,h:H,variante:['paisaje','mar','abstracto','flores'][Math.floor(r2*4)],marco:Math.floor(r*4)}),{x:px,y:yb+1.55-H/2,z:pz,ry},{f}));}
+     if(!bp.entrega)boxes.push(...placeParts(OBJETOS.cuadro.piezas({w:W,h:H,variante:['paisaje','mar','abstracto','flores'][Math.floor(r2*4)],marco:Math.floor(r*4)}),{x:px,y:yb+1.55-H/2,z:pz,ry},{f}));}
     // El reloj de pared (cocinas, oficinas, aulas, recepción…): en otra pared libre o, si no hay, al final de la del cuadro.
     if(CLOCK.has(q.type)&&best){const o=cands.find(c=>c!==best&&!(c.h===best.h&&Math.abs(c.at-best.at)<.01))||(best.len>=2.4?{...best,m:best.c1-.35}:null);
-     if(o){const [px,pz]=o.h?[o.m,o.at+o.dir*o.off]:[o.at+o.dir*o.off,o.m];boxes.push(...placeParts(OBJETOS.reloj.piezas({paleta:Math.floor(r*9)}),{x:px,y:yb+2.0,z:pz,ry:o.h?(o.dir>0?0:Math.PI):(o.dir>0?Math.PI/2:-Math.PI/2)},{f}));}}
-    // Las cortinas, en las ventanas de fachada de los cuartos donde se vive (no en las vidrieras de los locales).
-    if(CURTAIN.has(q.type)){const tone=['crema','azul','verde','terracota'][Math.floor(r2*4)];
-     // (2026-10-16: una por ventana DIBUJADA —vidrios: la doble es una sola— y a la medida de su vidrio, engine/cortinas.js
-     // cortinaAbierta; las de cortina cerrada, no: esas tienen su paño)
-     const paredes=new Map();for(const v of vidrios){if(v.f!==f)continue;const h=v.h,at=v.at,a=h?q.x:q.y,b=h?q.x+q.w:q.y+q.h,gm=v.c+(v.x0+v.x1)/2;
-      const edge=h?(Math.abs(at-q.y)<.02?1:Math.abs(at-q.y-q.h)<.02?-1:0):(Math.abs(at-q.x)<.02?1:Math.abs(at-q.x-q.w)<.02?-1:0);if(!edge||gm<a||gm>b)continue;
-      if(lv.windows.some(w=>w.cortina&&(Math.abs(w.y0-w.y1)<1e-3)===h&&Math.abs((h?w.y0:w.x0)-at)<.02&&Math.abs((h?(w.x0+w.x1):(w.y0+w.y1))/2-gm)<v.x1-v.x0))continue;
-      const K=cortinaAbierta(v,a,b);const reg={f,h,at,vidrio:[v.c+v.x0,v.c+v.x1,v.y1],cortina:null,cuarto:[a,b],pieza:v.pieza};cortinasLote.push(reg);if(!K)continue;
-      const key=(h?'h':'v')+at.toFixed(2)+':'+edge;(paredes.get(key)||paredes.set(key,{h,at,edge,ks:[]}).get(key)).ks.push({...K,reg});}
-     // (las de una misma pared que se pisarían, un solo juego)
-     for(const {h,at,edge,ks} of paredes.values())for(const K of juntarCortinas(ks.sort((p,r)=>p.u0-r.u0))){
-      for(const k of ks)if(k.u0>=K.u0-1e-6&&k.u1<=K.u1+1e-6)k.reg.cortina={u0:K.u0,u1:K.u1,paño:K.paño,h:K.h,solapa:!!k.solapa};
-      const [px,pz]=h?[K.m,at+edge*(FACE+.02)]:[at+edge*(FACE+.02),K.m];
-      boxes.push(...placeParts(OBJETOS.cortina.piezas({w:K.w,h:K.h,bajo:K.bajo,variante:tone,pliegues:K.pliegues}),{x:px,y:yb,z:pz,ry:h?(edge>0?0:Math.PI):(edge>0?Math.PI/2:-Math.PI/2)},{f}));}}}
+     if(o){const [px,pz]=o.h?[o.m,o.at+o.dir*o.off]:[o.at+o.dir*o.off,o.m];if(!bp.entrega)boxes.push(...placeParts(OBJETOS.reloj.piezas({paleta:Math.floor(r*9)}),{x:px,y:yb+2.0,z:pz,ry:o.h?(o.dir>0?0:Math.PI):(o.dir>0?Math.PI/2:-Math.PI/2)},{f}));}}
+    // (2026-11-22, Miguel: «eliminamos las cortinas»: ya no hay paños abiertos a los costados del vidrio; la ventana cerrada es
+    // su película —engine/cortinas.js peliculaCerrada—, más abajo)
+   }
+   // (2026-11-22, Miguel: «que sean borrosas cuando no estén abiertas… y que al abrir se ponga transparente»: el paño es ahora la
+   // película del vidrio —engine/cortinas.js peliculaCerrada, una lámina lechosa—; w.cortina dice si arranca opaca)
    // Las cortinas cerradas (engine/cortinas.js, w.cortina): un paño de lado a lado detrás del vidrio. No van con los
    // muebles (que sólo se dibujan de cerca): se ven de lejos y tapan el cuarto vacío (world3d las dibuja siempre).
    // (2026-10-16, las acciones: el paño va en TODAS las ventanas de los cuartos que llevan cortina —CORTINA.cuartos—, cada una
    // con su clave lote:piso:ventana y cerrado o no según el plano; el jugador lo abre o lo cierra —world3d cortina()—)
-   lv.windows.forEach((w,wi)=>{if(w.shop)return;const c=cuartoDeVentana(lv,w);if(!c||!CORTINA_CU.has(c.q.type))return;const tela=w.cortina||telaDe(id,f,wi);
-    const cj=panioCerrado(c,tela,yb,FACE+.02).cajas;panios.push({key:id+':'+f+':'+wi,i0:cortinas.length,n:cj.length,cerrada:!!w.cortina});cortinas.push(...cj);});
+   // (2026-11-22: en la ciudad entregada vacía —bp.entrega— no hay alfombras, cuadros, relojes ni cortinas: sólo la obra)
+   // (2026-11-22: en la ciudad entregada, toda ventana de una vivienda —sin dueño todavía— lleva su persiana cerrada:
+   // engine/cortinas.js peliculaCerrada, una lámina; el interior no se ve ni se arma —engine/propiedad.js—)
+   // (el dúplex, sin cortinas ni persianas —Miguel, 2026-11-22: «haz que el dúplex no tenga cortinas»—: su planta abierta
+   // y la doble altura se ven desde la calle)
+   const enDuplex=c=>f===L.floors-1&&B.duplex?.unidades.some(u=>u.n===c.q.unit);
+   if(bp.entrega)lv.windows.forEach((w,wi)=>{if(w.shop)return;const c=cuartoDeVentana(lv,w);if(!c||!esVivienda(B,c.q)||enDuplex(c))return;
+    const cj=peliculaCerrada(c,yb,FACE+.02).cajas;panios.push({key:id+':'+f+':'+wi,i0:cortinas.length,n:cj.length,cerrada:true,persiana:true});cortinas.push(...cj);});
+   else lv.windows.forEach((w,wi)=>{if(w.shop)return;const c=cuartoDeVentana(lv,w);if(!c||!CORTINA_CU.has(c.q.type)||enDuplex(c))return;
+    const cj=peliculaCerrada(c,yb,FACE+.02).cajas;panios.push({key:id+':'+f+':'+wi,i0:cortinas.length,n:cj.length,cerrada:!!w.cortina});cortinas.push(...cj);});
   });
   // ---------- La escalera: peldaños con huella y nariz, descanso, pared del medio, pasamanos y la baranda del último piso ----------
   // El material según el edificio (STAIRS, stairKind): madera, mármol, granito, concreto o acero.
@@ -590,7 +651,9 @@ export function buildTown(bp,ctx){
    // se metían 4 cm en el muro del medio y los pasamanos rozaban la pared).
    const side=(a,b=FR+run/2)=>{const [x,z]=P(a,b),o=lotAtCell(Math.floor(x/S),Math.floor(z/S));return o<0?FACE:o!==id?THIN+.01:THIN/2+.01;};
    const W=ST.W,A0=side(-.15),A1=W-side(W+.15),BD=sd.d-side(W/2,sd.d+.15);
-   stairBoxes(ST,M,{floors:L.floors,FLOOR,hallC,A0,A1,BD,box,boxes,wallAny,deco:Math.floor(hash(id*19,7,seed+143)*16)});}
+   escI0=boxes.length;stairBoxes(ST,M,{floors:ST.floors,FLOOR,hallC,A0,A1,BD,box,boxes,wallAny,deco:Math.floor(hash(id*19,7,seed+143)*16),frenteCerrado:!B.levels[ST.floors-1]?.doors.some(d=>d.core||d.stair)});}
+  // ---------- Los dúplex (duplex3d.js): la escalera privada, los tabiques del altillo y sus muros bajo la pendiente ----------
+  {const DX=duplexDeLote(B,L,{box,wallAny,FLOOR});if(DX){DX.R=R;duplexes.set(id,DX);}}
   // ---------- Sin caras que titilen (2026-10-16): las cajas del lote —muebles, marcos, escalera, decoración— con una
   // cara en el mismo plano que otra de otro color se alternan al mover la cámara; la más chica se retira 3 mm ----------
   {const ok=piezasSinTitilar(boxes,{suelos:Array.from({length:L.floors+1},(_,f)=>[f*FLOOR,f*FLOOR+.02]).flat()});for(let i=0;i<ok.length;i++)boxes[i]=ok[i];}
@@ -607,6 +670,20 @@ export function buildTown(bp,ctx){
   items.push(...fixed);wallLift=0;
   // (cada pieza, con su lote: downtown3d las junta por lote para poder apagar lo que no se ve —engine/visibles.js—)
   for(let i=i0;i<items.length;i++)items[i].lote=id;for(let i=k0;i<cortinas.length;i++)cortinas[i].lote=id;// (y las cortinas: world3d las apaga con su lote)
+  // (el último tramo de una escalera que sube a la azotea asoma por el hueco del techo: se dibuja siempre, con lo de afuera
+  // —escalerasAire—, no sólo de cerca como lo de adentro; si no, desde el dron se veía el hueco vacío —lo vio Miguel—)
+  // (y los muros alrededor de ese tramo —los del núcleo en el último piso—: Miguel, «las paredes de las escaleras siempre
+  // visibles en el último tramo también». Todo lo del último piso que cae en la escalera o en sus muros, 35 cm alrededor)
+  if(ST?.azotea&&escI0>=0){const top=L.floors-1,zona=ST.rect(-.35,-.35,ST.W+.35,ST.sd.d+.35),enZona=b=>b.x>=zona.x&&b.x<=zona.x+zona.w&&b.z>=zona.z&&b.z<=zona.z+zona.h;
+   for(let i=boxes.length-1;i>=0;i--)if(boxes[i].f===top&&(i>=escI0||enZona(boxes[i]))){escalerasAire.push(boxes[i]);boxes.splice(i,1);}}
+  // (LA CAJA DE LEJOS —2026-11-22, Miguel: «según las estrategias de GTA 6 para aumentar el rendimiento» → «arranca y miramos con
+  // 1»—: la versión baja de cada edificio, como las de Rockstar: cada parte del edificio, una caja hasta su altura —con la
+  // escalinata; sin pretil, para no tapar lo de la azotea—; con mansarda, media pendiente sobre toda la planta y la cubierta encima. Sale del
+  // plano, al milímetro; downtown3d la dibuja en vez de las piezas cuando el lote queda lejos —setLejos—)
+  {const cajas=B.parts.map(p=>({x:p.x+p.w/2,z:p.y+p.h/2,w:p.w,d:p.h,y:0,h:L.h+R}));
+   if(fs.mansard&&B.mansarda){for(const p of B.parts)cajas.push({x:p.x+p.w/2,z:p.y+p.h/2,w:p.w-MANSARDA.retiro,d:p.h-MANSARDA.retiro,y:L.h+R,h:MANSARDA.alto/2});
+    for(const c of B.mansarda.cubierta)cajas.push({x:(c.x0+c.x1)/2,z:(c.z0+c.z1)/2,w:c.x1-c.x0,d:c.z1-c.z0,y:L.h+R,h:MANSARDA.alto});}
+   cascarones.push({lote:id,cajas});}
   lotFurniture.set(id,{id,raise:R,leaves:innerLeaves,cortinas:cortinasLote,glass,who,floors:L.floors,cells:cells.map(([x,y])=>[x*S,y*S,(x+1)*S,(y+1)*S]),items:models,beds:boxes,seats,sleeps,staff,x:cx,z:cz,r:Math.sqrt(cells.length)*S,noWalk:ST?[ST.rect(-.2,-.2,ST.W+.2,ST.sd.d+.2)]:[]});
   // ---------- Edificios públicos: letrero, portones, cruz, bandera ----------
   const civicType={hospital:'hospital',colegio:'colegio',biblioteca:'biblioteca',bomberos:'bomberos',comisaria:'comisaria'}[B.type];
@@ -616,7 +693,12 @@ export function buildTown(bp,ctx){
    const fx=front[0],fz=front[1],len=(fx?g.h:g.w)*S,mx=(fx?(fx>0?(g.x1+1)*S:g.x0*S):(g.x0*S+g.x1*S+S)/2),mz=(fz?(fz>0?(g.y1+1)*S:g.y0*S):(g.y0*S+g.y1*S+S)/2);
    const c={id,type:civicType,name:L.bname,bay:[]};const w=Math.min(len-.8,9);
    c.sign={x:mx-fx*.8,z:mz-fz*.8,ry,w:Math.min(w*1.15,11),roof:L.h};c.sign.y0=Math.max(L.h+1.35,clearance(c.sign.x,c.sign.z,fz,-fx,c.sign.w/2,fx,fz)+.6);
-   if(civicType==='hospital')c.roof={x:cx,y:L.h,z:cz};
+   // (2026-11-22: ni el letrero ni la cruz del hospital sobre la salida de la escalera a la azotea —con 60 cm de aire—: el
+   // letrero se corre a lo largo de la fachada hasta que quede libre; la cruz va al centro de la casilla más lejos de la escalera)
+   const salida=ST?.azotea?ST.rect(-.6,-.6,ST.W+.6,ST.sd.d+.6):null,pisa=(x0,z0,x1,z1)=>salida&&Math.min(x1,salida.x+salida.w)>Math.max(x0,salida.x)&&Math.min(z1,salida.z+salida.h)>Math.max(z0,salida.z);
+   if(salida){const tx=fz,tz=-fx,hw=c.sign.w/2,caja=(x,z)=>pisa(Math.min(x-tx*hw,x+tx*hw)-.5,Math.min(z-tz*hw,z+tz*hw)-.5,Math.max(x-tx*hw,x+tx*hw)+.5,Math.max(z-tz*hw,z+tz*hw)+.5);
+    if(caja(c.sign.x,c.sign.z)){const x0=c.sign.x,z0=c.sign.z,lim=Math.max(0,len/2-hw-.4);for(const d of [2,-2,4,-4,6,-6,8,-8].filter(d=>Math.abs(d)<=lim))if(!caja(x0+tx*d,z0+tz*d)){c.sign.x=x0+tx*d;c.sign.z=z0+tz*d;break;}}}
+   if(civicType==='hospital'){let best=[cx,cz];if(salida){const cs=cells.map(([x,y])=>[(x+.5)*S,(y+.5)*S]).filter(([x,z])=>!pisa(x-1.5,z-1.5,x+1.5,z+1.5));if(cs.length)best=cs.reduce((m,p)=>Math.hypot(p[0]-cx,p[1]-cz)<Math.hypot(m[0]-cx,m[1]-cz)?p:m);}c.roof={x:best[0],y:L.h,z:best[1]};}
    if(CIVIC[civicType].flag&&streetDoors.length){const d=streetDoors[0];c.flag={x:d.x+d.nx*1.2+d.nz*1.8,z:d.z+d.nz*1.2-d.nx*1.8};}
    for(const d of streetDoors.filter(d=>d.bay))c.bay.push({kind:CIVIC[civicType].bay||'camion',x:d.x,z:d.z,ry:Math.atan2(d.nx,d.nz),len:CIVIC[civicType].bay==='patrulla'?4.5:6.4});
    civics.push(c);civicFronts.push(...out);}
@@ -629,7 +711,7 @@ export function buildTown(bp,ctx){
   const val=new THREE.BoxGeometry(2,.24,.03);val.translate(0,fy-.1,fz);const geo=mergeGeometries([top,val]);top.dispose();val.dispose();
   // (LOWPOLY: la lona lisa, del color de su edificio —sin las rayas pintadas—)
   const mat=new THREE.MeshStandardMaterial(LOWPOLY.on?{roughness:.9,flatShading:true}:{map:tex,roughness:.9});own.push(geo,mat,tex);ctx.instanced(group,geo,mat,awnings);}
- return {roofProps,items,leaves,doorFronts,plaques,lotFurniture,civics,civicFronts,stationInfo,stairs,stoops,balconies,cortinas,superficies,panios};
+ return {cascarones,fachadaArmada:armada,mansardaArmada,duplexes,escalerasAire,roofProps,items,leaves,doorFronts,plaques,lotFurniture,civics,civicFronts,stationInfo,stairs,stoops,balconies,cortinas,superficies,panios};
 }
 
 // Las cabinas de los ascensores: paredes de metal, techo con luz y botonera, puertas corredizas (se abren cuando el
@@ -639,16 +721,11 @@ export function buildTown(bp,ctx){
    (stairOf), M (un material de STAIRS), floors pisos de FLOOR m, hallC (el color del muro del medio), A0/A1 (las caras
    de las paredes de afuera de los carriles, en el eje a) y BD (la de la pared del fondo, en b). box(x,y,z,sx,sy,sz,
    color,f) y boxes reciben las cajas; wallAny(x0,z0,x1,z1,y0,y1), los choques (en el taller, nada). */
-export function stairBoxes(ST,M,{floors,FLOOR,hallC,A0=.07,A1,BD,box,boxes,wallAny=()=>{},deco=0}){
+export function stairBoxes(ST,M,{floors,FLOOR,hallC,A0=.07,A1,BD,box,boxes,wallAny=()=>{},deco=0,frenteCerrado=false}){
    const {sd,run,P,FR,BK,W,HW,N}=ST;if(A1==null)A1=W-.07;const rise=1.5/N,tread=run/N,alongX=Math.abs(sd.ux)>.5,TH=.045,NO=.03;if(BD==null)BD=sd.d-.07;
    // Una caja en coordenadas de la escalera: centro (a,b), ancho da (a lo ancho de los carriles) y fondo db.
    const sbox=(a,b,y,da,db,hh,color,f)=>{const [x,z]=P(a,b);box(x,y,z,alongX?da:db,hh,alongX?db:da,color,f);};
    const swall=(a0,b0,a1,b1,y0,y1)=>{const [x0,z0]=P(a0,b0),[x1,z1]=P(a1,b1);wallAny(Math.min(x0,x1)-.05,Math.min(z0,z1)-.05,Math.max(x0,x1)+.05,Math.max(z0,z1)+.05,y0,y1);};
-   // Un pasamanos inclinado sobre el carril a, de (b0,y0) a (b1,y1): una caja larga girada (rx o rz, según hacia dónde
-   // corre b en el mundo; la caja gira sobre el centro de su base).
-   const slope=(a,b0,y0,b1,y1,f,w=.05,color=M.rail)=>{const [x,z]=P(a,(b0+b1)/2),len=Math.hypot(b1-b0,y1-y0),t=Math.atan2(y1-y0,b1-b0);
-    if(alongX)boxes.push({x,y:(y0+y1)/2-w/2,z,sx:w,sy:w,sz:len,color,f,ry:0,rx:-t*Math.sign(sd.vz||1)});
-    else boxes.push({x,y:(y0+y1)/2-w/2,z,sx:len,sy:w,sz:w,color,f,ry:0,rz:t*Math.sign(sd.vx||1)});};
    const M0=HW-.05,M1=HW+.05,cA=(A0+M0)/2,cB=(M1+A1)/2,wA=M0-A0,wB=A1-M1;
    // Del primer piso para arriba los tramos no son macizos hasta la losa: debajo pasa el tramo del piso de abajo (2026-10-15:
    // un bloque desde el suelo dejaba 1,5 m sobre los pies en el carril A y en el descanso, y la cabeza se metía en él).
@@ -665,11 +742,9 @@ export function stairBoxes(ST,M,{floors,FLOOR,hallC,A0=.07,A1,BD,box,boxes,wallA
     const bD=f?base+1.5-TH-SOFF:base;sbox((A0+A1)/2,(FR+run+BD)/2,bD,A1-A0,BD-FR-run,base+1.5-TH-bD,M.body,f);sbox((A0+A1)/2,(FR+run+BD)/2,base+1.5-TH,A1-A0,BD-FR-run,TH,M.tread,f);
     // (la pared del medio, de losa a losa: con 7 cm menos quedaba una ranura entre la de un piso y la del siguiente)
     sbox(HW,FR+run/2,base,.1,run,FLOOR,hallC,f);swall(HW,FR,HW,FR+run,f*FLOOR-.05,f*FLOOR+FLOOR-.05);
-    // Pasamanos a 90 cm sobre las narices, a 4 cm de cada pared (contra la del medio y contra la de afuera, en los dos
-    // carriles), con tres ménsulas que llegan hasta la pared.
-    for(const [a,wa] of [[M0-.065,M0],[A0+.065,A0],[M1+.065,M1],[A1-.065,A1]]){const up=a<HW,b0=up?FR:FR+run,b1=up?FR+run:FR,y0=base+(up?0:1.5)+.9,y1=y0+1.5;
-     slope(a,b0-(up?.15:-.15),y0-.1,b1+(up?.15:-.15),y1+.1,f);
-     for(const t of [.15,.5,.85]){const bb=b0+(b1-b0)*t;sbox((a+wa)/2,bb,y0+1.5*t-.06,Math.abs(wa-a),.03,.06,M.rail,f);}}}
+    // (sin pasamanos desde el 2026-11-22 —Miguel: «quitemos el posabrazos, no siento que aporte mucho en la dinámica del
+    // juego»—: eran cuatro barras inclinadas y doce ménsulas por piso. Antes: a 90 cm sobre las narices, a 4 cm de cada pared)
+}
    // El canto de la losa alrededor del hueco (2026-10-16, Miguel: «la división entre pisos se ve un corte cuando subo»):
    // la losa del paquete son dos planos —el piso en Y y el cielo raso en Y−0,1— y los muros de abajo llegan a Y−0,12, así
    // que en el hueco, de canto, se veía entre los dos planos hasta el cuarto de al lado. Una franja de STAIR_CANTO, del
@@ -681,7 +756,7 @@ export function stairBoxes(ST,M,{floors,FLOOR,hallC,A0=.07,A1,BD,box,boxes,wallA
    // El rincón bajo el carril B de planta baja (ST.nook): la cara de lo macizo que lo cierra, un cuadro colgado en ella y
    // una planta en la esquina de afuera. El choque, en la cara (nadie camina por debajo de lo bajo) y alrededor de la planta.
    if(ST.nook){const nb=ST.nook.b1,[fx,fz]=[-sd.vx,-sd.vz],ry=Math.atan2(fx,fz),cw=Math.min(.7,wB-.24),[qx,qz]=P(cB,nb-.005);
-    boxes.push(...placeParts(OBJETOS.cuadro.piezas({w:cw,h:.5,variante:OBJETOS.cuadro.variantes[deco%4],marco:deco>>2}),{x:qx,y:STAIR_CUADRO,z:qz,ry},{f:0}));
+    if(!SIN_DECO)boxes.push(...placeParts(OBJETOS.cuadro.piezas({w:cw,h:.5,variante:OBJETOS.cuadro.variantes[deco%4],marco:deco>>2}),{x:qx,y:STAIR_CUADRO,z:qz,ry},{f:0}));
     const pa=A1-.22,pb=nb-.22,[mx,mz]=P(pa,pb);boxes.push(...placeParts(OBJETOS.maceta.piezas(),{x:mx,y:.02,z:mz,ry:deco*.7},{f:0}));
     swall(M1,nb,A1,nb,-.05,2);swall(pa-.16,pb-.16,pa+.16,pb+.16,-.05,1);}
    // Arriba, una baranda alrededor del hueco: pasamanos, zócalo y barrotes cada 12 cm (de pared a pared).
@@ -691,8 +766,12 @@ export function stairBoxes(ST,M,{floors,FLOOR,hallC,A0=.07,A1,BD,box,boxes,wallA
     const n=Math.max(2,Math.round(len/.12));for(let i=1;i<n;i++){const t=i/n;sbox(a0+(a1-a0)*t,b0+(b1-b0)*t,tb+.08,.025,.025,.87,M.post,top);}};
    // (la del medio, sólo sobre los carriles: sobre el descanso del último tramo quedaba a la altura de la cabeza; el choque
    // de ese borde sí sigue hasta el fondo, para que nadie camine por encima del hueco)
-   balus(A0,FR,M0,FR);balus(HW,FR,HW,FR+run);
-   swall(0,FR,HW,FR,top*FLOOR-.05,top*FLOOR+FLOOR-.05);swall(HW,FR,HW,sd.d,top*FLOOR-.05,top*FLOOR+FLOOR-.05);}
+   // (en la azotea —la escalera que sube al techo, ST.azotea— no va reja: Miguel, «incluso elimina la reja de la azotea para
+   // mejorar el rendimiento». El hueco queda abierto; quien cae, cae a la escalera de abajo. Adentro del edificio, sí)
+   // (si el frente del núcleo es un muro con su puerta —la entrada del penthouse, engine/duplex.js—, la baranda de adelante
+   // quedaba pegada a ese muro: Miguel, «barandas junto a paredes que no tienen sentido». El muro ya cierra el hueco)
+   if(!ST.azotea){if(!frenteCerrado)balus(A0,FR,M0,FR);balus(HW,FR,HW,FR+run);
+    swall(0,FR,HW,FR,top*FLOOR-.05,top*FLOOR+FLOOR-.05);swall(HW,FR,HW,sd.d,top*FLOOR-.05,top*FLOOR+FLOOR-.05);}}
 
 export function buildCabins(elevators,{FLOOR,group,own,instanced,base,addWall,S,W,H}){
  const cab=[],light=[],E=.85,T=.07,DOOR=.5;

@@ -35,9 +35,17 @@ const NIVELES=[
  {n:3,t:'Lotes y edificios',d:'plantas, pisos, escaleras, fachadas y el acceso a los patios',p:[
   {n:'ciudad',f:'validar-ciudad.mjs',a:[N,S0],fallas:/edificios con alguna falla: (\d+)/,res:/^\d+ ciudades/},
   {n:'núcleos',f:'validar-nucleos.mjs',a:[N,S0],fallas:/(\d+) con fallas/,res:/con escalera/},
+  {n:'casas modernas',f:'validar-casas-modernas.mjs',a:[N,S0],fallas:F,res:/^casas modernas/},// (2026-11-22: dúplex modernas del monte —hogar.js, vivienda.js—)
   {n:'escaleras de casa',f:'validar-escaleras-casa.mjs',a:[],fallas:/(\d+) con fallas/,res:/casas de dos pisos/},
   {n:'vanos de casa',f:'validar-vanos.mjs',a:[Math.min(N,3),S0],fallas:F,res:/^vanos/},
   {n:'fachada y uso',f:'validar-fachada-uso.mjs',a:[N,S0],fallas:F,res:/^fachada y uso/},
+  {n:'fachada medida',f:'validar-fachada-medida.mjs',a:[N,S0],fallas:F,res:/^fachada medida/},
+  {n:'fachada piezas',f:'validar-fachada-piezas.mjs',a:[N,S0],fallas:F,res:/^fachada piezas/},// (2026-11-21: el plano y el 3D ponen lo mismo en cada módulo —engine/fachada-piezas.js—)
+  {n:'grafiti',f:'validar-grafiti.mjs',a:[N,S0],fallas:F,res:/^grafiti/},
+  {n:'guardado',f:'validar-guardado.mjs',a:[N,S0],fallas:F,res:/^guardado/},
+  {n:'grafo de muros',f:'validar-grafo-muros.mjs',a:[N,S0],fallas:F,res:/^grafo de muros/},// (2026-11-22: tramos, nodos, vanos y lo que no encaja —engine/grafo-muros.js—)
+  {n:'departamentos',f:'validar-departamentos.mjs',a:[N,S0],fallas:F,res:/^departamentos/},// (2026-11-22: los departamentos abiertos —engine/duplex.js abrirDepartamentos—)
+  {n:'dúplex',f:'validar-duplex.mjs',a:[N,S0],fallas:F,res:/^dúplex/},// (2026-11-22: los dúplex bajo la mansarda —engine/duplex.js—)// (2026-11-21: la huella de cada pared, la conciliación y la base SQLite de lo pintado)// (2026-11-21: la grilla de pixel art de cada paño —engine/grafiti.js—)// (2026-11-21: vanos, paños y textura de cada fachada —engine/fachada-medida.js—)
   {n:'fachada 3D',f:'validar-fachada3d.mjs',a:[],fallas:F,res:/^fachada low poly/},
   {n:'patios',f:'validar-patios.mjs',a:[N,S0],fallas:F,res:/^patios/}]},
  {n:4,t:'Interiores',d:'pasillos, muebles, usos y cortinas',p:[
@@ -45,6 +53,9 @@ const NIVELES=[
   {n:'interiores',f:'validar-interiores.mjs',a:[N,S0],fallas:F,res:/^se llega caminando/},
   {n:'muebles',f:'validar-muebles.mjs',a:[N,S0],fallas:F,res:/^muebles/},
   {n:'usos',f:'validar-usos.mjs',a:[N,S0],fallas:F,res:/^usos/},
+  {n:'colocar',f:'validar-colocar.mjs',a:[N,S0],fallas:F,res:/^colocar/},
+  {n:'aparecer',f:'validar-aparecer.mjs',a:[N,S0],fallas:F,res:/^aparecer/},
+  {n:'propiedades',f:'validar-propiedades.mjs',a:[N,S0],fallas:F,res:/^propiedades/},// (2026-11-21: el listado de lo que se vende —engine/propiedades.js—)// (2026-11-21: dónde aparece quien entra —engine/aparecer.js—)// (2026-11-21: colgar y apoyar objetos a mano —engine/colocar.js—)
   {n:'aulas',f:'validar-aulas.mjs',a:[N,S0],fallas:F,res:/^aulas/},
   {n:'giros',f:'validar-giros.mjs',a:[N,S0],fallas:F,res:/^giros/},
   {n:'cortinas',f:'validar-cortinas.mjs',a:[N,S0],fallas:F,res:/^cortinas/}]},
@@ -52,8 +63,7 @@ const NIVELES=[
   {n:'vegetación',f:'validar-vegetacion.mjs',a:[N,S0],fallas:F,res:/^3-30-300/},
   {n:'equipamiento',f:'validar-equipamiento.mjs',a:[N,S0],fallas:F,res:/^cobertura/},
   {n:'pintura',f:'validar-pintura.mjs',a:[N,S0],fallas:F,res:/^pintura/},
-  {n:'color',f:'validar-color.mjs',a:[N,S0],fallas:F,res:/^color/,lento:true},
-  {n:'botín',f:'validar-botin.mjs',a:[N,S0,'--equipos=3,8'],fallas:F,res:/^reparto:/,node:grande,lento:true}]},
+  {n:'color',f:'validar-color.mjs',a:[N,S0],fallas:F,res:/^color/,lento:true}]},
  {n:6,t:'Geometría sin pantalla',d:'lo que se dibuja contra el plano: piezas en su lugar, caras que no titilan, sin huecos ni triángulos que nunca se ven, empalmes al milímetro y objetos que no se tapan',p:[
   {n:'titileo',f:'validar-titileo.mjs',a:[1,S0],fallas:F,res:/^titileo/},
   {n:'contrato 3D',f:'validar-contrato.mjs',a:[N,S0],fallas:F,res:/entradas del contrato/,lento:true},
@@ -63,41 +73,37 @@ const NIVELES=[
   {n:'oclusión',f:'validar-oclusion.mjs',a:[RAP?1:2,S0],fallas:F,res:/^oclusión/,node:['--max-old-space-size=12000']}]},
  {n:7,t:'Física',d:'por dónde se pasa, qué frena y que el suelo que se pisa sea el que se ve, y las azoteas: saltar de un techo a otro y lo que duele caer',p:[
   {n:'azoteas',f:'validar-azoteas.mjs',a:[N,S0],fallas:F,res:/^azoteas/},
+  {n:'escalera a la azotea',f:'validar-escalera-azotea.mjs',a:[N,S0],fallas:F,res:/^escalera a la azotea/},// (2026-11-22: se sube caminando del último piso a la azotea)
+  {n:'lejos',f:'validar-lejos.mjs',a:[1,S0],fallas:F,res:/^lejos/},// (2026-11-22: la caja de lejos de cada edificio y la versión baja de las plantas)
+  {n:'dúplex en 3D',f:'validar-duplex-3d.mjs',a:[N,S0],fallas:F,res:/^dúplex en 3D/},// (2026-11-22: se sube caminando por la escalera de cada dúplex hasta el altillo)
   {n:'mansarda',f:'validar-mansarda.mjs',a:[N,S0],fallas:F,res:/^mansarda/},
   {n:'azoteas con objetos',f:'validar-azoteas-objetos.mjs',a:[N,S0],fallas:F,res:/^azoteas con objetos/},
   {n:'colisiones',f:'validar-colisiones.mjs',a:[N,S0],fallas:F,res:/^paso libre/,node:grande},
   {n:'suelo',f:'validar-suelo.mjs',a:[2,S0],fallas:F,res:/^suelo/,node:grande},
   {n:'pisos',f:'validar-pisos.mjs',a:[RAP?1:2,S0],fallas:F,res:/^pisos/,node:grande}]},
  {n:8,t:'Visibilidad',d:'qué se ve desde adentro y qué se aclara',p:[
-  {n:'visibilidad',f:'validar-visibilidad.mjs',a:[2,S0],fallas:F,res:/^visibilidad/},
   {n:'visibles',f:'validar-visibles.mjs',a:[2,S0,800],fallas:F,res:/^visibles/,lento:true}]},
  {n:9,t:'Juego',d:'recorridos, distancias, reparto entre equipos, un solo cuerpo, las guaridas, las viviendas, el motor del modo «Botín», el allanamiento, la sociedad (familias, trabajos y horarios) y la rutina (agenda, necesidades, buses y eventos)',p:[
   {n:'juego',f:'validar-juego.mjs',a:[N,S0],fallas:F,res:/^a pie:/,node:grande},
-  {n:'cuerpo',f:'validar-cuerpo.mjs',a:[],fallas:F,res:/^cuerpo/},
+  {n:'personajes',f:'validar-personajes.mjs',a:[],fallas:F,res:/^personajes/},
   {n:'guaridas',f:'validar-guaridas.mjs',a:[N,S0],fallas:F,res:/^guaridas/},
   {n:'viviendas',f:'validar-viviendas.mjs',a:[N,S0],fallas:F,res:/^viviendas/},
-  {n:'motor botín',f:'validar-botin.mjs',a:[N,S0,3],fallas:F,res:/^motor/},
   {n:'sociedad',f:'validar-sociedad.mjs',a:[N,S0,14],fallas:F,res:/^sociedad/},
   {n:'caminar',f:'validar-caminar.mjs',a:[S0],fallas:F,res:/^caminar a las 15/},
   {n:'descanso',f:'validar-descanso.mjs',a:[Math.min(N,2),S0],fallas:F,res:/^descanso · ciudad/},
   {n:'identidad',f:'validar-identidad.mjs',a:[Math.min(N,2),S0],fallas:F,res:/^identidad · ciudad/},
-  {n:'allanamiento',f:'validar-allanamiento.mjs',a:[Math.min(N,3),S0],fallas:F,res:/^allanamiento ·/,node:grande},
   {n:'rutina',f:'validar-rutina.mjs',a:[N,S0],fallas:F,res:/^rutina/}]},
  {n:10,t:'Pantalla',d:'el 3D de verdad en un navegador sin ventana: costo de cada cuadro, capturas, errores, asomarse por una ventana, la ronda del ladrón y la del policía',p:[
   {n:'3d',f:'validar-3d.mjs',a:[S0],fallas:F,res:/^3d/,lento:true},
   {n:'asomarse',f:'validar-asomarse.mjs',a:[S0],fallas:F,res:/^asomarse/,lento:true},
-  {n:'ronda',f:'validar-ronda.mjs',a:[S0],fallas:F,res:/^ronda/,lento:true},
-  {n:'allanar 3d',f:'validar-allanar3d.mjs',a:[S0],fallas:F,res:/^allanar ·/,lento:true},
   {n:'tránsito 3d',f:'validar-transito3d.mjs',a:[S0],fallas:F,res:/^tránsito 3d/,lento:true},
   {n:'caídas',f:'validar-caidas.mjs',a:[S0],fallas:F,res:/^caídas/,lento:true},
   {n:'salto',f:'validar-salto.mjs',a:[S0],fallas:F,res:/^salto/,lento:true},
   {n:'entrada',f:'validar-entrada.mjs',a:[],fallas:F,res:/^entrada/},
-  {n:'policía',f:'validar-policia.mjs',a:[S0],fallas:F,res:/^policía/,lento:true},
   {n:'gente',f:'validar-gente.mjs',a:[S0],fallas:F,res:/^gente/,lento:true},
   {n:'fluidez',f:'validar-fluidez.mjs',a:[S0],fallas:F,res:/^fluidez/,lento:true},
   {n:'patrulla',f:'validar-patrulla.mjs',a:[S0],fallas:F,res:/^patrulla/,lento:true},
-  {n:'menú',f:'validar-menu.mjs',a:[S0],fallas:F,res:/^menú/,lento:true},
-  {n:'ladrón',f:'validar-ladron.mjs',a:[S0],fallas:F,res:/^ladrón/,lento:true}]}]
+  {n:'menú',f:'validar-menu.mjs',a:[S0],fallas:F,res:/^menú/,lento:true}]}]
  .filter(L=>L.n>=NV0&&L.n<=NV1).map(L=>({...L,p:L.p.filter(p=>(!solo.length||solo.some(s=>p.n.startsWith(s)))&&!(RAP&&p.lento&&!solo.length))})).filter(L=>L.p.length);
 // Para el panel del harness (2026-10-30): --lista imprime los niveles y sus pruebas («LISTA {json}») y termina; --eventos,
 // además, una línea «PRUEBA {json}» al terminar cada una. La salida de siempre (la tabla) no cambia.

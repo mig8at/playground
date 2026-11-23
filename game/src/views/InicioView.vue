@@ -2,7 +2,7 @@
 // El recorrido de entrada al juego, prototipo (2026-10-17, Miguel: «cómo alguien se loguea —Google o Steam simulado—, cae
 // en un Home con las salas abiertas, puede crear un mundo, verlo, ponerle nombre y esperar a que la gente se una»).
 // Todo simulado, para calibrar el diseño antes de hacerlo de verdad:
-//  1. título: FUGA y «Entrar»;
+//  1. título: mycity (el nombre que se ve desde el 2026-11-22; antes FUGA) y «Entrar»;
 //  2. entrar: con Steam (la principal: el juego va para Steam, donde no hay login —Steam ya sabe quién sos y FUGA pide
 //     permiso una vez—) o con Google (para la versión web);
 //  3. perfil (la primera vez): el nombre que ven los demás, el aspecto (piel, pelo, barba: lo que sale en un retrato) y
@@ -27,7 +27,7 @@ import {JUEGO} from '../engine/medidas.js';
 import {sociedadDe} from '../engine/sociedad.js';
 import {COLORS} from '../engine/vestuario.js';
 import {SECCIONES,CONTROLES,LO_BASICO} from '../lib/reglasJuego.js';
-import {GARMENTS,PALETTE} from '../lib/vestier3d.js';
+import {GARMENTS,PALETTE} from '../lib/ropa.js';
 import {uniformeDe} from '../lib/characters3d.js';
 import {precargar} from '../lib/mapasGuardados.js';
 
@@ -49,7 +49,8 @@ function autorizar(){const via=conectando.value;conectando.value=null;Object.ass
 function salir(){Object.assign(cuenta,{conectado:false,via:null,perfilListo:false});guardar();paso.value='titulo';}
 const PIELES=Object.keys(COLORS.piel),PELOS=Object.keys(COLORS.pelo),PEINADOS=[['pelo:Casual2_Male','Corto'],['pelo:Casual_Male','Despeinado'],['pelo:Casual3_Male','Ondulado'],['pelo:Casual_Female','Largo'],['pelo:Casual2_Female','Melena'],['','Rapado']];
 const vistaPerfil=ref('calle'),slotSel=ref('top');
-const PARTES_ROPA=[['top','Arriba'],['outer','Encima'],['bottom','Abajo'],['shoes','Calzado'],['hat','Cabeza']];
+/* (sólo las partes que tienen prendas para ofrecer: por ahora las pegadas a la piel —ropa.js SUELTAS—) */
+const PARTES_ROPA=[['top','Arriba'],['outer','Encima'],['bottom','Abajo'],['shoes','Calzado'],['hat','Cabeza']].filter(([s])=>GARMENTS.some(g=>g.slot===s));
 const prendasDe=slot=>GARMENTS.filter(g=>g.slot===slot&&g.id!=='delantal');
 const ropaPerfil=computed(()=>vistaPerfil.value==='policia'?uniformeDe({gorra:cuenta.ropa.gorra}):{underwear:{id:'boxer',color:'#343d50'},...Object.fromEntries(Object.entries(cuenta.ropa.calle).filter(([,p])=>p))});
 function elegirPrenda(slot,id){const r=cuenta.ropa.calle;if(!id){if(slot==='outer'||slot==='hat')r[slot]=null;return;}r[slot]={id,color:r[slot]?.color||PALETTE[3]};if(id==='vestido')r.bottom=null;}
@@ -70,13 +71,13 @@ const salas=ref(NOMBRES_SALA.slice(0,5).map((nombre,i)=>{const n=[3,5,2,8,3][i],
 // Su ciudad se arma una vez, en segundo plano, y queda guardada en IndexedDB (mapasGuardados.js): al entrar, el juego no
 // la vuelve a armar. Al unirse, el que entra ocupa el lugar que falta, todos están listos y la cuenta es corta.
 const PRUEBAS=[{id:'p-policia',nombre:'Sala de prueba · falta un policía',prueba:'policia',ciudad:1,ladrones:3,policias:2},{id:'p-ladron',nombre:'Sala de prueba · falta un ladrón',prueba:'ladron',ciudad:2,ladrones:2,policias:3}]
- .map(s=>({...s,anfitrion:'FUGA',equipo:3,estado:'esperando',region:'en esta máquina',ping:0}));
+ .map(s=>({...s,anfitrion:'mycity',equipo:3,estado:'esperando',region:'en esta máquina',ping:0}));
 salas.value.unshift(...PRUEBAS);
 const mapaEstado=reactive({});// (ciudad → 'armando' | 'listo' | 'error')
 let precargado=false;function precargarPruebas(){if(precargado)return;precargado=true;precargar(PRUEBAS.map(s=>({seed:s.ciudad,team:s.equipo,parks:true})),(a,e)=>{mapaEstado[a.seed]=e;});}
 function armarPrueba(s){clearInterval(llegadas);clearInterval(cuentaT);sala.cuenta=null;sala.chat=[];sala.prueba=s.prueba;const usados=new Set(),alias=()=>{let a;do a=ALIAS[Math.floor(Math.random()*ALIAS.length)];while(usados.has(a));usados.add(a);return a;};
  sala.jugadores=[...Array.from({length:s.ladrones},()=>({nombre:alias(),bando:'ladron',listo:true})),...Array.from({length:s.policias},()=>({nombre:alias(),bando:'policia',listo:true}))];
- decir('FUGA',`Sala de prueba: faltabas vos de ${s.prueba==='policia'?'policía':'ladrón'}. Arranca en un momento.`);
+ decir('mycity',`Sala de prueba: faltabas vos de ${s.prueba==='policia'?'policía':'ladrón'}. Arranca en un momento.`);
  sala.jugadores.push({nombre:cuenta.nombre,bando:s.prueba,listo:true,yo:true});}
 // (2026-10-18, el rediseño: la lista de salas con filtro —todas, con lugar o un tamaño— y orden —más llenas o menos
 // ping—, como los navegadores de servidores; los cupos de cada bando en puntos y el ping en barras)
@@ -108,10 +109,10 @@ const lleno=b=>bando(b).length>=sala.equipo;
 function armarSala(l,p){clearInterval(llegadas);clearInterval(cuentaT);sala.cuenta=null;sala.chat=[];const usados=new Set();const alias=()=>{let a;do a=ALIAS[Math.floor(Math.random()*ALIAS.length)];while(usados.has(a)&&usados.size<ALIAS.length);usados.add(a);return a;};
  sala.jugadores=[...Array.from({length:l},()=>({nombre:alias(),bando:'ladron',listo:Math.random()<.5})),...Array.from({length:p},()=>({nombre:alias(),bando:'policia',listo:Math.random()<.5}))];
  const lado=bando('ladron').length<=bando('policia').length?'ladron':'policia';sala.jugadores.push({nombre:cuenta.nombre,bando:lleno(lado)?(lado==='ladron'?'policia':'ladron'):lado,listo:false,yo:true,anfitrion:sala.mia});
- decir('FUGA',sala.mia?`Creaste «${sala.nombre}». ${sala.publica?'Sale en las salas abiertas':'Es privada: pasá el código '+sala.codigo}.`:`Te uniste a «${sala.nombre}».`);
+ decir('mycity',sala.mia?`Creaste «${sala.nombre}». ${sala.publica?'Sale en las salas abiertas':'Es privada: pasá el código '+sala.codigo}.`:`Te uniste a «${sala.nombre}».`);
  // (la gente se va uniendo: uno cada pocos segundos, al bando que tenga lugar; algunos dicen algo)
  llegadas=setInterval(()=>{const libres=['ladron','policia'].filter(b=>!lleno(b));if(!libres.length){clearInterval(llegadas);return;}const b=libres[Math.floor(Math.random()*libres.length)],n=alias();sala.jugadores.push({nombre:n,bando:b,listo:false});
-  decir('FUGA',`${n} se unió a ${b==='ladron'?'los ladrones':'la policía'}.`);setTimeout(()=>{const j=sala.jugadores.find(j=>j.nombre===n);if(j)j.listo=true;},1500+Math.random()*4000);
+  decir('mycity',`${n} se unió a ${b==='ladron'?'los ladrones':'la policía'}.`);setTimeout(()=>{const j=sala.jugadores.find(j=>j.nombre===n);if(j)j.listo=true;},1500+Math.random()*4000);
   if(Math.random()<.4)setTimeout(()=>decir(n,['¿Quién va de policía?','Yo me sé las azoteas 😎','Esta ciudad tiene monte, ojo','Listo cuando quieran','Hagan bulla en la joyería, yo voy por el banco','No me roben la patrulla'][Math.floor(Math.random()*6)]),800);},2200);
  for(const j of sala.jugadores)if(!j.yo&&!j.listo)setTimeout(()=>{j.listo=true;},2000+Math.random()*5000);}
 function decir(quien,texto){sala.chat.push({quien,texto,id:Math.random()});if(sala.chat.length>40)sala.chat.shift();}
@@ -138,10 +139,15 @@ const fmt=n=>n.toLocaleString('es-CO');
   <!-- ============ 1. EL TÍTULO ============ -->
   <section v-if="paso==='titulo'" class="titulo">
    <div class="sirena" aria-hidden="true"><i class="r"></i><i class="a"></i></div>
-   <div class="marca"><h1 aria-label="FUGA"><span>F</span><span>U</span><span>G</span><span>A</span></h1><p>Ladrones y policías en una ciudad que vive sola.</p></div>
+   <div class="marca"><h1 aria-label="mycity"><span>m</span><span>y</span><span>c</span><span>i</span><span>t</span><span>y</span></h1><p>Una ciudad para vivirla: comprá tu lugar, amueblalo, salí a la calle.</p></div>
    <div class="botones-titulo">
-    <button class="cta" @click="paso=cuenta.conectado?'home':'entrar'">{{ cuenta.conectado?`Seguir como ${cuenta.nombre}`:'Entrar' }}<small v-if="cuenta.conectado">a las salas</small></button>
-    <button class="fantasma" @click="verReglas('titulo')">Cómo se juega</button>
+    <!-- (2026-11-21, Miguel: «quitá por el momento el jugar: que aparezca como entrar a la ciudad»): la entrada principal es
+    el paseo —la ciudad sola, para caminarla, sobrevolarla y medir cómo rinde— y el plano 2D; el juego (las salas) queda
+    abajo, chico, hasta que la ciudad esté lista -->
+    <RouterLink class="cta" :to="{path:'/plano'}">Colombia<small>el plano de la ciudad · 720 × 492 m · 743 edificios</small></RouterLink>
+    <RouterLink class="fantasma" :to="{path:'/ciudad',query:{ciudad:1,jugadores:16,vista:'tercera'}}">Entrar a Colombia en 3D<small>la ciudad entera: caminar y sobrevolar</small></RouterLink>
+    <RouterLink class="fantasma" :to="{path:'/catalogo'}">Catálogo: muebles, fachadas y texturas</RouterLink>
+    <!-- (el juego de policías y ladrones salió de la entrada el 2026-11-21: queda en /juego?fuga=1 hasta que se mude a game/fuga/) -->
    </div>
    <small class="ver">prototipo · {{ new Date().getFullYear() }}</small>
   </section>
@@ -158,7 +164,7 @@ const fmt=n=>n.toLocaleString('es-CO');
   <div v-if="conectando" class="velo" role="dialog" aria-modal="true" aria-label="Permiso de la cuenta">
    <div class="permiso" :class="conectando">
     <header><span class="ico">{{ conectando==='steam'?'S':'G' }}</span>{{ conectando==='steam'?'Steam':'Google' }}</header>
-    <p><b>FUGA</b> quiere usar tu {{ conectando==='steam'?'nombre de Steam y tu lista de amigos':'nombre y tu foto de perfil' }}.</p>
+    <p><b>mycity</b> quiere usar tu {{ conectando==='steam'?'nombre de Steam y tu lista de amigos':'nombre y tu foto de perfil' }}.</p>
     <div class="quien"><span class="avatar">M</span><div><b>{{ conectando==='steam'?'Miguel':'Miguel Ochoa' }}</b><small>{{ conectando==='steam'?'cuenta de Steam (simulada)':'cuenta de Google (simulada)' }}</small></div></div>
     <div class="botones"><button class="link" @click="conectando=null">Cancelar</button><button class="cta peq" @click="autorizar">Permitir</button></div>
    </div>
@@ -166,7 +172,7 @@ const fmt=n=>n.toLocaleString('es-CO');
 
   <!-- ============ barra de arriba (con cuenta) ============ -->
   <header v-if="['home','crear','sala','reglas','perfil'].includes(paso)&&cuenta.conectado&&(paso!=='perfil'||cuenta.perfilListo)" class="barra">
-   <button class="logo" @click="paso='home'" aria-label="FUGA, a las salas">FUGA</button>
+   <button class="logo" @click="paso='home'" aria-label="mycity, a las salas">mycity</button>
    <nav><button :class="{on:paso==='home'}" @click="paso='home'">Salas</button><button :class="{on:paso==='reglas'}" @click="verReglas(paso==='reglas'?volverDe:paso)">Cómo se juega</button><button :class="{on:paso==='perfil'}" @click="paso='perfil'">Perfil</button></nav>
    <div class="yo"><span class="avatar">{{ cuenta.nombre.slice(0,1) }}</span><div><b>{{ cuenta.nombre }}</b><small>{{ cuenta.via==='google'?'Google':'Steam' }}</small></div><button class="link" @click="salir">Salir</button></div>
   </header>
@@ -294,7 +300,7 @@ const fmt=n=>n.toLocaleString('es-CO');
     </div>
     <div class="lado">
      <div v-if="yo" class="panel basico" :class="yo.bando"><h3>Vas {{ yo.bando==='ladron'?'de ladrón':'de policía' }}</h3><ol><li v-for="t in LO_BASICO[yo.bando]" :key="t">{{ t }}</li></ol><button class="link" @click="verReglas('sala',yo.bando)">Todas las reglas →</button></div>
-     <div class="panel chat"><h3>Chat</h3><ul><li v-for="m in sala.chat" :key="m.id" :class="{sistema:m.quien==='FUGA'}"><b v-if="m.quien!=='FUGA'">{{ m.quien }}</b> {{ m.texto }}</li></ul>
+     <div class="panel chat"><h3>Chat</h3><ul><li v-for="m in sala.chat" :key="m.id" :class="{sistema:m.quien==='mycity'}"><b v-if="m.quien!=='mycity'">{{ m.quien }}</b> {{ m.texto }}</li></ul>
       <form @submit.prevent="enviar"><input v-model="msj" placeholder="Escribí algo…" maxlength="120" aria-label="Mensaje" /><button class="fantasma peq">Enviar</button></form></div>
     </div>
    </div>
@@ -363,7 +369,7 @@ kbd{display:inline-block;min-width:24px;padding:2px 8px;border-radius:7px;backgr
 
 /* ---- 1. el título ---- */
 .titulo{margin:auto;display:flex;flex-direction:column;align-items:center;gap:30px;text-align:center;padding:24px}
-.marca h1{margin:0;font:400 min(24vw,168px)/1 var(--t);letter-spacing:4px;display:flex;gap:.02em;transform:rotate(-4deg)}
+.marca h1{margin:0;font:400 min(15vw,150px)/1 var(--t);letter-spacing:4px;display:flex;gap:.02em;transform:rotate(-4deg)}
 .marca h1 span{color:#fff6e6;text-shadow:0 6px 0 var(--ladron2),0 12px 0 #8a3416,0 22px 40px rgba(0,0,0,.6)}
 .marca h1 span:nth-child(even){transform:translateY(-.06em)}
 .marca p{margin:22px 0 0;color:var(--tx);font-size:19px;font-weight:500;text-shadow:0 2px 10px rgba(0,0,0,.7)}
@@ -494,4 +500,7 @@ h3.sep{margin-top:6px}.chips.prendas{margin-bottom:10px}.pie-panel{display:flex;
  .salas li{grid-template-columns:72px 1fr auto;row-gap:8px}.salas li .cupos{grid-column:2/4}.salas li .ping{grid-column:2}.barra nav{display:none}}
 @media (max-width:600px){.equipos{grid-template-columns:1fr}.fila{grid-template-columns:1fr}.orden{margin-left:0}}
 @media (prefers-reduced-motion:reduce){.fondo.noche,.sirena i,.punto-vivo,.rueda,.equipo li.vacio .avatar{animation:none}.cta,.vidrio,.salas li{transition:none}}
+.botones-titulo a.fantasma small{display:block;font-size:11px;opacity:.75;font-weight:400}
+.botones-titulo a.cta,.botones-titulo a.fantasma{text-decoration:none;display:inline-flex;flex-direction:column;align-items:center;justify-content:center}
+.juego-despues{margin-top:6px;opacity:.7;font-size:12px}
 </style>

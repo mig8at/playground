@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import {usosDePiso,miradoresDePiso,miradoresDeCasa,USOS} from '../engine/usos.js';
 import {cuartoDeVentana} from '../engine/cortinas.js';
-import {usosRonda} from '../engine/juego/ronda.js';
+// (usosRonda —lo que la ronda del juego viejo deja hacer en un lugar— llega de quien arma las acciones: game/fuga/)
 import {CHOQUE_MUEBLE,CORTINA} from '../engine/medidas.js';
 import {makeSitter,liftFor,FWD,ease} from './sitting3d.js';
 import {moveCharacter} from './characters3d.js';
@@ -18,7 +18,7 @@ const CU=new Set(CORTINA.cuartos);
 // ronda (2026-10-17, REGLAS.md): la ronda jugable (engine/juego/ronda.js), si hay: robar lo que está al alcance y guardar
 // en la caja de la guarida; enRonda(uso) lo hace (el 3D lleva la cuenta y lo muestra).
 // casaPlan: el índice en el plano (plan.isla.casas) de la casa i del 3D (que sólo arma las que tienen plano de casa).
-export function createAcciones({plan,world,player,avatar,viviendas=()=>null,ronda=()=>null,enRonda=()=>{},casaPlan=i=>i}){
+export function createAcciones({plan,world,player,avatar,viviendas=()=>null,ronda=()=>null,enRonda=()=>{},casaPlan=i=>i,usosRonda=()=>[]}){
  const cache=new Map();let cur=null,sitter=null;
  // los usos de un piso, en el mundo: los muebles del plano y las ventanas de los cuartos con cortina (con su clave)
  const usosDe=(lote,nivel)=>{const k=lote+':'+nivel;if(cache.has(k))return cache.get(k);const L=plan.lots.find(l=>l.id===lote),lv=L?.levels?.find(l=>l.level===nivel);if(!lv){cache.set(k,[]);return [];}
@@ -43,7 +43,7 @@ export function createAcciones({plan,world,player,avatar,viviendas=()=>null,rond
  const lugarDe=(u,p)=>{if(p.lot==null)return null;const L=world.lots.get(p.lot);if(!L)return null;const list=u.accion==='sentarse'?L.seats:u.accion==='acostarse'?L.sleeps:null;let best=null,bd=u.accion==='sentarse'?.45:1;
   for(const s of list||[]){if(s.f!=null&&s.f!==p.nivel)continue;const d=Math.hypot(s.x-u.pose.x,s.z-u.pose.z);if(d<bd){bd=d;best=s;}}return best;};
  const ocupado=(u,p)=>{const s=lugarDe(u,p);return !!(s&&s.by&&s.by!=='jugador');};
- const texto=u=>u.accion==='sentarse'?'Sentarse':u.accion==='acostarse'?'Acostarse':u.accion==='asomarse'?'Asomarse':world.cortinaCerrada?.(u.objeto.key)?'Abrir la cortina':'Cerrar la cortina';
+ const texto=u=>u.accion==='sentarse'?'Sentarse':u.accion==='acostarse'?'Acostarse':u.accion==='asomarse'?'Asomarse':world.cortinaCerrada?.(u.objeto.key)?'Aclarar el vidrio':'Opacar el vidrio';
  // (lo de la ronda como acción: con su alterna —R—, si tiene)
  const deRonda=(ur,p)=>({ronda:ur,texto:ur.texto,piso:p,...(ur.alterna?{alterna:{ronda:ur.alterna,texto:ur.alterna.texto}}:{})});
  function cerca(){if(cur)return {texto:cur.fase==='quieto'?'Levantarse':null};const p=pisoDe();

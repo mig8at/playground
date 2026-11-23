@@ -87,6 +87,8 @@ export function dibujarPlano(bp,{kits={},suelo=()=>0}={}){
  // (los árboles se pueden ocultar: la vista de arriba no los quiere —2026-10-18, Miguel: «oculta todos los árboles»—)
  const ARBOL=/tree|pine|palm|birch|willow|arbol|pino|palmera/i,setArboles=on=>{for(const b of lotes)if(ARBOL.test(b.modelo||''))for(const m of b.meshes)m.visible=on;};
  const setCeldas=(celdas,W)=>{for(const b of lotes)b.setCeldas(celdas,W);};
+ // (cada planta, su versión de lejos según dónde está la cámara —nature3d plantBatched setLejos—)
+ const setLejos=(x,z)=>{for(const b of lotes)b.setLejos?.(x,z);};
  // (2026-10-16, medido en el navegador sin ventana —validar-3d—: todo el equipamiento del mundo iba en una malla por pieza
  // y color —350 mil triángulos también desde adentro de un edificio—; ahora por baldosas de 144 m: la cámara deja afuera
  // las que no mira y la niebla —niebla3d.js— las que quedan detrás de ella)
@@ -98,7 +100,7 @@ export function dibujarPlano(bp,{kits={},suelo=()=>0}={}){
  const {lista:choques}=colisiones(bp);for(const c of choques)c.y=suelo(c.x,c.z);const I=indiceColisiones(choques);
  const collide=(x,z,r,pies=-Infinity)=>{for(const [f,c] of I.cerca(x,z)){if(pies-c.y>=c.alto-.05)continue;if(distForma(f,x,z)<r)return c;}return null;};
  const dispose=()=>{group.traverse(o=>{if(o.isInstancedMesh||o.isBatchedMesh)o.dispose();});};
- return {group,registro,esperado,lights,choques,collide,dispose,setCeldas,setArboles};}
+ return {group,registro,esperado,lights,choques,collide,dispose,setCeldas,setArboles,setLejos};}
 
 // Las placas de dirección: una textura de texto por cada PORLAMINA placas (cada una, PX × PY píxeles: la vía arriba —«CALLE
 // 7»— y el número grande abajo —«# 21-52»—, azul sobre blanco hueso con su borde), una malla de caras por lámina y, atrás,

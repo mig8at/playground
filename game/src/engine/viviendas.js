@@ -19,7 +19,8 @@ export function viviendasDe(bp){const out=[];
  // los apartamentos: por piso de arriba, cada unidad y su puerta al pasillo (o al núcleo)
  bp.lots.forEach((L,li)=>{for(const lv of L.levels||[]){if(lv.level===0||!lv.units?.length)continue;
   for(const u of lv.units){const cuartos=lv.rooms.filter(r=>r.unit===u.n);if(!cuartos.length)continue;const ids=new Set(cuartos.map(r=>r.id)),dentro=(x,z)=>cuartos.some(r=>x>r.x&&x<r.x+r.w&&z>r.y&&z<r.y+r.h);
-   const puertas=lv.doors.filter(d=>ids.has(d.a)!==ids.has(d.b)).map(d=>visorDe(d.x0,d.y0,d.x1,d.y1,(x,z)=>!dentro(x,z)));
+   // (la del ascensor —un penthouse, engine/duplex.js: llega directo a la casa— también es entrada, pero se llega en ascensor)
+   const puertas=lv.doors.filter(d=>ids.has(d.a)!==ids.has(d.b)).map(d=>({...visorDe(d.x0,d.y0,d.x1,d.y1,(x,z)=>!dentro(x,z)),...(d.a==='nucleo'||d.b==='nucleo'?{ascensor:true}:{})}));
    const robables=(lv.furniture||[]).filter(f=>R[f.kind]&&dentro(f.x+f.w/2,f.y+f.h/2)).map(f=>({objeto:f.kind,nombre:R[f.kind].nombre,valor:R[f.kind].valor,x:+(f.x+f.w/2).toFixed(2),z:+(f.y+f.h/2).toFixed(2)}));
    out.push({id:`L${li}:${u.n}`,tipo:'apto',lote:li,nivel:lv.level,apto:u.n,edificio:L.name,puertas,robables,cuartos:cuartos.length});}}});
  // las casas de la ciudad (lotes «casa», 2026-10-17: antes no eran viviendas y su puerta se abría para cualquiera): una

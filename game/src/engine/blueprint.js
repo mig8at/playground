@@ -15,11 +15,14 @@
    Las paredes son líneas (el 3D les da grosor). El motor del juego (reglas y bots) no usa esto todavía. */
 import {marcarMansardas} from './techos.js';
 import {amoblarAzoteas} from './azoteas.js';
+import {duplexDe,abrirDepartamentos} from './duplex.js';
+import {refinarMuros,recortarModulos} from './grafo-muros.js';
 import City from './ciudad.js';
 import {JUEGO_PASO,PUERTA,ESCALERA,PASILLO,MURO,ERGO,mm,FRANJA,MINIMO,VIDRIO,VENTANAS_FAMILIA,RESIDENCIAL,esVidriera,VENTANAS_VIVIENDA,VIDRIO_ENTERO,HABITABLE,JUEGO,ENCIERRO,CALLE,ALTURA,INTERIOR,MANZANA,LADERA,ESCALINATA,CHOQUE_MUEBLE,CORTINA,CIRCULACION,TERRAZA} from './medidas.js';
 import {USOS} from './usos.js';
 import {islaDe,mascaraRebaje} from './isla.js';
 import {randomHouse,planHouse} from './vivienda.js';
+import {contenedoresDe} from './contenedores.js';
 import {planHogar,HOGAR_PESO} from './hogar.js';
 import {MINIMOS} from './cuartos-minimos.js';
 import {plantar} from './vegetacion.js';
@@ -28,6 +31,7 @@ import {repartir} from './botin.js';
 import {pintar} from './color.js';
 import {marcarHojas} from './puertas.js';
 import {numerar} from './direcciones.js';
+import {modulosDeFachada,vanoDeModulo} from './fachada-piezas.js';
 import {pinturaDe} from './pintura.js';
 import {cerrarCortinas} from './cortinas.js';
 import {equipar} from './equipamiento.js';
@@ -305,6 +309,9 @@ function fill(a,b,prog,r,start=0,depth=Infinity){const out=[];let u=a,i=start;
   if(w<mn-1e-9){if(out.length){out[out.length-1].u1=b;break;}const alt=prog.find(p=>p[1]<=w+1e-9);out.push({type:alt?alt[0]:'deposito',u0:u,u1:u+w});u+=w;i++;continue;}
   const cap=HABITABLE.has(type)&&isFinite(depth)?2*Math.floor(((depth-MURO.tabique)*MINIMO.proporcion+MURO.tabique)/2+1e-9):Infinity;
   if(w>cap+1e-9){const k=Math.ceil(w/cap-1e-9),pw=2*Math.floor(w/k/2+1e-9);for(let j=0;j<k;j++){const w2=j<k-1?pw:w-pw*(k-1);out.push({type,u0:u,u1:u+w2});u+=w2;}i++;continue;}
+  // (2026-11-20: un baño no se queda con el sobrante del tramo —salían baños de servicio de 4 × 4 m, 16 m², con los
+  // mismos tres aparatos que uno de 2 × 4—: va de su medida y lo que sobra, si da para un cuarto, es un depósito)
+  if(type==='bano'&&w>mx+1e-9&&w-mx>=2-1e-9){out.push({type,u0:u,u1:u+mx},{type:'deposito',u0:u+mx,u1:u+w});u+=w;i++;continue;}
   out.push({type,u0:u,u1:u+w});u+=w;i++;}
  return out;}
 
@@ -316,40 +323,56 @@ function fill(a,b,prog,r,start=0,depth=Infinity){const out=[];let u=a,i=start;
 //   5–6 m: estudio | baño                             <5 m: depósito (al pasillo)
 // El departamento de 6 m de fondo desde sus cuartos: los anchos de cada combinación (alcobas de mayor a menor, la sala, la
 // cocina aparte si entra) y el reparto de lo que sobra. Devuelve null si ni una alcoba entra (va un estudio).
-const G05=v=>Math.ceil(v*2-1e-6)/2;
+// EL PASO DE LOS TABIQUES (2026-11-21, Miguel: «calibrá las medidas para que faciliten los cálculos pero siga generando un
+// mapa agradable»). Los anchos de los cuartos de un departamento se redondean a este paso, y con él se corren los
+// tabiques al repartir lo que sobra. Era 0,5 m: los tabiques llegaban a la fachada en cualquier medio metro y el 12 % caía
+// adentro de un módulo de 2 m a 0,5 o 1,5 m de su borde. PASO_CUARTO se lee del ambiente sólo para medir alternativas.
+// (2026-11-21: se midió con 1 m y no se adoptó: casi sin ganancia y 135 fallas de usos.) ADOPTADO EL 2026-11-22, Miguel:
+// «a metro entero». Con las franjas ya en 4 y 2 m, el paso de 1 m lleva los cuartos fuera del metro entero de 941 a ~190 en
+// tres ciudades; lo que fallaba era la puerta de la alcoba pegada al rincón (ver `near` en layoutFloor), no el paso.
+// Cuesta 16 de 727 viviendas y 9 de 698 dormitorios. FUGA_PASO: sólo para volver a medir.
+// Las paredes ciegas (layoutFloor, las ventanas): las culatas y los cuartos donde se guarda.
+const CULATAS_CIEGAS=globalThis.process?.env?.FUGA_CULATAS!=='0',CIEGOS=new Set(globalThis.process?.env?.FUGA_CIEGOS==='0'?[]:['deposito','boveda','archivo','evidencia']);
+export const PASO_CUARTO=+(globalThis.process?.env?.FUGA_PASO||1);
+const G05=v=>Math.ceil(v/PASO_CUARTO-1e-6)*PASO_CUARTO;
 const minW=(k,depth)=>{const M=MINIMOS[k];let best=null;for(const o of ['hondo','ancho']){const m=M?.[o];if(!m)continue;for(const [w,d] of [m,[m[1],m[0]]])if(d<=depth+1e-6&&(best==null||w<best))best=w;}return best==null?null:G05(best);};
 const UNIT_COMBOS=[['dormitorio_principal','dormitorio_dos_camas','dormitorio_estudiante'],['dormitorio_principal','dormitorio_dos_camas'],['dormitorio_principal'],['dormitorio_doble']];
 // (sep: la cocina aparte primero, aunque cueste una alcoba —el azar del departamento: uno de cada cuatro—)
 // (2026-10-15, decisión de Miguel) Cada alcoba y la sala tienen que contener los módulos de ventana ENTEROS que pide su
 // superficie para tener luz (MINIMO.luz) con la ventana más grande de la familia del edificio (gmax, m² de vidrio); D: el
 // fondo de la sala, que va de punta a punta del departamento.
-export function unitPlan(W,fd,u0,u1,mirror,sep=false,D=fd+FRANJA.interior,gmax=2){const bathW=G05(Math.max(2,minW('bano',2)||2.5)),cocMin=2.5;
+export function unitPlan(W,fd,u0,u1,mirror,sep=false,D=fd+FRANJA.interior,gmax=2){const bathW=G05(Math.max(2,minW('bano',2)||2.5)),cocMin=G05(2.5);// (la cocina aparte, en el paso de los tabiques: 2,5 dejaba medio metro en la ciudad de 720 m)
  // (proporciones, 2026-10-15: ningún cuarto habitable más alargado que MINIMO.proporcion con sus lados libres: la sala,
  // que va de punta a punta del departamento, por lo menos D/2; cada alcoba, como mucho el doble de su fondo)
- const T=MURO.tabique,salaMin=Math.max(3,G05((D-T)/MINIMO.proporcion+T)),bedMax=Math.floor(((fd-T)*MINIMO.proporcion+T)*2+1e-9)/2;
+ const T=MURO.tabique,salaMin=Math.max(3,G05((D-T)/MINIMO.proporcion+T)),bedMax=Math.floor(((fd-T)*MINIMO.proporcion+T)/PASO_CUARTO+1e-9)*PASO_CUARTO;// (en el paso de los tabiques: con 0,5 fijo, una alcoba de 4,5 m salía con el paso de 1 m)
  // (¿la ventana? una franja [x0, x1] tiene un módulo de 2 m entero adentro, en coordenadas del lote —con el espejo—)
  const real=(x0,x1)=>mirror?[u0+u1-x1,u0+u1-x0]:[x0,x1],mods=(x0,x1)=>{const [p,q]=real(x0,x1);return Math.max(0,Math.floor(q/2+1e-9)-Math.ceil(p/2-1e-9));};
  const need=area=>Math.max(1,Math.ceil(area*MINIMO.luz/gmax-1e-9)),hasMod=(x0,x1,area)=>mods(x0,x1)>=need(area);
- for(const coc of sep?[true,false]:[false,true])for(const combo of UNIT_COMBOS){const base=combo.map(k=>minW(k,fd));if(base.some(v=>v==null))continue;base[0]=Math.max(base[0],bathW+PASILLO.hall);// (el hall: lo que la primera alcoba pasa del baño)
+ for(const coc of sep?[true,false]:[false,true])for(const combo of UNIT_COMBOS){const base=combo.map(k=>minW(k,fd));if(base.some(v=>v==null))continue;base[0]=Math.max(base[0],G05(bathW+PASILLO.hall));// (el hall: lo que la primera alcoba pasa del baño, en el paso de los tabiques —2 + 1,5 daba 3,5 con el paso de 1 m—)
   {const need=base.reduce((a,b)=>a+b,0)+salaMin+(coc?cocMin:0);if(need>W+1e-6)continue;
    // Lo que sobra (2026-10-15: búsqueda; antes un reparto fijo —primero la sala hasta 5 m, después las alcobas— que con
    // ladrillo daba alcoba en 10 y 14 m pero no en 12: la sala de 5,5 pedía 3 módulos de ventana y le caían 2). Se prueban
    // los anchos de sala (los más cerca de 5 m primero) y, para cada uno, lo que va a la primera alcoba (corre los tabiques);
    // el resto, a las alcobas sin pasar bedMax y lo que no les entra a la cocina (sin cocina, ese ancho de sala no sirve).
    // Gana la primera en que cada alcoba y la sala tienen los módulos de ventana que pide su superficie.
-   const extra=W-need,salas=[];for(let sv=salaMin;sv<=salaMin+extra+1e-9;sv+=.5)salas.push(sv);salas.sort((a,b)=>Math.abs(a-5)-Math.abs(b-5)||b-a);
-   for(const sala of salas)for(let shift=0;shift<=Math.min(extra-(sala-salaMin),3)+1e-9;shift+=.5){const beds=[...base];beds[0]+=shift;if(beds[0]>bedMax+1e-9)break;
-    let left=extra-(sala-salaMin)-shift;for(let i=0,idle=0;left>1e-9&&idle<beds.length;i=(i+1)%beds.length){if(beds[i]+.5>bedMax+1e-9){idle++;continue;}idle=0;const d=Math.min(.5,left);beds[i]+=d;left-=d;}
+   const extra=W-need,salas=[];for(let sv=salaMin;sv<=salaMin+extra+1e-9;sv+=PASO_CUARTO)salas.push(sv);salas.sort((a,b)=>Math.abs(a-5)-Math.abs(b-5)||b-a);
+   // (2026-11-22, Miguel: «sigue refinando las fachadas»: de los repartos que sirven con esta combinación se queda el que
+   // deja más tabiques en una línea de módulo de 2 m de la fachada —donde cambian las piezas—; a igualdad, el primero, el de
+   // siempre. El número de alcobas no cambia: es el de la combinación)
+   let mejor=null;const impares=(bs,sl)=>{let x=u0,n=0;for(const w of [...bs,sl]){x+=w;if(x>=u1-1e-6)break;const [p]=real(x,x);if(Math.abs(p/2-Math.round(p/2))>1e-6)n++;}return n;};
+   for(const sala of salas)for(let shift=0;shift<=Math.min(extra-(sala-salaMin),3)+1e-9;shift+=PASO_CUARTO){const beds=[...base];beds[0]+=shift;if(beds[0]>bedMax+1e-9)break;
+    let left=extra-(sala-salaMin)-shift;for(let i=0,idle=0;left>1e-9&&idle<beds.length;i=(i+1)%beds.length){if(beds[i]+PASO_CUARTO>bedMax+1e-9){idle++;continue;}idle=0;const d=Math.min(PASO_CUARTO,left);beds[i]+=d;left-=d;}
     if(left>1e-9&&!coc)continue;
     let x=u0;const ok=beds.every(w=>{const r=hasMod(x,x+w,w*fd);x+=w;return r;})&&hasMod(x,x+sala,sala*D);
-    if(ok)return {combo,w:{beds,salaW:sala,cocW:coc?W-beds.reduce((a,b)=>a+b,0)-sala:0,bathW}};}}}
+    if(ok){const n=impares(beds,sala);if(!mejor||n<mejor.n)mejor={n,r:{combo,w:{beds,salaW:sala,cocW:coc?W-beds.reduce((a,b)=>a+b,0)-sala:0,bathW}}};if(!n)break;}}
+   if(mejor)return mejor.r;}}
  return null;}
 // Los largos de departamento que dan 1, 2 y 3 alcobas en una franja de D m de fondo (inner: la franja interior): el menor
 // largo con que unitPlan arma esa cantidad (con fachada de 3,5 m: 8, 12 y 15). En una franja de menos de 5 m de fondo
 // —la de atrás de un lote de 12 m— la única variante con alcoba pide 10 m (ver abajo).
 const UNIT_LEN=new Map();
 export function unitLengths(D,inner,gmax=2){const k=D+'|'+inner+'|'+gmax;if(UNIT_LEN.has(k))return UNIT_LEN.get(k);let out=[];
- if(D>=5){const fd=D-inner;for(const n of [1,2,3])for(let w=5;w<=24;w+=.5){const P=unitPlan(w,fd,0,w,false,false,D,gmax);if(P&&P.combo.length>=n){if(!out.includes(w))out.push(w);break;}}}
+ if(D>=5){const fd=D-inner;for(const n of [1,2,3])for(let w=5;w<=24;w+=PASO_CUARTO){const P=unitPlan(w,fd,0,w,false,false,D,gmax);if(P&&P.combo.length>=n){if(!out.includes(w))out.push(w);break;}}}
  else if(D>=4)out=[10];
  UNIT_LEN.set(k,out);return out;}
 function apartments(a,b,v0,v1,corr,r,band,units,gmax=2){
@@ -377,15 +400,20 @@ function apartments(a,b,v0,v1,corr,r,band,units,gmax=2){
   // (unitPlan) y lo que sobra agranda la sala y después las alcobas. Las ventanas siguen en módulos de 2 m (las piezas
   // de la fachada): un tabique en medio de un módulo lo deja sin ventana, así que el reparto busca que cada alcoba y la
   // sala tengan un módulo entero. Orden: [alcobas sobre (baño | hall)] [sala] [cocina], el hall llega hasta la sala.
+  // (2026-11-20: el baño del estudio iba de punta a punta —2 × 6 m, 12 m², con tres aparatos: 107 en cuatro ciudades—. Con
+  // fondo para las dos cosas, el baño queda del lado del pasillo, sin ventana como en un edificio de verdad, y la parte de
+  // la fachada es la zona de ropas del estudio, con su ventana)
+  const banoEstudio=est=>{if(D>=5){const B=3,alPasillo=Math.abs(hallSide[0]-v0)<1e-6;// (3 m de baño: con los 2,5 de la franja, en uno de cada cinco no entraba la ducha)
+   room('bano',u1-2,u1,alPasillo?v0:v1-B,alPasillo?v0+B:v1,{doorTo:est});room('ropas',u1-2,u1,alPasillo?v0+B:v0,alPasillo?v1:v1-B,{doorTo:est});}else room('bano',u1-2,u1,v0,v1,{doorTo:est});};
   if(D>=5&&W>=7){const f=facade,h=hallSide,P=unitPlan(W,f[1]-f[0],u0,u1,mirror,r()<.25,D,gmax);
    if(P){const {beds,salaW,cocW,bathW}=P.w;let x=u0;const bedR=beds.map(w=>{const r0=[x,x+w];x+=w;return r0;}),uB=x;
     const sala=room(cocW?'sala':'sala_cocina',uB,uB+salaW,v0,v1,{entry:true}),hall=room('hall',u0+bathW,uB,h[0],h[1],{doorTo:sala});
     bedR.forEach(([x0,x1])=>room('dormitorio',x0,x1,f[0],f[1],{doorTo:hall}));room('bano',u0,u0+bathW,h[0],h[1],{doorTo:hall});
     if(cocW)room('cocina',uB+salaW,u1,v0,v1,{doorTo:sala});}
-   else{const est=room('estudio',u0,u1-2,v0,v1,{entry:true});room('bano',u1-2,u1,v0,v1,{doorTo:est});}}
+   else{const est=room('estudio',u0,u1-2,v0,v1,{entry:true});banoEstudio(est);}}
   // (la sala, como mucho MINIMO.proporcion veces su fondo libre —con pasillos de 2 m el fondo bajó a 4 y una sala de 8×4
   // quedaba alargada—; lo que sobra, al dormitorio)
-  else if(W>=10&&D>=4){const sw=2,salaMax=Math.floor(((D-MURO.tabique)*MINIMO.proporcion+MURO.tabique)*2+1e-9)/2,salaW=Math.min(W-4-sw,salaMax),dw=W-sw-salaW;
+  else if(W>=10&&D>=4){const sw=2,salaMax=Math.floor(((D-MURO.tabique)*MINIMO.proporcion+MURO.tabique)/PASO_CUARTO+1e-9)*PASO_CUARTO,salaW=Math.min(W-4-sw,salaMax),dw=W-sw-salaW;// (salaMax en el paso de los tabiques: con 0,5 fijo, sala de 7,5 y dormitorio de 4,5)
    // (4 m de fondo: cocina abierta en la sala —una cocina aparte de 2×2 no tenía lugar para el mesón— y el baño a todo
    // el fondo; el hall no cabe: el dormitorio da a la sala)
    const sala=room('sala_cocina',u0+dw,u0+dw+salaW,v0,v1,{entry:true});room('dormitorio',u0,u0+dw,v0,v1,{doorTo:sala});
@@ -393,7 +421,7 @@ function apartments(a,b,v0,v1,corr,r,band,units,gmax=2){
   // (con 4 m de fondo, el dormitorio de adelante quedaría de 2 m: ahí mejor un estudio con su baño)
   else if(W>=7&&D>=5){const sw=4;const sala=room('sala_cocina',u0,u1-sw,v0,v1,{entry:true});
    room('dormitorio',u1-sw,u1,facade[0],facade[1],{doorTo:sala});room('bano',u1-sw,u1,hallSide[0],hallSide[1],{doorTo:sala});}
-  else{const est=room('estudio',u0,u1-2,v0,v1,{entry:true});room('bano',u1-2,u1,v0,v1,{doorTo:est});}}
+  else{const est=room('estudio',u0,u1-2,v0,v1,{entry:true});banoEstudio(est);}}
  return out;}
 
 // Habitaciones en suite (los pisos de hotel y de hospital): una franja [a,b] × [v0,v1] con el pasillo del lado «corr»
@@ -402,20 +430,37 @@ function apartments(a,b,v0,v1,corr,r,band,units,gmax=2){
 // Con menos de 5 m de fondo, otra forma (ver abajo).
 // El baño de una suite de hotel u hospital: lo que pide la tabla de mínimos (el baño con ducha, con el cuerpo de la
 // prueba), en la grilla de 0,5 m (2026-10-15: antes 2 m fijos, y con el paso de 800 el lavamanos y la ducha no se usaban).
-const SUITE_BANO=()=>G05(Math.max(...(MINIMOS.bano?.hondo||[2,2])));
+// (2026-11-21: sigue en la grilla de 0,5 m aunque los departamentos pasaron a 1 m —PASO_CUARTO—: con 3 m el baño de una
+// suite quedaba de 3 × 4 = 12 m² y la entrada, de 1 m)
+// LA SUITE, A MEDIDA DE LA GRILLA (2026-11-21, Miguel: «pruébalo y ve ajustando, guiándote por que encajen los muebles
+// permitiendo entrar y moverse, como se hace en la construcción y diseño de interiores»). Todo en módulos de 2 m o en
+// metros enteros, como una habitación de hotel de verdad: baño al lado de un pasillo de entrada.
+//   · 6 m de frente (tres módulos); del lado del pasillo, 2 m de fondo: el baño de 3 × 2 m (ducha, inodoro y lavamanos
+//     entran y se usan) y una entrada de 3 × 2 m con su armario; la habitación, de 6 m de ancho hasta la fachada;
+//   · fondo corto (menos de 5 m): el baño a un costado, de 2 m de ancho por todo el fondo, con la ducha de 80 cm; y un
+//     resto de 10 m o más son dos suites, no una habitación de 8 × 4.
+// Medido en tres ciudades: los tabiques que llegan a la fachada en metro entero pasan de 94 a 97 % (91 % en línea de
+// módulo), la auditoría sigue en 4 casos y ningún baño de habitación queda sin ducha. Quedan 261 habitaciones de 333.
+// LO QUE NO ENTRÓ: 4 m de frente con baño de 3 × 2 y un pasillo de entrada de 1 m conservaba las 333, pero el pasillo deja
+// 0,88 m libres (el mínimo de un cuarto es 1,2) y por su puerta de 0,72 m no pasa el personaje; con el baño de 2,5 × 2 m
+// (4 m partidos 2,5 + 1,5) la ducha no entraba en 26 casos; con 5 m de frente salen las mismas 261 y más depósitos.
+export const SUITE={frente:6,bano:3,banoCostado:2};
+const SUITE_BANO=()=>Math.ceil(Math.max(...(MINIMOS.bano?.hondo||[2,2]))*2-1e-6)/2;
 function suites(a,b,v0,v1,corr,r,band,type){const SB=SUITE_BANO(),out=[],D=v1-v0,hall=corr==='v1'?[v1-SB,v1]:[v0,v0+SB],face=corr==='v1'?[v0,v1-SB]:[v0+SB,v1];
  // Fondo corto (menos de 5 m): suites de 6 m de frente, la habitación de 4 m entra directo del pasillo y el baño ocupa
  // todo el fondo a un costado (2 m de ancho); la cama cabe a lo largo.
- if(D<5){let u=a;while(b-u>0){let W=6;if(b-u-W<5)W=b-u;const u0=u,u1=u+W;u=u1;
+ if(D<5){let u=a;while(b-u>0){let W=6;if(b-u-W<5)W=b-u;if(W>=10)W=Math.ceil(W/2);const u0=u,u1=u+W;u=u1;
    if(W<5||D<3.5){out.push({type:'deposito',u0,u1,v0,v1,band});continue;}// donde no cabe una suite: el cuarto de servicio
-   const mir=r()<.5,bx=mir?[u1-SB,u1]:[u0,u0+SB],rx=mir?[u0,u1-SB]:[u0+SB,u1],room={type,u0:rx[0],u1:rx[1],v0,v1,band};
+   const SF=SUITE.banoCostado,mir=r()<.5,bx=mir?[u1-SF,u1]:[u0,u0+SF],rx=mir?[u0,u1-SF]:[u0+SF,u1],room={type,u0:rx[0],u1:rx[1],v0,v1,band};
    out.push(room,{type:'bano',u0:bx[0],u1:bx[1],v0,v1,band,doorTo:room});}
   return out;}
- let u=a;while(b-u>0){let W=4;if(b-u-W<3)W=b-u;const u0=u,u1=u+W;u=u1;
-  if(W<4){out.push({type:'deposito',u0,u1,v0,v1,band});continue;}
-  const mir=r()<.5,bx=mir?[u1-SB,u1]:[u0,u0+SB],ex=mir?[u0,u1-SB]:[u0+SB,u1];
-  const ent={type:'entrada',u0:ex[0],u1:ex[1],v0:hall[0],v1:hall[1],band};
-  out.push({type,u0,u1,v0:face[0],v1:face[1],band,doorTo:ent},ent,{type:'bano',u0:bx[0],u1:bx[1],v0:hall[0],v1:hall[1],band,doorTo:ent});}
+ // (la franja del lado del pasillo mide un módulo —FRANJA.interior— y la habitación llega a la fachada en línea de módulo: SUITE)
+ const FI=FRANJA.interior,WS=SUITE.frente,BW=SUITE.bano,hall2=corr==='v1'?[v1-FI,v1]:[v0,v0+FI],face2=corr==='v1'?[v0,v1-FI]:[v0+FI,v1];
+ let u=a;while(b-u>0){let W=WS;if(b-u-W<2)W=b-u;const u0=u,u1=u+W;u=u1;
+  if(W<WS){out.push({type:'deposito',u0,u1,v0,v1,band});continue;}
+  const mir=r()<.5,bx=mir?[u1-BW,u1]:[u0,u0+BW],ex=mir?[u0,u1-BW]:[u0+BW,u1];
+  const ent={type:'entrada',u0:ex[0],u1:ex[1],v0:hall2[0],v1:hall2[1],band};
+  out.push({type,u0,u1,v0:face2[0],v1:face2[1],band,doorTo:ent},ent,{type:'bano',u0:bx[0],u1:bx[1],v0:hall2[0],v1:hall2[1],band,doorTo:ent});}
  return out;}
 
 // El ancho de la escalera del núcleo en un ala de Lu × Lv m (ver layoutFloor).
@@ -430,14 +475,21 @@ export const STAIR_STEPS=ESCALERA.peldanos,STAIR_TREAD=ESCALERA.huella,STAIR_FR=
 // (FRANJA.fachada + FRANJA.interior = 6 m) mientras alcance; en las muy hondas, al medio. La usan layoutFloor y la L.
 export const corridorAt=Lv=>Lv<=14?Lv-(FRANJA.fachada+FRANJA.interior):Math.min(FRANJA.maxLuz,(Lv-PASILLO.ancho)/2);
 // El ancho del pasillo en un ala de Lv m de fondo: PASILLO.ancho, y en las muy hondas lo que dejan las dos franjas de
-// FRANJA.maxLuz (2026-10-15: con lotes de 18 m las franjas de 8 y 8,5 m no se podían iluminar; ahora 7,5 + 3 + 7,5).
+// FRANJA.maxLuz (2026-10-15: con lotes de 18 m las franjas de 8 y 8,5 m no se podían iluminar; 7,5 + 3 + 7,5, y desde el
+// 2026-11-22, a metro entero, 7 + 4 + 7).
 export const pasilloDe=Lv=>Lv<=14?PASILLO.ancho:Math.max(PASILLO.ancho,Lv-2*corridorAt(Lv));
 const ALARGA_MAX=2;// (m de tramo ciego —un módulo; con 4, 13 de 346 edificios con un cuarto sin ventana— que un departamento se alarga para no dejar cuartos sueltos al pasillo: layoutFloor)
+// EL ASCENSOR, DESDE 6 PISOS (2026-11-22, decisión de Miguel: «¿vale la pena eliminar el ascensor y dejar sólo las
+// escaleras?» → «sí, desde 6 pisos»). Antes iba desde 4: un edificio de 4 o 5 pisos muchas veces no tiene ascensor, y sus
+// 2 m de núcleo vuelven a los departamentos. Desde 6 se queda: en primera persona subir 6 pisos o más por la escalera es
+// largo, y un edificio así lo tiene.
+export const ASCENSOR={desde:6};
+const ENSANCHE_MAX=4,TRASTEROS=[['ropas',2,2],['deposito',2,2],['deposito',2,2],['deposito',2,2]];// (m de tramo ciego que todavía es ensanche del pasillo; más largo, zona de ropas y trasteros: layoutFloor)
 function layoutFloor(L,F,level,r,opt={}){
  // Núcleo: la escalera (STAIR_W m: dos tramos de ~1,9 m, medidas reales y cómoda para jugar, 2026-10-15; antes 2 m,
- // tramos de 0,88 m) y, desde 4 pisos, el ascensor de 2 m al lado. Donde no cabe —un lote de 6 m de frente y una sola
+ // tramos de 0,88 m) y, desde ASCENSOR.desde pisos, el ascensor de 2 m al lado. Donde no cabe —un lote de 6 m de frente y una sola
  // fila de cuartos— la escalera vuelve a 2 m y sin ascensor, para que el piso tenga cuartos.
- const {Lu,Lv}=F,T=TYPES[L.type],sw=stairWidth(Lu,Lv),lift=L.floors>=4&&!(Lv<=8&&Lu-sw-2<4),cw=sw+(lift?2:0);
+ const {Lu,Lv}=F,T=TYPES[L.type],sw=stairWidth(Lu,Lv),lift=L.floors>=ASCENSOR.desde&&!(Lv<=8&&Lu-sw-2<4),cw=sw+(lift?2:0);
  const rooms=[],corr=[],units=[];let core;
  const homes=level>0&&(L.type==='vivienda'||L.type==='comercio'||L.type==='residencial');// pisos de departamentos
  const suite=level>0&&(L.type==='hotel'||L.type==='hospital')?(L.type==='hotel'?'habitacion':'habitacion_h'):null;// pisos de habitaciones en suite
@@ -475,13 +527,21 @@ function layoutFloor(L,F,level,r,opt={}){
   if(homes){units.push({u0:0,u1:cu,v0:0,v1:Lv,n:1});
    if(cu>=7){const dw=Math.min(4,cu-4),sala={type:'sala_cocina',u0:dw,u1:cu,v0:0,v1:Lv,band:'front',unit:1};
     rooms.push({type:'dormitorio',u0:0,u1:dw,v0:0,v1:Lv-2,band:'front',unit:1,doorTo:sala},{type:'bano',u0:0,u1:dw,v0:Lv-2,v1:Lv,band:'front',unit:1,doorTo:sala},sala);}
-   else{const est={type:'estudio',u0:2,u1:cu,v0:0,v1:Lv,band:'front',unit:1};rooms.push({type:'bano',u0:0,u1:2,v0:0,v1:Lv,band:'front',unit:1,doorTo:est},est);}}
+   // (2026-11-21: como en el estudio de un departamento —banoEstudio—: el baño no va de punta a punta. En la casa de una
+   // sola celda quedaba de 2 × 6 m, 12 m²: 15 casas de la ciudad de 720 m, ninguna en las chicas. Con fondo para las dos
+   // cosas, baño de 3 m al fondo y la zona de ropas del lado del frente)
+   else{const est={type:'estudio',u0:2,u1:cu,v0:0,v1:Lv,band:'front',unit:1};
+    if(Lv>=5)rooms.push({type:'ropas',u0:0,u1:2,v0:0,v1:Lv-3,band:'front',unit:1,doorTo:est},{type:'bano',u0:0,u1:2,v0:Lv-3,v1:Lv,band:'front',unit:1,doorTo:est},est);
+    else rooms.push({type:'bano',u0:0,u1:2,v0:0,v1:Lv,band:'front',unit:1,doorTo:est},est);}}
   // Hotel u hospital: un pasillo de 2 m a lo largo del frente (sigue en el descanso del núcleo) y detrás, una tras otra,
   // la habitación de 4 m con su baño de 2 m al costado, cada una con su puerta al pasillo (2026-10-12: antes iban en
   // fila sin pasillo, habitación | baño | habitación…, y el baño de en medio dejaba las habitaciones sin salida).
-  else if(suite){corr.push({u0:0,v0:0,u1:cu,v1:2,hall:true});let u=0;while(cu-u>0){let W=6;if(cu-u-W<5)W=cu-u;const u0=u,u1=u+W;u=u1;
+  else if(suite){corr.push({u0:0,v0:0,u1:cu,v1:2,hall:true});let u=0;while(cu-u>0){let W=6;if(cu-u-W<5)W=cu-u;if(W>=10)W=Math.ceil(W/2);const u0=u,u1=u+W;u=u1;
     if(W<5){rooms.push({type:'deposito',u0,u1,v0:2,v1:Lv,band:'back',hall:true});continue;}
-    const SB=SUITE_BANO(),room={type:suite,u0,u1:u1-SB,v0:2,v1:Lv,band:'back',hall:true};rooms.push(room,{type:'bano',u0:u1-SB,u1,v0:2,v1:Lv,band:'back',doorTo:room});}}
+    const SB=SUITE.banoCostado,room={type:suite,u0,u1:u1-SB,v0:2,v1:Lv,band:'back',hall:true};rooms.push(room,{type:'bano',u0:u1-SB,u1,v0:2,v1:Lv,band:'back',doorTo:room});}}
+  // (la casa de una fila: lo mismo —el baño de 3 m al fondo y la zona de ropas al frente, los dos abiertos al monoambiente—)
+  else if(casa1&&Lv>=5){let est=null;for(const q of fill(0,cu,prog.front,r,0,Lv)){if(q.type==='bano'&&est&&q.u1-q.u0<=2.5)rooms.push({...q,type:'ropas',v0:0,v1:Lv-3,band:'front',doorTo:est},{...q,v0:Lv-3,v1:Lv,band:'front',doorTo:est});
+    else{const o={...q,v0:0,v1:Lv,band:'front',chain:est?1:0};if(!est&&q.type==='estudio')est=o;rooms.push(o);}}}
   else fill(0,cu,prog.front,r,0,Lv).forEach((q,i)=>rooms.push({...q,v0:0,v1:Lv,band:'front',chain:i}));
  }else{// pasillo de 2 m a lo largo del frente
   const c0=corridorAt(Lv),P=pasilloDe(Lv);corr.push({u0:0,v0:c0,u1:Lu,v1:c0+P});
@@ -523,18 +583,26 @@ function layoutFloor(L,F,level,r,opt={}){
   gaps.length=0;const dark=new Set();for(const [a,b,l] of runs){gaps.push([a,b]);if(!l)dark.add(a+'|'+b);}
   // (2026-10-18, Miguel: «en vez de los cuartos, mejor más pasillo, con floreros y cuadros»): en los pisos de departamentos
   // el tramo ciego es un ensanche del pasillo —el 3D lo decora: town3d—; antes, la cocina y el baño del programa, sueltos
-  let i=0,nurse=suite==='habitacion_h';for(const [a,b] of gaps)if(b-a>=2&&dark.has(a+'|'+b)&&homes)corr.push({u0:a,v0:c0+P,u1:b,v1:Lv,ensanche:true});
+  // (2026-11-20, Miguel, viendo en el plano los edificios chicos con dos o tres medianeras: «trasteros y ropas»): cuando el
+  // tramo ciego es LARGO (más de ENSANCHE_MAX) el ensanche se comía del 22 al 28 % del piso para un solo departamento
+  // —medido en la ciudad 1: nueve edificios de 12 × 12 y 18 × 12 m—. Ahí va lo que un edificio de verdad pone en un fondo
+  // sin luz: la zona de ropas del piso y un trastero por módulo, cada uno con su puerta al pasillo. No son habitables: no
+  // piden ventana. El tramo corto sigue siendo ensanche.
+  let i=0,nurse=suite==='habitacion_h';for(const [a,b] of gaps)if(b-a>ENSANCHE_MAX&&dark.has(a+'|'+b)&&homes)fill(a,b,TRASTEROS,r,0,Lv-c0-P).forEach(q=>rooms.push({...q,v0:c0+P,v1:Lv,band:'back',trastero:q.type==='deposito'}));
+  else if(b-a>=2&&dark.has(a+'|'+b)&&homes)corr.push({u0:a,v0:c0+P,u1:b,v1:Lv,ensanche:true});
   else if(b-a>=2&&dark.has(a+'|'+b))fill(a,b,SERV,r,i++,Lv-c0-P).forEach(q=>rooms.push({...q,v0:c0+P,v1:Lv,band:'back'}));
   else if(b-a>=2){if(homes)rooms.push(...apartments(a,b,c0+P,Lv,'v0',r,'back',units,gmax));
    else if(suite){let a2=a;if(nurse&&b-a>=6){rooms.push({type:'enfermeria',u0:a,u1:a+4,v0:c0+P,v1:Lv,band:'back'});a2=a+4;nurse=false;}if(b-a2>=2)rooms.push(...suites(a2,b,c0+P,Lv,'v0',r,'back',suite));}else fill(a,b,prog.back,r,i++,Lv-c0-P).forEach(q=>rooms.push({...q,v0:c0+P,v1:Lv,band:'back'}));}
    else{const right=solid.find(o=>o.u0===b),left=solid.find(o=>o.u1===a),to=[right,left].find(o=>o&&o===pass)||right||left;if(to===right)right.u0=a;else if(to)left.u1=b;}// (el resto, al paso si lo hay: el núcleo queda de la medida de la escalera)
  }
- for(const q of rooms){q.Lu=Lu;q.Lv=Lv;}// (para descontar el grosor de la fachada al amueblar)
+ for(const q of rooms){q.Lu=Lu;q.Lv=Lv;if(L.type==='casa'&&q.type==='bano')q.propio=true;}// (para descontar el grosor de la fachada al amueblar; propio: el baño de una casa da al pasillo pero es el de la familia: lleva ducha)
  return {rooms,corr,core,lift,units,sw};}
 
 // ---------- Etapa 7: puertas y ventanas (en el marco local) ----------
 // Los módulos de fachada (de 2 m, desde la esquina del lote) que caen enteros dentro de [a,b].
 const modulesIn=(a,b)=>{const out=[];for(let m=2*Math.ceil(a/2);m+2<=b+1e-9;m+=2)out.push(m);return out;};
+// (¿este módulo de fachada lleva vidriera? los que quedan a un número impar de módulos de la puerta más cercana)
+const conVidriera=(m,puertas)=>Math.round(Math.min(...puertas.map(d=>Math.abs(m-d)))/2)%2===1;
 function openings(L,F,plan,level,r){// (PC: el ancho de la puerta de calle de este lote —PUERTA.doble en los de sus tipos—)
  const pcDe=q=>PUERTA.doble.excepto.includes(L.type)?PUERTA.calle:PUERTA.doble.ancho;
  const doors=[],windows=[],{Lu,Lv}=F,{rooms,corr,core}=plan,c=corr[0];
@@ -545,7 +613,7 @@ function openings(L,F,plan,level,r){// (PC: el ancho de la puerta de calle de es
  // FM —su cara más medio marco y 6 cm— y no 10 cm del eje, que la metía 15 cm en el muro. axis: hacia dónde corre el
  // borde ('u' o 'v'), para saber qué punta es borde. wd: el ancho real de la puerta.
  const FM=MURO.fachada+.1,edge=(axis,t)=>t<=1e-6||t>=(axis==='u'?Lu:Lv)-1e-6;
- const near=(a,b,wd=1,axis)=>{const len=b-a,rr=len>wd+.15?r():null,ea=!!axis&&edge(axis,a),eb=!!axis&&edge(axis,b),m=len<=2.2?.1:.4,ma=ea?Math.max(m,FM):m,mb=eb?Math.max(m,FM):m;
+ const near=(a,b,wd=1,axis)=>{const len=b-a,rr=len>wd+.15?r():null,ea=!!axis&&edge(axis,a),eb=!!axis&&edge(axis,b),m=len<wd+.8-1e-9?.1:.4,/* (2026-11-22: el aire de 40 cm a la esquina va siempre que entra —antes sólo con más de 2,2 m de borde—: con los tabiques cada 1 m el borde entre el hall y una alcoba es de 2 m y la puerta quedaba a 10 cm del rincón, donde el muro inflado por el cuerpo y la cómoda cerraban la entrada: validar-usos, 90 fallas por ciudad) */ma=ea?Math.max(m,FM):m,mb=eb?Math.max(m,FM):m;
   if(rr===null||len<wd+ma+mb-1e-9){const lo=a+(ea?FM:.1),hi=b-(eb?FM:.1)-wd;return hi>=lo-1e-9?(lo+hi)/2:a+(len-wd)/2;}
   return rr<.5?a+ma:b-mb-wd;};
  rooms.forEach((q,i)=>{q.id=i;});
@@ -570,10 +638,23 @@ function openings(L,F,plan,level,r){// (PC: el ancho de la puerta de calle de es
    if(mods.length){const mid=(q.u0+q.u1)/2,byMid=[...mods].sort((a,b)=>Math.abs(a+1-mid)-Math.abs(b+1-mid)),garage=q.type==='garaje'&&mods.length>=2;
     const dm=garage?[byMid[0],mods.find(m=>Math.abs(m-byMid[0])===2)??byMid[1]].sort((a,b)=>a-b):[byMid[0]];
     doors.push(garage?{axis:'u',at:0,from:dm[0]+.2,len:dm[1]+2-dm[0]-.4,a:i,b:'calle',street:true,wide:true,bay:true}:{axis:'u',at:0,from:dm[0]+(2-pcDe(q))/2,len:pcDe(q),a:i,b:'calle',street:true});
-    if(q.type==='local')for(const m of mods)if(!dm.includes(m))windows.push({axis:'u',at:0,from:m+.1,len:1.8,a:i,shop:true});}}
+    // EL PAÑO DE MURO (2026-11-21, Miguel: «en el primer piso hay mucha vidriera: vale la pena dejar también paredes», para
+    // que haya dónde pintar un grafiti): en un local todos los módulos que no eran la puerta eran vidriera, y 41 de los 139
+    // frentes a la calle de la ciudad 1 tenían más del 80 % de vano. Ahora se alternan desde la puerta: el módulo de al lado
+    // es vidriera, el siguiente muro, el otro vidriera… Queda un paño ciego de 2 m entre vidrieras, y el local sigue con
+    // su vidriera pegada a la entrada.
+    if(q.type==='local')for(const m of mods)if(!dm.includes(m)&&conVidriera(m,dm))windows.push({axis:'u',at:0,from:m+.1,len:1.8,a:i,shop:true});}}
  });
  // Casa sin pasillo: la puerta de calle en el primer cuarto.
- if(level===0&&Lv<=8&&rooms.length){const m=modulesIn(rooms[0].u0,rooms[0].u1)[0];if(m!=null)doors.push({axis:'u',at:0,from:m+(2-pcDe(rooms[0]))/2,len:pcDe(rooms[0]),a:0,b:'calle',street:true});}
+ if(level===0&&Lv<=8&&rooms.length){const m=modulesIn(rooms[0].u0,rooms[0].u1)[0];if(m!=null){doors.push({axis:'u',at:0,from:m+(2-pcDe(rooms[0]))/2,len:pcDe(rooms[0]),a:0,b:'calle',street:true});
+  // (2026-11-22, la auditoría de coherencia: «un local sin vidriera», 12 en dos ciudades —el local de un lote de una sola fila
+  // tenía su puerta por acá y nunca sus vidrieras—: como en los demás, vidriera y muro alternados desde la puerta)
+  // (y cada local de la fila, no sólo el primero: su puerta de calle —si no la tiene— y sus vidrieras; la ciudad de 720 m
+  // tenía filas de dos locales donde el segundo no tenía ni lo uno ni lo otro)
+  for(const q of rooms){if(q.type!=='local'||q.v0>1e-6)continue;const ms=modulesIn(q.u0,q.u1).filter(k=>['calle','avenida'].includes(F.at('front',k+1)));if(!ms.length)continue;
+   const suya=doors.find(d=>d.street&&d.axis==='u'&&Math.abs(d.at)<1e-6&&d.from>=q.u0-1e-6&&d.from+d.len<=q.u1+1e-6),dm=suya?Math.floor(suya.from/2)*2:ms[0];
+   if(!suya)doors.push({axis:'u',at:0,from:dm+(2-pcDe(q))/2,len:pcDe(q),a:q.id??rooms.indexOf(q),b:'calle',street:true});
+   for(const k of ms)if(k!==dm&&conVidriera(k,[dm]))windows.push({axis:'u',at:0,from:k+.1,len:1.8,a:q.id??rooms.indexOf(q),shop:true});}}}
  // Un edificio que se roba tiene al menos JUEGO.puertasRobable puertas de calle (2026-10-15): las que faltan, primero en
  // un costado que da a otra calle (lote de esquina: dos calles distintas, mejores escapes) y si no en otro módulo del
  // frente; en un cuarto de planta baja, en un módulo entero sin otra puerta.
@@ -598,7 +679,7 @@ function openings(L,F,plan,level,r){// (PC: el ancho de la puerta de calle de es
   for(const q of rooms){if(q.type!=='local'||q.band!=='back'||q.v1<Lv-1e-6)continue;const mods=modulesIn(q.u0,q.u1).filter(m=>alPatio(m+.2)&&alPatio(m+1.8)&&libre(m));if(!mods.length)continue;
    const mid=(q.u0+q.u1)/2,dm=[...mods].sort((a,b)=>Math.abs(a+1-mid)-Math.abs(b+1-mid))[0];q.alPatio=true;
    doors.push({axis:'u',at:Lv,from:dm+(2-pcDe(q))/2,len:pcDe(q),a:q.id,b:'patio',street:true,patio:true});
-   for(const m of mods)if(m!==dm)windows.push({axis:'u',at:Lv,from:m+.1,len:1.8,a:q.id,shop:true});}
+   for(const m of mods)if(m!==dm&&conVidriera(m,[dm]))windows.push({axis:'u',at:Lv,from:m+.1,len:1.8,a:q.id,shop:true});}
   // (atrás o en un costado: en un lote de esquina el patio puede quedar al lado)
   if(!doors.some(d=>d.patio)){const cands=[],LADOS=[['back','u',Lv,(r)=>r.v1>=Lv-1e-6,r=>[r.u0,r.u1]],['left','v',0,r=>r.u0<=1e-6,r=>[r.v0,r.v1]],['right','v',Lu,r=>r.u1>=Lu-1e-6,r=>[r.v0,r.v1]]];
    const da=(s,t)=>F.at(s,t,0)==='patio',suelta=(ax,at,m)=>!doors.some(d=>d.axis===ax&&Math.abs(d.at-at)<1e-6&&d.from<m+2&&d.from+d.len>m);
@@ -618,7 +699,15 @@ function openings(L,F,plan,level,r){// (PC: el ancho de la puerta de calle de es
  // Ventanas: en cada borde de cuarto que da a la calle o al patio (nunca a una medianera ni a la nada).
  // (se mira qué hay afuera en el lugar de cada ventana: un lado puede ser en parte calle y en parte el vecino)
  // 'alto': el muro que asoma por encima de un vecino más bajo (en ese piso, ya da afuera).
- const glazed=(s,t)=>['calle','avenida','patio','alto'].includes(F.at(s,t,level));
+ let piezaDelPiso=null;
+ // (2026-11-22, Miguel: «aumentar las paredes para pintar sin perder la esencia de una ciudad coherente»: LAS CULATAS. El
+ // muro que asoma por encima de un vecino más bajo —'alto'— está sobre el lindero, y ahí la norma no deja abrir ventanas:
+ // en las ciudades colombianas esas paredes son ciegas y son donde se pintan los murales. Antes llevaban ventana.
+ // FUGA_CULATAS=0 lo deja como antes, sólo para medir)
+ // (salvo que un cuarto habitable no llegue sin ellas a su luz mínima —MINIMO.luz, con la ventana más grande de su familia—:
+ // ese cuarto sí abre a la culata. Sin la excepción, 8 salas quedaban sin ventana en la ciudad 1: validar-ciudad)
+ const VENTANA_EN=CULATAS_CIEGAS?['calle','avenida','patio']:['calle','avenida','patio','alto'],glazed=(s,t)=>VENTANA_EN.includes(F.at(s,t,level)),glazedAlto=(s,t)=>['calle','avenida','patio','alto'].includes(F.at(s,t,level));
+ const vidrioMax=Math.max(...(RESIDENCIAL.has(L.type)?VENTANAS_VIVIENDA:VENTANAS_FAMILIA[L.fachada?.familia]||VENTANAS_FAMILIA.ladrillo).map(k=>VIDRIO.ventana[k]??.55));
  for(const q of rooms){
   const edges=[];if(q.v0===0&&!(level===0&&q.type==='local'))edges.push({side:'front',axis:'u',at:0,a:q.u0,b:q.u1});
   if(q.v1===Lv&&!q.alPatio)edges.push({side:'back',axis:'u',at:Lv,a:q.u0,b:q.u1});// (el local al patio ya tiene su vidriera)
@@ -627,7 +716,17 @@ function openings(L,F,plan,level,r){// (PC: el ancho de la puerta de calle de es
   // Una ventana por módulo de 2 m que cae entero en el borde del cuarto (los cortados por un tabique quedan de muro).
   // (en un módulo con puerta de calle no va ventana)
   const doorIn=(e,m)=>doors.some(d=>d.street&&d.axis===e.axis&&Math.abs(d.at-e.at)<1e-6&&d.from<m+2&&d.from+d.len>m);
-  for(const e of edges){const wd=q.type==='bano'?.8:1.2;for(const m of modulesIn(e.a,e.b))if(!doorIn(e,m)&&glazed(e.side,m+.2)&&glazed(e.side,m+1.8))windows.push({axis:e.axis,at:e.at,from:m+1-wd/2,len:wd,a:q.id});}}
+  // (2026-11-21, calibración: un baño cuyo borde a la fachada es un solo módulo —2 m— va sin ventana. Con las franjas de
+  // 2,5 m ese borde no contenía un módulo entero y nunca la tenía; al calibrarlas a 2 m empezó a tenerla, justo en la pared
+  // corta, y ahí no entraban la ducha ni el lavamanos: 65 baños sin ducha en dos ciudades)
+  // (2026-11-22, lo mismo: lo que se guarda —depósitos, bóvedas, archivos, trasteros— no lleva ventana, como una bodega)
+  if(CIEGOS.has(q.type)||q.trastero)continue;
+  // (2026-11-22, la auditoría de coherencia: el baño de planta baja no abre ventana a la calle —desde la vereda se vería
+  // adentro—: ventila por extracción, como los demás baños sin ventana; al patio, sí. 40 en dos ciudades)
+  const bajoALaCalle=level===0&&(q.type==='bano'||q.type==='sanitario');
+  const pone=ok=>{const n0=windows.length;for(const e of edges){if(q.type==='bano'&&e.b-e.a<=2+1e-6)continue;const wd=q.type==='bano'?.8:1.2;for(const m of modulesIn(e.a,e.b))if(!doorIn(e,m)&&ok(e.side,m+.2)&&ok(e.side,m+1.8)&&!(bajoALaCalle&&['calle','avenida'].includes(F.at(e.side,m+1,level))))windows.push({axis:e.axis,at:e.at,from:m+1-wd/2,len:wd,a:q.id});}return windows.length-n0;};
+  const n=pone(glazed);
+  if(CULATAS_CIEGAS&&HABITABLE.has(q.type)&&n*vidrioMax<(q.u1-q.u0)*(q.v1-q.v0)*MINIMO.luz-1e-9){windows.splice(windows.length-n,n);pone(glazedAlto);}}
  // La pieza de cada ventana (2026-10-15, decisión de Miguel): la del estilo del edificio (primer piso ventana1, más
  // arriba ventana); si a un cuarto habitable no le alcanza para MINIMO.luz de su piso con el vidrio medido (VIDRIO), todas
  // sus ventanas suben a la pieza más chica de su familia que alcance (o a la más grande). El 3D dibuja w.pieza.
@@ -636,32 +735,61 @@ function openings(L,F,plan,level,r){// (PC: el ancho de la puerta de calle de es
   for(const q of rooms){if(!HABITABLE.has(q.type))continue;const ws=windows.filter(w=>w.a===q.id&&!(level===0&&esVidriera(L.type,w)));if(!ws.length)continue;
    const need=(q.u1-q.u0)*(q.v1-q.v0)*MINIMO.luz,base=(level<=1&&ws[0].len>=1?fa.ventana1:fa.ventana)||'cuadrada';
    const opts=[...new Set([base,...fam])].filter(k=>g(k)>=g(base)-1e-9).sort((a,b)=>g(a)-g(b)),pick=opts.find(k=>g(k)*ws.length>=need-1e-9)||opts[opts.length-1];
-   if(pick!==base)for(const w of ws)w.pieza=pick;}}
+   if(pick!==base)for(const w of ws)w.pieza=pick;}
+  // (2026-11-22, la auditoría de coherencia: «ventanas de un mismo piso a distinta altura», 339 fachadas en dos ciudades.
+  // Cada cuarto elegía la pieza que le daba su luz y en un mismo piso quedaban ventanas de alturas distintas, como no pasa
+  // en un edificio de verdad. Ahora todas las ventanas del piso —también las de los baños— llevan la misma: la mayor que
+  // haya pedido alguno de sus cuartos)
+  // (la pieza queda escrita en cada ventana: sin ella, la fachada elegía otra para las angostas —las de los baños, de 0,8 m— y
+  // para las del pasillo y la escalera, que se ponen más abajo; las de éstas se igualan allá)
+  // (también el ventanal: si un cuarto lo necesita para su luz, todo el piso lo lleva —la ciudad de 720 m tenía pisos con
+  // ventanales y ventanas comunes mezclados—)
+  {const ws=windows.filter(w=>!w.shop&&!w.escalera&&!(level===0&&esVidriera(L.type,w))),base=(level<=1?fa.ventana1:fa.ventana)||'cuadrada';
+   const mayor=ws.reduce((m,w)=>{const k=w.pieza||base;return g(k)>g(m)?k:m;},base);for(const w of ws)w.pieza=mayor;piezaDelPiso=mayor;}}
  // La escalera también tiene ventanas donde el núcleo da a la fachada (el pozo del ascensor no).
- if(core){const st0=plan.lift?core.u0+2:core.u0;if(core.v1===Lv)for(const m of modulesIn(st0,core.u1))if(glazed('back',m+.2)&&glazed('back',m+1.8))windows.push({axis:'u',at:Lv,from:m+.4,len:1.2,a:'nucleo'});}
+ // LA ESCALERA, SIN VENTANAS (2026-11-22, Miguel: «las ventanas en el giro de la escalera quedan mal: ¿lo podemos cuadrar en el
+ // motor?»). La escalera en U sube por los costados desde la puerta y descansa al fondo a media altura del piso (1,5 m):
+ // cualquier ventana del núcleo, a la altura de las de su piso, queda cruzada por un tramo o por la losa del descanso. Para
+ // que cuadrara habría que correrla medio piso, y eso saca la ventana de su módulo de 2 × 3 m. El muro de la escalera va
+ // ciego en todos sus lados, como en tantos edificios, y se puede pintar. (Antes llevaba ventana donde el núcleo daba al
+ // fondo; el 2026-11-22 se probó también al frente y a los costados.)
+ // EL VENTANAL DE LA ESCALERA (2026-11-22, Miguel: «para la pared de la escalera, un ventanal para ver hacia el patio»): en
+ // el muro del fondo del núcleo —el del descanso— cuando da al patio, un vidrio casi de piso a techo en cada piso
+ // (Metal_FullWindow: 1,80 × 2,64 m dentro del módulo de 2 × 3). Uno encima del otro forman una franja de vidrio por la
+ // que se ve subir la escalera, como en una torre de escalera: el descanso y los tramos se ven detrás del vidrio en vez
+ // de cortar una ventana chica. Es otro elemento: no entra en la pieza pareja del piso (w.escalera).
+ if(core&&core.v1===Lv){const st0=plan.lift?core.u0+2:core.u0;for(const m of modulesIn(st0,core.u1))if(F.at('back',m+.2,level)==='patio'&&F.at('back',m+1.8,level)==='patio')windows.push({axis:'u',at:Lv,from:m+.1,len:1.8,a:'nucleo',pieza:'vidrio',escalera:true});}
  // El pasillo del frente de las suites angostas: una ventana por módulo, como los cuartos.
  for(const h of corr.filter(h=>h.hall))for(const m of modulesIn(h.u0,h.u1))if(glazed('front',m+.2)&&glazed('front',m+1.8))windows.push({axis:'u',at:0,from:m+.4,len:1.2,a:'pasillo'});
  // El pasillo, con una ventana en cada punta que da afuera.
  // (centrada en el pasillo y del largo que le entra: con 2 m era de 1,2 a 0,4 del borde; con el de 1,5 se pasaba al cuarto de atrás)
  if(Lv>8&&c.v0%2===0){const P=c.v1-c.v0,wl=Math.min(1.2,P-.3);for(const [s,u] of [['left',0],['right',Lu]])if(glazed(s,c.v0+P/2))windows.push({axis:'v',at:u,from:c.v0+(P-wl)/2,len:wl,a:'pasillo'});}
+ // (la escalera y el pasillo, con la pieza del piso: ver arriba)
+ if(piezaDelPiso)for(const w of windows)if(!w.shop&&!w.pieza&&!(level===0&&esVidriera(L.type,w)))w.pieza=piezaDelPiso;
+ // (2026-11-21, lo encontró la fachada medida —validar-fachada-medida—: la ventana del remate del pasillo se ponía sin mirar
+ // si en ese tramo de la fachada ya había una puerta de afuera —la del patio—, y quedaban una encima de la otra. La puerta
+ // gana: sale la ventana que la pisa)
+ for(let i=windows.length-1;i>=0;i--){const w=windows[i];if(doors.some(d=>d.street&&d.axis===w.axis&&Math.abs(d.at-w.at)<1e-6&&d.from<w.from+w.len-.01&&d.from+d.len>w.from+.01))windows.splice(i,1);}
  return {doors,windows};}
 
 // ---------- Etapa 8: muebles (en el marco local) ----------
 // Medidas tomadas de los modelos que los dibujan en 3D (town3d.js), para que nada asome por paredes ni ventanas.
 // [tipo, ancho a lo largo de la pared, fondo, alto?]: «alto» (más de ~85 cm) no va bajo una ventana. «c» = al centro.
-export const ITEMS={sofa:[2.2,.9,0],mesa_centro:[1,1,0,'c'],tv:[1.4,.45,1],planta:[.5,.5],cama:[1.6,2.1],cama_s:[1.05,2.15],litera:[1.15,2.1,1],mesa_noche:[.56,.5],armario:[1.1,.6,1],
+export const ITEMS={sofa:[2.2,.9,0],mesa_centro:[1,1,0,'c'],tv:[1.4,.45,1],planta:[.42,.42],cama:[1.6,2.1],cama_s:[1.05,2.15],litera:[1.15,2.1,1],mesa_noche:[.56,.5],armario:[1.1,.6,1],
  escritorio:[1.56,.73],meson:[2,.6],nevera:[.7,.7,1],estufa:[.55,.6],mesa:[1.02,1.02,0,'c'],inodoro:[.55,.75,1],lavamanos:[.72,.45],ducha:[1,1,1],tina:[.85,2.05],lavadora:[.7,.7],
  archivador:[1.06,.63,1],mesa_reunion:[2.4,1.25,0,'c'],cama_h:[1.05,2.15],mostrador:[2.2,.7,1],pupitre:[.7,.5],tablero:[2.4,.12,1],casillero:[1.2,.45,1],
  caminadora:[.85,1.9,1],bicicleta:[.6,1.2,1],banco:[1.2,1.5,1],mancuernas:[1.5,.5],colchoneta:[1.8,.9],espejo_pared:[2.4,.06,1],// (el gimnasio, 2026-10-17)
- perchero:[1.2,.5,1],maniqui:[.5,.5],estanteria_ropa:[1.6,.45,1],probador:[1,1,1],// (la tienda de ropa, 2026-10-17)estante:[1.12,.42,1],
- mesa_lectura:[2.4,1.25,0,'c'],lampara:[.36,.36,1],sillon:[1.1,.98],comoda:[.95,.65,1],catre:[1.05,2.15],vehiculo:[2.2,5],caja:[.8,.8],buzones:[1.2,.3,1],caja_fuerte:[.8,.8,1],camilla:[.8,1.9],
+ perchero:[1.2,.5,1],maniqui:[.5,.5],estanteria_ropa:[1.6,.45,1],probador:[1,1,1],// (la tienda de ropa, 2026-10-17)
+ estante:[1.12,.42,1],// (2026-11-20: había quedado DENTRO del comentario de arriba desde el 17 de octubre: sin su medida, ningún estante de pared se ponía —el del estudio de las casas, el de los depósitos, el de las oficinas—)
+ mesa_lectura:[2.4,1.25,0,'c'],lampara:[.36,.36,1],sillon:[.9,.8],// (2026-11-20, calibrados contra su modelo —muebles-medidos.js—: la planta reservaba 500 × 500 mm para una maceta de 419, y el sillón 1.100 × 980 para uno de 901 × 791)
+ comoda:[.95,.65,1],catre:[1.05,2.15],vehiculo:[2.2,5],caja:[.8,.8],buzones:[1.2,.3,1],caja_fuerte:[.8,.8,1],camilla:[.8,1.9],
  horno:[1.5,1.1,1],plancha:[1.6,.75,1],repisa:[1.4,.42,1],vitrina:[1.6,.75,1],cajon:[1.2,.7,0]};// (los de los locales con giro: el horno de leña de la pizzería y la plancha de la hamburguesería)
 // ---- Muebles a la medida (2026-10-12, idea de Miguel) ----
 // Lo que se fabrica a medida va con una lista de medidas [ancho, fondo], de la más grande a la más chica: el mueble prueba
 // de la más grande que el azar del intento le da para arriba en la lista, y se queda con la primera que entra sin estorbar
 // (así el mesón llena la pared que le queda, la cama es doble o sencilla según el dormitorio y la mesa del comedor es de
 // dos, cuatro o seis puestos). La mesa (al centro) sólo en las casas; la de los locales sigue redonda.
-const SIZES={meson:[[3,.6],[2.7,.6],[2.4,.6],[2.1,.6],[1.8,.6],[1.5,.6],[1.2,.6],[.9,.6]],escritorio:[[1.6,.73],[1.4,.7],[1.2,.65],[1,.6],[.9,.55]],
+export const SIZES={meson:[[3,.6],[2.7,.6],[2.4,.6],[2.1,.6],[1.8,.6],[1.5,.6],[1.2,.6],[.9,.6]],escritorio:[[1.6,.73],[1.4,.7],[1.2,.65],[1,.6],[.9,.55]],
  estante:[[1.6,.42],[1.12,.42],[.9,.38],[.6,.35]],cama:[[1.6,2.05],[1.4,1.95],[1.2,1.95]],cama_s:[[1.05,2.1],[.9,1.95]],nevera:[[.9,.72],[.7,.7],[.6,.65]],
  sofa:[[2.4,.9],[2.1,.9],[1.8,.85],[1.5,.85],[1.25,.8]],armario:[[2.4,.6],[2,.6],[1.6,.6],[1.2,.6],[.9,.55]],comoda:[[1.4,.5],[1.1,.5],[.8,.45]],
  mostrador:[[3,.7],[2.6,.7],[2.2,.7],[1.8,.7],[1.4,.65]],tv:[[1.6,.45],[1.4,.45],[1.1,.4]],ducha:[[1,1],[.9,.9],[.8,.8]],tina:[[.85,2.05],[.8,1.7]],
@@ -672,9 +800,9 @@ const SUELTO=new Set(['banco','bicicleta','colchoneta','perchero','maniqui']);
 const TABLES=[[1.6,.9],[1.2,.8],[.9,.9],[.8,.8]],HOME=new Set(['cocina','sala_cocina','estudio','comedor_casa','sala']);
 export const RECIPE={
  sala:['sofa','sillon?','tv','mesa_centro','planta','lampara?','escritorio?'],dormitorio:['cama','mesa_noche','armario','comoda?','lampara?','escritorio?'],cocina:['meson','nevera','estufa','lavadora?','mesa'],
- bano:['inodoro','banera','lavamanos'],oficina:['escritorio!','archivador','estante?','lampara?','planta'],abierta:['escritorios!','archivador','planta'],reuniones:['mesa_reunion','tv'],
+ bano:['inodoro','banera','lavamanos'],sanitario_piso:['inodoro','lavamanos'],trastero:['caja','caja'],sanitario_grande:['inodoro','inodoro','lavamanos','lavamanos'],oficina:['escritorio!','archivador','estante?','lampara?','planta'],abierta:['escritorios!','archivador','planta'],reuniones:['mesa_reunion','tv'],
  cocineta:['meson','nevera'],habitacion:['cama_hotel','mesa_noche','comoda?','sillon?','escritorio?','tv','lampara'],dormitorio_b:['litera','litera?','armario','mesa_noche'],habitacion_h:['cama_h','cama_h?','mesa_noche'],enfermeria:['mostrador','escritorio!','camilla'],
- aula:['tablero','escritorio!','casillero?','pupitres'],sala_prof:['mesa_reunion','escritorio!','casillero?'],lectura:['estante','estante','estante','estante','mesa_lectura','mesa_lectura','mesa_lectura','mesa_lectura?','escritorio!','lampara?','planta'],archivo:['estante','estante','caja','caja'],
+ aula:['tablero','escritorio!','casillero?','pupitres'],sala_prof:['mesa_reunion','escritorio!','casillero?'],lectura:['estante','estante','estante','estante','mesa_lectura','mesa_lectura','mesa_lectura','mesa_lectura?','escritorio!','lampara?','planta'],archivo:['estante','estante','archivador','archivador','caja'],
  estudio:['cama','meson','estufa','nevera','sofa','escritorio?'],sala_cocina:['meson','estufa','nevera','sofa','sillon?','tv','mesa','escritorio?'],
  celda:['catre','inodoro'],boveda:['caja_fuerte','caja_fuerte','caja'],local:['estante','estante','mostrador','escritorio!','caja'],
  // Locales con giro (2026-10-12): el mostrador, la cocina a la vista y mesas con dos sillas.
@@ -692,7 +820,7 @@ export const RECIPE={
  sanitario:['inodoro','inodoro','lavamanos','lavamanos'],secretaria:['mostrador','escritorio!','archivador','planta'],comedor:['meson','nevera','mesa','mesa','mesa'],// (el mesón y la nevera primero: puestos después, las mesas les tapaban el frente en un comedor de 4×4)
 
  prestamo:['mostrador','escritorio!','estante','planta'],estanteria:['estantes'],infantil:['estante','sofa','sillon?','mesa','planta'],
- interrogatorio:['mesa','archivador?'],evidencia:['estante','estante','archivador','caja','caja'],vestuario:['armario','armario','armario','armario','armario?'],consultorio:['escritorio!','camilla'],vestibulo:['buzones','planta','caja?'],garaje:['vehiculo','caja','caja'],deposito:['caja','caja','caja','estante']};
+ interrogatorio:['mesa','archivador?'],evidencia:['estante','estante','archivador','casillero','caja'],vestuario:['armario','armario','armario','armario','armario?'],consultorio:['escritorio!','camilla'],vestibulo:['buzones','planta','sillon?'],garaje:['vehiculo','caja','caja'],deposito:['caja','caja','caja']/* (sin el estante que traía la receta: nunca se puso —su medida estaba dentro de un comentario— y, al volver, en los depósitos de planta baja tapaba el paso a las cajas donde se esconde la bolsa: validar-juego, 18 cajas) */};
 
 // Los nombres de los letreros (inventados).
 const SHOP_NAMES={pizzeria:['Pizzería Napoli','La Fornace','Pizza Roma','Don Peppe','Horno de Leña','Pizzería Vesubio','Mamma Lucia'],
@@ -730,7 +858,7 @@ function catalogFor(q,open,recipe,extra=''){const sig=roomSig(q,open)+extra;let 
  for(let k=0;k<CAT_TRIES;k++){const w2={need:true,pcs:0},its=furnishRoom(q,open,rng(Math.floor(r()*4294967296)),w2,recipe),Q=its.quality;all.push({sc:quality(its),pcs:w2.pcs,its});
   if(!Q)break;if(Q.doors===Q.doorsN&&Q.use===Q.useN){okm++;if(!Q.missing){ok++;if(!Q.win)good++;}}if(good>=VARIANTS||(k>=5&&ok>=VARIANTS)||(k>=11&&okm>=VARIANTS))break;}
  all.sort((x,y)=>y.sc-x.sc);
- C=all.slice(0,VARIANTS).filter((v,i)=>!i||v.sc>=all[0].sc-3).map(v=>({pcs:v.pcs,missing:v.its.quality?.missing||0,full:!!v.its.quality&&v.its.quality.use>=v.its.quality.useN&&v.its.quality.doors>=v.its.quality.doorsN&&(v.its.quality.vent??0)>=(v.its.quality.ventN??0),items:v.its.map(it=>({...it,u0:it.u0-q.u0,u1:it.u1-q.u0,v0:it.v0-q.v0,v1:it.v1-q.v0,room:undefined}))}));
+ C=all.slice(0,VARIANTS).filter((v,i)=>!i||v.sc>=all[0].sc-3).map(v=>({pcs:v.pcs,missing:v.its.quality?.missing||0,win:v.its.quality?.win||0,full:!!v.its.quality&&v.its.quality.use>=v.its.quality.useN&&v.its.quality.doors>=v.its.quality.doorsN&&(v.its.quality.vent??0)>=(v.its.quality.ventN??0),items:v.its.map(it=>({...it,u0:it.u0-q.u0,u1:it.u1-q.u0,v0:it.v0-q.v0,v1:it.v1-q.v0,room:undefined}))}));
  if(CATALOG.size>=CATALOG_MAX)CATALOG.clear();CATALOG.set(sig,C);return C;}
 // ---- El programa de cada cuarto de departamento (2026-10-12: de adentro hacia afuera, en la ciudad) ----
 // Cada cuarto toma el programa más completo que le cabe (la tabla de mínimos, cuartos-minimos.js, en cualquiera de sus
@@ -750,6 +878,9 @@ export const programExtras=(k,t=PROGRAMS[k].type)=>!Object.values(PROG_BY).flat(
 // La receta con que se MIDE el mínimo de un programa (2026-10-15, decisión de Miguel: «el cuarto mínimo cuenta todo lo que
 // se le pone»): el programa más todos sus opcionales, como obligatorios (el escritorio, con su computador).
 export const fullRecipe=(k,t)=>[...PROGRAMS[k].recipe,...programExtras(k,t).map(e=>e.slice(0,-1)==='escritorio'?'escritorio!':e.slice(0,-1))];
+const DEPOSITO_CLASES=[['caja','caja','armario'],['archivador','archivador','caja'],['casillero','caja','caja'],['perchero','armario','caja'],['comoda','caja','caja']],
+ TRASTERO_CLASES=[['armario','caja'],['casillero','caja'],['comoda','caja'],['caja','caja']];
+const BANO_JUSTO=['ducha:0.8x0.8','inodoro','lavamanos:0.45x0.36'];
 const fitsMin=(q,k)=>{const w=q.u1-q.u0,d=q.v1-q.v0,M=MINIMOS[k];return !!M&&['hondo','ancho'].some(o=>M[o]&&w*d>=.85*M[o][0]*M[o][1]&&Math.min(w,d)>=Math.min(...M[o])-.3);};
 function furnish(F,plan,open,r,want){const items=[];
  // (en cada departamento, el dormitorio más grande es el principal)
@@ -759,14 +890,46 @@ function furnish(F,plan,open,r,want){const items=[];
   // La cocina angosta (2 m): en línea, sin mesa, y la nevera al final: como no es esencial, va sólo si cabe sin
   // estorbar (con la fachada a lo largo no entran las tres cosas).
   if(q.type==='cocina'&&Math.min(q.u1-q.u0,q.v1-q.v0)<2.5)recipe=RECIPE.cocina_linea;
-  let C=null,used=recipe;const lists=q.unit&&PROG_BY[q.type];
-  if(lists)for(const k of (q.type==='dormitorio'&&!first.has(q)?lists[1]:lists[0])){if(k==='*'){const c=catalogFor(q,open,recipe);if(!c[0].missing){C=c;break;}continue;}if(!fitsMin(q,k))continue;
+  // (2026-11-21, calibración: en una sala con cocina de 4 m de ancho o menos, el escritorio opcional más la mesa cerraban el
+  // paso al hall de las alcobas —validar-interiores, ciudad 1, lote 50, con las franjas de 4 y 2 m—. Ahí no va)
+  if(q.type==='sala_cocina'&&Math.min(q.u1-q.u0,q.v1-q.v0)<=4+1e-6)recipe=recipe.filter(e=>e!=='escritorio?');
+  // (el trastero de un piso de departamentos: 2 × 4 m, sólo cajas —con el estante del depósito de siempre, a la del fondo no
+  // se llegaba caminando: validar-juego—)
+  // LO QUE SE GUARDA (2026-11-21, Miguel: «hay muchas partes donde hay cajas que deberían ser otro tipo de muebles»): todo
+  // depósito llevaba tres cajas —610 de las 687 cajas de la ciudad 1— y todo trastero, dos. Ahora cada uno es de una clase,
+  // siempre la misma para ese cuarto (sale de dónde está, sin gastar azar: lo demás de la ciudad no se mueve): bodega con
+  // armario, archivo muerto, casilleros, ropero o cómoda. Todos conservan al menos una caja: en planta baja es donde se
+  // esconde la bolsa. Sólo muebles que ya tienen su modelo y su regla de choque.
+  let variante='';
+  if(q.trastero||q.type==='deposito'&&!q.giro){const L=q.trastero?TRASTERO_CLASES:DEPOSITO_CLASES,i=Math.abs(Math.round(q.u0*31+q.v0*17+(q.Lu||0)*5+(q.Lv||0)*3+(q.u1-q.u0)*7))%L.length;recipe=L[i];variante=(q.trastero?'|trastero':'|deposito')+i;}
+  // (2026-11-20: el baño que no es de nadie —sin departamento y sin un cuarto al que se abra: el de un piso de oficinas, el
+  // del fondo de un local— es un sanitario: inodoro y lavamanos. Con la receta de siempre, 128 baños de oficina de la
+  // ciudad 1 tenían ducha.)
+  // (y el que mide más de 10 m² —los de 2 × 7,5 m de los lotes hondos— es un sanitario de varios puestos: dos y dos)
+  if(q.type==='bano'&&!q.unit&&!q.doorTo&&!q.propio)recipe=(q.u1-q.u0)*(q.v1-q.v0)>10?RECIPE.sanitario_grande:RECIPE.sanitario_piso;
+  let C=null,used=recipe,sinBano=null;const lists=q.unit&&PROG_BY[q.type];
+  if(lists)for(const k of (q.type==='dormitorio'&&!first.has(q)?lists[1]:lists[0])){if(k==='*'){const c=catalogFor(q,open,recipe);
+    // (2026-11-21: la receta general de un baño trae la bañera como opcional, y en un baño angosto —3 × 2 m— quedaba
+    // «entera» sin ella: un baño de departamento sin dónde bañarse, y la ducha chica de la receta justa ni se probaba.
+    // Si lo que salió no tiene ducha ni bañera, se guarda como último recurso y se sigue con la receta justa)
+    if(!c[0].missing){if(q.type==='bano'&&!c[0].items.some(it=>it.kind==='ducha'||it.kind==='banera'||it.kind==='tina')){sinBano=c;continue;}C=c;break;}continue;}
+   // (2026-11-20: antes de dejar el único baño de un departamento sin ducha —medio baño—, una ducha de 80 cm y el lavamanos
+   // chico, en otro orden: la ducha primero, al rincón)
+   // (sólo una distribución entera y en regla: sin nada delante de la ventana —validar-ciudad—; si no la hay, medio baño)
+   if(k==='medio_bano'){const c=catalogFor(q,open,BANO_JUSTO,'|justo'),v=c.find(v=>!v.missing&&v.full&&!v.win);if(v){C=[v];used=BANO_JUSTO;q.prog='bano';break;}}
+   if(!fitsMin(q,k))continue;
    const rec=[...PROGRAMS[k].recipe,...programExtras(k,q.type)];used=rec;
    const c=catalogFor(q,open,rec,'|'+k);if(!c[0].missing){C=c;q.prog=k;break;}used=recipe;}
+  // (el baño de una habitación de hotel u hospital: si con la receta general queda sin ducha ni bañera —el de 2 m de ancho a
+  // un costado—, la receta justa de los departamentos: ducha de 80 cm al rincón y lavamanos chico)
+  if(!lists&&q.type==='bano'&&q.doorTo){const c=catalogFor(q,open,recipe);if(c[0].missing||!c[0].items.some(it=>it.kind==='ducha'||it.kind==='banera'||it.kind==='tina')){const j=catalogFor(q,open,BANO_JUSTO,'|justo'),v=j.find(v=>!v.missing&&v.full&&!v.win)||j.find(v=>!v.missing);if(v){C=[v];used=BANO_JUSTO;}}}
+  if(!C&&sinBano){C=sinBano;used=recipe;}// (ni la justa entró: queda el baño sin ducha, y la auditoría lo cuenta)
   // (sin programa, la receta general; en una alcoba más chica que la doble de la norma —INTERIOR.alcobaDoble—, con cama
   // sencilla: la regla de las cortinas dejaba a veces sin programa a una de 8 m² y caía la cama de dos plazas)
   if(!C&&q.type==='dormitorio'){const a=q.u1-q.u0-MURO.tabique,b=q.v1-q.v0-MURO.tabique,N=INTERIOR.alcobaDoble;if(a*b<N.m2-1e-6||Math.min(a,b)<N.ancho-1e-6){recipe=recipe.map(e=>e==='cama'?'cama_s':e);used=recipe;}}
-  if(!C)C=catalogFor(q,open,recipe);
+  // (el catálogo se guarda por la forma del cuarto, no por la receta: el sanitario lleva su marca, o un baño de casa con la
+  // misma forma que uno de oficina heredaba el catálogo sin ducha —y al revés—)
+  if(!C)C=catalogFor(q,open,recipe,recipe===RECIPE.sanitario_piso?'|sanitario':recipe===RECIPE.sanitario_grande?'|sanitario2':variante);
   let V=C[Math.floor(r()*C.length)];
   // (si la distribución no es completa —un mueble sin uso, una puerta que no se alcanza—, se prueba sin los opcionales:
   // lo que no se puede usar no se pone; 2026-10-15)
@@ -913,7 +1076,8 @@ function furnishRoom(q,open,r,want,recipe,existing=[]){
   const table=(fixed=null)=>{const long=box.u1-box.u0>=box.v1-box.v0;for(const [w,d] of fixed?[fixed]:pick(TABLES)){const a=center('mesa',long?[w,d]:[d,w]);if(a)return a;}return null;};
   // Escritorio con su silla delante (y computador encima si toca).
   // (el escritorio con computador cuenta como alto: el monitor tapa la ventana)
-  const desk=pc=>{const a=wallFit('escritorio',pc);if(!a)return false;const it=items[items.length-1],s=it.face,cu=(a.u0+a.u1)/2,cv=(a.v0+a.v1)/2;if(pc){it.pc=true;want.pcs++;}
+  const desk=(pc,fixed=null)=>{const a=wallFit('escritorio',pc,fixed);// (fixed: la medida del programa —'escritorio:1.2x0.65'—, que antes se ignoraba)
+  if(!a)return false;const it=items[items.length-1],s=it.face,cu=(a.u0+a.u1)/2,cv=(a.v0+a.v1)/2;if(pc){it.pc=true;want.pcs++;}
    const ch=s==='n'?{u0:cu-.25,u1:cu+.25,v0:a.v1,v1:a.v1+.5}:s==='s'?{u0:cu-.25,u1:cu+.25,v0:a.v0-.5,v1:a.v0}:s==='w'?{u0:a.u1,u1:a.u1+.5,v0:cv-.25,v1:cv+.25}:{u0:a.u0-.5,u1:a.u0,v0:cv-.25,v1:cv+.25};
    if(!hit(ch,keep)&&inside(ch)){put('silla',ch,s);const d=DIR[s];items[items.length-1].dir=[-d[0],-d[1]];}return true;};
   let missing=0;// lo obligatorio de la receta que no encontró lugar (para que el catálogo busque un intento completo)
@@ -954,7 +1118,7 @@ function furnishRoom(q,open,r,want,recipe,existing=[]){
    if(entry==='mesa_noche'&&skipNS>0){skipNS--;continue;}
    if((entry==='cama'||entry==='cama_s')&&!skipNS&&bedGroup(entry,fixed))continue;
    if(opt&&r()<.55&&!(entry==='escritorio'&&want.need&&r()<.7))continue;
-   if(entry==='escritorio'){if(!desk(must||r()<.8)&&!opt)missing++;continue;}
+   if(entry==='escritorio'){if(!desk(must||r()<.8,fixed)&&!opt)missing++;continue;}
    // El baño: tina si el cuarto es largo (a veces), si no ducha.
    // Hotel: la mitad de las habitaciones con camarote.
    if(entry==='cama_hotel')entry='cama';
@@ -985,6 +1149,11 @@ function furnishRoom(q,open,r,want,recipe,existing=[]){
       if(L>=.9)for(const s0 of [-1,1])chs.push(longU?V(cv,s0):U(cu,s0));}
      for(const [ch,d] of chs)if(inside(ch)&&!hit(ch,keep)&&!hit(ch,placed)){put('silla',ch,'c');items[items.length-1].dir=d;}}continue;}
    // (lo que también va suelto en el medio, como en un gimnasio, si contra las paredes no entra)
+   // (2026-11-20: el estante de pared volvió a tener medida, pero sólo se pone el que trae la suya en la receta —los
+   // programas de las casas: 'estante:0.9x0.38'—. El de las recetas de la ciudad (oficinas, locales, ropas) sigue sin
+   // ponerse, como desde el 17 de octubre: al devolverlo, una persona saltaba 140 m de un cuadro a otro —validar-caminar— y
+   // en los depósitos tapaba las cajas. Devolverlo a la ciudad pide recalibrar esos cuartos: queda pendiente.)
+   if(entry==='estante'&&!fixed)continue;
    if(!wallFit(entry,!!spec[2]||WIN_TALL.has(entry),fixed)&&!(SUELTO.has(entry)&&center(entry,fixed))&&!opt)missing++;}
   // Cómo quedó: puertas conectadas, muebles que se pueden usar y cuántos tapan una ventana (para elegir el mejor intento).
   const fl=flow(items,true);items.quality={missing,fill:items.reduce((a,it)=>a+(it.fit?(it.u1-it.u0)*(it.v1-it.v0):0),0)/Math.max(1,(box.u1-box.u0)*(box.v1-box.v0)),free:fl.reach/Math.max(1,fl.cells),doors:fl.doorsOk,doorsN:doorPts.length,use:fl.use.size,useN:items.filter(it=>USE_AT[it.kind]).length,win:items.filter(it=>it.kind!=='silla'&&nearWin(it)).length,tri:triangulo(items),vent:fl.ventanas,ventN:glass.filter(w=>!w.shop).length};
@@ -1033,11 +1202,26 @@ function buildLot(L,seed,stat){
     if(pt.plan.core){const C=pt.plan.core,sx0=pt.plan.lift?C.u0+2:C.u0,[px,pz]=F.pt(sx0,C.v0),[ax,az]=F.pt(sx0+1,C.v0),[bx,bz]=F.pt(sx0,C.v0+1);
      const sw=pt.plan.sw||2,d=Math.min(C.v1-C.v0,5),run=STAIR_STEPS*STAIR_TREAD;
      lv.stair={x:px,z:pz,ux:ax-px,uz:az-pz,vx:bx-px,vz:bz-pz,w:sw,d,fr:STAIR_FR,bk:+(d-STAIR_FR-run).toFixed(3),steps:STAIR_STEPS};if(pt.plan.lift)lv.liftRect=R({u0:C.u0,u1:C.u0+2,v0:C.v0,v1:C.v0+2});}
-    lv.windows.push(...pt.open.windows.map(w=>({...seg(w),shop:!!w.shop,...(w.pieza?{pieza:w.pieza}:{})})));
+    lv.windows.push(...pt.open.windows.map(w=>({...seg(w),shop:!!w.shop,...(w.pieza?{pieza:w.pieza}:{}),...(w.escalera?{escalera:true}:{})})));
     // ry: el giro del modelo (su frente, +z, hacia donde mira el mueble).
     const ryOf=it=>{const cu=(it.u0+it.u1)/2,cv=(it.v0+it.v1)/2,d=it.dir||[0,1],[ax,ay]=F.pt(cu,cv),[bx,by]=F.pt(cu+d[0],cv+d[1]);return Math.atan2(bx-ax,by-ay);};
     lv.furniture.push(...pt.items.map(it=>({kind:it.kind,...F.rect(it.u0,it.v0,it.u1,it.v1),pc:!!it.pc,...(it.fit?{fit:true}:{}),ry:ryOf(it),rt:pt.plan.rooms[it.room]?.type,giro:pt.plan.rooms[it.room]?.giro})));// rt: el tipo del cuarto
     off+=pt.plan.rooms.length;uoff+=(pt.plan.units||[]).length;});
+   // LA BISAGRA (2026-11-22, la auditoría de coherencia: «una puerta que al abrir pega contra un aparato», 280 en dos
+   // ciudades —la hoja de un baño contra el lavamanos, la de una cocineta contra el mesón—). La hoja gira desde (x0, y0)
+   // —town3d la arma así— un cuarto de vuelta hacia el cuarto al que abre; si así pega contra un aparato de obra y desde la
+   // otra jamba no, la bisagra pasa a la otra jamba (se invierte el segmento), como se hace en una obra.
+   {const OBRA_FIJA=new Set(['inodoro','lavamanos','ducha','tina','meson','estufa','nevera','lavadora']),fijos=lv.furniture.filter(f=>OBRA_FIJA.has(f.kind));
+    if(fijos.length)for(const d of lv.doors){if(d.street||d.core||d.stair||d.wide||d.bay||d.hoja===false||d.abierta)continue;const q=lv.rooms.find(r=>r.id===d.a)||lv.rooms.find(r=>r.id===d.b);if(!q)continue;
+     const len=Math.hypot(d.x1-d.x0,d.y1-d.y0);if(len>1.25||len<.6)continue;
+     const pega=(hx,hz,ox,oz)=>{const ux=(ox-hx)/len,uz=(oz-hz)/len;let nx=-uz,nz=ux;if((q.x+q.w/2-hx)*nx+(q.y+q.h/2-hz)*nz<0){nx=-nx;nz=-nz;}
+      for(const f of fijos){if(f.x>hx+len+.1||f.x+f.w<hx-len-.1||f.y>hz+len+.1||f.y+f.h<hz-len-.1)continue;for(let x=f.x+.025;x<f.x+f.w;x+=.05)for(let z=f.y+.025;z<f.y+f.h;z+=.05){const px=x-hx,pz=z-hz;if(px*px+pz*pz<(len-.03)**2&&px*ux+pz*uz>.02&&px*nx+pz*nz>.02)return true;}}return false;};
+     if(pega(d.x0,d.y0,d.x1,d.y1)){if(!pega(d.x1,d.y1,d.x0,d.y0))[d.x0,d.y0,d.x1,d.y1]=[d.x1,d.y1,d.x0,d.y0];
+      // (si pega desde las dos jambas —la cocina de un estudio contra su entrada—, abre hacia afuera: d.abreAfuera)
+      else d.abreAfuera=true;}}}
+   // (las dos alas de un edificio en L eligen su pieza por separado: el piso entero lleva la mayor —la auditoría de
+   // coherencia, «ventanas de un mismo piso a distinta altura»—)
+   {const ws=lv.windows.filter(w=>!w.shop&&w.pieza&&!w.escalera),g=k=>VIDRIO.ventana[k]??.55;if(ws.length){const mayor=ws.reduce((m,w)=>g(w.pieza)>g(m)?w.pieza:m,ws[0].pieza);for(const w of ws)w.pieza=mayor;}}
    delete lv.parts;}
   L.rect={x:L.x0*CELL,y:L.y0*CELL,w:L.w*CELL,h:L.h*CELL};
   L.parts=L.wings.map(g=>({x:g.x0*CELL,y:g.y0*CELL,w:g.w*CELL,h:g.h*CELL}));
@@ -1078,15 +1262,22 @@ export function generateBlueprint({seed=1,team=3,parks=JUEGO.parques}={}){
   buildLot(L,seed,stat);}
  const count=(fn)=>lots.reduce((a,L)=>a+L.levels.reduce((b,lv)=>b+fn(lv),0),0);
  const stats={blocks:blocks.length,byUse:blocks.reduce((a,b)=>(a[b.use]=(a[b.use]||0)+1,a),{}),lots:lots.length,byType:lots.reduce((a,L)=>(a[L.type]=(a[L.type]||0)+1,a),{}),
-  floors:lots.reduce((a,L)=>a+L.floors,0),lifts:lots.filter(L=>L.floors>=4).length,corners:lots.filter(L=>L.shape==='L').length,units:count(lv=>(lv.units||[]).length),rooms:count(lv=>lv.rooms.length),doors:count(lv=>lv.doors.length),windows:count(lv=>lv.windows.length),
+  floors:lots.reduce((a,L)=>a+L.floors,0),lifts:lots.filter(L=>L.floors>=ASCENSOR.desde).length,corners:lots.filter(L=>L.shape==='L').length,units:count(lv=>(lv.units||[]).length),rooms:count(lv=>lv.rooms.length),doors:count(lv=>lv.doors.length),windows:count(lv=>lv.windows.length),
   items:count(lv=>lv.furniture.length),pcs:count(lv=>lv.furniture.filter(f=>f.pc).length),boxes:count(lv=>lv.furniture.filter(f=>f.kind==='caja').length),withPc:lots.filter(L=>L.pcs>0).length};
  const isla=islaStage(map,lots,seed);
 
  // (la vegetación y la playa, y el equipamiento urbano, 2026-10-15: vegetacion.js y equipamiento.js, cada uno con su
  // propio azar, sobre el plano ya armado)
- const bp={seed,team,map,blocks,lots,courts,stats,isla};bp.vegetacion=plantar(bp);bp.equipamiento=equipar(bp);bp.pintura=pinturaDe(bp);bp.botines=repartir(bp);pintar(bp);marcarEntradas(bp);marcarMansardas(bp);amoblarAzoteas(bp);marcarHojas(bp);numerar(bp);cerrarCortinas(bp);return bp;
+ const bp={seed,team,map,blocks,lots,courts,stats,isla};bp.vegetacion=plantar(bp);bp.equipamiento=equipar(bp);bp.contenedores=contenedoresDe(bp);bp.pintura=pinturaDe(bp);bp.botines=repartir(bp);pintar(bp);marcarEntradas(bp);marcarMansardas(bp);abrirDepartamentos(bp);duplexDe(bp);refinarMuros(bp);amoblarAzoteas(bp);marcarHojas(bp);numerar(bp);cerrarCortinas(bp);
+ // (2026-11-21: el plano lleva decidido qué va en cada módulo de cada fachada —engine/fachada-piezas.js—; el 3D lo lee)
+ for(const L of lots)L.modulos=modulosDeFachada(bp,L);
+ // (2026-11-22: el módulo de la esquina donde llega una fachada o medianera de 25 cm se recorta —su vano no queda detrás del muro—)
+ recortarModulos(bp,vanoDeModulo);
+ return bp;
 }
 // ---------- Etapa 9: la isla ----------
+// La casa moderna del monte (2026-11-22): techo plano, liso, sin chimenea, porche, postigos ni maceteros; el marco negro.
+const CASA_MODERNA={estilo:'moderna',techo:'plano',tejado:'liso',revestimiento:'liso',chimenea:false,porche:false,postigos:false,maceteros:false,canaletas:false,marco:'negro',zocalo:'gris'};
 // Las casillas de 6 m de la isla (fuera de la ciudad) con su zona, su altura y lo disparejo que es el terreno; las
 // casas (lotes de una casilla, con su plano como cualquier edificio: buildLot), el globo, el parapente, las salidas del
 // muro y los senderos. Con su propio azar: la ciudad no cambia. Los lotes de la isla siguen la numeración de la ciudad
@@ -1101,33 +1292,8 @@ export function generateBlueprint({seed=1,team=3,parks=JUEGO.parques}={}){
 // se alisa el terreno para medir la pendiente (0: el terreno tal cual).
 // Qué se genera afuera de la ciudad (perillas): casas (pueblos, fincas, cabañas, casas sueltas) y senderos. Por ahora
 // nada: la isla queda con su terreno y las vías (ver CARRETERA.modo 'anillo').
-export const ISLA_GEN={casas:false,senderos:false,residencial:true,casasMonte:true,
- // casasArmadas: en las manzanas, casas armadas (vivienda.js: se entra, se sube, se ve por las ventanas) en lugar de
- // los modelos del pack.
- casasArmadas:true};
-// Las casas de las manzanas de la montaña: las del «Simple Buildings Pack» (public/models/edificios, escala 5; el
-// mismo que ya cargaba la isla). w: ancho del frente, d: fondo, en metros ya escalados; pisos: los del interior; el
-// frente del modelo mira a +z. Cada casa con una de las cuatro paletas (el color del techo: anaranjado, rojo, azul
-// oscuro o beige).
-// interior: el cuerpo de la casa medido en el modelo (las paredes, cortadas a 1,2 y 1,8 m): su centro (dx, dz) desde el
-// centro de la caja del modelo, sus medidas (w, d) y la puerta (desde el centro del interior, a lo largo del frente).
-// La de porche (House) tiene el cuerpo 1 m atrás; la House5 es en L: el interior es el ala de la puerta (la otra es el
-// garaje); en la House4 la puerta está 2 m a la derecha (a la izquierda, el garaje).
-export const CASAS_MONTE=[
- {m:'House',w:6.1,d:8.6,pisos:1,interior:{dx:0,dz:-.97,w:5.42,d:5.76,puerta:0}},
- {m:'House2',w:6.3,d:7.2,pisos:1,interior:{dx:.02,dz:.04,w:5.46,d:6.38,puerta:-.02}},
- // La de dos pisos: el de arriba es más chico y está retirado (4,3 × 4,65 m), y la escalera de la casa armada caería
- // en el techo de abajo: por ahora sólo se entra a la planta baja.
- {m:'House3',w:6.3,d:7.2,pisos:1,interior:{dx:.02,dz:.05,w:5.46,d:6.38,puerta:-.02}},
- {m:'House4',w:10.8,d:7.2,pisos:1,interior:{dx:.02,dz:-.065,w:10,d:6.25,puerta:2.28}},
- {m:'House5',w:10.8,d:11,pisos:1,interior:{dx:2.3,dz:.06,w:5.43,d:9.85,puerta:-.1}},
- // La tienda (con su textura propia) y los dos edificios de departamentos (15,8 m): se entra a la planta baja. Flat2
- // tiene un porche de 4 m adelante. Puerta al centro en los tres. Pesan menos que las casas y va uno por mitad, como mucho.
- // (El templo, Bank, y el hospital, no por ahora.)
- {m:'Shop',w:12.4,d:9,pisos:1,otro:true,peso:1,paletas:['Shop'],interior:{dx:0,dz:.05,w:10,d:6.78,puerta:0}},
- {m:'Flat',w:10.9,d:10.8,pisos:1,otro:true,peso:1,interior:{dx:0,dz:-.63,w:9.86,d:8.6,puerta:0}},
- {m:'Flat2',w:10.9,d:9.5,pisos:1,otro:true,peso:1,interior:{dx:0,dz:-2.02,w:9.86,d:4.56,puerta:0}}];
-export const CASAS_PALETAS=['HouseTexture1','HouseTexture2','HouseTexture3','HouseTexture4'];
+// (2026-11-22: las casas de las manzanas son siempre armadas —vivienda.js—; los modelos del pack y su opción, fuera)
+export const ISLA_GEN={casas:false,senderos:false,residencial:true,casasMonte:true};
 export const CARRETERA={modo:'grilla',grilla:{paso:42,gradoMax:14,corte:5,chaflan:0,margen:8,rellenoMax:12},conAnillo:false,salidaMax:150,salidaCorte:3,anillo:[22,58],pendienteAnillo:.07,salidas:3,carreraMin:.3,monteMin:.35,rotonda:{R:8,asf:7,isla:2.5},rotondaAv:{R:12,asf:11,isla:4.5},giro:46,liso:0,pendiente:.09,horquilla:10,corte:6,banquina:8,banquinaMax:.84,sinFranjaMax:30,separa:22,separaPropia:16,lado:1.3,cola:45};
 // (el paso de la grilla del monte, 2026-10-15: la calle de la ciudad + dos medias manzanas —MANZANA.monte: retiro, la
 // casa más honda y el patio, en casillas—: 12 + 2·18 = 48 m; antes 42 a ojo)
@@ -1569,6 +1735,7 @@ const angC=CL.map(c=>angOf(c.x,c.y));
    const r3=rng(mix(seed,cx0,cy0,7717)),gap=3;
    const borde=M.front==='N'?cy0*CELL:M.front==='S'?(cy1+1)*CELL:M.front==='W'?cx0*CELL:(cx1+1)*CELL,hacia=M.front==='N'||M.front==='W'?1:-1,ry={N:Math.PI,S:0,W:-Math.PI/2,E:Math.PI/2}[M.front];
    // Casas armadas: para cada lugar, unas casas al azar y la primera que quepa.
+   // (2026-11-22, Miguel: «para las casas, pásalas a dúplex… arquitectura moderna»: todas del estilo moderno —CASA_MODERNA—)
    // (2026-10-12: desde la familia —hogar.js—: se sortea quién vive ahí y su casa sale de sus cuartos; el estilo, al azar)
    const familia=()=>{let t=r3()*Object.values(HOGAR_PESO).reduce((a,b)=>a+b,0);for(const [k,p] of Object.entries(HOGAR_PESO)){t-=p;if(t<0)return k;}return 'familia';};
    // los tramos donde van casas: toda la mitad, o los dos lados del pasaje
@@ -1577,9 +1744,8 @@ const angC=CL.map(c=>angOf(c.x,c.y));
    // deja la otra mitad—; con «fondo − 3», dos casas de 14,25 m quedaban a 2,5 m: validar-mundo, 2026-10-17)
    const fondoMax=fondo-2.5-gap/2;
    for(const [s0,s1] of tramos){if(s1-s0<7)continue;const elegidas=[];let libre=s1-s0;
-    if(ISLA_GEN.casasArmadas){for(let k=0;k<4;k++){let c=null;for(let t=0;t<10&&!c;t++){const sp=randomHouse(r3,{hogar:planHogar(familia(),{variant:Math.floor(r3()*4)}),garaje:'no'}),pl=planHouse(sp);if(pl.w<=libre-(elegidas.length?3:0)&&pl.d<=fondoMax)c={spec:pl.spec,w:pl.w,d:pl.d};}
+    {for(let k=0;k<4;k++){let c=null;for(let t=0;t<10&&!c;t++){const sp=randomHouse(r3,{...CASA_MODERNA,hogar:planHogar(familia(),{variant:Math.floor(r3()*4)}),garaje:'no'}),pl=planHouse(sp);if(pl.w<=libre-(elegidas.length?3:0)&&pl.d<=fondoMax)c={spec:pl.spec,w:pl.w,d:pl.d};}
       if(!c)break;elegidas.push(c);libre-=c.w+(elegidas.length>1?3:0);if(r3()<.15)break;}}
-    else for(let k=0;k<4;k++){const caben=CASAS_MONTE.filter(c=>c.w<=libre-(elegidas.length?3:0)&&c.d<=fondoMax&&!(c.otro&&elegidas.some(e=>e.otro)));if(!caben.length)break;let tiro=r3()*caben.reduce((a,c)=>a+(c.peso??3),0),c=caben[0];for(const k of caben){tiro-=k.peso??3;if(tiro<0){c=k;break;}}elegidas.push(c);libre-=c.w+(elegidas.length>1?3:0);if(r3()<.15)break;}
     if(!elegidas.length)continue;const total=elegidas.reduce((a,c)=>a+c.w,0)+gap*(elegidas.length-1);let u=s0+(s1-s0-total)/2;
     for(const c of elegidas){const along=u+c.w/2,depth=borde+hacia*(2.5+c.d/2);casas.push(c.spec?{spec:c.spec,x:vert?along:depth,z:vert?depth:along,ry,nivel:M.lv,w:c.w,d:c.d,manzana:M.key,frente:M.front}:{modelo:c.m,interior:c.interior,paleta:(c.paletas||CASAS_PALETAS)[Math.floor(r3()*(c.paletas||CASAS_PALETAS).length)],pisos:c.pisos,x:vert?along:depth,z:vert?depth:along,ry,nivel:M.lv,w:c.w,d:c.d,manzana:M.key,frente:M.front});u+=c.w+gap;}}}
   // ---- El eje que sube (2026-10-15) ----

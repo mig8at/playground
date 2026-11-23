@@ -2,26 +2,33 @@
 // titilan(cajas): los pares de cajas de distinto material (o color) con una cara en el MISMO plano, mirando al mismo
 // lado y pisándose (más de 2 × 2 mm): la GPU no sabe cuál va delante y las alterna al mover la cámara. Cajas alineadas
 // a los ejes {x0,x1,y0,y1,z0,z1, mat}; soloY: la caja sólo cuenta por sus caras de arriba y abajo (un cilindro). Puro.
-const EJES=[['x','y','z'],['y','x','z'],['z','x','y']];
+const EJES=[['x','y','z'],['y','x','z'],['z','x','y']],CARAS=['x0','x1','y0','y1','z0','z1'];
 // suelos: alturas de pisos (las caras de abajo apoyadas en ellos no se ven: ni se comparan)
 export function titilan(C,{tol=1e-4,min=.002,max=200,ocultas=true,suelo=0,suelos=[]}={}){const out=[];
  // (por planos: cada cara cae en el balde de su eje, su lado y su coordenada redondeada a tol; sólo se comparan las del
  // mismo balde y del vecino. La celda de 1 m, sólo para ver si otra caja tapa la cara)
  const baldes=new Map(),q=v=>Math.round(v/tol);
- C.forEach((b,n)=>{for(const [k] of EJES){if(k!=='y'&&b.soloY)continue;for(const l of ['0','1']){const key=k+l+q(b[k+l]);(baldes.get(key)||baldes.set(key,[]).get(key)).push(n);}}});
- let celdas=null;const key=(i,j,k)=>i+','+j+','+k;
+ // (2026-11-21: la clave del balde es un número —cara × 4e9 + coordenada + 2e9—, no una cadena: armar seis cadenas por
+ // caja era la cuarta parte del tiempo de esta función en una ciudad)
+ for(let n=0;n<C.length;n++){const b=C[n];for(let f=0;f<6;f++){if(f!==2&&f!==3&&b.soloY)continue;const key=f*4e9+q(b[CARAS[f]])+2e9;let L=baldes.get(key);if(!L)baldes.set(key,L=[]);L.push(n);}}
+ let celdas=null;const key=(i,j,k)=>((i+4096)*512+(j+128))*8192+(k+4096);// (un número por celda de 1 m)
  const cerca=P=>{if(!celdas){celdas=new Map();C.forEach((b,n)=>{for(let i=Math.floor(b.x0);i<=Math.floor(b.x1);i++)for(let j=Math.floor(b.y0);j<=Math.floor(b.y1);j++)for(let k=Math.floor(b.z0);k<=Math.floor(b.z1);k++){const c=key(i,j,k);(celdas.get(c)||celdas.set(c,[]).get(c)).push(n);}});}
   return celdas.get(key(Math.floor(P.x),Math.floor(P.y),Math.floor(P.z)))||[];};
  const vistos=new Set();
- for(const [kk,lista] of baldes){const k=kk[0],l=kk[1],c0=+kk.slice(2),[,u,v]=EJES.find(e=>e[0]===k);if(k==='y'&&l==='0'&&(c0*tol<=suelo+.003||suelos.some(y=>Math.abs(c0*tol-y)<.004)))continue;
+ for(const [kk,lista] of baldes){const sig=baldes.get(kk+1);if(lista.length+(sig?sig.length:0)<2)continue;// (un par pide dos caras)
+  const f=Math.floor(kk/4e9),k=CARAS[f][0],l=CARAS[f][1],c0=kk-f*4e9-2e9,[,u,v]=EJES[f>>1];if(k==='y'&&l==='0'&&(c0*tol<=suelo+.003||suelos.some(y=>Math.abs(c0*tol-y)<.004)))continue;
   // (en el balde y el siguiente, por barrido a lo largo de u: sólo los pares que se cruzan en u —en el plano de un piso
   // caen miles de muebles y compararlos todos contra todos tardaba 20 s—)
-  const todos=[...new Set([...lista,...(baldes.get(k+l+(c0+1))||[])])].sort((p,r)=>C[p][u+'0']-C[r][u+'0']),propios=new Set(lista),activos=[];
-  for(const j of todos){const bj=C[j];for(let m=activos.length-1;m>=0;m--)if(C[activos[m]][u+'1']<=bj[u+'0']+min)activos.splice(m,1);
-   for(const i of activos){if(!propios.has(i)&&!propios.has(j))continue;const par=k+l+(i<j?i+'|'+j:j+'|'+i);if(vistos.has(par))continue;vistos.add(par);
-   const a=C[i],b=C[j];if(a.mat===b.mat||Math.abs(a[k+l]-b[k+l])>tol)continue;
-   const ou=Math.min(a[u+'1'],b[u+'1'])-Math.max(a[u+'0'],b[u+'0']),ov=Math.min(a[v+'1'],b[v+'1'])-Math.max(a[v+'0'],b[v+'0']);
-   if(!(ou>min&&ov>min))continue;
+  const u0=u+'0',u1=u+'1',v0=v+'0',v1=v+'1',kl=k+l;
+  const todos=(sig?lista.concat(sig):lista.slice()).sort((p,r)=>C[p][u0]-C[r][u0]),propios=sig?new Set(lista):null,activos=[];
+  for(const j of todos){const bj=C[j],lim=bj[u0]+min;{let w=0;for(let m=0;m<activos.length;m++){const x=activos[m];if(C[x][u1]>lim)activos[w++]=x;}activos.length=w;}
+   // (2026-11-21, medido: armar la ciudad de 720 m tardaba 22 s y 21 eran esta función; casi todo, en anotar como «visto»
+   // —una cadena y un Set por par— pares que las cuentas de abajo descartan igual. Primero las cuentas, que son baratas y
+   // dan lo mismo las dos veces que un par aparece; sólo lo que las pasa se anota)
+   for(const i of activos){const a=C[i],b=bj;if(a.mat===b.mat)continue;
+   const ov=Math.min(a[v1],b[v1])-Math.max(a[v0],b[v0]);if(!(ov>min))continue;
+   const ou=Math.min(a[u1],b[u1])-Math.max(a[u0],b[u0]);if(!(ou>min)||Math.abs(a[kl]-b[kl])>tol)continue;
+   if(propios&&!propios.has(i)&&!propios.has(j))continue;const par=kl+(i<j?i+'|'+j:j+'|'+i);if(vistos.has(par))continue;vistos.add(par);
    // (si la cara no se ve —apoyada en el suelo, o tapada por otra caja justo del lado de afuera—, no titila: se mira el
    // centro de lo que se pisan, 2 mm hacia afuera)
    // (tapada: el centro y cuatro puntos cerca de las esquinas de lo que se pisan, todos dentro de otras cajas —con un

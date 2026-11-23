@@ -25,9 +25,10 @@ for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:3}),vs=vivienda
  const llega=(p,x,z)=>{const k=p.g.idx(x,z);if(k<0)return false;for(let dj=-2;dj<=2;dj++)for(let di=-2;di<=2;di++){const kk=k+dj*p.g.nx+di;if(kk>=0&&kk<p.dist.length&&p.dist[kk]>=0)return true;}return false;};
  const afuera=(x,z)=>{const k=g.idx(x,z);if(k<0)return false;for(let dj=-3;dj<=3;dj++)for(let di=-3;di<=3;di++){const kk=k+dj*g.nx+di;if(kk>=0&&kk<dCalle.length&&isFinite(dCalle[kk]))return true;}return false;};
  for(const v of vs){const ej={semilla:s,vivienda:v.id};if(v.robables.length){med.conRobable++;for(const r of v.robables)med.robables[r.nombre]=(med.robables[r.nombre]||0)+1;}
-  if(v.tipo==='apto'){med.aptos++;if(v.puertas.length!==1)falla('apartamento sin una sola puerta de entrada',{...ej,puertas:v.puertas.length});
+  // (la puerta del ascensor de un penthouse no cuenta: se llega en ascensor, no caminando)
+  if(v.tipo==='apto'){med.aptos++;if(v.puertas.filter(d=>!d.ascensor).length!==1)falla('apartamento sin una sola puerta de entrada',{...ej,puertas:v.puertas.length});
    const lv=bp.lots[v.lote].levels.find(l=>l.level===v.nivel),cs=lv.rooms.filter(r=>r.unit===v.apto),en=(x,z)=>cs.some(r=>x>r.x&&x<r.x+r.w&&z>r.y&&z<r.y+r.h),p=navL(v.lote).find(p=>p.nivel===v.nivel);
-   for(const d of v.puertas){med.visores++;if(en(d.x,d.z))falla('el visor queda adentro del apartamento',ej);if(!p||!llega(p,d.x,d.z))falla('al visor del apartamento no se llega caminando',ej);}
+   for(const d of v.puertas){med.visores++;if(en(d.x,d.z))falla('el visor queda adentro del apartamento',ej);if(!d.ascensor&&(!p||!llega(p,d.x,d.z)))falla('al visor del apartamento no se llega caminando',ej);}
    for(const r of v.robables)if(!en(r.x,r.z))falla('lo robable queda fuera del apartamento',{...ej,objeto:r.objeto});}
   else if(v.tipo==='casaLote'){med.casas++;med.casasCiudad=(med.casasCiudad||0)+1;const cs=bp.lots[v.lote].levels.find(l=>l.level===0).rooms,en=(x,z)=>cs.some(r=>x>r.x&&x<r.x+r.w&&z>r.y&&z<r.y+r.h);
    if(!v.puertas.length)falla('casa de la ciudad sin puerta a la calle',ej);
@@ -35,7 +36,9 @@ for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:3}),vs=vivienda
    for(const r of v.robables)if(!en(r.x,r.z))falla('lo robable queda fuera de la casa de la ciudad',{...ej,objeto:r.objeto});}
   else{med.casas++;if(v.puertas.length<2)falla('casa con menos de dos puertas (calle y patio)',{...ej,puertas:v.puertas.length});const c=cuerpoCasa(bp.isla.casas[v.casa]);
    for(const d of v.puertas){med.visores++;if(d.x>c.x0&&d.x<c.x1&&d.z>c.z0&&d.z<c.z1)falla('el visor queda adentro de la casa',ej);if(!afuera(d.x,d.z))falla('al visor de la casa no se llega caminando',{...ej,x:d.x,z:d.z});}
-   for(const r of v.robables)if(!(r.x>c.x0-.01&&r.x<c.x1+.01&&r.z>c.z0-.01&&r.z<c.z1+.01))falla('lo robable queda fuera de la casa',{...ej,objeto:r.objeto});}}
+   // (arriba, la casa entera —con el voladizo sobre la entrada, 2026-11-22—: el cuerpo estirado hacia la puerta lo que sale)
+   const h=bp.isla.casas[v.casa],Vo=h.spec?.hogar?.voladizo||0,a=c.afuera,C1={x0:c.x0+(a.x<0?-Vo:0),x1:c.x1+(a.x>0?Vo:0),z0:c.z0+(a.z<0?-Vo:0),z1:c.z1+(a.z>0?Vo:0)};
+   for(const r of v.robables){const k=r.nivel>0?C1:c;if(!(r.x>k.x0-.01&&r.x<k.x1+.01&&r.z>k.z0-.01&&r.z<k.z1+.01))falla('lo robable queda fuera de la casa',{...ej,objeto:r.objeto,nivel:r.nivel});}}}
  // quién está en casa
  // quién está en casa (de las familias: sociedad.js): cubre la ronda sin huecos, en RONDAS rondas
  const SO=sociedadDe(bp);for(let ronda=0;ronda<RONDAS;ronda++){const O=ocupacionSociedad(SO,inicioRonda(s,ronda),DUR);if(O.size!==vs.length)falla('viviendas sin familia',{semilla:s,familias:O.size,viviendas:vs.length});

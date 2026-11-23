@@ -36,7 +36,8 @@ for(let seed=S0;seed<S0+N;seed++){const bp=generateBlueprint({seed,team:3});
    // (lo que sobra del núcleo además de la escalera y el ascensor: un hueco sin uso, encerrado)
    const area=lv.core.w*lv.core.h,shaft=lv.liftRect?(Math.abs(s.ux)>.5?lv.liftRect.w*lv.core.h:lv.core.w*lv.liftRect.h):0,used=sr.w*sr.h+shaft;if(area-used>.5)falla('núcleo con sobrante sin uso',{...tag(f),nucleo:lv.core,escalera:sr,ascensor:lv.liftRect});
    // (el vano de la escalera: su centro, medio metro hacia afuera del núcleo, tiene que caer en pasillo o descanso)
-   const d=lv.doors.find(d=>d.stair);if(!d){falla('escalera sin vano',tag(f));continue;}
+   // (en un penthouse —engine/duplex.js— el vano de la escalera es la puerta de entrada de la casa: da a 'escalera', con hoja)
+   const d=lv.doors.find(d=>d.stair)||lv.doors.find(d=>d.entrada&&(d.a==='escalera'||d.b==='escalera'));if(!d){falla('escalera sin vano',tag(f));continue;}
    const mx=(d.x0+d.x1)/2,mz=(d.y0+d.y1)/2,ox=mx-s.vx*.5,oz=mz-s.vz*.5,pt={x:ox-.01,y:oz-.01,w:.02,h:.02};
    const room=lv.rooms.find(q=>overlap(q,pt,0)),corr=lv.corridor.find(q=>overlap(q,pt,0));
    if(!corr&&room&&room.type!=='vestibulo')falla('el vano de la escalera da a un cuarto',{...tag(f),cuarto:room.type});
