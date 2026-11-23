@@ -56,6 +56,15 @@
         "publicar-una-ruta-en-el-api-gateway",
         "en-development-cada-ruta-elige-su-backend"
       ]
+    },
+    {
+      "repo": "infrastructure",
+      "path": ".github/workflows/production-apply.yml",
+      "commit": "fe94df2045ff2f62f3e73cfd55cdb9d0046e2e1c",
+      "blob": "1083427c2fa41a174d3a321b5cff680199ca3790",
+      "sections": [
+        "un-cambio-entra-por-pr-development-e-internal-se-aplican-al-mergear-prod-a-mano"
+      ]
     }
   ]
 }
