@@ -495,6 +495,39 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 		w.Header().Set("Cache-Control", "no-store")
 		_, _ = w.Write(png)
 	})
+	// GET /api/live/record — cómo va la grabación · POST {"action": "start"|"stop"} — empezar o terminar (record.go).
+	mux.HandleFunc("/api/live/record", func(w http.ResponseWriter, r *http.Request) {
+		tab := tabs.pick(w, r)
+		if tab == nil {
+			return
+		}
+		runner := tab.Runner
+		var (
+			info RecordingInfo
+			err  error
+		)
+		if r.Method == http.MethodGet {
+			info, err = runner.LiveRecordStatus()
+		} else {
+			var body struct {
+				Action string `json:"action"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			switch body.Action {
+			case "start":
+				info, err = runner.LiveRecordStart()
+			case "stop":
+				info, err = runner.LiveRecordStop()
+			default:
+				err = fmt.Errorf("action: start o stop, no %q", body.Action)
+			}
+		}
+		if err != nil {
+			writeErr(w, http.StatusConflict, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, info)
+	})
 	// GET /api/live/script — los pasos como script de Playwright.
 	mux.HandleFunc("/api/live/script", func(w http.ResponseWriter, r *http.Request) {
 		tab := tabs.pick(w, r)

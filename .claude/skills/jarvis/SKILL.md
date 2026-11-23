@@ -62,6 +62,9 @@ con LISTO / NO PUDE / NECESITO / CONFIRMAR.
   un teléfono, `bin/jarvis ua iphone`. Sólo toca las pestañas que él comparte desde la pestaña Jarvis y las que abre
   Claude. Un captcha lo resuelve él.
 
+- **Un video de lo que pasa en la pestaña** (un screencast para alguien, una demo): `bin/jarvis record start`, hacer el
+  recorrido y `bin/jarvis record stop video.mp4`. Sale sólo la página, a los tiempos reales (pide ffmpeg).
+
 - **Una tarea de una herramienta, de una vez** (crear un producto en VTEX, …): primero mirá si hay **receta**
   (`jarvis/recipes/README.md`, `make jarvis-recipe`). Si hay que hacerla por pantalla, el **mapa** de la herramienta
   (`make jarvis-map APP=vtex`) dice dónde está cada campo y botón: usá sus localizadores en vez de buscar con `look`.

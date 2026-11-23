@@ -246,6 +246,8 @@ func main() {
 		err = read(args)
 	case "shot":
 		err = shot(args)
+	case "record":
+		err = record(args)
 	case "steps":
 		err = steps()
 	case "script":
@@ -330,6 +332,8 @@ func help(w io.Writer) {
   groups [close G [--force] | move N G | color G C]   los grupos y sus sesiones; cerrar uno entero, pasar una
                         sesión a otro (G = - la devuelve a «Jarvis»), cambiarle el color (`+strings.Join(groupColors, ", ")+`)
   project <id> '<nombre>' <url>   un proyecto con nombre propio para un sitio real (sus flujos van a jarvis/flows/<id>)
+  record start | stop [video.mp4] | status   graba la pestaña en video (sólo la página, sin otras ventanas); stop
+                        arma el mp4 con los tiempos reales y, con un archivo, lo copia ahí
   steps · script · report [meta] · reset
   ask [--url URL] [--steps 40] [--answer R] [--guide] "<meta>"   Claude maneja la sesión hasta cumplir la meta`)
 }
@@ -338,7 +342,7 @@ func help(w io.Writer) {
 // sirve para sugerir uno cuando se escribe mal: el switch de main es el que manda.
 var commands = []string{"start", "chrome", "docs", "recipe", "tabs", "groups", "focus", "cleanup", "attention", "console", "network", "batch", "flows", "think", "finish", "project", "ask", "open", "device", "ua", "look",
 	"click", "dblclick", "hover", "check", "uncheck", "fill", "select", "press", "upload", "drag", "point", "changes", "dialog",
-	"scroll", "goto", "back", "forward", "reload", "text", "wait", "value", "download", "read", "shot", "steps", "script", "report",
+	"scroll", "goto", "back", "forward", "reload", "text", "wait", "value", "download", "read", "shot", "record", "steps", "script", "report",
 	"reset", "close", "help"}
 
 // suggest propone los comandos que empiezan con lo escrito, o de los que lo escrito es el comienzo («clic» → click,

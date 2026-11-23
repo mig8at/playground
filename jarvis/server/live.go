@@ -217,10 +217,16 @@ type live struct {
 	// Una ventana emergente que abrió la persona a mano (un login con Google): se ve y se maneja en el editor
 	// hasta que se cierra.
 	popup playwright.Page
+
+	// La grabación en video de la pestaña, si hay una en curso (record.go).
+	rec *recording
 }
 
 func (l *live) broadcast(frame []byte) {
 	l.mu.Lock()
+	if rec := l.rec; rec != nil {
+		rec.push(frame)
+	}
 	l.lastFrame = frame
 	for ch := range l.subs {
 		select {
@@ -490,6 +496,10 @@ func (r *Runner) runLive(ctx context.Context, site Site, start string, ready cha
 			}
 		} else if err := l.saveDevlog(); err != nil {
 			r.say("warn", "no se guardó la consola y la red de la corrida: %v", err)
+		}
+		// Una grabación en curso se arma igual al cerrarse la sesión.
+		if info, err := l.stopRecording(); err == nil {
+			r.say("info", "la sesión se cerró grabando: el video quedó en %s", info.Video)
 		}
 		r.mu.Lock()
 		r.live = nil
