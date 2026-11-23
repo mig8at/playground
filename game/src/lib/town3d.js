@@ -15,7 +15,7 @@ import {texturaDeMuro} from '../engine/fachada-medida.js';
 import {modulosDeFachada,VENTANAL as VENTANAL_PLANO,TERRAZA} from '../engine/fachada-piezas.js';
 import {PUERTA_DOBLE,MARQUESINA,VENTANAL} from './fachada3d.js';
 import {pendienteEn} from '../engine/techos.js';
-import {ALTURA,COLUMNA,CHOQUE_MUEBLE,CORTINA,AZOTEA,MANSARDA,esVidriera} from '../engine/medidas.js';
+import {ALTURA,COLUMNA,CHOQUE_MUEBLE,CORTINA,AZOTEA,MANSARDA,ESCALERA,esVidriera} from '../engine/medidas.js';
 import {cuartoDeVentana,peliculaCerrada,PELICULA} from '../engine/cortinas.js';
 import {esVivienda} from '../engine/entrega.js';
 import {piezasSinTitilar} from '../engine/titileo.js';
@@ -721,12 +721,12 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
    (stairOf), M (un material de STAIRS), floors pisos de FLOOR m, hallC (el color del muro del medio), A0/A1 (las caras
    de las paredes de afuera de los carriles, en el eje a) y BD (la de la pared del fondo, en b). box(x,y,z,sx,sy,sz,
    color,f) y boxes reciben las cajas; wallAny(x0,z0,x1,z1,y0,y1), los choques (en el taller, nada). */
-export function stairBoxes(ST,M,{floors,FLOOR,hallC,A0=.07,A1,BD,box,boxes,wallAny=()=>{},deco=0,frenteCerrado=false}){
-   const {sd,run,P,FR,BK,W,HW,N}=ST;if(A1==null)A1=W-.07;const rise=1.5/N,tread=run/N,alongX=Math.abs(sd.ux)>.5,TH=.045,NO=.03;if(BD==null)BD=sd.d-.07;
+export function stairBoxes(ST,M,{floors,FLOOR,hallC,A0=ESCALERA.borde,A1,BD,box,boxes,wallAny=()=>{},deco=0,frenteCerrado=false}){
+   const {sd,run,P,FR,BK,W,HW,N}=ST;if(A1==null)A1=W-ESCALERA.borde;const rise=1.5/N,tread=run/N,alongX=Math.abs(sd.ux)>.5,TH=.045,NO=.03;if(BD==null)BD=sd.d-.07;
    // Una caja en coordenadas de la escalera: centro (a,b), ancho da (a lo ancho de los carriles) y fondo db.
    const sbox=(a,b,y,da,db,hh,color,f)=>{const [x,z]=P(a,b);box(x,y,z,alongX?da:db,hh,alongX?db:da,color,f);};
    const swall=(a0,b0,a1,b1,y0,y1)=>{const [x0,z0]=P(a0,b0),[x1,z1]=P(a1,b1);wallAny(Math.min(x0,x1)-.05,Math.min(z0,z1)-.05,Math.max(x0,x1)+.05,Math.max(z0,z1)+.05,y0,y1);};
-   const M0=HW-.05,M1=HW+.05,cA=(A0+M0)/2,cB=(M1+A1)/2,wA=M0-A0,wB=A1-M1;
+   const M0=HW-ESCALERA.medio/2,M1=HW+ESCALERA.medio/2,cA=(A0+M0)/2,cB=(M1+A1)/2,wA=M0-A0,wB=A1-M1;
    // Del primer piso para arriba los tramos no son macizos hasta la losa: debajo pasa el tramo del piso de abajo (2026-10-15:
    // un bloque desde el suelo dejaba 1,5 m sobre los pies en el carril A y en el descanso, y la cabeza se metía en él).
    // Cada peldaño baja sólo SOFF por debajo de su contrahuella (una losa inclinada en escalones) y el descanso es una losa.

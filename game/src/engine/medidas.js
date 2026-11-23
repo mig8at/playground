@@ -127,8 +127,16 @@ export const VENTANAS_VIVIENDA=['piedra','clave','ventanal'],VIDRIO_VIVIENDA=.45
 // extracción.
 export const HABITABLE=new Set(['dormitorio','dormitorio_b','sala','sala_cocina','estudio','habitacion','habitacion_h','oficina','abierta','reuniones','aula','consultorio','sala_prof','lectura','comedor','recepcion','enfermeria','secretaria']);
 
-// La escalera en U del núcleo (ver blueprint.js layoutFloor y town3d.js stairOf/stairBoxes).
-export const ESCALERA={ancho:4,anchoAngosta:2,peldanos:9,huella:.28,umbral:.1,ascensor:2,fondoNucleo:4};
+// La escalera en U del núcleo (ver blueprint.js layoutFloor y town3d.js stairOf/stairBoxes). Contra la NSR-10, Título K
+// (game/ARQUITECTURA.md §1; lo cruza validar-medidas):
+//  · huella (2026-11-23): 2 contrahuellas + 1 huella entre 620 y 640 mm (K.3.8.3.4 c). Con 18 contrahuellas por piso de
+//    3 m (166,7 mm) y 28 cm de huella daba 613; con 29, 623. Cada tramo de 9 peldaños se alarga 9 cm y el descanso queda
+//    en 1,29 m (la norma pide el ancho del tramo, sin pasar de 1,20: K.3.8.3.5).
+//  · anchoAngosta (2026-11-23): con 2 m cada tramo dejaba 0,88 m libres —bajo MINIMO.tramo y bajo la norma, 0,90 m
+//    (K.3.8.3.3)—; lo menos que deja MINIMO.tramo libre entre el muro (borde) y la pared del medio (medio), en la grilla de
+//    0,5 m, es 2,5. (En 20 ciudades ningún núcleo salió angosto: es la regla para cuando toque.)
+//  · borde: lo que ocupa el muro a cada lado de los tramos; medio: la pared entre los dos tramos (town3d stairBoxes).
+export const ESCALERA={ancho:4,anchoAngosta:2.5,peldanos:9,huella:.29,umbral:.1,ascensor:2,fondoNucleo:4,borde:.07,medio:.1};
 // Lo más lejos que puede quedar la escalera de una punta del pasillo (elegido: con 16 m, el recorrido más largo dentro de
 // un departamento entra en los 45 de MINIMO.evacuacion; lo comprueba validar-ciudad).
 ESCALERA.pasilloMax=16;

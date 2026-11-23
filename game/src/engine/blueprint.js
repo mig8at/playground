@@ -465,8 +465,9 @@ function suites(a,b,v0,v1,corr,r,band,type){const SB=SUITE_BANO(),out=[],D=v1-v0
 // El ancho de la escalera del núcleo en un ala de Lu × Lv m (ver layoutFloor).
 export const STAIR_W=ESCALERA.ancho;
 export const stairWidth=(Lu,Lv)=>Lv<=8&&Lu-STAIR_W<4?ESCALERA.anchoAngosta:STAIR_W;
-// La escalera en U: FR m de umbral, tramos de 9 peldaños de 28 cm de huella (y 16,7 cm de alto: 18 por piso de 3 m) y
-// el descanso con lo que queda del fondo del núcleo (2026-10-15: antes 10 peldaños de 25 × 15 cm y descanso de 1 m).
+// La escalera en U: FR m de umbral, tramos de 9 peldaños de 29 cm de huella (y 16,7 cm de alto: 18 por piso de 3 m) y
+// el descanso con lo que queda del fondo del núcleo (2026-10-15: antes 10 peldaños de 25 × 15 cm y descanso de 1 m;
+// 2026-11-23: huella de 28 a 29 cm por la NSR-10 —medidas.js ESCALERA—).
 export const STAIR_STEPS=ESCALERA.peldanos,STAIR_TREAD=ESCALERA.huella,STAIR_FR=ESCALERA.umbral;
 // opt.noCore: el ala del costado de una L (sin núcleo: su pasillo sigue en el ala principal). opt.reserve: {u0,u1},
 // un paso de 2 m en la franja de atrás del ala principal, donde llega el pasillo del ala del costado.
@@ -487,7 +488,7 @@ const ENSANCHE_MAX=4,TRASTEROS=[['ropas',2,2],['deposito',2,2],['deposito',2,2],
 function layoutFloor(L,F,level,r,opt={}){
  // Núcleo: la escalera (STAIR_W m: dos tramos de ~1,9 m, medidas reales y cómoda para jugar, 2026-10-15; antes 2 m,
  // tramos de 0,88 m) y, desde ASCENSOR.desde pisos, el ascensor de 2 m al lado. Donde no cabe —un lote de 6 m de frente y una sola
- // fila de cuartos— la escalera vuelve a 2 m y sin ascensor, para que el piso tenga cuartos.
+ // fila de cuartos— la escalera se angosta a ESCALERA.anchoAngosta (2,5 m: tramos de 1,13 m) y sin ascensor, para que el piso tenga cuartos.
  const {Lu,Lv}=F,T=TYPES[L.type],sw=stairWidth(Lu,Lv),lift=L.floors>=ASCENSOR.desde&&!(Lv<=8&&Lu-sw-2<4),cw=sw+(lift?2:0);
  const rooms=[],corr=[],units=[];let core;
  const homes=level>0&&(L.type==='vivienda'||L.type==='comercio'||L.type==='residencial');// pisos de departamentos

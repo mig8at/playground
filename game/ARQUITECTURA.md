@@ -78,20 +78,22 @@ personas, así que en vivienda casi siempre basta 0,90 m.
 
 ### Contra el motor (`src/engine/blueprint.js`, `src/engine/medidas.js` ESCALERA), al 2026-11-23
 
+Medido sin navegador, sobre el plano y las mismas cuentas del 3D (`stairOf`/`stairBoxes`), en 20 ciudades: 1.516
+escaleras de núcleo. Lo que dice la norma sobre la escalera lo cruza `validar-medidas` (nivel 0 del probador).
+
 | regla del motor | la norma | qué hay |
 |---|---|---|
-| huella 0,28 m (`ESCALERA.huella`) | ≥ 280 mm | cumple, justo |
+| huella 0,29 m (`ESCALERA.huella`; era 0,28) | ≥ 280 mm | cumple |
 | 18 contrahuellas por piso de 3 m = 166,7 mm | 100 a 180 mm | cumple |
-| 2C + H = 2 × 166,7 + 280 = **613 mm** | **620 a 640 mm** | **no cumple por 7 mm**. Con huella de 0,29 m da 623 mm (cada tramo de 9 peldaños se alarga 9 cm) |
+| 2C + H = 2 × 166,7 + 290 = 623 mm | 620 a 640 mm | **corregido el 2026-11-23**: con 0,28 daba 613 mm; cada tramo se alargó 9 cm |
 | núcleo de 4 m: dos tramos de ~1,9 m | ≥ 0,90 m (1,20 de uso público) | cumple de sobra; se podría angostar y dar el resto a departamentos |
-| núcleo angosto de 2 m (`anchoAngosta`): tramos de 0,88 m, según el comentario de `layoutFloor` | ≥ 0,90 m con carga < 50 | **no cumple por 2 cm**, si el comentario sigue vigente; medirlo en el 3D |
-| descanso: fondo del núcleo (4 m) − 9 × 0,28 − umbral 0,1 ≈ 1,38 m | ≥ ancho del tramo, hasta 1,20 m | cumple |
-| una escalera por edificio, vivienda de 3 a 7 pisos (+2 en avenida) | una sola, sólo bajo 15 m, ≤ 400 m² y ≤ 15 m de recorrido; desde 6 pisos, una a prueba de humo | **desde ~5–6 pisos falta**: vestíbulo y cerramiento (o una segunda salida) |
+| núcleo angosto (`anchoAngosta`): 2,5 m, tramos de 1,13 m (era 2 m: 0,88 m) | ≥ 0,90 m con carga < 50 (y `MINIMO.tramo`, 1 m) | **corregido el 2026-11-23**. En 20 ciudades ningún núcleo salió angosto: es la regla para cuando toque |
+| descanso: fondo del núcleo (4 m) − 9 × 0,29 − umbral 0,1 = 1,29 m (era 1,38) | ≥ ancho del tramo, hasta 1,20 m | cumple |
+| una escalera por edificio, vivienda de 3 a 7 pisos (+2 en avenida) | una sola, sólo bajo 15 m, ≤ 400 m² y ≤ 15 m de recorrido; desde 6 pisos, una a prueba de humo | **sin corregir**: en 20 ciudades, 94 de 1.516 edificios tienen 15 m o más (60 de 5 pisos, 30 de 6, 2 de 8, 2 de 9) con una sola escalera abierta. Falta vestíbulo y cerramiento, o una segunda salida |
 | ascensor desde 6 pisos (`ASCENSOR.desde`, decisión de Miguel 2026-11-22) | no hay umbral | es diseño, no norma; si lo hay, que quepa una silla de ruedas |
 | núcleo «en el fondo, nunca en la fachada» | una escalera exterior está permitida | la regla del motor es de aprovechamiento, no de norma |
 | pasillo ciego: hasta 2 m (`ALARGA_MAX`) o 4 m (`ENSANCHE_MAX`) | 6 m cuando se exigen dos salidas | cumple |
 
-Las cuentas del motor salen de leer el código, no de una corrida: antes de volverlas prueba, medirlas sobre ciudades.
 
 ### Dónde una escalera con vista paga (oficio, sin fuente todavía)
 
