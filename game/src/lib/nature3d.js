@@ -152,7 +152,7 @@ export function plantInstances(kit,name,items,group,{shadow=true}={}){
 // versión de lejos es EL MISMO modelo simplificado (meshoptimizer: junta los vértices que se pueden juntar con el menor error
 // en la forma, así que la silueta queda y se va el detalle chico), en dos pasos: NIVELES_PLANTA. Las tres geometrías van en la
 // misma malla por lotes de cada material y cada planta cambia la suya según la distancia (con margen para no titilar).
-export const NIVELES_PLANTA=[{ratio:1,desde:0},{ratio:.45,desde:25},{ratio:.18,desde:50}],VUELVE_PLANTA=.85;
+export const NIVELES_PLANTA=[{ratio:1,desde:0},{ratio:.45,desde:25},{ratio:.18,desde:50},{ratio:.08,desde:90}],VUELVE_PLANTA=.85;// (2026-11-22: el tercer paso, 8 % desde 90 m —Miguel: «agrega el tercer paso»—)
 // (los índices de una parte, simplificados a ratio de sus triángulos: se juntan antes los vértices repetidos —los de las
 // costuras de normales— para que el simplificador vea una sola malla)
 function simplificar(posAttr,idx,ratio){if(ratio>=1)return idx;const n=posAttr.count,pos=new Float32Array(n*3);for(let i=0;i<n;i++){pos[i*3]=posAttr.getX(i);pos[i*3+1]=posAttr.getY(i);pos[i*3+2]=posAttr.getZ(i);}
