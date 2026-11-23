@@ -89,11 +89,23 @@ escaleras de núcleo. Lo que dice la norma sobre la escalera lo cruza `validar-m
 | núcleo de 4 m: dos tramos de ~1,9 m | ≥ 0,90 m (1,20 de uso público) | cumple de sobra; se podría angostar y dar el resto a departamentos |
 | núcleo angosto (`anchoAngosta`): 2,5 m, tramos de 1,13 m (era 2 m: 0,88 m) | ≥ 0,90 m con carga < 50 (y `MINIMO.tramo`, 1 m) | **corregido el 2026-11-23**. En 20 ciudades ningún núcleo salió angosto: es la regla para cuando toque |
 | descanso: fondo del núcleo (4 m) − 9 × 0,29 − umbral 0,1 = 1,29 m (era 1,38) | ≥ ancho del tramo, hasta 1,20 m | cumple |
-| una escalera por edificio, vivienda de 3 a 7 pisos (+2 en avenida) | una sola, sólo bajo 15 m, ≤ 400 m² y ≤ 15 m de recorrido; desde 6 pisos, una a prueba de humo | **sin corregir**: en 20 ciudades, 94 de 1.516 edificios tienen 15 m o más (60 de 5 pisos, 30 de 6, 2 de 8, 2 de 9) con una sola escalera abierta. Falta vestíbulo y cerramiento, o una segunda salida |
+| una escalera por edificio, vivienda de 3 a 7 pisos (+2 en avenida) | una sola, sólo bajo 15 m, ≤ 400 m² y ≤ 15 m de recorrido; desde 6 pisos, una a prueba de humo | **sin corregir**: en 20 ciudades, de 1.516 edificios con escalera, 94 tienen 15 m o más con una sola escalera abierta al pasillo (un vano de ~3,8 m). Vivienda (o comercio con departamentos arriba): 62 (40 de 5 pisos, 18 de 6, 2 de 8, 2 de 9); oficinas 24, hoteles 7, hospital 1 (otros grupos: la regla de una salida de R-2 no les toca, la de 6 pisos sí) |
 | ascensor desde 6 pisos (`ASCENSOR.desde`, decisión de Miguel 2026-11-22) | no hay umbral | es diseño, no norma; si lo hay, que quepa una silla de ruedas |
 | núcleo «en el fondo, nunca en la fachada» | una escalera exterior está permitida | la regla del motor es de aprovechamiento, no de norma |
 | pasillo ciego: hasta 2 m (`ALARGA_MAX`) o 4 m (`ENSANCHE_MAX`) | 6 m cuando se exigen dos salidas | cumple |
 
+
+### Por qué la escalera protegida no cabe en el núcleo de hoy (medido el 2026-11-23)
+
+En las 20 ciudades, todas las escaleras de núcleo tienen 4 m de fondo (`ESCALERA.fondoNucleo`): 0,10 m de umbral, 2,61
+de tramo y 1,29 de descanso atrás. Del lado del pasillo la escalera es un vano abierto. Una escalera a prueba de humo
+pide, en cada piso, entrar por un descanso o plataforma **al menos del ancho de la escalera** (K.3.8.7.3), con
+vestíbulo y muros (K.3.8.7.1). Con 1,20 m de plataforma más el vestíbulo, el núcleo pasa de 4 m a ~5,5 m de fondo, y en
+los lotes de hasta 14 m de fondo la franja de atrás mide 4,5 m: no entra sin tomarlo de los departamentos o del
+pasillo. Es una decisión de diseño (Miguel), no una cuenta.
+
+Interpretación, sin confirmar con una curaduría: K.3.18.2.1 permite una sola salida por piso sólo bajo 15 m; la tabla
+K.3.4-1 pide una sola salida hasta 100 ocupantes. En Bogotá es común una sola escalera protegida en torres de vivienda.
 
 ### Dónde una escalera con vista paga (oficio, sin fuente todavía)
 
