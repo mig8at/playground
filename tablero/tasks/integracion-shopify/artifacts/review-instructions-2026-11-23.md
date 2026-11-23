@@ -7,7 +7,7 @@ pila de la tarea. Lo que va entre corchetes se llena antes de enviar.
 Antes de enviar, confirmar con una captura:
 - ✔ el interruptor se llama «Modo de prueba» en la configuración de pagos de Creditop (captura de Miguel del 2026-11-23);
 - ✔ la sucursal dedicada `e1a675cc3` (producción, sucursal 2623) pasó «Guardar cambios» y las cuatro pruebas el 2026-11-23;
-- ✗ la sucursal tiene 9 entidades activas: pedido a Oscar que se las quite antes de enviar.
+- ✔ la sucursal quedó sin entidades (Oscar, 2026-11-23) y el modo de prueba sigue funcionando.
 
 El token NO se escribe en este archivo: se pega directo en el formulario de Shopify.
 
