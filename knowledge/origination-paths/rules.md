@@ -201,7 +201,7 @@ nueva del riel (Finandina) no hereda sola.
 | **Fecha de pago y plan** | opciones, fechas, cuotas y fianza | del riel, por perfil: las rutas `payment-plan/{lender_slug}/…` atienden a cualquier entidad tipo 4 por su `slug` (`DelegatedOriginationLenders::findBySlug`; 404 si no es del riel) y lo que cambia entre entidades (fuente y tipo de fianza, 4x1000, días de pago, fuente de insumos) se lee de `delegated_origination_profiles` (`DelegatedOriginationLenderProfile`). Una entidad del riel sin fila de perfil hace fallar el cálculo. Sigue atado: la única fuente de insumos registrada es la preaprobación de Credifamilia (`DelegatedOriginationInputsSources`), `payment-plan/credifamilia/calculate` es sólo de Credifamilia, y sin entidad explícita el cálculo cae a Credifamilia Salud (`CredifamiliaLenders::engineLenderIdFor`) ([rieles](knowledge:lender-response-types)) |
 | **Formulario adicional** | un formulario dinámico antes de firmar; sus respuestas alimentan los PDF | del riel, por configuración (Credifamilia tiene el suyo) |
 | **Documentos** | `pdf-mapper` llena los PDF (vinculación, fondo de garantías, plan de pagos, reglamento, términos y autorización de desembolso) con los datos del cliente y las respuestas del formulario | atado: `CredifamiliaDocumentsBuilder`, elegido por `CredifamiliaLenders::supports` y con la configuración de la entidad de Credifamilia |
-| **Firma** | los documentos se firman con Netco | hay dos caminos: el fijo de Credifamilia y uno **configurable por entidad** (`netco_lender_settings` encendido, módulo SigningV1), que va antes |
+| **Firma** | los documentos se firman con Netco | el juego lo elige `PromissoryNoteController` en un orden fijo: la firma configurable por entidad va antes que el juego fijo de Credifamilia ([la firma en casa](knowledge:origination-paths#la-firma-en-casa-que-documentos-se-muestran-y-se-firman)) |
 | **Pagaré** | desmaterializado en Deceval, con la credencial de la entidad | del riel, por configuración ([pagaré](knowledge:deceval-promissory-note)) |
 | **Autorización** | con el OTP de la firma, la solicitud pasa a estado 11 | del riel (de cualquier riel en casa) |
 | **Formalización** | se entrega el crédito a la entidad | por perfil: la autorización lee `delegated_origination_profiles.formalization` y la resuelve con `DelegatedOriginationFormalizations`; sin formalización configurada no se radica. La única registrada es `credifamilia_radication`: `CredifamiliaFormalizationService` reúne y valida los documentos de Credifamilia (`collect`), pide a `LenderServiceFactory` el servicio de cierre de la entidad (`LenderFinalizationServiceInterface`; el de Credifamilia es la radicación SOAP) para fallar rápido, recién entonces los une en un PDF (`mergeUrlsToBase64`) y llama a `finalize` |
@@ -212,6 +212,27 @@ fila en `delegated_origination_profiles` (fianza, 4x1000, días de pago, fuente 
 formalización). **Código propio**: su adaptador de preaprobación y, si no son las de Credifamilia, su
 fuente de insumos y su formalización, cada una registrada por clave. **Generalizar lo atado**: los
 documentos, que siguen siendo los de Credifamilia.
+
+## La firma en casa: qué documentos se muestran y se firman
+
+En los rieles que se originan en casa, la pantalla de documentos la arma `PromissoryNoteController`. Antes de mostrar
+nada pasan dos guardas: si el perfil del cliente exige codeudor y no hay uno aprobado, no se muestra ningún documento;
+y si la oferta cambió (`OfferStillStandsGuard`), tampoco. Después se queda con el primer juego que aplica:
+
+1. **La firma configurable por entidad** (módulo SigningV1), si la entidad tiene su fila en `netco_lender_settings`
+   con `enabled = 1`.
+2. **El juego fijo de Credifamilia**, sólo para sus entidades (`CredifamiliaLenders::supports`):
+   `CredifamiliaDocumentsBuilder` llena los PDF con pdf-mapper y los firma con Netco si hay proveedor.
+3. **El catálogo de la entidad** (`lender_signing_documents`), si tiene filas para la rama del cliente, con o sin
+   codeudor ([la firma del codeudor](knowledge:cosigner-signature)).
+4. **El juego estándar:** consentimiento, pagaré y garantía.
+
+La previsualización y la firma eligen con la misma regla, y los documentos quedan registrados como generados antes
+de firmar. El pagaré se desmaterializa en Deceval sólo si `lenders.promissory_type_id` es 2
+([el pagaré](knowledge:deceval-promissory-note)). La firma se confirma con un OTP; ahí se autoriza y, en el riel 4,
+corre después la formalización.
+
+Una entidad nueva del riel 4 sin firma configurable ni catálogo firma el juego estándar, no sus propios documentos.
 
 ## Desenlace: cómo termina
 

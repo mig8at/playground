@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Rieles de una entidad: response_type",
   "summary": "Qué separa a los tipos 0 a 4 de una entidad (de quién es la política y por qué riel se origina), qué dispara cada uno en el código y por qué la cobranza externa es otro eje.",
-  "reviewedAt": "2026-11-17T12:52:59+00:00",
+  "reviewedAt": "2026-11-23T12:00:00-05:00",
   "sources": [
     {
       "repo": "frontend-monorepo",
@@ -124,7 +124,8 @@
       "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
       "blob": "5b253d8b80249892d59ff2946924cb52cc53598c",
       "sections": [
-        "tipo-4-politica-de-la-entidad-rieles-de-creditop"
+        "tipo-4-politica-de-la-entidad-rieles-de-creditop",
+        "el-plan-del-riel-4-una-ruta-por-pantalla-y-un-solo-calculo"
       ]
     },
     {
@@ -259,7 +260,8 @@
       "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
       "blob": "9fe1053db4e661eadc0e6478d19d239ea7e311a1",
       "sections": [
-        "tipo-4-politica-de-la-entidad-rieles-de-creditop"
+        "tipo-4-politica-de-la-entidad-rieles-de-creditop",
+        "el-plan-del-riel-4-una-ruta-por-pantalla-y-un-solo-calculo"
       ]
     },
     {
@@ -342,6 +344,24 @@
       "sections": [
         "tipos-0-y-1-la-entidad-origina-en-su-flujo",
         "tipo-4-politica-de-la-entidad-rieles-de-creditop"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/PaymentPlan/DelegatedOrigination/Engine/AmortizationEngine.php",
+      "commit": "e76dc44419cfe137d0de17bfdf547e06dce03cbe",
+      "blob": "76a2d61012378b1de5c2d95c52091ae9f68e71c5",
+      "sections": [
+        "el-plan-del-riel-4-una-ruta-por-pantalla-y-un-solo-calculo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/PaymentPlan/DelegatedOrigination/Engine/CalculationContext.php",
+      "commit": "e76dc44419cfe137d0de17bfdf547e06dce03cbe",
+      "blob": "81da92c4adc5d4bb567444a68c84c1c5308a780f",
+      "sections": [
+        "el-plan-del-riel-4-una-ruta-por-pantalla-y-un-solo-calculo"
       ]
     }
   ]

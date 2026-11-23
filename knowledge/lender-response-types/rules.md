@@ -158,6 +158,34 @@ el 2 y el 3 al buscar la última solicitud de un usuario en la validación manua
 de entidades (`LenderRetrievalService`) trata al 24 por id, no por tipo: le reescribe `response_type` a 1
 y, con link de pago, lo incluye junto a las de tipo 1.
 
+## El plan del riel 4: una ruta por pantalla y un solo cálculo
+
+El asistente pide cada pantalla del plan a `payment-plan/{lender_slug}/…` (`Modules/Onboarding/routes/api.php`):
+
+| ruta | pantalla | devuelve |
+|---|---|---|
+| `loan-options/{solicitud}/{monto}` | la tarjeta, antes de elegir | los plazos con su cuota para ese monto |
+| `payment-dates/{solicitud}` | fecha de pago | una primera fecha por día de `payment_days` |
+| `installment-plan/{solicitud}/{día}` | plan de cuotas | las cuotas con el día elegido |
+| `payment-plan-summary/{solicitud}` | resumen antes de firmar | tasa, fianza con IVA, 4x1000, seguro y total |
+| `continue-request/{solicitud}` | retomar la solicitud | las cuotas, y el total de la fianza anticipada |
+| `voucher/{solicitud}` | después de autorizar | el comprobante |
+
+Todas calculan con el mismo motor (`AmortizationEngine`, fórmula `CREDIFAMILIA_V1_FRENCH_TEA_DAYS360_EU`), sobre los
+insumos de la fuente que nombra el perfil:
+
+- **Fianza:** base = monto × % de fianza; IVA sobre la base; 4x1000 sobre base + IVA, si el perfil lo cobra.
+- **Lo que se financia:** con fianza anticipada, el monto más la fianza total; con vencida, el monto, y la fianza se
+  reparte en partes iguales en las cuotas.
+- **Tasa:** la mensual sale de la efectiva anual, `(1 + TEA)^(1/12) − 1`; la cuota base es una cuota francesa (PMT)
+  sobre lo financiado.
+- **Seguro de vida:** lo financiado por el factor de seguro, en cada cuota.
+- **Primer período:** interés diario por los días entre el desembolso y la primera fecha que pasan de 30, contados
+  en base 360.
+
+Confirmar el plazo no recalcula: guarda `fee_number` después de validar que la simulación lo ofrece (ver la sección
+anterior).
+
 ## La cobranza es otro eje
 
 `lenders.externally_serviced` dice si el ciclo de vida del crédito lo gestiona Creditop: pagos,
