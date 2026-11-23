@@ -12,6 +12,13 @@
 // al codo; la larga, a la muñeca— y un poco antes (BORDE) para que el dobladillo caiga justo encima.
 export const ARTICULACION={hombro:0,codo:.5,muneca:1,cadera:0,rodilla:.5,tobillo:1},BORDE=.02;
 const A=ARTICULACION;
+// El grueso de cada tela, en metros (2026-11-22, Miguel: «dale, arranca con el relieve y el grosor»): `grosor`, el canto que
+// marca la luz en los bordes; `bulto`, cuánto abulta la prenda sobre el cuerpo. Lo que no está acá es tela fina (la camiseta).
+const GRUESO={sudadera:{grosor:.004,bulto:.01},'sudadera-capucha':{grosor:.004,bulto:.011},'cuello-alto':{grosor:.003,bulto:.006},camisa:{grosor:.0025,bulto:.003},cuadros:{grosor:.003,bulto:.004},polo:{grosor:.0025,bulto:.002},
+ delantal:{grosor:.003,bulto:.006},chaleco:{grosor:.004,bulto:.009},'chaqueta-abierta':{grosor:.005,bulto:.014},'chaqueta-cremallera':{grosor:.005,bulto:.014},abrigo:{grosor:.006,bulto:.02},
+ jean:{grosor:.004,bulto:.005},pantalon:{grosor:.003,bulto:.004},cargo:{grosor:.004,bulto:.009},deportivo:{grosor:.004,bulto:.009},overol:{grosor:.004,bulto:.008},leggings:{grosor:.0015,bulto:.001},
+ pescador:{grosor:.003,bulto:.004},bermuda:{grosor:.004,bulto:.007},pantaloneta:{grosor:.003,bulto:.007},short:{grosor:.004,bulto:.004},'falda-corta':{grosor:.003,bulto:.005},'falda-larga':{grosor:.003,bulto:.005},
+ boxer:{grosor:.002,bulto:.001},calzon:{grosor:.002,bulto:.001},vestido:{grosor:.002,bulto:.003}};
 // (id, nombre, lugar, color de fábrica, corte; patron: 'rayas' o 'cuadros' cada `rayas` m; logo: 'circulo', 'rombo', 'franja', 'bolsillo')
 export const GARMENTS=[
  ['boxer','Bóxer','underwear','#343d50',{largo:.12}],
@@ -53,7 +60,7 @@ export const GARMENTS=[
  ['falda-larga','Falda a la rodilla','bottom','#3f566e',{largo:A.rodilla+BORDE}],
  ['bufanda','Bufanda','accessory','#b8443a',{}],['gorro-lana','Gorro de lana','hat','#3a6f8f',{}],['gorra','Gorra','hat','#c4553d',{}],
  ['tenis','Tenis','shoes','#34507a',{}],['botas','Botas','shoes','#5b3b25',{}],['zapatos','Zapatos','shoes','#232425',{}],
-].map(([id,label,slot,color,corte])=>({id,label,slot,color,corte}));
+].map(([id,label,slot,color,corte])=>({id,label,slot,color,corte:{...corte,...GRUESO[id]}}));
 export const SLOTS=[['top','Arriba'],['outer','Encima'],['bottom','Abajo'],['shoes','Calzado'],['hat','Cabeza'],['accessory','Cuello'],['underwear','Interior']];
 export const PALETTE=['#f2f0ea','#c9c9c4','#8a8e90','#2f3133','#c4553d','#7a2e33','#d9793a','#e0b83a','#4f8a55','#6b7340','#3a9a96','#7fb2d6','#3f6fa8','#2b3d5c','#6b4a8a','#d98aa0','#6e4e35','#c8b48f'];
 const POR_ID=new Map(GARMENTS.map(g=>[g.id,g]));
@@ -71,6 +78,6 @@ export function zonasDeRopa(o={},piel){const {top,outer,bottom,shoes,underwear}=
  const escote=cO?.cuello?cO:cT||(outer?{cuello:'redondo',prof:.05}:{cuello:'nada'});
  const pantalon=vestido?top.color:bottom?.color||underwear?.color||piel,largo=vestido?cT.largo:cB?.largo??cU?.largo??0;
  return {camisa,antebrazo,manga,pantalon,largo,pantaloneta:largo<.9,zapatos:shoes?.color||piel,cuello:escote.cuello||'redondo',prof:escote.prof??.05,
-  ombligo:outer?0:cT?.ombligo||0,abierto:cO?.abierto||0,debajo:top?.color||piel,rayas:outer?0:cT?.rayas||0,patron:outer?'liso':cT?.patron||'liso',logo:outer?'ninguno':cT?.logo||'ninguno',raya:claro(top?.color)?'#2b3d5c':'#f2f0ea'};}
+  ombligo:outer?0:cT?.ombligo||0,abierto:cO?.abierto||0,debajo:top?.color||piel,rayas:outer?0:cT?.rayas||0,grosor:(cO||cT)?.grosor??.002,bulto:(cO||cT)?.bulto??0,grosorAbajo:vestido?cT.grosor:(cB||cU)?.grosor??.002,bultoAbajo:vestido?cT.bulto:(cB||cU)?.bulto??0,patron:outer?'liso':cT?.patron||'liso',logo:outer?'ninguno':cT?.logo||'ninguno',raya:claro(top?.color)?'#2b3d5c':'#f2f0ea'};}
 // (la raya contrasta con la prenda: oscura sobre una clara, blanca sobre una oscura)
 const claro=h=>{if(!h)return false;const n=parseInt(String(h).slice(1,7),16);return .299*(n>>16&255)+.587*(n>>8&255)+.114*(n&255)>150;};
