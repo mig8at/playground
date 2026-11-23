@@ -17,6 +17,8 @@ import {TEXTURAS3D,TEXTURA_FIJA,texturaPared,texturaDe,uvDelMundo} from './textu
 import {ACABADO,ES_DE_FACHADA,piezaLowPoly,medidasDePartes,PARED,PUERTA_DOBLE,puertaDobleLowPoly,MARQUESINA,marquesinaLowPoly,VENTANAL,ventanalLowPoly} from './fachada3d.js';
 import {VIDRIO_VENTANAL} from '../engine/fachada.js';
 import {PUERTA} from '../engine/medidas.js';
+import {PELICULA} from '../engine/cortinas.js';
+import {COLOR} from '../engine/colores.js';
 
 const BASE='/models/downtown/Exports/'+encodeURIComponent('glTF (Godot)')+'/',WEB='/models/downtown/web/';
 const BLANK='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=';
@@ -102,6 +104,11 @@ function textures(){
 // Medido (2026-10-11, 31337, cuatro vistas): zonas de 60 m (251 mallas) o 30 m (667) dibujan MÁS LENTO que una sola
 // (38 mallas): las llamadas de dibujo de más cuestan más que los triángulos que se ahorran. Queda apagado (null).
 export const DOWNTOWN={zona:null};
+// El vidrio de una ventana según su estado: [color, alfa]. Cerrada, la película lechosa —engine/cortinas.js PELICULA—, opaca;
+// abierta, el vidrio claro —engine/colores.js—; rojo y azul, la marca de lo que se ve (?portales=1): roja, abierta y vista —su
+// interior se arma—; azul, abierta a la vista pero tapada por otro edificio; amarilla, a la vista pero tan chica en la pantalla que no vale la pena
+// armar su interior (engine/portales.js pxMin).
+export const VIDRIO={cerrada:[PELICULA.color,1],abierta:[COLOR.material.vidrio,.28],rojo:['#ff2a2a',.55],azul:['#2a7bff',.55],amarillo:['#ffc21a',.55]};
 // El color de una pieza para un material: tint es un color (todo), {c, on} (el color en esos materiales) o {zones:
 // [[color, materiales], …]} (pared, molduras y carpintería de fachada.js).
 export const tintOf=(tint,mat)=>{if(!tint)return null;if(typeof tint==='string')return tint;if(tint.zones){for(const [c,on] of tint.zones)if(c&&on.includes(mat))return c;return null;}return tint.on?.includes(mat)?tint.c:null;};
@@ -178,10 +185,16 @@ export function buildDowntown(kit,items,leaves=[],{cascarones=[]}={}){
    // (el revoque liso toma el color tal cual: multiplicado por el claro de base, los tonos salían sucios)
    if(tint){if(o.plain)m.color.set(tint);else m.color.multiply(new THREE.Color(tint));}}
   mats.set(key,m);own.push(m);return key;};
+ const vidrioList=[],sueltos={};let fijos=0;
  const mtx=new THREE.Matrix4(),q=new THREE.Quaternion(),Y=new THREE.Vector3(0,1,0),one=new THREE.Vector3(1,1,1),sc=new THREE.Vector3(),p=new THREE.Vector3();
  for(const it of items){const piece=kit.pieces[it.piece];if(!piece)continue;
   mtx.compose(p.set(it.x,it.y,it.z),q.setFromAxisAngle(Y,it.ry||0),sc.set(it.sx||1,it.sy||1,it.sz||1));const M=mtx.clone();
   for(const part of piece.parts){if(part.mat.startsWith('MI_FakeInterior'))continue;
+   if(part.mat==='MI_Glass'&&it.vidrio&&SIMPLE(part.geo)){vidrioList.push({geo:part.geo,M,gid:it.vidrio,lote:it.lote??-1});continue;}// (el vidrio de una ventana, aparte: VIDRIO)
+   // (un vidrio que no es de una ventana del plano —el de un marco de puerta, la puerta doble, la buhardilla del dúplex—: con su
+   // clave fija, cerrado; 2026-11-22, Miguel: «todas deben tener ese comportamiento, ya que es para evaluar el rendimiento»)
+   if(part.mat==='MI_Glass'&&SIMPLE(part.geo)){vidrioList.push({geo:part.geo,M,gid:'fijo:'+(it.lote??-1)+':'+(fijos++),lote:it.lote??-1});continue;}
+   if(part.mat==='MI_Glass')sueltos[it.piece]=(sueltos[it.piece]||0)+1;// (vidrio que no se pudo apartar: queda como está —lo cuenta vidriosSueltos—)
    // El color del edificio va sólo en sus paredes (tint.on); el resto queda con su color.
    const tint=tintOf(it.tint,part.mat);
    // (las molduras de la cornisa de la mansarda, de un solo lado: por fuera se ven igual y por dentro del dúplex no asoman.
@@ -190,6 +203,9 @@ export function buildDowntown(kit,items,leaves=[],{cascarones=[]}={}){
    let k0=material(part.mat,part.color,tint,it.lit??-1,part.pared,it.tint?.textura);
    if(/^Roof_SlateCornice_(?!Window)/.test(it.piece)&&part.mat!=='MI_Roof_Slate'&&part.mat!=='MI_Glass'){const k1=k0+'|afuera';if(!mats.has(k1)){const m=mats.get(k0).clone();m.side=THREE.FrontSide;mats.set(k1,m);}k0=k1;}
    const key=k0+(DOWNTOWN.zona?'@'+Math.floor(it.x/DOWNTOWN.zona)+','+Math.floor(it.z/DOWNTOWN.zona):'')+'§'+(it.lote??-1);(buckets.get(key)||buckets.set(key,[]).get(key)).push([part.geo,M]);}}
+ // (el vidrio de las hojas de puerta, opaco como el de una ventana cerrada —2026-11-22, Miguel: «al igual que las puertas con
+ // vidrio»—: cerrada, la puerta no deja ver adentro; abierta, se ve por el hueco, y eso lo cuenta el motor —engine/portales.js—)
+ let vpM=null;const vidrioPuerta=()=>{if(!vpM){vpM=new THREE.MeshStandardMaterial({color:VIDRIO.cerrada[0],roughness:.35,metalness:0});vpM.userData.plano=true;own.push(vpM);}return vpM;};
  // Hojas de puerta (1 m × 2,2 m, con la bisagra en su origen): instancias que se abren hacia adentro cuando alguien
  // se acerca a menos de 2,5 m y se cierran solas. No se suman a las mallas juntadas porque se mueven.
  const doors=leaves.map(l=>({...l,a:0})),inst=[],byPiece=new Map();
@@ -199,7 +215,7 @@ export function buildDowntown(kit,items,leaves=[],{cascarones=[]}={}){
  const place=(im,j,d)=>{mtx.compose(p.set(d.x,d.y,d.z),q.setFromAxisAngle(Y,d.ry-(d.dir||1)*d.a*Math.PI*.47),sc.set(d.sx||1,1,1));im.setMatrixAt(j,mtx);};
  const refresh=()=>{for(const {im,idx} of inst){idx.forEach((i,j)=>place(im,j,doors[i]));im.instanceMatrix.needsUpdate=true;}};
  for(const [key,idx] of byPiece){const name=key.split('|')[0],piece=kit.pieces[name];if(!piece)continue;const lt=doors[idx[0]].tint;
-  for(const part of piece.parts){const m=mats.get(material(part.mat,part.color,tintOf(lt,part.mat),-1)),im=new THREE.InstancedMesh(part.geo,m,idx.length);
+  for(const part of piece.parts){const m=part.mat==='MI_Glass'?vidrioPuerta():mats.get(material(part.mat,part.color,tintOf(lt,part.mat),-1)),im=new THREE.InstancedMesh(part.geo,m,idx.length);
    im.castShadow=!m.transparent;im.receiveShadow=true;im.frustumCulled=false;if(m.transparent)im.renderOrder=1;group.add(im);inst.push({im,idx});}}
  refresh();
  // Por material, una BatchedMesh con una pieza por lote (2026-10-16, «sólo dibujar lo que se ve»): una sola llamada de
@@ -214,6 +230,19 @@ export function buildDowntown(kit,items,leaves=[],{cascarones=[]}={}){
   for(const {geo,lote} of list){const gid=bm.addGeometry(geo),iid=bm.addInstance(gid);piezas.push({bm,iid,lote});}
   // El contorno gris (edges3d.js) va sólo por dentro: paredes, pisos y cielos rasos interiores.
   if(/^MI_Interior/.test(key))bm.userData.edges=true;bm.castShadow=!m.transparent;bm.receiveShadow=true;if(m.transparent)bm.renderOrder=1;group.add(bm);own.push(bm);}
+ // LOS VIDRIOS DE LAS VENTANAS (2026-11-22, Miguel: «en vez de un paño aparte, que permite ver de costado el interior, sea la
+ // misma ventana la que cambie de color a transparente u opaco… y el rojo podría ir directamente en el vidrio, como un cambio
+ // de color para la inspección»): una BatchedMesh con una instancia por vidrio —su clave, town3d item.vidrio—, cada una con su
+ // color y su alfa (setColorAt con un Vector4: three lo multiplica en el color del material). setVidrio(clave, estado) lo cambia.
+ const vidrios=new Map();let vidriosBM=null;const _c=new THREE.Color(),_v4=new THREE.Vector4();
+ if(vidrioList.length){const geoId=new Map(),uni=[...new Set(vidrioList.map(v=>v.geo))],nv=uni.reduce((a,g)=>a+g.attributes.position.count,0),ni=uni.reduce((a,g)=>a+g.index.count,0);
+  const m=new THREE.MeshStandardMaterial({color:'#ffffff',roughness:.3,metalness:0,transparent:true,depthWrite:false,side:THREE.DoubleSide});m.userData.plano=true;own.push(m);
+  vidriosBM=new THREE.BatchedMesh(vidrioList.length,nv,ni,m);vidriosBM.sortObjects=true;vidriosBM.renderOrder=1;vidriosBM.castShadow=false;vidriosBM.receiveShadow=false;vidriosBM.name='vidrios';
+  for(const g of uni)geoId.set(g,vidriosBM.addGeometry(g));
+  for(const v of vidrioList){const iid=vidriosBM.addInstance(geoId.get(v.geo));vidriosBM.setMatrixAt(iid,v.M);(vidrios.get(v.gid)||vidrios.set(v.gid,[]).get(v.gid)).push(iid);piezas.push({bm:vidriosBM,iid,lote:v.lote});}
+  group.add(vidriosBM);own.push(vidriosBM);}
+ const setVidrio=(gid,estado)=>{const ids=vidrios.get(gid);if(!ids)return false;const [hex,a]=VIDRIO[estado]||VIDRIO.cerrada;_c.set(hex);_v4.set(_c.r,_c.g,_c.b,a);for(const i of ids)vidriosBM.setColorAt(i,_v4);return true;};
+ for(const gid of vidrios.keys())setVidrio(gid,'cerrada');
  // LA CAJA DE LEJOS (2026-11-22, la versión baja de cada edificio, como en los juegos de Rockstar): cada lote tiene además su caja
  // —town3d cascarones: sus partes hasta su altura, con la mansarda—, en una BatchedMesh propia, una instancia por lote. Más allá
  // de LEJOS.lejos de la cámara se dibuja la caja y no sus piezas; vuelve el detalle más acá de LEJOS.cerca (el margen, para que
@@ -232,7 +261,7 @@ export function buildDowntown(kit,items,leaves=[],{cascarones=[]}={}){
  const setLejos=(x,z)=>{if(!cajasBM)return;let cambio=false;
   for(const [lote,c] of cajas){const r=c.rect,d=Math.hypot(Math.max(r.x0-x,0,x-r.x1),Math.max(r.z0-z,0,z-r.z1)),era=lejos.has(lote),es=era?d>LEJOS.cerca:d>LEJOS.lejos;if(es!==era){cambio=true;es?lejos.add(lote):lejos.delete(lote);}}
   if(cambio)aplicar();};
- return {group,triangles,meshes:group.children.length,doors:doors.length,setVisibles,setLejos,lejos:()=>new Set(lejos),lotesConPiezas:()=>new Set(piezas.map(p=>p.lote)),
+ return {group,triangles,meshes:group.children.length,doors:doors.length,setVisibles,setVidrio,vidrios:()=>vidrios,vidriosSueltos:()=>({...sueltos}),setLejos,lejos:()=>new Set(lejos),lotesConPiezas:()=>new Set(piezas.map(p=>p.lote)),
   // people: [{x,z}]. Abre las puertas con alguien cerca; sólo se recalculan si alguna se movió. trancada(x, z, y): la
   // puerta de calle de una vivienda trancada (o de un lugar cerrado) no se abre sola (la ronda, como las de adentro).
   // (2026-10-18: al jugador —o.esJugador— no se le abren solas: d.mano, la abrió él con E)

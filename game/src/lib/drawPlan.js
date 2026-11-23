@@ -5,6 +5,7 @@ import {City} from '../engine/index.js';
 import {planHouse,FURN_SIZE,FLOOR0,FH} from '../engine/vivienda.js';
 import {AWNINGS,RAISE} from '../engine/fachada.js';
 import {ALTURA,CALLE} from '../engine/medidas.js';
+import {COLOR} from '../engine/colores.js';
 import {PAQUETES,textura} from './texturas2d.js';
 import {DE_OBRA,modeloDeObra} from '../engine/entrega.js';
 import {fachadaMedida,texturaDeMuro,PINTABLE,VANO,ejeDe} from '../engine/fachada-medida.js';
@@ -32,7 +33,9 @@ const ROOM_COLOR={entrepiso:'#ece4f1',hall:'#efe9df',ropas:'#e2eef0',sala:'#f3e6
  boveda:'#f2e3a6',local:'#f6ddd0',recepcion:'#e2ecf3',urgencias:'#f8dcdc',consultorio:'#f5e6e6',vestibulo:'#efede6',garaje:'#e2e2e2',deposito:'#e6dfd2',sala_cocina:'#f3e6cf',estudio:'#efe2d6',dormitorio_b:'#e8e0f0',
  entrada:'#efe9df',secretaria:'#e2ecf3',comedor:'#f4e7cc',sanitario:'#d9ecf2',interrogatorio:'#d9dbe2',prestamo:'#ece4d4',estanteria:'#e6dcc6',infantil:'#f6e6ee'};
 // Las calles y los patios, también claros en modo oscuro (los del tema cambian).
-const PAPER={asfalto:'#d7d4cb',cordon:'rgba(110,106,96,.6)',street:'#fbfaf6',avenue:'#f0eee6',alley:'#f5eee1',courtyard:'#e9e3d0',border:'#7f877f',kiosk:'#97b596'};
+// (2026-11-22, Miguel: «color coherente desde el motor 2D hasta el 3D»: el suelo, con los colores del motor —engine/colores.js—,
+// los mismos del 3D)
+const PAPER={asfalto:COLOR.suelo.asfalto,cordon:'rgba(60,58,52,.6)',street:COLOR.suelo.anden,avenue:COLOR.suelo.anden,alley:COLOR.suelo.concreto,courtyard:COLOR.suelo.patio,border:'#7f877f',kiosk:COLOR.suelo.pasto};
 const USE_COLOR={edificios:'#d3d8cf',parque:'#cfe2c8',plaza:'#e2eedd',patio:'#ece6d3',comisaria:'#b9cfe6'};
 const ITEM_COLOR={sofa:'#b88b6a',cama:'#9c86b8',cama_s:'#9c86b8',litera:'#7a5a3a',cama_h:'#ffffff',catre:'#8a8f96',camilla:'#ffffff',armario:'#8b6a4e',estante:'#8b6a4e',archivador:'#7d8790',casillero:'#4f7fa8',caminadora:'#3a3e43',bicicleta:'#3a3e43',banco:'#24262a',mancuernas:'#5d6266',colchoneta:'#2f6f8f',espejo_pared:'#cfe3ea',perchero:'#8d969d',maniqui:'#e9e4dc',estanteria_ropa:'#c39a6b',probador:'#8a3b4a',
  escritorio:'#a7825f',pupitre:'#a7825f',mesa:'#b0906c',mesa_centro:'#b0906c',mesa_reunion:'#9a7b5b',mesa_lectura:'#a7825f',mostrador:'#8d7360',meson:'#c9c3b8',
@@ -240,7 +243,7 @@ export function drawFloorPlan(canvas,L,{level,stage,width}){
 // La ciudad (hasta la etapa 8) corrida al lugar que le toca, y alrededor la isla: cada casilla con su suelo (la montaña
 // más clara cuanto más alta), los senderos, las salidas del muro, las casas con su plano (desde la etapa 5) y el globo y
 // el parapente. Devuelve el corrimiento (en casillas) para pasar de un clic a metros del plano.
-const ISLA_COL={pradera:'#b9cf8e',playa:'#ecdcae',agua:'#a9d2e3',agua_honda:'#7fb3d5'};
+const ISLA_COL={pradera:COLOR.suelo.pradera,playa:COLOR.suelo.arena,agua:COLOR.agua.baja,agua_honda:COLOR.agua.honda};
 const ISLA_BORDE={playa:'#b0703f',finca:'#7a6a4a',cabana:'#6b4a2e',refugio:'#4f3520',puesto:'#2f5f9a',tienda:'#c0672f'};
 const ISLA_LOT={playa:'#f2c7a5',finca:'#efe5cf',cabana:'#c9a07a',refugio:'#a8825f',puesto:'#9fbcdc',tienda:'#f0b98f'};
 // ---------- El mundo entero por etapas (2026-10-12) ----------
@@ -413,11 +416,11 @@ export function drawMueble(canvas,kind,w,d,{px=70,lado=150,pc=false}={}){
 // ---------- LO DE AFUERA Y LAS AZOTEAS (2026-11-19) ----------
 // El plano ya traía todo esto medido —1.838 árboles, 482 piezas de mobiliario, 1.259 marcas de pintura, los nombres de
 // 21 vías, los botines y lo que hay en cada azotea, en la ciudad 1— pero el dibujo no lo mostraba: sólo se veía en el 3D.
-// Va en metros (el contexto ya viene escalado) y cada capa se puede apagar: capas={pintura,equipo,arboles,nombres,botines}.
+// Va en metros (el contexto ya viene escalado) y cada capa se puede apagar: capas={pintura,equipo,arboles,nombres}.
 // `px` es cuántos píxeles mide un metro: lo chico (un hidrante, el nombre de una calle) no se dibuja si no se va a leer.
 const EQUIPO={farol:'#3a3f45',banca:'#8a6a4c',papelera:'#4f7d5a',hidrante:'#d0412f',semaforo:'#23272b',parada:'#2f6fb0',salvavidas:'#e8762c'};
 const AZOTEA={tanque:'#7f97a8',antena:'#4a4f55',matera:'#6f9f5e',tendedero:'#c9c2b4',aire:'#9aa0a6'};
-export const CAPAS={pintura:true,equipo:true,arboles:true,nombres:true,botines:true};
+export const CAPAS={pintura:true,equipo:true,arboles:true,nombres:true};
 function drawExterior(g,bp,{level=0,px=1,capas=CAPAS}){
  const girado=(x,z,ang,f)=>{g.save();g.translate(x,z);g.rotate(ang||0);f();g.restore();};
  if(capas.pintura&&px>=1.5)for(const p of bp.pintura||[]){g.fillStyle=p.tipo==='amarilla'?'#e8b93c':'#ffffff';// (blanca sobre el asfalto gris)
@@ -431,8 +434,6 @@ function drawExterior(g,bp,{level=0,px=1,capas=CAPAS}){
   else{g.beginPath();g.arc(e.x,e.z,e.tipo==='salvavidas'?.6:.32,0,7);g.fill();}}
  // (los contenedores de basura: 1,8 × 1,05 m, sobre el andén y paralelos a la fachada —engine/contenedores.js—)
  if(capas.equipo&&px>=2)for(const c of bp.contenedores||[]){girado(c.x,c.z,c.ang||0,()=>{g.fillStyle=c.sinAnden?'#c0392b':'#2f6b4f';g.fillRect(-.9,-.525,1.8,1.05);g.fillStyle='rgba(255,255,255,.28)';g.fillRect(-.9,-.525,1.8,.22);g.strokeStyle='rgba(0,0,0,.4)';g.lineWidth=.06;g.strokeRect(-.9,-.525,1.8,1.05);});}
- // (los botines: un rombo dorado donde está la pieza, sólo en la planta baja)
- if(capas.botines&&level===0)for(const b of bp.botines||[]){if(b.x==null)continue;const r=Math.max(.7,5/px);g.fillStyle='#e9b23a';g.strokeStyle='#5a3d08';g.lineWidth=r*.22;g.beginPath();g.moveTo(b.x,b.z-r);g.lineTo(b.x+r,b.z);g.lineTo(b.x,b.z+r);g.lineTo(b.x-r,b.z);g.closePath();g.fill();g.stroke();}
  // (las azoteas: en el piso que ya es techo de cada edificio)
  for(const L of bp.lots){if(level<L.floors||!L.azotea?.objetos)continue;for(const o of L.azotea.objetos){g.fillStyle=AZOTEA[o.tipo]||'#999';
   if(o.tipo==='tanque'){g.beginPath();g.arc(o.x,o.z,Math.max(o.w,o.d)/2,0,7);g.fill();}else girado(o.x,o.z,-(o.giro||0),()=>g.fillRect(-o.w/2,-o.d/2,o.w,o.d));}}

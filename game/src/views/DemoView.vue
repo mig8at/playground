@@ -1,10 +1,10 @@
 <script setup>
 // (?lab=1: los botones de prueba a la vista —el juego, sin ellos, como terminado—)
 const LAB=new URLSearchParams(location.search).has('lab');
-/* /demo: caminar la ciudad en primera persona. Por ahora es sólo lo visual (sin reglas ni otros jugadores): la misma
-   ciudad que juega el motor, a escala de persona, como base para llevar el juego a multijugador.
-   ?jugadores=3&ciudad=1234 */
-import {ref,onMounted,onBeforeUnmount,defineAsyncComponent} from 'vue';
+/* LA CIUDAD (/ciudad?lugar=bogota): caminar mycity en primera persona. Por ahora sólo la ciudad —sin gente, de color plano—,
+   como base para comprar propiedades y, más adelante, pintar pixel art. El lugar sale de engine/lugares.js (el país y la
+   ciudad que se eligen en la entrada); ?ciudad=1234 y ?jugadores=3 cambian la semilla y el tamaño en el laboratorio. */
+import {ref,onMounted,onBeforeUnmount} from 'vue';
 import '@fontsource/bungee/400.css';
 import '@fontsource-variable/rubik';
 import {useRoute,useRouter} from 'vue-router';
@@ -20,8 +20,7 @@ import {materialAristas} from '../lib/aristas3d.js';
 import {City} from '../engine/index.js';
 import {generateBlueprint} from '../engine/blueprint.js';
 import {planoDe} from '../lib/mapasGuardados.js';
-import {cartelDe} from '../engine/juego/identidad.js';
-import {randomCity,SIZES,CORE_RULES} from '../lib/core.js';
+import {TAMANOS,ciudadDe,ciudadAlAzar} from '../engine/lugares.js';
 import {createCitizens,createIslandFolk} from '../lib/citizens3d.js';
 import {loadAnimals,createAnimals} from '../lib/animals3d.js';
 import {createTraffic,loadCars,buildVehicle} from '../lib/traffic3d.js';
@@ -30,98 +29,62 @@ import {loadPlants,loadNature,loadNature2,loadHouseKit,loadOffice,loadCasa2,load
 import {createHouses} from '../lib/vivienda3d.js';
 import {buildIsland,loadIslandBuildings,ISLAND_MARGIN,CLIFF,ISLA3D} from '../lib/island3d.js';
 import {dibujarPlano,revisarContrato,revisarSuelo,revisarAndenes} from '../lib/plano3d.js';
-import {loadCharacters,loadPolice,LOD_CAM,makeCharacter,moveCharacter,vestirPlantilla,plantillaJugador,uniformeDe} from '../lib/characters3d.js';
-import {describirRopa,etiqueta} from '../lib/ropaTexto.js';
-import {GARMENTS,PALETTE} from '../lib/ropa.js';
+import {loadCharacters,LOD_CAM,makeCharacter,moveCharacter} from '../lib/characters3d.js';
 import {buildWorld,CELL,EYE,FLOOR,WORLD_TIMES} from '../lib/world3d.js';
 import {createIndoor} from '../lib/indoor3d.js';
 import {createBarrios} from '../lib/barrios3d.js';
 import {createCasas} from '../lib/casas3d.js';
 import {drawWorldStage} from '../lib/drawPlan.js';
-import {CIRCULACION,ATERRIZAJE,ALCANCE,VIDA} from '../engine/medidas.js';
-import {danoDeCaida} from '../engine/juego/huida.js';
+import {CIRCULACION,ATERRIZAJE,ALCANCE} from '../engine/medidas.js';
 import {ubicacionDe} from '../engine/direcciones.js';
 import {crearNiebla} from '../lib/niebla3d.js';
 import {visiblesDesde} from '../engine/visibles.js';
 import {createAcciones} from '../lib/acciones3d.js';
 import {placeParts,partsMesh,OBJETOS} from '../lib/objetos3d.js';
-import {createSociedad3d} from '../lib/sociedad3d.js';
-import {sociedadDe,puertasDeLugares,abierto,horaTexto,ocupacionSociedad,direccionHogar} from '../engine/sociedad.js';
-import {rng} from '../engine/veredas.js';
-import {mapaDeJuego} from '../engine/juego/mapa.js';
 import {entregaDe,entregaCasa} from '../engine/entrega.js';
 import {sitiosDe,aparecerEn} from '../engine/aparecer.js';
 import {createGrafitis,createMapaPintable} from '../lib/grafitis3d.js';
 import {claveCiudad} from '../engine/grafiti.js';
 import {sincronizar} from '../lib/pinturaGuardada.js';
-import {createBoceto} from '../lib/boceto3d.js';
+import {createColorPlano} from '../lib/colorPlano3d.js';
+import {cambiar,puertaClave,abiertas} from '../engine/estadoMundo.js';
+import {vistaDesde,aberturasDeCasas} from '../engine/portales.js';
+import {cargarEstado,guardarEstado} from '../lib/estadoGuardado.js';
 import {cerradurasDe,puertaTrancadaEn,trancada,adentroCerrado} from '../engine/propiedad.js';
 import {paredesDeLaCiudad} from '../engine/muros.js';
-import {RELOJ,MODO_BOTIN,PATRULLA} from '../engine/medidas.js';
 
 // (el salto, el del 2D —CIRCULACION.peaton.salto—: de ahí sale ALCANCE, a qué muebles se sube; CHOQUE_MUEBLE)
 const WALK=CIRCULACION.peaton.velocidad.camina,RUN=CIRCULACION.peaton.velocidad.corre,RADIUS=.26,GRAVITY=CIRCULACION.peaton.salto.gravedad,JUMP=CIRCULACION.peaton.salto.velocidad,MAP_CELL=2,STREET_LIGHTS=12;
 const route=useRoute(),router=useRouter();
-// (los dos tamaños grandes —12 y 16: engine/ciudad.js— sólo en el paseo: el juego sigue con los cuatro de SIZES)
-const team=ref(SIZES.includes(+route.query.jugadores)||(route.name!=='demo'&&route.query.fuga==null)&&[12,16].includes(+route.query.jugadores)?+route.query.jugadores:3);
+// (el lugar elegido en la entrada —engine/lugares.js—: su semilla y su tamaño; ?jugadores= cambia el tamaño en el laboratorio)
+const LUGAR=ciudadDe(route.query.lugar||'bogota');
+const team=ref([...TAMANOS,12,16].includes(+route.query.jugadores)?+route.query.jugadores:LUGAR?.tamano||3);
 // La demo usa los parques repartidos (opción del generador en prueba); ?parques=0 muestra la ciudad de siempre.
 const parks=route.query.parques!=='0';
-const pickCity=t=>{if(!parks)return randomCity(t);for(let i=0;i<200;i++){const s=1+Math.floor(Math.random()*99999);if(City.analyze(City.generate({seed:s,team:t,parks})).ok)return s;}return 1;};
+const pickCity=t=>{if(!parks)return ciudadAlAzar(t);for(let i=0;i<200;i++){const s=1+Math.floor(Math.random()*99999);if(City.analyze(City.generate({seed:s,team:t,parks})).ok)return s;}return 1;};
 // El edificio de prueba (2026-10-18, Miguel: «hagamos un edificio de prueba y te digo cómo me gustaría moverme»):
 // /juego?prueba=edificio dibuja sólo unos lotes de una ciudad (lotes=32,34 de la ciudad 2 —un edificio de vivienda de 4
-// pisos y la casa de al lado—), sin ronda, sin gente y sin las casas del monte; se aparece frente a la puerta del primero.
-// EL PASEO (2026-11-21, Miguel: «quitá por ahora el jugar: que yo entre, camine y sobrevuele la ciudad y vea cómo están
-// los FPS»): /juego?paseo=1 es la ciudad sola. Sin ronda, sin policía ni ladrones, sin la sociedad (la gente con su rutina):
-// nada de eso se arma ni se carga. Se camina, V despega y vuelve a tierra, N cambia el día, y arriba a la derecha va el
-// rendimiento: cuadros por segundo, milisegundos por cuadro, llamadas de dibujo y triángulos.
-// (2026-11-21, Miguel: «quitemos todo lo que sea lógica de policías y ladrones… dejá sólo lo de la ciudad»): el paseo es
-// ahora el modo de /juego y de /ciudad. El juego viejo sólo arranca con ?fuga=1, o en /demo, que es la ruta que usan sus
-// pruebas de pantalla.
-// EL JUEGO VIEJO VIVE EN game/fuga/ (2026-11-21): la ronda, la persecución, las patrullas, las armas y el menú se mudaron
-// allá. Esta pantalla ya no los importa: sus funciones son estas variables, que quedan sin definir en la ciudad —nadie
-// las llama, porque la ronda no se arma— y se llenan con cargarFuga() sólo cuando se pide el juego viejo.
-const PASEO=route.query.paseo!=null||(route.name!=='demo'&&route.query.fuga==null);
-let createViewmodel,ViewmodelPass,createShooting,crearRonda,robar,guardar,sacar,incautar,perseguido,precio,gano,hayGente,empezarForzar,tickForzar,robadoEn,usosRonda,createPersecucion,rasgosDe,createPatrullas;
-async function cargarFuga(){({createViewmodel,ViewmodelPass,createShooting,crearRonda,robar,guardar,sacar,incautar,perseguido,precio,gano,hayGente,empezarForzar,tickForzar,robadoEn,usosRonda,createPersecucion,rasgosDe,createPatrullas}=await import('../../fuga/index.js'));}
-const MenuJuego=defineAsyncComponent(()=>import('../../fuga/components/MenuJuego.vue'));
-// (2026-11-22, Miguel: «la idea es eliminar todo el ruido y centrarnos en las medidas… bórralos, no los dejes ahí, porque
-// la idea es ir progresivamente»): el paseo es un BOCETO —todo blanco, lib/boceto3d.js— y no hay cómo volver a los
-// colores ni a los muebles desde la pantalla. Sin bordes negros: se probaron y Miguel los sacó.
-const EN_BOCETO=PASEO;let boceto=null;
+// pisos y la casa de al lado—), sin gente y sin las casas del monte; se aparece frente a la puerta del primero.
+// LA CIUDAD SOLA (2026-11-22, Miguel: «quitemos todo lo de policías y ladrones para trabajar solamente en mycity»): se
+// camina, V despega y vuelve a tierra, N cambia el día, y arriba a la derecha va el rendimiento. El juego de policías y
+// ladrones (la ronda, la persecución, las patrullas, las armas, el menú, la vida) quedó en game/before/fuga/.
+// EL COLOR PLANO (2026-11-22, Miguel: «aplicar color a todo coherentemente desde el motor 2D hasta el 3D; por ahora no apliquemos
+// texturas a nada, sólo color armónico»): todo de un color, sin texturas —lib/colorPlano3d.js, con los colores del motor:
+// engine/colores.js y color.js—. Reemplaza al boceto blanco del mismo día.
+let colorPlano=null;
 const PRUEBA=route.query.prueba==='edificio',PRUEBA_LOTES=PRUEBA?String(route.query.lotes||'32,34').split(',').map(Number):null;
-const seed=ref(+route.query.ciudad||(PRUEBA?2:pickCity(team.value)));
-// characters: los personajes animados (se cargan una vez al entrar); mientras tanto, «Cargando gente…».
-let characters=[],carModels=null,buildings=null,downtown=null,plants=null,nature=null,nature2=null,casa2=null,tienda=null,furniture=null,policeTemplates=[],indoor=null,patrol=null,office=null;const loadingPeople=ref(true);
-// La ronda jugable (2026-10-17, REGLAS.md): lo robado, lo guardado, la meta y las guaridas, para el panel de arriba.
-// La vida (REGLAS.md paso 2): la barra, el golpe al caer y la muerte (huida.js; medidas.js VIDA).
-const vidaVista=ref(VIDA.max),muerto=ref(false);let ultimoGolpe=-1e9;
-const rondaVista=ref(null),rondaMsg=ref('');let ronda=null,rondaMsgT=0;
-// El papel (REGLAS.md paso 3): ?papel=policia juega de policía contra los ladrones bots del motor (persecucion3d.js); si
-// no, la ronda del ladrón.
-const POLICIA=route.query.papel==='policia';let cerraduras=null;
-// La sociedad (etapa 2, 2026-10-17): la hora de la ciudad (el reloj de la ronda), la gente de las familias en la calle
-// (sociedad3d.js, en vez de la que caminaba sin rumbo) y los locales trancados mientras están cerrados. quienVista: el
-// cartel con el nombre y el oficio del que está al lado.
-let soc=null,cierres=null,cierresReloj=0,nocheAuto=null;
-// Las patrullas (REGLAS.md paso 4, patrulla3d.js): estacionadas frente a la comisaría; sólo la policía se sube (E).
-let patrullas=null;const velocidad=ref(null);
-// El menú (Tab, 2026-10-17: components/MenuJuego.vue, el prototipo de /menu con los datos de la partida). menuDatos se
-// arma cada medio segundo mientras está abierto. Del ladrón: la ropa de repuesto en la mochila, el retrato que le sacan
-// las cámaras de los edificios (y que a RETRATO_DIFUNDE s sale en las noticias) y los titulares de la ronda.
-const menuAbierto=ref(false),menuDatos=ref(null);let menuReloj=0,vistiendo=0,ropaMochila=[],retratoLadron=null,titulares=[],marcaPlano=null,censoMenu=null;
-const RETRATO_DIFUNDE=45,VESTIR_S=4;
-// el muñeco del perfil (/inicio): el mismo cuerpo, con la ropa de calle de ladrón o el uniforme de policía; mientras se
-// arma (unos cientos de ms), el de una plantilla al azar
-const cuentaPerfil=()=>{try{return JSON.parse(sessionStorage.getItem('fuga:cuenta')||'null');}catch{return null;}};
-async function muñecoDelPerfil(){const c=cuentaPerfil();if(!c?.cuerpo||!c.ropa)return;const w0=world;
- const outfit=POLICIA?uniformeDe({gorra:c.ropa.gorra!==false}):{underwear:{id:'boxer',color:'#343d50'},...Object.fromEntries(Object.entries(c.ropa.calle||{}).filter(([,p])=>p))};
- try{const t=await plantillaJugador(c.cuerpo,outfit,POLICIA);if(world!==w0)return;makeAvatar(t);}catch(e){console.warn('el muñeco del perfil',e);}}
-const nombreCuenta=()=>{try{return JSON.parse(sessionStorage.getItem('fuga:cuenta')||'null')?.nombre||'';}catch{return '';}};const horaVista=ref(''),quienVista=ref(null);// (las puertas de las viviendas: las de la ronda del ladrón, o de policía todas trancadas)
-let persec=null,persecReloj=0,avisosVistos=0;const policiaVista=ref(null);
+const seed=ref(+route.query.ciudad||(PRUEBA?2:LUGAR?.semilla||pickCity(team.value)));
+// characters: los personajes animados (se cargan una vez al entrar): el muñeco del jugador.
+let characters=[],carModels=null,buildings=null,downtown=null,plants=null,nature=null,nature2=null,casa2=null,tienda=null,furniture=null,indoor=null,office=null;
+// (las cerraduras de las viviendas: cerradas hasta que se compren —engine/propiedad.js—)
+let cerraduras=null;
+// (lo que el jugador abrió —puertas y ventanas— y queda así al volver: engine/estadoMundo.js, guardado por ciudad —lib/estadoGuardado.js—;
+// en multijugador, lo mismo lo repartiría el servidor)
+let estado=null,verPortales=false;const anotar=(tipo,clave,valor)=>{if(estado&&cambiar(estado,tipo,clave,valor))guardarEstado(seed.value,team.value,estado);};
 // La carga (2026-11-19): antes eran ~20 s de pantalla negra. `carga.parte` va de 0 a 1 y `lista` la quita.
 const carga=ref({parte:0,etapa:'Trayendo la ciudad…',lista:false});
 const rinde=ref(null);let rindeN=0,rindeT=0,rindeLlamadas=0,rindeTris=0,rindePeor=0;
-const accionTexto=ref(''),accionAlterna=ref(''),aiming=ref(false),hitMark=ref(0),host=ref(null),mini=ref(null),locked=ref(false),sinCaptura=ref(false),night=ref(false),showMap=ref(true),place=ref(''),drone=ref(false),lugar=ref(null);let niebla=null;
+const accionTexto=ref(''),accionAlterna=ref(''),host=ref(null),mini=ref(null),locked=ref(false),sinCaptura=ref(false),night=ref(false),showMap=ref(true),place=ref(''),drone=ref(false),lugar=ref(null);let niebla=null;
 // Modo dron: la cámara vuela libre (sin choques) y el jugador se queda donde estaba, marcado desde arriba.
 const DRONE_SPEED=22,DRONE_FAST=60,DRONE_MIN=-320,DRONE_MAX=260;
 const dronePos={x:0,y:0,z:0};let marker,cerradoAlPasear=null,lejosPlantas=0;// (cada 0,3 s, la versión de lejos de las plantas)// (lo de adentro de las viviendas cerradas, para devolverlo al aterrizar)
@@ -210,18 +173,16 @@ function pasoLuz(dt,t){
  if(Math.abs(luz.tn-luz.n)<.002)luz.n=luz.tn;if(Math.abs(luz.tw-luz.w)<.002)luz.w=luz.tw;
  pintarLuz();
 }
-// Cuánto atardecer o amanecer hay a esta hora: sube desde las 16:30 hasta las 18:30 y baja de 6 a 7:30.
-const calidez=h=>h>=6&&h<7.5?1-(h-6)/1.5:h>=16.5&&h<19?Math.min(1,(h-16.5)/2):h<6||h>=19?1:0;
 
 function load(ready=null){
  const L0=performance.now();let Lp=L0;const lap=n=>{const t=performance.now();(tiempos.mundo||(tiempos.mundo={}))[n]=Math.round(t-Lp);Lp=t;};
- shooting?.clear();if(world){scene.remove(world.group);world.dispose();barrios?.dispose();casas?.dispose();viviendas?.dispose();crowd.dispose();traffic.dispose();island.dispose();folk.dispose();planoVista?.dispose();indoor?.dispose();patrol?.dispose();animals?.dispose();}
- persec?.dispose();persec=null;finVista.value=null;presoVista.value=null;patrullas=null;velocidad.value=null;menuAbierto.value=false;menuDatos.value=null;retratoLadron=null;titulares=[];ropaMochila=[];censoMenu=null;marcaPlano=null;cerraduras=null;soc?.dispose();soc=null;cierres=null;horaVista.value='';quienVista.value=null;nocheAuto=null;policiaVista.value=null;avisosVistos=0;
+if(world){scene.remove(world.group);world.dispose();barrios?.dispose();casas?.dispose();viviendas?.dispose();crowd.dispose();traffic.dispose();island.dispose();folk.dispose();planoVista?.dispose();indoor?.dispose();animals?.dispose();}
+ cerraduras=null;
  // La ciudad del plano por etapas (/generador): el 3D dibuja sus edificios tal cual.
  const want={seed:seed.value,team:team.value,parks};plan=ready&&ready.seed===want.seed&&ready.team===want.team?ready:generateBlueprint(want);
  // (2026-11-21, Miguel: la ciudad se muestra como se vende, con las viviendas vacías —engine/entrega.js—: sólo el baño y
- // la cocina. El juego viejo y sus pruebas siguen con todo amueblado)
- if(PASEO&&!plan.entrega)plan=entregaDe(plan);
+ // la cocina)
+ if(!plan.entrega)plan=entregaDe(plan);
  city=plan.map;lap('plano');let vs=7;const vr=()=>((vs=(vs*9301+49297)%233280)/233280);
  // (prueba: el plano con sólo sus lotes —renumerados: el 3D supone que el número de cada lote es su lugar en la lista—, y
  // nada dibujado a más de 2 casillas de ellos)
@@ -246,7 +207,7 @@ function load(ready=null){
  grafitis?.dispose();grafitis=null;{const s0=seed.value,t0=team.value,W=world;sincronizar(s0,t0,paredesDeLaCiudad(plan)).then(r=>{if(world!==W||seed.value!==s0||team.value!==t0)return;grafitis?.dispose();if(grafitis)W.group.remove(grafitis.group);grafitis=createGrafitis(plan,r.vigentes);W.group.add(grafitis.group);});}
  casas=createCasas(PRUEBA?{...plan,isla:{...plan.isla,casas:[]}}:plan,{nature,nature2,rampaEn:island.rampaEn});world.group.add(casas.group);lap('casas');
  // Las casas armadas (vivienda3d.js): se entra, se sube y se ve por las ventanas.
- viviendas=createHouses((PRUEBA?[]:plan.isla?.casas||[]).filter(c=>c.spec).map(c=>PASEO?{...c,spec:entregaCasa(c.spec)}:c).map(c=>({spec:c.colores||c.cortinas?{...c.spec,...(c.colores?{colores2d:c.colores}:{}),...(c.cortinas?{cortinas2d:c.cortinas}:{})}:c.spec,x:c.x,y:c.nivel,z:c.z,ry:c.ry})),{kit:furniture||casa2?{...(furniture||{}),...(casa2||{}),...(tienda||{})}:null});world.group.add(viviendas.group);lap('viviendas');
+ viviendas=createHouses((PRUEBA?[]:plan.isla?.casas||[]).filter(c=>c.spec).map(c=>({...c,spec:entregaCasa(c.spec)})).map(c=>({spec:c.colores||c.cortinas?{...c.spec,...(c.colores?{colores2d:c.colores}:{}),...(c.cortinas?{cortinas2d:c.cortinas}:{})}:c.spec,x:c.x,y:c.nivel,z:c.z,ry:c.ry})),{kit:furniture||casa2?{...(furniture||{}),...(casa2||{}),...(tienda||{})}:null});world.group.add(viviendas.group);lap('viviendas');
  // (lo que queda entero detrás de la niebla no se dibuja: las casas del monte, por baldosas —niebla3d.js—)
  niebla=crearNiebla([viviendas.group]);// (el plano se suma al dibujarlo, más abajo)
  // La vegetación y el equipamiento del plano, por el contrato del 2D con el 3D (src/engine/contrato3d.js): cada cosa en
@@ -277,31 +238,43 @@ function load(ready=null){
  folk=createIslandFolk(world,island,{count:CIUDAD_LIMPIA?0:Math.min(40,8+4*team.value),seed:seed.value,templates:characters});world.group.add(folk.group);lap('gente isla');
  // (los animales: del monte, de granja, perros con la gente y los de mar; animals3d.js)
  animals=createAnimals(world,island,crowd,animalKit,{seed:seed.value});world.group.add(animals.group);lap('animales');
- // La gente de adentro de los edificios (policías en la comisaría): caminan y se sientan en las sillas libres.
- indoor=createIndoor(world,{civil:CIUDAD_LIMPIA?[]:characters,police:CIUDAD_LIMPIA?[]:policeTemplates,seed:seed.value});world.group.add(indoor.group);lap('adentro');
- // Y otros que salen a patrullar las veredas: nacen la mitad en la puerta de la comisaría y vuelven a ella de vez en cuando.
- patrol=createCitizens(world,{count:!CIUDAD_LIMPIA&&policeTemplates.length?4+team.value*2:0,seed:seed.value+101,templates:policeTemplates,home:world.station?.doors||null,homeBias:.25,startHome:.5,speed:[1.05,1.3],seats:world.benchSeats});world.group.add(patrol.group);lap('patrulla');
+ // (la gente de adentro de los edificios: todavía nadie, la ciudad va sola —CIUDAD_LIMPIA—)
+ indoor=createIndoor(world,{civil:CIUDAD_LIMPIA?[]:characters,police:[],seed:seed.value});world.group.add(indoor.group);lap('adentro');
  scene.add(world.group);
- makeAvatar();lap('muñeco');muñecoDelPerfil();
- patrullas=PASEO?null:createPatrullas({scene:world.group,plan,models:carModels,equipo:team.value,suelo:(x,z,y)=>groundHere(x,z,y??0),bloquea:bloqueaAuto,gente:()=>[...(soc?.personas()||[]),...patrol.positions(),...folk.positions(),...(persec?.P?.agentes.filter(a=>!a.humano&&a.estado==='libre')||[])]});lap('patrullas');
- // (las paredes que se aclaran: los edificios y las casas, no la gente ni los autos)
- // (la casa del 3D y la del plano: el 3D sólo arma las que tienen plano de casa; la ronda cuenta en las del plano)
+makeAvatar();lap('muñeco');
+ // (las casas del 3D: sólo las que tienen plano de casa)
  const conPlano=(plan.isla?.casas||[]).map((c,i)=>c.spec?i:-1).filter(i=>i>=0);
- acciones=createAcciones({plan,world,player,avatar:()=>avatar,viviendas:()=>viviendas,ronda:()=>ronda,enRonda:usarRonda,casaPlan:i=>conPlano[i],usosRonda:(...a)=>usosRonda(...a)});accionTexto.value='';
+ acciones=createAcciones({plan,world,player,avatar:()=>avatar,viviendas:()=>viviendas,alVentana:(k,abierta)=>anotar('ventanas',k,abierta)});accionTexto.value='';
+ // (lo que quedó abierto la última vez en esta ciudad: las ventanas, por su clave; las puertas, por su lugar)
+ estado=cargarEstado(seed.value,team.value);
+ // (lo que se ve por las aberturas lo decide el motor —engine/portales.js—: la cámara y lo abierto, del estado del mundo)
+ // (2026-11-22, Miguel: «sí, las casas»: con las aberturas de las casas del monte —engine/portales.js aberturasDeCasas—; lo que
+ // da para ellas lo aplica vistaCasas: sus vidrios marcados y, de cada casa, sólo los cuartos que se ven —la casa donde está la
+ // cámara, entera—)
+ const deCasas=viviendas?aberturasDeCasas(viviendas.houses):[];
+ const vistaCasas=(v,cam)=>{if(!viviendas?.setInteriores)return;const sel=new Map(),ci=viviendas.houseAt(cam.position.x,cam.position.z);
+  if(ci!=null&&viviendas.dentro(cam.position.x,cam.position.z,cam.position.y))sel.set(ci,null);
+  for(const a of v.vistas){if(a.casa==null||sel.has(a.casa)&&sel.get(a.casa)===null)continue;if(!a.cuarto){sel.set(a.casa,null);continue;}const ids=sel.get(a.casa)||new Set();ids.add(a.cuarto.id);sel.set(a.casa,ids);}
+  viviendas.setInteriores(sel);
+  const m=new Map();if(verPortales)for(const [l,k] of [[v.vistas,'rojo'],[v.tapadas,'azul'],[v.chicas||[],'amarillo']])for(const a of l)if(a.casa!=null&&a.tipo==='ventana')m.set(a.clave,k);viviendas.setMarcas(m);};
+ {const e=new THREE.Euler();world.setVista?.(cam=>{e.setFromQuaternion(cam.quaternion,'YXZ');const v=vistaDesde(plan,{x:cam.position.x,y:cam.position.y,z:cam.position.z,yaw:e.y,pitch:e.x,fov:cam.fov,aspect:cam.aspect,alto:renderer?.domElement?.clientHeight||innerHeight},{ventanas:abiertas(estado,'ventanas'),puertas:abiertas(estado,'puertas')},deCasas);vistaCasas(v,cam);return v;});}
+ for(const k of abiertas(estado,'ventanas'))if(/^c\d+:v/.test(k))viviendas?.setVentana?.(k,true);else world.cortina?.(k,false);
+ for(const k of abiertas(estado,'puertas')){const [x,z,y]=k.split(',').map(Number),p=puertasCerca(x,z,y,.4).find(q=>puertaClave(q)===k);if(p&&!p.abierta&&!p.trancada?.())alternarPuerta(p,false);}
  // (2026-11-22: en el paseo, toda vivienda está cerrada hasta que se compre —engine/propiedad.js—: su puerta trancada y lo
  // de adentro sin armar)
- if(PASEO&&!PRUEBA){const R=cerradurasDe(plan);trancar(R,conPlano);cerradoAlPasear=adentroCerrado(plan,R);world.setCerrados?.(cerradoAlPasear);}
- ronda=null;rondaVista.value=null;if(!PRUEBA&&!PASEO)setTimeout(()=>POLICIA?armarPolicia(conPlano):armarRonda(conPlano),400);// (después de mostrar el mundo: elegir las guaridas toma unos segundos)
+ // (?portales=1: las aberturas marcadas desde el arranque)
+ if(route.query.portales!=null){world.portales?.(true);barrios.portales?.(true);verPortales=true;}
+ if(!PRUEBA){const R=cerradurasDe(plan);trancar(R,conPlano);cerradoAlPasear=adentroCerrado(plan,R);world.setCerrados?.(cerradoAlPasear);}
  // (compilar los shaders ya, en paralelo, en vez de a la primera vez que cada cosa aparece en cámara: eso eran los tirones
  // al girar o al entrar a un edificio)
- // (2026-11-22, Miguel: «al entrar al 3D sigo teniendo un flash de cambio de color»: el blanco del boceto se ponía recién en
+ // (2026-11-22, Miguel: «al entrar al 3D sigo teniendo un flash de cambio de color»: el color plano se ponía recién en
  // el bucle, después de compilar con los materiales de color, y los primeros cuadros salían con color. Ahora se pone acá,
- // antes de compilar: lo que se compila y lo primero que se ve ya es blanco)
- if(EN_BOCETO){boceto||(boceto=createBoceto());boceto.aplicar(world.group);}
- renderer.compileAsync?.(scene,camera).catch(()=>{}).then(()=>setTimeout(()=>shooting?.warm().catch(()=>{}),300));
+ // antes de compilar: lo que se compila y lo primero que se ve ya es de color plano)
+ colorPlano||(colorPlano=createColorPlano());colorPlano.aplicar(world.group);
+ renderer.compileAsync?.(scene,camera).catch(()=>{});
  // (en la ciudad sola se aparece donde dice el plano —engine/aparecer.js—: el sitio del andén con menos gente. Todavía no
  // hay gente de verdad, así que es el más cercano al centro; cuando la haya, se le pasa acá)
- if(PASEO&&!PRUEBA){const a=aparecerEn(plan,[],{sitios:sitiosDe(plan)});if(a.ok)world.spawn={...world.spawn,x:a.x,z:a.z};}
+ if(!PRUEBA){const a=aparecerEn(plan,[],{sitios:sitiosDe(plan)});if(a.ok)world.spawn={...world.spawn,x:a.x,z:a.z};}
  Object.assign(player,{x:world.spawn.x,z:world.spawn.z,feet:world.groundAt(world.spawn.x,world.spawn.z),vy:0});
  // (?pintables=1: sobre las fachadas cercanas, blanco lo que se pinta y gris lo que no —lib/grafitis3d.js—)
  mapaPint?.dispose();mapaPint=null;if(route.query.pintables!=null){mapaPint=createMapaPintable(plan,{x:player.x,z:player.z,radio:+route.query.pintables>1?+route.query.pintables:90});world.group.add(mapaPint.group);}
@@ -316,175 +289,16 @@ function load(ready=null){
  baseMap=document.createElement('canvas');const o=drawWorldStage(baseMap,plan,{cell:MAP_CELL,stage:3,fronts:false});mapOff={x:o.x0,y:o.y0};
  router.replace({query:{...route.query,jugadores:team.value,ciudad:seed.value}});
 }
-// (la cámara de arriba toma el ángulo fijo más cercano a hacia donde mira)
-// ---------- La ronda jugable (REGLAS.md, paso 1: el ladrón) ----------
-// Sus guaridas con su caja dibujada (un baúl), lo que se roba en el mundo con su precio, y el panel de arriba.
-function armarRonda(conPlano){if(!plan||!world)return;ronda=crearRonda(plan,{equipo:team.value,ronda:0});trancar(ronda,conPlano);
- // (la policía y los otros ladrones: bots del motor —persecucion3d.js, papel «ladrón»—; la sociedad usa su mapa de rutas)
- setTimeout(()=>{if(!ronda||persec)return;const w0=world;persec=createPersecucion({scene,plan,player,characters,policeTemplates,suelo:sueloBot,equipo:team.value,ronda:0,gente:()=>soc,papel:'ladron',
-  adentro:()=>!!(world.dentro?.(player.x,player.z,player.feet+1)||viviendas?.dentro(player.x,player.z,player.feet+1)||barrios?.dentro(player.x,player.z,player.feet+1)),
-  mochila:()=>ronda?.mochila||0,onEstado:estadoLadron,
-  onAllanada:i=>{const g=ronda?.guaridas[i];if(!g)return;const v=incautar(ronda,g.id,rondaT());avisar(`La policía allanó ${g.texto}`+(v?`: incautó ${precio(v)}`:': no encontró nada'));verRonda();}});persec.iniciar();if(world!==w0)return;armarSociedad(persec.P.C.mapa);verRonda();},200);
- dibujarCajas(ronda,conPlano);ropaDeRepuesto();
- // (lo que el 3D dibuja: lo robado no se dibuja)
- world.setOcultos?.((it,lot)=>!!ronda&&robadoEn(ronda,it.name,lot,it.f,it.x,it.z));
- rondaT0=performance.now()/1000;verRonda();}
 // Las puertas de las viviendas: la altura de cada una (el piso del apartamento o el de la casa) y las trancadas, que
-// frenan al jugador a esa altura y cuyas hojas no se abren solas. Sólo abre el dueño (o el ladrón que fuerza la chapa).
+// frenan al jugador a esa altura y cuyas hojas no se abren solas. Sólo abre el dueño.
 function trancar(R,conPlano){cerraduras=R;
  for(const p of R.puertas){if(p.lote!=null)p.y=(world.lots.get(p.lote)?.raise||0)+(p.nivel||0)*3+.02;else{const h=viviendas?.houses?.[conPlano.indexOf(p.casa)];if(h)p.y=h.y+(h.plan.FLOOR0||0);}}
- const f=(x,z,y)=>!!cerraduras&&puertaTrancadaEn(cerraduras,x,z,y)||!!cierres&&puertaTrancadaEn(cierres,x,z,y);world.setTrancadas?.(f);viviendas?.setTrancadas?.(f);island?.setTrancadas?.(f);}
-// las cajas de las guaridas (un baúl) a la altura de su piso; deja en cada guarida su y (caja.y)
-function dibujarCajas(R,conPlano){const piezas=[];for(const g of R.guaridas){const L=g.lugar;let y=0;
-  if(L.lot!=null)y=(world.lots.get(L.lot)?.raise||0)+L.nivel*3+.02;
-  else{const h=viviendas?.houses?.[conPlano.indexOf(L.casa)];if(h)y=h.y+(L.nivel&&h.plan.H1?h.plan.H1:h.plan.FLOOR0||0);}
-  g.caja.y=y;piezas.push(...placeParts(OBJETOS.baul.piezas({w:g.caja.largo,d:g.caja.fondo}),{x:g.caja.x,y,z:g.caja.z,ry:g.caja.ang}));}
- const cajas=partsMesh(piezas);cajas.name='ronda:cajas';world.group.add(cajas);}
-const rondaT=()=>performance.now()/1000-rondaT0;let rondaT0=0;
-// (de ladrón, lo guardado es el del equipo —el motor—; y el final de la ronda)
-function verRonda(){if(!ronda)return;const P=persec?.P,bot=P?P.botin:ronda.botin,meta=P?P.meta:ronda.meta;if(P?.fin&&!finVista.value)verFin(P);
- rondaVista.value={mochila:precio(ronda.mochila),botin:precio(bot),meta:precio(meta),parte:Math.min(1,bot/meta),
- guaridas:ronda.guaridas.map(g=>g.texto),gano:gano(ronda),robos:ronda.avisos.length};}
-function usarRonda(u){if(!ronda)return;const t=rondaT();
- if(u.accion==='visor'){avisar(hayGente(ronda,u.vivienda,t)?'Por el visor: hay gente adentro':'Por el visor: está vacía');return;}
- if(u.accion==='forzar'){empezarForzar(ronda,u.id,t);avisar('Forzando la chapa… quedate quieto');return;}
- if(u.accion==='robar'){const o=robar(ronda,u.id,t);if(o){avisar(`+${precio(o.valor)} · ${o.nombre} a la mochila`);world.refrescarInteriores?.();titular(`Roban ${o.nombre.toLowerCase()} en ${o.donde}`);grabar(o);persec?.robo(o.x,o.z,o.lugar?.casa!=null?'C'+o.lugar.casa:o.lugar?.lot!=null?'L'+o.lugar.lot:null,o.donde);}}
- else if(u.accion==='nada'){avisar(u.texto);return;}
- else if(u.accion==='sacar'){const v=sacar(ronda,u.id,t);persec?.sacarBotin(ronda.guaridas.findIndex(g=>g.id===u.id));avisar(v?`Sacaste ${precio(v)}: vuelve a la mochila`:'No hay nada guardado');}
- else{const v=guardar(ronda,t,u.id),g=ronda.guaridas.find(g=>g.id===u.id);persec?.guardarBotin(v,ronda.guaridas.indexOf(g),g?.delatada?.desde===t);
-  avisar(!v?'La mochila está vacía':g?.delatada?.desde===t?`Guardaste ${precio(v)}, pero te vieron entrar: la policía puede allanarla en ${Math.round(g.delatada.allanable-t)} s`:`Guardaste ${precio(v)} en la guarida`);}
- verRonda();if(gano(ronda))avisar('¡Llegaron a la meta! Ganan los ladrones');}
-// (cada cuadro: el forzado en curso; si el jugador se aleja, se corta)
-function pasoRonda(){if(ronda&&persec)perseguido(ronda,rondaT(),persec.perseguido);// (la persecución del 3D marca la ronda: guardar perseguido delata)
- if(!ronda?.forzando)return;const r=tickForzar(ronda,player.x,player.z,rondaT());if(!r)return;
- if(r.cancelado)avisar('Dejaste de forzar la chapa');else if(r.abierta){avisar(r.gente?'Chapa abierta… pero hay gente: llamaron a la policía':'Chapa abierta');if(r.gente){titular('Los vecinos llaman a la policía: forzaron la chapa de un apartamento');persec?.llamada(player.x,player.z);}}else rondaMsg.value=`Forzando la chapa… ${Math.ceil(r.resta)} s`;}
-// ---------- De ladrón contra la policía bot ----------
-// preso (con botín: lo pierde; un compañero bot puede rescatarlo en la comisaría), detenido (sin nada: un rato), libre
-const presoVista=ref(null);
-function estadoLadron(e,yo){
- if(e==='preso'){if(ronda&&ronda.mochila>0){ronda.registro.push({t:rondaT(),que:`Perdiste ${precio(ronda.mochila)}: te atraparon`});ronda.mochila=0;ronda.enMochila=[];}
-  presoVista.value={titulo:'Te atraparon con botín: estás preso',sub:'Perdiste lo que llevabas. Un compañero libre puede rescatarte en la puerta de la comisaría.'};titular('La policía atrapó a un ladrón con las manos llenas');}
- else if(e==='detenido')presoVista.value={titulo:'Detenido por sospecha',sub:'No llevabas nada encima: te sueltan en un rato.'};
- else if(e==='libre'){if(presoVista.value)avisar(presoVista.value.titulo.startsWith('Te atraparon')?'¡Te rescataron! Corré':'Te soltaron');presoVista.value=null;}
- // (preso o detenido: en la comisaría —donde lo dejó el motor—; libre otra vez: donde lo soltaron o lo rescataron)
- Object.assign(player,{x:yo.x,z:yo.z,feet:sueloBot(yo.x,yo.z),vy:0,ground:true,caidaDesde:null});verRonda();}
-// el final de la ronda (los dos papeles): quién ganó, por qué y cómo quedó; «Otra ronda» u «Volver al inicio»
-const finVista=ref(null);
-function verFin(P){const L=P.agentes.filter(a=>a.equipo==='ladron'),gana=P.fin.gana,yoGano=(gana==='ladron')!==POLICIA;
- finVista.value={gana,yoGano,titulo:gana==='ladron'?'Los ladrones llegaron a la meta':P.fin.por==='presos'?'Todos los ladrones presos':'Se acabó el tiempo',
-  sub:`${yoGano?'Ganaste':'Perdiste'} · presos ${L.filter(a=>a.estado==='preso').length} de ${L.length} · guardaron ${precio(P.botin)} de ${precio(P.meta)}`};
- keys.clear();controls?.unlock?.();}
-function otraRonda(){location.reload();}
-// ---------- El menú (Tab) ----------
-const horaDe=(inicio,t)=>horaTexto(inicio+t*RELOJ.escala).split(' ')[1];
-function titular(texto){const R=relojJuego();if(R)titulares.push({hora:horaDe(R.inicio,R.s),texto});if(titulares.length>30)titulares.shift();}
-// el ladrón: la cámara de un edificio lo graba al robar ahí (con la ropa que tiene puesta); a RETRATO_DIFUNDE s, a las noticias
-function grabar(o){if(o.lugar?.lot==null||!avatar?.tpl)return;const R=relojJuego();
- persec?.retrato();retratoLadron={rasgos:rasgosDe(avatar.look),ropa:describirRopa(avatar.tpl.outfit),ropaVista:JSON.parse(JSON.stringify(avatar.tpl.outfit||{})),visto:`${o.donde}, ${horaDe(R.inicio,R.s)} (cámara)`,difundido:false,t:R.s};
- titular(`Una cámara grabó al que robó en ${o.donde}`);}
-function pasoNoticias(){if(retratoLadron&&!retratoLadron.difundido&&rondaT()-retratoLadron.t>=RETRATO_DIFUNDE){retratoLadron.difundido=true;
- titular(`SE BUSCA: ${retratoLadron.rasgos}; vestía ${retratoLadron.ropa}. Si lo ve, avise a la policía`);avisar('Tu retrato salió en las noticias: mirá el menú (Tab)');}}
-// la ropa de repuesto que lleva en la mochila al empezar: una de arriba, una de encima, una de abajo y una para la cabeza
-function ropaDeRepuesto(){const r=rng(seed.value*17+3),de=s=>GARMENTS.filter(g=>g.slot===s&&g.id!=='vestido'&&g.id!=='delantal'),pick=a=>a[Math.floor(r()*a.length)],color=()=>PALETTE[Math.floor(r()*PALETTE.length)];
- ropaMochila=['top','outer','bottom','hat'].map(s=>{const g=pick(de(s));return {slot:s,id:g.id,color:color(),label:g.label};});}
-const conEtiquetas=o=>Object.fromEntries(Object.entries(o||{}).filter(([,p])=>p).map(([k,p])=>[k,{...p,label:etiqueta(p.id)}]));
-function datosMenu(){const R=relojJuego();if(!R)return null;const resta=Math.max(0,MODO_BOTIN.duracion-R.s),reloj=`${Math.floor(resta/60)}:${String(Math.floor(resta%60)).padStart(2,'0')}`;
- if(!POLICIA&&ronda){const L=avatar?.look||{};
-  return {nombre:nombreCuenta()||'Vos',alias:'',hora:horaVista.value,resta:reloj,
-   mochila:ronda.enMochila.map(o=>({nombre:o.nombre,donde:o.donde,hora:horaDe(R.inicio,o.t),precio:precio(o.valor)})),mochilaTotal:precio(ronda.mochila),
-   guardado:precio(ronda.botin),meta:precio(ronda.meta),guardadoN:ronda.botin,metaN:ronda.meta,
-   guaridas:ronda.guaridas.map((g,i)=>({texto:g.texto,lejos:`a ${Math.round(Math.hypot(g.caja.x-player.x,g.caja.z-player.z))} m`,tuya:i===0})),
-   cuerpo:{piel:L.piel||'media',pelo:L.pelo||'castaño',peinado:L.pzPelo||'',barba:L.pzBigote||''},
-   ropa:{puesto:conEtiquetas(avatar?.tpl?.outfit),mochila:ropaMochila,tiempo:VESTIR_S},noticias:{retrato:retratoLadron,titulares:[...titulares].reverse()},
-   mapa:persec?.mapa?.()||null,ropaPuesta:avatar?.tpl?.outfit||null,
-   equipo:persec?.P?persec.banda().map(b=>({nombre:b.nombre,donde:b.donde,estado:b.estado,mochila:b.mochila?precio(b.mochila):''})):[{nombre:'Vos',donde:lugar.value?.titulo||'',estado:muerto.value?'preso':'libre',mochila:ronda.mochila?precio(ronda.mochila):''}]};}
- if(POLICIA&&persec?.P){const I=persec.info();
-  if(!censoMenu&&soc)censoMenu=soc.S.personas.filter(p=>p.edad>=14).map(p=>({id:p.id,nombre:p.nombre,edad:p.edad,oficio:p.oficio,vive:direccionHogar(soc.S,p.hogar)}));
-  const L=avatar?.look||{};
-  return {mapa:persec.mapa?.()||null,cuerpo:{piel:L.piel||'media',pelo:L.pelo||'castaño',peinado:L.pzPelo||'',barba:L.pzBigote||''},ropaPuesta:avatar?.tpl?.outfit||null,nombre:nombreCuenta()?'Agente '+nombreCuenta():'Agente',alias:'Comisaría',hora:horaVista.value,resta:reloj,avisos:I.avisos,retratos:I.sospechosos,censo:censoMenu||[],hogares:soc?.S.hogares.size||0,
-   equipo:I.companeros,patrullas:(patrullas?.posiciones()||[]).map((p,i)=>({id:`Patrulla ${i+1}`,donde:p.manejada?'la manejás vos':`a ${Math.round(Math.hypot(p.x-player.x,p.z-player.z))} m`,estado:p.manejada?'manejando':'estacionada'})),drones:I.drones};}
- return null;}
-function abrirMenu(){menuDatos.value=datosMenu();if(!menuDatos.value)return;menuAbierto.value=true;keys.clear();controls?.unlock?.();menuReloj=.5;}
-// (al cerrar, vuelve a capturar el ratón si lo pidió una tecla de verdad; si no —el navegador no lo deja—, «Clic para caminar»)
-function cerrarMenu(){menuAbierto.value=false;if(navigator.userActivation?.isActive!==false)try{controls?.lock?.();}catch{}}
-// lo que se hace en el menú
-async function accionMenu(a){
- if(a.tipo==='vestir'||a.tipo==='quitar'||a.tipo==='color'){if(!avatar?.tpl||performance.now()<vistiendo)return;const outfit=JSON.parse(JSON.stringify(avatar.tpl.outfit||{})),viejo=a.tipo==='color'?null:outfit[a.slot];
-  if(a.tipo==='color'){if(!outfit[a.slot]||outfit[a.slot].color===a.color)return;outfit[a.slot]={...outfit[a.slot],color:a.color};}
-  else if(a.tipo==='vestir'){outfit[a.slot]={id:a.prenda.id,color:a.prenda.color};const i=ropaMochila.findIndex(p=>p.id===a.prenda.id&&p.color===a.prenda.color&&p.slot===a.slot);if(i>=0)ropaMochila.splice(i,1);}else outfit[a.slot]=null;
-  if(viejo)ropaMochila.push({slot:a.slot,id:viejo.id,color:viejo.color,label:etiqueta(viejo.id)});
-  // (el vestido va solo: ponérselo guarda lo de abajo; sacárselo sin nada abajo pone lo de abajo que lleva en la mochila,
-  // o un pantalón)
-  if(a.tipo==='vestir'&&a.prenda.id==='vestido'&&outfit.bottom){ropaMochila.push({slot:'bottom',id:outfit.bottom.id,color:outfit.bottom.color,label:etiqueta(outfit.bottom.id)});outfit.bottom=null;}
-  if(outfit.top?.id!=='vestido'&&!outfit.bottom){const i=ropaMochila.findIndex(p=>p.slot==='bottom');const b=i>=0?ropaMochila.splice(i,1)[0]:{id:'pantalon',color:'#2f3133'};outfit.bottom={id:b.id,color:b.color};}
-  vistiendo=performance.now()+VESTIR_S*1000;keys.clear();avisar(`Cambiándote de ropa… ${VESTIR_S} s`);
-  const t=await vestirPlantilla(avatar.tpl,outfit);makeAvatar(t);menuDatos.value=datosMenu();return;}
- if(a.tipo==='difundir'&&persec){if(persec.difundir(a.retrato.id))avisar('Retrato difundido: si un vecino lo ve, avisa');menuDatos.value=datosMenu();return;}
- if(a.tipo==='marcar'){marcaPlano={x:a.aviso.x,z:a.aviso.z,hasta:performance.now()+20000};showMap.value=true;avisar(`Marcado en el plano: ${a.aviso.donde}`);}}
-// ---------- De policía (REGLAS.md, paso 3) ----------
-// El motor del modo «Botín» con sus ladrones bots; el jugador, uniformado, sale de la comisaría.
-const sueloBot=(x,z,h)=>{const g=groundHere(x,z,0);return groundHere(x,z,Math.max(g,h??g)+1);};
-function armarPolicia(conPlano){if(!plan||!world)return;
- // (de policía, las viviendas están todas trancadas: entra sólo a las zonas comunes)
- // (las guaridas de la ronda: las mismas del motor, en el mismo orden —guaridasDe—; su puerta se abre si el ladrón se
- // mete persiguiéndolo, y adentro está la caja)
- const R=crearRonda(plan,{equipo:team.value,ronda:0});R.abiertas=new Set();trancar(R,conPlano);dibujarCajas(R,conPlano);
- persec=createPersecucion({scene,plan,player,characters,policeTemplates,suelo:sueloBot,equipo:team.value,ronda:0,gente:()=>soc,
-  guaridas3d:R.guaridas.map(g=>({vivienda:g.vivienda,texto:g.texto,x:g.caja.x,z:g.caja.z,y:g.caja.y})),abrir:v=>{R.abiertas.add(v);world.refrescarInteriores?.();}});persec.iniciar();
- const [x,z]=persec.P.C.comisaria.puntos[0];Object.assign(player,{x,z,feet:sueloBot(x,z),vy:0,ground:true,caidaDesde:null});verPolicia();
- avisar('Sos policía: cada robo aparece en el plano; andá a ver la cámara y atrapalo');armarSociedad(persec.P.C.mapa);}
-// ---------- La sociedad en el 3D (etapa 2) ----------
-// el reloj de la ciudad: cuándo empezó la ronda (s del juego desde el lunes) y los s reales que van
-// (de policía, el reloj del motor, pero continuo —P.t más lo que va del paso—: con P.t solo, que salta de a M.tick, la
-// gente de la calle, que se ubica por la hora, se movía a saltos de 4 por segundo —2026-10-18, Miguel: «se teletransportan»—)
-function relojJuego(){if(POLICIA&&persec?.P)return {inicio:persec.P.inicio,s:persec.tiempo};if(ronda)return {inicio:ronda.inicio,s:rondaT()};return null;}
-function armarSociedad(mapa){if(!plan||!world||soc)return;mapa??=mapaDeJuego(plan);
- soc=createSociedad3d({scene,plan,mapa,characters,suelo:sueloBot,reloj:()=>relojJuego()||{inicio:0,s:0},alturaPiso:(lote,nivel)=>(world.lots.get(lote)?.raise||0)+nivel*3+.02});
- // (los locales: sus puertas de calle, a la altura de la planta baja de su lote; trancadas mientras el lugar está cerrado)
- const P=puertasDeLugares(plan,soc.S);for(const p of P)p.y=(world.lots.get(p.lote)?.raise||0)+.02;cierres={puertas:[],todas:P,abiertas:new Set()};pasoCierres(true);}
-// (cada segundo: qué locales están cerrados a esta hora —salvo el lote donde está el jugador, que siempre puede salir—)
-function pasoCierres(ya,dt=0){if(!cierres||!soc)return;if(!ya&&(cierresReloj-=dt)>0)return;cierresReloj=1;const R=relojJuego();if(!R)return;const t=R.inicio+R.s*RELOJ.escala;
- const aqui=plan.lots.findIndex(L=>L.rect&&player.x>L.rect.x&&player.x<L.rect.x+L.rect.w&&player.z>L.rect.y&&player.z<L.rect.y+L.rect.h);
- cierres.puertas=cierres.todas.filter(p=>p.lote!==aqui&&!abierto(soc.S,p.lugar,t));
- horaVista.value=horaTexto(t);
- // (la noche: de 19 a 6; sólo cuando cambia, así N la sigue cambiando a mano)
- const h=(t%RELOJ.dia)/3600,n=h<6||h>=19;luz.tw=calidez(h);if(n!==nocheAuto){nocheAuto=n;if(night.value!==n){night.value=n;applyLight();}}}
-// (dónde choca una patrulla: lo mismo que el jugador, con el ancho del auto, y los autos del tránsito)
-const enAuto=(v,x,z,m)=>{const fx=Math.sin(v.yaw),fz=Math.cos(v.yaw),dx=x-v.x,dz=z-v.z;return Math.abs(dx*fx+dz*fz)<v.len/2+m&&Math.abs(dx*fz-dz*fx)<v.wid/2+m;};
-const bloqueaAuto=(x,z,y)=>{const R=PATRULLA.radio;return world.collide(x,z,R,true,y)||!!world.dentro?.(x,z,y+1)||!island.walkable(x,z,y)||barrios.collide(x,z,R,true,y)||viviendas.collide(x,z,R,true,y)||casas.collide(x,z,R)||trancadoEn(x,z,R,y)||traffic.positions().some(v=>enAuto(v,x,z,.2))||!!patrullas?.cars.some(c=>c!==patrullas.manejando&&enAuto(c,x,z,.2));};
-function subirPatrulla(i){const c=patrullas?.subir(i);if(!c)return;keys.clear();if(avatar)avatar.holder.visible=false;avisar('Al volante: W/S acelerar y frenar, A/D girar, E bajarse');}
-function bajarPatrulla(){const b=patrullas?.bajar();if(!b)return;Object.assign(player,{x:b.x,z:b.z,feet:b.y,vy:0,ground:true,caidaDesde:null});velocidad.value=null;
- euler.setFromQuaternion(camera.quaternion,'YXZ');euler.x=-.1;euler.z=0;camera.quaternion.setFromEuler(euler);if(avatar)avatar.holder.visible=(third.value||fps.on)&&!drone.value;avisar('Estacionada');}
-// manejar: el auto con W/S y A/D; el jugador va adentro (su lugar es el del auto, para el motor y el tránsito); la cámara,
-// detrás y arriba, mirando adelante
-function manejarStep(dt){const c=patrullas.manejando,k=x=>keys.has(x);
- patrullas.manejar(dt,(k('KeyW')||k('ArrowUp')?1:0)-(k('KeyS')||k('ArrowDown')?1:0),(k('KeyD')||k('ArrowRight')?1:0)-(k('KeyA')||k('ArrowLeft')?1:0));
- Object.assign(player,{x:c.x,z:c.z,feet:c.y,vy:0,ground:true});if(avatar)avatar.holder.visible=false;
- const fx=Math.sin(c.yaw),fz=Math.cos(c.yaw),want=new THREE.Vector3(c.x-fx*8.5,c.y+3.6,c.z-fz*8.5);camera.position.lerp(want,Math.min(1,dt*4));camera.lookAt(c.x+fx*3,c.y+1.2,c.z+fz*3);
- velocidad.value=Math.round(Math.abs(c.v)*3.6);accionTexto.value='Bajarse';accionAlterna.value='';followCamera();}
-const trancadoEn=(x,z,r,F)=>!!cerraduras&&trancada(cerraduras,x,z,r,F)||!!cierres&&trancada(cierres,x,z,r,F);
-// (para probar: llevar la ronda a un día y una hora —0 = lunes—)
-function fijarHora(dia,h){const R=relojJuego();if(!R)return false;const ini=(dia*24+h)*3600-R.s*RELOJ.escala;if(persec?.P)persec.P.inicio=POLICIA?ini:ini+(rondaT()-persec.P.t)*RELOJ.escala;if(ronda){ronda.inicio=ini;ronda.ocup=ocupacionSociedad(soc?.S||sociedadDe(plan),ini,MODO_BOTIN.duracion);}pasoCierres(true);return horaVista.value;}
-function verPolicia(){const e=persec?.estado();if(!e)return;for(const m of e.mensajes)avisar(m.texto);if(persec.P.fin&&!finVista.value)verFin(persec.P);
- if(e.avisos.length>avisosVistos){const a=e.avisos[e.avisos.length-1];avisar(`Aviso: ${a.tipo.toLowerCase()} · mirá el plano`);avisosVistos=e.avisos.length;}
- const mm=Math.floor(e.resta/60),ss=String(Math.floor(e.resta%60)).padStart(2,'0');
- policiaVista.value={reloj:`${mm}:${ss}`,botin:precio(e.botin),meta:precio(e.meta),parte:Math.min(1,e.botin/e.meta),presos:e.presos,ladrones:e.ladrones,avisos:e.avisos,retratos:e.retratos,
-  fin:e.fin&&{gana:e.fin.gana,texto:e.fin.gana==='policia'?(e.fin.por==='presos'?'Todos los ladrones presos: gana la policía':'Se acabó el tiempo: gana la policía'):'Los ladrones llegaron a la meta: ganan ellos'}};}
-function usarPolicia(u){const t=persec?.usar(u);if(t)avisar(t);verPolicia();}
-// el golpe de una caída: baja la vida; en 0, muere (el ladrón queda fuera de la ronda y pierde lo que lleva)
-function golpe(d,h){if(d<=0||muerto.value)return;vidaVista.value=Math.max(0,vidaVista.value-d);ultimoGolpe=performance.now()/1000;
- if(vidaVista.value<=0){muerto.value=true;keys.clear();if(ronda&&ronda.mochila>0){ronda.registro.push({t:rondaT(),que:`Perdiste ${precio(ronda.mochila)} en la caída`});ronda.mochila=0;ronda.enMochila=[];verRonda();}}
- else avisar(`Caída de ${h.toFixed(1)} m · −${Math.round(d)} de vida`);}
-// (la vida vuelve de a poco, VIDA.espera s después del último golpe)
-function pasoVida(dt){if(muerto.value||vidaVista.value>=VIDA.max)return;if(performance.now()/1000-ultimoGolpe>VIDA.espera)vidaVista.value=Math.min(VIDA.max,vidaVista.value+VIDA.recupera*dt);}
-// (para probar: volver a la guarida con la vida llena; en una partida de verdad, el muerto queda fuera de la ronda)
-function revivir(){if(!muerto.value)return;const g=ronda?.guaridas?.[0];muerto.value=false;vidaVista.value=VIDA.max;
- if(g){const L=g.lugar;Object.assign(player,{x:g.caja.x+Math.sin(g.caja.ang)*1.2,z:g.caja.z+Math.cos(g.caja.ang)*1.2,vy:0,ground:true,caidaDesde:null,feet:L.lot!=null?(world.lots.get(L.lot)?.raise||0)+L.nivel*3+.02:player.feet});}}
-function avisar(t){rondaMsg.value=t;clearTimeout(rondaMsgT);rondaMsgT=setTimeout(()=>{rondaMsg.value='';},3200);}
+ const f=(x,z,y)=>!!cerraduras&&puertaTrancadaEn(cerraduras,x,z,y);world.setTrancadas?.(f);viviendas?.setTrancadas?.(f);island?.setTrancadas?.(f);}
+const trancadoEn=(x,z,r,F)=>!!cerraduras&&trancada(cerraduras,x,z,r,F);
 // (tFijo: con esa plantilla —al cambiarse de ropa, la misma persona con otra ropa—; si no, una al azar)
 function makeAvatar(tFijo=null){
  if(avatar){scene.remove(avatar.holder);avatar.mixer.stopAllAction();avatar=null;}
- const lista=POLICIA&&policeTemplates.length?policeTemplates:characters;if(!lista.length&&!tFijo)return;const t=tFijo||lista[Math.floor(Math.random()*lista.length)];avatar=makeCharacter(t,Math.random);avatar.lods=[];avatar.look=t.look;avatar.tpl=t;
+ const lista=characters;if(!lista.length&&!tFijo)return;const t=tFijo||lista[Math.floor(Math.random()*lista.length)];avatar=makeCharacter(t,Math.random);avatar.lods=[];avatar.look=t.look;avatar.tpl=t;
  avatar.holder.visible=(third.value||fps.on)&&!drone.value;scene.add(avatar.holder);
  // La silueta: el mismo muñeco otra vez, de un color plano, dibujado sólo donde algo lo tapa (prueba de profundidad al
  // revés) y después de todo lo opaco. Así nunca se pierde detrás de una pared.
@@ -499,8 +313,6 @@ function makeAvatar(tFijo=null){
   (avatar.silMats||(avatar.silMats=[])).push(m);const sil=new THREE.SkinnedMesh(o.geometry,m);sil.bind(o.skeleton,o.bindMatrix);sil.userData.silueta=true;sil.renderOrder=999;sil.frustumCulled=false;sil.castShadow=false;sil.position.copy(o.position);sil.quaternion.copy(o.quaternion);sil.scale.copy(o.scale);o.parent.add(sil);
   sil.onBeforeRender=()=>{if(sil.geometry!==o.geometry)sil.geometry=o.geometry;};});
  if(view.value==='primera'){fps.on=true;fps.enter();}}
-// (cambiar de papel recarga la página: el papel se elige al entrar)
-function cambiarPapel(){const q=new URLSearchParams(location.search);if(POLICIA)q.delete('papel');else q.set('papel','policia');location.search=q.toString();}
 function otherCity(){seed.value=pickCity(team.value);load();}
 function setTeam(t){team.value=t;seed.value=pickCity(t);load();}
 
@@ -513,16 +325,11 @@ const groundHere=(x,z,feet=0)=>{const sz=world.size;if(x>=0&&z>=0&&x<=sz.w&&z<=s
 // apenas al moverse de costado; al caer de un salto, un golpe que se recupera con resorte. Y el cuerpo propio visible
 // («full body awareness»): el muñeco va debajo de la cámara mirando hacia donde se mira, sin la cabeza (el hueso Head a
 // escala 0 se lleva pelo y sombrero), así al mirar abajo se ven el pecho, las piernas y los pies caminando.
-const FPS_FOV=75,FPS_RUN_FOV=83,FPS_AIM_FOV=60,FPS_NEAR=.05;
-// Sin armas (2026-10-17, REGLAS.md: «simple como un juego de patio»): el arma en la mano (viewmodel3d) y el disparo
-// (disparo3d) quedan apagados; en primera persona se ven los brazos del muñeco. ARMAS=true los vuelve a prender.
-const ARMAS=false;
-let vm=null,vmPass=null,shooting=null,hitTimer=0;
+const FPS_FOV=75,FPS_RUN_FOV=83,FPS_NEAR=.05;
 const fps={on:false,fov:FPS_FOV,roll:0,dip:0,dipV:0,amp:0,head:null,arms:[],sil:[],
- enter(){if(!avatar)return;avatar.holder.visible=true;this.head=null;this.sil=[];this.arms=[];avatar.holder.traverse(o=>{if(o.isBone&&/^Head$/.test(o.name))this.head=o;if(ARMAS&&o.isBone&&/^Shoulder[LR]$/.test(o.name))this.arms.push(o);if(o.userData.silueta){o.visible=false;this.sil.push(o);}});camera.near=FPS_NEAR;camera.updateProjectionMatrix();
-  // (los brazos del arma con la piel y la manga del muñeco; los del cuerpo se esconden: los reemplazan)
-  const L=avatar.look||{};vm?.setColors(COLORS.piel[L.piel],COLORS.ropa[L.ropa]);if(vmPass)vmPass.enabled=true;},
- leave(){if(this.head)this.head.scale.setScalar(1);for(const b of this.arms)b.scale.setScalar(1);this.arms=[];if(vmPass)vmPass.enabled=false;aiming.value=false;for(const o of this.sil)o.visible=true;this.sil=[];camera.near=.15;camera.fov=72;this.fov=FPS_FOV;camera.rotation.z=0;camera.updateProjectionMatrix();},
+ enter(){if(!avatar)return;avatar.holder.visible=true;this.head=null;this.sil=[];this.arms=[];avatar.holder.traverse(o=>{if(o.isBone&&/^Head$/.test(o.name))this.head=o;if(o.userData.silueta){o.visible=false;this.sil.push(o);}});camera.near=FPS_NEAR;camera.updateProjectionMatrix();
+ },
+ leave(){if(this.head)this.head.scale.setScalar(1);for(const b of this.arms)b.scale.setScalar(1);this.arms=[];for(const o of this.sil)o.visible=true;this.sil=[];camera.near=.15;camera.fov=72;this.fov=FPS_FOV;camera.rotation.z=0;camera.updateProjectionMatrix();},
  step(dt,moving,landed){
   const run=moving&&player.run,e=new THREE.Euler().setFromQuaternion(camera.quaternion,'YXZ');
   // (la amplitud del balanceo entra y sale con el movimiento, para que no salte al arrancar o frenar)
@@ -533,8 +340,7 @@ const fps={on:false,fov:FPS_FOV,roll:0,dip:0,dipV:0,amp:0,head:null,arms:[],sil:
   // (inclinación de costado: A/D, como mucho 1,5°)
   const side=(keys.has('KeyD')||keys.has('ArrowRight')?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')?1:0);
   this.roll+=(-side*.026-this.roll)*Math.min(1,dt*6);
-  // (apuntando, el mundo se acerca: 60°)
-  const goal=(run?FPS_RUN_FOV:FPS_FOV)*(1-(vm?.aiming||0))+FPS_AIM_FOV*(vm?.aiming||0);this.fov+=(goal-this.fov)*Math.min(1,dt*10);if(Math.abs(camera.fov-this.fov)>.01){camera.fov=this.fov;camera.updateProjectionMatrix();}
+  const goal=run?FPS_RUN_FOV:FPS_FOV;this.fov+=(goal-this.fov)*Math.min(1,dt*10);if(Math.abs(camera.fov-this.fov)>.01){camera.fov=this.fov;camera.updateProjectionMatrix();}
   const fx=-Math.sin(e.y),fz=-Math.cos(e.y),rx=Math.cos(e.y),rz=-Math.sin(e.y);
   camera.position.set(player.x+rx*bx,player.feet+EYE-by+this.dip,player.z+rz*bx);
   camera.rotation.set(e.x,e.y,this.roll,'YXZ');
@@ -543,27 +349,8 @@ const fps={on:false,fov:FPS_FOV,roll:0,dip:0,dipV:0,amp:0,head:null,arms:[],sil:
   // (al mirar abajo el cuerpo se corre más atrás: si no, se ve el cuello desde arriba en vez del pecho y los pies)
   if(avatar){const h=avatar.holder,back=.14+.3*Math.max(0,-e.x-.3);h.visible=true;h.position.set(player.x-fx*back,player.feet,player.z-fz*back);h.rotation.y=e.y+Math.PI;
    moveCharacter(avatar,moving?(run?'run':'walk'):'idle',moving?(run?RUN:WALK)/3.5:0,dt);if(this.head)this.head.scale.setScalar(1e-4);for(const b of this.arms)b.scale.setScalar(1e-4);}
-  if(vm){vm.light(camera,sun,hemi);vm.update(dt,{cam:camera,bob:player.bob,amp:this.amp,running:run,aiming:aiming.value,dip:this.dip});}},
- // El tiro: el arma retrocede (viewmodel3d.js) y la cámara sube un poco, como en los shooters.
- fire(){if(!vm?.fire())return;
-  // (la dispersión, como en los shooters: casi nada apuntando; desde la cadera más, y más caminando)
-  const moving=['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].some(k=>keys.has(k)),spread=aiming.value?.0015:.012+(moving?.014:0);
-  crowd?.scare?.(player.x,player.z,22);
-  shooting?.fire(spread).then(hit=>{if(!hit?.person)return;hitMark.value++;clearTimeout(hitTimer);hitTimer=setTimeout(()=>{hitMark.value=0;},140);crowd?.scare?.(hit.point.x,hit.point.z,4);});const e=new THREE.Euler().setFromQuaternion(camera.quaternion,'YXZ');e.x=Math.min(1.4,e.x+.012+Math.random()*.006);e.y+=(Math.random()-.5)*.006;camera.quaternion.setFromEuler(e);}};
-// Asomado a una ventana (acciones3d mirada, 2026-10-17, Miguel: «asomarme a una ventana y poder ver a los lados»): la
-// cámara va de donde estaba al ojo junto al vidrio, girando hacia afuera; ya asomado, se mira a los lados hasta
-// VENTANA.giro y arriba o abajo hasta VENTANA.arriba / VENTANA.abajo, como sacando la cabeza. El muñeco no se ve (la
-// cámara queda delante de su cara).
-const VENTANA={giro:1.2,arriba:.6,abajo:.8};let asomo=null;
-function ventana(dt,m){const e=new THREE.Euler().setFromQuaternion(camera.quaternion,'YXZ'),fuera=m.yaw+Math.PI,k=m.k;
- if(!asomo)asomo={x:camera.position.x,y:camera.position.y,z:camera.position.z};
- camera.position.set(asomo.x+(m.x-asomo.x)*k,asomo.y+(m.y-asomo.y)*k,asomo.z+(m.z-asomo.z)*k);
- let dy=e.y-fuera;dy=Math.atan2(Math.sin(dy),Math.cos(dy));
- // (mientras se asoma, la mirada va hacia afuera; ya asomado, el mouse la mueve dentro de los límites)
- if(acciones.fase==='bajar')dy*=1-Math.min(1,dt*8);dy=Math.max(-VENTANA.giro,Math.min(VENTANA.giro,dy));
- camera.rotation.set(Math.max(-VENTANA.abajo,Math.min(VENTANA.arriba,e.x)),fuera+dy,0,'YXZ');
- if(avatar)avatar.holder.visible=k<.5;}
-function dejarVentana(){asomo=null;if(avatar)avatar.holder.visible=(third.value||fps.on)&&!drone.value;}
+ },
+ };
 // Un paso del jugador (mx, mz: lo que avanza en este cuadro), con los choques. (ayudaEsquinas: en false, como antes —para
 // comparar en las pruebas: __demo.ayudaEsquinas—)
 let ayudaEsquinas=true;
@@ -573,7 +360,8 @@ function puertasCerca(x,z,F,r=1.5){return [...(world?.puertasCerca?.(x,z,F,r)||[
 // la más cercana que se puede abrir o cerrar (no las trancadas: esas se fuerzan)
 function puertaParaE(){let best=null,bd=1.3;for(const p of puertasCerca(player.x,player.z,player.feet,1.6)){if(p.trancada())continue;const d=distSeg(player.x,player.z,p.seg);if(d<bd){bd=d;best=p;}}return best?{p:best,d:bd}:null;}
 // (todas las hojas de esa puerta —la doble de calle tiene dos—: abiertas o cerradas juntas)
-function alternarPuerta(p){const on=!p.abierta;for(const q of puertasCerca(p.cx,p.cz,p.cy,.3))if(Math.hypot(q.cx-p.cx,q.cz-p.cz)<.1&&q.abierta!==on)q.alternar();}
+// (y se anota en el estado del mundo: queda así al volver —anotar=false al reponer lo guardado—)
+function alternarPuerta(p,anota=true){const on=!p.abierta;for(const q of puertasCerca(p.cx,p.cz,p.cy,.3))if(Math.hypot(q.cx-p.cx,q.cz-p.cz)<.1&&q.abierta!==on)q.alternar();if(anota)anotar('puertas',puertaClave(p),on);}
 const distSeg=(x,z,[ax,az,bx,bz])=>{const dx=bx-ax,dz=bz-az,l=dx*dx+dz*dz||1,t=Math.max(0,Math.min(1,((x-ax)*dx+(z-az)*dz)/l));return Math.hypot(ax+dx*t-x,az+dz*t-z);};
 // (¿hay una pared en (x, z) a la altura del jugador? la ciudad, los barrios, las casas y sus cercas)
 const enPared=(x,z)=>world.collide(x,z,RADIUS,false,player.feet)||barrios.collide(x,z,RADIUS,false,player.feet)||viviendas.collide(x,z,RADIUS,false,player.feet)||casas.collide(x,z,RADIUS);
@@ -587,7 +375,7 @@ function caminar(mx,mz){
  const alto=(x,z)=>groundHere(x,z,F)>F+ALCANCE;
  // (una puerta cerrada —menos de 60 % abierta— frena como una pared: su hoja, de la bisagra a la otra punta)
  const cerradas=puertasCerca(player.x,player.z,F,2.5).filter(p=>p.choque!==false&&p.a<.6),puertaEn=(x,z)=>cerradas.some(p=>distSeg(x,z,p.seg)<RADIUS);
- const blocked=(x,z)=>alto(x,z)||puertaEn(x,z)||trancadoEn(x,z,RADIUS,F)||!!patrullas?.cars.some(c=>enAuto(c,x,z,RADIUS))||!island.walkable(x,z,F)||world.collide(x,z,RADIUS,true,F)||!!planoVista?.collide(x,z,RADIUS,F)||barrios.collide(x,z,RADIUS,true,F)||viviendas.collide(x,z,RADIUS,true,F)||casas.collide(x,z,RADIUS)||indoor.blocks(x,z,RADIUS,F)||!up&&patrol.blocks(x,z,RADIUS)||!up&&(crowd.blocks(x,z,RADIUS)||folk.blocks(x,z,RADIUS)||traffic.blocks(x,z,RADIUS));
+ const blocked=(x,z)=>alto(x,z)||puertaEn(x,z)||trancadoEn(x,z,RADIUS,F)||!island.walkable(x,z,F)||world.collide(x,z,RADIUS,true,F)||!!planoVista?.collide(x,z,RADIUS,F)||barrios.collide(x,z,RADIUS,true,F)||viviendas.collide(x,z,RADIUS,true,F)||casas.collide(x,z,RADIUS)||indoor.blocks(x,z,RADIUS,F)||!up&&(crowd.blocks(x,z,RADIUS)||folk.blocks(x,z,RADIUS)||traffic.blocks(x,z,RADIUS));
  const hit=blocked(player.x,player.z)?(x,z)=>alto(x,z)||trancadoEn(x,z,RADIUS,F)||!island.walkable(x,z,F)||world.collide(x,z,RADIUS,false,F)||barrios.collide(x,z,RADIUS,false,F)||viviendas.collide(x,z,RADIUS,false,F)||casas.collide(x,z,RADIUS):blocked;
  // De a un eje por vez: así se resbala por las paredes en vez de quedar pegado. (2026-10-18, Miguel: «por los pasillos
  // angostos es difícil entrar y salir de una casa»): si así casi no avanza —trabado contra el canto de un marco o una
@@ -597,28 +385,14 @@ function caminar(mx,mz){
  if(!ayudaEsquinas||(player.x-x)**2+(player.z-z)**2>.09*(mx*mx+mz*mz))return;
  for(const a of [.26,.52,.79,1.05,1.31])for(const sg of [1,-1]){const c=Math.cos(a),sn=Math.sin(a)*sg,k=Math.max(.5,c),rx=(mx*c-mz*sn)*k,rz=(mx*sn+mz*c)*k;if(!hit(x+rx,z+rz)){player.x=x+rx;player.z=z+rz;return;}}}
 function step(dt){
- pasoRonda();pasoVida(dt);
- pasoCierres(false,dt);if(soc){soc.update(dt,player.x,player.z);}
- if(persec?.listo){persec.update(dt);if((persecReloj-=dt)<=0){persecReloj=.25;if(POLICIA)verPolicia();else verRonda();}}
- if(finVista.value)return;
- if(muerto.value)return;
- if(patrullas?.manejando){manejarStep(dt);return;}
  if(drone.value)return droneStep(dt);
  // Las acciones (acciones3d.js): mientras dura una, el jugador no camina —caminar o E la terminan—; si no, cada 0,15 s,
  // el uso más cercano y su tecla.
  const quiere=['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].some(k=>keys.has(k));
- if(acciones?.activa){acciones.update(dt,quiere);accionAlterna.value='';const m=acciones.mirada();accionTexto.value=acciones.fase==='quieto'?(acciones.accion==='asomarse'?'Volver':'Levantarse'):'';
-  if(m){ventana(dt,m);return;}if(asomo)dejarVentana();fps.step(dt,false,0);return;}
- if(asomo)dejarVentana();
- if(acciones&&(accionReloj-=dt)<=0){accionReloj=.15;quienVista.value=persec?.quien(player.x,player.z)||(q=>q&&cartelDe({aspecto:q.aspecto,identidad:q.identidad,documentado:!!persec?.documentado?.(q.id)}))(soc?.quien(player.x,player.z))||null;const pc0=persec?.cerca(),pt=POLICIA?patrullas?.cerca(player.x,player.z):null,pc=pc0&&(pt==null||pc0.accion==='atrapar'||pc0.accion==='papeles')?pc0:null;// (la patrulla gana, salvo atrapar o pedirle papeles a un ladrón)
-  accionCerca=pc?{persec:pc,texto:pc.texto}:pt!=null?{patrulla:pt,texto:'Subir a la patrulla'}:pc0?{persec:pc0,texto:pc0.texto}:acciones.cerca();{const pu=puertaParaE();if(pu&&(!accionCerca||pu.d<.9&&!accionCerca.persec&&accionCerca.patrulla==null))accionCerca={puerta:pu.p,texto:pu.p.abierta?(pu.p.garaje?'Cerrar el garaje':'Cerrar la puerta'):(pu.p.garaje?'Abrir el garaje':'Abrir la puerta')};}
+ if(acciones?.activa){acciones.update(dt,quiere);accionAlterna.value='';accionTexto.value=acciones.fase==='quieto'?'Levantarse':'';
+  fps.step(dt,false,0);return;}
+ if(acciones&&(accionReloj-=dt)<=0){accionReloj=.15;accionCerca=acciones.cerca();{const pu=puertaParaE();if(pu&&(!accionCerca||pu.d<.9))accionCerca={puerta:pu.p,texto:pu.p.abierta?(pu.p.garaje?'Cerrar el garaje':'Cerrar la puerta'):(pu.p.garaje?'Abrir el garaje':'Abrir la puerta')};}
   accionTexto.value=accionCerca?.texto||'';accionAlterna.value=(accionCerca?.cortina||accionCerca?.alterna)?.texto||'';}
- // (pidiendo papeles, el policía se queda quieto los MODO_BOTIN.gente.papeles s)
- if(menuAbierto.value&&(menuReloj-=dt)<=0){menuReloj=.5;menuDatos.value=datosMenu();}
- pasoNoticias();
- // (cambiándose de ropa: quieto VESTIR_S s)
- if(performance.now()<vistiendo){accionTexto.value='Cambiándote de ropa…';fps.step(dt,false,0);return;}
- if(persec?.quieto()){accionTexto.value=POLICIA?'Pidiendo papeles…':persec.quietoPorPapeles()?'La policía te pide los papeles…':'';fps.step(dt,false,0);return;}
  const f=new THREE.Vector3();camera.getWorldDirection(f);f.y=0;f.normalize();const r=new THREE.Vector3(-f.z,0,f.x);
  const fw=(keys.has('KeyW')||keys.has('ArrowUp')?1:0)-(keys.has('KeyS')||keys.has('ArrowDown')?1:0);
  const st=(keys.has('KeyD')||keys.has('ArrowRight')?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')?1:0);
@@ -644,14 +418,12 @@ function step(dt){
  // Un vehículo que lo alcanza lo empuja hacia afuera (sin meterlo en una pared: las de la ciudad, las casas y los barrios).
  const out=player.feet>1?player:traffic.pushOut(player.x,player.z,RADIUS);if((out.x!==player.x||out.z!==player.z)&&!enPared(out.x,out.z)){player.x=out.x;player.z=out.z;}
  const g=groundHere(player.x,player.z,player.feet);
- // (en el aire: al saltar o al salir de un borde —antes seguía «en el suelo» mientras caía—; desde dónde cae, para el golpe)
+ // (en el aire: al saltar o al salir de un borde —antes seguía «en el suelo» mientras caía—)
  if(player.ground&&player.feet>g+.12)player.ground=false;
  if(keys.has('Space')&&player.ground){player.vy=JUMP;player.ground=false;}
- if(!player.ground)player.caidaDesde=Math.max(player.caidaDesde??player.feet,player.feet);
  player.vy=Math.max(player.vy-GRAVITY*dt,-ATERRIZAJE.caida);player.feet+=player.vy*dt;// (con tope: la caída del dron se ve)
  let landed=0;if(player.feet<=g&&!player.ground){landed=Math.min(1,-player.vy/9);
-  // el golpe: lo que cayó desde lo más alto del salto (no al bajar del dron ni al salir del ascensor)
-  const h=(player.caidaDesde??g)-g;if(!player.sinDano&&!lifting)golpe(danoDeCaida(h),h);player.caidaDesde=null;player.sinDano=false;}
+  }
  if(player.feet<=g){player.feet=player.ground&&g>player.feet?player.feet+(g-player.feet)*Math.min(1,dt*18):g;player.feet=Math.max(player.feet,g-.0001);player.vy=0;player.ground=true;}
  fadeTo=1;fadeAvatar(1);fps.step(dt,moving,landed);
  actualizarVisibles();
@@ -737,15 +509,7 @@ function drawMini(){
  const g=c.getContext('2d'),dpr=baseMap.width/Wp;g.setTransform(1,0,0,1,0,0);g.drawImage(baseMap,0,0);g.setTransform(dpr,0,0,dpr,-mapOff.x*MAP_CELL*dpr,-mapOff.y*MAP_CELL*dpr);
  for(const v of traffic.positions()){g.save();g.translate(v.x/CELL*MAP_CELL,v.z/CELL*MAP_CELL);g.rotate(-v.yaw);g.fillStyle=v.type==='taxi'?'#f6c90e':v.type==='bus'?'#3d6f8f':v.type==='cop'?'#e8eef5':'#343c42';g.fillRect(-v.wid/CELL*MAP_CELL/2-.4,-v.len/CELL*MAP_CELL/2,v.wid/CELL*MAP_CELL+.8,v.len/CELL*MAP_CELL);g.restore();}
  g.fillStyle='#d9c7a0';g.strokeStyle='rgba(52,60,66,.8)';g.lineWidth=.8;
- for(const c of [...crowd.positions(),...(soc?.personas()||[])]){g.beginPath();g.arc(c.x/CELL*MAP_CELL,c.z/CELL*MAP_CELL,1.8,0,7);g.fill();g.stroke();}
- if(ronda){g.fillStyle='#3f7d55';for(const gu of ronda.guaridas){const x=gu.caja.x/CELL*MAP_CELL,y=gu.caja.z/CELL*MAP_CELL;g.fillRect(x-3,y-3,6,6);}
-  // (el punto de cada robo: el que ve la policía)
-  for(const av of ronda.avisos){const x=av.x/CELL*MAP_CELL,y=av.z/CELL*MAP_CELL;g.fillStyle='#c0392b';g.beginPath();g.arc(x,y-6,3.4,Math.PI,0);g.lineTo(x,y);g.closePath();g.fill();g.fillStyle='#fff';g.beginPath();g.arc(x,y-6,1.3,0,7);g.fill();}}
- // (de policía: el punto de cada aviso del motor; gris el que ya revisó)
- if(policiaVista.value)for(const av of policiaVista.value.avisos){const x=av.x/CELL*MAP_CELL,y=av.z/CELL*MAP_CELL;g.fillStyle=av.revisado?'#8a8f94':'#c0392b';g.beginPath();g.arc(x,y-6,3.4,Math.PI,0);g.lineTo(x,y);g.closePath();g.fill();g.fillStyle='#fff';g.beginPath();g.arc(x,y-6,1.3,0,7);g.fill();}
- // (lo marcado desde el menú: un anillo que late)
- if(marcaPlano&&performance.now()<marcaPlano.hasta){const x=marcaPlano.x/CELL*MAP_CELL,y=marcaPlano.z/CELL*MAP_CELL,k=(performance.now()/600)%1;g.strokeStyle=`rgba(255,214,90,${1-k})`;g.lineWidth=2;g.beginPath();g.arc(x,y,4+k*12,0,7);g.stroke();g.strokeStyle='#ffd65a';g.beginPath();g.arc(x,y,4,0,7);g.stroke();}
- if(patrullas)for(const v of patrullas.posiciones()){g.save();g.translate(v.x/CELL*MAP_CELL,v.z/CELL*MAP_CELL);g.rotate(-v.yaw);g.fillStyle=v.manejada?'#5b8def':'#e8eef5';g.strokeStyle='#1d2a4a';g.lineWidth=.6;g.fillRect(-v.wid/CELL*MAP_CELL/2-.6,-v.len/CELL*MAP_CELL/2,v.wid/CELL*MAP_CELL+1.2,v.len/CELL*MAP_CELL);g.strokeRect(-v.wid/CELL*MAP_CELL/2-.6,-v.len/CELL*MAP_CELL/2,v.wid/CELL*MAP_CELL+1.2,v.len/CELL*MAP_CELL);g.restore();}
+ for(const c of crowd.positions()){g.beginPath();g.arc(c.x/CELL*MAP_CELL,c.z/CELL*MAP_CELL,1.8,0,7);g.fill();g.stroke();}
  if(drone.value){g.fillStyle='#e3907c';g.strokeStyle='#343c42';g.lineWidth=1.2;g.beginPath();g.arc(player.x/CELL*MAP_CELL,player.z/CELL*MAP_CELL,3,0,7);g.fill();g.stroke();}
  const px=camera.position.x/CELL*MAP_CELL,py=camera.position.z/CELL*MAP_CELL;euler.setFromQuaternion(camera.quaternion,'YXZ');const a=euler.y;
  const fx=-Math.sin(a),fy=-Math.cos(a);
@@ -772,19 +536,19 @@ function renderFrame(){
 
 function loop(t){
  frame=requestAnimationFrame(loop);const dt=Math.min(.05,(t-last)/1000||0);last=t;
- step(dt);pasoLuz(dt,t);actualizarVisibles();shooting?.update(dt);
+ step(dt);pasoLuz(dt,t);actualizarVisibles();
  // (los interiores —muebles del piso, casa armada— se eligen por donde está el muñeco, no la cámara: desde arriba la
  // cámara queda dos pisos más alta)
- const eye=third.value&&!drone.value?{x:player.x,y:player.feet+1.7,z:player.z}:camera.position;island.update(t/1000);const people=[...crowd.positions(),...patrol.positions(),...(soc?.personas()||[])];crowd.update(dt,player);LOD_CAM.x=camera.position.x;LOD_CAM.y=camera.position.y;LOD_CAM.z=camera.position.z;folk.update(dt,player);animals?.update(dt,camera.position);indoor.update(dt,camera.position);const adentro=island.insideHouse(eye.x,eye.z);island.setEdges(adentro);
+ const eye=third.value&&!drone.value?{x:player.x,y:player.feet+1.7,z:player.z}:camera.position;island.update(t/1000);const people=crowd.positions();crowd.update(dt,player);LOD_CAM.x=camera.position.x;LOD_CAM.y=camera.position.y;LOD_CAM.z=camera.position.z;folk.update(dt,player);animals?.update(dt,camera.position);indoor.update(dt,camera.position);const adentro=island.insideHouse(eye.x,eye.z);island.setEdges(adentro);
  // Los contornos sólo delinean paredes interiores: afuera no se ven y el paso costaba más de la mitad del cuadro.
  // (en cada cuadro, antes de dibujar: lo que se arma al acercarse —un interior— nunca llega a verse con su color. Medido:
  // 0,12 ms recorrer las 3.831 piezas de la ciudad chica)
- if(edgePass)edgePass.enabled=adentro||!!world.dentro?.(camera.position.x,camera.position.z,camera.position.y)||barrios.dentro(camera.position.x,camera.position.z,camera.position.y)||viviendas.dentro(camera.position.x,camera.position.z,camera.position.y);patrol.update(dt,player);traffic.update(dt,{player,people});world.updateDoors(dt,[player,...people,...(indoor.positions?.()||[])]);island.updateDoors(dt,[player,...folk.positions()]);viviendas.updateDoors(dt,[player,...folk.positions()]);viviendas.update(eye.x,eye.z);casas.update(eye.x,eye.z,scene.fog.far);world.updateAds(t/1000);(lejosPlantas-=dt)<=0&&(lejosPlantas=.3,planoVista?.setLejos?.(eye.x,eye.z));world.updateInteriors(eye.x,eye.z,dt,eye.y);barrios.updateInteriors(eye.x,eye.z,dt,eye.y);barrios.updateDoors(dt,[player,...folk.positions()]);world.updateElevators(dt,player);
+ if(edgePass)edgePass.enabled=adentro||!!world.dentro?.(camera.position.x,camera.position.z,camera.position.y)||barrios.dentro(camera.position.x,camera.position.z,camera.position.y)||viviendas.dentro(camera.position.x,camera.position.z,camera.position.y);traffic.update(dt,{player,people});world.updateDoors(dt,[player,...people,...(indoor.positions?.()||[])]);island.updateDoors(dt,[player,...folk.positions()]);viviendas.updateDoors(dt,[player,...folk.positions()]);viviendas.update(eye.x,eye.z);casas.update(eye.x,eye.z,scene.fog.far);world.updateAds(t/1000);(lejosPlantas-=dt)<=0&&(lejosPlantas=.3,planoVista?.setLejos?.(eye.x,eye.z));world.updateInteriors(eye.x,eye.z,dt,eye.y,camera);barrios.updateInteriors(eye.x,eye.z,dt,eye.y,camera);barrios.updateDoors(dt,[player,...folk.positions()]);world.updateElevators(dt,player);
  {const at=drone.value?null:world.elevatorAt(player.x,player.z,player.feet);lift.value=at?{floor:at.floor,floors:at.floors,roof:at.roof}:null;}
  // Las luces reales van a los postes más cercanos; se reparten de nuevo cada tanto, no en cada cuadro.
  if(luz.n>.5&&(lightClock-=dt)<=0){lightClock=.35;const cp=camera.position,near=[...world.lights,...(island?.lights||[]),...(barrios?.lights||[]),...(viviendas?.lights||[]),...(planoVista?.lights||[])].map(l=>({l,d:(l.x-cp.x)**2+(l.z-cp.z)**2})).sort((a,b)=>a.d-b.d);streetLights.forEach((s,i)=>{const n=near[i];if(n)s.position.set(n.l.x,n.l.y,n.l.z);s.intensity=n?6:0;});}
  // (justo antes de dibujar: lo que se armó en este cuadro —un interior al acercarse— tampoco llega a verse con color)
- if(EN_BOCETO&&world){boceto||(boceto=createBoceto());boceto.aplicar(world.group);}
+ if(world){colorPlano||(colorPlano=createColorPlano());colorPlano.aplicar(world.group);}
  renderFrame();medir();drawMini();
  if(Math.floor(t/250)!==Math.floor((t-dt*1000)/250)){niebla?.actualizar(camera,scene.fog.far);
   // Dónde estoy (direcciones.js ubicacionDe, validada en validar-ubicacion): la calle y la carrera del punto donde está el
@@ -798,7 +562,6 @@ function loop(t){
 
 // Mirar: con el puntero capturado (clic) o, si el navegador no lo permite, arrastrando.
 let drag=null;
-function onShoot(e){if(!ARMAS||!locked.value||view.value!=='primera'||drone.value)return;if(e.type==='mousedown'){if(e.button===0)fps.fire();if(e.button===2)aiming.value=true;}else if(e.button===2)aiming.value=false;}
 const noMenu=e=>{if(view.value==='primera')e.preventDefault();};
 function onDown(e){if(locked.value)return;drag={x:e.clientX,y:e.clientY,moved:false};}
 // (sin el puntero capturado se mira arrastrando con el clic apretado —2026-10-18, Miguel lo probó sin clic y prefirió
@@ -808,20 +571,15 @@ function onMove(e){if(!drag||locked.value)return;const dx=e.clientX-drag.x,dy=e.
 function onLockError(){sinCaptura.value=true;}
 function onUp(){if(drag&&!drag.moved&&!sinCaptura.value)controls.lock();drag=null;}
 function onKey(e){
- // (Tab: el menú, también desde adentro del menú; con el menú abierto, el juego no recibe teclas —Escape lo cierra—)
- if(e.type==='keydown'&&e.code==='Tab'){e.preventDefault();if(menuAbierto.value)cerrarMenu();else abrirMenu();return;}
- if(menuAbierto.value){if(e.type==='keydown'&&e.code==='Escape')cerrarMenu();return;}
  if(e.target.closest?.('button,input,select'))return;
  if(e.type==='keydown'){
   if(e.code==='KeyN'){night.value=!night.value;applyLight();}
-  if(e.code==='Enter'&&muerto.value)revivir();
   if(e.code==='KeyM')showMap.value=!showMap.value;
-  if(e.code==='KeyV'&&(LAB||PASEO))toggleDrone();// (la cámara libre: sólo en el laboratorio, ?lab=1 —2026-10-18: el dron salió del juego—)
-  // R: la acción alterna de lo que está cerca (aclarar u opacar el vidrio de la ventana, mirar por el visor de una puerta)
-  // (estaba adentro del «if» de E y Q: nunca llegaba; 2026-10-17, lo encontró validar-ronda al apretar la tecla)
-  if(e.code==='KeyR'&&!acciones?.activa&&(accionCerca?.cortina||accionCerca?.alterna)){acciones.empezar(accionCerca.cortina||accionCerca.alterna);accionReloj=0;}
-  if(e.code==='KeyE'||e.code==='KeyQ'){const d=e.code==='KeyE'?1:-1;if(e.code==='KeyE'&&patrullas?.manejando)bajarPatrulla();else if(e.code==='KeyE'&&accionCerca?.patrulla!=null&&!drone.value){subirPatrulla(accionCerca.patrulla);accionCerca=null;}else if(e.code==='KeyE'&&accionCerca?.puerta&&!drone.value){alternarPuerta(accionCerca.puerta);accionCerca=null;accionReloj=0;}else if(world.elevatorAt(player.x,player.z,player.feet))ride(d);
-   else if(e.code==='KeyE'&&acciones?.activa)acciones.terminar();else if(e.code==='KeyE'&&!drone.value&&accionCerca?.persec){usarPolicia(accionCerca.persec);accionCerca=null;accionReloj=0;}else if(e.code==='KeyE'&&!drone.value&&((accionCerca=acciones?.cerca())?.u||accionCerca?.ronda)){acciones.empezar(accionCerca);accionReloj=0;}else if(view.value==='arriba'){const e=new THREE.Euler(0,0,0,'YXZ').setFromQuaternion(camera.quaternion);topTurn={goal:(topTurn?.goal??e.y)+d*Math.PI/2};}}
+  // (P: las aberturas por donde la cámara ve adentro —rojo, cuentan; azul, tapadas—: world3d portales, para depurar)
+  if(e.code==='KeyP'){const on=world?.portales?.();barrios?.portales?.(on);verPortales=!!on;}
+  if(e.code==='KeyV')toggleDrone();// (volar: la cámara libre, para mirar la ciudad desde arriba)
+  if(e.code==='KeyE'||e.code==='KeyQ'){const d=e.code==='KeyE'?1:-1;if(e.code==='KeyE'&&accionCerca?.puerta&&!drone.value){alternarPuerta(accionCerca.puerta);accionCerca=null;accionReloj=0;}else if(world.elevatorAt(player.x,player.z,player.feet))ride(d);
+   else if(e.code==='KeyE'&&acciones?.activa)acciones.terminar();else if(e.code==='KeyE'&&!drone.value&&(accionCerca=acciones?.cerca())?.u){acciones.empezar(accionCerca);accionReloj=0;}}
   if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();
   keys.add(e.code);
  }else keys.delete(e.code);
@@ -831,7 +589,6 @@ function onBlur(){keys.clear();}
 
 let resize;
 onMounted(async()=>{
- if(!PASEO)await cargarFuga();// (el juego viejo: sólo con ?fuga=1 o en /demo)
  renderer=new THREE.WebGLRenderer({antialias:true});renderer.localClippingEnabled=true;renderer.setPixelRatio(Math.min(1.5,window.devicePixelRatio));// 1,5 y no 2: en pantallas retina casi no se nota y dibuja ~44 % menos píxeles
  renderer.info.autoReset=false;renderer.shadowMap.enabled=true;renderer.shadowMap.autoUpdate=false;renderer.shadowMap.type=THREE.PCFShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;
  host.value.appendChild(renderer.domElement);
@@ -847,8 +604,6 @@ onMounted(async()=>{
  composer=new EffectComposer(renderer,new THREE.WebGLRenderTarget(1,1,{type:THREE.HalfFloatType,samples:4,stencilBuffer:true}));
  // Contornos grises en aristas y siluetas (antes del brillo nocturno).
  composer.addPass(new RenderPass(scene,camera));composer.addPass(edgePass=new EdgePass(scene,camera));
- if(ARMAS){vm=createViewmodel();vmPass=new ViewmodelPass(vm);composer.addPass(vmPass);}
- if(ARMAS)shooting=createShooting({renderer,scene,camera,hide:()=>[sky,stars,avatar?.holder],people:()=>[...(crowd?.people||[]),...(folk?.people||[]),...(patrol?.people||[])],colorOf:p=>COLORS.ropa[p.tpl?.look?.ropa]});
  bloom=new UnrealBloomPass(new THREE.Vector2(1,1),.55,.45,.92);composer.addPass(bloom);composer.addPass(new OutputPass());
  controls=new PointerLockControls(camera,renderer.domElement);
  controls.addEventListener('lock',()=>{locked.value=true;});
@@ -856,13 +611,13 @@ onMounted(async()=>{
  document.addEventListener('pointerlockerror',onLockError);controls.addEventListener('unlock',()=>{locked.value=false;keys.clear();});
  marker=new THREE.Mesh(new THREE.ConeGeometry(.7,1.5,4).rotateX(Math.PI),new THREE.MeshStandardMaterial({color:'#e3907c',emissive:'#e3907c',emissiveIntensity:.6}));marker.visible=false;scene.add(marker);
  // (tiempos de carga, para revisar desde la consola: __demo.tiempos)
- const PIEZAS=14;let hechas=0;// (13 paquetes de modelos y el plano)
+ const PIEZAS=13;let hechas=0;// (12 paquetes de modelos y el plano)
  const t0=performance.now(),T=(n,pr)=>pr.then(v=>{tiempos[n]=Math.round(performance.now()-t0);carga.value.parte=Math.min(.8,++hechas/PIEZAS*.8);return v;});
  const cuadro=()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
  // El plano, en un worker mientras bajan los modelos (si el worker falla, load() lo arma acá).
  // (el plano: el guardado en IndexedDB —mapasGuardados.js, las salas precargadas— o armado en un worker y guardado)
  const planReady=T('plano',planoDe({seed:seed.value,team:team.value,parks}).then(r=>{tiempos.planoGuardado=r.guardado;return r.plano;}));
- [characters,carModels,buildings,downtown,plants,nature,furniture,policeTemplates,office,nature2,casa2,tienda,animalKit]=await Promise.all([T('gente',loadCharacters().catch(()=>[])),T('autos',loadCars().catch(()=>null)),T('edificios',loadIslandBuildings().catch(()=>null)),T('centro',loadDowntown().catch(()=>null)),T('plantas',loadPlants().catch(()=>null)),T('naturaleza',loadNature().catch(()=>null)),T('muebles',loadHouseKit().catch(()=>null)),T('policía',(PASEO?Promise.resolve([]):loadPolice()).catch(()=>[])),T('oficina',loadOffice().catch(()=>null)),T('naturaleza2',loadNature2().catch(()=>null)),T('casa2',loadCasa2().catch(()=>null)),T('tienda',loadTienda().catch(()=>null)),T('animales',loadAnimals().catch(()=>null))]);if(casa2)office={...(office||{}),...casa2};if(tienda)office={...(office||{}),...tienda};/* (y la comida de Tienda, F_*; los muebles de Casa2 van con los de oficina, C2_*) */loadingPeople.value=false;
+[characters,carModels,buildings,downtown,plants,nature,furniture,office,nature2,casa2,tienda,animalKit]=await Promise.all([T('gente',loadCharacters().catch(()=>[])),T('autos',loadCars().catch(()=>null)),T('edificios',loadIslandBuildings().catch(()=>null)),T('centro',loadDowntown().catch(()=>null)),T('plantas',loadPlants().catch(()=>null)),T('naturaleza',loadNature().catch(()=>null)),T('muebles',loadHouseKit().catch(()=>null)),T('oficina',loadOffice().catch(()=>null)),T('naturaleza2',loadNature2().catch(()=>null)),T('casa2',loadCasa2().catch(()=>null)),T('tienda',loadTienda().catch(()=>null)),T('animales',loadAnimals().catch(()=>null))]);if(casa2)office={...(office||{}),...casa2};if(tienda)office={...(office||{}),...tienda};/* (y la comida de Tienda, F_*; los muebles de Casa2 van con los de oficina, C2_*) */
  carga.value.etapa='Trazando las calles…';
  {const ready=await planReady;carga.value={parte:.82,etapa:'Levantando los edificios…',lista:false};await cuadro();// (armar el mundo ocupa el hilo unos segundos: el texto se pinta antes)
   const a=performance.now();load(ready);tiempos.armarMundo=Math.round(performance.now()-a);}tiempos.total=Math.round(performance.now()-t0);applyLight(true);
@@ -871,22 +626,23 @@ onMounted(async()=>{
  // (el modo aristas —lib/aristas3d.js, 2026-11-22—: para leer una captura; ?aristas=1 o __demo.aristas(true))
 let matAristas=null;const aristas=(on=true)=>{if(!scene)return false;scene.overrideMaterial=on?(matAristas||(matAristas=materialAristas())):null;return !!on;};
 if(import.meta.env.DEV&&new URLSearchParams(location.search).get('aristas')==='1'){const prende=()=>{if(!aristas(true))setTimeout(prende,500);};setTimeout(prende,0);}// (hasta que la escena exista)
-if(import.meta.env.DEV)window.__demo={aristas,caminar,get mundo(){return world;},get plan(){return plan;},get ayudaEsquinas(){return ayudaEsquinas;},set ayudaEsquinas(v){ayudaEsquinas=v;},usarRonda,rondaT,get finVista(){return finVista.value;},get presoVista(){return presoVista.value;},muñecoDelPerfil,abrirMenu,cerrarMenu,accionMenu,get menuAbierto(){return menuAbierto.value;},get menuDatos(){return menuDatos.value;},get retratoLadron(){return retratoLadron;},get patrullas(){return patrullas;},subirPatrulla,bajarPatrulla,get velocidad(){return velocidad.value;},curar(){muerto.value=false;vidaVista.value=VIDA.max;},get soc(){return soc;},get cierres(){return cierres;},fijarHora,get hora(){return horaVista.value;},get quien(){return quienVista.value;},get ronda(){return ronda;},get cerraduras(){return cerraduras;},get persec(){return persec;},get policia(){return policiaVista.value;},get vida(){return vidaVista.value;},get muerto(){return muerto.value;},tiempos,WORLD_TIMES,THREE,fps,aiming,get shooting(){return shooting;},get vm(){return vm;},get scene(){return scene;},player,camera,euler,get avatar(){return avatar;},view,get cut(){return cut;},get world(){return world;},get city(){return city;},get plan(){return plan;},get composer(){return composer;},get renderer(){return renderer;},get crowd(){return crowd;},get traffic(){return traffic;},get island(){return island;},get folk(){return folk;},get animals(){return animals;},get indoor(){return indoor;},get patrol(){return patrol;},get viviendas(){return viviendas;},get casas(){return casas;},keys,step,dronePos,render:renderFrame,get aclarado(){return aclarado;},get visKey(){return visKey;},get acciones(){return acciones;},get niebla(){return niebla;},get lugar(){return lugar.value;},fijarDron(x,y,z){Object.assign(dronePos,{x,y,z});despegue=null;},huecosTerrazas(){// (2026-10-16: rayos hacia abajo en 3×3 puntos de cada casilla de lote del monte: un hueco es ver más de 1 m bajo el lote y bajo la calle de al lado)
+if(import.meta.env.DEV)window.__demo={aristas,caminar,get mundo(){return world;},get plan(){return plan;},get ayudaEsquinas(){return ayudaEsquinas;},set ayudaEsquinas(v){ayudaEsquinas=v;},get cerraduras(){return cerraduras;},tiempos,WORLD_TIMES,THREE,fps,get scene(){return scene;},player,camera,euler,get avatar(){return avatar;},view,get world(){return world;},get city(){return city;},get plan(){return plan;},get composer(){return composer;},get renderer(){return renderer;},get crowd(){return crowd;},get traffic(){return traffic;},get island(){return island;},get folk(){return folk;},get animals(){return animals;},get indoor(){return indoor;},get viviendas(){return viviendas;},get casas(){return casas;},keys,step,dronePos,render:renderFrame,get visKey(){return visKey;},get acciones(){return acciones;},portales:on=>{const r=world?.portales?.(on);barrios?.portales?.(r);verPortales=!!r;return r;},get estado(){return estado;},alternarPuerta,puertasCerca,get niebla(){return niebla;},get lugar(){return lugar.value;},fijarDron(x,y,z){Object.assign(dronePos,{x,y,z});despegue=null;},huecosTerrazas(){// (2026-10-16: rayos hacia abajo en 3×3 puntos de cada casilla de lote del monte: un hueco es ver más de 1 m bajo el lote y bajo la calle de al lado)
   const I=plan.isla,ray=new THREE.Raycaster(),out=[];let n=0;island.group.updateMatrixWorld(true);const objs=[];island.group.traverse(o=>{if(o.isMesh&&!o.isInstancedMesh)objs.push(o);});
   const ejes=I.carreteras.filter(c=>c.puntos).flatMap(c=>c.puntos.slice(1).map((p,i)=>({a:c.puntos[i],b:p})));
   const calle=(x,z)=>{let best=null,bd=1e9;for(const {a,b} of ejes){const dx=b.x-a.x,dz=b.z-a.z,L2=dx*dx+dz*dz||1,t=Math.max(0,Math.min(1,((x-a.x)*dx+(z-a.z)*dz)/L2)),dd=Math.hypot(x-a.x-t*dx,z-a.z-t*dz);if(dd<bd){bd=dd;best=a.h+(b.h-a.h)*t;}}return bd<14?best:null;};
   for(const c of I.cells){if(!c.lote||c.manzana==='mirador')continue;for(const u of [.1,.5,.9])for(const v of [.1,.5,.9]){const x=(c.x+u)*CELL,z=(c.y+v)*CELL;n++;ray.set(new THREE.Vector3(x,c.terraza+40,z),new THREE.Vector3(0,-1,0));const h=ray.intersectObjects(objs,false)[0];const ys=h?h.point.y:-99,cal=calle(x,z);if(ys<Math.min(c.terraza,cal??c.terraza)-1)out.push({c:[c.x,c.y],visto:+ys.toFixed(2),lote:c.terraza});}}
   return {muestras:n,huecos:out.length,ej:out.slice(0,5)};},get zonaAterrizaje(){return zonaAterrizaje;},toggleDrone,camDbg,get planoVista(){return planoVista;},setNight(v){night.value=v;applyLight(true);},get luz(){return luz;},get jugador(){return player;},get plan(){return plan;},get camara(){return camera;}};
- resize=new ResizeObserver(()=>{const w=host.value.clientWidth,h=host.value.clientHeight;renderer.setSize(w,h);composer.setPixelRatio(renderer.getPixelRatio());composer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();vm?.resize(w/h);});
+ if(!host.value)return;// (si se dejó la ciudad mientras cargaba, ya no hay dónde dibujar)
+ resize=new ResizeObserver(()=>{const w=host.value.clientWidth,h=host.value.clientHeight;renderer.setSize(w,h);composer.setPixelRatio(renderer.getPixelRatio());composer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();});
  resize.observe(host.value);
  renderer.domElement.addEventListener('pointerdown',onDown);window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp);
- window.addEventListener('keydown',onKey);window.addEventListener('keyup',onKey);document.addEventListener('mousedown',onShoot);document.addEventListener('mouseup',onShoot);window.addEventListener('contextmenu',noMenu);window.addEventListener('blur',onBlur);
+ window.addEventListener('keydown',onKey);window.addEventListener('keyup',onKey);window.addEventListener('contextmenu',noMenu);window.addEventListener('blur',onBlur);
  frame=requestAnimationFrame(loop);
  await cuadro();carga.value={parte:1,etapa:'Listo',lista:true};
 });
 onBeforeUnmount(()=>{
  cancelAnimationFrame(frame);resize?.disconnect();controls?.unlock();controls?.dispose();
- window.removeEventListener('pointermove',onMove);window.removeEventListener('pointerup',onUp);document.removeEventListener('mousedown',onShoot);document.removeEventListener('mouseup',onShoot);window.removeEventListener('contextmenu',noMenu);vm?.dispose();shooting?.dispose();
+ window.removeEventListener('pointermove',onMove);window.removeEventListener('pointerup',onUp);window.removeEventListener('contextmenu',noMenu);
  document.removeEventListener('pointerlockerror',onLockError);window.removeEventListener('keydown',onKey);window.removeEventListener('keyup',onKey);window.removeEventListener('blur',onBlur);
  world?.dispose();crowd?.dispose();traffic?.dispose();island?.dispose();folk?.dispose();composer?.dispose();renderer?.dispose();
 });
@@ -896,53 +652,24 @@ onBeforeUnmount(()=>{
  <div class="demo">
   <div ref="host" class="view"></div>
   <div class="vineta" aria-hidden="true"></div>
-  <div class="cross" v-if="locked&&view==='primera'&&!aiming" aria-hidden="true"></div>
-  <div class="hitmark" v-if="hitMark" aria-hidden="true"></div>
+  <div class="cross" v-if="locked&&view==='primera'" aria-hidden="true"></div>
   <div class="lift" v-if="lift">Ascensor · {{ lift.roof?'azotea':lift.floor===0?'planta baja':'piso '+lift.floor }}<span><kbd>E</kbd> subir · <kbd>Q</kbd> bajar</span></div>
   <div class="fade" :class="{on:fading}" aria-hidden="true"></div>
 
   <header class="hud">
-   <RouterLink to="/?paso=home" class="back" title="Volver a las salas">mycity</RouterLink>
-   <div v-if="rondaVista" class="ronda" aria-live="polite">
-    <div v-if="horaVista" class="r-fila"><span>Hora</span><b class="hora">{{ horaVista }}</b></div>
-    <div class="r-fila"><span>Vida</span><b>{{ Math.round(vidaVista) }}</b></div>
-    <div class="r-barra vida" role="progressbar" :aria-valuenow="Math.round(vidaVista)" aria-valuemin="0" :aria-valuemax="VIDA.max"><i :style="{width:vidaVista/VIDA.max*100+'%'}"></i></div>
-    <div class="r-fila"><span>Mochila</span><b>{{ rondaVista.mochila }}</b></div>
-    <div class="r-fila"><span>Guardado</span><b>{{ rondaVista.botin }} <small>de {{ rondaVista.meta }}</small></b></div>
-    <div class="r-barra" role="progressbar" :aria-valuenow="Math.round(rondaVista.parte*100)" aria-valuemin="0" aria-valuemax="100"><i :style="{width:rondaVista.parte*100+'%'}"></i></div>
-    <details><summary>Guaridas</summary><ol><li v-for="g in rondaVista.guaridas" :key="g">{{ g }}</li></ol></details>
-   </div>
-   <div v-if="policiaVista" class="ronda" aria-live="polite">
-    <div class="r-fila"><span>Tiempo</span><b>{{ policiaVista.reloj }}</b></div>
-    <div v-if="horaVista" class="r-fila"><span>Hora</span><b class="hora">{{ horaVista }}</b></div>
-    <div class="r-fila"><span>Vida</span><b>{{ Math.round(vidaVista) }}</b></div>
-    <div class="r-barra vida" role="progressbar" :aria-valuenow="Math.round(vidaVista)" aria-valuemin="0" :aria-valuemax="VIDA.max"><i :style="{width:vidaVista/VIDA.max*100+'%'}"></i></div>
-    <div class="r-fila"><span>Guardado por ellos</span><b>{{ policiaVista.botin }} <small>de {{ policiaVista.meta }}</small></b></div>
-    <div class="r-barra ladrones" role="progressbar" :aria-valuenow="Math.round(policiaVista.parte*100)" aria-valuemin="0" aria-valuemax="100"><i :style="{width:policiaVista.parte*100+'%'}"></i></div>
-    <div class="r-fila"><span>Presos</span><b>{{ policiaVista.presos }} <small>de {{ policiaVista.ladrones }}</small></b></div>
-    <div class="r-fila"><span>Avisos</span><b>{{ policiaVista.avisos.length }}</b></div>
-    <div v-if="policiaVista.retratos.length" class="r-retratos"><span>Retratos de la cámara</span><ol><li v-for="r in policiaVista.retratos" :key="r.id" :class="r.estado">{{ r.txt }}<small v-if="r.estado!=='libre'"> · {{ r.estado }}</small></li></ol></div>
-   </div>
-   <div v-if="presoVista&&!finVista" class="r-muerto preso" role="alert"><b>{{ presoVista.titulo }}</b><span>{{ presoVista.sub }}</span></div>
-   <div v-if="finVista" class="r-muerto fin" :class="finVista.gana" role="alert"><small class="quien-gana">{{ finVista.yoGano?'¡Ganaste!':'Perdiste' }}</small><b>{{ finVista.titulo }}</b><span>{{ finVista.sub }}</span>
-    <div class="fin-botones"><button @click="otraRonda">Otra ronda</button><RouterLink to="/?paso=home" class="boton">Volver al inicio</RouterLink></div></div>
-   <Transition name="aviso"><div v-if="rondaMsg" class="r-msg" role="status">{{ rondaMsg }}</div></Transition>
-   <div v-if="muerto" class="r-muerto" role="alert"><b>Te mataste en la caída</b><span>Quedás fuera de la ronda y perdiste lo que llevabas.</span><small>Enter: volver a la guarida (sólo para probar)</small></div>
-   <div v-if="rinde&&(PASEO||LAB)" class="rinde" aria-live="off" :class="{lento:rinde.fps<40,malo:rinde.fps<25}">
+   <RouterLink to="/" class="back" title="Volver a elegir la ciudad">mycity</RouterLink>
+   <div v-if="rinde" class="rinde" aria-live="off" :class="{lento:rinde.fps<40,malo:rinde.fps<25}">
     <b>{{ rinde.fps }}</b><span>cuadros/s</span>
     <dl><dt>cuadro</dt><dd>{{ rinde.ms }} ms</dd><dt>el peor</dt><dd>{{ rinde.peor }} ms</dd><dt>dibujos</dt><dd>{{ rinde.llamadas.toLocaleString('es-CO') }}</dd><dt>triángulos</dt><dd>{{ rinde.tris.toLocaleString('es-CO') }} mil</dd></dl>
    </div>
-   <div v-if="velocidad!=null" class="velocimetro" aria-live="off"><b>{{ velocidad }}</b> km/h</div>
-   <Transition name="sube"><div v-if="quienVista" class="quien" role="status"><b>{{ quienVista.nombre }}</b><span>{{ quienVista.oficio }}<template v-if="quienVista.edad!=null"> · {{ quienVista.edad }} años</template></span></div></Transition>
    <Transition name="sube"><div v-if="accionTexto" class="accion"><kbd>E</kbd> {{ accionTexto }}<template v-if="accionAlterna"> · <kbd>R</kbd> {{ accionAlterna }}</template></div></Transition>
-   <div class="where"><b>{{ lugar?.titulo }}</b><span v-if="lugar?.sub" class="via">{{ lugar.sub }}</span><small><template v-if="PASEO"><kbd class="tabk">V</kbd> {{ drone?'aterrizar':'volar' }} · <kbd class="tabk">N</kbd> día/noche</template><template v-else><kbd class="tabk">Tab</kbd> menú</template><template v-if="LAB"> · Ciudad {{ seed }} · {{ team }} vs {{ team }}</template><template v-if="horaVista"> · {{ horaVista }}</template></small></div>
-   <!-- (los botones de prueba —tamaño, papel, otra ciudad, vista, dron, día/noche—: sólo con ?lab=1; quedan en la página,
+   <div class="where"><b>{{ lugar?.titulo }}</b><span v-if="lugar?.sub" class="via">{{ lugar.sub }}</span><small><template v-if="LUGAR">{{ LUGAR.nombre }}, {{ LUGAR.pais.nombre }} · </template><kbd class="tabk">V</kbd> {{ drone?'aterrizar':'volar' }} · <kbd class="tabk">N</kbd> día/noche<template v-if="LAB"> · ciudad {{ seed }} · tamaño {{ team }}</template></small></div>
+   <!-- (los botones de prueba —tamaño, otra ciudad, dron, día/noche—: sólo con ?lab=1; quedan en la página,
    ocultos, porque las pruebas de pantalla los usan) -->
    <div class="actions" v-show="LAB">
     <div class="sizes" role="group" aria-label="Tamaño de la ciudad">
-     <button v-for="s in SIZES" :key="s" :class="{on:s===team}" @click="setTeam(s)">{{ s }}</button>
+     <button v-for="s in TAMANOS" :key="s" :class="{on:s===team}" @click="setTeam(s)">{{ s }}</button>
     </div>
-    <button @click="cambiarPapel" :class="{on:POLICIA}" title="Jugar de ladrón o de policía (contra los bots del motor)">{{ POLICIA?'Papel: policía':'Papel: ladrón' }}</button>
     <button @click="otherCity">Otra ciudad</button>
     <button @click="toggleDrone" :class="{on:drone}">{{ drone?'Caminar':'Dron' }}</button>
     <button @click="night=!night;applyLight()">{{ night?'Día':'Noche' }}</button>
@@ -951,25 +678,24 @@ onBeforeUnmount(()=>{
 
   <canvas v-show="showMap" ref="mini" class="mini" aria-label="Plano de la ciudad"></canvas>
 
-  <MenuJuego v-if="menuDatos" :papel="POLICIA?'policia':'ladron'" :datos="menuDatos" :abierto="menuAbierto" :plano="plan" @cerrar="cerrarMenu" @accion="accionMenu" />
   <Transition name="carga">
    <div v-if="!carga.lista" class="carga" role="status" aria-live="polite">
     <div class="carga-centro">
      <b class="carga-logo">mycity</b>
-     <p class="carga-papel" :class="POLICIA?'policia':'ladron'">{{ PASEO?'La ciudad':POLICIA?'Hoy sos policía':'Hoy sos ladrón' }}</p>
+     <p class="carga-papel">{{ LUGAR?`${LUGAR.nombre}, ${LUGAR.pais.nombre}`:'La ciudad' }}</p>
      <div class="carga-barra" role="progressbar" :aria-valuenow="Math.round(carga.parte*100)" aria-valuemin="0" aria-valuemax="100"><i :style="{transform:`scaleX(${carga.parte})`}"></i></div>
      <p class="carga-etapa">{{ carga.etapa }}</p>
-     <p class="carga-pista">{{ PASEO?'En boceto: todo blanco y vacío, sólo el baño y la cocina. Primero las medidas.':POLICIA?'Un ladrón corriendo llama la atención; uno caminando se pierde entre la gente.':'Caminá: correr llama la atención. Lo robado no cuenta hasta que llega a una guarida.' }}</p>
+     <p class="carga-pista">De color plano, sin texturas: cada cosa con su color. Las viviendas se entregan vacías, con el baño y la cocina.</p>
     </div>
    </div>
   </Transition>
-  <div v-if="carga.lista&&!locked&&!sinCaptura&&!menuAbierto&&!finVista" class="start">
+  <div v-if="carga.lista&&!locked&&!sinCaptura" class="start">
    <div class="card" @click="controls.lock()">
-    <b>{{ PASEO?'Clic para pasear':loadingPeople?'Cargando gente…':'Clic para caminar' }}</b>
-    <p v-if="PASEO" class="paseo-nota">La ciudad sola: sin gente, sin policía y sin ronda. <kbd>V</kbd> despega y aterriza; en el aire se avanza hacia donde se mira con WASD, Espacio sube, C baja y Shift acelera.</p>
+    <b>Clic para pasear</b>
+    <p class="paseo-nota">La ciudad, por ahora sola. <kbd>V</kbd> despega y aterriza; en el aire se avanza hacia donde se mira con WASD, Espacio sube, C baja y Shift acelera.</p>
     <dl>
      <dt>WASD</dt><dd>moverse</dd><dt>Ratón</dt><dd>mirar</dd><dt>Shift</dt><dd>correr</dd><dt>Espacio</dt><dd>saltar</dd>
-     <dt>N</dt><dd>día / noche</dd><dt>M</dt><dd>plano</dd><dt>E · Q</dt><dd>en un ascensor: subir · bajar</dd><template v-if="POLICIA"><dt>E</dt><dd>de policía: revisar la cámara de un aviso · atrapar · pedir papeles · subir y bajar de la patrulla</dd><dt>W/S · A/D</dt><dd>en la patrulla: acelerar y frenar · girar</dd></template><dt>E · R</dt><dd>usar lo de cerca (abrir y cerrar puertas, sentarse, asomarse…) · aclarar u opacar el vidrio de la ventana</dd><dt>Esc</dt><dd>soltar el ratón</dd>
+     <dt>N</dt><dd>día / noche</dd><dt>M</dt><dd>plano</dd><dt>E · Q</dt><dd>en un ascensor: subir · bajar</dd><dt>E · R</dt><dd>usar lo de cerca (abrir y cerrar puertas, sentarse, asomarse…) · aclarar u opacar el vidrio de la ventana</dd><dt>Esc</dt><dd>soltar el ratón</dd>
     </dl>
    </div>
   </div>
@@ -980,7 +706,6 @@ onBeforeUnmount(()=>{
 .demo{position:fixed;inset:0;background:#0b0f15;overflow:hidden;color:#f4f1ea;font:14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 .view{position:absolute;inset:0}
 .view :deep(canvas){display:block}
-.hitmark{position:absolute;left:50%;top:50%;width:22px;height:22px;margin:-11px 0 0 -11px;pointer-events:none;background:linear-gradient(45deg,transparent 46%,#fff 46%,#fff 54%,transparent 54%),linear-gradient(-45deg,transparent 46%,#fff 46%,#fff 54%,transparent 54%);-webkit-mask:radial-gradient(circle,transparent 5px,#000 5.5px);mask:radial-gradient(circle,transparent 5px,#000 5.5px);filter:drop-shadow(0 0 1px rgba(0,0,0,.6))}
 .cross{position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:rgba(255,255,255,.85);box-shadow:0 0 0 1.5px rgba(0,0,0,.35);pointer-events:none}
 .hud{position:absolute;left:16px;right:16px;top:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;pointer-events:none}
 .hud>*{pointer-events:auto}
@@ -989,21 +714,7 @@ onBeforeUnmount(()=>{
 .lift span{opacity:.8;font-size:12px}.lift kbd{background:rgba(255,255,255,.15);border-radius:4px;padding:1px 6px;font:11px ui-monospace,monospace}
 .fade{position:absolute;inset:0;background:#000;opacity:0;transition:opacity .28s;pointer-events:none;z-index:6}.fade.on{opacity:1}
 /* (la tecla de la acción cercana: abajo al centro, sin tapar la mira) */
-.ronda{position:fixed;top:84px;left:14px;width:260px;background:rgba(20,24,28,.72);color:#fff;padding:10px 12px;border-radius:10px;font-size:13px;z-index:6;backdrop-filter:blur(6px)}
-.ronda .r-fila{display:flex;justify-content:space-between;gap:8px;line-height:1.6}.ronda small{opacity:.7;font-weight:400}
-.ronda .r-barra{height:6px;border-radius:3px;background:rgba(255,255,255,.18);overflow:hidden;margin:6px 0}.ronda .r-barra i{display:block;height:100%;background:#7fd19b}
-.ronda details{margin-top:4px}.ronda summary{cursor:pointer;opacity:.85}.ronda ol{margin:6px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:3px;font-size:12px}
-.ronda .r-barra.vida i{background:#e07a6a}.ronda .r-barra.ladrones i{background:#e0b25a}
-.ronda .r-retratos{margin-top:6px;font-size:12px}.ronda .r-retratos span{opacity:.8}.ronda .r-retratos ol{margin:4px 0 0;padding-left:18px}.ronda .r-retratos li.preso{text-decoration:line-through;opacity:.6}
 .where kbd.tabk{background:rgba(255,255,255,.18);border-radius:4px;padding:0 5px;font:inherit}
-.velocimetro{position:fixed;right:16px;bottom:calc(16px + 30vh);background:rgba(20,24,28,.72);color:#fff;padding:6px 12px;border-radius:10px;font-size:13px;z-index:6;backdrop-filter:blur(6px)}.velocimetro b{font-size:22px;font-variant-numeric:tabular-nums}
-.quien{position:fixed;left:50%;bottom:calc(20% + 52px);transform:translateX(-50%);background:rgba(20,24,28,.72);color:#fff;padding:6px 14px;border-radius:10px;font-size:14px;pointer-events:none;z-index:6;backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;line-height:1.3}
-.quien span{font-size:12px;opacity:.85}.ronda .hora{text-transform:capitalize}
-.r-muerto.fin{background:rgba(10,20,40,.7)}.r-muerto.preso{background:rgba(30,30,50,.55);pointer-events:none}.quien-gana{font-size:15px;letter-spacing:2px;text-transform:uppercase;opacity:.9}
-.fin-botones{display:flex;gap:10px;margin-top:10px}.fin-botones button,.fin-botones .boton{border:0;border-radius:10px;padding:10px 18px;font:inherit;font-weight:700;cursor:pointer;background:#edb4a5;color:#2b3036;text-decoration:none}.fin-botones .boton{background:#e8eef5}.r-muerto.fin.ladron{background:rgba(40,30,10,.55)}
-.r-muerto{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:rgba(40,10,10,.55);color:#fff;z-index:8;font-size:15px;text-align:center}
-.r-muerto b{font-size:26px}.r-muerto small{opacity:.8}
-.r-msg{position:fixed;left:50%;top:18%;transform:translateX(-50%);background:rgba(20,24,28,.8);color:#fff;padding:9px 16px;border-radius:10px;font-size:15px;z-index:7;pointer-events:none}
 .accion{position:fixed;left:50%;bottom:20%;transform:translateX(-50%);background:rgba(20,24,28,.72);color:#fff;padding:8px 14px;border-radius:10px;font-size:15px;pointer-events:none;z-index:6;backdrop-filter:blur(6px)}
 .accion kbd{display:inline-block;min-width:20px;padding:1px 6px;margin-right:6px;border-radius:5px;background:#f2f2ef;color:#1d1f22;font:600 13px/1.4 system-ui;text-align:center}
 .where{background:rgba(20,24,28,.55);backdrop-filter:blur(8px);padding:6px 12px;border-radius:10px;min-width:150px}
@@ -1039,30 +750,13 @@ onBeforeUnmount(()=>{
 .vineta{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 46%,transparent 58%,rgba(6,9,16,.34) 100%)}
 .back{font:400 12px var(--t);letter-spacing:.5px;background:linear-gradient(135deg,var(--ladron),var(--ladron2));color:#2a1705;box-shadow:0 6px 18px rgba(255,122,61,.35),inset 0 1px 0 rgba(255,255,255,.35);transition:transform .18s}
 .back:hover{transform:rotate(-4deg) scale(1.06)}
-.where,.ronda,.velocimetro,.quien,.accion,.r-msg,.lift,.card{background:var(--panel);border:1px solid var(--borde);backdrop-filter:blur(12px) saturate(1.2);box-shadow:0 10px 30px rgba(0,0,0,.28)}
+.where,.accion,.lift,.card{background:var(--panel);border:1px solid var(--borde);backdrop-filter:blur(12px) saturate(1.2);box-shadow:0 10px 30px rgba(0,0,0,.28)}
 .where{border-radius:12px;padding:7px 14px}
 .where b{font:400 14px var(--t);letter-spacing:.4px}
 .where small{font:11px var(--c);color:var(--tx3);opacity:1}
-.ronda{border-radius:14px;padding:12px 14px;width:268px}
-.ronda .r-fila{align-items:baseline;line-height:1.7}
-.ronda .r-fila span{font-size:11px;letter-spacing:.9px;text-transform:uppercase;color:var(--tx3)}
-.ronda .r-fila b{font-weight:600;font-variant-numeric:tabular-nums}
-.ronda .r-barra{height:8px;border-radius:99px;background:rgba(255,255,255,.1);margin:4px 0 8px}
-.ronda .r-barra i{border-radius:99px;background:linear-gradient(90deg,var(--ladron),var(--ladron2));transition:width .45s cubic-bezier(.2,.8,.2,1)}
-.ronda .r-barra.vida i{background:linear-gradient(90deg,#ff6b6b,#ff9a7a)}
-.ronda .r-barra.ladrones i{background:linear-gradient(90deg,var(--ladron),var(--ladron2))}
-.ronda summary{font-size:12px;color:var(--tx2);opacity:1}
-.velocimetro{border-radius:12px}.velocimetro b{font:400 22px var(--t)}
-.quien,.accion,.r-msg,.lift{border-radius:12px}
+.accion,.lift{border-radius:12px}
 .accion kbd,.lift kbd,.where kbd.tabk{background:#f5f2ea;color:#1b2130;border-radius:6px;box-shadow:0 2px 0 rgba(0,0,0,.35);font:600 12px/1.5 var(--c);padding:0 7px}
 .where kbd.tabk{font-size:10px;padding:0 5px;margin-right:2px}
-.r-msg{font-weight:500}
-.r-muerto{backdrop-filter:blur(6px);animation:entra .35s ease-out}
-.r-muerto b{font:400 34px var(--t);letter-spacing:1px;text-shadow:0 4px 0 rgba(0,0,0,.25)}
-.quien-gana{font:400 15px var(--t);letter-spacing:3px;color:var(--ladron)}
-.fin-botones button,.fin-botones .boton{background:linear-gradient(135deg,var(--ladron),var(--ladron2));color:#2a1705;border-radius:12px;transition:transform .15s,filter .15s}
-.fin-botones .boton{background:rgba(255,255,255,.14);color:var(--tx);border:1px solid var(--borde)}
-.fin-botones button:hover,.fin-botones .boton:hover{transform:translateY(-1px);filter:brightness(1.08)}
 .mini{border-radius:14px;border:1px solid var(--borde);box-shadow:0 10px 30px rgba(0,0,0,.4);opacity:.95}
 .start{background:rgba(6,9,16,.3)}
 .card{border-radius:18px;padding:22px 28px;animation:entra .35s cubic-bezier(.2,.8,.2,1);transition:transform .18s,border-color .18s}
@@ -1075,16 +769,14 @@ onBeforeUnmount(()=>{
 .actions button.on,.sizes button.on{background:linear-gradient(135deg,var(--ladron),var(--ladron2));color:#2a1705}
 @keyframes entra{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
 /* (los avisos entran y salen en vez de aparecer de golpe; el translateX es el centrado que ya traían) */
-.sube-enter-active,.sube-leave-active,.aviso-enter-active,.aviso-leave-active{transition:opacity .2s,transform .2s cubic-bezier(.2,.8,.2,1)}
+.sube-enter-active,.sube-leave-active{transition:opacity .2s,transform .2s cubic-bezier(.2,.8,.2,1)}
 .sube-enter-from,.sube-leave-to{opacity:0;transform:translateX(-50%) translateY(8px)}
-.aviso-enter-from,.aviso-leave-to{opacity:0;transform:translateX(-50%) translateY(-8px)}
 /* LA CARGA: la ciudad de noche de la entrada, el título y una barra. La barra crece con transform (lo anima el
    compositor: sigue moviéndose aunque armar el mundo tenga ocupado el hilo). */
 .carga{position:absolute;inset:0;z-index:20;display:grid;place-items:center;background:linear-gradient(rgba(8,11,20,.72),rgba(8,11,20,.9)),url(/fondos/noche.jpg) center/cover #0b0f15}
 .carga-centro{display:flex;flex-direction:column;align-items:center;gap:12px;width:min(420px,84vw);text-align:center}
 .carga-logo{font:400 64px/1 var(--t);letter-spacing:4px;color:#fff3df;text-shadow:0 5px 0 var(--ladron2),0 14px 40px rgba(255,122,61,.4);transform:rotate(-3deg);animation:late 2.4s ease-in-out infinite}
-.carga-papel{margin:0;font:400 13px var(--t);letter-spacing:2px;text-transform:uppercase}
-.carga-papel.ladron{color:var(--ladron)}.carga-papel.policia{color:var(--policia)}
+.carga-papel{margin:0;font:400 13px var(--t);letter-spacing:2px;text-transform:uppercase;color:var(--ladron)}
 .carga-barra{width:100%;height:10px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:10px;position:relative}
 .carga-barra i{display:block;height:100%;border-radius:99px;transform-origin:left;background:linear-gradient(90deg,var(--ladron),var(--ladron2));transition:transform .6s cubic-bezier(.2,.8,.2,1)}
 .carga-barra::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent);animation:brillo 1.4s linear infinite}
@@ -1093,5 +785,5 @@ onBeforeUnmount(()=>{
 .carga-leave-active{transition:opacity .7s ease}.carga-leave-to{opacity:0}
 @keyframes late{50%{transform:rotate(-3deg) scale(1.03)}}
 @keyframes brillo{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
-@media (prefers-reduced-motion:reduce){.carga-logo,.carga-barra::after,.card,.r-muerto{animation:none}.carga-barra i,.ronda .r-barra i{transition:none}}
+@media (prefers-reduced-motion:reduce){.carga-logo,.carga-barra::after,.card{animation:none}.carga-barra i{transition:none}}
 </style>

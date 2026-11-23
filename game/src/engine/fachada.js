@@ -33,7 +33,9 @@ export const DOUBLES={no:{p:null,t:'No',tris:0},rojaBlanca:{p:'Brick_RedWhite_Do
 // las cortinas de cada ventana dibujada (town3d).
 export const VIDRIO_PIEZA={Brick_Window_Trim:[-.5,.5,.31,2.32],Brick_Window_Trim_Single:[-.23,.23,.59,1.89],Brick_Window_Square_Single:[-.22,.22,.61,1.85],Trim_Window:[-.5,.49,1.15,2.21],
  Metal_FullWindow:[-.9,.9,.06,2.7],Metal_Window_Half:[-.9,.9,.06,2.7],Brick_RedWhite_DoubleWindow:[-.99,.99,.44,2.32],Brick_Window_CurvedDouble:[-1.15,1.15,.56,2.15],
- Brick_Inset_Window:[-.78,.78,.8,2.04],Brick_Inset_Window_Curved:[-.78,.78,.84,2.21],Brick_Inset_Window_Curved_Small:[-.38,.38,.68,1.83],Metal_Window:[-1.43,1.43,.04,2.43]};
+ Brick_Inset_Window:[-.78,.78,.8,2.04],Brick_Inset_Window_Curved:[-.78,.78,.84,2.21],Brick_Inset_Window_Curved_Small:[-.38,.38,.68,1.83],Metal_Window:[-1.43,1.43,.04,2.43],
+ // (las vidrieras de planta baja —2026-11-22, Miguel: «todas las ventanas se pueden poner opacas, así sean de negocios»—, del .gltf)
+ Metal_FirstFloor_Window:[-.9,.9,.52,2.94],Trim_FirstFloor_Window_001:[-.94,.94,.62,2.85]};
 // (el ventanal de vivienda —fachada3d VENTANAL, una pieza propia, sin modelo del paquete—: su vidrio, como los de arriba)
 export const VIDRIO_VENTANAL=[-.75,.75,.9,2.7];
 export const AWNINGS={no:null,rojo:'#c0392b',verde:'#2e7d32',azul:'#1f5f99',naranja:'#d98c1f',morado:'#7b3f8c',petróleo:'#2a7f7a',vino:'#7a2e3a'};

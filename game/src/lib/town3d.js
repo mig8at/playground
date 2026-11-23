@@ -16,8 +16,7 @@ import {modulosDeFachada,VENTANAL as VENTANAL_PLANO,TERRAZA} from '../engine/fac
 import {PUERTA_DOBLE,MARQUESINA,VENTANAL} from './fachada3d.js';
 import {pendienteEn} from '../engine/techos.js';
 import {ALTURA,COLUMNA,CHOQUE_MUEBLE,CORTINA,AZOTEA,MANSARDA,esVidriera} from '../engine/medidas.js';
-const CORTINA_CU=new Set(CORTINA.cuartos);
-import {cuartoDeVentana,peliculaCerrada} from '../engine/cortinas.js';
+import {cuartoDeVentana,peliculaCerrada,PELICULA} from '../engine/cortinas.js';
 import {esVivienda} from '../engine/entrega.js';
 import {piezasSinTitilar} from '../engine/titileo.js';
 import {duplexDeLote} from './duplex3d.js';
@@ -193,7 +192,7 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
   const tintCul=C2?.culata?{zones:[[C2.culata,(tz[0]?.[1])||fs.paintOn||[]],...tint.zones.slice(1)],textura:'ladrillo'}:tint;
   // La planta baja levantada (escalinata, fachada.js): todo lo del lote se arma a nivel y al final sube R; el zócalo, las
   // escalinatas y el muro que asoma junto a un vecino más bajo (fixed) van a su altura de verdad.
-  const R=L.raise||0,i0=items.length,l0=leaves.length,p0=plaques.length,a0=awnings.length,k0=cortinas.length,s0=superficies.length,fixed=[];wallLift=R;
+  const R=L.raise||0,n0=panios.length,i0=items.length,l0=leaves.length,p0=plaques.length,a0=awnings.length,k0=cortinas.length,s0=superficies.length,fixed=[];wallLift=R;
   // Ventanas: la alta con marco y piedra clave en los cuartos; la chica (de la misma familia) en los baños.
   // Ventanas: la alta con piedra clave (650 triángulos) sólo en el primer piso, el que se ve de cerca desde la calle; más
   // arriba y en los baños, la de la misma familia con marco simple (188). Con la alta en toda la fachada la ciudad pasaba
@@ -258,7 +257,7 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
     const gaps=[];let hg=.6;// (hg: medio ancho del hueco del módulo —el de la puerta: .6, o el de la doble—)
     // (cada ventana que se dibuja, con su vidrio —VIDRIO_PIEZA—, para las cortinas: el vidrio a lo largo de la fachada,
     // en la coordenada de la línea; la pieza mira hacia afuera y su x local va hacia (tx, tz))
-    const vidrio=(pz,px_,pz_,cur)=>{const g=VIDRIO_PIEZA[pz]||(pz.startsWith('LP_Ventanal_')?VIDRIO_VENTANAL:null);if(!g)return;const c=h?px_:pz_,sg=h?tx:tz;vidrios.push({f:cur,h,at:h?ez:ex,c,x0:Math.min(g[0]*sg,g[1]*sg),x1:Math.max(g[0]*sg,g[1]*sg),y0:g[2],y1:g[3],pieza:pz});};
+    const vidrio=(pz,px_,pz_,cur)=>{const g=VIDRIO_PIEZA[pz]||(pz.startsWith('LP_Ventanal_')?VIDRIO_VENTANAL:null);if(!g)return;const c=h?px_:pz_,sg=h?tx:tz;vidrios.push({f:cur,h,at:h?ez:ex,n:h?dy:dx,c,x0:Math.min(g[0]*sg,g[1]*sg),x1:Math.max(g[0]*sg,g[1]*sg),y0:g[2],y1:g[3],pieza:pz,item:items[items.length-1]});};/* (n: hacia afuera, en el eje de la normal; item: la pieza recién puesta —su vidrio se dibuja aparte, con su clave: downtown3d vidrios—) */
     for(let f=f0;f<L.floors;f++){const i0=items.length,l0=leaves.length,Rc=modDe.get(`${x},${y},${dx},${dy},${k},${f}`)?.recorte;try{const yb=f*FLOOR,lv=lines[f],win=hitSeg(lv.w.get(lineKey)),door=f===0?hitSeg(lv.d.get(lineKey)):null;
      const anota=(tipo,pieza=null)=>armada.push({lote:id,x,y,dx,dy,k,f,tipo,pieza});
      if(door&&door.bay){anota('porton');// portón: dos columnas, sin pared (el vehículo lo pone civic3d)
@@ -318,10 +317,10 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
       const bw=(a0,b0,a1,b1)=>wallAny(Math.min(a0,a1),Math.min(b0,b1),Math.max(a0,a1),Math.max(b0,b1),yb,yb+1.1);
       bw(mx-tx*1+dx*.9,mz-tz*1+dy*.9,mx+tx*1+dx*1,mz+tz*1+dy*1);bw(mx-tx*1,mz-tz*1,mx-tx*.9+dx*1,mz-tz*.9+dy*1);bw(mx+tx*.9,mz+tz*.9,mx+tx*1+dx*1,mz+tz*1+dy*1);}
      else if(D.tipo==='doble'){anota('doble',fs.double);items.push({piece:fs.double,x:mx+tx,y:yb,z:mz+tz,ry,tint,lit:lit(f)});vidrio(fs.double,mx+tx,mz+tz,f);}// la doble, entre este módulo y el siguiente
-     else if(D.tipo!=='doble2'){anota(vidriera?'vidriera':win&&!bl&&(f>0||!vidriera)&&piece!==fs.plain&&piece!==fs.wall?'ventana':'muro',piece);items.push({piece,x:mx,y:yb,z:mz,ry,tint:other>=0&&!win&&f>0?tintCul:tint,lit:win?lit(f):-1});if((f>0||!vidriera)&&win&&!bl)vidrio(piece,mx,mz,f);}
+     else if(D.tipo!=='doble2'){anota(vidriera?'vidriera':win&&!bl&&(f>0||!vidriera)&&piece!==fs.plain&&piece!==fs.wall?'ventana':'muro',piece);items.push({piece,x:mx,y:yb,z:mz,ry,tint:other>=0&&!win&&f>0?tintCul:tint,lit:win?lit(f):-1});if((win||vidriera)&&!bl)vidrio(piece,mx,mz,f);}/* (2026-11-22: también la vidriera de la planta baja: toda ventana se abre y se cierra) */
      else anota('doble2');
      // Toldo (fs.awnings) sobre la vidriera de la planta baja.
-     if(fs.awnings&&vidriera&&other<0)awnings.push({x:mx+dx*.02,y:2.97,z:mz+dy*.02,ry,color:fs.awningColor});// arriba de la vidriera (el vidrio llega a 2,94 m)
+     if(fs.awnings&&vidriera&&other<0)awnings.push({x:mx+dx*.02,y:2.97,z:mz+dy*.02,ry,color:C2?.puerta||fs.awningColor});// (2026-11-22: del color de la carpintería del esquema del edificio —color.js—, no de una paleta aparte)// arriba de la vidriera (el vidrio llega a 2,94 m)
      // Las columnas de la vidriera (planta baja) y la banda sobre la planta baja.
      if(vidriera&&fs.shopColumns)items.push({piece:'Trim_FirstFloor_Window_Columns',x:mx,y:0,z:mz,ry,tint});
      if(f===1&&fs.band)items.push({piece:fs.band,x:mx,y:FLOOR,z:mz,ry,tint});}finally{if(Rc)recortarModulo3d(items,leaves,i0,l0,{Rc,mx,mz,tx,tz,ry,yb:f*FLOOR,band:fs.band,muro:f===0&&fs.wall||fs.plain,tint});}}
@@ -624,22 +623,23 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
     // (2026-11-22, Miguel: «eliminamos las cortinas»: ya no hay paños abiertos a los costados del vidrio; la ventana cerrada es
     // su película —engine/cortinas.js peliculaCerrada—, más abajo)
    }
-   // (2026-11-22, Miguel: «que sean borrosas cuando no estén abiertas… y que al abrir se ponga transparente»: el paño es ahora la
-   // película del vidrio —engine/cortinas.js peliculaCerrada, una lámina lechosa—; w.cortina dice si arranca opaca)
-   // Las cortinas cerradas (engine/cortinas.js, w.cortina): un paño de lado a lado detrás del vidrio. No van con los
-   // muebles (que sólo se dibujan de cerca): se ven de lejos y tapan el cuarto vacío (world3d las dibuja siempre).
-   // (2026-10-16, las acciones: el paño va en TODAS las ventanas de los cuartos que llevan cortina —CORTINA.cuartos—, cada una
-   // con su clave lote:piso:ventana y cerrado o no según el plano; el jugador lo abre o lo cierra —world3d cortina()—)
-   // (2026-11-22: en la ciudad entregada vacía —bp.entrega— no hay alfombras, cuadros, relojes ni cortinas: sólo la obra)
-   // (2026-11-22: en la ciudad entregada, toda ventana de una vivienda —sin dueño todavía— lleva su persiana cerrada:
-   // engine/cortinas.js peliculaCerrada, una lámina; el interior no se ve ni se arma —engine/propiedad.js—)
-   // (el dúplex, sin cortinas ni persianas —Miguel, 2026-11-22: «haz que el dúplex no tenga cortinas»—: su planta abierta
-   // y la doble altura se ven desde la calle)
-   const enDuplex=c=>f===L.floors-1&&B.duplex?.unidades.some(u=>u.n===c.q.unit);
-   if(bp.entrega)lv.windows.forEach((w,wi)=>{if(w.shop)return;const c=cuartoDeVentana(lv,w);if(!c||!esVivienda(B,c.q)||enDuplex(c))return;
-    const cj=peliculaCerrada(c,yb,FACE+.02).cajas;panios.push({key:id+':'+f+':'+wi,i0:cortinas.length,n:cj.length,cerrada:true,persiana:true});cortinas.push(...cj);});
-   else lv.windows.forEach((w,wi)=>{if(w.shop)return;const c=cuartoDeVentana(lv,w);if(!c||!CORTINA_CU.has(c.q.type)||enDuplex(c))return;
-    const cj=peliculaCerrada(c,yb,FACE+.02).cajas;panios.push({key:id+':'+f+':'+wi,i0:cortinas.length,n:cj.length,cerrada:!!w.cortina});cortinas.push(...cj);});
+   // LAS VENTANAS (2026-11-22, Miguel: «quita lo de asomarse y deja sólo abrir ventana… y se guarde el estado»): toda ventana
+   // con su cuarto se abre y se cierra con E —world3d cortina(clave lote:piso:ventana)—; cerrada de fábrica, no deja ver ni
+   // armar adentro; lo abierto lo guarda el estado del mundo —engine/estadoMundo.js—.
+   // (2026-11-22, Miguel: «en vez de un paño aparte, que permite ver de costado el interior, sea la misma ventana la que cambie
+   // de color a transparente u opaco»): no hay paño. El vidrio de cada pieza de ventana lleva su clave —item.vidrio— y
+   // downtown3d lo dibuja como una instancia propia: cerrada, opaca; abierta, transparente; y la marca de lo que se ve, en el
+   // mismo vidrio. Las dos ventanas del plano de una ventana doble son el mismo vidrio: sus dos claves lo comparten. Los
+   // vidrios de la fachada que no son de una ventana de cuarto —escaleras, pasillos— quedan con su clave y cerrados siempre:
+   // ningún vidrio deja ver adentro sin que se lo abra.
+   // (caja: el vano de la ventana —el vidrio que la dibuja, o su tramo del plano—, para las marcas y la vista del 3D; la base abajo)
+   lv.windows.forEach((w,wi)=>{const c=cuartoDeVentana(lv,w);if(!c)return;
+    const vs=vidrios.filter(v=>v.f===f&&v.h===c.h&&Math.abs(v.at-c.at)<.6&&v.c+v.x0<c.v+.2&&v.c+v.x1>c.u-.2);
+    for(const v of vs){v.gid??=id+':'+f+':v'+vidrios.indexOf(v);v.item.vidrio=v.gid;}
+    const caja=vs.length?(()=>{const lo=Math.min(...vs.map(v=>v.c+v.x0)),hi=Math.max(...vs.map(v=>v.c+v.x1)),y0=yb+Math.min(...vs.map(v=>v.y0)),y1=yb+Math.max(...vs.map(v=>v.y1)),at=vs[0].at;
+     return c.h?{x:(lo+hi)/2,y:y0,z:at,sx:hi-lo,sy:y1-y0,sz:.02}:{x:at,y:y0,z:(lo+hi)/2,sx:.02,sy:y1-y0,sz:hi-lo};})():peliculaCerrada(c,yb,FACE+.02).cajas[0];
+    panios.push({key:id+':'+f+':'+wi,lote:id,vidrios:vs.map(v=>v.gid),cerrada:true,persiana:!!bp.entrega&&esVivienda(B,c.q),caja});});
+   for(const v of vidrios)if(v.f===f&&!v.gid){v.gid=id+':'+f+':v'+vidrios.indexOf(v);v.item.vidrio=v.gid;}
   });
   // ---------- La escalera: peldaños con huella y nariz, descanso, pared del medio, pasamanos y la baranda del último piso ----------
   // El material según el edificio (STAIRS, stairKind): madera, mármol, granito, concreto o acero.
@@ -663,7 +663,7 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
   // ---------- Para los vecinos y la vista ----------
   const cx=B.parts.reduce((a,p)=>a+(p.x+p.w/2)*p.w*p.h,0)/B.parts.reduce((a,p)=>a+p.w*p.h,0),cz=B.parts.reduce((a,p)=>a+(p.y+p.h/2)*p.w*p.h,0)/B.parts.reduce((a,p)=>a+p.w*p.h,0);
   // noWalk: la escalera entera (la gente de adentro no la usa: vive en su piso).
-  if(R){for(let i=i0;i<items.length;i++)items[i].y=(items[i].y||0)+R;for(let i=l0;i<leaves.length;i++){leaves[i].y=(leaves[i].y||0)+R;if(leaves[i].cy!=null)leaves[i].cy+=R;}for(let i=a0;i<awnings.length;i++)awnings[i].y+=R;for(let i=k0;i<cortinas.length;i++)cortinas[i].y+=R;for(let i=s0;i<superficies.length;i++)superficies[i].y+=R;
+  if(R){for(let i=i0;i<items.length;i++)items[i].y=(items[i].y||0)+R;for(let i=l0;i<leaves.length;i++){leaves[i].y=(leaves[i].y||0)+R;if(leaves[i].cy!=null)leaves[i].cy+=R;}for(let i=a0;i<awnings.length;i++)awnings[i].y+=R;for(let i=k0;i<cortinas.length;i++)cortinas[i].y+=R;for(let i=n0;i<panios.length;i++)panios[i].caja.y+=R;for(let i=s0;i<superficies.length;i++)superficies[i].y+=R;
    // (la silla con un computador a menos de 1,1 m en el mismo piso es de trabajo: ahí se teclea —persona3d.js Typing—)
    for(const st of seats)st.pc=pcs.some(q=>q.f===st.f&&Math.hypot(q.x-st.x,q.z-st.z)<1.1);
    for(const o of [...boxes,...glass,...models,...seats])o.y+=R;for(const o of innerLeaves){o.y+=R;o.cy+=R;}for(const o of sleeps){if(o.top!=null)o.top+=R;if(o.y!=null)o.y+=R;}for(let i=p0;i<plaques.length;i++)plaques[i].y=R;}

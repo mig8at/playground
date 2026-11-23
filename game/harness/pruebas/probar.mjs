@@ -59,7 +59,8 @@ const NIVELES=[
   {n:'aulas',f:'validar-aulas.mjs',a:[N,S0],fallas:F,res:/^aulas/},
   {n:'giros',f:'validar-giros.mjs',a:[N,S0],fallas:F,res:/^giros/},
   {n:'cortinas',f:'validar-cortinas.mjs',a:[N,S0],fallas:F,res:/^cortinas/}]},
- {n:5,t:'Exterior',d:'árboles, equipamiento, pintura, color y botín',p:[
+ {n:5,t:'Exterior',d:'árboles, equipamiento, pintura, color y los colores del mundo',p:[
+  {n:'colores',f:'validar-colores.mjs',a:[],fallas:F,res:/^colores/},// (2026-11-22: el color del motor llega igual al 3D; la tabla en la familia)
   {n:'vegetación',f:'validar-vegetacion.mjs',a:[N,S0],fallas:F,res:/^3-30-300/},
   {n:'equipamiento',f:'validar-equipamiento.mjs',a:[N,S0],fallas:F,res:/^cobertura/},
   {n:'pintura',f:'validar-pintura.mjs',a:[N,S0],fallas:F,res:/^pintura/},
@@ -71,8 +72,7 @@ const NIVELES=[
   {n:'triángulos',f:'validar-triangulos.mjs',a:[1,S0,'--mundo'],fallas:F,res:/^triángulos/,node:['--max-old-space-size=12000']},
   {n:'empalmes',f:'validar-empalmes.mjs',a:[RAP?1:2,S0],fallas:F,res:/^empalmes/,node:['--max-old-space-size=12000']},
   {n:'oclusión',f:'validar-oclusion.mjs',a:[RAP?1:2,S0],fallas:F,res:/^oclusión/,node:['--max-old-space-size=12000']}]},
- {n:7,t:'Física',d:'por dónde se pasa, qué frena y que el suelo que se pisa sea el que se ve, y las azoteas: saltar de un techo a otro y lo que duele caer',p:[
-  {n:'azoteas',f:'validar-azoteas.mjs',a:[N,S0],fallas:F,res:/^azoteas/},
+ {n:7,t:'Física',d:'por dónde se pasa, qué frena y que el suelo que se pisa sea el que se ve',p:[
   {n:'escalera a la azotea',f:'validar-escalera-azotea.mjs',a:[N,S0],fallas:F,res:/^escalera a la azotea/},// (2026-11-22: se sube caminando del último piso a la azotea)
   {n:'lejos',f:'validar-lejos.mjs',a:[1,S0],fallas:F,res:/^lejos/},// (2026-11-22: la caja de lejos de cada edificio y la versión baja de las plantas)
   {n:'dúplex en 3D',f:'validar-duplex-3d.mjs',a:[N,S0],fallas:F,res:/^dúplex en 3D/},// (2026-11-22: se sube caminando por la escalera de cada dúplex hasta el altillo)
@@ -83,27 +83,19 @@ const NIVELES=[
   {n:'pisos',f:'validar-pisos.mjs',a:[RAP?1:2,S0],fallas:F,res:/^pisos/,node:grande}]},
  {n:8,t:'Visibilidad',d:'qué se ve desde adentro y qué se aclara',p:[
   {n:'visibles',f:'validar-visibles.mjs',a:[2,S0,800],fallas:F,res:/^visibles/,lento:true}]},
- {n:9,t:'Juego',d:'recorridos, distancias, reparto entre equipos, un solo cuerpo, las guaridas, las viviendas, el motor del modo «Botín», el allanamiento, la sociedad (familias, trabajos y horarios) y la rutina (agenda, necesidades, buses y eventos)',p:[
-  {n:'juego',f:'validar-juego.mjs',a:[N,S0],fallas:F,res:/^a pie:/,node:grande},
+ {n:9,t:'Ciudad',d:'los personajes, las viviendas, la sociedad (familias, trabajos y horarios), la gente caminando y la rutina (agenda y necesidades)',p:[
   {n:'personajes',f:'validar-personajes.mjs',a:[],fallas:F,res:/^personajes/},
-  {n:'guaridas',f:'validar-guaridas.mjs',a:[N,S0],fallas:F,res:/^guaridas/},
+  {n:'estado',f:'validar-estado.mjs',a:[],fallas:F,res:/^estado/},
+  {n:'portales',f:'validar-portales.mjs',a:[Math.min(N,2),S0],fallas:F,res:/^portales/},// (2026-11-22: lo que se ve por las aberturas, en el motor)// (2026-11-22: puertas y ventanas abiertas, como datos)
   {n:'viviendas',f:'validar-viviendas.mjs',a:[N,S0],fallas:F,res:/^viviendas/},
   {n:'sociedad',f:'validar-sociedad.mjs',a:[N,S0,14],fallas:F,res:/^sociedad/},
   {n:'caminar',f:'validar-caminar.mjs',a:[S0],fallas:F,res:/^caminar a las 15/},
   {n:'descanso',f:'validar-descanso.mjs',a:[Math.min(N,2),S0],fallas:F,res:/^descanso · ciudad/},
-  {n:'identidad',f:'validar-identidad.mjs',a:[Math.min(N,2),S0],fallas:F,res:/^identidad · ciudad/},
   {n:'rutina',f:'validar-rutina.mjs',a:[N,S0],fallas:F,res:/^rutina/}]},
- {n:10,t:'Pantalla',d:'el 3D de verdad en un navegador sin ventana: costo de cada cuadro, capturas, errores, asomarse por una ventana, la ronda del ladrón y la del policía',p:[
+ {n:10,t:'Pantalla',d:'el 3D de verdad en un navegador sin ventana: costo de cada cuadro, capturas, errores, el tránsito y la entrada',p:[
   {n:'3d',f:'validar-3d.mjs',a:[S0],fallas:F,res:/^3d/,lento:true},
-  {n:'asomarse',f:'validar-asomarse.mjs',a:[S0],fallas:F,res:/^asomarse/,lento:true},
   {n:'tránsito 3d',f:'validar-transito3d.mjs',a:[S0],fallas:F,res:/^tránsito 3d/,lento:true},
-  {n:'caídas',f:'validar-caidas.mjs',a:[S0],fallas:F,res:/^caídas/,lento:true},
-  {n:'salto',f:'validar-salto.mjs',a:[S0],fallas:F,res:/^salto/,lento:true},
-  {n:'entrada',f:'validar-entrada.mjs',a:[],fallas:F,res:/^entrada/},
-  {n:'gente',f:'validar-gente.mjs',a:[S0],fallas:F,res:/^gente/,lento:true},
-  {n:'fluidez',f:'validar-fluidez.mjs',a:[S0],fallas:F,res:/^fluidez/,lento:true},
-  {n:'patrulla',f:'validar-patrulla.mjs',a:[S0],fallas:F,res:/^patrulla/,lento:true},
-  {n:'menú',f:'validar-menu.mjs',a:[S0],fallas:F,res:/^menú/,lento:true}]}]
+  {n:'entrada',f:'validar-entrada.mjs',a:[],fallas:F,res:/^entrada/}]}]
  .filter(L=>L.n>=NV0&&L.n<=NV1).map(L=>({...L,p:L.p.filter(p=>(!solo.length||solo.some(s=>p.n.startsWith(s)))&&!(RAP&&p.lento&&!solo.length))})).filter(L=>L.p.length);
 // Para el panel del harness (2026-10-30): --lista imprime los niveles y sus pruebas («LISTA {json}») y termina; --eventos,
 // además, una línea «PRUEBA {json}» al terminar cada una. La salida de siempre (la tabla) no cambia.

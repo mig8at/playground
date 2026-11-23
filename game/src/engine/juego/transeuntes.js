@@ -13,7 +13,7 @@
    crearTranseuntes(S, mapa) → {cerca(inicio, s, x, z, radio, max, presupuesto, obstáculos), ruta(de, a), separar}: cerca da
    [{id, persona, x, z, rumbo, v, camina, que}] a s reales de la ronda que empezó en inicio (s del juego). */
 import {RELOJ} from '../medidas.js';
-import {entradasLote,entradasCasa} from '../guaridas.js';
+import {entradasLote,entradasCasa} from '../entradas.js';
 
 export const PASO_VISTO=1.4;// m/s: el paso medio (para quien lo necesite de referencia)
 // el caminar (2026-10-17, Miguel: «corren de forma rara, no se chocan entre ellos»; antes, para que nadie tardara más de

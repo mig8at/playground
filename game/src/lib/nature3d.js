@@ -152,6 +152,16 @@ export function plantInstances(kit,name,items,group,{shadow=true}={}){
 // versión de lejos es EL MISMO modelo simplificado (meshoptimizer: junta los vértices que se pueden juntar con el menor error
 // en la forma, así que la silueta queda y se va el detalle chico), en dos pasos: NIVELES_PLANTA. Las tres geometrías van en la
 // misma malla por lotes de cada material y cada planta cambia la suya según la distancia (con margen para no titilar).
+// (2026-11-22, Miguel: «no me gusta cómo se van cambiando los árboles mientras camino; la eliminación de polígonos no es
+// viable, se ve al caminar cómo cambian y es ruido molesto… GTA carga un solo árbol y lo ubica en varios lugares»): las plantas
+// ya comparten un solo modelo por especie (la malla por lotes guarda la geometría una vez y, por planta, sólo su lugar, su
+// giro y su tamaño). Lo que se veía eran los tres cambios de geometría a 25, 50 y 90 m. Ahora cada planta va ENTERA hasta
+// ENTERA_HASTA m —donde la niebla de día ya la tapó del todo (DemoView: fog.far 240 a pie)— y sólo más allá cambia a la
+// versión liviana (LIVIANA, del modelo): a pie nunca se ve el cambio; desde el dron, que corre la niebla, de lejos sí sirve.
+// Medido desde la calle (ciudad 1): 351 mil triángulos de árbol a la vista con el árbol entero hasta 240 m, contra 71 mil con
+// los tres cambios, sobre ~1,76 millones del cuadro.
+export const PLANTA_LEJOS={enteraHasta:240,liviana:.08,vuelve:.95};
+// (los niveles de los personajes —characters3d, personajes3d—: siguen con sus cuatro pasos)
 export const NIVELES_PLANTA=[{ratio:1,desde:0},{ratio:.45,desde:25},{ratio:.18,desde:50},{ratio:.08,desde:90}],VUELVE_PLANTA=.85;// (2026-11-22: el tercer paso, 8 % desde 90 m —Miguel: «agrega el tercer paso»—)
 // (los índices de una parte, simplificados a ratio de sus triángulos: se juntan antes los vértices repetidos —los de las
 // costuras de normales— para que el simplificador vea una sola malla)
@@ -168,7 +178,7 @@ export function plantBatched(kit,name,items,group,{shadow=true}={}){
   for(const gr of grupos){const mat=mats[gr.materialIndex??0]||mats[0];if(!mat)continue;
    // (la parte de la geometría de ese material, con todos sus vértices y sólo sus triángulos; y sus versiones simplificadas)
    const idx=g.index?g.index.array.slice(gr.start,gr.start+gr.count):Uint32Array.from({length:gr.count},(_,i)=>gr.start+i);
-   const subs=NIVELES_PLANTA.map(N=>{const sub=new THREE.BufferGeometry();for(const [k,a] of Object.entries(g.attributes))sub.setAttribute(k,a);sub.setIndex(new THREE.BufferAttribute(simplificar(g.attributes.position,idx,N.ratio),1));return sub;});
+   const subs=[1,PLANTA_LEJOS.liviana].map(ratio=>({ratio})).map(N=>{const sub=new THREE.BufferGeometry();for(const [k,a] of Object.entries(g.attributes))sub.setAttribute(k,a);sub.setIndex(new THREE.BufferAttribute(simplificar(g.attributes.position,idx,N.ratio),1));return sub;});
    const bm=new THREE.BatchedMesh(items.length,g.attributes.position.count*subs.length,subs.reduce((t,x)=>t+x.index.count,0),mat);bm.sortObjects=!!mat.transparent;const gids=subs.map(x=>bm.addGeometry(x)),ids=[];
    items.forEach(it=>{const iid=bm.addInstance(gids[0]);o.position.set(it.x,it.y,it.z);o.rotation.set(0,it.ry||0,0);o.scale.set(it.sx??it.s??1,it.sy??it.s??1,it.sz??it.sx??it.s??1);o.updateMatrix();bm.setMatrixAt(iid,o.matrix);if(it.tint)bm.setColorAt(iid,c.set(it.tint));ids.push(iid);});
    bm.castShadow=shadow;bm.receiveShadow=true;bm.name='plantas';bm.userData.niveles=subs.map(x=>x.index.count/3);group.add(bm);todas.push({bm,ids,gids});}}
@@ -176,10 +186,9 @@ export function plantBatched(kit,name,items,group,{shadow=true}={}){
  const enCelda=it=>!antes||antes.has(Math.floor(it.z/6)*celdasW+Math.floor(it.x/6));
  const aplicar=i=>{const v=enCelda(items[i]);for(const {bm,ids} of todas)bm.setVisibleAt(ids[i],v);};
  const setCeldas=(celdas,W,S=6)=>{if(celdas===antes)return;antes=celdas;celdasW=W;items.forEach((it,i)=>aplicar(i));};
- // (el nivel de cada planta según la distancia: sube al pasar NIVELES_PLANTA[k].desde y vuelve más acá de VUELVE_PLANTA de eso)
- const setLejos=(x,z)=>{items.forEach((it,i)=>{const d=Math.hypot(it.x-x,it.z-z);let k=nivel[i];
-   while(k+1<NIVELES_PLANTA.length&&d>NIVELES_PLANTA[k+1].desde)k++;while(k>0&&d<NIVELES_PLANTA[k].desde*VUELVE_PLANTA)k--;
+ // (entera hasta PLANTA_LEJOS.enteraHasta; más allá, la liviana; vuelve a entera más acá de vuelve × eso, para no titilar)
+ const setLejos=(x,z)=>{const L=PLANTA_LEJOS.enteraHasta;items.forEach((it,i)=>{const d=Math.hypot(it.x-x,it.z-z),k=nivel[i]?(d<L*PLANTA_LEJOS.vuelve?0:1):(d>L?1:0);
    if(k!==nivel[i]){nivel[i]=k;for(const t of todas)t.bm.setGeometryIdAt(t.ids[i],t.gids[k]);}});};
  return {setCeldas,setLejos,n:items.length,meshes:todas.map(t=>t.bm)};}
 // (compatibilidad: la distancia del último nivel)
-export const LEJOS_PLANTA={lejos:NIVELES_PLANTA.at(-1).desde,cerca:NIVELES_PLANTA.at(-1).desde*VUELVE_PLANTA};
+export const LEJOS_PLANTA={lejos:PLANTA_LEJOS.enteraHasta,cerca:PLANTA_LEJOS.enteraHasta*PLANTA_LEJOS.vuelve};

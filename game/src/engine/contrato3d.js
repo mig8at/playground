@@ -23,8 +23,6 @@ export const PALMA_MODELO={coco:'PalmTree_3',palma_real:'PalmTree_4'};
 // Las telas de las sombrillas: las pone el plano (VEGETACION.sombrilla.telas, una por concesión).
 export const TELAS=VEGETACION.sombrilla.telas;
 // El objeto del catálogo de cada pieza del equipamiento (las de pared o de piso, con su medida del plano).
-// El objeto de cada botín (y a qué altura va: el cuadro, colgado; ry: su frente mira al cuarto —botin.js ang—).
-export const OBJETO_BOTIN={caja_fuerte:'caja_fuerte',joyas:'vitrina',escultura:'escultura',cuadro:'cuadro'},ALTURA_BOTIN={cuadro:1.25};
 // La placa de dirección (como las de Bogotá, un poco más grande para leerla en el juego): ancho × alto × fondo (m), lo que
 // sale de la fachada, y a qué altura va su centro sobre el piso de adentro (encima del dintel de la puerta).
 export const PLACA={ancho:.66,alto:.26,fondo:.03,sale:.14,edificio:2.78,casa:2.38};
@@ -60,5 +58,4 @@ export function contrato(bp){const out=[],V=bp.vegetacion||{},E=bp.equipamiento|
  for(const L of [...bp.lots,...(bp.isla?.lots||[]).filter(l=>l.levels)]){const lv=L.levels?.find(l=>l.level===0);if(!lv)continue;const dentro=(x,z)=>(L.parts||[]).some(p=>x>p.x&&x<p.x+p.w&&z>p.y&&z<p.y+p.h);
   for(const d of lv.doors||[]){if(!d.street||!d.direccion)continue;const hz=Math.abs(d.y1-d.y0)<1e-6,mx=(d.x0+d.x1)/2,mz=(d.y0+d.y1)/2,nx=hz?0:(dentro(mx+.3,mz)?-1:1),nz=hz?(dentro(mx,mz+.3)?-1:1):0;placa(d.direccion,mx,mz,nx,nz,PLACA.edificio);}}
  for(const h of bp.isla?.casas||[]){if(!h.direccion)continue;const c=cuerpoCasa(h);placa(h.direccion,c.puerta.x,c.puerta.z,c.afuera.x,c.afuera.z,PLACA.casa);}
- (bp.botines||[]).forEach((b,i)=>{const m=OBJETO_BOTIN[b.objeto];if(!m)return;out.push({id:'botin:'+i,capa:'botin',tipo:'botin',objeto:b.objeto,x:b.x,z:b.z,ang:+(b.ang||0).toFixed(4),kit:'objeto',modelo:m,o:{w:b.largo,d:b.fondo,...(b.objeto==='cuadro'?{h:.7}:{})},...(ALTURA_BOTIN[b.objeto]?{y0:ALTURA_BOTIN[b.objeto]}:{})});});
  return out;}

@@ -8,7 +8,7 @@ import {contrato} from './contrato3d.js';
 
 // (las medidas del catálogo pueden ser expresiones de w, d y tronco: 'w/2-.08')
 const EXPR=new Map(),val=(v,w,d,tronco)=>{if(typeof v==='number')return v;if(v==null)return 0;let f=EXPR.get(v);if(!f)EXPR.set(v,f=new Function('w','d','tronco','return '+v));return f(w,d,tronco);};
-export const claveColision=e=>e.modelo==='farol_parque'?'farol_peatonal':e.tipo==='botin'?'botin_'+e.objeto:e.tipo;
+export const claveColision=e=>e.modelo==='farol_parque'?'farol_peatonal':e.tipo;
 
 // Las formas de una entrada del contrato, en el mundo. El marco: u va a (cos ry, −sin ry) y v a (sin ry, cos ry) —el
 // mismo giro con que la dibuja el 3D—.
