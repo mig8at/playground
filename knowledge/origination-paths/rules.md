@@ -292,7 +292,8 @@ El 11 cierra la **solicitud**: es terminal y una guarda en las rutas del cliente
 - **Riel 2 y 3 (CreditopX):** el crédito sigue vivo en Creditop, en `creditop_x_requests_history`, con su estado
   (al día, en mora, paz y salvo, recuperado). Cada noche lo mueve la cadena que lanza loan-servicing sobre los
   comandos de legacy-application: causación, mora y cobranza, colillas, pagos retenidos y rotativos, beneficios y
-  recordatorios ([la cartera](knowledge:creditopx-portfolio-servicing)). Los pagos entran por Wompi o por caja y se
+  recordatorios ([la cartera](knowledge:creditopx-portfolio-servicing)). El cupo rotativo tiene su propio ciclo
+  ([el rotativo](knowledge:creditopx-revolving-credit)). Los pagos entran por Wompi o por caja y se
   imputan en cascada ([el pago](knowledge:creditopx-payment-application)); los cortes semanales y sus recordatorios
   están en [los recordatorios](knowledge:weekly-collection-reminders).
 

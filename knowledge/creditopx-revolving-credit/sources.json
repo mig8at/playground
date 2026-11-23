@@ -1,0 +1,136 @@
+{
+  "version": 1,
+  "title": "Cupo rotativo CreditopX: otorgar, comprar, pagar y liberar",
+  "summary": "El ciclo del cupo rotativo (riel 3): la cabecera y sus utilizaciones, cómo se calcula el cupo (capacidad × multiplicador de riesgo, la traducción del SP), la fecha y el plazo que impone el cupo a cada compra, el bloqueo al autorizar, el reparto de un pago entre compras, la consolidación nocturna y la gestión del cupo entero.",
+  "reviewedAt": "2026-11-23T12:00:00-05:00",
+  "sources": [
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2025_03_05_213050_create_revolving_credits_table.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "0046f116faa376d3d5a78f55abb8c33d6abc9162",
+      "sections": [
+        "un-cupo-y-sus-compras"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2025_03_05_212737_add_revolving_credit_id_to_creditop_x_requests_history.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "23dba4e566c549334d0c9e153e50a2939d7cb128",
+      "sections": [
+        "un-cupo-y-sus-compras"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/RevolvingCreditsService.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "32edc486efc6f18e20c92eaa94aa4e147fb3e149",
+      "sections": [
+        "el-otorgamiento-se-calcula-una-vez"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/RevolvingCredit/RevolvingCreditConditionsCalculator.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "1cd5e134af84a904953f5f22d088a5e94e861589",
+      "sections": [
+        "el-otorgamiento-se-calcula-una-vez"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/RevolvingCredit/RevolvingCreditConditionsCalculatorService.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "72647fa73a5e4249271706eb7c609ad6d28832c5",
+      "sections": [
+        "el-otorgamiento-se-calcula-una-vez"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "c8f7e40de6997dee49af73ebd44378e248a15be7",
+      "sections": [
+        "el-otorgamiento-se-calcula-una-vez"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/lenders/LenderValidationService.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "bb21da995f7ad0e80118c38bb001d5dbcaa97906",
+      "sections": [
+        "el-otorgamiento-se-calcula-una-vez"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/RevolvingCredit/RevolvingPaymentDatePolicy.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "ff063c9d475cb9c9dc721dad3c8ca6ba10737980",
+      "sections": [
+        "cada-compra-la-fecha-y-el-plazo-los-pone-el-cupo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/RevolvingCredit/RevolvingTermPolicy.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "1f39413693b8e2cd57e284e3bc1e0ffc0a1968b2",
+      "sections": [
+        "cada-compra-la-fecha-y-el-plazo-los-pone-el-cupo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/CreditopXRequestHistoryService.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "babbf121a58be7990a224fc971003f231363bb64",
+      "sections": [
+        "cada-compra-la-fecha-y-el-plazo-los-pone-el-cupo"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Http/Controllers/Admin/CreditopXRevolvingCreditPaymentController.php",
+      "commit": "c992e657db1dc16d7e2aadc7c6a7821d0b533d4e",
+      "blob": "3527c04de0a5b7da19eac501805e0e69c897be38",
+      "sections": [
+        "pagar-y-liberar"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Console/Commands/UpdateCreditopXRevolvingCreditsCommand.php",
+      "commit": "c992e657db1dc16d7e2aadc7c6a7821d0b533d4e",
+      "blob": "6e14a98c4a58b3b2ec20af1afffb69d35ad6c583",
+      "sections": [
+        "un-cupo-y-sus-compras",
+        "pagar-y-liberar",
+        "gestionar-el-cupo-entero"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Console/Commands/AuditRevolvingCreditsCommand.php",
+      "commit": "c992e657db1dc16d7e2aadc7c6a7821d0b533d4e",
+      "blob": "aceedc229665e598b727f51bbb9938d283a0744b",
+      "sections": [
+        "pagar-y-liberar"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Actions/CreditopX/Revolving/RefinanceRevolvingCredit.php",
+      "commit": "c992e657db1dc16d7e2aadc7c6a7821d0b533d4e",
+      "blob": "b6238aeac3fa3c9ff9c0a220051b3f9452d4b3bb",
+      "sections": [
+        "gestionar-el-cupo-entero"
+      ]
+    }
+  ]
+}
