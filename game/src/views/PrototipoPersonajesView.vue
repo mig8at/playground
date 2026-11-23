@@ -40,7 +40,7 @@ let foco=null,renderer,scene,camera,reloj,raf=0,variantes={hombre:[],mujer:[]},c
 // ---- La ropa por zonas ----
 const Z={piel:0,camisa:1,antebrazo:2,pantalon:3,pantorrilla:4,zapatos:5,pelo:6,ojo:7,ceja:8,blanco:9,iris:10};// (ojo: la pupila)
 const zonaDe=b=>/Head|neck|hand|index|middle|pinky|ring|thumb/i.test(b)?Z.piel:/lowerarm/.test(b)?Z.antebrazo:/upperarm|clavicle|spine/.test(b)?Z.camisa:/pelvis|thigh/.test(b)?Z.pantalon:/calf/.test(b)?Z.pantorrilla:/foot|ball/.test(b)?Z.zapatos:Z.camisa;
-const PIEL=['#f1c9a5','#d9a47c','#b97f57','#8d5a3b','#5e3b26'],CAMISA=['#e8e4dc','#2f3a4f','#a63d32','#4f7a5a','#d9b44a','#6d5a8c','#1f1f22','#7fa3c4'],PANTALON=['#2b3550','#3a3a3d','#7a6a54','#556b4a','#1d1d20','#9a8f7c'],ZAPATOS=['#1c1c1c','#f2f2f2','#6b4a32','#3b3f6b'],PELO=['#1b1410','#3e2a1c','#6b4a2b','#b08a55','#8a8a8a'],IRIS=['#4a3220','#6b4a2b','#3d6b4f','#3f6a8f','#2a1d14','#5b5f2e'],FALDA=['#2b3550','#7a2e3a','#3a3a3d','#c9a35a','#4f6b8a','#e3dcd0'];
+const PIEL=['#f1c9a5','#d9a47c','#b97f57','#8d5a3b','#5e3b26'],CAMISA=['#e8e4dc','#2f3a4f','#a63d32','#4f7a5a','#d9b44a','#6d5a8c','#1f1f22','#7fa3c4'],PANTALON=['#2b3550','#3a3a3d','#7a6a54','#556b4a','#1d1d20','#9a8f7c'],ZAPATOS=['#1c1c1c','#f2f2f2','#6b4a32','#3b3f6b'],PELO=['#1b1410','#3e2a1c','#6b4a2b','#b08a55','#8a8a8a','#d8c28e','#c9c4bc'],IRIS=['#4a3220','#6b4a2b','#3d6b4f','#3f6a8f','#2a1d14','#5b5f2e'],FALDA=['#2b3550','#7a2e3a','#3a3a3d','#c9a35a','#4f6b8a','#e3dcd0'];
 // (el material de una persona: su paleta en un uniform; el vértice toma el color de su zona. Manga corta: el antebrazo, piel;
 // pantaloneta o falda: la pantorrilla, piel)
 // (la cara: el atributo detalle —la luz de la cara que pintó el artista, pasada a cada vértice: labios, sombras, párpados—
@@ -53,10 +53,13 @@ function materialRopa(piel,{camisa='#ddd',pantalon='#333',zapatos='#111',pelo='#
   sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vRopa;').replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.rgb*=vRopa;');};
  m.customProgramCacheKey=()=>'ropa-zonas';return m;}
 // (la de una persona; la mujer: falda —el pantalón con la pantorrilla de piel— o pantalón, a veces vestido)
+// (el pelo, que contraste con la piel: si la luz de los dos queda a menos de CONTRASTE, se elige otro)
+const luzDe=h=>{const c=new THREE.Color(h);return .299*c.r+.587*c.g+.114*c.b;},CONTRASTE=.18;
+const peloPara=(r,piel)=>{let p=PELO[0];for(let k=0;k<12;k++){p=PELO[Math.floor(r()*PELO.length)];if(Math.abs(luzDe(p)-luzDe(piel))>=CONTRASTE)break;}return p;};
 function vestimenta(r,mujer){const de=l=>l[Math.floor(r()*l.length)];
- if(!mujer)return {piel:de(PIEL),ropa:{camisa:de(CAMISA),pantalon:de(PANTALON),zapatos:de(ZAPATOS),pelo:de(PELO),iris:de(IRIS),mangaCorta:r()<.45,pantaloneta:r()<.25}};
+ if(!mujer){const piel=de(PIEL);return {piel,ropa:{camisa:de(CAMISA),pantalon:de(PANTALON),zapatos:de(ZAPATOS),pelo:peloPara(r,piel),iris:de(IRIS),mangaCorta:r()<.45,pantaloneta:r()<.25}};}
  const falda=r()<.55,c=falda?de(FALDA):de(PANTALON),vestido=falda&&r()<.35;
- return {piel:de(PIEL),ropa:{camisa:vestido?c:de(CAMISA),pantalon:c,zapatos:de(ZAPATOS),pelo:de(PELO),iris:de(IRIS),mangaCorta:r()<.55,pantaloneta:falda}};}
+ const piel=de(PIEL);return {piel,ropa:{camisa:vestido?c:de(CAMISA),pantalon:c,zapatos:de(ZAPATOS),pelo:peloPara(r,piel),iris:de(IRIS),mangaCorta:r()<.55,pantaloneta:falda}};}
 
 // ---- Los niveles de detalle (como nature3d: soldar por posición, compactar y simplificar) ----
 function simplificar(geo,ratio){const idx=geo.index.array;if(ratio>=1)return idx;const pa=geo.attributes.position,n=pa.count,pos=new Float32Array(n*3);for(let i=0;i<n;i++){pos[i*3]=pa.getX(i);pos[i*3+1]=pa.getY(i);pos[i*3+2]=pa.getZ(i);}
@@ -75,6 +78,10 @@ const luz=(t,u,v)=>{const x=Math.min(t.w-1,Math.max(0,Math.floor((u-Math.floor(u
 const CARAS={hombre:'caras/cara_hombre.png',mujer:'caras/cara_mujer.png'},OJO='caras/ojo.png';
 
 // ---- La cabeza, en el espacio de su hueso: su caja (para que un peinado hecho para otra cabeza calce en ésta) ----
+// (el elipsoide de la cabeza: radio, la mitad de la caja; sale: cuánto queda afuera de él el pelo que caía adentro)
+// (cubre: el peinado, un poco más grande que la caja de la cabeza, para cubrirla —Miguel: «escala el pelo de ser necesario para
+// que cubra la cabeza»—; la barba no se recorta)
+const PELO_AFUERA={radio:.5,sale:1.02,cara:.35,nacimiento:.62,cubre:1.05};// (cara: qué tan adelante —coseno—; nacimiento: la altura del nacimiento del pelo, en radios de la cabeza desde su centro)
 function cajaCabeza(escena){const ms=[];escena.updateMatrixWorld(true);escena.traverse(o=>{if(o.isSkinnedMesh)ms.push(o);});const caja=new THREE.Box3(),v=new THREE.Vector3();
  for(const m of ms){const sk=m.skeleton,h=sk.bones.findIndex(b=>b.name==='Head'),pa=m.geometry.attributes.position,si=m.geometry.attributes.skinIndex,sw=m.geometry.attributes.skinWeight;if(h<0)continue;
   for(let i=0;i<pa.count;i++){let mk=0,mw=-1;for(let k=0;k<4;k++){const w=sw.getComponent(i,k);if(w>mw){mw=w;mk=si.getComponent(i,k);}}if(mk!==h||/eye|brow|face/i.test(m.name))continue;
@@ -90,11 +97,20 @@ function armarCuerpo(gCuerpo,gPelos,texCara=null,texOjo=null,ajuste=null){const 
  const quedan=huesos.map((b,i)=>DEDO.test(b.name)?-1:i).filter(i=>i>=0),nuevo=new Map(quedan.map((v,k)=>[v,k]));
  const destino=i=>{let b=huesos[i];while(b&&DEDO.test(b.name))b=b.parent;return nuevo.get(huesos.indexOf(b))??0;};
  const inv=new THREE.Matrix4(),M=new THREE.Matrix4(),v=new THREE.Vector3(),nm=new THREE.Matrix3(),nn=new THREE.Vector3();
- const pieza=(m,zonaFija)=>{const geo=m.geometry.clone(),si=geo.attributes.skinIndex,sw=geo.attributes.skinWeight,pa=geo.attributes.position,no=geo.attributes.normal,uv=geo.attributes.uv,n=pa.count,zona=new Float32Array(n),detalle=new Float32Array(n).fill(1),cabeza=[],propio=m.skeleton.bones.every((b,i)=>huesos[i]===b);
+ // (hacia dónde mira la cara y hacia dónde es arriba, en el espacio del hueso de la cabeza: adelante sale de la punta del pie)
+ const pos=i=>new THREE.Vector3().setFromMatrixPosition(inv.copy(sk.boneInverses[i]).invert()),iH=porNombre.get('Head'),adel=Math.sign(pos(porNombre.get('ball_l')).z-pos(porNombre.get('foot_l')).z)||1;
+ const rotH=new THREE.Matrix4().extractRotation(sk.boneInverses[iH]),frenteH=new THREE.Vector3(0,0,adel).applyMatrix4(rotH).normalize(),arribaH=new THREE.Vector3(0,1,0).applyMatrix4(rotH).normalize();
+ const pieza=(m,zonaFija)=>{const barba=/beard/i.test(m.name),quitar=new Set(),geo=m.geometry.clone(),si=geo.attributes.skinIndex,sw=geo.attributes.skinWeight,pa=geo.attributes.position,no=geo.attributes.normal,uv=geo.attributes.uv,n=pa.count,zona=new Float32Array(n),detalle=new Float32Array(n).fill(1),cabeza=[],propio=m.skeleton.bones.every((b,i)=>huesos[i]===b);
   for(let i=0;i<n;i++){let mk=0,mw=-1;for(let k=0;k<4;k++){const w=sw.getComponent(i,k);if(w>mw){mw=w;mk=si.getComponent(i,k);}}
    const nombre=m.skeleton.bones[mk].name,bi=porNombre.get(nombre)??0;
    if(!propio){// (del hueso de su esqueleto al mismo hueso de éste; en la cabeza, de la caja de la cabeza para la que se hizo a la de éste)
-    v.fromBufferAttribute(pa,i).applyMatrix4(m.bindMatrix).applyMatrix4(m.skeleton.boneInverses[mk]);if(ajuste&&nombre==='Head')v.sub(ajuste.de.c).multiply(ajuste.escala).add(ajuste.a.c);
+    v.fromBufferAttribute(pa,i).applyMatrix4(m.bindMatrix).applyMatrix4(m.skeleton.boneInverses[mk]);if(ajuste&&nombre==='Head'){v.sub(ajuste.de.c).multiply(ajuste.escala).multiplyScalar(PELO_AFUERA.cubre).add(ajuste.a.c);
+     // (y nada del pelo adentro de la cabeza: la cabeza, como un elipsoide de su caja; el vértice que cae adentro sale a su
+     // superficie, un poco afuera —el mechón que asomaba en la frente queda sobre ella—)
+     // (lo que cae adentro y adelante, por debajo de la coronilla —un mechón sobre la cara—, se quita)
+     if(zonaFija===Z.pelo){const c=ajuste.a.c,r=ajuste.a.t,q=new THREE.Vector3((v.x-c.x)/(r.x*PELO_AFUERA.radio),(v.y-c.y)/(r.y*PELO_AFUERA.radio),(v.z-c.z)/(r.z*PELO_AFUERA.radio)),d=q.length();
+      // (adelante y por debajo del nacimiento del pelo —adentro o encima de la frente—, se quita; lo demás que caía adentro, sale)
+      const dir=q.clone().normalize(),alto=q.dot(arribaH);if(!barba&&dir.dot(frenteH)>PELO_AFUERA.cara&&alto<PELO_AFUERA.nacimiento)quitar.add(i);else if(d<1&&d>1e-6)v.sub(c).multiplyScalar(PELO_AFUERA.sale/d).add(c);}}
     M.copy(inv.copy(sk.boneInverses[bi]).invert()).premultiply(cuerpo.bindMatrixInverse);v.applyMatrix4(M);pa.setXYZ(i,v.x,v.y,v.z);
     if(no){nm.getNormalMatrix(M.clone().multiply(m.skeleton.boneInverses[mk]).multiply(m.bindMatrix));nn.fromBufferAttribute(no,i).applyMatrix3(nm).normalize();no.setXYZ(i,nn.x,nn.y,nn.z);}}
    const idx=[0,1,2,3].map(k=>destino(porNombre.get(m.skeleton.bones[si.getComponent(i,k)]?.name)??0));idx.forEach((x,k)=>si.setComponent(i,k,x));
@@ -106,7 +122,9 @@ function armarCuerpo(gCuerpo,gPelos,texCara=null,texOjo=null,ajuste=null){const 
   // los labios, los párpados y las sombras se marquen sin manchar)
   if(cabeza.length){const ls=cabeza.map(i=>luz(texCara,uv.getX(i),uv.getY(i))),med=[...ls].sort((a,b)=>a-b)[Math.floor(ls.length*.6)]||1;cabeza.forEach((i,k)=>{detalle[i]=THREE.MathUtils.clamp(ls[k]/med,.5,1.12);});}
   geo.setAttribute('zona',new THREE.BufferAttribute(zona,1));geo.setAttribute('detalle',new THREE.BufferAttribute(detalle,1));for(const k of Object.keys(geo.attributes))if(!['position','normal','skinIndex','skinWeight','zona','detalle'].includes(k))geo.deleteAttribute(k);
-  if(!geo.index)geo.setIndex([...Array(n).keys()]);return geo;};
+  if(!geo.index)geo.setIndex([...Array(n).keys()]);
+  if(quitar.size){const ix=geo.index.array,quedan=[];for(let t=0;t<ix.length;t+=3)if(!quitar.has(ix[t])&&!quitar.has(ix[t+1])&&!quitar.has(ix[t+2]))quedan.push(ix[t],ix[t+1],ix[t+2]);geo.setIndex(quedan);}
+  return geo;};
  // (los ojos y las cejas del cuerpo, por su nombre o el de su material)
  // (las partes del maniquí van por su hueso; si un cuerpo trae ojos o cejas, a su zona)
  const zonaPieza=m=>{const t=m.name+' '+(m.material?.name||'')+' '+(m.parent?.name||'');return /brow/i.test(t)?Z.ceja:/eye/i.test(t)?Z.ojo:undefined;};
@@ -161,7 +179,7 @@ onMounted(async()=>{await MeshoptSimplifier.ready;
  const peloDe=Object.fromEntries(pelos.map((p,i)=>[p,gPelos[i]]));
  // (las animaciones de las dos bibliotecas, sin repetir nombres)
  const vistos=new Set(),clips=bibs.flatMap(b=>b.animations).filter(c=>!vistos.has(c.name)&&vistos.add(c.name)),yUAL=alturaCadera(bibs[0].scene);
- Object.keys(CUERPOS).forEach((q,i)=>{clipsDe[q]=clipsPara(clips,alturaCadera(cuerpos[i].scene)/yUAL);variantes[q]=PEINADOS[q].map(ps=>armarCuerpo(cuerpos[i],ps.map(p=>peloDe[p]),texCaras[i],texOjo,ajustes[i]));});
+ Object.keys(CUERPOS).forEach((q,i)=>{clipsDe[q]=clipsPara(clips,alturaCadera(cuerpos[i].scene)/yUAL);variantes[q]=PEINADOS[q].map(ps=>armarCuerpo(cuerpos[i],new URLSearchParams(location.search).has('sinpelo')?[]:ps.map(p=>peloDe[p]),texCaras[i],texOjo,ajustes[i]));/* (?sinpelo: para revisar los cuerpos solos) */});
  const tris=g=>g.index.count/3;datos.value={animaciones:clips.length,triangulosPorNivel:Object.fromEntries(Object.entries(variantes).map(([q,vs])=>[q,vs.map(b=>{let t;b.traverse(o=>{if(o.isSkinnedMesh)t=NIV[o.name].map(tris);});return t;})]))};
  cargando.value='';armar();cuadro();
  window.__proto={foco:(i,atras=false)=>{foco=i==null?null:{i,atras};},armar:k=>{n.value=k;armar();},ahorro:on=>{ahorro.value=on;},niveles:on=>{conNiveles.value=on;},lejos:d=>{foco=null;lejos.value=d;},datos:()=>datos.value,clips:()=>clips.map(c=>c.name)};});
