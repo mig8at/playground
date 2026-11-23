@@ -71,7 +71,7 @@ onMounted(pintar);
 <template>
  <div class="cat">
   <header class="barra">
-   <RouterLink to="/" class="logo" title="Volver al inicio">FUGA</RouterLink>
+   <RouterLink to="/" class="logo" title="Volver al inicio">mycity</RouterLink>
    <b class="titulo">El catálogo</b>
    <nav><button v-for="(n,k) in SECCIONES" :key="k" :class="{on:k===seccion}" @click="seccion=k">{{ n }}</button></nav>
    <label v-if="seccion!=='muebles'" class="sel">Texturas <select v-model="paquete"><option v-for="(P,k) in PAQUETES" :key="k" :value="k">{{ P.nombre }}</option></select></label>

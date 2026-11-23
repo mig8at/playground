@@ -8,7 +8,7 @@ import {createRouter,createWebHistory} from 'vue-router';
 const router=createRouter({
  history:createWebHistory(),
  routes:[
-  {path:'/',name:'inicio',component:()=>import('./views/InicioView.vue'),meta:{title:'FUGA'}},
+  {path:'/',name:'inicio',component:()=>import('./views/InicioView.vue'),meta:{title:'mycity'}},
   {path:'/inicio',redirect:to=>({path:'/',query:to.query})},
   {path:'/juego',name:'juego',component:()=>import('./views/DemoView.vue'),meta:{title:'En partida'}},
   {path:'/ciudad',name:'ciudad',component:()=>import('./views/DemoView.vue'),meta:{title:'La ciudad'}},
@@ -28,5 +28,6 @@ const router=createRouter({
   {path:'/:resto(.*)*',redirect:'/'},
  ],
 });
-router.afterEach(to=>{document.title=to.meta.title&&to.meta.title!=='FUGA'?`${to.meta.title} · FUGA`:'FUGA';});
+// (el nombre que se ve: mycity, 2026-11-22, Miguel: «se me ocurre que se va a llamar mycity por el momento»)
+router.afterEach(to=>{document.title=to.meta.title&&to.meta.title!=='mycity'?`${to.meta.title} · mycity`:'mycity';});
 export default router;

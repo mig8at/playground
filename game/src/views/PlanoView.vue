@@ -223,7 +223,7 @@ onBeforeUnmount(()=>{clearTimeout(relojNitido);window.removeEventListener('keydo
 <template>
  <div class="plano">
   <header class="barra">
-   <RouterLink to="/?paso=home" class="logo" title="Volver a las salas">FUGA</RouterLink>
+   <RouterLink to="/?paso=home" class="logo" title="Volver a las salas">mycity</RouterLink>
    <b class="titulo">{{ seed===MUNDO.seed&&team===MUNDO.team?MUNDO.nombre:'El plano' }}</b>
    <label>Ciudad <input type="number" min="1" v-model.number="seed" @change="cargar"></label>
    <label title="El tamaño de la ciudad amurallada (la isla crece con ella)">Tamaño <select v-model.number="team" @change="cargar"><option v-for="t in TAMANOS" :key="t.team" :value="t.team">{{ t.nombre }} · {{ t.m }}</option></select></label>

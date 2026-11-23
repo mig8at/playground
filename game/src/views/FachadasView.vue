@@ -35,7 +35,7 @@ onMounted(cargar);
 <template>
  <div class="fachadas">
   <header class="barra">
-   <RouterLink to="/plano" class="logo" title="Volver al plano">FUGA</RouterLink>
+   <RouterLink to="/plano" class="logo" title="Volver al plano">mycity</RouterLink>
    <b class="titulo">Fachadas</b>
    <label>Ciudad <input type="number" min="1" v-model.number="seed" @change="cargar"></label>
    <label>Tamaño <select v-model.number="team" @change="cargar"><option :value="3">Chica</option><option :value="5">Mediana</option><option :value="8">Grande</option><option :value="16">Enorme</option></select></label>

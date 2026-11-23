@@ -902,7 +902,7 @@ onBeforeUnmount(()=>{
   <div class="fade" :class="{on:fading}" aria-hidden="true"></div>
 
   <header class="hud">
-   <RouterLink to="/?paso=home" class="back" title="Volver a las salas">FUGA</RouterLink>
+   <RouterLink to="/?paso=home" class="back" title="Volver a las salas">mycity</RouterLink>
    <div v-if="rondaVista" class="ronda" aria-live="polite">
     <div v-if="horaVista" class="r-fila"><span>Hora</span><b class="hora">{{ horaVista }}</b></div>
     <div class="r-fila"><span>Vida</span><b>{{ Math.round(vidaVista) }}</b></div>
@@ -955,7 +955,7 @@ onBeforeUnmount(()=>{
   <Transition name="carga">
    <div v-if="!carga.lista" class="carga" role="status" aria-live="polite">
     <div class="carga-centro">
-     <b class="carga-logo">FUGA</b>
+     <b class="carga-logo">mycity</b>
      <p class="carga-papel" :class="POLICIA?'policia':'ladron'">{{ PASEO?'La ciudad':POLICIA?'Hoy sos policía':'Hoy sos ladrón' }}</p>
      <div class="carga-barra" role="progressbar" :aria-valuenow="Math.round(carga.parte*100)" aria-valuemin="0" aria-valuemax="100"><i :style="{transform:`scaleX(${carga.parte})`}"></i></div>
      <p class="carga-etapa">{{ carga.etapa }}</p>
