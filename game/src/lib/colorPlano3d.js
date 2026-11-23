@@ -7,9 +7,9 @@
 //  · lo demás, su propio color —el que puso el motor: las fachadas, los cuartos y los techos de color.js; los árboles con el
 //    tinte de su especie (por instancia, se conserva)—; si su color venía de una textura (un aviso, una placa), el promedio
 //    de la textura. Pasado por engine/colores.js armonizar: lo del motor no cambia; los colores puros de los modelos, sí;
-//  · el vidrio (lo que era transparente), COLOR.material.vidrio y OPACO (2026-11-22, Miguel: «las ventanas están
-//    transparentes y por defecto deben ser opacas, para no cargar el interior de los edificios»): desde la calle no se ve
-//    adentro, y el mundo arma lo de adentro sólo desde adentro —world3d updateInteriors—.
+//  · el vidrio (lo que era transparente), COLOR.material.vidrio, transparente: lo que tapa una ventana es su paño, cerrado de
+//    fábrica (2026-11-22, Miguel: «abrir y cerrar una ventana y que se guarde el estado»): cerrada no se ve adentro ni se
+//    arma lo de adentro —world3d updateInteriors—; abierta, se ve por el vidrio.
 // Lo pintado en las paredes (los grafitis, el mapa de lo pintable) no se toca: es de los jugadores. Se aplica en cada cuadro
 // y sólo a lo que todavía no lo tiene: lo que se arma al acercarse tampoco llega a verse con textura.
 import * as THREE from 'three';
@@ -34,8 +34,8 @@ export function createColorPlano(){const hechos=new Map(),own=[];
   // (un material propio —un sombreador a mano, líneas, puntos— no se toca: no se sabe qué dibuja)
   if(m.isShaderMaterial||m.isLineBasicMaterial||m.isPointsMaterial||m.isSpriteMaterial||m.customProgramCacheKey?.()==='ropa-cortes'){hechos.set(clave,m);return m;}
   const vidrio=m.transparent&&m.opacity<.95;
-  p=new THREE.MeshStandardMaterial({color:vidrio?COLOR.material.vidrio:colorPlanoDe(m,o),roughness:vidrio?.6:.92,metalness:0,side:m.side,vertexColors:!!m.vertexColors,
-   transparent:vidrio?false:m.transparent,opacity:vidrio?1:m.opacity,depthWrite:vidrio?true:m.depthWrite,depthTest:m.depthTest,alphaTest:m.alphaTest||0,
+  p=new THREE.MeshStandardMaterial({color:vidrio?COLOR.material.vidrio:colorPlanoDe(m,o),roughness:vidrio?.3:.92,metalness:0,side:m.side,vertexColors:!!m.vertexColors,
+   transparent:m.transparent,opacity:vidrio?Math.min(m.opacity,.35):m.opacity,depthWrite:vidrio?false:m.depthWrite,depthTest:m.depthTest,alphaTest:m.alphaTest||0,
    emissive:m.emissive||0x000000,emissiveIntensity:m.emissiveIntensity??1,polygonOffset:m.polygonOffset,polygonOffsetFactor:m.polygonOffsetFactor,polygonOffsetUnits:m.polygonOffsetUnits,visible:m.visible});
   p.userData.plano=true;p.userData.original=m;hechos.set(clave,p);own.push(p);return p;};
  const ir=o=>{if(SALVO(o))return 0;let n=0;

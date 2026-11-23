@@ -47,6 +47,8 @@ import {createGrafitis,createMapaPintable} from '../lib/grafitis3d.js';
 import {claveCiudad} from '../engine/grafiti.js';
 import {sincronizar} from '../lib/pinturaGuardada.js';
 import {createColorPlano} from '../lib/colorPlano3d.js';
+import {cambiar,puertaClave,abiertas} from '../engine/estadoMundo.js';
+import {cargarEstado,guardarEstado} from '../lib/estadoGuardado.js';
 import {cerradurasDe,puertaTrancadaEn,trancada,adentroCerrado} from '../engine/propiedad.js';
 import {paredesDeLaCiudad} from '../engine/muros.js';
 
@@ -75,6 +77,9 @@ const seed=ref(+route.query.ciudad||(PRUEBA?2:LUGAR?.semilla||pickCity(team.valu
 let characters=[],carModels=null,buildings=null,downtown=null,plants=null,nature=null,nature2=null,casa2=null,tienda=null,furniture=null,indoor=null,office=null;
 // (las cerraduras de las viviendas: cerradas hasta que se compren —engine/propiedad.js—)
 let cerraduras=null;
+// (lo que el jugador abrió —puertas y ventanas— y queda así al volver: engine/estadoMundo.js, guardado por ciudad —lib/estadoGuardado.js—;
+// en multijugador, lo mismo lo repartiría el servidor)
+let estado=null;const anotar=(tipo,clave,valor)=>{if(estado&&cambiar(estado,tipo,clave,valor))guardarEstado(seed.value,team.value,estado);};
 // La carga (2026-11-19): antes eran ~20 s de pantalla negra. `carga.parte` va de 0 a 1 y `lista` la quita.
 const carga=ref({parte:0,etapa:'Trayendo la ciudad…',lista:false});
 const rinde=ref(null);let rindeN=0,rindeT=0,rindeLlamadas=0,rindeTris=0,rindePeor=0;
@@ -238,7 +243,11 @@ if(world){scene.remove(world.group);world.dispose();barrios?.dispose();casas?.di
 makeAvatar();lap('muñeco');
  // (las casas del 3D: sólo las que tienen plano de casa)
  const conPlano=(plan.isla?.casas||[]).map((c,i)=>c.spec?i:-1).filter(i=>i>=0);
- acciones=createAcciones({plan,world,player,avatar:()=>avatar,viviendas:()=>viviendas});accionTexto.value='';
+ acciones=createAcciones({plan,world,player,avatar:()=>avatar,viviendas:()=>viviendas,alVentana:(k,abierta)=>anotar('ventanas',k,abierta)});accionTexto.value='';
+ // (lo que quedó abierto la última vez en esta ciudad: las ventanas, por su clave; las puertas, por su lugar)
+ estado=cargarEstado(seed.value,team.value);
+ for(const k of abiertas(estado,'ventanas'))world.cortina?.(k,false);
+ for(const k of abiertas(estado,'puertas')){const [x,z,y]=k.split(',').map(Number),p=puertasCerca(x,z,y,.4).find(q=>puertaClave(q)===k);if(p&&!p.abierta&&!p.trancada?.())alternarPuerta(p,false);}
  // (2026-11-22: en el paseo, toda vivienda está cerrada hasta que se compre —engine/propiedad.js—: su puerta trancada y lo
  // de adentro sin armar)
  if(!PRUEBA){const R=cerradurasDe(plan);trancar(R,conPlano);cerradoAlPasear=adentroCerrado(plan,R);world.setCerrados?.(cerradoAlPasear);}
@@ -328,20 +337,6 @@ const fps={on:false,fov:FPS_FOV,roll:0,dip:0,dipV:0,amp:0,head:null,arms:[],sil:
    moveCharacter(avatar,moving?(run?'run':'walk'):'idle',moving?(run?RUN:WALK)/3.5:0,dt);if(this.head)this.head.scale.setScalar(1e-4);for(const b of this.arms)b.scale.setScalar(1e-4);}
  },
  };
-// Asomado a una ventana (acciones3d mirada, 2026-10-17, Miguel: «asomarme a una ventana y poder ver a los lados»): la
-// cámara va de donde estaba al ojo junto al vidrio, girando hacia afuera; ya asomado, se mira a los lados hasta
-// VENTANA.giro y arriba o abajo hasta VENTANA.arriba / VENTANA.abajo, como sacando la cabeza. El muñeco no se ve (la
-// cámara queda delante de su cara).
-const VENTANA={giro:1.2,arriba:.6,abajo:.8};let asomo=null;
-function ventana(dt,m){const e=new THREE.Euler().setFromQuaternion(camera.quaternion,'YXZ'),fuera=m.yaw+Math.PI,k=m.k;
- if(!asomo)asomo={x:camera.position.x,y:camera.position.y,z:camera.position.z};
- camera.position.set(asomo.x+(m.x-asomo.x)*k,asomo.y+(m.y-asomo.y)*k,asomo.z+(m.z-asomo.z)*k);
- let dy=e.y-fuera;dy=Math.atan2(Math.sin(dy),Math.cos(dy));
- // (mientras se asoma, la mirada va hacia afuera; ya asomado, el mouse la mueve dentro de los límites)
- if(acciones.fase==='bajar')dy*=1-Math.min(1,dt*8);dy=Math.max(-VENTANA.giro,Math.min(VENTANA.giro,dy));
- camera.rotation.set(Math.max(-VENTANA.abajo,Math.min(VENTANA.arriba,e.x)),fuera+dy,0,'YXZ');
- if(avatar)avatar.holder.visible=k<.5;}
-function dejarVentana(){asomo=null;if(avatar)avatar.holder.visible=(third.value||fps.on)&&!drone.value;}
 // Un paso del jugador (mx, mz: lo que avanza en este cuadro), con los choques. (ayudaEsquinas: en false, como antes —para
 // comparar en las pruebas: __demo.ayudaEsquinas—)
 let ayudaEsquinas=true;
@@ -351,7 +346,8 @@ function puertasCerca(x,z,F,r=1.5){return [...(world?.puertasCerca?.(x,z,F,r)||[
 // la más cercana que se puede abrir o cerrar (no las trancadas: esas se fuerzan)
 function puertaParaE(){let best=null,bd=1.3;for(const p of puertasCerca(player.x,player.z,player.feet,1.6)){if(p.trancada())continue;const d=distSeg(player.x,player.z,p.seg);if(d<bd){bd=d;best=p;}}return best?{p:best,d:bd}:null;}
 // (todas las hojas de esa puerta —la doble de calle tiene dos—: abiertas o cerradas juntas)
-function alternarPuerta(p){const on=!p.abierta;for(const q of puertasCerca(p.cx,p.cz,p.cy,.3))if(Math.hypot(q.cx-p.cx,q.cz-p.cz)<.1&&q.abierta!==on)q.alternar();}
+// (y se anota en el estado del mundo: queda así al volver —anotar=false al reponer lo guardado—)
+function alternarPuerta(p,anota=true){const on=!p.abierta;for(const q of puertasCerca(p.cx,p.cz,p.cy,.3))if(Math.hypot(q.cx-p.cx,q.cz-p.cz)<.1&&q.abierta!==on)q.alternar();if(anota)anotar('puertas',puertaClave(p),on);}
 const distSeg=(x,z,[ax,az,bx,bz])=>{const dx=bx-ax,dz=bz-az,l=dx*dx+dz*dz||1,t=Math.max(0,Math.min(1,((x-ax)*dx+(z-az)*dz)/l));return Math.hypot(ax+dx*t-x,az+dz*t-z);};
 // (¿hay una pared en (x, z) a la altura del jugador? la ciudad, los barrios, las casas y sus cercas)
 const enPared=(x,z)=>world.collide(x,z,RADIUS,false,player.feet)||barrios.collide(x,z,RADIUS,false,player.feet)||viviendas.collide(x,z,RADIUS,false,player.feet)||casas.collide(x,z,RADIUS);
@@ -379,9 +375,8 @@ function step(dt){
  // Las acciones (acciones3d.js): mientras dura una, el jugador no camina —caminar o E la terminan—; si no, cada 0,15 s,
  // el uso más cercano y su tecla.
  const quiere=['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].some(k=>keys.has(k));
- if(acciones?.activa){acciones.update(dt,quiere);accionAlterna.value='';const m=acciones.mirada();accionTexto.value=acciones.fase==='quieto'?(acciones.accion==='asomarse'?'Volver':'Levantarse'):'';
-  if(m){ventana(dt,m);return;}if(asomo)dejarVentana();fps.step(dt,false,0);return;}
- if(asomo)dejarVentana();
+ if(acciones?.activa){acciones.update(dt,quiere);accionAlterna.value='';accionTexto.value=acciones.fase==='quieto'?'Levantarse':'';
+  fps.step(dt,false,0);return;}
  if(acciones&&(accionReloj-=dt)<=0){accionReloj=.15;accionCerca=acciones.cerca();{const pu=puertaParaE();if(pu&&(!accionCerca||pu.d<.9))accionCerca={puerta:pu.p,texto:pu.p.abierta?(pu.p.garaje?'Cerrar el garaje':'Cerrar la puerta'):(pu.p.garaje?'Abrir el garaje':'Abrir la puerta')};}
   accionTexto.value=accionCerca?.texto||'';accionAlterna.value=(accionCerca?.cortina||accionCerca?.alterna)?.texto||'';}
  const f=new THREE.Vector3();camera.getWorldDirection(f);f.y=0;f.normalize();const r=new THREE.Vector3(-f.z,0,f.x);
@@ -534,7 +529,7 @@ function loop(t){
  // Los contornos sólo delinean paredes interiores: afuera no se ven y el paso costaba más de la mitad del cuadro.
  // (en cada cuadro, antes de dibujar: lo que se arma al acercarse —un interior— nunca llega a verse con su color. Medido:
  // 0,12 ms recorrer las 3.831 piezas de la ciudad chica)
- if(edgePass)edgePass.enabled=adentro||!!world.dentro?.(camera.position.x,camera.position.z,camera.position.y)||barrios.dentro(camera.position.x,camera.position.z,camera.position.y)||viviendas.dentro(camera.position.x,camera.position.z,camera.position.y);traffic.update(dt,{player,people});world.updateDoors(dt,[player,...people,...(indoor.positions?.()||[])]);island.updateDoors(dt,[player,...folk.positions()]);viviendas.updateDoors(dt,[player,...folk.positions()]);viviendas.update(eye.x,eye.z);casas.update(eye.x,eye.z,scene.fog.far);world.updateAds(t/1000);(lejosPlantas-=dt)<=0&&(lejosPlantas=.3,planoVista?.setLejos?.(eye.x,eye.z));world.updateInteriors(eye.x,eye.z,dt,eye.y);barrios.updateInteriors(eye.x,eye.z,dt,eye.y);barrios.updateDoors(dt,[player,...folk.positions()]);world.updateElevators(dt,player);
+ if(edgePass)edgePass.enabled=adentro||!!world.dentro?.(camera.position.x,camera.position.z,camera.position.y)||barrios.dentro(camera.position.x,camera.position.z,camera.position.y)||viviendas.dentro(camera.position.x,camera.position.z,camera.position.y);traffic.update(dt,{player,people});world.updateDoors(dt,[player,...people,...(indoor.positions?.()||[])]);island.updateDoors(dt,[player,...folk.positions()]);viviendas.updateDoors(dt,[player,...folk.positions()]);viviendas.update(eye.x,eye.z);casas.update(eye.x,eye.z,scene.fog.far);world.updateAds(t/1000);(lejosPlantas-=dt)<=0&&(lejosPlantas=.3,planoVista?.setLejos?.(eye.x,eye.z));world.updateInteriors(eye.x,eye.z,dt,eye.y,camera);barrios.updateInteriors(eye.x,eye.z,dt,eye.y,camera);barrios.updateDoors(dt,[player,...folk.positions()]);world.updateElevators(dt,player);
  {const at=drone.value?null:world.elevatorAt(player.x,player.z,player.feet);lift.value=at?{floor:at.floor,floors:at.floors,roof:at.roof}:null;}
  // Las luces reales van a los postes más cercanos; se reparten de nuevo cada tanto, no en cada cuadro.
  if(luz.n>.5&&(lightClock-=dt)<=0){lightClock=.35;const cp=camera.position,near=[...world.lights,...(island?.lights||[]),...(barrios?.lights||[]),...(viviendas?.lights||[]),...(planoVista?.lights||[])].map(l=>({l,d:(l.x-cp.x)**2+(l.z-cp.z)**2})).sort((a,b)=>a.d-b.d);streetLights.forEach((s,i)=>{const n=near[i];if(n)s.position.set(n.l.x,n.l.y,n.l.z);s.intensity=n?6:0;});}
@@ -567,9 +562,6 @@ function onKey(e){
   if(e.code==='KeyN'){night.value=!night.value;applyLight();}
   if(e.code==='KeyM')showMap.value=!showMap.value;
   if(e.code==='KeyV')toggleDrone();// (volar: la cámara libre, para mirar la ciudad desde arriba)
-  // R: la acción alterna de lo que está cerca (aclarar u opacar el vidrio de la ventana, mirar por el visor de una puerta)
-  // (estaba adentro del «if» de E y Q: nunca llegaba; 2026-10-17, lo encontró validar-ronda al apretar la tecla)
-  if(e.code==='KeyR'&&!acciones?.activa&&(accionCerca?.cortina||accionCerca?.alterna)){acciones.empezar(accionCerca.cortina||accionCerca.alterna);accionReloj=0;}
   if(e.code==='KeyE'||e.code==='KeyQ'){const d=e.code==='KeyE'?1:-1;if(e.code==='KeyE'&&accionCerca?.puerta&&!drone.value){alternarPuerta(accionCerca.puerta);accionCerca=null;accionReloj=0;}else if(world.elevatorAt(player.x,player.z,player.feet))ride(d);
    else if(e.code==='KeyE'&&acciones?.activa)acciones.terminar();else if(e.code==='KeyE'&&!drone.value&&(accionCerca=acciones?.cerca())?.u){acciones.empezar(accionCerca);accionReloj=0;}}
   if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();
@@ -618,7 +610,7 @@ onMounted(async()=>{
  // (el modo aristas —lib/aristas3d.js, 2026-11-22—: para leer una captura; ?aristas=1 o __demo.aristas(true))
 let matAristas=null;const aristas=(on=true)=>{if(!scene)return false;scene.overrideMaterial=on?(matAristas||(matAristas=materialAristas())):null;return !!on;};
 if(import.meta.env.DEV&&new URLSearchParams(location.search).get('aristas')==='1'){const prende=()=>{if(!aristas(true))setTimeout(prende,500);};setTimeout(prende,0);}// (hasta que la escena exista)
-if(import.meta.env.DEV)window.__demo={aristas,caminar,get mundo(){return world;},get plan(){return plan;},get ayudaEsquinas(){return ayudaEsquinas;},set ayudaEsquinas(v){ayudaEsquinas=v;},get cerraduras(){return cerraduras;},tiempos,WORLD_TIMES,THREE,fps,get scene(){return scene;},player,camera,euler,get avatar(){return avatar;},view,get world(){return world;},get city(){return city;},get plan(){return plan;},get composer(){return composer;},get renderer(){return renderer;},get crowd(){return crowd;},get traffic(){return traffic;},get island(){return island;},get folk(){return folk;},get animals(){return animals;},get indoor(){return indoor;},get viviendas(){return viviendas;},get casas(){return casas;},keys,step,dronePos,render:renderFrame,get visKey(){return visKey;},get acciones(){return acciones;},get niebla(){return niebla;},get lugar(){return lugar.value;},fijarDron(x,y,z){Object.assign(dronePos,{x,y,z});despegue=null;},huecosTerrazas(){// (2026-10-16: rayos hacia abajo en 3×3 puntos de cada casilla de lote del monte: un hueco es ver más de 1 m bajo el lote y bajo la calle de al lado)
+if(import.meta.env.DEV)window.__demo={aristas,caminar,get mundo(){return world;},get plan(){return plan;},get ayudaEsquinas(){return ayudaEsquinas;},set ayudaEsquinas(v){ayudaEsquinas=v;},get cerraduras(){return cerraduras;},tiempos,WORLD_TIMES,THREE,fps,get scene(){return scene;},player,camera,euler,get avatar(){return avatar;},view,get world(){return world;},get city(){return city;},get plan(){return plan;},get composer(){return composer;},get renderer(){return renderer;},get crowd(){return crowd;},get traffic(){return traffic;},get island(){return island;},get folk(){return folk;},get animals(){return animals;},get indoor(){return indoor;},get viviendas(){return viviendas;},get casas(){return casas;},keys,step,dronePos,render:renderFrame,get visKey(){return visKey;},get acciones(){return acciones;},get estado(){return estado;},alternarPuerta,puertasCerca,get niebla(){return niebla;},get lugar(){return lugar.value;},fijarDron(x,y,z){Object.assign(dronePos,{x,y,z});despegue=null;},huecosTerrazas(){// (2026-10-16: rayos hacia abajo en 3×3 puntos de cada casilla de lote del monte: un hueco es ver más de 1 m bajo el lote y bajo la calle de al lado)
   const I=plan.isla,ray=new THREE.Raycaster(),out=[];let n=0;island.group.updateMatrixWorld(true);const objs=[];island.group.traverse(o=>{if(o.isMesh&&!o.isInstancedMesh)objs.push(o);});
   const ejes=I.carreteras.filter(c=>c.puntos).flatMap(c=>c.puntos.slice(1).map((p,i)=>({a:c.puntos[i],b:p})));
   const calle=(x,z)=>{let best=null,bd=1e9;for(const {a,b} of ejes){const dx=b.x-a.x,dz=b.z-a.z,L2=dx*dx+dz*dz||1,t=Math.max(0,Math.min(1,((x-a.x)*dx+(z-a.z)*dz)/L2)),dd=Math.hypot(x-a.x-t*dx,z-a.z-t*dz);if(dd<bd){bd=dd;best=a.h+(b.h-a.h)*t;}}return bd<14?best:null;};

@@ -1185,15 +1185,29 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
  let ocultoFn=null,trancadaFn=null,cerradoFn=null;
  // (la caja de lejos de cada edificio —downtown3d setLejos—, cada 0,3 s según dónde está la cámara)
  let lejosReloj=0;
- function updateInteriors(px,pz,dt=.016,py=1.7){if((lejosReloj-=dt)<=0){lejosReloj=.3;town?.setLejos?.(px,pz);}if(!furniture||!lotFurniture.size)return;if((clock-=dt)>0)return;clock=.4;
-  // Los edificios a menos de 15 m de la cámara, y sólo los pisos cerca de su altura (el de la cámara y los vecinos).
-  // (2026-11-22, Miguel: «las ventanas, por defecto opacas, para no cargar el interior de los edificios»: con los vidrios
-  // opacos —lib/colorPlano3d.js— desde la calle no se ve adentro: se arma sólo el edificio donde está la cámara o el que tiene pegado. Volando,
-  // para inspeccionar —sin viviendas cerradas: setCerrados(null)—, como antes: los de cerca)
-  // (y el que está pegado, a menos de UMBRAL m —2026-11-22, Miguel: «al abrir una puerta y entrar no carga las paredes de adentro
-  // hasta cruzarla»—: desde la vereda se ve adentro por una puerta abierta; más lejos, con los vidrios opacos, no)
-  const UMBRAL=4,cerca=L=>(L.cells||[]).some(c=>Math.hypot(Math.max(c[0]-px,0,px-c[2]),Math.max(c[1]-pz,0,pz-c[3]))<UMBRAL)&&py<(L.floors||1)*FLOOR+(L.raise||0)+1;
-  const cf=Math.floor(Math.max(0,py-.5)/FLOOR),act=[...lotFurniture].filter(([id,L])=>cerradoFn?cerca(L):Math.hypot(L.x-px,L.z-pz)<15+L.r).map(([id])=>id),key=act.join(',')+'|'+cf;if(key===activeKey)return;activeKey=key;
+ // LO QUE SE VE POR LAS ABERTURAS (2026-11-22, Miguel: «mejorar la regla de mostrar el interior: no por la cercanía al edificio sino
+ // por donde apunta la cámara: si está abierta la puerta debería verse lo de adentro, al igual que si está abierta una ventana,
+ // similar a lo que hace GTA» —oclusión por portales—): con los vidrios tapados por su paño, una fachada esconde todo lo de
+ // adentro; se ve sólo por una puerta o una ventana ABIERTA que esté en el campo de visión de la cámara y a menos de PORTAL m.
+ // cam: la cámara (sin ella, sólo el edificio donde se está); off: dónde queda este mundo en el de la cámara (los barrios).
+ const PORTAL=35,_fr=new THREE.Frustum(),_pm=new THREE.Matrix4(),_pv=new THREE.Vector3();
+ function updateInteriors(px,pz,dt=.016,py=1.7,cam=null,off=null){if((lejosReloj-=dt)<=0){lejosReloj=.3;town?.setLejos?.(px,pz);}if(!furniture||!lotFurniture.size)return;if((clock-=dt)>0)return;clock=.2;
+  // Se arma lo de adentro del edificio donde está la cámara y del que tiene una abertura abierta a la vista (y sólo los pisos
+  // cerca de la altura de la cámara). Volando, para inspeccionar —sin viviendas cerradas: setCerrados(null)—, como antes: los
+  // edificios a menos de 15 m.
+  const adentro=L=>(L.cells||[]).some(c=>px>c[0]&&px<c[2]&&pz>c[1]&&pz<c[3])&&py<(L.floors||1)*FLOOR+(L.raise||0)+1;
+  const vistos=new Set();if(cam){cam.updateMatrixWorld();_fr.setFromProjectionMatrix(_pm.multiplyMatrices(cam.projectionMatrix,cam.matrixWorldInverse));
+   const ox=off?.x||0,oy=off?.y||0,oz=off?.z||0,ve=(x,y,z)=>Math.hypot(x-px,z-pz)<PORTAL&&_fr.containsPoint(_pv.set(x+ox,y+oy,z+oz));
+   // (las ventanas abiertas: su paño corrido; el lote, de su clave lote:piso:ventana)
+   for(const p of panios.values())if(!p.cerrada&&p.centro&&ve(p.centro.x,p.centro.y,p.centro.z))vistos.add(String(p.key).split(':')[0]);
+   // (las puertas de calle abiertas: su lote, el que la tiene en el borde)
+   const del=(x,z)=>{for(const [id,L] of lotFurniture)if((L.cells||[]).some(c=>Math.hypot(Math.max(c[0]-x,0,x-c[2]),Math.max(c[1]-z,0,z-c[3]))<.8))return String(id);return null;};
+   for(const d of town?.puertasCerca?.(px,pz,py-1.6,PORTAL,trancadaFn)||[])if(d.abierta&&ve(d.cx,(d.cy||0)+1,d.cz)){const id=del(d.cx,d.cz);if(id!=null)vistos.add(id);}
+   // (y las hojas de cada edificio que están en su borde —las que dan afuera; las de adentro no se ven desde la calle—)
+   const en=(L,x,z)=>(L.cells||[]).some(c=>x>c[0]&&x<c[2]&&z>c[1]&&z<c[3]);
+   for(const [id,L] of lotFurniture){if(vistos.has(String(id))||Math.hypot(L.x-px,L.z-pz)>PORTAL+L.r)continue;
+    for(const lf of L.leaves||[])if(lf.mano&&!lf.fija&&[[.6,0],[-.6,0],[0,.6],[0,-.6]].some(([a,b])=>!en(L,lf.cx+a,lf.cz+b))&&ve(lf.cx,(lf.cy||0)+1,lf.cz)){vistos.add(String(id));break;}}}
+  const cf=Math.floor(Math.max(0,py-.5)/FLOOR),act=[...lotFurniture].filter(([id,L])=>cerradoFn?adentro(L)||vistos.has(String(id)):Math.hypot(L.x-px,L.z-pz)<15+L.r).map(([id])=>id),key=act.join(',')+'|'+cf;if(key===activeKey)return;activeKey=key;
   const near=it=>Math.abs(it.f-cf)<=1;
   for(const m of [...interior.children]){interior.remove(m);m.dispose?.();}
   // (2026-11-22: lo de adentro de una vivienda cerrada —sin dueño, con sus persianas cerradas— no se arma: cerradoFn(lote, piso,
@@ -1250,7 +1264,7 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
    cortinaMesh.count=k;for(const p of new Set(panioDe.filter(Boolean)))if(cortinaSlot[p.i0]>=0)ponPanio(p);cortinaMesh.instanceMatrix.needsUpdate=true;},
   cortinaCerrada:key=>!!panios.get(key)?.cerrada,cortinaK:key=>panios.get(key)?.k,
   // (2026-11-22: la cortina es la película del vidrio —engine/cortinas.js peliculaCerrada—: cambia de una vez, como la de verdad)
-  cortina:(key,cerrar)=>{const p=panios.get(key);if(!p||!cortinaMesh)return false;p.cerrada=cerrar??!p.cerrada;p.k=p.cerrada?1:0;ponPanio(p);cortinaMesh.instanceMatrix.needsUpdate=true;return p.cerrada;},
+  cortina:(key,cerrar)=>{const p=panios.get(key);if(!p||!cortinaMesh)return false;p.cerrada=cerrar??!p.cerrada;p.k=p.cerrada?1:0;ponPanio(p);cortinaMesh.instanceMatrix.needsUpdate=true;activeKey='';clock=0;return p.cerrada;},// (al abrir o cerrar, los interiores se vuelven a mirar ya)
   // El techo sobre (x, z) por encima de la altura y: lo más bajo que haya arriba —la losa del piso siguiente (menos el hueco
   // de la escalera) o un tramo de escalera—, o null. Para la cámara de tercera persona, que se queda debajo en vez de
   // chocar y acercarse de un salto (2026-10-16).

@@ -16,7 +16,6 @@ import {modulosDeFachada,VENTANAL as VENTANAL_PLANO,TERRAZA} from '../engine/fac
 import {PUERTA_DOBLE,MARQUESINA,VENTANAL} from './fachada3d.js';
 import {pendienteEn} from '../engine/techos.js';
 import {ALTURA,COLUMNA,CHOQUE_MUEBLE,CORTINA,AZOTEA,MANSARDA,esVidriera} from '../engine/medidas.js';
-const CORTINA_CU=new Set(CORTINA.cuartos);
 import {cuartoDeVentana,peliculaCerrada} from '../engine/cortinas.js';
 import {esVivienda} from '../engine/entrega.js';
 import {piezasSinTitilar} from '../engine/titileo.js';
@@ -635,11 +634,11 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
    // engine/cortinas.js peliculaCerrada, una lámina; el interior no se ve ni se arma —engine/propiedad.js—)
    // (el dúplex, sin cortinas ni persianas —Miguel, 2026-11-22: «haz que el dúplex no tenga cortinas»—: su planta abierta
    // y la doble altura se ven desde la calle)
-   const enDuplex=c=>f===L.floors-1&&B.duplex?.unidades.some(u=>u.n===c.q.unit);
-   if(bp.entrega)lv.windows.forEach((w,wi)=>{if(w.shop)return;const c=cuartoDeVentana(lv,w);if(!c||!esVivienda(B,c.q)||enDuplex(c))return;
-    const cj=peliculaCerrada(c,yb,FACE+.02).cajas;panios.push({key:id+':'+f+':'+wi,i0:cortinas.length,n:cj.length,cerrada:true,persiana:true});cortinas.push(...cj);});
-   else lv.windows.forEach((w,wi)=>{if(w.shop)return;const c=cuartoDeVentana(lv,w);if(!c||!CORTINA_CU.has(c.q.type)||enDuplex(c))return;
-    const cj=peliculaCerrada(c,yb,FACE+.02).cajas;panios.push({key:id+':'+f+':'+wi,i0:cortinas.length,n:cj.length,cerrada:!!w.cortina});cortinas.push(...cj);});
+   // (2026-11-22, Miguel: «quita lo de asomarse y deja sólo abrir ventana… y se guarde el estado»: TODA ventana con su cuarto
+   // lleva su paño —cerrada de fábrica: opaca, no deja ver ni armar adentro— y se abre y se cierra con E; lo abierto lo guarda
+   // el estado del mundo —engine/estadoMundo.js—)
+   lv.windows.forEach((w,wi)=>{const c=cuartoDeVentana(lv,w);if(!c)return;
+    const cj=peliculaCerrada(c,yb,FACE+.02).cajas;panios.push({key:id+':'+f+':'+wi,i0:cortinas.length,n:cj.length,cerrada:true,persiana:!!bp.entrega&&esVivienda(B,c.q)});cortinas.push(...cj);});
   });
   // ---------- La escalera: peldaños con huella y nariz, descanso, pared del medio, pasamanos y la baranda del último piso ----------
   // El material según el edificio (STAIRS, stairKind): madera, mármol, granito, concreto o acero.

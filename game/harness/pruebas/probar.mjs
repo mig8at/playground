@@ -85,14 +85,14 @@ const NIVELES=[
   {n:'visibles',f:'validar-visibles.mjs',a:[2,S0,800],fallas:F,res:/^visibles/,lento:true}]},
  {n:9,t:'Ciudad',d:'los personajes, las viviendas, la sociedad (familias, trabajos y horarios), la gente caminando y la rutina (agenda y necesidades)',p:[
   {n:'personajes',f:'validar-personajes.mjs',a:[],fallas:F,res:/^personajes/},
+  {n:'estado',f:'validar-estado.mjs',a:[],fallas:F,res:/^estado/},// (2026-11-22: puertas y ventanas abiertas, como datos)
   {n:'viviendas',f:'validar-viviendas.mjs',a:[N,S0],fallas:F,res:/^viviendas/},
   {n:'sociedad',f:'validar-sociedad.mjs',a:[N,S0,14],fallas:F,res:/^sociedad/},
   {n:'caminar',f:'validar-caminar.mjs',a:[S0],fallas:F,res:/^caminar a las 15/},
   {n:'descanso',f:'validar-descanso.mjs',a:[Math.min(N,2),S0],fallas:F,res:/^descanso · ciudad/},
   {n:'rutina',f:'validar-rutina.mjs',a:[N,S0],fallas:F,res:/^rutina/}]},
- {n:10,t:'Pantalla',d:'el 3D de verdad en un navegador sin ventana: costo de cada cuadro, capturas, errores, asomarse por una ventana, el tránsito y la entrada',p:[
+ {n:10,t:'Pantalla',d:'el 3D de verdad en un navegador sin ventana: costo de cada cuadro, capturas, errores, el tránsito y la entrada',p:[
   {n:'3d',f:'validar-3d.mjs',a:[S0],fallas:F,res:/^3d/,lento:true},
-  {n:'asomarse',f:'validar-asomarse.mjs',a:[S0],fallas:F,res:/^asomarse/,lento:true},
   {n:'tránsito 3d',f:'validar-transito3d.mjs',a:[S0],fallas:F,res:/^tránsito 3d/,lento:true},
   {n:'entrada',f:'validar-entrada.mjs',a:[],fallas:F,res:/^entrada/}]}]
  .filter(L=>L.n>=NV0&&L.n<=NV1).map(L=>({...L,p:L.p.filter(p=>(!solo.length||solo.some(s=>p.n.startsWith(s)))&&!(RAP&&p.lento&&!solo.length))})).filter(L=>L.p.length);
