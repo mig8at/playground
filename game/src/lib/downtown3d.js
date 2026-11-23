@@ -106,8 +106,9 @@ function textures(){
 export const DOWNTOWN={zona:null};
 // El vidrio de una ventana según su estado: [color, alfa]. Cerrada, la película lechosa —engine/cortinas.js PELICULA—, opaca;
 // abierta, el vidrio claro —engine/colores.js—; rojo y azul, la marca de lo que se ve (?portales=1): roja, abierta y vista —su
-// interior se arma—; azul, abierta a la vista pero tapada por otro edificio.
-export const VIDRIO={cerrada:[PELICULA.color,1],abierta:[COLOR.material.vidrio,.28],rojo:['#ff2a2a',.55],azul:['#2a7bff',.55]};
+// interior se arma—; azul, abierta a la vista pero tapada por otro edificio; amarilla, a la vista pero tan chica en la pantalla que no vale la pena
+// armar su interior (engine/portales.js pxMin).
+export const VIDRIO={cerrada:[PELICULA.color,1],abierta:[COLOR.material.vidrio,.28],rojo:['#ff2a2a',.55],azul:['#2a7bff',.55],amarillo:['#ffc21a',.55]};
 // El color de una pieza para un material: tint es un color (todo), {c, on} (el color en esos materiales) o {zones:
 // [[color, materiales], …]} (pared, molduras y carpintería de fachada.js).
 export const tintOf=(tint,mat)=>{if(!tint)return null;if(typeof tint==='string')return tint;if(tint.zones){for(const [c,on] of tint.zones)if(c&&on.includes(mat))return c;return null;}return tint.on?.includes(mat)?tint.c:null;};
@@ -184,12 +185,16 @@ export function buildDowntown(kit,items,leaves=[],{cascarones=[]}={}){
    // (el revoque liso toma el color tal cual: multiplicado por el claro de base, los tonos salían sucios)
    if(tint){if(o.plain)m.color.set(tint);else m.color.multiply(new THREE.Color(tint));}}
   mats.set(key,m);own.push(m);return key;};
- const vidrioList=[];
+ const vidrioList=[],sueltos={};let fijos=0;
  const mtx=new THREE.Matrix4(),q=new THREE.Quaternion(),Y=new THREE.Vector3(0,1,0),one=new THREE.Vector3(1,1,1),sc=new THREE.Vector3(),p=new THREE.Vector3();
  for(const it of items){const piece=kit.pieces[it.piece];if(!piece)continue;
   mtx.compose(p.set(it.x,it.y,it.z),q.setFromAxisAngle(Y,it.ry||0),sc.set(it.sx||1,it.sy||1,it.sz||1));const M=mtx.clone();
   for(const part of piece.parts){if(part.mat.startsWith('MI_FakeInterior'))continue;
    if(part.mat==='MI_Glass'&&it.vidrio&&SIMPLE(part.geo)){vidrioList.push({geo:part.geo,M,gid:it.vidrio,lote:it.lote??-1});continue;}// (el vidrio de una ventana, aparte: VIDRIO)
+   // (un vidrio que no es de una ventana del plano —el de un marco de puerta, la puerta doble, la buhardilla del dúplex—: con su
+   // clave fija, cerrado; 2026-11-22, Miguel: «todas deben tener ese comportamiento, ya que es para evaluar el rendimiento»)
+   if(part.mat==='MI_Glass'&&SIMPLE(part.geo)){vidrioList.push({geo:part.geo,M,gid:'fijo:'+(it.lote??-1)+':'+(fijos++),lote:it.lote??-1});continue;}
+   if(part.mat==='MI_Glass')sueltos[it.piece]=(sueltos[it.piece]||0)+1;// (vidrio que no se pudo apartar: queda como está —lo cuenta vidriosSueltos—)
    // El color del edificio va sólo en sus paredes (tint.on); el resto queda con su color.
    const tint=tintOf(it.tint,part.mat);
    // (las molduras de la cornisa de la mansarda, de un solo lado: por fuera se ven igual y por dentro del dúplex no asoman.
@@ -256,7 +261,7 @@ export function buildDowntown(kit,items,leaves=[],{cascarones=[]}={}){
  const setLejos=(x,z)=>{if(!cajasBM)return;let cambio=false;
   for(const [lote,c] of cajas){const r=c.rect,d=Math.hypot(Math.max(r.x0-x,0,x-r.x1),Math.max(r.z0-z,0,z-r.z1)),era=lejos.has(lote),es=era?d>LEJOS.cerca:d>LEJOS.lejos;if(es!==era){cambio=true;es?lejos.add(lote):lejos.delete(lote);}}
   if(cambio)aplicar();};
- return {group,triangles,meshes:group.children.length,doors:doors.length,setVisibles,setVidrio,vidrios:()=>vidrios,setLejos,lejos:()=>new Set(lejos),lotesConPiezas:()=>new Set(piezas.map(p=>p.lote)),
+ return {group,triangles,meshes:group.children.length,doors:doors.length,setVisibles,setVidrio,vidrios:()=>vidrios,vidriosSueltos:()=>({...sueltos}),setLejos,lejos:()=>new Set(lejos),lotesConPiezas:()=>new Set(piezas.map(p=>p.lote)),
   // people: [{x,z}]. Abre las puertas con alguien cerca; sólo se recalculan si alguna se movió. trancada(x, z, y): la
   // puerta de calle de una vivienda trancada (o de un lugar cerrado) no se abre sola (la ronda, como las de adentro).
   // (2026-10-18: al jugador —o.esJugador— no se le abren solas: d.mano, la abrió él con E)

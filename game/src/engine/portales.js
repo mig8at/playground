@@ -15,8 +15,10 @@ import {RAISE} from './fachada.js';
 import {cuartoDeVentana} from './cortinas.js';
 import {modulosDeFachada,vidrioDeModulo,vanoDeModulo,GRILLA_FACHADA} from './fachada-piezas.js';
 
-export const PORTALES={lejos:35,paso:.5,piso:3,margenPuerta:1};
+export const PORTALES={lejos:35,paso:.5,piso:3,margenPuerta:1,pxMin:24};
 const cache=new WeakMap();
+// (el cuarto de detrás de una abertura: su número en el piso y su rectángulo en el plano —x, z del mundo—)
+const cuartoDe=(lv,q)=>({id:`${lv.level}:${lv.rooms.indexOf(q)}`,nivel:lv.level,x0:q.x,x1:q.x+q.w,z0:q.y,z1:q.y+q.h});
 const subida=L=>L.fachada?.escalinata?RAISE:0;
 // Las aberturas del plano y la planta de los edificios (para el rayo), una vez por plano.
 export function aberturasDe(bp){if(cache.has(bp))return cache.get(bp).aberturas;const out=[],F=PORTALES.piso;
@@ -33,11 +35,12 @@ export function aberturasDe(bp){if(cache.has(bp))return cache.get(bp).aberturas;
    let md=moduloEn(lv.level,wx,wz);if(md?.tipo==='doble2')md=mods.get(`${md.f}:${md.x}:${md.y}:${md.dx}:${md.dy}:${md.k-1}`)||md;
    const g=md&&(vidrioDeModulo(md)||vanoDeModulo(md)),p=md&&centro(md);
    const [x,z,ancho,a,b]=g?[p.x+p.tx*(g[0]+g[1])/2,p.z+p.tz*(g[0]+g[1])/2,g[1]-g[0],g[2],g[3]]:[wx,wz,c.v-c.u,...(w.shop?VANO.vidriera:VANO.comun)];
-   out.push({tipo:'ventana',clave:`${L.id}:${lv.level}:${wi}`,lote:L.id,nivel:lv.level,h:c.h,x,z,nx:c.h?0:-c.edge,nz:c.h?-c.edge:0,y0:base+a,y1:base+b,ancho,modulo:md?.tipo||null});});/* (edge: hacia adentro del cuarto; afuera, al revés) */
+   out.push({tipo:'ventana',clave:`${L.id}:${lv.level}:${wi}`,lote:L.id,nivel:lv.level,h:c.h,x,z,nx:c.h?0:-c.edge,nz:c.h?-c.edge:0,y0:base+a,y1:base+b,ancho,modulo:md?.tipo||null,cuarto:cuartoDe(lv,c.q)});});/* (edge: hacia adentro del cuarto; afuera, al revés) */
   if(lv.level===0)(lv.doors||[]).forEach((d,di)=>{if(!d.street)return;const h=Math.abs(d.y0-d.y1)<1e-6,[a,b]=VANO.puerta,x=(d.x0+d.x1)/2,z=(d.y0+d.y1)/2;
    // (afuera: el lado de la puerta que no cae en el lote)
    const enL=(px,pz)=>(L.parts||[]).some(p=>px>p.x&&px<p.x+p.w&&pz>p.y&&pz<p.y+p.h),[nx,nz]=(h?[[0,1],[0,-1]]:[[1,0],[-1,0]]).find(([u,v])=>!enL(x+u*.6,z+v*.6))||[0,0];
-   out.push({tipo:'puerta',clave:`${L.id}:puerta:${di}`,lote:L.id,nivel:0,h,x,z,nx,nz,y0:base+a,y1:base+b,ancho:Math.hypot(d.x1-d.x0,d.y1-d.y0)});});}}
+   const q=(lv.rooms||[]).find(r=>{const px=x-nx*.4,pz=z-nz*.4;return px>r.x-.01&&px<r.x+r.w+.01&&pz>r.y-.01&&pz<r.y+r.h+.01;});
+   out.push({tipo:'puerta',clave:`${L.id}:puerta:${di}`,lote:L.id,nivel:0,h,x,z,nx,nz,y0:base+a,y1:base+b,ancho:Math.hypot(d.x1-d.x0,d.y1-d.y0),cuarto:q?cuartoDe(lv,q):null});});}}
  // (la planta: cada parte de cada edificio con su techo)
  const partes=[];for(const L of bp.lots||[])for(const p of L.parts||[])partes.push({lote:L.id,x0:p.x,x1:p.x+p.w,z0:p.y,z1:p.y+p.h,techo:subida(L)+(L.floors||1)*F});
  cache.set(bp,{aberturas:out,partes});return out;}
@@ -55,9 +58,21 @@ export function libre(bp,c,a){const P=partesDe(bp),propios=new Set([loteEn(P,c.x
  for(let t=PORTALES.paso;t<L-.6;t+=PORTALES.paso){const k=t/L,p=loteEn(P,c.x+dx*k,c.z+dz*k);if(p&&!propios.has(p.lote)&&c.y+dy*k<p.techo)return false;}
  return true;}
 
+// Cuánto mide la abertura en la pantalla (px): su lado más corto —el alto, o el ancho visto de sesgo—, por la distancia, en una
+// pantalla de c.alto px de alto con su campo de visión vertical.
+export function enPantalla(c,a){const d=Math.max(.3,Math.hypot(a.x-c.x,(a.y0+a.y1)/2-c.y,a.z-c.z)),dx=c.x-a.x,dz=c.z-a.z,sesgo=Math.abs(dx*a.nx+dz*a.nz)/(Math.hypot(dx,dz)||1);
+ const k=(c.alto||800)/(2*Math.tan((c.fov||75)*Math.PI/360)*d);return Math.min((a.y1-a.y0)*k,a.ancho*sesgo*k);}
+
+// (2026-11-22, Miguel: «con ese cálculo se puede saber el tamaño a la distancia de la ventana o puerta y omitir cargar los
+// polígonos de adentro; y ahí deben estar presentes los ids: saber qué partes de adentro se van a mostrar por la ventana, y
+// sólo si realmente vale la pena según la distancia»): de cada abertura vista, su tamaño en pantalla (px); si mide menos de
+// pxMin, no vale la pena —chicas: su interior no se arma—; si vale, su cuarto —el de detrás, con su id nivel:número— va en
+// cuartos, por lote: el 3D arma sólo lo de esos cuartos.
 export function vistaDesde(bp,c,abiertas={}){const A=aberturasDe(bp),V=new Set(abiertas.ventanas||[]),Pu=(abiertas.puertas||[]).map(k=>k.split(',').map(Number));
  const abierta=a=>a.tipo==='ventana'?V.has(a.clave):Pu.some(([x,z,y])=>Math.hypot(x-a.x,z-a.z)<PORTALES.margenPuerta&&Math.abs(y-a.y0)<1.6);
- const vistas=[],tapadas=[],lotes=new Set();
+ const vistas=[],tapadas=[],chicas=[],lotes=new Set(),cuartos=new Map();
  for(const a of A){if(Math.hypot(a.x-c.x,a.z-c.z)>PORTALES.lejos||!abierta(a))continue;if((c.x-a.x)*a.nx+(c.z-a.z)*a.nz<=0)continue;/* (desde atrás no se ve) */const ym=(a.y0+a.y1)/2;if(!enVista(c,a.x,ym,a.z,Math.max(a.ancho,a.y1-a.y0)/2))continue;
-  if(libre(bp,c,a)){vistas.push(a);lotes.add(a.lote);}else tapadas.push(a);}
- return {lotes,vistas,tapadas};}
+  if(!libre(bp,c,a)){tapadas.push(a);continue;}
+  const px=enPantalla(c,a);if(px<PORTALES.pxMin){chicas.push({...a,px});continue;}
+  vistas.push({...a,px});lotes.add(a.lote);if(a.cuarto){const m=cuartos.get(a.lote)||cuartos.set(a.lote,new Map()).get(a.lote);m.set(a.cuarto.id,a.cuarto);}}
+ return {lotes,vistas,tapadas,chicas,cuartos};}

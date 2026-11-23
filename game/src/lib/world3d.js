@@ -1185,8 +1185,8 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
  // abertura y encima de todo)
  let verPortales=false,portalesMesh=null,vistaFn=null;const _pM=new THREE.Matrix4(),_pS=new THREE.Vector3();
  function dibujarPortales(m){if(!portalesMesh){const g=new THREE.BoxGeometry(1,1,1),hace=c=>{const mat=new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:.38,depthTest:false,depthWrite:false,fog:false});mat.userData.plano=true;
-   const im=new THREE.InstancedMesh(g,mat,512);im.count=0;im.renderOrder=20;im.frustumCulled=false;im.name='portales';group.add(im);own.push(g,mat);return im;};portalesMesh={rojo:hace('#ff2a2a'),azul:hace('#2a7bff')};}
-  for(const k of ['rojo','azul']){const im=portalesMesh[k],l=m[k].slice(0,512);l.forEach((c,i)=>{_pS.copy(c.sc).max(new THREE.Vector3(.1,.1,.1));_pS.x+=.06;_pS.y+=.06;im.setMatrixAt(i,_pM.compose(c.pos,c.q,_pS));});im.count=l.length;im.instanceMatrix.needsUpdate=true;}}
+   const im=new THREE.InstancedMesh(g,mat,512);im.count=0;im.renderOrder=20;im.frustumCulled=false;im.name='portales';group.add(im);own.push(g,mat);return im;};portalesMesh={rojo:hace('#ff2a2a'),azul:hace('#2a7bff'),amarillo:hace('#ffc21a')};}
+  for(const k of ['rojo','azul','amarillo']){const im=portalesMesh[k],l=(m[k]||[]).slice(0,512);l.forEach((c,i)=>{_pS.copy(c.sc).max(new THREE.Vector3(.1,.1,.1));_pS.x+=.06;_pS.y+=.06;im.setMatrixAt(i,_pM.compose(c.pos,c.q,_pS));});im.count=l.length;im.instanceMatrix.needsUpdate=true;}}
  function updateInteriors(px,pz,dt=.016,py=1.7,cam=null,off=null){if((lejosReloj-=dt)<=0){lejosReloj=.3;town?.setLejos?.(px,pz);}if(!furniture||!lotFurniture.size)return;if((clock-=dt)>0)return;clock=.2;
   // Se arma lo de adentro del edificio donde está la cámara y del que tiene una abertura abierta a la vista (y sólo los pisos
   // cerca de la altura de la cámara). Volando, para inspeccionar —sin viviendas cerradas: setCerrados(null)—, como antes: los
@@ -1199,10 +1199,10 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
   // azul las que están a la vista pero tapadas.
   // (2026-11-22, Miguel: «aterrízalo en el motor 2D»: con vistaFn —la ciudad: engine/portales.js vistaDesde, sobre el plano— lo
   // decide el motor; sin ella —los barrios del monte—, la cuenta de acá)
-  const vistos=new Set(),marcas=verPortales?{rojo:[],azul:[],vidrios:[]}:null;
-  if(cam&&vistaFn){const v=vistaFn(cam);for(const id of v.lotes)vistos.add(String(id));
+  const vistos=new Set(),cuartosV=new Map(),marcas=verPortales?{rojo:[],azul:[],amarillo:[],vidrios:[]}:null;
+  if(cam&&vistaFn){const v=vistaFn(cam);for(const id of v.lotes)vistos.add(String(id));for(const [l,m] of v.cuartos||[])cuartosV.set(String(l),[...m.values()]);
    if(marcas){const caja=a=>({pos:new THREE.Vector3(a.x,(a.y0+a.y1)/2,a.z),q:new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),a.h?0:Math.PI/2),sc:new THREE.Vector3(a.ancho,a.y1-a.y0,.08)});
-    /* (una ventana se marca en su vidrio; una puerta, con su caja) */for(const [l,k] of [[v.vistas,'rojo'],[v.tapadas,'azul']])for(const a of l){if(a.tipo==='ventana'){const p=panios.get(a.clave);if(p?.vidrios.length){marcas.vidrios.push([p.vidrios,k]);continue;}}marcas[k].push(caja(a));}}}
+    /* (una ventana se marca en su vidrio; una puerta, con su caja) */for(const [l,k] of [[v.vistas,'rojo'],[v.tapadas,'azul'],[v.chicas||[],'amarillo']])for(const a of l){if(a.tipo==='ventana'){const p=panios.get(a.clave);if(p?.vidrios.length){marcas.vidrios.push([p.vidrios,k]);continue;}}marcas[k].push(caja(a));}}}
   else if(cam){cam.updateMatrixWorld();_fr.setFromProjectionMatrix(_pm.multiplyMatrices(cam.projectionMatrix,cam.matrixWorldInverse));
    const ox=off?.x||0,oy=off?.y||0,oz=off?.z||0,ve=(x,y,z)=>Math.hypot(x-px,z-pz)<PORTAL&&_fr.containsPoint(_pv.set(x+ox,y+oy,z+oz));
    const loteEn=(x,z)=>{const i=Math.floor(x/S),j=Math.floor(z/S);if(i<0||j<0||i>=W||j>=H)return -1;const k=j*W+i;return hollow[k]?lotOf[k]:-1;};
@@ -1222,21 +1222,26 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
    const en=(L,x,z)=>(L.cells||[]).some(c=>x>c[0]&&x<c[2]&&z>c[1]&&z<c[3]);
    for(const [id,L] of lotFurniture){if(Math.hypot(L.x-px,L.z-pz)>PORTAL+L.r)continue;
     for(const lf of L.leaves||[])if(lf.mano&&!lf.fija&&[[.6,0],[-.6,0],[0,.6],[0,-.6]].some(([a,b])=>!en(L,lf.cx+a,lf.cz+b)))mira(String(id),lf.cx,(lf.cy||0)+1,lf.cz,cajaPuerta([lf.x,lf.z,2*lf.cx-lf.x,2*lf.cz-lf.z],lf.cx,lf.cz,lf.cy));}}
-  if(marcas)dibujarPortales(marcas);else if(portalesMesh)portalesMesh.rojo.count=portalesMesh.azul.count=0;
+  if(marcas)dibujarPortales(marcas);else if(portalesMesh)portalesMesh.rojo.count=portalesMesh.azul.count=portalesMesh.amarillo.count=0;
   {const antes=[...marcaVidrio.keys()];marcaVidrio.clear();if(marcas)for(const [gs,k] of marcas.vidrios)for(const g of gs)marcaVidrio.set(g,k);pintarVidrios(new Set([...antes,...marcaVidrio.keys()]));}
-  const cf=Math.floor(Math.max(0,py-.5)/FLOOR),act=[...lotFurniture].filter(([id,L])=>cerradoFn?adentro(L)||vistos.has(String(id)):Math.hypot(L.x-px,L.z-pz)<15+L.r).map(([id])=>id),key=act.join(',')+'|'+cf;if(key===activeKey)return;activeKey=key;
+  const cf=Math.floor(Math.max(0,py-.5)/FLOOR),act=[...lotFurniture].filter(([id,L])=>cerradoFn?adentro(L)||vistos.has(String(id)):Math.hypot(L.x-px,L.z-pz)<15+L.r).map(([id])=>id),key=act.join(',')+'|'+cf+'|'+[...cuartosV].map(([l,rs])=>l+':'+rs.map(r=>r.id).join('+')).join(',');if(key===activeKey)return;activeKey=key;
   const near=it=>Math.abs(it.f-cf)<=1;
+  // (2026-11-22, Miguel: «saber qué partes de adentro se van a mostrar por la ventana»): de un edificio que sólo se ve por sus
+  // aberturas —la cámara no está adentro—, sólo lo de los cuartos que el motor dice que se ven (engine/portales.js cuartos: su
+  // piso y su rectángulo), en el piso de cada uno —no el de la cámara—; del edificio donde está la cámara, lo de siempre
+  const dentroDe=new Set(act.filter(id=>adentro(lotFurniture.get(id))).map(String));
+  const enCuarto=(it,id,x=it.x,z=it.z)=>{const rs=dentroDe.has(String(id))?null:cuartosV.get(String(id));if(!rs)return near(it);return rs.some(r=>it.f===r.nivel&&x>r.x0-.3&&x<r.x1+.3&&z>r.z0-.3&&z<r.z1+.3);};
   for(const m of [...interior.children]){interior.remove(m);m.dispose?.();}
   // (2026-11-22: lo de adentro de una vivienda cerrada —sin dueño, con sus persianas cerradas— no se arma: cerradoFn(lote, piso,
   // x, z), engine/propiedad.js adentroCerrado. Ni sus aparatos, ni sus camas, ni sus vidrios, ni las hojas de sus puertas)
   const fuera=(it,id,x,z)=>!(cerradoFn&&cerradoFn(id,it.f,x??it.x,z??it.z));
-  const by={};const beds=[],glass=[];for(const id of act){const L=lotFurniture.get(id);for(const it of L.items)if(near(it)&&fuera(it,id)&&!(ocultoFn&&ocultoFn(it,id)))(by[it.name]||(by[it.name]=[])).push(it);beds.push(...L.beds.filter(b=>near(b)&&fuera(b,id)));glass.push(...(L.glass||[]).filter(g=>near(g)&&fuera(g,id)));}
+  const by={};const beds=[],glass=[];for(const id of act){const L=lotFurniture.get(id);for(const it of L.items)if(enCuarto(it,id)&&fuera(it,id)&&!(ocultoFn&&ocultoFn(it,id)))(by[it.name]||(by[it.name]=[])).push(it);beds.push(...L.beds.filter(b=>enCuarto(b,id)&&fuera(b,id)));glass.push(...(L.glass||[]).filter(g=>enCuarto(g,id)&&fuera(g,id)));}
   for(const [n,list] of Object.entries(by))plantInstances(furniture,n,list,interior,{shadow:false});
   if(beds.length)instanced(interior,bedBox,bedMat,beds,{cast:false});
   if(glass.length){const g=instanced(interior,bedBox,glassMat,glass,{cast:false});g.renderOrder=2;}
   // Las hojas de las puertas de los cuartos (town3d innerLeaves): una instancia por puerta, por estilo; se mueven en
   // updateDoors.
-  activeLeaves.length=0;const byStyle={};for(const id of act){const L=lotFurniture.get(id);for(const lf of L.leaves||[])if(near(lf)&&fuera(lf,id,lf.cx,lf.cz))(byStyle[lf.style]||(byStyle[lf.style]=[])).push(lf);}
+  activeLeaves.length=0;const byStyle={};for(const id of act){const L=lotFurniture.get(id);for(const lf of L.leaves||[])if(enCuarto(lf,id,lf.cx,lf.cz)&&fuera(lf,id,lf.cx,lf.cz))(byStyle[lf.style]||(byStyle[lf.style]=[])).push(lf);}
   for(const [st,list] of Object.entries(byStyle)){const M=leafModel(st),im=new THREE.InstancedMesh(M.parts[0].geometry,M.parts[0].materials,list.length);im.castShadow=false;im.receiveShadow=true;im.frustumCulled=false;
    list.forEach((lf,j)=>{activeLeaves.push({lf,im,j,M});setLeaf(im,j,lf,M);});im.instanceMatrix.needsUpdate=true;interior.add(im);}}
  // La hoja: la bisagra en (x, z), girada th0 (cerrada, a lo largo del vano) más sgn·a·85° (abierta, hacia el cuarto).
@@ -1276,7 +1281,8 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
   // Las cortinas (las acciones, 2026-10-16): ¿está cerrada la de la ventana key (lote:piso:ventana)? y cerrarla o abrirla.
   // (las cortinas de los lotes que se ven —set, como downtown3d setVisibles; null: todas—)
   setVista:fn=>{vistaFn=fn;activeKey='';clock=0;},
-  portales:on=>{verPortales=on??!verPortales;activeKey='';clock=0;if(!verPortales&&portalesMesh)portalesMesh.rojo.count=portalesMesh.azul.count=0;return verPortales;},
+  vidriosSueltos:()=>town?.vidriosSueltos?.()||{},vidriosConClave:()=>town?.vidrios?.().size||0,
+  portales:on=>{verPortales=on??!verPortales;activeKey='';clock=0;if(!verPortales&&portalesMesh)portalesMesh.rojo.count=portalesMesh.azul.count=portalesMesh.amarillo.count=0;return verPortales;},
   cortinaCerrada:key=>!!panios.get(key)?.cerrada,cortinaK:key=>panios.get(key)?.k,
   // (2026-11-22: la cortina es la película del vidrio —engine/cortinas.js peliculaCerrada—: cambia de una vez, como la de verdad)
   cortina:(key,cerrar)=>{const p=panios.get(key);if(!p)return false;p.cerrada=cerrar??!p.cerrada;p.k=p.cerrada?1:0;pintarVidrios(p.vidrios);activeKey='';clock=0;return p.cerrada;},// (al abrir o cerrar, los interiores se vuelven a mirar ya)

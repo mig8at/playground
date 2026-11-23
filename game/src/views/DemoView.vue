@@ -248,7 +248,7 @@ makeAvatar();lap('muñeco');
  // (lo que quedó abierto la última vez en esta ciudad: las ventanas, por su clave; las puertas, por su lugar)
  estado=cargarEstado(seed.value,team.value);
  // (lo que se ve por las aberturas lo decide el motor —engine/portales.js—: la cámara y lo abierto, del estado del mundo)
- {const e=new THREE.Euler();world.setVista?.(cam=>{e.setFromQuaternion(cam.quaternion,'YXZ');return vistaDesde(plan,{x:cam.position.x,y:cam.position.y,z:cam.position.z,yaw:e.y,pitch:e.x,fov:cam.fov,aspect:cam.aspect},{ventanas:abiertas(estado,'ventanas'),puertas:abiertas(estado,'puertas')});});}
+ {const e=new THREE.Euler();world.setVista?.(cam=>{e.setFromQuaternion(cam.quaternion,'YXZ');return vistaDesde(plan,{x:cam.position.x,y:cam.position.y,z:cam.position.z,yaw:e.y,pitch:e.x,fov:cam.fov,aspect:cam.aspect,alto:renderer?.domElement?.clientHeight||innerHeight},{ventanas:abiertas(estado,'ventanas'),puertas:abiertas(estado,'puertas')});});}
  for(const k of abiertas(estado,'ventanas'))world.cortina?.(k,false);
  for(const k of abiertas(estado,'puertas')){const [x,z,y]=k.split(',').map(Number),p=puertasCerca(x,z,y,.4).find(q=>puertaClave(q)===k);if(p&&!p.abierta&&!p.trancada?.())alternarPuerta(p,false);}
  // (2026-11-22: en el paseo, toda vivienda está cerrada hasta que se compre —engine/propiedad.js—: su puerta trancada y lo

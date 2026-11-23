@@ -317,7 +317,7 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
       const bw=(a0,b0,a1,b1)=>wallAny(Math.min(a0,a1),Math.min(b0,b1),Math.max(a0,a1),Math.max(b0,b1),yb,yb+1.1);
       bw(mx-tx*1+dx*.9,mz-tz*1+dy*.9,mx+tx*1+dx*1,mz+tz*1+dy*1);bw(mx-tx*1,mz-tz*1,mx-tx*.9+dx*1,mz-tz*.9+dy*1);bw(mx+tx*.9,mz+tz*.9,mx+tx*1+dx*1,mz+tz*1+dy*1);}
      else if(D.tipo==='doble'){anota('doble',fs.double);items.push({piece:fs.double,x:mx+tx,y:yb,z:mz+tz,ry,tint,lit:lit(f)});vidrio(fs.double,mx+tx,mz+tz,f);}// la doble, entre este módulo y el siguiente
-     else if(D.tipo!=='doble2'){anota(vidriera?'vidriera':win&&!bl&&(f>0||!vidriera)&&piece!==fs.plain&&piece!==fs.wall?'ventana':'muro',piece);items.push({piece,x:mx,y:yb,z:mz,ry,tint:other>=0&&!win&&f>0?tintCul:tint,lit:win?lit(f):-1});if((f>0||!vidriera)&&win&&!bl)vidrio(piece,mx,mz,f);}
+     else if(D.tipo!=='doble2'){anota(vidriera?'vidriera':win&&!bl&&(f>0||!vidriera)&&piece!==fs.plain&&piece!==fs.wall?'ventana':'muro',piece);items.push({piece,x:mx,y:yb,z:mz,ry,tint:other>=0&&!win&&f>0?tintCul:tint,lit:win?lit(f):-1});if((win||vidriera)&&!bl)vidrio(piece,mx,mz,f);}/* (2026-11-22: también la vidriera de la planta baja: toda ventana se abre y se cierra) */
      else anota('doble2');
      // Toldo (fs.awnings) sobre la vidriera de la planta baja.
      if(fs.awnings&&vidriera&&other<0)awnings.push({x:mx+dx*.02,y:2.97,z:mz+dy*.02,ry,color:C2?.puerta||fs.awningColor});// (2026-11-22: del color de la carpintería del esquema del edificio —color.js—, no de una paleta aparte)// arriba de la vidriera (el vidrio llega a 2,94 m)
