@@ -3,7 +3,7 @@ id: 107
 title: "Finandina: originación completa en Creditop"
 stage: evaluation
 created: "2026-10-28T10:38:26-05:00"
-knowledge: [lender-response-types, lender-credential-sources, lender-listing, field-scoring-policy, creditopx-quota, kyc-pipeline, identity-name-validation, credifamilia-origination, client-profiling, deceval-promissory-note, finandina-policy]
+knowledge: [lender-response-types, lender-credential-sources, lender-listing, field-scoring-policy, creditopx-quota, kyc-pipeline, identity-name-validation, credifamilia-origination, client-profiling, deceval-promissory-note, finandina-policy, signing-document-generation]
 jira: [CORE-845, CRED-519]
 jira_title: "Finandina: originación completa en Creditop"
 ramas: legacy-backend:finandina-originacion, legacy-backend:mareigua-cuenta-por-entidad, CORE-845
@@ -123,6 +123,24 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
   `CredifamiliaLenders::engineLenderIdFor`, 500 sin perfil, y firma Netco sin SigningV1. Termina con cada uno
   corregido o descartado.
 
+- [ ] Que la tarjeta del listado no muestre el FGA (reunión del 2026-11-23). Hoy el «valor a financiar» del riel 4
+  lo incluye: 5.000.000 pedidos salen como 5.450.000, con el FGA al 9 % sin IVA, porque `lenders_by_allieds.iva` de
+  la 149 está en 0 en qa. Termina con la tarjeta mostrando el monto pedido.
+- [ ] Que la fianza se cobre una sola vez y como la calcula Finandina. El plan del riel 4 la vuelve a calcular sobre
+  `user_requests.amount`, que ya trae el FGA de la tarjeta: con 5.000.000 cobró 583.695 (9 % + IVA sobre 5.450.000)
+  y financió 6.033.695. Según el simulador de Finandina («Simulacion Aval Libre Inversion FGA», Drive, 2026-11-23):
+  - la base es el valor solicitado más los cobros administrativos (5.000.000);
+  - el aval es el % del perfil más IVA del 19 %;
+  - se cobra 4x1000 sobre el aval, y la 149 tiene `applies_four_per_thousand = 0`;
+  - con 9 %: aval 450.000 + IVA 85.500 + 4x1000 2.142 = 5.537.642 financiados, y 5.000.000 netos al cliente.
+
+  El simulador deja abierto si el % va sobre el valor desembolsado o el aprobado. Termina con el plan de qa dando lo
+  mismo que el simulador.
+- [ ] Revisar el cálculo de la primera cuota (reunión del 2026-11-23). En el resumen de qa la primera cuota fue
+  370.343 y las demás 322.914: la primera suma el interés diario de los días que pasan de 30 hasta la primera fecha
+  (unos 13 días, base 360). Confirmar con Finandina que así cobra el primer período y volver a medirla con la fianza
+  corregida. Depende de: Finandina — cómo liquida el primer período.
+
 ### Fase 2 · Cerrar el QA de CRED-519 (corrida del 9-nov: 6 pasan, 4 fallan, 5 abiertos)
 
 - [x] ~~Reproducir el «Oops!» de Mediarte X (caso 15)~~ — no se reproduce: cierra en 11 (505128, 2026-11-17).
@@ -146,12 +164,26 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
 
 ### Fase 3 · Documentos, firma y pagaré
 
-- [ ] Agregar al formulario dinámico de la 149 dirección, ciudad, departamento, PEP A y PEP B, y, si responde
-  «Sí», la entidad y las fechas.
+- [ ] Validar qué datos pide el formulario dinámico de la 149 contra el diseño y el mapa del 10-11 (reunión del
+  2026-11-23). El formulario 25 de qa ya pide departamento, ciudad y dirección de residencia, actividad económica,
+  empresa empleadora (opcional), PEP A y PEP B. Le falta:
+  - la entidad, la fecha de vinculación y la de retiro (opcional) cuando responde «Sí» a una PEP: el diseño las pide;
+  - las ramas por ocupación: el diseño separa «Empleado» (información laboral) de los otros tipos, y el formulario 25
+    ofrece una sola actividad económica, «Empleado», aunque la política tiene perfiles de pensionado;
+  - la actividad económica con los códigos de Finandina (el mapa lo pide);
+  - el orden: el diseño pide la residencia antes de ADO y la información laboral después de elegir las cuotas; el 25
+    va todo junto después de elegir la entidad.
+
+  Termina con la lista de campos por ocupación acordada y el formulario (o los formularios) configurado así en qa. Por
+  verificar: si form-service puede mostrar un campo según otra respuesta; el único vínculo entre campos documentado
+  es departamento → ciudad.
 - [ ] Plantillas del formulario de vinculación (24 marcadores) y de los T&C (15), con los montos en letras y las
   observaciones del mapa resueltas (PEP con marcadores propios, monto del aval en el formulario, segundo nombre,
   fecha y ciudad de firma). Termina con los tres documentos generados para una solicitud local con todos los
   datos llenos. Depende de: fase 0 (Protección Financiera, libranza, desembolso, versión final de los T&C).
+  El motor es Blade por el catálogo, como Alta Fleet, salvo que Finandina exija su PDF tal cual (pdf-mapper). Las
+  filas del catálogo de la 149 van juntas: formulario, T&C y `promissory_note` sin plantilla; si entran sólo las
+  dos nuevas, Finandina firma sin pagaré. Depende de: Oscar / Finandina — si aceptan los documentos rehechos.
 - [ ] Pagaré en Deceval con la credencial real de Finandina y la certificación. Depende de: Hans — CRED-463.
 
 ### Fase 4 · Entrega a Finandina y después del 11
