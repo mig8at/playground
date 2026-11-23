@@ -21,7 +21,10 @@ import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import {NIVELES_PLANTA,VUELVE_PLANTA} from '../lib/nature3d.js';
 
 const DIR='/models/prototipo/',BIBLIOTECAS=['UAL1_Standard.glb','UAL2_Standard.glb'];
-const CUERPOS={hombre:'Superhero_Male_FullBody.gltf',mujer:'Superhero_Female_FullBody.gltf'};
+// (2026-11-22, Miguel: «mejor usa el esqueleto de las animaciones, no los cuerpos humanos: sólo el pelo sobre los maniquíes»: los
+// cuerpos son los maniquíes de las bibliotecas —el de UAL1 y el de mujer de UAL2—, con los peinados del paquete de personajes
+// base encima. Sin cara: la cabeza, piel)
+const CUERPOS={hombre:'UAL1_Standard.glb',mujer:'Mannequin_F.glb'},BASE_DE={hombre:'Superhero_Male_FullBody.gltf',mujer:'Superhero_Female_FullBody.gltf'};// (BASE_DE: la cabeza para la que se hicieron los peinados de cada uno)
 // (los peinados de cada uno: el pelo y, si va, la barba; vacío: sin pelo)
 const PEINADOS={hombre:[['Hair_Buzzed'],['Hair_SimpleParted'],['Hair_SimpleParted','Hair_Beard'],['Hair_Buzzed','Hair_Beard'],[]],mujer:[['Hair_Long'],['Hair_Buns'],['Hair_BuzzedFemale'],['Hair_Long']]};
 // (qué hace cada persona: la animación y si se mueve, a qué velocidad en m/s)
@@ -71,11 +74,18 @@ async function imagen(f){const bmp=await createImageBitmap(await (await fetch(DI
 const luz=(t,u,v)=>{const x=Math.min(t.w-1,Math.max(0,Math.floor((u-Math.floor(u))*t.w))),y=Math.min(t.h-1,Math.max(0,Math.floor((v-Math.floor(v))*t.h))),k=(y*t.w+x)*4;return (.299*t.d[k]+.587*t.d[k+1]+.114*t.d[k+2])/255;};
 const CARAS={hombre:'caras/cara_hombre.png',mujer:'caras/cara_mujer.png'},OJO='caras/ojo.png';
 
+// ---- La cabeza, en el espacio de su hueso: su caja (para que un peinado hecho para otra cabeza calce en ésta) ----
+function cajaCabeza(escena){const ms=[];escena.updateMatrixWorld(true);escena.traverse(o=>{if(o.isSkinnedMesh)ms.push(o);});const caja=new THREE.Box3(),v=new THREE.Vector3();
+ for(const m of ms){const sk=m.skeleton,h=sk.bones.findIndex(b=>b.name==='Head'),pa=m.geometry.attributes.position,si=m.geometry.attributes.skinIndex,sw=m.geometry.attributes.skinWeight;if(h<0)continue;
+  for(let i=0;i<pa.count;i++){let mk=0,mw=-1;for(let k=0;k<4;k++){const w=sw.getComponent(i,k);if(w>mw){mw=w;mk=si.getComponent(i,k);}}if(mk!==h||/eye|brow|face/i.test(m.name))continue;
+   caja.expandByPoint(v.fromBufferAttribute(pa,i).applyMatrix4(m.bindMatrix).applyMatrix4(sk.boneInverses[h]));}}
+ return {c:caja.getCenter(new THREE.Vector3()),t:caja.getSize(new THREE.Vector3())};}
+
 // ---- Un cuerpo con su peinado, en UNA malla y sin dedos ----
 // (las piezas del cuerpo —el cuerpo, los ojos, las cejas— y las del peinado, que vienen con su propio esqueleto amarrado a la
 // cabeza de otro cuerpo: cada vértice se lleva del espacio de su hueso en ese esqueleto al del mismo hueso en éste, así el
 // pelo queda en la cabeza de cada uno; sus huesos se cambian por los de éste, por nombre)
-function armarCuerpo(gCuerpo,gPelos,texCara=null,texOjo=null){const raiz=cloneSkinned(gCuerpo.scene),ms=[];raiz.traverse(o=>{if(o.isSkinnedMesh)ms.push(o);});
+function armarCuerpo(gCuerpo,gPelos,texCara=null,texOjo=null,ajuste=null){const raiz=cloneSkinned(gCuerpo.scene),ms=[];raiz.traverse(o=>{if(o.isSkinnedMesh)ms.push(o);});
  const cuerpo=ms.reduce((a,b)=>a.geometry.attributes.position.count>b.geometry.attributes.position.count?a:b),sk=cuerpo.skeleton,huesos=sk.bones,porNombre=new Map(huesos.map((b,i)=>[b.name,i]));
  const quedan=huesos.map((b,i)=>DEDO.test(b.name)?-1:i).filter(i=>i>=0),nuevo=new Map(quedan.map((v,k)=>[v,k]));
  const destino=i=>{let b=huesos[i];while(b&&DEDO.test(b.name))b=b.parent;return nuevo.get(huesos.indexOf(b))??0;};
@@ -83,9 +93,10 @@ function armarCuerpo(gCuerpo,gPelos,texCara=null,texOjo=null){const raiz=cloneSk
  const pieza=(m,zonaFija)=>{const geo=m.geometry.clone(),si=geo.attributes.skinIndex,sw=geo.attributes.skinWeight,pa=geo.attributes.position,no=geo.attributes.normal,uv=geo.attributes.uv,n=pa.count,zona=new Float32Array(n),detalle=new Float32Array(n).fill(1),cabeza=[],propio=m.skeleton.bones.every((b,i)=>huesos[i]===b);
   for(let i=0;i<n;i++){let mk=0,mw=-1;for(let k=0;k<4;k++){const w=sw.getComponent(i,k);if(w>mw){mw=w;mk=si.getComponent(i,k);}}
    const nombre=m.skeleton.bones[mk].name,bi=porNombre.get(nombre)??0;
-   if(!propio){// (del hueso de su esqueleto al mismo hueso de éste)
-    M.copy(inv.copy(sk.boneInverses[bi]).invert()).multiply(m.skeleton.boneInverses[mk]).premultiply(cuerpo.bindMatrixInverse).multiply(m.bindMatrix);
-    v.fromBufferAttribute(pa,i).applyMatrix4(M);pa.setXYZ(i,v.x,v.y,v.z);if(no){nm.getNormalMatrix(M);nn.fromBufferAttribute(no,i).applyMatrix3(nm).normalize();no.setXYZ(i,nn.x,nn.y,nn.z);}}
+   if(!propio){// (del hueso de su esqueleto al mismo hueso de éste; en la cabeza, de la caja de la cabeza para la que se hizo a la de éste)
+    v.fromBufferAttribute(pa,i).applyMatrix4(m.bindMatrix).applyMatrix4(m.skeleton.boneInverses[mk]);if(ajuste&&nombre==='Head')v.sub(ajuste.de.c).multiply(ajuste.escala).add(ajuste.a.c);
+    M.copy(inv.copy(sk.boneInverses[bi]).invert()).premultiply(cuerpo.bindMatrixInverse);v.applyMatrix4(M);pa.setXYZ(i,v.x,v.y,v.z);
+    if(no){nm.getNormalMatrix(M.clone().multiply(m.skeleton.boneInverses[mk]).multiply(m.bindMatrix));nn.fromBufferAttribute(no,i).applyMatrix3(nm).normalize();no.setXYZ(i,nn.x,nn.y,nn.z);}}
    const idx=[0,1,2,3].map(k=>destino(porNombre.get(m.skeleton.bones[si.getComponent(i,k)]?.name)??0));idx.forEach((x,k)=>si.setComponent(i,k,x));
    zona[i]=zonaFija??zonaDe(nombre);
    // (el ojo: blanco, iris o pupila según el dibujo del ojo; la cabeza, se anota para su luz)
@@ -97,7 +108,8 @@ function armarCuerpo(gCuerpo,gPelos,texCara=null,texOjo=null){const raiz=cloneSk
   geo.setAttribute('zona',new THREE.BufferAttribute(zona,1));geo.setAttribute('detalle',new THREE.BufferAttribute(detalle,1));for(const k of Object.keys(geo.attributes))if(!['position','normal','skinIndex','skinWeight','zona','detalle'].includes(k))geo.deleteAttribute(k);
   if(!geo.index)geo.setIndex([...Array(n).keys()]);return geo;};
  // (los ojos y las cejas del cuerpo, por su nombre o el de su material)
- const zonaPieza=m=>m===cuerpo?undefined:/eye/i.test(m.name+' '+(m.material?.name||''))&&!/brow/i.test(m.name+' '+m.parent?.name)?Z.ojo:Z.ceja;
+ // (las partes del maniquí van por su hueso; si un cuerpo trae ojos o cejas, a su zona)
+ const zonaPieza=m=>{const t=m.name+' '+(m.material?.name||'')+' '+(m.parent?.name||'');return /brow/i.test(t)?Z.ceja:/eye/i.test(t)?Z.ojo:undefined;};
  const partes=ms.map(m=>pieza(m,zonaPieza(m)));
  for(const g of gPelos){g.scene.updateMatrixWorld(true);g.scene.traverse(o=>{if(o.isSkinnedMesh)partes.push(pieza(o,Z.pelo));});}
  const geo=mergeGeometries(partes,false),malla=new THREE.SkinnedMesh(geo,materialRopa(PIEL[0]));
@@ -139,11 +151,17 @@ onMounted(async()=>{await MeshoptSimplifier.ready;
  const piso=new THREE.Mesh(new THREE.CircleGeometry(80,48),new THREE.MeshLambertMaterial({color:'#c9c4b6'}));piso.rotation.x=-Math.PI/2;scene.add(piso);
  const tam=()=>{const w=lienzo.value.clientWidth,h=lienzo.value.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();};tam();addEventListener('resize',tam);
  const pelos=[...new Set(Object.values(PEINADOS).flat(2))];
- const [bibs,cuerpos,gPelos,texCaras,texOjo]=await Promise.all([Promise.all(BIBLIOTECAS.map(cargar)),Promise.all(Object.values(CUERPOS).map(cargar)),Promise.all(pelos.map(p=>cargar(p+'.gltf'))),Promise.all(Object.keys(CUERPOS).map(q=>imagen(CARAS[q]))),imagen(OJO)]);
+ const [bibs,cuerpos0,gPelos]=await Promise.all([Promise.all(BIBLIOTECAS.map(cargar)),Promise.all(Object.values(CUERPOS).map(f=>BIBLIOTECAS.includes(f)?null:cargar(f))),Promise.all(pelos.map(p=>cargar(p+'.gltf')))]),texCaras=[null,null],texOjo=null;
+ // (el maniquí de hombre es la escena de UAL1: no se carga dos veces)
+ const cuerpos=cuerpos0.map((g,i)=>g||bibs[BIBLIOTECAS.indexOf(Object.values(CUERPOS)[i])]);
+ // (los peinados se hicieron para las cabezas de los personajes base: se miden esas y las de los maniquíes, y el pelo pasa de una
+ // caja a la otra —escalado por eje y centrado—)
+ const cabezasBase=await Promise.all(Object.keys(CUERPOS).map(q=>cargar(BASE_DE[q]).then(g=>cajaCabeza(g.scene))));
+ const ajustes=Object.keys(CUERPOS).map((q,i)=>{const a=cajaCabeza(cuerpos[i].scene),de=cabezasBase[i];return {de,a,escala:new THREE.Vector3(a.t.x/de.t.x,a.t.y/de.t.y,a.t.z/de.t.z)};});// (los maniquíes no tienen cara: sin texturas de cara)
  const peloDe=Object.fromEntries(pelos.map((p,i)=>[p,gPelos[i]]));
  // (las animaciones de las dos bibliotecas, sin repetir nombres)
  const vistos=new Set(),clips=bibs.flatMap(b=>b.animations).filter(c=>!vistos.has(c.name)&&vistos.add(c.name)),yUAL=alturaCadera(bibs[0].scene);
- Object.keys(CUERPOS).forEach((q,i)=>{clipsDe[q]=clipsPara(clips,alturaCadera(cuerpos[i].scene)/yUAL);variantes[q]=PEINADOS[q].map(ps=>armarCuerpo(cuerpos[i],ps.map(p=>peloDe[p]),texCaras[i],texOjo));});
+ Object.keys(CUERPOS).forEach((q,i)=>{clipsDe[q]=clipsPara(clips,alturaCadera(cuerpos[i].scene)/yUAL);variantes[q]=PEINADOS[q].map(ps=>armarCuerpo(cuerpos[i],ps.map(p=>peloDe[p]),texCaras[i],texOjo,ajustes[i]));});
  const tris=g=>g.index.count/3;datos.value={animaciones:clips.length,triangulosPorNivel:Object.fromEntries(Object.entries(variantes).map(([q,vs])=>[q,vs.map(b=>{let t;b.traverse(o=>{if(o.isSkinnedMesh)t=NIV[o.name].map(tris);});return t;})]))};
  cargando.value='';armar();cuadro();
  window.__proto={foco:(i,atras=false)=>{foco=i==null?null:{i,atras};},armar:k=>{n.value=k;armar();},ahorro:on=>{ahorro.value=on;},niveles:on=>{conNiveles.value=on;},lejos:d=>{foco=null;lejos.value=d;},datos:()=>datos.value,clips:()=>clips.map(c=>c.name)};});
