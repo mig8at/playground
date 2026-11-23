@@ -46,7 +46,8 @@ Las reglas de edición están en [CLAUDE.md](CLAUDE.md).
 
 Al retomar una tarea, leé los temas que declara y comprobá si ayudan con la pregunta concreta.
 Si falta una explicación, investigá el código y guardá sólo lo que volvería a servir en otra tarea.
-Usá `make knowledge-map` para reutilizar un tema antes de abrir otro. No hace falta completar un
+Para encontrar el tema de una pregunta, [`../CREDITOP.md`](../CREDITOP.md) los ordena por paso del recorrido y por entidad
+(`make knowledge-index` lo comprueba). Usá `make knowledge-map` para reutilizar un tema antes de abrir otro. No hace falta completar un
 mapa de toda la compañía para trabajar.
 
 El documento de tarea mantiene el objetivo, los pendientes y la receta. Su pila conserva los

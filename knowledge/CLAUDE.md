@@ -4,6 +4,12 @@ Guardá sólo explicaciones reutilizables que ahorren investigar y tengan un alc
 usa un nombre en inglés con minúsculas y guiones, `rules.md` y `sources.json`. Prosa en español.
 No reconstruyas el antiguo servicio context/ ni importes el corpus productivo completo.
 
+## El índice: `CREDITOP.md`
+
+[`../CREDITOP.md`](../CREDITOP.md) ordena los temas por paso del recorrido de una solicitud y por entidad, con el
+`tema#ancla` que contesta cada pregunta. Un tema nuevo, renombrado o con una sección nueva que alguien vaya a buscar
+se suma ahí en el mismo commit. `make knowledge-index` comprueba que cada enlace exista y lista los temas que no nombra.
+
 ## Revisar y escribir
 
 1. Leé el código real contra `main` en los **clones sólo-main** (`main_clones` en `tools/repos.json`,

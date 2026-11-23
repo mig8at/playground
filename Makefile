@@ -914,7 +914,7 @@ confluence: ## @har el POR QUÉ del negocio, que el código no tiene (sólo lect
 	@$(if $(CMD),bin/pg confluence $(CMD),bin/pg help | grep -A1 confluence)
 
 # ── KNOWLEDGE ───────────────────────────────────────────────────────────────────────────────────
-.PHONY: knowledge-map knowledge-search knowledge-read knowledge-check knowledge-test
+.PHONY: knowledge-map knowledge-search knowledge-read knowledge-check knowledge-test knowledge-index
 
 knowledge-map: ## @dia los temas de conocimiento LOCAL, editable y versionado en knowledge/. Sin red [JSON=1]
 	@go run ./cmd/knowledge map $(if $(JSON),--json)
@@ -935,6 +935,8 @@ wally-rust: ## @dia construye la imagen de Docker donde los agentes de Wally com
 	@docker build -t wally-rust wally/rust
 knowledge-check: ## @dia contrastar fuentes con el main de los clones sólo-main (main_clones, en ~/Desktop/CREDITOP/main-clones). Sin fetch; un cambio o fuente ilegible sale 1 [FETCH=1 trae main a esos clones antes, sin tocar los de trabajo] [JSON=1]
 	@$(if $(FETCH),go run ./cmd/knowledge fetch &&) go run ./cmd/knowledge check $(if $(JSON),--json)
+knowledge-index: ## @dia ¿CREDITOP.md (el índice de knowledge/ por paso del recorrido) sigue al día? Comprueba que cada tema#ancla exista y lista los temas que no nombra. Sale 1 con un enlace roto
+	@python3 tools/knowledge-index/check.py
 knowledge-drift: ## @dia poner knowledge/ al día contra main con el método jerárquico, de lo barato a lo caro. STEP=paquete|codigo|final|aplicar · [GROUPS=8]. Los pasos de modelo arman paquetes + instrucciones (prompts/): tools/knowledge-drift/CLAUDE.md
 	@test -n "$(STEP)" || { echo "falta STEP=paquete|codigo|final|aplicar  ·  el recorrido: tools/knowledge-drift/CLAUDE.md"; exit 2; }
 	@python3 tools/knowledge-drift/drift.py $(STEP) $(if $(GROUPS),--groups $(GROUPS)) $(if $(RUN),--run '$(RUN)')
