@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Pagaré en Deceval: ruteo, credencial y depuración",
   "summary": "Qué manda el pagaré de un lender a Deceval (promissory_types y catálogo de firma), cómo cada monolito elige al azar la credencial del depositante en crear y en firmar por separado, qué datos del girador se envían, cómo se reutiliza el título y dónde depurarlo (deceval_logs, logs, promissory_notes).",
-  "reviewedAt": "2026-11-17T12:52:59+00:00",
+  "reviewedAt": "2026-11-23T12:00:00-05:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -207,6 +207,33 @@
       "blob": "6a76787e66f985cdc8e14463641b3a8db638d6b0",
       "sections": [
         "donde-mirar-un-caso"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Actions/RiskCentrals/Experian.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "dc39ec3cfb5b50c9dacc95f28f364227cf00122d",
+      "sections": [
+        "la-credencial-del-depositante"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Actions/RiskCentrals/Ado.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "0d312e18a43932558d793fc08ac61413ecd8251a",
+      "sections": [
+        "la-credencial-del-depositante"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Actions/RiskCentrals/Mareigua.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "e2243fd72d449ae83bcc1a56d07ac478cc2c91b3",
+      "sections": [
+        "la-credencial-del-depositante"
       ]
     }
   ]

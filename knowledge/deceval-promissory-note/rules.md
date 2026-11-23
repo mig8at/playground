@@ -39,6 +39,15 @@ ni `deceval_response_data` ni `deceval_logs` tienen una referencia a ella. Por e
 califica en el nivel que se usa, la firma puede salir con una credencial distinta de la que creó el
 pagaré. Con una sola fila en ese nivel, la elección es siempre la misma.
 
+⚠ En legacy-backend la búsqueda puede traer una credencial de **otra central**. Los que llaman a
+`findForUserRequest` le pasan la fila de la central, no su id: `DecevalSoap` (`RiskCentral::where('name',
+'Deceval')->first()`), `Experian` y `Ado` (`RiskCentral::firstWhere`); Mareigua hace lo mismo con
+`forBranchLenders`. Los dos métodos hacen `RiskCentral::find($riskCentral)`, y un modelo es `Arrayable`, así que `find`
+lo trata como una lista de ids: devuelve todas las centrales cuyo id coincide con algún valor de esa fila (por
+ejemplo, un `enabled = 1` trae a la central 1, Experian), y `whereBelongsTo` acepta credenciales de cualquiera de
+ellas. Con una entidad que tiene credenciales de dos centrales, la búsqueda de una puede tomar al azar la de la otra:
+el pagaré falla por un campo de Deceval que no está (`deceval_depositante`).
+
 No hay respaldo en configuración: sin fila, la creación falla con un error de tipo antes de hablar con
 Deceval. Los campos que se leen son `deceval_username` y `deceval_password` (UsernameToken de
 WS-Security, con la contraseña como digest), `deceval_cert` y `deceval_key` (se escriben a archivos
