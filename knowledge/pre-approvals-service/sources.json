@@ -1,7 +1,7 @@
 {
   "version": 1,
   "title": "Servicio de preaprobaciones: una puerta para todas las entidades",
-  "summary": "Qué hace pre-approvals-service: no decide ni guarda en caché la preaprobación (cada consulta vuelve a la entidad), corre credenciales, autenticación, llamada y adaptación por entidad, y guarda historia en DynamoDB y las credenciales en memoria sin vencimiento.",
+  "summary": "Qué hace pre-approvals-service y qué hace el asistente con su respuesta: el servicio no decide ni guarda la preaprobación (cada consulta vuelve a la entidad), guarda historia en DynamoDB y credenciales en memoria; el asistente veta, resuelve, oculta y ordena cada tarjeta según la respuesta.",
   "reviewedAt": "2026-11-23T12:00:00-05:00",
   "sources": [
     {
@@ -95,6 +95,87 @@
       "sections": [
         "el-flujo-de-cada-entidad-credenciales-autenticacion-llamada-y-adaptacion",
         "lo-que-guarda-historia-en-dynamodb-y-credenciales-en-memoria"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/adapters/fetch-lender-preapproval.ts",
+      "commit": "b6a9a75f6372a932e21df8a73918314915150e9d",
+      "blob": "38d061aaf6a93e5f0915739d9eeec9e05180cf31",
+      "sections": [
+        "lo-que-hace-el-asistente-con-cada-respuesta-el-estado-de-la-tarjeta"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/lenders-marketplace/src/lib/domain/entities/lender-resolution.entity.ts",
+      "commit": "b6a9a75f6372a932e21df8a73918314915150e9d",
+      "blob": "95aafe1cd48391b8025569717b6d239958e4f8eb",
+      "sections": [
+        "lo-que-hace-el-asistente-con-cada-respuesta-el-estado-de-la-tarjeta"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/lender-resolution.service.ts",
+      "commit": "b6a9a75f6372a932e21df8a73918314915150e9d",
+      "blob": "18cbf01a36d30982784bed97967205d51e2f5d36",
+      "sections": [
+        "lo-que-hace-el-asistente-con-cada-respuesta-el-estado-de-la-tarjeta"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/marketplace-view.service.ts",
+      "commit": "b6a9a75f6372a932e21df8a73918314915150e9d",
+      "blob": "658578af539c270c914fb35cae83027d82a01af6",
+      "sections": [
+        "lo-que-hace-el-asistente-con-cada-respuesta-el-estado-de-la-tarjeta"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/fallback-lender.service.ts",
+      "commit": "b6a9a75f6372a932e21df8a73918314915150e9d",
+      "blob": "92bf0889b0d14718c74fe38f8a9120f786564b68",
+      "sections": [
+        "lo-que-hace-el-asistente-con-cada-respuesta-el-estado-de-la-tarjeta"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/preapproval-gate.service.ts",
+      "commit": "b6a9a75f6372a932e21df8a73918314915150e9d",
+      "blob": "9e930f963a1c2f2e4cb6c1451435b6e9efeea65e",
+      "sections": [
+        "lo-que-hace-el-asistente-con-cada-respuesta-el-estado-de-la-tarjeta"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
+      "commit": "b6a9a75f6372a932e21df8a73918314915150e9d",
+      "blob": "ce5b8d5c02c8199d40f01fb005af97f21841854f",
+      "sections": [
+        "lo-que-hace-el-asistente-con-cada-respuesta-el-estado-de-la-tarjeta"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/lenders/RiskCentralValidationService.php",
+      "commit": "e76dc44419cfe137d0de17bfdf547e06dce03cbe",
+      "blob": "81f9e92a11c0e8b6de6f9843e873b4d619e2b134",
+      "sections": [
+        "lo-que-hace-el-asistente-con-cada-respuesta-el-estado-de-la-tarjeta"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/lenders/LenderListingService.php",
+      "commit": "e76dc44419cfe137d0de17bfdf547e06dce03cbe",
+      "blob": "b5c813f1c70bc407b080d15a05c44ce3fdb0e681",
+      "sections": [
+        "lo-que-hace-el-asistente-con-cada-respuesta-el-estado-de-la-tarjeta"
       ]
     }
   ]

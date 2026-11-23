@@ -61,3 +61,43 @@ devuelve descifradas) y las guarda en un mapa en memoria por clave, entidad, com
 hasta que se reinicia la instancia. `ClearCache` y `ClearCacheForLender` existen pero nadie las llama, y la segunda borra
 por el id de la entidad, que no es la clave con la que se guarda. Una credencial rotada en el admin no se ve hasta un
 reinicio.
+
+## Lo que hace el asistente con cada respuesta: el estado de la tarjeta
+
+El listado (`lenders-v2`) llega primero y cada tarjeta que no es tipo 0 arranca en `processing`. El asistente
+(`available-lenders.tsx`) lanza la consulta de cada una sin esperarlas, y cada tarjeta cambia cuando llega su respuesta.
+Pasan tres cosas, en este orden.
+
+**Antes de preguntar, el backend puede vetar la consulta.** El listado marca cada entidad con `can_check_preapproval`
+(`LenderListingService`). Sólo puede quedar en `false` una entidad con `requires_preapproval_gate` (hoy Prami), cuando
+`RiskCentralValidationService` no ve pasadas sus reglas de Datacrédito con el Experian guardado: score, cuentas
+negativas y antigüedad en el sector. Una validación sin dato cuenta como no pasada. El asistente no consulta esas
+entidades: les pone `policy_blocked` (`preapproval-gate.service.ts` compara `=== false`; un campo ausente se consulta).
+
+**La respuesta decide el estado** (`statusToState`, en `fetch-lender-preapproval.ts`):
+
+| respuesta del servicio | estado | la tarjeta |
+|---|---|---|
+| `approved` | `approved` | completa y elegible; toma el monto aprobado y, en `creditop_x`, la tasa y el FGA del perfil y el % de cuota inicial (`mergeLenderWithResolution`) |
+| `rejected` | `rejected` | inerte, «Sin cupo disponible» |
+| `not_eligible` | `not_eligible` | inerte, «No elegible por cupo desembolsado» |
+| `frontend_response` | `frontend_response` | completa y elegible, «Probabilidad media» |
+| `pending` | `processing` | sigue esperando; para Credifamilia vuelve a preguntar hasta 6 veces en 3 minutos |
+| timeout, 4xx, 5xx o un cuerpo que no valida | `error` | inerte, y es el único estado con reintento |
+| (vetada antes) | `policy_blocked` | inerte, sin reintento |
+
+Un 401 de Meddipay no queda en error: la tarjeta pasa a tipo 0 y el cliente sigue por el sitio de la entidad.
+
+**Después, qué se ve y en qué orden** (`marketplace-view.service.ts`):
+
+- Una tarjeta con error 5xx **se oculta**: la caída del servicio no es una respuesta de la entidad. Las demás tarjetas
+  negativas siguen a la vista.
+- Una entidad de respaldo (`is_fallback_lender`) se oculta apenas una entidad principal la cubre: si está aprobada
+  alguna de `fallback_removal_specific_lender_ids`, o si una principal aprobó un monto mayor o igual al umbral
+  (`fallback_removal_min_amount`, o el monto pedido si no hay umbral) (`fallback-lender.service.ts`).
+- Una de las variantes de Welli se oculta según la comisión del aliado.
+- El orden se recalcula a medida que llegan las respuestas (`computeLenderProbabilityBucket`): aprobadas arriba;
+  rechazadas, no elegibles, con error o vetadas abajo; las que esperan se ordenan por la probabilidad del listado.
+
+Cuando todas terminan, el asistente manda a legacy-backend las tarjetas que el cliente vio, sin las ocultas
+(`lender-results`, ver [el listado](knowledge:lender-listing)).
