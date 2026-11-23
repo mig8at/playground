@@ -149,7 +149,8 @@
       "sections": [
         "desenlace-como-termina",
         "el-riel-4-paso-a-paso-que-es-del-riel-y-que-es-de-credifamilia",
-        "la-autorizacion-del-otp-de-la-firma-al-estado-11"
+        "la-autorizacion-del-otp-de-la-firma-al-estado-11",
+        "despues-del-11-quien-administra-el-credito"
       ]
     },
     {
@@ -369,6 +370,42 @@
       "blob": "eb0772b17fb3e26652460e3499047729191b71ef",
       "sections": [
         "quien-decide-en-el-tramo-comun-datos-listado-y-preaprobacion"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Http/Middleware/ValidateAuthorizedStatus.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "d0941921c33e6c64133f317a012bc8b01e9711f6",
+      "sections": [
+        "despues-del-11-quien-administra-el-credito"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Partner/App/Services/UserRequestManagementService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "69c25adcd59a7f818caa5452b9128727ebf7425d",
+      "sections": [
+        "despues-del-11-quien-administra-el-credito"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Console/Kernel.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "a1df17f166609b5a6b6f0ba935b8160eb2bfced5",
+      "sections": [
+        "despues-del-11-quien-administra-el-credito"
+      ]
+    },
+    {
+      "repo": "loan-servicing",
+      "path": "internal/modules/nightlyportfolio/core/workflows/night_workflow.go",
+      "commit": "113ec16fa49ccbe48dcf334bc083a100625d5e08",
+      "blob": "f5d6675713728172b61ec7a92b463044aef1adee",
+      "sections": [
+        "despues-del-11-quien-administra-el-credito"
       ]
     }
   ]

@@ -278,3 +278,22 @@ Cada riel termina distinto:
 
 La **cobranza** es otro eje del desenlace: `lenders.externally_serviced` dice si el ciclo de vida del
 crédito lo gestiona Creditop o la entidad, independiente del riel.
+
+## Después del 11: quién administra el crédito
+
+El 11 cierra la **solicitud**: es terminal y una guarda en las rutas del cliente no la deja moverse
+(`ValidateAuthorizedStatus`). Lo que pasa con el **crédito** depende del riel y de quién cobra:
+
+- **Riel 0 y 1:** la entidad desembolsa, administra y cobra en su sistema. Creditop sólo refleja el resultado hasta el
+  11, por el aviso de la entidad o porque el comercio cambia el estado a mano, algo que su portal sólo permite para
+  estas entidades ([el ciclo de la solicitud](knowledge:user-request-lifecycle)).
+- **Riel 4:** la entidad desembolsa y cobra; Creditop le entrega el crédito con la formalización de su perfil (ver el
+  desenlace). Sin formalización configurada, la entidad no recibe nada de Creditop.
+- **Riel 2 y 3 (CreditopX):** el crédito sigue vivo en Creditop, en `creditop_x_requests_history`, con su estado
+  (al día, en mora, paz y salvo, recuperado). Cada noche lo mueve la cadena que lanza loan-servicing sobre los
+  comandos de legacy-application: causación, mora y cobranza, colillas, pagos retenidos y rotativos, beneficios y
+  recordatorios ([la cartera](knowledge:creditopx-portfolio-servicing)). Los pagos entran por Wompi o por caja y se
+  imputan en cascada ([el pago](knowledge:creditopx-payment-application)); los cortes semanales y sus recordatorios
+  están en [los recordatorios](knowledge:weekly-collection-reminders).
+
+Con `externally_serviced`, la cobranza es de otro aunque Creditop haya originado con su política.
