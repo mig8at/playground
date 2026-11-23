@@ -62,6 +62,31 @@ llama. El worker invoca los de legacy-application: su familia de tarea por defec
 scheduler de ese monolito, y en producción su rol de IAM sólo puede lanzar
 `legacy-application-worker-production`.
 
+## La causación por dentro: corte, interés del día y mora
+
+`UpdateCreditopXRequestsCommand` recorre toda fila vigente (`status = 1`), compras de cupos rotativos incluidas. Cada
+crédito va en su propia transacción: si falla, se deshace sólo ese, queda en `creditop_x_log` y la corrida sigue. Por
+cada crédito escribe una fila nueva con todos los saldos y apaga la anterior, en este orden:
+
+1. **El corte**, si `next_billing_date` ya llegó (movimiento `FECHA DE CORTE`). La próxima fecha de corte la da
+   `CutoffCalendar::nextBillingDate` según el tipo de corte de la entidad: en mensual, el mismo día del mes siguiente;
+   en quincenal, se alterna entre el 11 y el fin de mes; en semanal, 7 días después. Suma una cuota y arma el pago
+   mínimo **acumulando** sobre lo que quedó sin pagar: interés y capital de la cuota (el capital, topado al saldo),
+   seguro de vida, fianza, gasto de cobranza y mora. En la última cuota el mínimo es todo el saldo. Baja el capital por
+   facturar en el capital de la cuota, recalcula el seguro por millón sobre lo que queda y declara el FGA del mínimo en
+   la proporción del saldo (`GuaranteeAttribution`; informativo, no suma al mínimo).
+2. **El interés del día**, siempre: capital por facturar × tasa diaria (`CutoffCalendar::dailyRate`: la mensual / 30;
+   en semanal, `((1 + mensual)^(7/30) − 1) / 7`). La tasa es la menor entre la de la línea y la de la solicitud, salvo
+   en las entidades con `country_id = 60`, que usan la de la solicitud. Con cuotas congeladas, mientras no empieza a
+   amortizar, el interés es 0 (`InstallmentFreeze`). Se suma al interés de la cuota y al saldo de intereses.
+3. **La mora**, si `next_payment_date` ya pasó: un día más de mora, estado 2, y la mora del día = (capital del mínimo −
+   capital recién facturado) × tasa de mora de la entidad / 30, que se suma al mínimo. El capital recién facturado no
+   causa mora los primeros días del ciclo (`latePrincipalExcludeDays`: 7 en mensual y quincenal, 2 en semanal). Después
+   la colilla y el gasto de cobranza de las secciones siguientes.
+4. **El cierre:** rearma el saldo total desde los componentes, la fianza crece sólo en el corte
+   (`GuaranteeInsuranceBalance`), condona intereses si la cuota está dentro de `installments_waived_interest` y deja el
+   rastro en `creditop_x_log` (si condonó, si entró en mora, si fue corte). El subsidio de Creditop no se aplica acá.
+
 ## Gasto de cobranza por días de mora
 
 Cada entidad configura en `creditop_x_lender_collection_charges` tramos de días de mora con un monto

@@ -121,7 +121,8 @@
       "sections": [
         "gasto-de-cobranza-por-dias-de-mora",
         "saldo-total-y-gasto-de-cobranza",
-        "colilla-el-residuo-se-condona-en-el-corte"
+        "colilla-el-residuo-se-condona-en-el-corte",
+        "la-causacion-por-dentro-corte-interes-del-dia-y-mora"
       ]
     },
     {
@@ -255,7 +256,8 @@
       "blob": "bd82337ebb4c19317163ebf22e16cea4b4a6ed33",
       "sections": [
         "subsidio-de-intereses-creditop",
-        "cambio-de-fecha-de-pago"
+        "cambio-de-fecha-de-pago",
+        "la-causacion-por-dentro-corte-interes-del-dia-y-mora"
       ]
     },
     {
@@ -265,6 +267,24 @@
       "blob": "b6238aeac3fa3c9ff9c0a220051b3f9452d4b3bb",
       "sections": [
         "acciones-del-admin-sobre-la-cartera"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Support/InstallmentFreeze.php",
+      "commit": "c992e657db1dc16d7e2aadc7c6a7821d0b533d4e",
+      "blob": "351678626d5eda33ecd618fd42c084410c71dea2",
+      "sections": [
+        "la-causacion-por-dentro-corte-interes-del-dia-y-mora"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Support/GuaranteeInsuranceBalance.php",
+      "commit": "c992e657db1dc16d7e2aadc7c6a7821d0b533d4e",
+      "blob": "bba2be2c3f8e94408d48e597b9f2c35b9b1a3297",
+      "sections": [
+        "la-causacion-por-dentro-corte-interes-del-dia-y-mora"
       ]
     }
   ]
