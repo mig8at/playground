@@ -12,20 +12,20 @@ Hay dos ambientes, cada uno en su cuenta y siempre en `us-east-2`: `environments
 backend, el provider y los tags los genera el `root.hcl` del ambiente, no se declaran en cada stack.
 La lógica reutilizable vive en `modules/` y los valores de cada ambiente en `environments/`.
 
-## Un cambio entra por PR y se aplica a mano desde main
+## Un cambio entra por PR; development e internal se aplican al mergear, prod a mano
 
 1. Rama desde `main` actualizado; nunca push directo a `main`.
-2. PR. El check `pr-checks.yml` corre pre-commit y `terragrunt run --all plan` del ambiente tocado (`development`, `prod` o `internal`, según el path modificado); el plan se revisa entero.
-3. Nadie mergea su propio PR sin revisión del equipo de infra.
-4. El `apply` es manual: el workflow `deploy-infra.yml` (`workflow_dispatch`, ambiente `production`, `development` o `internal`) sólo aplica desde `refs/heads/main`; cada ambiente tiene su job (`apply-production`, `apply-development`, `apply-internal`) con esa condición. Mergear no despliega.
+2. PR. Cada ambiente tiene su workflow (`development.yml`, `production.yml`, `internal.yml`), que se dispara en el PR por los paths de su ambiente (`environments/development/**`, `environments/prod/**` o `environments/internal/**`) o por `modules/**`. En el PR corren primero `pre-commit.yml` y `guard-single-environment.yml`, y sólo si los dos pasan, `terragrunt run --all plan` de ese ambiente (`terragrunt-run.yml`); el plan se revisa entero.
+3. Nadie mergea su propio PR sin revisión del equipo de infra. Los cambios en `.github/` tienen dueño en `CODEOWNERS` (`@Creditop-SAS/admins`).
+4. El `apply` depende del ambiente. En **development** e **internal**, mergear SÍ despliega: el push a `main` que toca sus paths (o `modules/**`) corre `terragrunt run --all apply` solo, y también se puede lanzar a mano (`workflow_dispatch`) desde `refs/heads/main`. En **production** el apply sigue siendo manual: sólo con `workflow_dispatch` y desde `refs/heads/main`; mergear no despliega prod. Los applies de un mismo ambiente se serializan (`concurrency` por ambiente, sin cancelar el que está en curso).
 
-No se corre `terragrunt plan`, `apply` ni `destroy` en local, ni se propone como paso: el trabajo local es editar archivos. Los cambios en recursos base (VPC, RDS, DynamoDB, S3, KMS, SQS, Cognito, WAF, IAM compartido) se conversan con infra antes de abrir el PR, y un `destroy` o un reemplazo de un recurso con datos pide la confirmación explícita del dueño de infra.
+No se corre `terragrunt plan`, `apply` ni `destroy` en local, ni se propone como paso: el trabajo local es editar archivos. Como en development e internal el merge aplica, el plan del PR es la última revisión antes de que el cambio llegue a la cuenta. Los cambios en recursos base (VPC, RDS, DynamoDB, S3, KMS, SQS, Cognito, WAF, IAM compartido) se conversan con infra antes de abrir el PR, y un `destroy` o un reemplazo de un recurso con datos pide la confirmación explícita del dueño de infra.
 
 ## Un PR toca un solo ambiente: primero development, después prod
 
-El job «Guard single environment per PR» de `pr-checks.yml` falla si el PR cambia más de uno de `environments/development/**`, `environments/prod/**` y `environments/internal/**`. El orden es: un PR para development, se aplica y se valida allí, y la promoción a prod va en otro PR que sólo toca `environments/prod`. Al promover se copia del equivalente de **prod**, no del de development: cambian cuenta, ARNs, hostnames (`*.production.internal.creditop.com`) y secrets.
+El workflow reutilizable `guard-single-environment.yml` (job «Guard single environment per PR»), que llama cada workflow de ambiente en el PR, falla si el PR cambia `environments/development/**` y `environments/prod/**` a la vez, o `environments/internal/**` junto con cualquiera de los otros dos. Si falla, el plan no corre (depende del guard y de pre-commit). El orden es: un PR para development, se aplica (al mergear) y se valida allí, y la promoción a prod va en otro PR que sólo toca `environments/prod`. Al promover se copia del equivalente de **prod**, no del de development: cambian cuenta, ARNs, hostnames (`*.production.internal.creditop.com`) y secrets.
 
-Un cambio en `modules/**` dispara el plan de development y de prod (los filtros `development` y `prod` incluyen `modules/**`), y hay que comprobar que el otro no tenga diff inesperado. El plan de `internal` (`plan-internal`) se dispara sólo por cambios en `environments/internal/**`; un cambio en `modules/**` no lo dispara, así que si un módulo lo usa internal el plan no lo cubre en el PR.
+Un cambio en `modules/**` dispara el plan de los tres ambientes (development, production e internal: los tres workflows incluyen `modules/**` en sus paths), y hay que comprobar que ninguno tenga diff inesperado. Al mergearlo se aplica solo en development e internal; prod espera su `workflow_dispatch`.
 
 ## Qué se exige dentro del PR
 
@@ -52,7 +52,7 @@ la hace el backend, como el token de sucursal de las rutas server-to-server de e
 `overwrite:header.host` (el servicio interno que contesta, por el ALB interno) y `overwrite:path` (la
 ruta en ese servicio, para legacy-backend con `/api/…`). Un parámetro de ruta seguido de más segmentos
 se escribe con el `local` del archivo (por ejemplo `${local.order_key_var}`, `${local.placement_var}` o
-`${local.case_id_var}`), porque API Gateway ignora la forma sin llaves.
+`${local.user_request_id_var}`), porque API Gateway ignora la forma sin llaves.
 
 Las rutas con `customer-authorizer` cuyo backend confía en la identidad que le llega (por ejemplo las de
 `/legacy-api/v1/mobile-onboarding/…` y `POST /legacy-api/v1/mobile/ecommerce/store-link`) agregan dos
@@ -64,16 +64,18 @@ Así un valor mandado por quien llama no llega al backend. No todas las rutas de
 
 La identidad que se pasa depende del servicio. Las rutas de form-service con `customer-authorizer`
 (`/customers/form-service/v1/app-forms/{placement}` y `…/responses`, en prod) pasan sólo
-`overwrite:header.X-User-Id`, sin `x-cognito-identity-id`. Las rutas de backoffice de merchant-api
-(`/backoffice/merchant-api-service/v1/…`, en dev) usan `backoffice-authorizer` y sobrescriben
+`overwrite:header.X-User-Id`, sin `x-cognito-identity-id`. Las rutas de backoffice de merchant-api del `api-gateway` de development (`/backoffice/merchant-api-service/v1/merchants/{merchant_id}/branches/…`, la ubicación de sucursales) usan `backoffice-authorizer` y sobrescriben
 `x-cognito-identity-id` (`$context.authorizer.cognito_sub`) y `x-principal-id`
-(`$context.authorizer.principal_id`), no `x-user-id`.
+(`$context.authorizer.principal_id`), no `x-user-id`. Las de merchant onboarding (`…/v1/onboarding-catalog` y
+`…/v1/admin/merchant-onboardings/…`) ya no están ahí: viven en la unidad `api-gateway-backoffice`, donde además
+sobrescriben `x-user-profile-id` (`$context.authorizer.user_profile_id`).
 
 En `environments/prod`, las rutas de cliente bajo `/legacy-api/loans/customer/…` (consumer, revolving —incluida
 `GET …/revolving/credits/{revolving_credit_id}/payment-info`— y `customer/payments/{reference}` con su
 `/receipt`) pasan esas mismas dos cabeceras con `append:header.x-user-id` y `append:header.x-cognito-identity-id`
 en lugar de `overwrite:`. `append` agrega el valor del contexto al de la cabecera que ya venga, no lo reemplaza,
-así que no da la garantía de las rutas con `overwrite:`. Las de `v1/mobile-onboarding` en prod sí usan `overwrite:`.
+así que no da la garantía de las rutas con `overwrite:`. Las de `v1/mobile-onboarding` y `v1/mobile/ecommerce/store-link`
+en prod sí usan `overwrite:`.
 
 Un servicio sólo sale por el gateway si su ruta está declarada: que el backend tenga el endpoint
 desplegado no basta. Una ruta que falta en el gateway responde 404 aunque el backend la tenga, y la

@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Infraestructura: cómo se propone y se aplica un cambio",
   "summary": "Repo infrastructure: PR por rama, un ambiente por PR (development y luego prod), sin plan ni apply local, apply manual desde main, reglas del PR, cómo se publica una ruta en el API Gateway y qué backend elige cada ruta en development.",
-  "reviewedAt": "2026-11-23T14:35:07+00:00",
+  "reviewedAt": "2026-11-23T16:31:19+00:00",
   "sources": [
     {
       "repo": "infrastructure",
@@ -11,7 +11,7 @@
       "blob": "3e363078ae4de6bc59531008e4f48f5911877276",
       "sections": [
         "que-es-el-repo-y-que-cuentas-maneja",
-        "un-cambio-entra-por-pr-y-se-aplica-a-mano-desde-main",
+        "un-cambio-entra-por-pr-development-e-internal-se-aplican-al-mergear-prod-a-mano",
         "un-pr-toca-un-solo-ambiente-primero-development-despues-prod",
         "que-se-exige-dentro-del-pr",
         "publicar-una-ruta-en-el-api-gateway",
@@ -20,28 +20,28 @@
     },
     {
       "repo": "infrastructure",
-      "path": ".github/workflows/pr-checks.yml",
-      "commit": "b623112c86b1a8b6fda4ced4af480c0b48997bc3",
-      "blob": "f7393d6a8f33885458ed64ded60431e13f6233ce",
+      "path": ".github/workflows/guard-single-environment.yml",
+      "commit": "1fcd9c0604cca8eeab7eeecf3cdf9e580c2e702f",
+      "blob": "1245c1a8f4b1357024f2d0d0574026613c8c4908",
       "sections": [
-        "un-cambio-entra-por-pr-y-se-aplica-a-mano-desde-main",
+        "un-cambio-entra-por-pr-development-e-internal-se-aplican-al-mergear-prod-a-mano",
         "un-pr-toca-un-solo-ambiente-primero-development-despues-prod"
       ]
     },
     {
       "repo": "infrastructure",
-      "path": ".github/workflows/deploy-infra.yml",
-      "commit": "b623112c86b1a8b6fda4ced4af480c0b48997bc3",
-      "blob": "1f7e6528b1e1465c68730fff2edb0780a3ce0012",
+      "path": ".github/workflows/production.yml",
+      "commit": "1fcd9c0604cca8eeab7eeecf3cdf9e580c2e702f",
+      "blob": "4c5ff80ea1cac80a194b356cbd054babf9f8607e",
       "sections": [
-        "un-cambio-entra-por-pr-y-se-aplica-a-mano-desde-main"
+        "un-cambio-entra-por-pr-development-e-internal-se-aplican-al-mergear-prod-a-mano"
       ]
     },
     {
       "repo": "infrastructure",
       "path": "environments/development/api-gateway/terragrunt.hcl",
-      "commit": "a1ece0730e0916f8198f57ce27bcfb2c87cb8be3",
-      "blob": "480b80bd2b9e1fef79125565845d81327c8bc847",
+      "commit": "1fcd9c0604cca8eeab7eeecf3cdf9e580c2e702f",
+      "blob": "c21e578ae8d8113c168f0da5a14ad1070ad0baf5",
       "sections": [
         "publicar-una-ruta-en-el-api-gateway",
         "en-development-cada-ruta-elige-su-backend"
@@ -50,8 +50,8 @@
     {
       "repo": "infrastructure",
       "path": "environments/prod/api-gateway/terragrunt.hcl",
-      "commit": "a1ece0730e0916f8198f57ce27bcfb2c87cb8be3",
-      "blob": "26be1ee644f653c4a2bdca34e37b019ebe643c04",
+      "commit": "1fcd9c0604cca8eeab7eeecf3cdf9e580c2e702f",
+      "blob": "5b9df87cf9736b7991a403d67f9f8295759919cf",
       "sections": [
         "publicar-una-ruta-en-el-api-gateway",
         "en-development-cada-ruta-elige-su-backend"

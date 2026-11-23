@@ -2,7 +2,7 @@
   "version": 1,
   "title": "CreditOp Mobile: la app del cliente final",
   "summary": "Qué hace la app Flutter del consumidor (rama main-pro) y qué valida el backend de cada paso: OTP por Cognito o legacy y el registro MOBA, comercios y preaprobación por lotes, canales de compra por sedes y el código de self-manager (que ignora el canal y vence en UTC), Mis créditos y el cupo rotativo, Salud Financiera gratuita o premium por el beneficio de entitlement, identidad ADO sólo para premium; el regalo de premium por reglas versionadas, la identidad que identity-service no aprueba al volver, el registro de push sin backend, y la campaña de cero interés y la versión mínima por flags de Remote Config.",
-  "reviewedAt": "2026-11-17T19:23:46+00:00",
+  "reviewedAt": "2026-11-23T16:31:19+00:00",
   "sources": [
     {
       "repo": "creditop-mobile",
@@ -422,8 +422,8 @@
     {
       "repo": "creditop-mobile",
       "path": "app/lib/config/dependency_injection.dart",
-      "commit": "e97f4b3c6c6b2bbeda8d9c75684eaf214d5ecb03",
-      "blob": "8785ac3baf96d0886cd529d8a6d660940bc19bbf",
+      "commit": "8b76419a32a83a0d06a561598c0ca371c761c114",
+      "blob": "163e167515322916fc21d9b113af9aad6ea1797e",
       "sections": [
         "campana-de-cero-interes-y-flags-remotos"
       ]
