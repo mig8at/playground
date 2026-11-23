@@ -234,6 +234,33 @@ corre después la formalización.
 
 Una entidad nueva del riel 4 sin firma configurable ni catálogo firma el juego estándar, no sus propios documentos.
 
+## La autorización: del OTP de la firma al estado 11
+
+Con el OTP de la firma validado, `LoanAuthorizationService::authorize` hace tres tramos.
+
+**Las guardas, antes de escribir nada.** El OTP tiene que estar validado; la oferta tiene que seguir en pie
+(`OfferStillStandsGuard`, 409 si cambió); si la política exige codeudor, tiene que haber uno validado (sólo para
+entidades con catálogo de documentos); en el rotativo, la fecha de pago y el plazo se fuerzan a los del cupo. Si hay
+un codeudor activo que todavía no firmó, la autorización se difiere: se numera, se generan los documentos del titular
+y queda en «Pendiente firma codeudor» hasta que firme ([la firma del codeudor](knowledge:cosigner-signature)).
+
+**Una sola transacción.** El número de solicitud y el estado 11 con su `final_amount`, todos los documentos firmados,
+el primer registro del crédito (`createFirstRegister`, que en el tipo 2 carga el cupo mensual del perfil:
+[el cupo](knowledge:creditopx-quota)), la cuota inicial cobrada en tienda y, sólo en el tipo 2, la cancelación de los
+otros créditos pendientes del cliente. Si algo falla, se deshace todo.
+
+**Después del commit, en este orden:**
+
+1. La formalización, sólo en el riel 4 y en su propia transacción (ver el desenlace).
+2. Los efectos de cierre: las notificaciones al cliente, el comprobante, la entidad desembolsada en la revisión del
+   perfilamiento y la limpieza de la solicitud. Cada uno atrapa su error: si uno falla, se registra y la autorización
+   queda. En el flujo IMEI, el comprobante y el cierre esperan al desembolso.
+
+Si la formalización falla, la autorización ya está guardada (la solicitud queda en 11, con número y crédito) y el
+error se registra (`external_managed_formalization_failed_after_authorization`) y se lanza: el asistente recibe 422
+o 500. Como se lanza antes de los efectos de cierre, esa solicitud queda sin notificaciones, sin comprobante y sin la
+revisión del perfilamiento, y repetir el OTP no lo arregla.
+
 ## Desenlace: cómo termina
 
 Cada riel termina distinto:
