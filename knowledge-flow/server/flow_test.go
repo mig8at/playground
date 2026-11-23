@@ -111,3 +111,17 @@ func TestDeleteRunAndNumbers(t *testing.T) {
 		t.Fatalf("la #2 ya se dio: %d", n)
 	}
 }
+
+// La evidencia se escribe «repo:ruta[:línea] (nota)»: de ahí sale el archivo que el verificador recibe de main.
+func TestEvidencePath(t *testing.T) {
+	for in, want := range map[string]string{
+		"infrastructure:.github/workflows/development.yml (push a main + apply)":              "infrastructure|.github/workflows/development.yml",
+		"infrastructure:environments/development/api-gateway/terragrunt.hcl:2080 (ubicación)": "infrastructure|environments/development/api-gateway/terragrunt.hcl",
+		"infrastructure:.github/CODEOWNERS":                                                   "infrastructure|.github/CODEOWNERS",
+	} {
+		m := reEvidence.FindStringSubmatch(in)
+		if m == nil || m[1]+"|"+m[2] != want {
+			t.Errorf("%q → %v, quería %s", in, m, want)
+		}
+	}
+}

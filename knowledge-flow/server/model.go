@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"creditop/my-tools/lib/background"
@@ -63,6 +64,52 @@ func (f *flow) expand(ctx context.Context, pkg string) string {
 		return fmt.Sprintf("%s\n\nDIFF desde %s hasta %s:\n```diff\n%s\n```\nEL ARCHIVO EN %s:\n```\n%s\n```\n", m, short(base), ref,
 			clip(diff, diffCap), ref, clip(file, fileCap))
 	})
+}
+
+// reEvidence: el `repo:ruta` del principio de una evidencia («infrastructure:.github/x.yml:12 (…)»).
+var reEvidence = regexp.MustCompile(`^([A-Za-z0-9_.-]+):([^\s:()]+)`)
+
+// citedFiles: los archivos en main que reemplazaron a los borrados de la sección (reemplazos.json) y los que cita la
+// evidencia de la decisión, con su contenido. Sólo de repos que la corrida ya conoce (su clon sólo-main).
+func (f *flow) citedFiles(ctx context.Context, r *Run, files, evidence []string, filesList []struct {
+	Repo, Path, Ref, Base, Dir string
+	Exists                     bool
+}, shown map[string]bool) string {
+	clone := map[string][2]string{} // repo → dir, ref
+	for _, fl := range filesList {
+		clone[fl.Repo] = [2]string{fl.Dir, fl.Ref}
+	}
+	var want []string
+	swaps := map[string]string{}
+	if raw, err := os.ReadFile(filepath.Join(r.driftDir(), "reemplazos.json")); err == nil {
+		_ = json.Unmarshal(raw, &swaps)
+	}
+	for _, key := range files {
+		if repo, path, ok := strings.Cut(key, ":"); ok && swaps[path] != "" {
+			want = append(want, repo+":"+swaps[path])
+		}
+	}
+	for _, e := range evidence {
+		if m := reEvidence.FindStringSubmatch(strings.TrimSpace(e)); m != nil {
+			want = append(want, m[1]+":"+m[2])
+		}
+	}
+	var b strings.Builder
+	for _, key := range want {
+		repo, path, _ := strings.Cut(key, ":")
+		c, ok := clone[repo]
+		if !ok || shown[key] {
+			continue
+		}
+		shown[key] = true
+		file, err := f.sh(ctx, "git", "-C", c[0], "show", c[1]+":"+path)
+		if err != nil {
+			fmt.Fprintf(&b, "- %s: (no está en main)\n", key)
+			continue
+		}
+		fmt.Fprintf(&b, "- %s, EN %s:\n```\n%s\n```\n", key, c[1], clip(file, fileCap))
+	}
+	return b.String()
 }
 
 func short(sha string) string {
@@ -252,12 +299,24 @@ func (f *flow) stepVerify(ctx context.Context, r *Run, st *Step) error {
 			fmt.Fprintf(&b, "(título nuevo: %s)\n", v.NewTitle)
 		}
 		b.WriteString(v.NewText + "\n\n## ARCHIVOS QUE CAMBIARON\n")
+		shown := map[string]bool{}
 		for _, key := range it.Files {
 			for _, fl := range filesList {
-				if fl.Repo+":"+fl.Path == key && fl.Exists {
-					b.WriteString(f.expand(ctx, fmt.Sprintf("- %s: `git -C %s diff %s %s -- %s`", key, fl.Dir, fl.Base, fl.Ref, fl.Path)) + "\n")
+				if fl.Repo+":"+fl.Path != key {
+					continue
 				}
+				if fl.Exists {
+					b.WriteString(f.expand(ctx, fmt.Sprintf("- %s: `git -C %s diff %s %s -- %s`", key, fl.Dir, fl.Base, fl.Ref, fl.Path)) + "\n")
+				} else {
+					fmt.Fprintf(&b, "- %s: ya no está en main (borrado)\n", key)
+				}
+				shown[key] = true
 			}
+		}
+		// Lo que la decisión dice que lo reemplazó o cita como evidencia también va, como está en main: sin eso, un
+		// archivo borrado y reemplazado por otro (la #15: pr-checks.yml → workflows por ambiente) no se puede verificar.
+		if extra := f.citedFiles(ctx, r, it.Files, v.Evidence, filesList, shown); extra != "" {
+			b.WriteString("\n## ARCHIVOS EN MAIN QUE CITA LA DECISIÓN (los que reemplazaron a los borrados y la evidencia)\n" + extra)
 		}
 		ans, err := background.Ask(ctx, f.root, background.Request{Prompt: b.String(), System: verifyPrompt})
 		if err != nil {
