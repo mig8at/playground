@@ -47,7 +47,10 @@ type flow struct {
 	look    Look
 	running *Run
 	wake    chan struct{}
-	once    bool // -once: una mirada y, como mucho, una corrida
+	// resumeReq: una corrida frenada que Miguel pidió retomar (tras decidir a mano lo que la frenó). La atiende el loop,
+	// el único que corre corridas, para que dos no se pisen.
+	resumeReq chan int
+	once      bool // -once: una mirada y, como mucho, una corrida
 	// modelDown: el modelo no contestaba en la última pregunta; mientras tanto el vigía pregunta cada modelWait.
 	modelDown bool
 }
@@ -93,7 +96,7 @@ func main() {
 	if *install || *uninstall || *status {
 		return
 	}
-	f := &flow{root: root, runs: &runStore{dir: filepath.Join(root, "knowledge-flow", ".data", "runs")}, wake: make(chan struct{}, 1)}
+	f := &flow{root: root, runs: &runStore{dir: filepath.Join(root, "knowledge-flow", ".data", "runs")}, wake: make(chan struct{}, 1), resumeReq: make(chan int, 1)}
 	f.recover()
 	f.loadLook()
 	f.once = *once
@@ -141,6 +144,25 @@ func main() {
 			}
 		}
 		writeJSON(w, 200, map[string]any{"deleted": deleted})
+	})
+	// Retomar una frenada: vuelve a correr desde el paso donde frenó (desde «Juntar» si frenó en la verificación, para
+	// que tome las correcciones a mano de overrides.json).
+	mux.HandleFunc("POST /api/runs/{id}/resume", func(w http.ResponseWriter, r *http.Request) {
+		if !guard(w, r) {
+			return
+		}
+		id, _ := strconv.Atoi(r.PathValue("id"))
+		if err := f.canResume(id); err != nil {
+			writeJSON(w, 409, map[string]string{"error": err.Error()})
+			return
+		}
+		select {
+		case f.resumeReq <- id:
+		default:
+			writeJSON(w, 409, map[string]string{"error": "ya hay una corrida pedida para retomar"})
+			return
+		}
+		writeJSON(w, 202, map[string]int{"resuming": id})
 	})
 	mux.HandleFunc("POST /api/look", func(w http.ResponseWriter, _ *http.Request) {
 		select {
@@ -198,8 +220,49 @@ func (f *flow) loop() {
 		select {
 		case <-time.After(every):
 		case <-f.wake:
+		case id := <-f.resumeReq:
+			f.resumeStopped(id) // y la vuelta siguiente mira main: si pasó, confirma que esas fuentes quedaron al día
 		}
 	}
+}
+
+// canResume: sólo la ÚLTIMA corrida, si frenó, y sin otra en curso (una más vieja la taparía una más nueva).
+func (f *flow) canResume(id int) error {
+	f.mu.Lock()
+	busy := f.running != nil
+	f.mu.Unlock()
+	if busy {
+		return fmt.Errorf("hay una corrida en curso: retomá cuando termine")
+	}
+	last := f.lastRun()
+	if last == nil || last.ID != id {
+		return fmt.Errorf("sólo se retoma la última corrida")
+	}
+	if last.State != stStopped {
+		return fmt.Errorf("la corrida #%d no está frenada", id)
+	}
+	return nil
+}
+
+// resumeStopped: corre otra vez una frenada desde el paso donde frenó, con lo que se decidió a mano.
+func (f *flow) resumeStopped(id int) {
+	if f.canResume(id) != nil {
+		return
+	}
+	if ok, _ := f.modelReady(); !ok {
+		return // sin modelo, la verificación fallaría: el botón sigue a mano
+	}
+	r := f.resume(f.lastRun())
+	f.mu.Lock()
+	f.running = r
+	f.mu.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Minute)
+	f.execute(ctx, r)
+	cancel()
+	f.mu.Lock()
+	f.running = nil
+	f.mu.Unlock()
+	f.tell(r)
 }
 
 // cycle: mirar; si hay fuentes viejas y no son las de una frenada, una corrida; al terminar, mirar otra vez.
@@ -407,10 +470,21 @@ func (f *flow) newRun(changes []Change, fp string, lookedAt time.Time, fetchSec,
 	return r
 }
 
-// resume: vuelve a poner en marcha una corrida que cayó por el modelo, desde el paso que falló.
+// resume: vuelve a poner en marcha una corrida desde el paso que falló o frenó (cayó el modelo, o Miguel decidió a
+// mano lo que la frenó). Si frenó en la verificación, desde «Juntar»: la corrección a mano entra por overrides.json.
 func (f *flow) resume(r *Run) *Run {
+	from := -1
 	for i := range r.Steps {
-		if r.Steps[i].State == stFailed || r.Steps[i].State == stRunning {
+		if s := r.Steps[i].State; s == stFailed || s == stRunning || s == stStopped {
+			from = i
+			if r.Steps[i].ID == "verify" && s == stStopped && i > 0 && r.Steps[i-1].ID == "final" {
+				from = i - 1
+			}
+			break
+		}
+	}
+	for i := range r.Steps {
+		if from >= 0 && i >= from {
 			r.Steps[i] = Step{ID: r.Steps[i].ID, Label: r.Steps[i].Label, Who: r.Steps[i].Who, State: stQueued}
 		}
 	}

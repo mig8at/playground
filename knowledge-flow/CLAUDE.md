@@ -30,6 +30,13 @@ o en cola. La ruta es `#/run/<n>`.
   modelo volvió. La sesión se renueva sólo con el navegador: eso no lo puede hacer Knowledge.
 - **Si el modelo se cae A MITAD de una corrida, esa misma se retoma** desde el paso donde cayó apenas vuelve (`resume`,
   marcada «retomada»): no nace otra que repita los pasos 1 a 3.
+- **Una frenada se retoma a mano** (2026-11-23, la #15: `infrastructure` borró `pr-checks.yml` y `deploy-infra.yml`
+  por workflows por ambiente, el paquete no traía los archivos nuevos y el modelo dejó 2 secciones «sin decidir»). Se
+  decide lo que la frenó en `.data/runs/<n>/drift/overrides.json` (por sección: `veredicto`, `texto_nuevo`,
+  `titulo_nuevo`, `por_que`, `evidencia`) y, si main borró un archivo y lo reemplazó, `reemplazos.json`
+  (`{ruta_borrada: ruta_nueva}`); después, el botón **Retomar** del aviso (`POST /api/runs/{id}/resume`, con
+  `X-Knowledge: 1`). Corre otra vez desde el paso que frenó (desde «Juntar» si frenó en la verificación). Sólo la
+  última corrida y sin otra en curso; la atiende el loop, así que si está mirando main arranca al terminar la mirada.
 - **La lista esconde lo superado** (Miguel, 2026-11-19: «que no quede ese ruido»): una corrida frenada o fallada queda
   «superada» cuando después pasó otra y ninguno de sus temas sigue viejo; «Ver todas» la muestra. No se borra del disco:
   es la pista si algo vuelve a fallar. Lo que sí pide algo (frenada o fallada con temas todavía viejos) sigue a la vista.

@@ -50,6 +50,38 @@ async function cleanSuperseded() {
     await load()
   } catch (e) { deleteError.value = e.message }
 }
+// Retomar una frenada: corre otra vez desde el paso donde frenó, con lo que se decidió a mano.
+const resumeError = ref('')
+const resuming = ref(false)
+async function resumeRun(id) {
+  resumeError.value = ''
+  resuming.value = true
+  try {
+    await api(`/api/runs/${id}/resume`, { method: 'POST', headers: { 'X-Knowledge': '1' } })
+    setTimeout(load, 800)
+  } catch (e) { resumeError.value = e.message } finally { setTimeout(() => { resuming.value = false }, 1500) }
+}
+// El aviso de una corrida frenada o fallada: el paso, el motivo y qué hacer, en vez del resultado pelado.
+const halt = computed(() => {
+  const r = run.value
+  if (!r || (r.state !== 'stopped' && r.state !== 'failed')) return null
+  const st = r.steps.find((s) => s.state === 'stopped' || s.state === 'failed')
+  const reason = (r.result || '').replace(/^(frenó|falló) en «[^»]*»:\s*/, '')
+  const dir = `knowledge-flow/.data/runs/${r.id}/drift`
+  const HELP = {
+    final: `Decidí esas secciones a mano en ${dir}/overrides.json (veredicto «sigue» o «cambia» con su texto nuevo) y, si main borró un archivo y lo reemplazó, anotalo en reemplazos.json. Después, Retomar.`,
+    verify: `Corregí el texto en ${dir}/overrides.json y Retomar: vuelve a juntar y a verificar.`,
+    apply: 'Otra sesión tiene cambios sin commitear en esos temas. Commitealos o descartalos y Retomar.',
+  }
+  const isLast = runs.value[0]?.id === r.id
+  return {
+    stopped: r.state === 'stopped',
+    title: `${r.state === 'stopped' ? 'Frenó' : 'Falló'} en «${st?.label || '?'}»`,
+    reason,
+    help: r.state === 'stopped' ? HELP[st?.id] || 'Resolvé lo que la frenó y Retomar.' : '',
+    canResume: r.state === 'stopped' && isLast && !state.value?.running,
+  }
+})
 async function lookNow() { try { await api('/api/look', { method: 'POST' }); setTimeout(load, 800) } catch { /* lo dice el pie */ } }
 
 function readRoute() {
@@ -222,7 +254,7 @@ onBeforeUnmount(() => {
           <button v-for="r in g.runs" :key="r.id" type="button" class="run-row" :class="{ on: run?.id === r.id }" @click="pick(r.id)">
             <svg v-if="r.state === 'passed'" class="st" viewBox="0 0 16 16" aria-label="al día"><circle cx="8" cy="8" r="7" fill="var(--status-ok)"/><path d="M4.5 8.2l2.2 2.2 4.8-4.8" stroke="#123" stroke-width="1.8" fill="none"/></svg>
             <svg v-else class="st" viewBox="0 0 16 16" :aria-label="STATE_TEXT[r.state]"><circle cx="8" cy="8" r="7" :fill="r.state === 'stopped' ? 'var(--status-warn)' : 'var(--status-bad)'"/><path d="M5.5 5.5l5 5M10.5 5.5l-5 5" stroke="#123" stroke-width="1.8"/></svg>
-            <span class="run-title">#{{ r.id }} · {{ r.title }}<span v-if="r.resumed" class="tag" title="Se retomó desde el paso donde cayó, cuando el modelo volvió"> retomada</span><span v-if="r.superseded" class="tag"> superada</span></span><span class="run-time">{{ runDur(r) }}</span>
+            <span class="run-title">#{{ r.id }} · {{ r.title }}<span v-if="r.resumed" class="tag" title="Se retomó desde el paso donde cayó o frenó"> retomada</span><span v-if="r.superseded" class="tag"> superada</span></span><span class="run-time">{{ runDur(r) }}</span>
             <span class="run-desc">{{ r.result }}</span>
           </button>
         </template>
@@ -232,7 +264,7 @@ onBeforeUnmount(() => {
         <button v-if="hiddenCount" type="button" class="run-row more" :class="{ asking: confirming === 'clean' }" @click="cleanSuperseded">
           <span class="run-title">{{ confirming === 'clean' ? `¿Borrar las ${hiddenCount}? Tocá de nuevo para confirmar` : `Borrar las superadas (${hiddenCount})` }}</span>
         </button>
-        <p v-if="deleteError" class="alert alert-bad" style="margin: var(--space-2)">{{ deleteError }}</p>
+        <div v-if="deleteError" class="alert alert-bad" style="margin: var(--space-2)"><div class="alert-desc"><p>{{ deleteError }}</p></div></div>
         <div v-if="state && !runs.length" class="empty">
           <div class="empty-head">
             <div class="empty-title">Sin corridas</div>
@@ -264,9 +296,20 @@ onBeforeUnmount(() => {
             <b>{{ run.topics.join(', ') }}</b><template v-if="run.model"> · modelo <b>{{ ({ claude: 'Claude', gemini: 'Gemini' })[run.model] || run.model }}</b></template><template v-if="run.commit"> · commit <b>{{ run.commit }}</b></template>
           </div>
           <div v-if="run.state === 'running' && queuedTopics.length" class="alert alert-warn">
-            Mientras corre entraron {{ look.queued.length }} {{ look.queued.length === 1 ? 'cambio' : 'cambios' }} más. No se mezclan con esta corrida: arrancan en otra cuando termine.
+            <div class="alert-desc"><p>Mientras corre entraron {{ look.queued.length }} {{ look.queued.length === 1 ? 'cambio' : 'cambios' }} más. No se mezclan con esta corrida: arrancan en otra cuando termine.</p></div>
           </div>
-          <div v-if="run.state === 'stopped' || run.state === 'failed'" class="alert alert-bad">{{ run.result }}</div>
+          <div v-if="halt" class="alert halt" :class="halt.stopped ? 'alert-warn' : 'alert-bad'" role="status">
+            <span class="alert-icon" aria-hidden="true">{{ halt.stopped ? '⏸' : '✕' }}</span>
+            <div class="alert-title">{{ halt.title }}</div>
+            <div class="alert-desc">
+              <p>{{ halt.reason }}</p>
+              <p v-if="halt.help" class="halt-help">{{ halt.help }}</p>
+              <div v-if="halt.canResume" class="halt-actions">
+                <button type="button" class="btn btn-sm" :disabled="resuming" @click="resumeRun(run.id)">{{ resuming ? 'Retomando…' : `Retomar la #${run.id}` }}</button>
+                <span v-if="resumeError" class="halt-error">{{ resumeError }}</span>
+              </div>
+            </div>
+          </div>
           <div class="steps">
             <div v-for="(s, i) in run.steps" :key="s.id" class="step" :class="`is-${s.state}`">
               <div class="step-row">
@@ -311,8 +354,8 @@ onBeforeUnmount(() => {
           <div class="lib-big">{{ !look.at && look.looking ? 'Mirando main…' : staleTopics.length ? `${staleTopics.length} de ${look.topics || '…'} temas viejos` : `${look.topics || '…'} temas al día` }}</div>
           <div class="run-time">{{ fresh.toLocaleString('es-CO') }} de {{ (look.sources || 0).toLocaleString('es-CO') }} fuentes al día con main</div>
         </div>
-        <p v-if="look.waiting" class="alert alert-bad" style="margin: 0 var(--space-2) var(--space-2)">{{ look.waiting }}</p>
-        <p v-if="look.error" class="alert alert-bad" style="margin: 0 var(--space-2) var(--space-2)">{{ look.error }}</p>
+        <div v-if="look.waiting" class="alert alert-bad" style="margin: 0 var(--space-2) var(--space-2)"><div class="alert-desc"><p>{{ look.waiting }}</p></div></div>
+        <div v-if="look.error" class="alert alert-bad" style="margin: 0 var(--space-2) var(--space-2)"><div class="alert-desc"><p>{{ look.error }}</p></div></div>
         <div class="group-label">El vigía</div>
         <div class="kv"><span>Mira main</span><span>cada {{ state?.every || 30 }} min</span></div>
         <div class="kv"><span>Última mirada</span><span>{{ look.looking ? 'mirando…' : clock(look.at) || '—' }}</span></div>

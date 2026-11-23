@@ -37,7 +37,12 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 .run-meta b { color: var(--foreground); font-weight: 500 }
 /* Los avisos de una corrida (en cola, frenó) son el .alert de la base; acá, su lugar en el documento. */
 .alert { width: auto; box-sizing: border-box; font-size: var(--text-sm) }
-.editor .region-body > .alert { margin: 0 var(--space-6) var(--space-3) }
+.editor .region-body > .alert { margin: 0 var(--space-6) var(--space-3); width: auto }
+.alert-desc p { overflow-wrap: anywhere }
+.halt .alert-title { white-space: normal }
+.halt .halt-help { color: var(--fg-2) }
+.halt-actions { display: flex; align-items: center; gap: var(--space-3); margin-top: var(--space-1) }
+.halt-error { color: var(--status-bad); font-size: var(--text-xs) }
 .steps { margin: 0 var(--space-6) var(--space-6); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden }
 .step + .step { border-top: 1px solid var(--border) }
 .step-row { display: grid; grid-template-columns: 20px 16px 1fr auto auto; gap: var(--space-3); align-items: center; padding: var(--space-2) var(--space-3) }
