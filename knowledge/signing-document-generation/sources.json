@@ -1,0 +1,159 @@
+{
+  "version": 1,
+  "title": "Documentos de firma: Blade y pdf-mapper",
+  "summary": "Los dos motores vigentes de los PDF de firma (Blade con DomPDF y pdf-mapper-service), quién elige cuál en cada juego (SigningV1 sin respaldo, el fijo de Credifamilia por pdf-mapper, el catálogo con respaldo a Blade y el estándar por config), el payload builder por entidad y qué hace falta para los documentos de una entidad nueva.",
+  "reviewedAt": "2026-11-23T17:00:00-05:00",
+  "sources": [
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/DocumentGeneration/BladePdfGenerator.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "b0c7f90219341b94e37707b3aae2f91090d24dfc",
+      "sections": [
+        "dos-motores-vigentes-no-uno-viejo-y-otro-nuevo",
+        "quien-elige-el-motor-en-cada-juego-de-firma"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/DocumentGeneration/PdfMapperGenerator.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "99ecc56e3cdb6df35e1dea361f61795e50f75ddf",
+      "sections": [
+        "dos-motores-vigentes-no-uno-viejo-y-otro-nuevo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/PdfMapperClient.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "aed0981eac25851c72c2adf9f598c714f6d54e40",
+      "sections": [
+        "dos-motores-vigentes-no-uno-viejo-y-otro-nuevo",
+        "que-hace-falta-para-los-documentos-de-una-entidad-nueva"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "config/documents.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "c731e7edc5c792933959dc9db8e36797a4b9a1dc",
+      "sections": [
+        "dos-motores-vigentes-no-uno-viejo-y-otro-nuevo",
+        "quien-elige-el-motor-en-cada-juego-de-firma"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/DocumentGeneration/DocumentGeneratorFactory.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "709394429ee269dd7126dedbce25237f6c1b1804",
+      "sections": [
+        "quien-elige-el-motor-en-cada-juego-de-firma"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/DocumentGeneration/FallbackDocumentGenerator.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "7eba55b3b1de678f65d1d00833b2523af812c727",
+      "sections": [
+        "quien-elige-el-motor-en-cada-juego-de-firma"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/DocumentGeneration/CatalogDocumentGenerator.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "6aacf052f3f488ef92b63725c2d4c5a13c8371e2",
+      "sections": [
+        "quien-elige-el-motor-en-cada-juego-de-firma",
+        "que-hace-falta-para-los-documentos-de-una-entidad-nueva"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/DocumentGeneration/GeneratorTypeMap.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "753a02c63fe75931d63d4cc965821dbc88438071",
+      "sections": [
+        "quien-elige-el-motor-en-cada-juego-de-firma"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/DocumentGeneration/EloquentLenderProjectSlugResolver.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "56950abcf56c692ceeb0edf837391d0efe80c7ed",
+      "sections": [
+        "dos-motores-vigentes-no-uno-viejo-y-otro-nuevo",
+        "que-hace-falta-para-los-documentos-de-una-entidad-nueva"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/Signing/Credifamilia/CredifamiliaDocumentsBuilder.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "67092391260bfcce94bd5df5689bd01a1a14c983",
+      "sections": [
+        "quien-elige-el-motor-en-cada-juego-de-firma",
+        "los-datos-un-payload-builder-por-entidad-igual-para-los-dos-motores"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/SigningV1/ARCHITECTURE_EXCEPTIONS.md",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "4a0333807a819adfc6d72f43e27697d951f07d19",
+      "sections": [
+        "quien-elige-el-motor-en-cada-juego-de-firma"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/SigningV1/App/Renderers/Base/NetcoDocumentRendererResolver.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "37d5ee514098b8a9173c1140e42cbf2be4e08229",
+      "sections": [
+        "quien-elige-el-motor-en-cada-juego-de-firma"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/SigningV1/App/Renderers/PdfMapperNetcoDocumentRenderer.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "773826bd2c797f2261f5bc848998ee30fbceed0c",
+      "sections": [
+        "quien-elige-el-motor-en-cada-juego-de-firma"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/SigningV1/App/Renderers/BladeNetcoDocumentRenderer.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "e8b078df6edb481c15fc29eb31db51b9569782bd",
+      "sections": [
+        "quien-elige-el-motor-en-cada-juego-de-firma"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/DocumentGeneration/CatalogDocumentPayloadResolver.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "53eff617408e64f2425037835de677e2d0ce33bd",
+      "sections": [
+        "los-datos-un-payload-builder-por-entidad-igual-para-los-dos-motores",
+        "que-hace-falta-para-los-documentos-de-una-entidad-nueva"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/SigningV1/App/Support/NetcoDocumentPayloadResolver.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "83703ebab9bbbcd78b8cfbb5a27c33e5b960adec",
+      "sections": [
+        "los-datos-un-payload-builder-por-entidad-igual-para-los-dos-motores"
+      ]
+    }
+  ]
+}

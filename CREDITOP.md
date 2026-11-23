@@ -102,6 +102,7 @@ en el código de `main` (los dos monolitos) y se suma a knowledge.
 ### 9. Firma, pagaré y equipo
 
 - [origination-paths#la-firma-en-casa-que-documentos-se-muestran-y-se-firman](knowledge/origination-paths/rules.md).
+- [signing-document-generation](knowledge/signing-document-generation/rules.md): cómo se hace cada PDF de firma, **Blade o pdf-mapper**, quién elige el motor y de dónde salen los datos.
 - [deceval-promissory-note](knowledge/deceval-promissory-note/rules.md): el pagaré desmaterializado.
   - ⚠ `#la-credencial-del-depositante`: la búsqueda puede traer la credencial de otra central.
 - [otp-source-and-bypass#el-otp-del-pagare-se-genera-en-el-servicio-de-otp](knowledge/otp-source-and-bypass/rules.md).
