@@ -61,6 +61,29 @@ ADO. Después de varios `verify` seguidos sin aprobar vuelve a pedir el document
 2 sólo aprueba si el número de documento que devuelve ADO coincide con el del dueño del registro; si
 no, queda en 98. El mismo flujo valida al titular y al codeudor.
 
+## ADO paso a paso: enroll, callback y estado
+
+1. **`ado/enroll`** (`AdoController::enroll`): genera una referencia (uuid), arma la URL de vuelta
+   (`…/{solicitud}/identity-validation-status?provider=ado&risk_central_user_id={referencia}`), elige la credencial y el
+   modo (enroll o verify, ver arriba), guarda el registro en `risk_central_user_data` con el modo y la credencial usada
+   (a nombre del codeudor si es él) y devuelve la URL de la plataforma de ADO.
+2. El cliente hace la captura en ADO, que lo devuelve a la URL de vuelta.
+3. **`ado/enroll/callback/{solicitud}`**: exige que el registro sea del titular o de un codeudor activo de la solicitud
+   (si no, 403), guarda la respuesta de ADO (una que no es JSON o no trae `TransactionId` queda en el log, para no
+   confundirla con ADO caído) y hace una verificación de estado.
+4. **`ado/check-status`**: el asistente pregunta hasta tener veredicto; `AdoService::checkStatus` consulta la
+   transacción en ADO y traduce el estado como dice la sección anterior.
+
+Dos cosas del código que no se ven desde afuera:
+
+- **La credencial de la entidad sólo se usa en la ruta IMEI.** `resolveEnrollCredential` pide la cuenta de la entidad
+  (o del comercio) a `Ado::getCredentials` sólo si la solicitud va por IMEI; en cualquier otro caso usa la de
+  configuración, aunque la entidad tenga su propia cuenta de ADO.
+- **El callback verifica en línea, en todos los ambientes.** Corre `StatusCheck::dispatchSync(..., reschedule: false)`:
+  una sola verificación dentro de la misma petición, porque los ambientes de prueba no tienen workers y los reintentos
+  en línea serían una recursión. El seguimiento queda en manos de `check-status`. El comentario lo marca para volver a
+  `dispatch()` en producción, pero el código no distingue el ambiente.
+
 ## CrossCore y Evidente
 
 Los usa hoy Credifamilia: CrossCore primero y Evidente de respaldo. CrossCore sólo cuenta como

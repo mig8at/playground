@@ -58,7 +58,8 @@
       "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "886a0ce596c113d5260b94751a5453d9eb274ce1",
       "sections": [
-        "ado-documento-y-selfie-y-la-re-validacion-solo-con-selfie"
+        "ado-documento-y-selfie-y-la-re-validacion-solo-con-selfie",
+        "ado-paso-a-paso-enroll-callback-y-estado"
       ]
     },
     {
@@ -158,6 +159,42 @@
       "blob": "07b48b30765d5cb0fd35294bf7019ba4f728e75a",
       "sections": [
         "la-validacion-manual-quien-la-escribe-y-que-la-frena"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Identity/App/Http/Controllers/Customer/AdoController.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "2fa37c53cfc2e8df3ac370db84997872d24545cd",
+      "sections": [
+        "ado-paso-a-paso-enroll-callback-y-estado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Identity/routes/api.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "da82cf77267885e5ab34b78c38595941781d45e3",
+      "sections": [
+        "ado-paso-a-paso-enroll-callback-y-estado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Actions/RiskCentrals/Ado.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "0d312e18a43932558d793fc08ac61413ecd8251a",
+      "sections": [
+        "ado-paso-a-paso-enroll-callback-y-estado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Jobs/RiskCentrals/Ado/StatusCheck.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "873bc4652edf366ce48c2bdd6579a21e5e690c94",
+      "sections": [
+        "ado-paso-a-paso-enroll-callback-y-estado"
       ]
     }
   ]
