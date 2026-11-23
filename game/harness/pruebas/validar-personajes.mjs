@@ -5,9 +5,9 @@
 //    rangos (CONTEXTURA.rango); hay de todas: delgados y gruesos, bajos y altos, y algunos musculosos;
 //  · el peinado del perfil (peinadoDe): los de mujer van con el cuerpo de mujer, la barba con el de hombre, y siempre un
 //    peinado de ese cuerpo;
-//  · la ropa por zonas (ropa.js zonasDeRopa): la manga corta deja el antebrazo de piel, la chaqueta tapa las mangas, la
-//    falda y la bermuda dejan la pantorrilla de piel, el vestido pinta el tronco y la falda, y cada atuendo de la gente
-//    (outfitFor) usa prendas del catálogo;
+//  · la ropa con sus cortes (ropa.js zonasDeRopa → los cortes del sombreador): el largo de cada manga y de cada pantalón,
+//    el escote, la ombliguera, la chaqueta abierta, las rayas, el chaleco sobre la camisa y el vestido; y cada atuendo de
+//    la gente (outfitFor) usa prendas del catálogo;
 //  · el uniforme de la policía: el chaleco reflectivo en el tronco y las mangas azules.
 // Uso: node harness/pruebas/validar-personajes.mjs [semillas=2000]
 import {COLORS} from '../../src/engine/vestuario.js';
@@ -32,14 +32,18 @@ for(const [peinado,barba,quien] of [['pelo:Casual_Female','','mujer'],['pelo:Cas
  if(!combos[P.quien].has(P.pelos.join('+')))falla('el peinado del perfil no es de ese cuerpo',{peinado,barba,pelos:P.pelos});}
 // (la ropa por zonas)
 const piel='#d9a77f',z=o=>zonasDeRopa(o,piel);
-const casos=[['manga corta: antebrazo de piel',z({top:{id:'camiseta',color:'#111'}}).antebrazo===piel],
- ['manga larga: antebrazo de la prenda',z({top:{id:'manga-larga',color:'#111'}}).antebrazo==='#111'],
- ['la chaqueta tapa las mangas',z({top:{id:'camiseta',color:'#111'},outer:{id:'abrigo',color:'#222'}}).antebrazo==='#222'],
- ['el chaleco deja las mangas de la camisa',(()=>{const k=z({top:{id:'camisa',color:'#111'},outer:{id:'chaleco',color:'#222'}});return k.camisa==='#222'&&k.antebrazo==='#111';})()],
- ['la falda deja la pantorrilla de piel',z({bottom:{id:'falda-corta',color:'#333'}}).pantaloneta===true],
- ['el jean llega al tobillo',z({bottom:{id:'jean',color:'#333'}}).pantaloneta===false],
- ['el vestido pinta tronco y falda',(()=>{const k=z({top:{id:'vestido',color:'#444'}});return k.camisa==='#444'&&k.pantalon==='#444'&&k.pantaloneta;})()],
- ['la policía: chaleco reflectivo y mangas azules',(()=>{const k=z(uniformeDe());return k.camisa==='#c6e83a'&&k.antebrazo==='#24406b'&&!k.pantaloneta;})()]];
+const casos=[['manga corta: 0,3 del brazo',z({top:{id:'camiseta',color:'#111'}}).manga===.3],
+ ['manga larga: hasta la muñeca, de su color',(()=>{const k=z({top:{id:'manga-larga',color:'#111'}});return k.manga>.9&&k.antebrazo==='#111';})()],
+ ['sin mangas: el brazo entero de piel',z({top:{id:'sin-mangas',color:'#111'}}).manga===0],
+ ['la chaqueta tapa las mangas',(()=>{const k=z({top:{id:'camiseta',color:'#111'},outer:{id:'abrigo',color:'#222'}});return k.antebrazo==='#222'&&k.manga>.9;})()],
+ ['el chaleco deja las mangas de la camisa',(()=>{const k=z({top:{id:'camisa',color:'#111'},outer:{id:'chaleco',color:'#222'}});return k.camisa==='#222'&&k.antebrazo==='#111'&&k.manga>.9;})()],
+ ['la chaqueta abierta deja ver la prenda de abajo',(()=>{const k=z({top:{id:'rayas',color:'#fff'},outer:{id:'chaqueta-abierta',color:'#222'}});return k.abierto>0&&k.debajo==='#fff'&&k.rayas===0;})()],
+ ['cuello redondo, en V y alto',z({top:{id:'camiseta',color:'#111'}}).cuello==='redondo'&&z({top:{id:'camisa',color:'#111'}}).cuello==='v'&&z({top:{id:'cuello-alto',color:'#111'}}).cuello==='alto'],
+ ['la ombliguera deja el ombligo',z({top:{id:'ombliguera',color:'#111'}}).ombligo>0],
+ ['los largos: calzones < short < falda corta < bermuda < pescador < jean',(()=>{const L=id=>z({bottom:{id,color:'#333'}}).largo;return z({underwear:{id:'calzon',color:'#fff'}}).largo<L('short')&&L('short')<L('falda-corta')&&L('falda-corta')<L('bermuda')&&L('bermuda')<L('pescador')&&L('pescador')<L('jean');})()],
+ ['el vestido pinta tronco y falda',(()=>{const k=z({top:{id:'vestido',color:'#444'}});return k.camisa==='#444'&&k.pantalon==='#444'&&k.largo<.6;})()],
+ ['las rayas contrastan',(()=>{const a=z({top:{id:'rayas',color:'#f2f0ea'}}),b=z({top:{id:'rayas',color:'#2b3d5c'}});return a.rayas>0&&a.raya!==b.raya;})()],
+ ['la policía: chaleco reflectivo y mangas azules largas',(()=>{const k=z(uniformeDe());return k.camisa==='#c6e83a'&&k.antebrazo==='#24406b'&&k.manga>.9&&k.largo===1;})()]];
 for(const [n,ok] of casos)if(!ok)falla('ropa por zonas: '+n,{});
 console.log(`personajes · ${looks} looks (${quienes.hombre} hombres, ${quienes.mujer} mujeres) · contexturas: ${Object.entries(cuenta).map(([k,n])=>`${k} ${(100*n/looks).toFixed(0)} %`).join(', ')} · ${prendas.size} prendas · ${casos.length} reglas de ropa por zonas`);
 console.log(`fallas: ${[...fallas.values()].reduce((a,f)=>a+f.n,0)}`);for(const [k,f] of fallas)console.log(`  ${f.n}\t${k}\n${f.ej.map(e=>'        '+JSON.stringify(e)).join('\n')}`);

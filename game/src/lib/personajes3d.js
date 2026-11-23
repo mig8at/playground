@@ -28,14 +28,40 @@ export const PIEL=['#f1c9a5','#d9a47c','#b97f57','#8d5a3b','#5e3b26'],CAMISA=['#
 // pantaloneta o falda: la pantorrilla, piel)
 // (la cara: el atributo detalle —la luz de la cara que pintó el artista, pasada a cada vértice: labios, sombras, párpados—
 // multiplica el color de su zona; 1 en el resto del cuerpo)
-// (antebrazo: su propio color —las mangas de la camisa bajo un chaleco—; si no, el de la camisa o piel)
-export function materialRopa(piel,{camisa='#ddd',antebrazo=null,pantalon='#333',zapatos='#111',pelo='#222',iris='#4a3220',mangaCorta=false,pantaloneta=false}={}){
- const pal=[piel,camisa,antebrazo||(mangaCorta?piel:camisa),pantalon,pantaloneta?piel:pantalon,zapatos,pelo,'#120d0a',pelo,'#f1eee6',iris].map(c=>new THREE.Color(c));
+// LOS CORTES DE LA ROPA, en el sombreador (2026-11-22, Miguel: «el cuello redondo o en V… que en mangas y pantalones se vea el
+// color bien lineal, como si fuera tela» → «sí, en el sombreador»). Con las coordenadas de tela de cada punto (coordenadasDeTela)
+// el sombreador decide, píxel a píxel, si ahí hay tela o piel:
+//  - el brazo: manga hasta `manga` (0 sin mangas, .3 corta, .7 tres cuartos, .98 larga), del color `antebrazo`;
+//  - la pierna: pantalón hasta `largo` (.12 calzoncillo, .3 short o falda corta, .45 bermuda, .75 pescador, 1 largo);
+//  - el tronco, sobre la cintura: la camisa, con el escote `cuello` ('redondo', 'v' o 'alto') de `prof` m de hondo adelante;
+//    `ombligo` m de piel sobre la cintura (la ombliguera); `abierto` m a cada lado del centro de adelante con el color `debajo`
+//    (la chaqueta abierta deja ver la prenda de abajo); `rayas` m entre raya y raya, del color `raya`;
+//  - debajo de la cintura, el pantalón (o el calzoncillo).
+// La cabeza, las manos, los zapatos, el pelo y los ojos siguen por su zona. (antebrazo: el color de las mangas)
+export const CUELLOS={alto:0,redondo:1,v:2};
+export function materialRopa(piel,{camisa='#ddd',antebrazo=null,pantalon='#333',zapatos='#111',pelo='#222',iris='#4a3220',mangaCorta=false,pantaloneta=false,
+ manga=mangaCorta?.3:.98,largo=pantaloneta?.32:1,cuello='redondo',prof=.05,ombligo=0,abierto=0,debajo=null,rayas=0,raya='#f2f0ea',cintura=.12}={}){
+ const pal=[piel,camisa,antebrazo||camisa,pantalon,pantalon,zapatos,pelo,'#120d0a',pelo,'#f1eee6',iris,debajo||camisa,raya].map(c=>new THREE.Color(c));
+ const corte=new THREE.Vector4(manga,largo,CUELLOS[cuello]??1,prof),corte2=new THREE.Vector4(abierto,ombligo,rayas,cintura);
  const m=new THREE.MeshStandardMaterial({roughness:.82});
- m.onBeforeCompile=sh=>{sh.uniforms.paleta={value:pal};
-  sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nattribute float zona;attribute float detalle;uniform vec3 paleta[11];varying vec3 vRopa;').replace('#include <begin_vertex>','#include <begin_vertex>\nvRopa=paleta[int(zona+.5)]*detalle;');
-  sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vRopa;').replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.rgb*=vRopa;');};
- m.customProgramCacheKey=()=>'ropa-zonas';return m;}
+ m.onBeforeCompile=sh=>{Object.assign(sh.uniforms,{paleta:{value:pal},corte:{value:corte},corte2:{value:corte2}});
+  sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nattribute float zona;attribute float detalle;attribute vec4 tela;attribute vec2 largo;varying float vZona;varying float vDet;varying vec4 vTela;varying vec2 vLargo;')
+   .replace('#include <begin_vertex>','#include <begin_vertex>\nvZona=zona;vDet=detalle;vTela=tela;vLargo=largo;');
+  sh.fragmentShader=sh.fragmentShader.replace('#include <common>',`#include <common>
+uniform vec3 paleta[13];uniform vec4 corte;uniform vec4 corte2;varying float vZona;varying float vDet;varying vec4 vTela;varying vec2 vLargo;
+vec3 ropa(){int z=int(vZona+.5);vec3 c=paleta[z];
+ if(z>4||vTela.y>.1)return c;
+ if(vLargo.x>=0.)return vLargo.x<corte.x?paleta[2]:paleta[0];
+ if(vTela.w<corte2.w){if(vLargo.y>=0.)return vLargo.y<corte.y?paleta[3]:paleta[0];return paleta[3];}
+ float x=vTela.x,y=-vTela.y,f=vTela.z;bool piel=false;
+ if(corte.z>.5&&corte.z<1.5){float p=y<0.?1.:f>0.?corte.w:corte.w*.35;piel=x*x/.0064+y*y/(p*p)<1.;}
+ else if(corte.z>1.5){piel=y<0.?abs(x)<.075:f>0.?(abs(x)<.075&&y<corte.w*(1.-abs(x)/.075)):(x*x/.0056+y*y/.0006<1.);}
+ if(corte2.y>0.&&vTela.w<corte2.w+corte2.y)piel=true;
+ if(piel)return paleta[0];
+ if(corte2.x>0.&&f>0.&&abs(x)<corte2.x)return paleta[11];
+ if(corte2.z>0.&&mod(vTela.y,corte2.z)<corte2.z*.45)return paleta[12];
+ return paleta[1];}`).replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.rgb*=ropa()*vDet;');};
+ m.customProgramCacheKey=()=>'ropa-cortes';return m;}
 // (la de una persona; la mujer: falda —el pantalón con la pantorrilla de piel— o pantalón, a veces vestido)
 // (el pelo, que contraste con la piel: si la luz de los dos queda a menos de CONTRASTE, se elige otro)
 const luzDe=h=>{const c=new THREE.Color(h);return .299*c.r+.587*c.g+.114*c.b;},CONTRASTE=.18;

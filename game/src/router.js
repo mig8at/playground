@@ -25,6 +25,8 @@ const router=createRouter({
   {path:'/prototipo-pelo',name:'prototipo-pelo',component:()=>import('./views/PrototipoPeloView.vue'),meta:{title:'Calzar peinados'}},
   // (las contexturas posibles de los personajes nuevos: delgado, normal, robusto, grueso, musculoso, bajo y alto)
   {path:'/prototipo-contexturas',name:'prototipo-contexturas',component:()=>import('./views/PrototipoContexturasView.vue'),meta:{title:'Contexturas'}},
+  // (la vitrina de la ropa: un maniquí por prenda, con los cortes del sombreador)
+  {path:'/prototipo-ropa',name:'prototipo-ropa',component:()=>import('./views/PrototipoRopaView.vue'),meta:{title:'Vitrina de ropa'}},
   {path:'/:resto(.*)*',redirect:'/'},
  ],
 });
