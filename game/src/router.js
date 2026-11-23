@@ -18,6 +18,9 @@ const router=createRouter({
   // (el catálogo: los muebles, las fachadas y las texturas, de a uno, sin el mapa)
   {path:'/fachadas',name:'fachadas',component:()=>import('./views/FachadasView.vue'),meta:{title:'Fachadas'}},
   {path:'/catalogo',name:'catalogo',component:()=>import('./views/CatalogoView.vue'),meta:{title:'El catálogo'}},
+  // (el prototipo de personajes humanos —2026-11-22—: el maniquí de la Universal Animation Library, sus animaciones y sus
+  // niveles de detalle, para medir antes de decidir)
+  {path:'/prototipo-personajes',name:'prototipo-personajes',component:()=>import('./views/PrototipoPersonajesView.vue'),meta:{title:'Prototipo de personajes'}},
   {path:'/:resto(.*)*',redirect:'/'},
  ],
 });
