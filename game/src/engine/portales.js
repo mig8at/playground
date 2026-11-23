@@ -47,6 +47,20 @@ export function aberturasDe(bp){if(cache.has(bp))return cache.get(bp).aberturas;
 const partesDe=bp=>{aberturasDe(bp);return cache.get(bp).partes;};
 const loteEn=(P,x,z)=>{for(const p of P)if(x>p.x0&&x<p.x1&&z>p.z0&&z<p.z1)return p;return null;};
 
+// LAS CASAS DEL MONTE (2026-11-22, Miguel: «sí, las casas»): sus aberturas, del plano de cada casa (engine/vivienda.js
+// planHouse: openings, en el marco de la casa) puestas en el mundo con su lugar y su giro. casas: [{i, x, y, z, c, s, plan}]
+// —c, s: coseno y seno del giro, como vivienda3d—. La ventana: clave c<i>:v<número del vano>, su piso y su cuarto (el plano los
+// trae); la puerta de calle: c<i>:puerta:<número>, y su cuarto, el del punto de adentro (los de hogar.js, en u, v). El lote: c<i>.
+export function aberturasDeCasas(casas){const out=[];
+ for(const h of casas){const P=h.plan,HG=P?.spec?.hogar;if(!P)continue;
+  const aMundo=(lx,lz)=>[h.x+lx*h.c+lz*h.s,h.z-lx*h.s+lz*h.c],dir=(nx,nz)=>[nx*h.c+nz*h.s,-nx*h.s+nz*h.c];
+  const cuartoEn=(lx,lz,nivel)=>{const lv=HG?.levels?.find(l=>l.level===nivel);if(!lv)return null;const u=lx+P.ox,v=P.D-lz-P.oz,q=lv.rooms.find(r=>u>r.u0-.01&&u<r.u1+.01&&v>r.v0-.01&&v<r.v1+.01);return q?{id:`${nivel}:${q.id}`,nivel}:null;};
+  P.openings.forEach((o,oi)=>{if(o.inner||(o.kind!=='window'&&o.kind!=='door'))return;const [lx,lz]=o.axis==='x'?[o.c,o.at]:[o.at,o.c],[lnx,lnz]=o.axis==='x'?[0,o.out]:[o.out,0];
+   const [x,z]=aMundo(lx,lz),[nx,nz]=dir(lnx,lnz),y0=h.y+o.y0,y1=y0+o.h,ventana=o.kind==='window';
+   const cuarto=ventana?(o.cuarto!=null?{id:`${o.nivel}:${o.cuarto}`,nivel:o.nivel}:null):cuartoEn(lx-lnx*.4,lz-lnz*.4,0);
+   out.push({tipo:ventana?'ventana':'puerta',clave:`c${h.i}:${ventana?'v':'puerta:'}${oi}`,lote:'c'+h.i,casa:h.i,nivel:ventana?o.nivel??0:0,h:Math.abs(nx)<.5,x,z,nx,nz,y0,y1,ancho:o.w,cuarto});});}
+ return out;}
+
 // ¿Está el punto (x, y, z), con su medio ancho r, en el campo de visión de la cámara?
 export function enVista(c,x,y,z,r=0){const cy=Math.cos(c.yaw),sy=Math.sin(c.yaw),cp=Math.cos(c.pitch||0),sp=Math.sin(c.pitch||0);
  const dx=x-c.x,dy=y-c.y,dz=z-c.z,hondo=-dx*sy*cp+dy*sp-dz*cy*cp;if(hondo<=.05)return false;
@@ -67,8 +81,9 @@ export function enPantalla(c,a){const d=Math.max(.3,Math.hypot(a.x-c.x,(a.y0+a.y
 // polígonos de adentro; y ahí deben estar presentes los ids: saber qué partes de adentro se van a mostrar por la ventana, y
 // sólo si realmente vale la pena según la distancia»): de cada abertura vista, su tamaño en pantalla (px); si mide menos de
 // pxMin, no vale la pena —chicas: su interior no se arma—; si vale, su cuarto —el de detrás, con su id nivel:número— va en
-// cuartos, por lote: el 3D arma sólo lo de esos cuartos.
-export function vistaDesde(bp,c,abiertas={}){const A=aberturasDe(bp),V=new Set(abiertas.ventanas||[]),Pu=(abiertas.puertas||[]).map(k=>k.split(',').map(Number));
+// cuartos, por lote: el 3D arma sólo lo de esos cuartos. otras: más aberturas fuera del plano —las de las casas del monte,
+// aberturasDeCasas—.
+export function vistaDesde(bp,c,abiertas={},otras=[]){const A=otras.length?[...aberturasDe(bp),...otras]:aberturasDe(bp),V=new Set(abiertas.ventanas||[]),Pu=(abiertas.puertas||[]).map(k=>k.split(',').map(Number));
  const abierta=a=>a.tipo==='ventana'?V.has(a.clave):Pu.some(([x,z,y])=>Math.hypot(x-a.x,z-a.z)<PORTALES.margenPuerta&&Math.abs(y-a.y0)<1.6);
  const vistas=[],tapadas=[],chicas=[],lotes=new Set(),cuartos=new Map();
  for(const a of A){if(Math.hypot(a.x-c.x,a.z-c.z)>PORTALES.lejos||!abierta(a))continue;if((c.x-a.x)*a.nx+(c.z-a.z)*a.nz<=0)continue;/* (desde atrás no se ve) */const ym=(a.y0+a.y1)/2;if(!enVista(c,a.x,ym,a.z,Math.max(a.ancho,a.y1-a.y0)/2))continue;

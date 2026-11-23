@@ -14,7 +14,7 @@ import {moveCharacter} from './characters3d.js';
 // abierta), que el 3D guarda —engine/estadoMundo.js—. Cerrada, su paño lechoso tapa el vidrio; abierta, se ve adentro.
 export const ACCION={alcance:1,cortina:.5,asiento:{silla:.47,sillon:.45,sofa:.45,inodoro:.42,banca:.42,banco:.48},acostarse:1.1,camina:2.2,cuerpo:1.75};
 export function createAcciones({plan,world,player,avatar,viviendas=()=>null,alVentana=()=>{}}){
- const cache=new Map();let cur=null,sitter=null;
+ const cache=new Map();let cur=null,sitter=null;const esCasa=k=>/^c\d+:v\d+$/.test(String(k));
  // los usos de un piso, en el mundo: los muebles del plano y las ventanas (todas: cada una se abre y se cierra, con su clave)
  const usosDe=(lote,nivel)=>{const k=lote+':'+nivel;if(cache.has(k))return cache.get(k);const L=plan.lots.find(l=>l.id===lote),lv=L?.levels?.find(l=>l.level===nivel);if(!lv){cache.set(k,[]);return [];}
   const muebles=(lv.furniture||[]).map(f=>({kind:f.kind,x0:f.x,x1:f.x+f.w,z0:f.y,z1:f.y+f.h,fx:Math.sin(f.ry||0),fz:Math.cos(f.ry||0)}));
@@ -25,7 +25,11 @@ export function createAcciones({plan,world,player,avatar,viviendas=()=>null,alVe
  const usosDeCasa=(i,nivel)=>{const k='c'+i+':'+nivel;if(cache.has(k))return cache.get(k);const V=viviendas(),h=V?.houses?.[i],P=h?.plan,HG=P?.spec?.hogar,lv=HG?.levels?.find(l=>l.level===nivel);if(!lv){cache.set(k,[]);return [];}
   const aMundo=(u,v)=>{const lx=u-P.ox,lz=P.D-v-P.oz;return {x:h.x+lx*h.c+lz*h.s,z:h.z-lx*h.s+lz*h.c};},dirMundo=(fu,fv)=>{const lx=fu,lz=-fv;return [lx*h.c+lz*h.s,-lx*h.s+lz*h.c];};
   const muebles=(lv.furniture||[]).map(f=>({kind:f.kind,x0:f.u0,x1:f.u1,z0:f.v0,z1:f.v1,fx:(f.dir||[0,1])[0],fz:(f.dir||[0,1])[1]}));
-  const u=usosDePiso(muebles,[]).map(o=>{const [wx,wz]=dirMundo(Math.sin(o.pose.yaw),Math.cos(o.pose.yaw)),pp=aMundo(o.pose.x,o.pose.z);
+  // (2026-11-22, Miguel: «sí, las casas»: sus ventanas también se abren y se cierran —vivienda3d setVentana, clave c<casa>:v<vano>—;
+  // del plano de la casa —openings, en su marco— a u, v: u = x + ox, v = D − z − oz)
+  const ventanas=[];P.openings.forEach((o,oi)=>{if(o.kind!=='window'||o.nivel!==nivel)return;const U=lx=>lx+P.ox,Vv=lz=>P.D-lz-P.oz;
+   ventanas.push(o.axis==='x'?{x0:U(o.c-o.w/2),x1:U(o.c+o.w/2),z0:Vv(o.at),z1:Vv(o.at),nx:0,nz:-o.out,key:'c'+i+':v'+oi}:{x0:U(o.at),x1:U(o.at),z0:Math.min(Vv(o.c-o.w/2),Vv(o.c+o.w/2)),z1:Math.max(Vv(o.c-o.w/2),Vv(o.c+o.w/2)),nx:o.out,nz:0,key:'c'+i+':v'+oi});});
+  const u=usosDePiso(muebles,ventanas).map(o=>{const [wx,wz]=dirMundo(Math.sin(o.pose.yaw),Math.cos(o.pose.yaw)),pp=aMundo(o.pose.x,o.pose.z);
    return {...o,objeto:{...o.objeto,casa:i},pose:{x:pp.x,z:pp.z,yaw:Math.atan2(wx,wz)},des:(o.des||[o.de]).map(d=>({...d,...aMundo(d.x,d.z)})),de:aMundo(o.de.x,o.de.z)};});
   cache.set(k,u);return u;};
  const pisoDe=()=>{const lot=world.lotAt(player.x,player.z);
@@ -37,7 +41,7 @@ export function createAcciones({plan,world,player,avatar,viviendas=()=>null,alVe
  const lugarDe=(u,p)=>{if(p.lot==null)return null;const L=world.lots.get(p.lot);if(!L)return null;const list=u.accion==='sentarse'?L.seats:u.accion==='acostarse'?L.sleeps:null;let best=null,bd=u.accion==='sentarse'?.45:1;
   for(const s of list||[]){if(s.f!=null&&s.f!==p.nivel)continue;const d=Math.hypot(s.x-u.pose.x,s.z-u.pose.z);if(d<bd){bd=d;best=s;}}return best;};
  const ocupado=(u,p)=>{const s=lugarDe(u,p);return !!(s&&s.by&&s.by!=='jugador');};
- const texto=u=>u.accion==='sentarse'?'Sentarse':u.accion==='acostarse'?'Acostarse':world.cortinaCerrada?.(u.objeto.key)?'Abrir la ventana':'Cerrar la ventana';
+ const texto=u=>u.accion==='sentarse'?'Sentarse':u.accion==='acostarse'?'Acostarse':(esCasa(u.objeto.key)?!viviendas()?.ventanaAbierta?.(u.objeto.key):world.cortinaCerrada?.(u.objeto.key))?'Abrir la ventana':'Cerrar la ventana';
  function cerca(){if(cur)return {texto:cur.fase==='quieto'?'Levantarse':null};const p=pisoDe();
   if(!p)return null;
   let mejor=null,bd=1e9;
@@ -48,7 +52,7 @@ export function createAcciones({plan,world,player,avatar,viviendas=()=>null,alVe
     const sc=dd+(u.accion==='cortina'?ACCION.cortina:0);if(sc<bd){bd=sc;mejor={u,de:d,piso:p};}}}
   return mejor&&{...mejor,texto:texto(mejor.u)};}
  function empezar(c){const av=avatar();if(!c||!av)return false;const {u,de,piso}=c;
-  if(u.accion==='cortina'){const cerrada=world.cortina?.(u.objeto.key);alVentana(u.objeto.key,!cerrada);return false;}
+  if(u.accion==='cortina'){const k=u.objeto.key;if(esCasa(k)){const V=viviendas(),ab=V?.setVentana?.(k,!V.ventanaAbierta(k));alVentana(k,!!ab);return false;}const cerrada=world.cortina?.(k);alVentana(k,!cerrada);return false;}
   if(ocupado(u,piso))return false;sitter=sitter||makeSitter(av,av.tpl);
   const lugar=lugarDe(u,piso);if(lugar)lugar.by='jugador';
   cur={u,de:{x:de.x,z:de.z},piso,fase:'ir',t:0,yaw0:av.holder.rotation.y,lugar};return true;}

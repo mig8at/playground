@@ -7,19 +7,31 @@
 //    intersección de segmento y rectángulo, a la altura del ojo y bajo su techo), la da por tapada; y donde el camino no
 //    cruza nada, por libre (el rayo de pasos de PORTALES.paso m contra el cálculo exacto: coinciden en ≥ 98 %);
 //  · lo que vale la pena: de frente a 6 m, más de PORTALES.pxMin px y su cuarto en cuartos; a 30 m en 200 px, chica; y
-//    cada ventana, con el cuarto de detrás.
+//    cada ventana, con el cuarto de detrás;
+//  · las casas del monte (aberturasDeCasas): cada ventana con su vidrio y su cuarto; de frente y abierta se ve con su cuarto,
+//    cerrada no.
 // Uso: node harness/pruebas/validar-portales.mjs [ciudades=2] [semilla0=1]
 import {generateBlueprint} from '../../src/engine/blueprint.js';
-import {aberturasDe,vistaDesde,libre,PORTALES} from '../../src/engine/portales.js';
+import {aberturasDe,aberturasDeCasas,vistaDesde,libre,PORTALES} from '../../src/engine/portales.js';
+import {planHouse} from '../../src/engine/vivienda.js';
+import {entregaCasa} from '../../src/engine/entrega.js';
 const A0=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=+(A0[0]||2),S0=+(A0[1]||1);
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};
-const med={puertas:0,frente:0,acuerdo:0,casos:0,tapadas:0,conCuarto:0,chicas:0,ventanas:0,ventanasConCuarto:0};
+const med={puertas:0,frente:0,acuerdo:0,casos:0,tapadas:0,conCuarto:0,chicas:0,ventanas:0,ventanasConCuarto:0,casaVentanas:0,casaVistas:0};
 const mirar=(c,x,z)=>({...c,yaw:Math.atan2(-(x-c.x),-(z-c.z)),pitch:0,fov:75,aspect:1.5});
 const clave=a=>`${a.x.toFixed(2)},${a.z.toFixed(2)},${a.y0.toFixed(1)}`;
 // (el cruce exacto de un segmento con un rectángulo —Liang-Barsky—: cuánto de él queda adentro)
 const cruce=(x0,z0,x1,z1,r)=>{let t0=0,t1=1;const dx=x1-x0,dz=z1-z0;for(const [p,q] of [[-dx,x0-r.x0],[dx,r.x1-x0],[-dz,z0-r.z0],[dz,r.z1-z0]]){if(Math.abs(p)<1e-12){if(q<0)return 0;continue;}const t=q/p;if(p<0){if(t>t1)return 0;if(t>t0)t0=t;}else{if(t<t0)return 0;if(t<t1)t1=t;}}return Math.max(0,t1-t0)*Math.hypot(dx,dz);};
-for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:3}),A=aberturasDe(bp),partes=bp.lots.flatMap(L=>(L.parts||[]).map(p=>({lote:L.id,x0:p.x,x1:p.x+p.w,z0:p.y,z1:p.y+p.h,techo:(L.floors||1)*PORTALES.piso})));
+for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:3,parks:true}),A=aberturasDe(bp),partes=bp.lots.flatMap(L=>(L.parts||[]).map(p=>({lote:L.id,x0:p.x,x1:p.x+p.w,z0:p.y,z1:p.y+p.h,techo:(L.floors||1)*PORTALES.piso})));
  const dentro=(x,z)=>partes.some(p=>x>p.x0&&x<p.x1&&z>p.z0&&z<p.z1);
+ // (las casas del monte: cada ventana con su vidrio —el plano lo marca— y su cuarto; de frente a 4 m y abierta, se ve con su
+ // cuarto; cerrada, no)
+ {const cs=(bp.isla?.casas||[]).filter(c=>c.spec).map((c,i)=>{const ry=c.ry||0;return {i,plan:planHouse(entregaCasa(c.spec)),x:c.x,y:c.nivel||0,z:c.z,c:Math.cos(ry),s:Math.sin(ry)};});
+  const AC=aberturasDeCasas(cs);for(const a of AC.filter(a=>a.tipo==='ventana')){med.casaVentanas++;const ej={semilla:s,ventana:a.clave},oi=+a.clave.split(':v')[1],P=cs[a.casa].plan;
+   if(!P.boxes.some(b=>b.ventana===oi))falla('ventana de casa sin su vidrio',ej);if(!a.cuarto){falla('ventana de casa sin su cuarto',ej);continue;}
+   const c=mirar({x:a.x+a.nx*4,y:(a.y0+a.y1)/2,z:a.z+a.nz*4},a.x,a.z),v=vistaDesde(bp,c,{ventanas:[a.clave]},AC);
+   if(v.vistas.some(x=>x.clave===a.clave)){med.casaVistas++;if(!v.cuartos.get(a.lote)?.has(a.cuarto.id))falla('ventana de casa vista, sin su cuarto',ej);}
+   if(vistaDesde(bp,c,{},AC).vistas.some(x=>x.clave===a.clave))falla('ventana de casa cerrada, se ve',ej);}}
  for(const a of A.filter(a=>a.tipo==='ventana')){med.ventanas++;if(a.cuarto)med.ventanasConCuarto++;else falla('ventana sin su cuarto',{semilla:s,ventana:a.clave});}
  for(const a of A.filter(a=>a.tipo==='puerta')){med.puertas++;const ej={semilla:s,puerta:a.clave};
   // (afuera: el lado de la calle, a 6 m sobre la normal de la puerta)
@@ -42,6 +54,6 @@ for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:3}),A=aberturas
 const acuerdo=med.acuerdo/Math.max(1,med.casos);if(acuerdo<.98)falla('el rayo y el cálculo exacto no coinciden',{parte:+acuerdo.toFixed(3)});
 // (los «tapada, la da por libre» de arriba son fallas sólo si son más del 2 %: el rayo de pasos se salta esquinas finas)
 if(acuerdo>=.98)fallas.delete('tapada por otro edificio, la da por libre');
-console.log(`portales · ${N} ciudades · ${med.puertas} puertas de calle, ${med.frente} vistas de frente · el rayo contra el exacto: ${(100*acuerdo).toFixed(1)} % de ${med.casos} casos (${med.tapadas} tapadas) · ${med.conCuarto} vistas con su cuarto, ${med.chicas} chicas a 30 m · ${med.ventanasConCuarto} de ${med.ventanas} ventanas con su cuarto`);
+console.log(`portales · ${N} ciudades · ${med.puertas} puertas de calle, ${med.frente} vistas de frente · el rayo contra el exacto: ${(100*acuerdo).toFixed(1)} % de ${med.casos} casos (${med.tapadas} tapadas) · ${med.conCuarto} vistas con su cuarto, ${med.chicas} chicas a 30 m · ${med.ventanasConCuarto} de ${med.ventanas} ventanas con su cuarto · casas del monte: ${med.casaVentanas} ventanas, ${med.casaVistas} vistas de frente con su cuarto`);
 console.log(`fallas: ${[...fallas.values()].reduce((a,f)=>a+f.n,0)}`);for(const [k,f] of fallas)console.log(`  ${f.n}\t${k}\n${f.ej.map(e=>'        '+JSON.stringify(e)).join('\n')}`);
 process.exit(fallas.size?1:0);

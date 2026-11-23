@@ -48,7 +48,7 @@ import {claveCiudad} from '../engine/grafiti.js';
 import {sincronizar} from '../lib/pinturaGuardada.js';
 import {createColorPlano} from '../lib/colorPlano3d.js';
 import {cambiar,puertaClave,abiertas} from '../engine/estadoMundo.js';
-import {vistaDesde} from '../engine/portales.js';
+import {vistaDesde,aberturasDeCasas} from '../engine/portales.js';
 import {cargarEstado,guardarEstado} from '../lib/estadoGuardado.js';
 import {cerradurasDe,puertaTrancadaEn,trancada,adentroCerrado} from '../engine/propiedad.js';
 import {paredesDeLaCiudad} from '../engine/muros.js';
@@ -80,7 +80,7 @@ let characters=[],carModels=null,buildings=null,downtown=null,plants=null,nature
 let cerraduras=null;
 // (lo que el jugador abrió —puertas y ventanas— y queda así al volver: engine/estadoMundo.js, guardado por ciudad —lib/estadoGuardado.js—;
 // en multijugador, lo mismo lo repartiría el servidor)
-let estado=null;const anotar=(tipo,clave,valor)=>{if(estado&&cambiar(estado,tipo,clave,valor))guardarEstado(seed.value,team.value,estado);};
+let estado=null,verPortales=false;const anotar=(tipo,clave,valor)=>{if(estado&&cambiar(estado,tipo,clave,valor))guardarEstado(seed.value,team.value,estado);};
 // La carga (2026-11-19): antes eran ~20 s de pantalla negra. `carga.parte` va de 0 a 1 y `lista` la quita.
 const carga=ref({parte:0,etapa:'Trayendo la ciudad…',lista:false});
 const rinde=ref(null);let rindeN=0,rindeT=0,rindeLlamadas=0,rindeTris=0,rindePeor=0;
@@ -248,13 +248,22 @@ makeAvatar();lap('muñeco');
  // (lo que quedó abierto la última vez en esta ciudad: las ventanas, por su clave; las puertas, por su lugar)
  estado=cargarEstado(seed.value,team.value);
  // (lo que se ve por las aberturas lo decide el motor —engine/portales.js—: la cámara y lo abierto, del estado del mundo)
- {const e=new THREE.Euler();world.setVista?.(cam=>{e.setFromQuaternion(cam.quaternion,'YXZ');return vistaDesde(plan,{x:cam.position.x,y:cam.position.y,z:cam.position.z,yaw:e.y,pitch:e.x,fov:cam.fov,aspect:cam.aspect,alto:renderer?.domElement?.clientHeight||innerHeight},{ventanas:abiertas(estado,'ventanas'),puertas:abiertas(estado,'puertas')});});}
- for(const k of abiertas(estado,'ventanas'))world.cortina?.(k,false);
+ // (2026-11-22, Miguel: «sí, las casas»: con las aberturas de las casas del monte —engine/portales.js aberturasDeCasas—; lo que
+ // da para ellas lo aplica vistaCasas: sus vidrios marcados y, de cada casa, sólo los cuartos que se ven —la casa donde está la
+ // cámara, entera—)
+ const deCasas=viviendas?aberturasDeCasas(viviendas.houses):[];
+ const vistaCasas=(v,cam)=>{if(!viviendas?.setInteriores)return;const sel=new Map(),ci=viviendas.houseAt(cam.position.x,cam.position.z);
+  if(ci!=null&&viviendas.dentro(cam.position.x,cam.position.z,cam.position.y))sel.set(ci,null);
+  for(const a of v.vistas){if(a.casa==null||sel.has(a.casa)&&sel.get(a.casa)===null)continue;if(!a.cuarto){sel.set(a.casa,null);continue;}const ids=sel.get(a.casa)||new Set();ids.add(a.cuarto.id);sel.set(a.casa,ids);}
+  viviendas.setInteriores(sel);
+  const m=new Map();if(verPortales)for(const [l,k] of [[v.vistas,'rojo'],[v.tapadas,'azul'],[v.chicas||[],'amarillo']])for(const a of l)if(a.casa!=null&&a.tipo==='ventana')m.set(a.clave,k);viviendas.setMarcas(m);};
+ {const e=new THREE.Euler();world.setVista?.(cam=>{e.setFromQuaternion(cam.quaternion,'YXZ');const v=vistaDesde(plan,{x:cam.position.x,y:cam.position.y,z:cam.position.z,yaw:e.y,pitch:e.x,fov:cam.fov,aspect:cam.aspect,alto:renderer?.domElement?.clientHeight||innerHeight},{ventanas:abiertas(estado,'ventanas'),puertas:abiertas(estado,'puertas')},deCasas);vistaCasas(v,cam);return v;});}
+ for(const k of abiertas(estado,'ventanas'))if(/^c\d+:v/.test(k))viviendas?.setVentana?.(k,true);else world.cortina?.(k,false);
  for(const k of abiertas(estado,'puertas')){const [x,z,y]=k.split(',').map(Number),p=puertasCerca(x,z,y,.4).find(q=>puertaClave(q)===k);if(p&&!p.abierta&&!p.trancada?.())alternarPuerta(p,false);}
  // (2026-11-22: en el paseo, toda vivienda está cerrada hasta que se compre —engine/propiedad.js—: su puerta trancada y lo
  // de adentro sin armar)
  // (?portales=1: las aberturas marcadas desde el arranque)
- if(route.query.portales!=null){world.portales?.(true);barrios.portales?.(true);}
+ if(route.query.portales!=null){world.portales?.(true);barrios.portales?.(true);verPortales=true;}
  if(!PRUEBA){const R=cerradurasDe(plan);trancar(R,conPlano);cerradoAlPasear=adentroCerrado(plan,R);world.setCerrados?.(cerradoAlPasear);}
  // (compilar los shaders ya, en paralelo, en vez de a la primera vez que cada cosa aparece en cámara: eso eran los tirones
  // al girar o al entrar a un edificio)
@@ -567,7 +576,7 @@ function onKey(e){
   if(e.code==='KeyN'){night.value=!night.value;applyLight();}
   if(e.code==='KeyM')showMap.value=!showMap.value;
   // (P: las aberturas por donde la cámara ve adentro —rojo, cuentan; azul, tapadas—: world3d portales, para depurar)
-  if(e.code==='KeyP'){const on=world?.portales?.();barrios?.portales?.(on);}
+  if(e.code==='KeyP'){const on=world?.portales?.();barrios?.portales?.(on);verPortales=!!on;}
   if(e.code==='KeyV')toggleDrone();// (volar: la cámara libre, para mirar la ciudad desde arriba)
   if(e.code==='KeyE'||e.code==='KeyQ'){const d=e.code==='KeyE'?1:-1;if(e.code==='KeyE'&&accionCerca?.puerta&&!drone.value){alternarPuerta(accionCerca.puerta);accionCerca=null;accionReloj=0;}else if(world.elevatorAt(player.x,player.z,player.feet))ride(d);
    else if(e.code==='KeyE'&&acciones?.activa)acciones.terminar();else if(e.code==='KeyE'&&!drone.value&&(accionCerca=acciones?.cerca())?.u){acciones.empezar(accionCerca);accionReloj=0;}}
@@ -617,7 +626,7 @@ onMounted(async()=>{
  // (el modo aristas —lib/aristas3d.js, 2026-11-22—: para leer una captura; ?aristas=1 o __demo.aristas(true))
 let matAristas=null;const aristas=(on=true)=>{if(!scene)return false;scene.overrideMaterial=on?(matAristas||(matAristas=materialAristas())):null;return !!on;};
 if(import.meta.env.DEV&&new URLSearchParams(location.search).get('aristas')==='1'){const prende=()=>{if(!aristas(true))setTimeout(prende,500);};setTimeout(prende,0);}// (hasta que la escena exista)
-if(import.meta.env.DEV)window.__demo={aristas,caminar,get mundo(){return world;},get plan(){return plan;},get ayudaEsquinas(){return ayudaEsquinas;},set ayudaEsquinas(v){ayudaEsquinas=v;},get cerraduras(){return cerraduras;},tiempos,WORLD_TIMES,THREE,fps,get scene(){return scene;},player,camera,euler,get avatar(){return avatar;},view,get world(){return world;},get city(){return city;},get plan(){return plan;},get composer(){return composer;},get renderer(){return renderer;},get crowd(){return crowd;},get traffic(){return traffic;},get island(){return island;},get folk(){return folk;},get animals(){return animals;},get indoor(){return indoor;},get viviendas(){return viviendas;},get casas(){return casas;},keys,step,dronePos,render:renderFrame,get visKey(){return visKey;},get acciones(){return acciones;},portales:on=>{const r=world?.portales?.(on);barrios?.portales?.(r);return r;},get estado(){return estado;},alternarPuerta,puertasCerca,get niebla(){return niebla;},get lugar(){return lugar.value;},fijarDron(x,y,z){Object.assign(dronePos,{x,y,z});despegue=null;},huecosTerrazas(){// (2026-10-16: rayos hacia abajo en 3×3 puntos de cada casilla de lote del monte: un hueco es ver más de 1 m bajo el lote y bajo la calle de al lado)
+if(import.meta.env.DEV)window.__demo={aristas,caminar,get mundo(){return world;},get plan(){return plan;},get ayudaEsquinas(){return ayudaEsquinas;},set ayudaEsquinas(v){ayudaEsquinas=v;},get cerraduras(){return cerraduras;},tiempos,WORLD_TIMES,THREE,fps,get scene(){return scene;},player,camera,euler,get avatar(){return avatar;},view,get world(){return world;},get city(){return city;},get plan(){return plan;},get composer(){return composer;},get renderer(){return renderer;},get crowd(){return crowd;},get traffic(){return traffic;},get island(){return island;},get folk(){return folk;},get animals(){return animals;},get indoor(){return indoor;},get viviendas(){return viviendas;},get casas(){return casas;},keys,step,dronePos,render:renderFrame,get visKey(){return visKey;},get acciones(){return acciones;},portales:on=>{const r=world?.portales?.(on);barrios?.portales?.(r);verPortales=!!r;return r;},get estado(){return estado;},alternarPuerta,puertasCerca,get niebla(){return niebla;},get lugar(){return lugar.value;},fijarDron(x,y,z){Object.assign(dronePos,{x,y,z});despegue=null;},huecosTerrazas(){// (2026-10-16: rayos hacia abajo en 3×3 puntos de cada casilla de lote del monte: un hueco es ver más de 1 m bajo el lote y bajo la calle de al lado)
   const I=plan.isla,ray=new THREE.Raycaster(),out=[];let n=0;island.group.updateMatrixWorld(true);const objs=[];island.group.traverse(o=>{if(o.isMesh&&!o.isInstancedMesh)objs.push(o);});
   const ejes=I.carreteras.filter(c=>c.puntos).flatMap(c=>c.puntos.slice(1).map((p,i)=>({a:c.puntos[i],b:p})));
   const calle=(x,z)=>{let best=null,bd=1e9;for(const {a,b} of ejes){const dx=b.x-a.x,dz=b.z-a.z,L2=dx*dx+dz*dz||1,t=Math.max(0,Math.min(1,((x-a.x)*dx+(z-a.z)*dz)/L2)),dd=Math.hypot(x-a.x-t*dx,z-a.z-t*dz);if(dd<bd){bd=dd;best=a.h+(b.h-a.h)*t;}}return bd<14?best:null;};

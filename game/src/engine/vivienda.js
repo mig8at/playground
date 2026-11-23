@@ -230,7 +230,12 @@ export function planHouse(input){
   sala:{v:'tres_panos',h:2.35,sill:MODERNA_DINTEL-2.35,maxW:3.2},oficina:{v:'simple',h:2.05,sill:MODERNA_DINTEL-2.05,maxW:2.2},otro:{v:'dos_hojas',h:2.05,sill:MODERNA_DINTEL-2.05,maxW:2.4}});
  const roomWin=(axis,at,out,c,yF,K,w,tela=null,sinPostigos=false)=>{const y0=yF+K.sill,h=K.h,ry=axis==='x'?(out>0?0:Math.PI):(out>0?Math.PI/2:-Math.PI/2);
   openings.push({kind:'window',m:null,axis,at,out,c,w,y0,h,room:K.v,tela,ext:conPostigos(K,w,sinPostigos)?w+.06:w/2+.08});
-  for(const b of partsBoxes(OBJETOS.ventana.piezas({w,h,variante:K.v,color:cTrim}),{x:axis==='x'?c:at,y:y0,z:axis==='x'?at:c,ry}))box(b.color?'marco':'vidrio',b.x0,b.y0,b.z0,b.x1,b.y1,b.z1,b.color||'#cfe4ee',false);
+  const nbV=boxes.length;
+  // (el vidrio es la última pieza de la ventana —objetos3d ventana—: también el esmerilado del baño, que trae color)
+  {const bx=partsBoxes(OBJETOS.ventana.piezas({w,h,variante:K.v,color:cTrim}),{x:axis==='x'?c:at,y:y0,z:axis==='x'?at:c,ry});bx.forEach((b,bi)=>box(bi===bx.length-1||!b.color?'vidrio':'marco',b.x0,b.y0,b.z0,b.x1,b.y1,b.z1,b.color||'#cfe4ee',false));}
+  // (2026-11-22, Miguel: «todas deben tener ese comportamiento»: cada caja de vidrio, con su ventana —el número del vano en
+  // openings—, para que vivienda3d la ponga opaca o transparente como las de la ciudad)
+  {const oi=openings.length-1;for(let i=nbV;i<boxes.length;i++)if(boxes[i].cat==='vidrio')boxes[i].ventana=oi;}
   // (el alféizar y el dintel —2026-10-16, los acabados low poly, como los de los edificios: fachada3d.js ACABADO—: un poco
   // más anchos que la ventana, del color de la moldura, saliendo de la cara de afuera)
   {const f0=at+out*T/2,sa=(lo,hi,y,yy,sal)=>axis==='x'?box('marco',c-lo,y,f0,c+hi,yy,f0+out*sal,cTrim,false):box('marco',f0,y,c-lo,f0+out*sal,yy,c+hi,cTrim,false);
@@ -285,6 +290,7 @@ export function planHouse(input){
    const tl=q&&s.cortinas2d?.cuartos?.includes(L.level+':'+q.id)?s.cortinas2d.tela:null;
    if(w.axis==='u'){if(Math.abs(w.at-vf)<.01){front.push(roomWin('x',zF-T/2,1,c,yF,K,ww,tl,sinP));if(!lv&&s.maceteros&&K.sill<1)planter(zF,c,ww,yF+K.sill);}else back.push(roomWin('x',T/2,-1,c,yF,K,ww,tl,sinP));}
    else{const cz=D-c;if(w.at<.01)left.push(roomWin('z',T/2,-1,cz,yF,K,ww,tl,sinP));else right.push(roomWin('z',W-T/2,1,cz,yF,K,ww,tl,sinP));}
+   for(let i=n0;i<openings.length;i++)if(openings[i].kind==='window')Object.assign(openings[i],{nivel:L.level,cuarto:q.id});/* (su piso y el cuarto de detrás: engine/portales.js) */
    if(openings[n0])Object.assign(openings[n0],{cuarto:q.id,nivel:L.level});if(!lv)anotarEje(w.axis,w.at,c);}
   const sd=L.doors.find(d=>d.street);if(sd){front.push(door('x',zF-T/2,1,sd.from+sd.len/2,yF,s.estilo==='moderna'?'Leaf_minimal':s.puerta,doorW));if(!lv)anotarEje('u',sd.at,sd.from+sd.len/2);}
   // (la de atrás, al patio —hogar.js—: como la de calle, en la pared del fondo)
@@ -351,24 +357,26 @@ export function planHouse(input){
   mesa_noche:'mesa_noche',inodoro:'inodoro',lavamanos:'lavamanos',ducha:'ducha',tv:'tv',archivador:'archivador',mesa_centro:'mesa_centro'};
  const KIT_M={estufa:'Kitchen_Oven',sillon:'C2_Sofa',silla:'C2_ChairCushioned',lavadora:'Bathroom_WashingMachine',tina:'Bathroom_Bathtub',planta:'Houseplant_8',lampara:'C2_Lamp'};
  function hogarFurniture(){for(const L of HG.levels){const y=L.level?H1:FLOOR0;
-  for(const f of L.furniture){const d=f.dir||[0,1],rot=Math.atan2(d[0],-d[1]),along=Math.abs(d[1])>.5,w=along?f.u1-f.u0:f.v1-f.v0,dd=along?f.v1-f.v0:f.u1-f.u0,x=(f.u0+f.u1)/2,z=D-(f.v0+f.v1)/2;
+  for(const f of L.furniture){const nb=boxes.length,nf=furniture.length;(()=>{const d=f.dir||[0,1],rot=Math.atan2(d[0],-d[1]),along=Math.abs(d[1])>.5,w=along?f.u1-f.u0:f.v1-f.v0,dd=along?f.v1-f.v0:f.u1-f.u0,x=(f.u0+f.u1)/2,z=D-(f.v0+f.v1)/2;
    // (el choque, el de CHOQUE_MUEBLE —medidas.js—: lo pisable, además, es una superficie donde pararse; lo que no
    // choca, nada)
    const foot=()=>{const r=CHOQUE_MUEBLE[f.kind]||{choque:'solido',alto:.9};if(r.choque==='ninguno')return;const b={x0:f.u0,x1:f.u1,z0:D-f.v1,z1:D-f.v0,y0:y,y1:y+r.alto};solids.push(b);if(r.choque==='pisable')pisables.push({...b,y:y+r.alto});};
    if(f.kind==='meson'){const n=Math.max(1,Math.floor((w+.02)/.53)),cx=Math.cos(rot),cz=-Math.sin(rot);
-    for(let k=0;k<n;k++){const off=(k-(n-1)/2)*.53,m=k===Math.floor(n/2)?'Kitchen_Sink':k%2?'Kitchen_Cabinet1':'Kitchen_2Drawers';furniture.push({m,x:x+cx*off,y,z:z+cz*off,rot,solid:false});}foot();continue;}
+    for(let k=0;k<n;k++){const off=(k-(n-1)/2)*.53,m=k===Math.floor(n/2)?'Kitchen_Sink':k%2?'Kitchen_Cabinet1':'Kitchen_2Drawers';furniture.push({m,x:x+cx*off,y,z:z+cz*off,rot,solid:false});}foot();return;}
    // (las sillas no estorban: se corren, como en la prueba de movimiento de los cuartos)
    if(KIT_M[f.kind]){furniture.push({m:KIT_M[f.kind],x,y,z,rot,solid:false});foot();
-    if(f.kind==='sillon')seatSpots.push({x,y,z,rot,n:1});continue;}
-   const id=CAT_ID[f.kind],O=id&&OBJETOS[id];if(!O)continue;
+    if(f.kind==='sillon')seatSpots.push({x,y,z,rot,n:1});return;}
+   const id=CAT_ID[f.kind],O=id&&OBJETOS[id];if(!O)return;
    for(const b of partsBoxes(O.piezas({w,d:dd}),{x,y,z,ry:rot}))if(b.color)box('liso',b.x0,b.y0,b.z0,b.x1,b.y1,b.z1,b.color,false);
-   if(f.kind==='ducha'){for(const b of partsBoxes(OBJETOS.mampara.piezas({w,d:dd}),{x,y,z,ry:rot}))if(b.color)box('liso',b.x0,b.y0,b.z0,b.x1,b.y1,b.z1,b.color,false);foot();continue;}
+   if(f.kind==='ducha'){for(const b of partsBoxes(OBJETOS.mampara.piezas({w,d:dd}),{x,y,z,ry:rot}))if(b.color)box('liso',b.x0,b.y0,b.z0,b.x1,b.y1,b.z1,b.color,false);foot();return;}
    foot();
    // (los costados de la cama: a 35 cm del borde y dentro de su cuarto —no del otro lado de un tabique—)
    if(f.kind==='cama'||f.kind==='cama_s'){const q=L.rooms.find(r=>r.id===f.room),ux=Math.cos(rot),uz=-Math.sin(rot),hw=w/2+.35;
     const inRoom=p=>q&&p.x>q.u0+.25&&p.x<q.u1-.25&&D-p.z>q.v0+.25&&D-p.z<q.v1-.25;
     const sides=[{x:x+ux*hw,y:0,z:z+uz*hw},{x:x-ux*hw,y:0,z:z-uz*hw}].filter(inRoom);if(sides.length)bedSpots.push({x,y,z,rot,w,top:.5,sides});}
-   if(f.kind==='sofa')seatSpots.push({x,y,z,rot,n:Math.max(1,Math.round((w-.32)/.62)),w});}}}
+   if(f.kind==='sofa')seatSpots.push({x,y,z,rot,n:Math.max(1,Math.round((w-.32)/.62)),w});})();
+   // (2026-11-22: cada mueble, con su piso y su cuarto —vivienda3d arma sólo los cuartos que se ven—)
+   for(let i=nb;i<boxes.length;i++)Object.assign(boxes[i],{mueble:true,nivel:L.level,cuarto:f.room});for(let i=nf;i<furniture.length;i++)Object.assign(furniture[i],{nivel:L.level,cuarto:f.room});}}}
  // ---- Dónde va cada cosa adentro ----
  const sx0=T,sx1=T+STAIR.w;                                   // la franja de la escalera, contra la pared izquierda
  const stTop=T+STAIR.landing,stBot=stTop+stRun;           // la escalera sube del frente (stBot) hacia el fondo (stTop)
