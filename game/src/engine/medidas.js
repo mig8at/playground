@@ -517,76 +517,48 @@ export const PALETA={
   publico:['#bfe3d0','#f3e3a6','#c9d9f2','#f1cfc1'],
   paso:['#f4ead6','#c9dcea','#efc8b2','#d3e6b6'],
   deposito:['#b9b0a2','#97adbf','#b8ad7f']},
- fachada:['#f28c7a','#f6c25b','#5fc3b5','#7fa8e0','#e98fb5','#9ed27a','#f4a15d','#b39ddb','#f3e0b0','#7cc7e8'],
- moldura:['#fbf7ef','#f4efe4','#ffffff'],
- techo:['#b5523b','#8f4a36','#c9763f','#6e5a4e','#9a6b4f'],
- // ---- El esquema de afuera (2026-10-18, Miguel: «más bonitos los edificios con mezcla de 2, 3 o 4 colores»; lo que se
- // buscó en FACHADAS.md) ----
- // Cada edificio, cuatro zonas como en la pintura de fachadas (la regla 60-30-10): la PARED (~60 %, la de arriba), la
- // MOLDURA (cornisa, alféizar, dintel, banda: ~25 %), el ACENTO (~10 %: puertas, marcos, barandas; oscuro y saturado,
- // como los balcones de Cartagena y las puertas de La Candelaria) y el ZÓCALO (la franja de abajo de la planta baja,
- // como en Guatapé). La moldura: clara (lo clásico), crema, tonal (la misma pared más oscura) u oscura; los marcos de
- // las ventanas: del acento (lo colombiano: marcos verdes, azules o vino sobre pared clara) o de la moldura; el zócalo:
- // del acento, tonal o de piedra. esquemas: la parte de los edificios con cada opción.
- acento:['#2f6b4f','#2d4f8f','#7a2e3a','#b07a22','#1f7480','#5a3a2a','#a8322d','#3d4146','#5e4a8a'],
- molduraCrema:['#efe3c8','#e9dcc0'],molduraOscura:['#3d4146','#4a3b33'],
- // (la culata —el muro ciego que asoma sobre el vecino más bajo—: ladrillo a la vista, como en Bogotá y Medellín; en el
- // encalado y Guatapé, la pared; FACHADAS.md mejora 2)
- culata:['#a0573f','#9a5a3e','#8e4b36','#b0664a'],
- zocalo:['#8a8a86','#6e5a4e','#5b636b'],
- // (medido en las fotos del 2026-10-18: la moldura tonal y los marcos oscuros apagan una pared oscura —azul, rojo,
- // morado—; el acento luce sobre pared clara. En una pared de luminancia < reglas.paredClara, la tonal pasa a crema, la
- // oscura a clara y los marcos van de la moldura)
- esquemas:{moldura:{clara:.4,crema:.2,tonal:.25,oscura:.15},marco:{acento:.8,moldura:.2},zocalo:{acento:.45,tonal:.3,piedra:.25}},
- // ---- Las tradiciones (2026-10-18, Miguel: «no sólo arquitectura colombiana: también de otros países que se pueda
- // plasmar en low poly»; las fuentes, en FACHADAS.md) ----
- // Cada una, la receta de las cuatro zonas de un lugar: de qué colores es la pared, qué moldura lleva (clara, crema,
- // tonal, oscura; «contraste»: otra pared de la misma lista, como las victorianas; «pared»: sin moldura, como el
- // encalado; «acento»: la moldura del color del acento, como Guatapé), con qué acento, si los marcos van del acento y qué
- // zócalo (acento, tonal, piedra —la suya o la de PALETA.zocalo—, vivo —otro de sus vivos—, azulejo, ninguno). vecinos:
- // lo mínimo que se separan dos fachadas vecinas; uniforme: la pared se repite a propósito (el encalado, la piedra de
- // París, el blanco de Guatapé, el concreto) y dos vecinas se distinguen por el acento y el zócalo; acentoClaro: el acento puede
- // ser más claro que la pared (lo moderno: un color fuerte sobre gris); techo: su techo, si no el de PALETA.
- tradiciones:{
-  caribe:{t:'Caribe (Cartagena)',pared:['#f28c7a','#f6c25b','#5fc3b5','#7fa8e0','#e98fb5','#9ed27a','#f4a15d','#b39ddb','#f3e0b0','#7cc7e8'],moldura:{clara:.5,crema:.3,tonal:.2},
-   acento:['#2f6b4f','#2d4f8f','#7a2e3a','#b07a22','#5a3a2a'],marco:{acento:.8,moldura:.2},zocalo:{acento:.5,tonal:.3,piedra:.2}},
-  antioqueno:{t:'Antioqueño (Guatapé)',pared:['#f6f3ea','#f4eedc','#eef2ee','#f8e7b0'],moldura:{acento:1},uniforme:true,
-   acento:['#c8362f','#2f6fbf','#2f8f5f','#c2408a','#e07a1f','#1f8f9c','#6a3fa0'],marco:{acento:1},zocalo:{vivo:.7,acento:.3},vivos:['#e2433b','#f2b531','#2f9e6b','#2f6fbf','#c2408a','#f07f2c','#3fb6c4']},
-  mediterraneo:{t:'Mediterráneo (Santorini, Sidi Bou Saïd, Chefchaouen)',pared:['#f7f6f1','#f3efe6','#f7f6f1','#8fbbe0'],moldura:{pared:1},uniforme:true,
-   acento:['#1f4fa3','#2b6cb0','#1a7f9c'],marco:{acento:1},zocalo:{ninguno:.6,acento:.4}},
-  burano:{t:'Burano y Bo-Kaap',pared:['#f2d13c','#e8578f','#36b3a8','#f08a3c','#8fc94a','#7a6fd0','#e8453c','#3d8fd9'],moldura:{clara:1},
-   acento:['#2f6b4f','#3e5f3a','#5a3a2a'],marco:{moldura:.6,acento:.4},zocalo:{ninguno:.5,tonal:.5}},
-  nordico:{t:'Nórdico (Nyhavn)',pared:['#d9a441','#b5523b','#e3c46a','#7c9cb0','#c97a4a','#e8dcc0','#9fb39a','#d98c7c'],moldura:{clara:.8,crema:.2},
-   acento:['#2c2e30','#2f4a3a','#3d4146'],marco:{moldura:1},zocalo:{piedra:.7,tonal:.3},techo:['#5c6066','#8f4a36','#4a4f57']},
-  holandes:{t:'Holandés (Ámsterdam)',pared:['#7a3b2e','#6b4a3a','#9a5a3e','#8a3a2a'],moldura:{clara:1},vecinos:8,
-   acento:['#1f3a2c','#2c2e30','#4a1c22'],marco:{moldura:1},zocalo:{piedra:1},piedra:['#3a3d40','#55575a'],techo:['#3d4146','#5c6066']},
-  haussmann:{t:'Haussmann (París)',pared:['#e6d8bc','#ead9b8','#dccbb0','#efe4cc'],moldura:{clara:.5,tonal:.5},uniforme:true,
-   acento:['#2c2e30','#3d4146','#2f3a45'],marco:{moldura:.5,acento:.5},zocalo:{tonal:.6,piedra:.4},techo:['#5c6066','#4a4f57','#6e7378']},
-  victoriano:{t:'Victoriano (las Painted Ladies)',pared:['#7fa8e0','#9ed27a','#e98fb5','#b39ddb','#f6c25b','#5fc3b5','#f28c7a','#f3e0b0'],moldura:{contraste:.7,clara:.3},
-   acento:['#a8322d','#2d4f8f','#5e4a8a','#b07a22','#2f6b4f'],marco:{acento:.7,moldura:.3},zocalo:{acento:.5,tonal:.5}},
-  charleston:{t:'Charleston (Rainbow Row)',pared:['#f4c7c3','#cfe6d2','#cfe0ef','#f6e7a6','#f3d9b1','#e3d4ee'],moldura:{clara:1},vecinos:12,
-   acento:['#2a3b2e','#2c2e30'],marco:{acento:.5,moldura:.5},zocalo:{piedra:.5,tonal:.5}},
-  lisboa:{t:'Lisboa (azulejo)',pared:['#f2c84b','#e9a87c','#f2d0c4','#efe6d0','#9fc3dd','#d97a5a'],moldura:{clara:1},
-   acento:['#2f5f8f','#2f6b4f','#5a3a2a'],marco:{moldura:.6,acento:.4},zocalo:{azulejo:.6,piedra:.4},azulejo:['#3f73b5','#2f5f9a']},
-  laboca:{t:'La Boca y Valparaíso',pared:['#2d63b5','#d6332e','#f2c230','#5fb54a','#e0712c','#3fb6c4'],moldura:{contraste:1},
-   acento:['#2c2e30','#5a3a2a'],marco:{moldura:.5,acento:.5},zocalo:{piedra:1},piedra:['#7d8084']},
-  moderno:{t:'Moderno (concreto)',pared:['#ecebe6','#cfcfcb','#9ea3a8','#4a4f57','#e5dccb'],moldura:{oscura:.5,clara:.5},uniforme:true,acentoClaro:true,
-   acento:['#e0712c','#f2c230','#d6332e','#2d63b5','#2f9e6b'],marco:{moldura:1},zocalo:{piedra:.5,ninguno:.5}}},
- // qué tradiciones caben en cada familia de barrio de la ciudad (fachada.js BARRIOS) y en las manzanas del monte
- // (2026-11-21, Miguel, viendo el 3D: «hay fachadas con colores diferentes; que queden uniformes, para que sea más
- // bonito». Cada barrio usa ahora sólo tradiciones de pared pareja —la piedra crema, el encalado blanco, el ladrillo
- // oscuro, el concreto—: las fachadas de una cuadra son del mismo tono y se distinguen por la textura, los marcos y el
- // zócalo. Las de muchos colores —Caribe, Burano, La Boca, las victorianas…— siguen definidas arriba y quedan en
- // tradicionesVariadas, por si se quiere un barrio así)
- tradicionesDe:{historico:['holandes','haussmann','mediterraneo'],elegante:['haussmann','mediterraneo'],moderno:['moderno','haussmann'],
-  monte:['mediterraneo','haussmann','antioqueno']},
- tradicionesVariadas:{historico:['caribe','nordico','holandes','lisboa','laboca'],elegante:['haussmann','victoriano','charleston','lisboa'],moderno:['moderno','nordico','caribe'],
-  monte:['antioqueno','mediterraneo','burano','caribe','charleston','victoriano']},
- // (la diferencia mínima entre vecinos —ΔE de CIE76—: dos cuartos que se tocan, dos fachadas de lotes vecinos; la
- // moldura contra la pared, en contraste de luminancia WCAG)
- // (acento: lo mínimo que se separa de la pared y de la moldura —y es más oscuro que la pared—; zócalo: de la pared, y más
- // oscuro; tonal: cuánto se oscurece la pared para la moldura y el zócalo tonales)
- reglas:{vecinos:12,fachadas:18,contraste:1.25,familia:15,acento:30,acentoMoldura:20,zocalo:12,tonal:.82,tonalZocalo:.6,paredClara:.45}};
+ // ---- LOS ESQUEMAS DE CADA EDIFICIO (2026-11-22, Miguel: «una mejor paleta de colores por edificio para puertas, ventanas,
+ // pared, detalles de columnas y techos; no considero que la paleta sea acertada») ----
+ // Antes cada pieza se sorteaba por separado dentro de una «tradición» turística (Cartagena, Burano, La Boca…) y las
+ // combinaciones salían chillonas o sin relación. Ahora cada edificio lleva un ESQUEMA DISEÑADO ENTERO, de la arquitectura
+ // de Bogotá, con todas sus piezas pensadas juntas (la regla 60-30-10: la pared, los detalles, la carpintería):
+ //  · pared: dos o tres tonos de la misma pintura (de un edificio a otro de la cuadra varía el tono, no el esquema);
+ //  · detalle: cornisas, columnas, pilastras, molduras, dinteles y alféizares;
+ //  · marco: los marcos de las ventanas (y de las puertas);
+ //  · puerta: la carpintería —las puertas y las barandas—;
+ //  · zocalo: la franja de abajo de la planta baja; techo: la cubierta; culata: el muro ciego sobre el vecino más bajo.
+ // fachadasDe: qué esquemas caben en cada tipo de barrio (L.barrio; las casas y los lotes del monte, «monte»).
+ fachadas:{
+  // La Candelaria colonial: cal blanca, zócalo y carpintería del mismo color oscuro, teja de barro
+  candelaria_verde:{t:'Colonial · verde',pared:['#f3eee2','#ede6d6'],detalle:'#d8cbb0',marco:'#2f5a45',puerta:'#2f5a45',zocalo:'#2f5a45',techo:'#a5573c',culata:'#a5573c'},
+  candelaria_azul:{t:'Colonial · azul',pared:['#f2ede3','#ebe4d4'],detalle:'#d6cab2',marco:'#2c4a6b',puerta:'#2c4a6b',zocalo:'#2c4a6b',techo:'#9c5236',culata:'#9c5236'},
+  candelaria_rojo:{t:'Colonial · rojo óxido',pared:['#f1eadc','#ece2cf'],detalle:'#e0d2b6',marco:'#7a2e26',puerta:'#6b3b2a',zocalo:'#7a2e26',techo:'#a5573c',culata:'#a5573c'},
+  candelaria_ocre:{t:'Colonial · ocre',pared:['#e8c98f','#e0bd83'],detalle:'#f2ead8',marco:'#5a3a26',puerta:'#5a3a26',zocalo:'#8a5a3a',techo:'#9c5236',culata:'#9c5236'},
+  candelaria_almagre:{t:'Colonial · almagre',pared:['#b4573f','#a9503a'],detalle:'#efe6d4',marco:'#efe6d4',puerta:'#3e2a20',zocalo:'#5a3426',techo:'#8a4a34',culata:'#8a4a34'},
+  // Republicano y Teusaquillo: ladrillo inglés con piedra clara, o pañete crema y salvia con pizarra
+  ladrillo_ingles:{t:'Republicano · ladrillo',pared:['#9c4f3a','#a5573c','#8e4835'],detalle:'#e8ddc8',marco:'#f0ebe0',puerta:'#3b2a20',zocalo:'#7b746a',techo:'#5a5550',culata:'#8e4835'},
+  republicano_crema:{t:'Republicano · crema',pared:['#e9dcc0','#e2d2b2'],detalle:'#f4eee2',marco:'#4a4038',puerta:'#4a3426',zocalo:'#9b9388',techo:'#6a5f58',culata:'#a0573f'},
+  republicano_salvia:{t:'Republicano · salvia',pared:['#c9cfb8','#bdc5ab'],detalle:'#f1ede2',marco:'#3f4a3c',puerta:'#3f4a3c',zocalo:'#8d867a',techo:'#5f5a55',culata:'#9a5a3e'},
+  // Lo moderno: el ladrillo de Salmona, el concreto, el blanco y el grafito
+  salmona:{t:'Moderno · ladrillo',pared:['#a95a3e','#b0623f'],detalle:'#8f4b35',marco:'#2e2f31',puerta:'#6b4a32',zocalo:'#6f3a2a',techo:'#6b6e70',culata:'#a95a3e'},
+  concreto:{t:'Moderno · concreto',pared:['#c9c6bf','#bdbab3'],detalle:'#a7a49d',marco:'#2e3033',puerta:'#5a4632',zocalo:'#8f8c86',techo:'#7c7f82',culata:'#a0573f'},
+  moderno_blanco:{t:'Moderno · blanco',pared:['#efede7','#e6e3db'],detalle:'#d4d0c6',marco:'#34383c',puerta:'#8c6342',zocalo:'#9a958c',techo:'#6e7174',culata:'#9a5a3e'},
+  moderno_grafito:{t:'Moderno · grafito',pared:['#4c5156','#555a5f'],detalle:'#c9c6bf',marco:'#1f2123',puerta:'#b07b4a',zocalo:'#8f8c86',techo:'#8a8d90',culata:'#8e4b36'},// (sobre la pared oscura, el zócalo y la cubierta de concreto claro)
+  // Los barrios de casas: pañetes suaves con marcos claros, carpintería oscura y teja
+  barrio_durazno:{t:'Barrio · durazno',pared:['#e9b99a','#e2ad8c'],detalle:'#f3ebdd',marco:'#f3ebdd',puerta:'#6b4a32',zocalo:'#a5573c',techo:'#a5573c',culata:'#a5573c'},
+  barrio_menta:{t:'Barrio · menta',pared:['#bcd3c3','#b1c9b7'],detalle:'#f2efe6',marco:'#f2efe6',puerta:'#3f5a4c',zocalo:'#7b8a7f',techo:'#9c5236',culata:'#9c5236'},
+  barrio_cielo:{t:'Barrio · cielo',pared:['#bccbd8','#b0c1cf'],detalle:'#f2efe8',marco:'#f2efe8',puerta:'#34495e',zocalo:'#7f8a94',techo:'#8a4a34',culata:'#8a4a34'},
+  barrio_amarillo:{t:'Barrio · amarillo',pared:['#ecd38e','#e5c97f'],detalle:'#f3ecdc',marco:'#5c4632',puerta:'#5c4632',zocalo:'#9a7a52',techo:'#a5573c',culata:'#a5573c'},
+  // El monte: fincas de cal con madera, o de tierra
+  finca_cal:{t:'Finca · cal y madera',pared:['#f2ede2','#ebe4d6'],detalle:'#6e4f36',marco:'#6e4f36',puerta:'#6e4f36',zocalo:'#8a5a3a',techo:'#a5573c',culata:'#a5573c'},
+  finca_tierra:{t:'Finca · tierra',pared:['#d9b98f','#cead83'],detalle:'#f1e9d8',marco:'#4f3a28',puerta:'#4f3a28',zocalo:'#7a5a3e',techo:'#8a4a34',culata:'#8a4a34'}},
+ fachadasDe:{historico:['candelaria_verde','candelaria_azul','candelaria_rojo','candelaria_ocre','candelaria_almagre','republicano_crema'],
+  elegante:['ladrillo_ingles','republicano_crema','republicano_salvia','candelaria_ocre','moderno_blanco'],
+  moderno:['salmona','concreto','moderno_blanco','moderno_grafito','ladrillo_ingles'],
+  monte:['finca_cal','finca_tierra','barrio_durazno','barrio_menta','barrio_cielo','barrio_amarillo','candelaria_verde','candelaria_azul']},
+ // (la diferencia mínima —ΔE de CIE76—: dos cuartos que se tocan, dos fachadas de lotes vecinos —color.js distanciaFachadas:
+ // la pared y la mitad de la puerta—, dos colores de una misma familia de cuartos)
+ reglas:{vecinos:12,fachadas:18,familia:15}};
 // la familia de cada tipo de cuarto (los del plano y los de las casas)
 export const FAMILIA_CUARTO={dormitorio:'dormitorio',habitacion:'dormitorio',habitacion_h:'dormitorio',celda:'deposito',
  sala:'sala',sala_cocina:'sala',comedor:'sala',estudio:'sala',sala_prof:'sala',

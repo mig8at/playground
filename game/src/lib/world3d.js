@@ -1179,7 +1179,7 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
  const fronts=(plan?map.hideouts:[...map.sites.flatMap(s=>s.doors),...(map.station?.doors||[]),...map.hideouts]).map(p=>({x:p.x*S,z:p.y*S})).concat(civicFronts);
  // Muebles sólo cerca de la cámara: cada ~0,4 s se miran los edificios a menos de 45 m y, si cambió el grupo, se
  // rearman las instancias (una malla por modelo y pieza, más las cajas de las camas).
- const interior=new THREE.Group();group.add(interior);let activeKey='',clock=0;const bedMat=new THREE.MeshStandardMaterial({roughness:.85});own.push(bedMat);
+ const interior=new THREE.Group();interior.name='interiores';group.add(interior);let activeKey='',clock=0;const bedMat=new THREE.MeshStandardMaterial({roughness:.85});own.push(bedMat);
  // La ronda (2026-10-17): lo robado no se dibuja (oculto(it, lote) → true) y las puertas trancadas no se abren solas
  // (trancada(x, z, y) → true). El 3D las fija con setOcultos / setTrancadas; refrescarInteriores rearma lo de adentro.
  let ocultoFn=null,trancadaFn=null,cerradoFn=null;
@@ -1187,7 +1187,11 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
  let lejosReloj=0;
  function updateInteriors(px,pz,dt=.016,py=1.7){if((lejosReloj-=dt)<=0){lejosReloj=.3;town?.setLejos?.(px,pz);}if(!furniture||!lotFurniture.size)return;if((clock-=dt)>0)return;clock=.4;
   // Los edificios a menos de 15 m de la cámara, y sólo los pisos cerca de su altura (el de la cámara y los vecinos).
-  const cf=Math.floor(Math.max(0,py-.5)/FLOOR),act=[...lotFurniture].filter(([id,L])=>Math.hypot(L.x-px,L.z-pz)<15+L.r).map(([id])=>id),key=act.join(',')+'|'+cf;if(key===activeKey)return;activeKey=key;
+  // (2026-11-22, Miguel: «las ventanas, por defecto opacas, para no cargar el interior de los edificios»: con los vidrios
+  // opacos —lib/colorPlano3d.js— desde la calle no se ve adentro: se arma sólo el edificio donde está la cámara. Volando,
+  // para inspeccionar —sin viviendas cerradas: setCerrados(null)—, como antes: los de cerca)
+  const adentro=L=>(L.cells||[]).some(c=>px>c[0]&&px<c[2]&&pz>c[1]&&pz<c[3])&&py<(L.floors||1)*FLOOR+(L.raise||0)+1;
+  const cf=Math.floor(Math.max(0,py-.5)/FLOOR),act=[...lotFurniture].filter(([id,L])=>cerradoFn?adentro(L):Math.hypot(L.x-px,L.z-pz)<15+L.r).map(([id])=>id),key=act.join(',')+'|'+cf;if(key===activeKey)return;activeKey=key;
   const near=it=>Math.abs(it.f-cf)<=1;
   for(const m of [...interior.children]){interior.remove(m);m.dispose?.();}
   // (2026-11-22: lo de adentro de una vivienda cerrada —sin dueño, con sus persianas cerradas— no se arma: cerradoFn(lote, piso,
