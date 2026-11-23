@@ -1188,10 +1188,12 @@ export function buildWorld(map,{downtown=null,nature=null,furniture=null,vehicle
  function updateInteriors(px,pz,dt=.016,py=1.7){if((lejosReloj-=dt)<=0){lejosReloj=.3;town?.setLejos?.(px,pz);}if(!furniture||!lotFurniture.size)return;if((clock-=dt)>0)return;clock=.4;
   // Los edificios a menos de 15 m de la cámara, y sólo los pisos cerca de su altura (el de la cámara y los vecinos).
   // (2026-11-22, Miguel: «las ventanas, por defecto opacas, para no cargar el interior de los edificios»: con los vidrios
-  // opacos —lib/colorPlano3d.js— desde la calle no se ve adentro: se arma sólo el edificio donde está la cámara. Volando,
+  // opacos —lib/colorPlano3d.js— desde la calle no se ve adentro: se arma sólo el edificio donde está la cámara o el que tiene pegado. Volando,
   // para inspeccionar —sin viviendas cerradas: setCerrados(null)—, como antes: los de cerca)
-  const adentro=L=>(L.cells||[]).some(c=>px>c[0]&&px<c[2]&&pz>c[1]&&pz<c[3])&&py<(L.floors||1)*FLOOR+(L.raise||0)+1;
-  const cf=Math.floor(Math.max(0,py-.5)/FLOOR),act=[...lotFurniture].filter(([id,L])=>cerradoFn?adentro(L):Math.hypot(L.x-px,L.z-pz)<15+L.r).map(([id])=>id),key=act.join(',')+'|'+cf;if(key===activeKey)return;activeKey=key;
+  // (y el que está pegado, a menos de UMBRAL m —2026-11-22, Miguel: «al abrir una puerta y entrar no carga las paredes de adentro
+  // hasta cruzarla»—: desde la vereda se ve adentro por una puerta abierta; más lejos, con los vidrios opacos, no)
+  const UMBRAL=4,cerca=L=>(L.cells||[]).some(c=>Math.hypot(Math.max(c[0]-px,0,px-c[2]),Math.max(c[1]-pz,0,pz-c[3]))<UMBRAL)&&py<(L.floors||1)*FLOOR+(L.raise||0)+1;
+  const cf=Math.floor(Math.max(0,py-.5)/FLOOR),act=[...lotFurniture].filter(([id,L])=>cerradoFn?cerca(L):Math.hypot(L.x-px,L.z-pz)<15+L.r).map(([id])=>id),key=act.join(',')+'|'+cf;if(key===activeKey)return;activeKey=key;
   const near=it=>Math.abs(it.f-cf)<=1;
   for(const m of [...interior.children]){interior.remove(m);m.dispose?.();}
   // (2026-11-22: lo de adentro de una vivienda cerrada —sin dueño, con sus persianas cerradas— no se arma: cerradoFn(lote, piso,
