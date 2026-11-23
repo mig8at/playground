@@ -99,6 +99,24 @@ el FGA. Lo que se persiste como `amount` en las entidades de preaprobación es l
 (`financedAmountWithGuarantee`). El caso de uso muestra monto − cuota inicial cuando recibe
 `isEcommerce`, pero la tarjeta no se lo pasa.
 
+## FGA, seguro de garantía y fianza: tres garantías que no son lo mismo
+
+Tres cosas se llaman «garantía» y se comportan distinto:
+
+| | FGA (fondo de garantía) | seguro de garantía | fianza del riel 4 |
+|---|---|---|---|
+| dónde aplica | CreditopX (tipos 2 y 3) | CreditopX | originación delegada (tipo 4) |
+| cómo se calcula | subtotal × FGA% × (1 + IVA), al originar | un cargo fijo por mes (`fixed_guarantee_insurance_per_month`) | monto × % de fianza, más IVA y 4x1000 si el perfil lo cobra |
+| de dónde sale el % | el convenio; si la entidad tiene perfiles, el del perfil (`category.fga`); en un cupo rotativo, el del cupo | el crédito | la preaprobación, la tabla FNG por plazo o el perfil de la entidad ([el plan del riel 4](knowledge:lender-response-types#el-plan-del-riel-4-una-ruta-por-pantalla-y-un-solo-calculo)) |
+| dónde vive | **dentro del capital** (`guarantee_amount_balance`) | su propio saldo, que crece en cada corte (`GuaranteeInsuranceBalance`) | anticipada, se suma al monto financiado; vencida, se reparte en las cuotas |
+| en el pago | sin paso propio: cada peso de capital lleva su parte en la proporción de los saldos (`GuaranteeAttribution`, igual en los dos monolitos) | tiene su paso en la cascada, antes del capital | — (la cartera es de la entidad) |
+| en el pago mínimo | informativo (`next_payment_guarantee`): no suma | suma (`next_payment_guarantee_insurance`), acumulando los meses sin pagar | — |
+
+El FGA sólo cambia de saldo cuando hay un pago; la causación lo arrastra. Por vivir en el capital, una refinanciación
+lo conserva, un pago a cupo rotativo lo libera en proporción y, si el fondo responde, el crédito se marca recuperado
+por el fondo de garantías ([la cartera](knowledge:creditopx-portfolio-servicing)). El documento de garantía que se pide
+lo decide `lender_guarantee_criteria` ([el convenio](knowledge:merchant-lender-agreement)).
+
 ## Plazos que ofrece la tarjeta
 
 El plazo inicial es `fee_number` del listado: el `max_fee_number` de la línea, recortado por el
