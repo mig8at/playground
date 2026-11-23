@@ -7,17 +7,27 @@
    Las medidas: manga y largo en la escala del brazo y de la pierna (0 el hombro o la cadera, .5 el codo o la rodilla, 1 la
    muñeca o el tobillo); prof, ombligo, abierto y rayas en metros. */
 
-// (id, nombre, lugar, color de fábrica, corte)
+// Las articulaciones del maniquí, en esa escala (2026-11-22, Miguel: «usar las articulaciones del maniquí para dejar la ropa
+// hasta esos puntos»): una prenda que llega a una articulación se escribe con su nombre —la bermuda, a la rodilla; la manga
+// al codo; la larga, a la muñeca— y un poco antes (BORDE) para que el dobladillo caiga justo encima.
+export const ARTICULACION={hombro:0,codo:.5,muneca:1,cadera:0,rodilla:.5,tobillo:1},BORDE=.02;
+const A=ARTICULACION;
+// (id, nombre, lugar, color de fábrica, corte; patron: 'rayas' o 'cuadros' cada `rayas` m; logo: 'circulo', 'rombo', 'franja', 'bolsillo')
 export const GARMENTS=[
  ['boxer','Bóxer','underwear','#343d50',{largo:.12}],
  ['calzon','Calzones','underwear','#e8e4dc',{largo:.06}],
  ['camiseta','Camiseta','top','#7fb2d6',{manga:.3,cuello:'redondo',prof:.045}],
- ['rayas','Camiseta a rayas','top','#f2f0ea',{manga:.3,cuello:'redondo',prof:.045,rayas:.05}],
- ['manga-larga','Manga larga','top','#c4553d',{manga:.98,cuello:'redondo',prof:.05}],
+ ['rayas','Camiseta a rayas','top','#f2f0ea',{manga:.3,cuello:'redondo',prof:.045,patron:'rayas',rayas:.05}],
+ ['manga-larga','Manga larga','top','#c4553d',{manga:A.muneca-BORDE,cuello:'redondo',prof:.05}],
  ['tres-cuartos','Manga tres cuartos','top','#3a9a96',{manga:.72,cuello:'redondo',prof:.07}],
+ ['manga-codo','Manga al codo','top','#e0b83a',{manga:A.codo-BORDE,cuello:'redondo',prof:.05}],
+ ['cuadros','Camisa a cuadros','top','#c4553d',{manga:A.muneca-BORDE,cuello:'v',prof:.1,patron:'cuadros',rayas:.07}],
+ ['logo','Camiseta con logo','top','#2f3133',{manga:.3,cuello:'redondo',prof:.045,logo:'circulo'}],
+ ['rombo','Camiseta con rombo','top','#f2f0ea',{manga:.3,cuello:'redondo',prof:.045,logo:'rombo'}],
+ ['franja','Camiseta con franja','top','#3f6fa8',{manga:.3,cuello:'redondo',prof:.045,logo:'franja'}],
  ['sin-mangas','Sin mangas','top','#f2f0ea',{manga:0,cuello:'redondo',prof:.11}],
  ['ombliguera','Ombliguera','top','#d98aa0',{manga:.3,cuello:'redondo',prof:.08,ombligo:.13}],
- ['polo','Polo','top','#4f8a55',{manga:.3,cuello:'v',prof:.07}],
+ ['polo','Polo','top','#4f8a55',{manga:.3,cuello:'v',prof:.07,logo:'bolsillo'}],
  ['camisa','Camisa de botones','top','#f2f0ea',{manga:.98,cuello:'v',prof:.11}],
  ['cuello-v','Camiseta cuello en V','top','#2f3133',{manga:.3,cuello:'v',prof:.13}],
  ['sudadera','Sudadera','top','#8a8e90',{manga:.98,cuello:'redondo',prof:.04}],
@@ -34,13 +44,13 @@ export const GARMENTS=[
  ['pantalon','Pantalón de tela','bottom','#26282a',{largo:1}],
  ['deportivo','Pantalón deportivo','bottom','#7d8284',{largo:1}],
  ['cargo','Cargo','bottom','#5c6340',{largo:1}],
- ['leggings','Leggings','bottom','#26282a',{largo:.96}],
+ ['leggings','Leggings','bottom','#26282a',{largo:A.tobillo-2*BORDE}],
  ['pescador','Pescador','bottom','#c8b48f',{largo:.75}],
- ['bermuda','Bermuda','bottom','#c8b48f',{largo:.45}],
+ ['bermuda','Bermuda','bottom','#c8b48f',{largo:A.rodilla-BORDE}],
  ['pantaloneta','Pantaloneta','bottom','#2b3549',{largo:.32}],
  ['short','Short','bottom','#3d5370',{largo:.2}],
  ['falda-corta','Falda corta','bottom','#7a2e33',{largo:.3}],
- ['falda-larga','Falda a la rodilla','bottom','#3f566e',{largo:.55}],
+ ['falda-larga','Falda a la rodilla','bottom','#3f566e',{largo:A.rodilla+BORDE}],
  ['bufanda','Bufanda','accessory','#b8443a',{}],['gorro-lana','Gorro de lana','hat','#3a6f8f',{}],['gorra','Gorra','hat','#c4553d',{}],
  ['tenis','Tenis','shoes','#34507a',{}],['botas','Botas','shoes','#5b3b25',{}],['zapatos','Zapatos','shoes','#232425',{}],
 ].map(([id,label,slot,color,corte])=>({id,label,slot,color,corte}));
@@ -58,9 +68,9 @@ const corteDe=p=>p?POR_ID.get(p.id)?.corte||{}:null;
 export function zonasDeRopa(o={},piel){const {top,outer,bottom,shoes,underwear}=o||{},cT=corteDe(top),cO=corteDe(outer),cB=corteDe(bottom),cU=corteDe(underwear);
  const conMangas=cO?.manga!=null,vestido=top?.id==='vestido';
  const camisa=outer?.color||top?.color||piel,antebrazo=conMangas?outer.color:top?.color||piel,manga=conMangas?cO.manga:cT?.manga??0;
- const escote=cO?.cuello?cO:cT||{cuello:'redondo',prof:.5};
+ const escote=cO?.cuello?cO:cT||(outer?{cuello:'redondo',prof:.05}:{cuello:'nada'});
  const pantalon=vestido?top.color:bottom?.color||underwear?.color||piel,largo=vestido?cT.largo:cB?.largo??cU?.largo??0;
  return {camisa,antebrazo,manga,pantalon,largo,pantaloneta:largo<.9,zapatos:shoes?.color||piel,cuello:escote.cuello||'redondo',prof:escote.prof??.05,
-  ombligo:outer?0:cT?.ombligo||0,abierto:cO?.abierto||0,debajo:top?.color||piel,rayas:outer?0:cT?.rayas||0,raya:claro(top?.color)?'#2b3d5c':'#f2f0ea'};}
+  ombligo:outer?0:cT?.ombligo||0,abierto:cO?.abierto||0,debajo:top?.color||piel,rayas:outer?0:cT?.rayas||0,patron:outer?'liso':cT?.patron||'liso',logo:outer?'ninguno':cT?.logo||'ninguno',raya:claro(top?.color)?'#2b3d5c':'#f2f0ea'};}
 // (la raya contrasta con la prenda: oscura sobre una clara, blanca sobre una oscura)
 const claro=h=>{if(!h)return false;const n=parseInt(String(h).slice(1,7),16);return .299*(n>>16&255)+.587*(n>>8&255)+.114*(n&255)>150;};

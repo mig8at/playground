@@ -19,6 +19,9 @@ const VITRINA=[
  ['Polo','hombre',{top:at('polo','#4f8a55'),bottom:at('pantalon','#26282a'),shoes:T}],['Camisa','mujer',{top:at('camisa','#f2f0ea'),bottom:at('pantalon','#26282a'),shoes:T}],
  ['Cuello en V','hombre',{top:at('cuello-v','#2f3133'),bottom:J,shoes:T}],['Sudadera','mujer',{top:at('sudadera','#8a8e90'),bottom:at('deportivo','#2f3133'),shoes:T}],
  ['Cuello alto','hombre',{top:at('cuello-alto','#2b3d5c'),bottom:at('pantalon','#c8b48f'),shoes:T}],['Vestido','mujer',{top:at('vestido','#c4553d'),shoes:T}],
+ ['A cuadros','hombre',{top:at('cuadros','#c4553d'),bottom:J,shoes:T}],['Con logo','mujer',{top:at('logo','#2f3133'),bottom:J,shoes:T}],
+ ['Con rombo','hombre',{top:at('rombo','#f2f0ea'),bottom:J,shoes:T}],['Con franja','mujer',{top:at('franja','#3f6fa8'),bottom:J,shoes:T}],
+ ['Manga al codo','hombre',{top:at('manga-codo','#e0b83a'),bottom:J,shoes:T}],['Leggings','mujer',{top:at('cuadros','#4f8a55'),bottom:at('leggings','#26282a'),shoes:T}],
  ['Calzones','hombre',{underwear:at('calzon','#e8e4dc'),shoes:T}],['Bóxer','mujer',{top:at('sin-mangas','#f2f0ea'),underwear:at('boxer','#343d50'),shoes:T}],
  ['Short','mujer',{top:C,bottom:at('short','#3d5370'),shoes:T}],['Pantaloneta','hombre',{top:C,bottom:at('pantaloneta','#2b3549'),shoes:T}],
  ['Falda corta','mujer',{top:C,bottom:at('falda-corta','#7a2e33'),shoes:T}],['Bermuda','hombre',{top:C,bottom:at('bermuda','#c8b48f'),shoes:T}],
@@ -27,6 +30,7 @@ const VITRINA=[
  ['Chaqueta abierta','mujer',{top:at('rayas','#f2f0ea'),outer:at('chaqueta-abierta','#3f566e'),bottom:J,shoes:T}],
  ['Abrigo','hombre',{top:at('camisa','#f2f0ea'),outer:at('abrigo','#6e4e35'),bottom:at('pantalon','#26282a'),shoes:T}],
  ['Cremallera','mujer',{top:C,outer:at('chaqueta-cremallera','#2b3d5c'),bottom:J,shoes:T}],
+ ['Jean','hombre',{top:C,bottom:J,shoes:T}],['Cargo','mujer',{top:C,bottom:at('cargo','#5c6340'),shoes:T}],
 ];
 const COLS=8,PASO=1.05,ALTO=2.25,lienzo=ref(null),cargando=ref('Cargando…'),nombres=ref([]);let renderer,scene,camara,reloj,raf=0,mezcladores=[];
 

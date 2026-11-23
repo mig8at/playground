@@ -38,29 +38,41 @@ export const PIEL=['#f1c9a5','#d9a47c','#b97f57','#8d5a3b','#5e3b26'],CAMISA=['#
 //    (la chaqueta abierta deja ver la prenda de abajo); `rayas` m entre raya y raya, del color `raya`;
 //  - debajo de la cintura, el pantalón (o el calzoncillo).
 // La cabeza, las manos, los zapatos, el pelo y los ojos siguen por su zona. (antebrazo: el color de las mangas)
-export const CUELLOS={alto:0,redondo:1,v:2};
+// (2026-11-22, Miguel: «un dobladillo a las terminaciones, así se vería como ropa más realista» y «estampados como cuadros y
+// logos en el pecho»): cada borde de tela —la manga, la bota del pantalón, el escote, el ruedo de la camisa, la pretina, la
+// abertura de la chaqueta— lleva una franja un poco más oscura (DOBLADILLO), y la prenda de arriba puede llevar un `patron`
+// ('rayas' o 'cuadros', cada `rayas` m) y un `logo` en el pecho ('circulo', 'rombo', 'franja' o 'bolsillo'), del color `raya`.
+export const CUELLOS={alto:0,redondo:1,v:2,nada:3},PATRONES={liso:0,rayas:1,cuadros:2},LOGOS={ninguno:0,circulo:1,rombo:2,franja:3,bolsillo:4},DOBLADILLO=.8;
 export function materialRopa(piel,{camisa='#ddd',antebrazo=null,pantalon='#333',zapatos='#111',pelo='#222',iris='#4a3220',mangaCorta=false,pantaloneta=false,
- manga=mangaCorta?.3:.98,largo=pantaloneta?.32:1,cuello='redondo',prof=.05,ombligo=0,abierto=0,debajo=null,rayas=0,raya='#f2f0ea',cintura=.12}={}){
+ manga=mangaCorta?.3:.98,largo=pantaloneta?.32:1,cuello='redondo',prof=.05,ombligo=0,abierto=0,debajo=null,rayas=0,raya='#f2f0ea',cintura=.12,patron=rayas?'rayas':'liso',logo='ninguno'}={}){
  const pal=[piel,camisa,antebrazo||camisa,pantalon,pantalon,zapatos,pelo,'#120d0a',pelo,'#f1eee6',iris,debajo||camisa,raya].map(c=>new THREE.Color(c));
- const corte=new THREE.Vector4(manga,largo,CUELLOS[cuello]??1,prof),corte2=new THREE.Vector4(abierto,ombligo,rayas,cintura);
+ const corte=new THREE.Vector4(manga,largo,CUELLOS[cuello]??1,prof),corte2=new THREE.Vector4(abierto,ombligo,rayas,cintura),corte3=new THREE.Vector4(rayas?PATRONES[patron]||0:0,LOGOS[logo]||0,DOBLADILLO,0);
  const m=new THREE.MeshStandardMaterial({roughness:.82});
- m.onBeforeCompile=sh=>{Object.assign(sh.uniforms,{paleta:{value:pal},corte:{value:corte},corte2:{value:corte2}});
+ m.onBeforeCompile=sh=>{Object.assign(sh.uniforms,{paleta:{value:pal},corte:{value:corte},corte2:{value:corte2},corte3:{value:corte3}});
   sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nattribute float zona;attribute float detalle;attribute vec4 tela;attribute vec2 largo;varying float vZona;varying float vDet;varying vec4 vTela;varying vec2 vLargo;')
    .replace('#include <begin_vertex>','#include <begin_vertex>\nvZona=zona;vDet=detalle;vTela=tela;vLargo=largo;');
   sh.fragmentShader=sh.fragmentShader.replace('#include <common>',`#include <common>
-uniform vec3 paleta[13];uniform vec4 corte;uniform vec4 corte2;varying float vZona;varying float vDet;varying vec4 vTela;varying vec2 vLargo;
-vec3 ropa(){int z=int(vZona+.5);vec3 c=paleta[z];
+uniform vec3 paleta[13];uniform vec4 corte;uniform vec4 corte2;uniform vec4 corte3;varying float vZona;varying float vDet;varying vec4 vTela;varying vec2 vLargo;
+vec3 estampa(vec3 base){float s=corte2.z;if(corte3.x<.5)return base;
+ if(corte3.x<1.5)return mod(vTela.y+9.,s)<s*.45?paleta[12]:base;
+ return mix(base,paleta[12],(step(mod(vTela.x+9.,s),s*.5)+step(mod(vTela.y+9.,s),s*.5))*.42);}
+vec3 ropa(){int z=int(vZona+.5);vec3 c=paleta[z];float D=corte3.z;
  if(z>4||vTela.y>.1)return c;
- if(vLargo.x>=0.)return vLargo.x<corte.x?paleta[2]:paleta[0];
- if(vTela.w<corte2.w){if(vLargo.y>=0.)return vLargo.y<corte.y?paleta[3]:paleta[0];return paleta[3];}
- float x=vTela.x,y=-vTela.y,f=vTela.z;bool piel=false;
- if(corte.z>.5&&corte.z<1.5){float p=y<0.?1.:f>0.?corte.w:corte.w*.35;piel=x*x/.0064+y*y/(p*p)<1.;}
- else if(corte.z>1.5){piel=y<0.?abs(x)<.075:f>0.?(abs(x)<.075&&y<corte.w*(1.-abs(x)/.075)):(x*x/.0056+y*y/.0006<1.);}
- if(corte2.y>0.&&vTela.w<corte2.w+corte2.y)piel=true;
+ if(vLargo.x>=0.)return vLargo.x<corte.x?estampa(paleta[2])*(corte.x-vLargo.x<.035?D:1.):paleta[0];
+ if(vTela.w<corte2.w){float pretina=corte2.w-vTela.w<.03?D:1.;if(vLargo.y>=0.)return vLargo.y<corte.y?paleta[3]*(corte.y-vLargo.y<.022?D:pretina):paleta[0];return paleta[3]*pretina;}
+ float x=vTela.x,y=-vTela.y,f=vTela.z;bool piel=false,borde=false;
+ if(corte.z<.5){borde=vTela.y>.08;}
+ else if(corte.z<1.5){float p=y<0.?1.:f>0.?corte.w:corte.w*.35,e=x*x/.0064+y*y/(p*p),k=1.+.014/min(p,.08);piel=e<1.;borde=e<k*k;}
+ else if(corte.z<2.5){if(y<0.){piel=abs(x)<.075;borde=abs(x)<.088;}else if(f>0.){float v=y-corte.w*(1.-abs(x)/.075);piel=abs(x)<.075&&v<0.;borde=abs(x)<.088&&v<.014;}else{float e=x*x/.0056+y*y/.0006;piel=e<1.;borde=e<1.6;}}
+ else piel=true;
+ float ruedo=vTela.w-corte2.w-corte2.y;
+ if(corte2.y>0.&&ruedo<0.)piel=true;
  if(piel)return paleta[0];
- if(corte2.x>0.&&f>0.&&abs(x)<corte2.x)return paleta[11];
- if(corte2.z>0.&&mod(vTela.y,corte2.z)<corte2.z*.45)return paleta[12];
- return paleta[1];}`).replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.rgb*=ropa()*vDet;');};
+ if(ruedo<.018)borde=true;
+ if(corte2.x>0.&&f>0.){if(abs(x)<corte2.x)return paleta[11];if(abs(x)<corte2.x+.012)borde=true;}
+ vec3 t=estampa(paleta[1]);
+ if(corte3.y>.5){vec2 q=vec2(x,y-.2);bool l=corte3.y<1.5?(f>0.&&length(q)<.05):corte3.y<2.5?(f>0.&&abs(q.x)+abs(q.y)<.06):corte3.y<3.5?abs(q.y)<.035:(f>0.&&length(q-vec2(.075,-.04))<.02);if(l)t=paleta[12];}
+ return t*(borde?D:1.);}`).replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.rgb*=ropa()*vDet;');};
  m.customProgramCacheKey=()=>'ropa-cortes';return m;}
 // (la de una persona; la mujer: falda —el pantalón con la pantorrilla de piel— o pantalón, a veces vestido)
 // (el pelo, que contraste con la piel: si la luz de los dos queda a menos de CONTRASTE, se elige otro)
