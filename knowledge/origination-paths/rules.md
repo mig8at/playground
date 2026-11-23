@@ -35,6 +35,28 @@ Los canales del asistente (asesor, autogestión y tienda) recorren lo mismo hast
 entidades: monto, celular, código, datos personales, empleo y listado. La entrada firmada de la tienda
 se salta el código. Bancolombia no pasa por este tramo.
 
+## Quién decide en el tramo común: datos, listado y preaprobación
+
+Hasta que el cliente elige una tarjeta pasan cuatro cosas, y sólo la última aprueba o rechaza:
+
+1. **Las centrales, al enviar los datos personales** (y el formulario laboral, si lo hay). Se consultan una vez por
+   solicitud y se guardan: Ágil Data, y Mareigua si Ágil Data no trae datos, TusDatos y Experian si toca. Experian
+   lo decide la **sucursal**, no la tarjeta: se compra siempre si el comercio o una entidad de la sucursal está en
+   `experian_trigger_bypass_rules` o si la sucursal tiene una entidad tipo 2 (`OnboardingService::resolveForcedExperianProduct`);
+   si no, según la frecuencia del comercio y las reglas de disparo de la sucursal
+   ([el disparador](knowledge:kyc-path-and-experian-trigger)). Un dato de menos de 30 días se reusa.
+2. **El listado** trae las entidades de la sucursal, corre sus reglas duras (`lender_rules`: respuestas del formulario
+   y edad, género y documento del usuario, no las centrales) y las ordena por el perfilamiento. Las reglas duras sólo
+   **sacan** a los tipos 2 y 3 (`LenderValidationService::dropsWhenRulesFail`): su política es de Creditop y el motor
+   de cupo las rechazaría igual. A los demás los deja con probabilidad baja, porque decide la entidad
+   ([el listado](knowledge:lender-listing)).
+3. **La preaprobación, tarjeta por tarjeta.** El asistente le pide a `pre-approvals-service` la de cada tarjeta que no
+   es tipo 0, con `creditop_x` para los tipos 2 y 3 y con el slug para el resto. El servicio le pregunta a la API de
+   la entidad o, para CreditopX, al motor de cupo de legacy-backend (`/available-quota`, que acepta los tipos 2 y 4 y
+   rechaza 0 y 1), y no guarda la respuesta para reusarla ([el servicio](knowledge:pre-approvals-service)). El motor
+   evalúa con lo guardado en el paso 1: aquí se aprueba o se rechaza.
+4. **El riel**, cuando el cliente elige: lo de las secciones siguientes.
+
 ## Riel: qué hace la solicitud después del listado
 
 El riel es `lenders.response_type` de la entidad elegida

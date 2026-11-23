@@ -138,6 +138,20 @@ Quién levanta qué, las rutas de cada app, cómo verificar una interfaz y cuán
 | **una llave mía** (las que no se comparten: guardarla, usarla) | `bin/pg vault list` · `bin/pg vault run --ring R -- <comando>` (las pasa como variables de entorno, sin mostrarlas). El valor no se pide: el hook `vault-guard` lo niega. La app Llavero de Cockpit: [`vault/CLAUDE.md`](vault/CLAUDE.md) |
 | **Jira o Slack** | `bin/pg jira …` · `bin/pg slack …`. Leer es libre; lo que escribe **sin `--apply` sólo muestra** |
 
+### Quién decide en una solicitud, en corto
+
+Antes de razonar sobre por qué una entidad sale, no sale o sale rechazada, ubicá el paso. El detalle con fuentes:
+[`knowledge/origination-paths`](knowledge/origination-paths/rules.md) §«Quién decide en el tramo común».
+
+1. **Datos personales** → se consultan y se guardan las centrales (Ágil Data, luego Mareigua; TusDatos; Experian si
+   la **sucursal** lo compra). Todavía no se decide nada. En local, dev, qa y staging contesta un mock (F-139).
+2. **Listado** → las entidades de la sucursal; las reglas duras (lo que el cliente **declaró**) sólo **sacan** a los
+   tipos 2 y 3. El perfilamiento ordena.
+3. **Preaprobación por tarjeta** → `pre-approvals-service` le pregunta a la API de la entidad o, para CreditopX (y
+   Finandina por alias), al motor de cupo de legacy-backend, con lo guardado en el paso 1. **Aquí se aprueba o se
+   rechaza.** El servicio no guarda la respuesta: cada consulta vuelve a evaluar.
+4. **Riel**, al elegir → el 4 arma el plan con la ficha de la entidad (`delegated_origination_profiles`).
+
 ⚠ **Hay preguntas que no se contestan leyendo: se contestan corriendo.** El conocimiento local y el código describen el mecanismo;
 una corrida describe el caso. Y correr encuentra lo que leer no puede: de 12 hallazgos del 2026-08-23,
 11 salieron de una corrida.

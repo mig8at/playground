@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Recorrido de una solicitud: canal, riel y variaciones",
   "summary": "El vocabulario para describir el camino de una solicitud —canal, tramo común, riel, producto, variaciones, campos, ajustes y desenlace—, qué activa cada variación y qué decide cada campo del formulario.",
-  "reviewedAt": "2026-11-17T12:52:59+00:00",
+  "reviewedAt": "2026-11-23T12:00:00-05:00",
   "sources": [
     {
       "repo": "frontend-monorepo",
@@ -184,7 +184,8 @@
       "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
       "blob": "b18993b078403415d7135bb2a8d70c5298ad5456",
       "sections": [
-        "campos-que-pide-el-formulario-en-cada-comercio"
+        "campos-que-pide-el-formulario-en-cada-comercio",
+        "quien-decide-en-el-tramo-comun-datos-listado-y-preaprobacion"
       ]
     },
     {
@@ -339,6 +340,33 @@
       "blob": "91c759bda20dc696cb4bd7f9dc1177e9530218a6",
       "sections": [
         "campos-que-pide-el-formulario-en-cada-comercio"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/lenders/LenderValidationService.php",
+      "commit": "e76dc44419cfe137d0de17bfdf547e06dce03cbe",
+      "blob": "bb21da995f7ad0e80118c38bb001d5dbcaa97906",
+      "sections": [
+        "quien-decide-en-el-tramo-comun-datos-listado-y-preaprobacion"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php",
+      "commit": "e76dc44419cfe137d0de17bfdf547e06dce03cbe",
+      "blob": "c8f7e40de6997dee49af73ebd44378e248a15be7",
+      "sections": [
+        "quien-decide-en-el-tramo-comun-datos-listado-y-preaprobacion"
+      ]
+    },
+    {
+      "repo": "pre-approvals-service",
+      "path": "internal/core/usecases/preapproval/check_preapproval.go",
+      "commit": "c70a470b2b07c4c10cb3dafdb1a62ea7c44f79c5",
+      "blob": "eb0772b17fb3e26652460e3499047729191b71ef",
+      "sections": [
+        "quien-decide-en-el-tramo-comun-datos-listado-y-preaprobacion"
       ]
     }
   ]

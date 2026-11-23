@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "title": "Servicio de preaprobaciones: una puerta para todas las entidades",
+  "summary": "Qué hace pre-approvals-service: no decide ni guarda en caché la preaprobación (cada consulta vuelve a la entidad), corre credenciales, autenticación, llamada y adaptación por entidad, y guarda historia en DynamoDB y las credenciales en memoria sin vencimiento.",
+  "reviewedAt": "2026-11-23T12:00:00-05:00",
+  "sources": [
+    {
+      "repo": "pre-approvals-service",
+      "path": "internal/core/usecases/preapproval/check_preapproval.go",
+      "commit": "c70a470b2b07c4c10cb3dafdb1a62ea7c44f79c5",
+      "blob": "eb0772b17fb3e26652460e3499047729191b71ef",
+      "sections": [
+        "cada-consulta-vuelve-a-la-entidad-no-hay-cache-de-preaprobaciones",
+        "el-flujo-de-cada-entidad-credenciales-autenticacion-llamada-y-adaptacion"
+      ]
+    },
+    {
+      "repo": "pre-approvals-service",
+      "path": "internal/infra/lending_products/creditop_x/adapter.go",
+      "commit": "c70a470b2b07c4c10cb3dafdb1a62ea7c44f79c5",
+      "blob": "d86101577ee69cf776345775a54f045a7ab9bb7d",
+      "sections": [
+        "cada-consulta-vuelve-a-la-entidad-no-hay-cache-de-preaprobaciones",
+        "el-flujo-de-cada-entidad-credenciales-autenticacion-llamada-y-adaptacion"
+      ]
+    },
+    {
+      "repo": "pre-approvals-service",
+      "path": "internal/infra/lending_products/workflow.go",
+      "commit": "c70a470b2b07c4c10cb3dafdb1a62ea7c44f79c5",
+      "blob": "77f949cb5ff28a6259740a29b6dee90df2cc915b",
+      "sections": [
+        "el-flujo-de-cada-entidad-credenciales-autenticacion-llamada-y-adaptacion"
+      ]
+    },
+    {
+      "repo": "pre-approvals-service",
+      "path": "internal/infra/lending_products/factory/factory.go",
+      "commit": "c70a470b2b07c4c10cb3dafdb1a62ea7c44f79c5",
+      "blob": "f198fe1927f8263a38a2a3c3544a5353df2b484d",
+      "sections": [
+        "el-flujo-de-cada-entidad-credenciales-autenticacion-llamada-y-adaptacion"
+      ]
+    },
+    {
+      "repo": "pre-approvals-service",
+      "path": "internal/core/domain/lending_product.go",
+      "commit": "c70a470b2b07c4c10cb3dafdb1a62ea7c44f79c5",
+      "blob": "b7883719acab9c216325bc30eea46ae597d00db3",
+      "sections": [
+        "el-flujo-de-cada-entidad-credenciales-autenticacion-llamada-y-adaptacion"
+      ]
+    },
+    {
+      "repo": "pre-approvals-service",
+      "path": "internal/infra/services/applicant_service.go",
+      "commit": "c70a470b2b07c4c10cb3dafdb1a62ea7c44f79c5",
+      "blob": "f444206e16bb64eb213c8b3de5f8b2ff23c8b437",
+      "sections": [
+        "el-flujo-de-cada-entidad-credenciales-autenticacion-llamada-y-adaptacion"
+      ]
+    },
+    {
+      "repo": "pre-approvals-service",
+      "path": "internal/infra/services/credentials_service.go",
+      "commit": "c70a470b2b07c4c10cb3dafdb1a62ea7c44f79c5",
+      "blob": "c9aa879d7a72908ff33e151ce9938da70cf53c12",
+      "sections": [
+        "lo-que-guarda-historia-en-dynamodb-y-credenciales-en-memoria"
+      ]
+    },
+    {
+      "repo": "pre-approvals-service",
+      "path": "internal/infra/storage/dynamodb/preapproval_repository.go",
+      "commit": "c70a470b2b07c4c10cb3dafdb1a62ea7c44f79c5",
+      "blob": "336c1b4a5d9a360f303e589b77bb4c79a228eaae",
+      "sections": [
+        "lo-que-guarda-historia-en-dynamodb-y-credenciales-en-memoria"
+      ]
+    },
+    {
+      "repo": "pre-approvals-service",
+      "path": "internal/infra/storage/dynamodb/lender_attempt_repository.go",
+      "commit": "c70a470b2b07c4c10cb3dafdb1a62ea7c44f79c5",
+      "blob": "7dd5b1c82680236cc8c56675fcfff0b2345b77da",
+      "sections": [
+        "lo-que-guarda-historia-en-dynamodb-y-credenciales-en-memoria"
+      ]
+    },
+    {
+      "repo": "pre-approvals-service",
+      "path": "config/config.example.yaml",
+      "commit": "c70a470b2b07c4c10cb3dafdb1a62ea7c44f79c5",
+      "blob": "db65df021370482d33184bfc302f702f62837a60",
+      "sections": [
+        "el-flujo-de-cada-entidad-credenciales-autenticacion-llamada-y-adaptacion",
+        "lo-que-guarda-historia-en-dynamodb-y-credenciales-en-memoria"
+      ]
+    }
+  ]
+}
