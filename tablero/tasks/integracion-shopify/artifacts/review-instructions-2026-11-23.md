@@ -5,8 +5,11 @@ las pruebas en producción del 2026-11-20 (aprobar, rechazar) y del 2026-11-23 (
 pila de la tarea. Lo que va entre corchetes se llena antes de enviar.
 
 Antes de enviar, confirmar con una captura:
-- el nombre exacto del interruptor del modo de prueba en Configuración → Pagos → Creditop (abajo dice «Enable test mode»);
-- que la sucursal dedicada pase «Conectar sucursal» en una tienda limpia (el token se valida contra Creditop al guardar).
+- ✔ el interruptor se llama «Modo de prueba» en la configuración de pagos de Creditop (captura de Miguel del 2026-11-23);
+- ✔ la sucursal dedicada `e1a675cc3` (producción, sucursal 2623) pasó «Guardar cambios» y las cuatro pruebas el 2026-11-23;
+- ✗ la sucursal tiene 9 entidades activas: pedido a Oscar que se las quite antes de enviar.
+
+El token NO se escribe en este archivo: se pega directo en el formulario de Shopify.
 
 ---
 
@@ -24,7 +27,7 @@ Note: the app's screens are in Spanish (our merchants are in Colombia). The labe
 
 **Test credentials**
 
-- Branch code (Código de la sucursal): `[BRANCH CODE]`
+- Branch code (Código de la sucursal): `e1a675cc3`
 - Branch token (Token de la sucursal): `[TOKEN]`
 
 These belong to a test branch dedicated to this review. They do not create real credits.
@@ -36,7 +39,7 @@ These belong to a test branch dedicated to this review. They do not create real 
 3. Under «Tu sucursal de Creditop», enter the branch code in «Código de la sucursal» and the token in «Token de la sucursal»,
    then click «Conectar sucursal». The page shows «Conectada a la sucursal …» when the token is accepted.
 4. Go to **Settings → Payments** and activate **Creditop**.
-5. In Creditop's payment settings, turn on **test mode** («Enable test mode»). Test orders show the banner "Test order".
+5. In Creditop's payment settings, turn on **Test mode** (in a Spanish admin: «Modo de prueba»). Test orders show the banner "Test order".
 
 **2. Approve (order paid)**
 
@@ -96,6 +99,6 @@ Se aclara que las pantallas de la app están en español y que en modo de prueba
 
 ## Lo que falta llenar
 
-- `[BRANCH CODE]` y `[TOKEN]`: la sucursal de prueba dedicada (pendiente de Miguel / Producto).
+- `[TOKEN]`: el token de la sucursal `e1a675cc3`; se pega en el formulario, no acá.
 - `[INSTALL LINK]`: el enlace de instalación de la app pública (sale de Partner Dashboard → Distribution).
 - `[Name, email]`: el contacto para los revisores.
