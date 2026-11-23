@@ -50,7 +50,10 @@ type flow struct {
 	// resumeReq: una corrida frenada que Miguel pidió retomar (tras decidir a mano lo que la frenó). La atiende el loop,
 	// el único que corre corridas, para que dos no se pisen.
 	resumeReq chan int
-	once      bool // -once: una mirada y, como mucho, una corrida
+	// resumePending: la corrida pedida para retomar mientras espera su turno (la interfaz lo muestra: si el loop está
+	// mirando main, arranca al terminar la mirada, y sin esto parecía que el botón no hacía nada).
+	resumePending int
+	once          bool // -once: una mirada y, como mucho, una corrida
 	// modelDown: el modelo no contestaba en la última pregunta; mientras tanto el vigía pregunta cada modelWait.
 	modelDown bool
 }
@@ -156,8 +159,18 @@ func main() {
 			writeJSON(w, 409, map[string]string{"error": err.Error()})
 			return
 		}
+		f.mu.Lock()
+		pending := f.resumePending
+		f.mu.Unlock()
+		if pending == id {
+			writeJSON(w, 202, map[string]int{"resuming": id})
+			return
+		}
 		select {
 		case f.resumeReq <- id:
+			f.mu.Lock()
+			f.resumePending = id
+			f.mu.Unlock()
 		default:
 			writeJSON(w, 409, map[string]string{"error": "ya hay una corrida pedida para retomar"})
 			return
@@ -246,6 +259,7 @@ func (f *flow) canResume(id int) error {
 
 // resumeStopped: corre otra vez una frenada desde el paso donde frenó, con lo que se decidió a mano.
 func (f *flow) resumeStopped(id int) {
+	defer func() { f.mu.Lock(); f.resumePending = 0; f.mu.Unlock() }()
 	if f.canResume(id) != nil {
 		return
 	}
@@ -543,7 +557,11 @@ func (f *flow) state(w http.ResponseWriter, _ *http.Request) {
 		}
 	}
 	model := background.Chosen()
-	writeJSON(w, 200, map[string]any{"look": look, "runs": runs, "running": current != nil, "model": model, "every": lookEvery.Minutes()})
+	f.mu.Lock()
+	pending := f.resumePending
+	f.mu.Unlock()
+	writeJSON(w, 200, map[string]any{"look": look, "runs": runs, "running": current != nil, "model": model, "every": lookEvery.Minutes(),
+		"resumePending": pending})
 }
 
 // superseded: las corridas frenadas o falladas que ya no piden nada: después pasó otra y ninguno de sus temas sigue

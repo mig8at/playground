@@ -80,6 +80,7 @@ const halt = computed(() => {
     reason,
     help: r.state === 'stopped' ? HELP[st?.id] || 'Resolvé lo que la frenó y Retomar.' : '',
     canResume: r.state === 'stopped' && isLast && !state.value?.running,
+    pending: state.value?.resumePending === r.id,
   }
 })
 async function lookNow() { try { await api('/api/look', { method: 'POST' }); setTimeout(load, 800) } catch { /* lo dice el pie */ } }
@@ -304,7 +305,11 @@ onBeforeUnmount(() => {
             <div class="alert-desc">
               <p>{{ halt.reason }}</p>
               <p v-if="halt.help" class="halt-help">{{ halt.help }}</p>
-              <div v-if="halt.canResume" class="halt-actions">
+              <div v-if="halt.pending" class="halt-actions">
+                <svg class="st st-spin" viewBox="0 0 16 16" style="width: 14px; height: 14px" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="var(--primary)" stroke-width="2" stroke-dasharray="26 12"/></svg>
+                <span>{{ look.looking ? `En cola para retomar: arranca apenas termine la mirada a main (lleva ${lookingFor})` : 'Retomando…' }}</span>
+              </div>
+              <div v-else-if="halt.canResume" class="halt-actions">
                 <button type="button" class="btn btn-sm" :disabled="resuming" @click="resumeRun(run.id)">{{ resuming ? 'Retomando…' : `Retomar la #${run.id}` }}</button>
                 <span v-if="resumeError" class="halt-error">{{ resumeError }}</span>
               </div>
