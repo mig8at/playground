@@ -125,7 +125,10 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
 
 - [ ] Que la tarjeta del listado no muestre el FGA (reunión del 2026-11-23). Hoy el «valor a financiar» del riel 4
   lo incluye: 5.000.000 pedidos salen como 5.450.000, con el FGA al 9 % sin IVA, porque `lenders_by_allieds.iva` de
-  la 149 está en 0 en qa. Termina con la tarjeta mostrando el monto pedido.
+  la 149 está en 0 en qa. Termina con la tarjeta mostrando el monto pedido. Arreglo en la rama local
+  `fix/CORE-845-delegated-origination-no-fga-on-card` de frontend-monorepo (sin publicar): el riel 4 no suma FGA en
+  el card (`CalculateLoanFinancialsUc::cardGuaranteeRate`), así que muestra y persiste el monto pedido. Falta:
+  pasarla por Goldfish, el PR (con permiso de Miguel) y verla en qa.
 - [ ] Que la fianza se cobre una sola vez y como la calcula Finandina. El plan del riel 4 la vuelve a calcular sobre
   `user_requests.amount`, que ya trae el FGA de la tarjeta: con 5.000.000 cobró 583.695 (9 % + IVA sobre 5.450.000)
   y financió 6.033.695. Según el simulador de Finandina («Simulacion Aval Libre Inversion FGA», Drive, 2026-11-23):
@@ -136,6 +139,12 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
 
   El simulador deja abierto si el % va sobre el valor desembolsado o el aprobado. Termina con el plan de qa dando lo
   mismo que el simulador.
+
+  El backend no cambia: el plan del riel 4 ya calcula la fianza sobre `user_requests.amount` con IVA del 19 % fijo
+  (`PaymentPlanPayloadBuilder::DEFAULT_IVA_RATE`) y el 4x1000 según el perfil. Con el card arreglado, la base pasa a
+  ser el monto pedido. Falta el 4x1000: `applies_four_per_thousand = 1` en el perfil de la 149, una escritura en la
+  base compartida de qa (y después en producción, donde la 149 todavía no tiene perfil). Depende de: Miguel — el
+  permiso para escribir en qa. Las solicitudes ya creadas conservan el `amount` con FGA.
 - [ ] Revisar el cálculo de la primera cuota (reunión del 2026-11-23). En el resumen de qa la primera cuota fue
   370.343 y las demás 322.914: la primera suma el interés diario de los días que pasan de 30 hasta la primera fecha
   (unos 13 días, base 360). Confirmar con Finandina que así cobra el primer período y volver a medirla con la fianza
