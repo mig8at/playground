@@ -47,7 +47,8 @@
       "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "858ca8f2747c5211a0615d5771ef532ad9fe9e51",
       "sections": [
-        "identidad-proveedor-primario-y-respaldos"
+        "identidad-proveedor-primario-y-respaldos",
+        "crosscore-con-jumio-y-los-pasos-de-evidente"
       ]
     },
     {
@@ -252,6 +253,60 @@
       "blob": "e4a61bf3ecab0f3cd1c5e3b54407238e2318bf42",
       "sections": [
         "como-se-consulta-radicar-una-vez-y-despues-preguntar-el-estado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Http/Controllers/Api/CredifamiliaV2/CrossCoreController.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "0748064f016312840632d899c1f82b19a79f2f91",
+      "sections": [
+        "crosscore-con-jumio-y-los-pasos-de-evidente"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/Lenders/CredifamiliaV2/CrossCore/JumioOnboardingService.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "7e07f0a4dc113a4b37a0acf551c5789d2a4e7007",
+      "sections": [
+        "crosscore-con-jumio-y-los-pasos-de-evidente"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/Lenders/CredifamiliaV2/Evidente/EvidenteFlowService.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "644eb0d6b9eed69b2894b25d1def3cfc32c1046e",
+      "sections": [
+        "crosscore-con-jumio-y-los-pasos-de-evidente"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/Lenders/CredifamiliaV2/Evidente/EvidenteOtpFlowService.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "4bacf6ec5f32130a09a15e148301c5d0dcd68b38",
+      "sections": [
+        "crosscore-con-jumio-y-los-pasos-de-evidente"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/Lenders/CredifamiliaV2/Evidente/EvidenteFlowStateStore.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "e7d63b6acc45f7ac5b8d0dc56429331a3203f4fe",
+      "sections": [
+        "crosscore-con-jumio-y-los-pasos-de-evidente"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/Lenders/CredifamiliaV2/Evidente/EvidenteConsumptionRecorder.php",
+      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
+      "blob": "1231866df456aba2e7441b7eaeec4c217973dc5b",
+      "sections": [
+        "crosscore-con-jumio-y-los-pasos-de-evidente"
       ]
     }
   ]

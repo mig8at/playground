@@ -63,6 +63,31 @@ proveedor: con CrossCore la solicitud se cancela; con ADO vuelve a la pantalla d
 mensaje de su estado. Por eso un CONTINUE o APPROVE de CrossCore también termina en el respaldo:
 sólo ACCEPT con R0201 valida.
 
+## CrossCore con Jumio, y los pasos de Evidente
+
+**CrossCore** son dos piezas: Jumio captura y CrossCore decide (`CrossCoreController`, `JumioOnboardingService`).
+
+1. `startBiometric` abre una cuenta de Jumio para la solicitud y le devuelve al asistente el enlace web o el token del
+   SDK para capturar documento y selfie en la plataforma de Jumio.
+2. Jumio avisa por `callback`. El backend exige el secreto compartido (si no, 401) y guarda el resultado.
+3. Si la cuenta tiene solicitud, referencias de Jumio y un estado terminal (`shouldQueueEvaluation`), encola
+   `ProcessCrossCoreEvaluation`, con una demora configurable.
+4. La evaluación consulta CrossCore y traduce su decisión como dice la sección anterior: sólo ACCEPT con R0201 valida.
+
+**Evidente** guarda en qué etapa va cada solicitud (`EvidenteFlowStateStore`) y avanza así (`EvidenteFlowService`,
+`EvidenteOtpFlowService`):
+
+1. **Validar** los datos de la persona (`validar`).
+2. **Un código**, si Evidente lo pide: iniciar, generar y verificar un OTP. Con el código válido (resultado 1) termina
+   aprobado, o pasa al cuestionario si Evidente lo exige; un código inválido (2) termina rechazado; vencido (6), pasa al
+   cuestionario; el 8 obliga a empezar de nuevo, y un resultado no documentado bloquea.
+3. **El cuestionario:** se genera y se guarda con su id.
+4. **Verificar** las respuestas (`verificar`): sólo en la etapa «cuestionario generado» (si no, 409); aprueba si la
+   respuesta trae resultado y aprobación. Repetir una verificación devuelve el resultado guardado, sin volver a llamar.
+
+Cada consulta a Evidente queda como una fila de `risk_central_user_data` (`EvidenteConsumptionRecorder`). El flujo con
+respuestas simuladas (`mock`) sólo se permite en `local` y `testing`.
+
 ## La radicación tiene dos pasos SOAP
 
 La radicación corre sólo para entidades con `response_type` 4 cuyo perfil
