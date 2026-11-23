@@ -31,6 +31,21 @@ function simplificar(geo,ratio){const idx=geo.index.array;if(ratio>=1)return idx
  uso.forEach((v,k)=>p2.set(pos.subarray(v*3,v*3+3),k*3));const i2=Uint32Array.from(idx,i=>nuevo.get(remap[i]));
  const [out]=MeshoptSimplifier.simplify(i2,p2,3,Math.max(12,Math.floor(idx.length*ratio/3)*3),.1,[]);return Uint32Array.from(out,k=>uso[k]);}
 
+// Las zonas de la ropa y qué hueso va en cuál (el principal de cada vértice)
+const Z={piel:0,camisa:1,antebrazo:2,pantalon:3,pantorrilla:4,zapatos:5,pelo:6},CORTE={arriba:.78,atras:.42};// (de la altura de la cabeza: arriba, todo; atrás, desde ahí)
+const zonaDe=b=>/Head|neck/i.test(b)?Z.piel:/hand/.test(b)?Z.piel:/lowerarm/.test(b)?Z.antebrazo:/upperarm|clavicle|spine/.test(b)?Z.camisa:/pelvis|thigh/.test(b)?Z.pantalon:/calf/.test(b)?Z.pantorrilla:/foot|ball/.test(b)?Z.zapatos:Z.camisa;
+const PIEL=['#f1c9a5','#d9a47c','#b97f57','#8d5a3b','#5e3b26'],CAMISA=['#e8e4dc','#2f3a4f','#a63d32','#4f7a5a','#d9b44a','#6d5a8c','#1f1f22','#7fa3c4'],PANTALON=['#2b3550','#3a3a3d','#7a6a54','#556b4a','#1d1d20','#9a8f7c'],ZAPATOS=['#1c1c1c','#f2f2f2','#6b4a32','#3b3f6b'],PELO=['#1b1410','#3e2a1c','#6b4a2b','#b08a55','#8a8a8a'];
+// (el material de una persona: su paleta en un uniform; el vértice toma el color de su zona. Manga corta: el antebrazo, piel;
+// pantaloneta: la pantorrilla, piel; calvo: el pelo, piel)
+function materialRopa(piel,{camisa='#ddd',pantalon='#333',zapatos='#111',pelo=null,mangaCorta=false,pantaloneta=false}={}){
+ const pal=[piel,camisa,mangaCorta?piel:camisa,pantalon,pantaloneta?piel:pantalon,zapatos,pelo||piel].map(c=>new THREE.Color(c));
+ const m=new THREE.MeshStandardMaterial({roughness:.82});m.userData.paleta=pal;
+ m.onBeforeCompile=sh=>{sh.uniforms.paleta={value:pal};
+  sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nattribute float zona;uniform vec3 paleta[7];varying vec3 vRopa;').replace('#include <begin_vertex>','#include <begin_vertex>\nvRopa=paleta[int(zona+.5)];');
+  sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vRopa;').replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.rgb*=vRopa;');};
+ m.customProgramCacheKey=()=>'ropa-zonas';return m;}
+function vestimenta(r){const de=l=>l[Math.floor(r()*l.length)];return {piel:de(PIEL),ropa:{camisa:de(CAMISA),pantalon:de(PANTALON),zapatos:de(ZAPATOS),pelo:r()<.85?de(PELO):null,mangaCorta:r()<.45,pantaloneta:r()<.25}};}
+
 // EL CUERPO LIGERO (afinado): las dos partes del maniquí en UNA malla —su color en cada vértice, así una persona es una sola
 // llamada de dibujo— y el esqueleto sin los dedos —sus pesos pasan a la mano: 65 huesos a 25—. De lejos no se nota y cada
 // cuadro mueve menos de la mitad de los huesos.
@@ -40,7 +55,18 @@ function aligerar(g){const raiz=cloneSkinned(g),ms=[];raiz.traverse(o=>{if(o.isS
  const partes=ms.map(m=>{const geo=m.geometry.clone(),c=m.material.color||new THREE.Color('#ccc'),n=geo.attributes.position.count,col=new Float32Array(n*3);for(let i=0;i<n;i++)c.toArray(col,i*3);geo.setAttribute('color',new THREE.BufferAttribute(col,3));
   const si=geo.attributes.skinIndex;for(let i=0;i<si.count;i++)for(let k=0;k<4;k++)si.setComponent(i,k,destino(si.getComponent(i,k)));
   for(const k of Object.keys(geo.attributes))if(!['position','normal','skinIndex','skinWeight','color'].includes(k))geo.deleteAttribute(k);return geo;});
- const geo=mergeGeometries(partes,false),malla=new THREE.SkinnedMesh(geo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.8}));malla.name='cuerpo';
+ const geo=mergeGeometries(partes,false);
+ // (LA ROPA POR ZONAS —2026-11-22, Miguel: «sí, por zonas»—: cada vértice, la zona de su hueso principal —el de más peso—;
+ // la cabeza, piel abajo y pelo arriba. El color lo pone la paleta de cada persona en su material: cero triángulos y cero
+ // memoria por persona, y sirve igual en todos los niveles de detalle)
+ {const nombres=quedan.map(i=>huesos[i].name),si=geo.attributes.skinIndex,sw=geo.attributes.skinWeight,pa=geo.attributes.position,n=pa.count,zona=new Float32Array(n);
+  const cab=[];for(let i=0;i<n;i++){let mk=0,mw=-1;for(let k=0;k<4;k++){const w=sw.getComponent(i,k);if(w>mw){mw=w;mk=si.getComponent(i,k);}}zona[i]=zonaDe(nombres[mk]);if(zona[i]===Z.piel&&/Head|neck/i.test(nombres[mk]))cab.push(i);}
+  // (el pelo, arriba y atrás: hacia dónde mira la persona sale de la punta del pie —el hueso ball, delante del talón—)
+  const media=re=>{let t=0,c=0;for(let i=0;i<n;i++){let mk=0,mw=-1;for(let k=0;k<4;k++){const w=sw.getComponent(i,k);if(w>mw){mw=w;mk=si.getComponent(i,k);}}if(re.test(nombres[mk])){t+=pa.getZ(i);c++;}}return c?t/c:0;},adelante=Math.sign(media(/ball/)-media(/foot/))||1;
+  const ys=cab.map(i=>pa.getY(i)),zs=cab.map(i=>pa.getZ(i)*adelante),y0=Math.min(...ys),y1=Math.max(...ys),zc=(Math.min(...zs)+Math.max(...zs))/2;
+  for(const i of cab){const t=(pa.getY(i)-y0)/(y1-y0),atras=pa.getZ(i)*adelante<zc;if(t>CORTE.arriba||(atras&&t>CORTE.atras))zona[i]=Z.pelo;}
+  geo.setAttribute('zona',new THREE.BufferAttribute(zona,1));geo.deleteAttribute('color');}
+ const malla=new THREE.SkinnedMesh(geo,materialRopa(PIEL[0],{}));malla.name='cuerpo';
  for(const b of huesos)if(DEDO.test(b.name)&&!DEDO.test(b.parent?.name||''))b.parent.remove(b);
  ms[0].parent.add(malla);malla.position.copy(ms[0].position);malla.quaternion.copy(ms[0].quaternion);malla.scale.copy(ms[0].scale);
  malla.bind(new THREE.Skeleton(quedan.map(i=>huesos[i]),quedan.map(i=>sk.boneInverses[i])),ms[0].bindMatrix);for(const m of ms)m.removeFromParent();return raiz;}
@@ -49,7 +75,8 @@ function armar(){base=ligero.value?baseLigera:baseEntera;for(const p of gente)sc
  const pesoTotal=PAPELES.reduce((t,p)=>t+p.peso,0);
  for(let i=0;i<n.value;i++){tiro=r()*pesoTotal;const papel=PAPELES.find(p=>(tiro-=p.peso)<0)||PAPELES[0];
   const root=cloneSkinned(base),mallas=[];const color=new THREE.Color(ROPA[i%ROPA.length]);
-  root.traverse(o=>{if(o.isSkinnedMesh){o.material=o.material.clone();o.material.color.copy(color).offsetHSL(0,0,(r()-.5)*.1);o.frustumCulled=false;mallas.push({o,niveles:geos[o.name]});}});
+  const vest=vestimenta(r);
+  root.traverse(o=>{if(o.isSkinnedMesh){if(o.name==='cuerpo')o.material=materialRopa(vest.piel,vest.ropa);else{o.material=o.material.clone();o.material.color.copy(color).offsetHSL(0,0,(r()-.5)*.1);}o.frustumCulled=false;mallas.push({o,niveles:geos[o.name]});}});
   const ang=r()*Math.PI*2,rad=4+r()*60;root.position.set(Math.cos(ang)*rad,0,Math.sin(ang)*rad);root.rotation.y=r()*Math.PI*2;
   const mixer=new THREE.AnimationMixer(root),act=mixer.clipAction((ahorro.value||ligero.value?clipsSinDedos:clips).find(c=>c.name===papel.clip));act.play();act.time=r()*act.getClip().duration;
   scene.add(root);gente.push({root,mixer,papel,mallas,nivel:0,giro:(r()-.5)*.6,acum:0,turno:i});}}
