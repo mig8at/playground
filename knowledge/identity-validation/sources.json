@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Validación de identidad: proveedores y cuándo corre",
   "summary": "Qué proveedor valida a la persona después de elegir una entidad que origina en casa (ADO, AWS, CrossCore, Evidente o ninguno), cómo se elige por entidad y en orden, los estados de ADO y su re-validación sólo con selfie, y en qué se diferencia de la validación de datos del tramo común.",
-  "reviewedAt": "2026-11-17T12:52:59+00:00",
+  "reviewedAt": "2026-11-23T12:00:00-05:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -104,6 +104,60 @@
       "blob": "084efde54570ad612f39c92cd5aefacc2732b73e",
       "sections": [
         "cada-entidad-elige-sus-proveedores-en-orden"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Http/Controllers/Admin/UserController.php",
+      "commit": "2798bb7aa41fe406ed4335845c7e814dfbc5f4dc",
+      "blob": "ae8f8c479d630ca8119267649fe7bcd696b90ecf",
+      "sections": [
+        "la-validacion-manual-quien-la-escribe-y-que-la-frena"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "routes/admin.php",
+      "commit": "2798bb7aa41fe406ed4335845c7e814dfbc5f4dc",
+      "blob": "ed9787f30df38ad0b913720c3d4ccd590db922c3",
+      "sections": [
+        "la-validacion-manual-quien-la-escribe-y-que-la-frena"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Http/Controllers/Customer/TwilioController.php",
+      "commit": "2798bb7aa41fe406ed4335845c7e814dfbc5f4dc",
+      "blob": "a9cf07143f80d5611f549b4cea97ba2fcdc1b694",
+      "sections": [
+        "la-validacion-manual-quien-la-escribe-y-que-la-frena"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Http/Controllers/Customer/ValidateIdentityController.php",
+      "commit": "2798bb7aa41fe406ed4335845c7e814dfbc5f4dc",
+      "blob": "15052d30dabd573e4e528f698c221788b43e116a",
+      "sections": [
+        "las-listas-restrictivas-tusdatos-aml-solo-frenan-con-hallazgos-alto"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Identity/App/Services/TusDatosService.php",
+      "commit": "e76dc44419cfe137d0de17bfdf547e06dce03cbe",
+      "blob": "261c14566e9f83f90ab0a932b61c13b978e2f3e2",
+      "sections": [
+        "las-listas-restrictivas-tusdatos-aml-solo-frenan-con-hallazgos-alto"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/CreditopXFlowService.php",
+      "commit": "e76dc44419cfe137d0de17bfdf547e06dce03cbe",
+      "blob": "07b48b30765d5cb0fd35294bf7019ba4f728e75a",
+      "sections": [
+        "la-validacion-manual-quien-la-escribe-y-que-la-frena"
       ]
     }
   ]

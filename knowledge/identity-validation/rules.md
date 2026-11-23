@@ -68,3 +68,33 @@ validado con decisión ACCEPT y código R0201; otras decisiones van a revisión,
 rechazo. Evidente es la validación por preguntas, con un código como paso adicional. El detalle de
 las decisiones de CrossCore y de cuándo se cae al respaldo está en
 [la originación de Credifamilia](knowledge:credifamilia-origination#identidad-proveedor-primario-y-respaldos).
+
+## La validación manual: quién la escribe y qué la frena
+
+La validación manual es una marca en el usuario: `users.manual_validation = 1` con la hora en `last_validation`.
+`CreditopXFlowService` mira esa hora: si la última validación tiene menos de 24 horas, el paso de identidad se salta
+sin consultar al proveedor.
+
+La escribe un administrador desde el admin viejo (`legacy-application`): «validación manual» en el detalle del usuario
+(`POST usuarios/{user}/validacion-manual`, `UserController::manualValidation`; el rechazo es
+`validacion-manual/rechazar`). Pide el permiso `validate identity manually` y mira la solicitud más reciente del
+usuario con una entidad de tipo 2, 3 o 4:
+
+- **Se niega** si esa entidad valida con ADO (`validation_type = 4`), o si TusDatos dejó hallazgos «alto» en las
+  listas restrictivas del usuario.
+- **Para las entidades 46, 94 y 160** la decisión la procesa el microservicio de préstamos (`handleManualVaidation`) y
+  sólo después se avisa al asistente por socket (`ValidationStatusChanged`).
+- **Para las demás** (`manualValidationFallback`): si el usuario no tenía validación manual o la última tiene 24 horas o
+  más, marca la validación y **le manda al cliente un WhatsApp real** por Twilio con el enlace para continuar
+  (`sendManualValidationResponseMessage`).
+
+## Las listas restrictivas (TusDatos AML) sólo frenan con hallazgos «alto»
+
+TusDatos también consulta listas restrictivas y PEP. Su respuesta trae `hallazgo` (sí o no), `hallazgos` (el nivel:
+«bajo» o «alto»), `validado` y, a veces, `error` con las listas que no pudo revisar.
+
+- **`legacy-application`** (`ValidateIdentityController`) deja pasar si la respuesta está validada y el nivel no es
+  «alto», o si el nivel es «bajo». Con «alto», la identidad se frena.
+- **`legacy-backend`** (`TusDatosService`) cuenta como hallazgo sólo `hallazgo = true` con nivel «alto», y una respuesta
+  con `error` o `mensaje_error` se informa como `has_error` en el estado: no frena por sí sola. Una lista que no se pudo
+  consultar no es un hallazgo.
