@@ -3,7 +3,7 @@
    fábrica y su CORTE. Los personajes nuevos (personajes3d.js) no se visten con piezas: el sombreador corta la tela en cada píxel
    (materialRopa) y una prenda es un puñado de números —el largo de la manga y del pantalón, el escote, la ombliguera, la
    abertura, las rayas— (2026-11-22, Miguel: «el cuello redondo o en V… mangas y pantalones bien lineales, como si fuera tela:
-   ombliguera, short, calzones…»). Lo usan el menú de cambiarse de ropa, el perfil, el retrato y el uniforme de la policía.
+   ombliguera, short, calzones…»). Lo usan la gente (characters3d outfitFor) y el muñeco del perfil (MunecoVista).
    Las medidas: manga y largo en la escala del brazo y de la pierna (0 el hombro o la cadera, .5 el codo o la rodilla, 1 la
    muñeca o el tobillo); prof, ombligo, abierto y rayas en metros. */
 
@@ -69,7 +69,7 @@ const TODAS=[
 // Lo que se ofrece por ahora: sólo lo que va PEGADO a la piel (2026-11-22, Miguel: «mejora sólo los detalles de las prendas
 // que normalmente están sobre la piel y no forzar por el momento faldas o chaquetas, que requieren estar despegadas de la
 // piel»). Las sueltas —faldas, vestido, lo de encima— y lo que es una pieza aparte —gorras, bufanda— siguen en el catálogo
-// entero (garmentById las conoce: un atuendo guardado que las lleve se sigue dibujando, y el chaleco del uniforme), pero no se
+// entero (garmentById las conoce: un atuendo guardado que las lleve se sigue dibujando), pero no se
 // ofrecen en los menús ni se le ponen a la gente.
 export const SUELTAS=new Set(['vestido','falda-corta','falda-larga','delantal','chaleco','chaqueta-abierta','abrigo','chaqueta-cremallera','bufanda','gorro-lana','gorra']);
 export const GARMENTS=TODAS.filter(g=>!SUELTAS.has(g.id));

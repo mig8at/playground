@@ -33,7 +33,7 @@ for(const v of vs){if(v.tipo==='apto'||!v.puertas.length)continue;if(v.tipo==='c
   {v:'arriba',x:p.x-m.x*16,z:p.z-m.z*16,y:14,mira:{x:p.x+m.x*4,z:p.z+m.z*4,y:2},suelo:true}]});
  if(nc>=9)break;}
 const N=await abrirNavegador();const indice=[];
-try{const P=await N.abrir(`http://localhost:5181/demo?jugadores=3&ciudad=${ciudad}`);
+try{const P=await N.abrir(`http://localhost:5181/ciudad?jugadores=3&ciudad=${ciudad}`);
  await P.evaluar(`new Promise(r=>{const t=setInterval(()=>{const d=window.__demo;if(d?.world&&d.soc&&d.avatar&&d.ronda){clearInterval(t);const st=document.createElement('style');st.textContent='.card,.hud,.mini,.accion,.quien,.r-msg,.ronda{display:none!important}';document.head.appendChild(st);d.fijarHora(2,12);r(1);}},300);})`,{tiempo:240000});
  // (el dron: la cámara libre; el muñeco no se ve)
  await P.evaluar(`(async()=>{const d=window.__demo;if(![...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='Caminar'))d.toggleDrone();for(let k=0;k<10;k++)await new Promise(r=>requestAnimationFrame(r));})()`);

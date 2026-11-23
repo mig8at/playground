@@ -413,11 +413,11 @@ export function drawMueble(canvas,kind,w,d,{px=70,lado=150,pc=false}={}){
 // ---------- LO DE AFUERA Y LAS AZOTEAS (2026-11-19) ----------
 // El plano ya traía todo esto medido —1.838 árboles, 482 piezas de mobiliario, 1.259 marcas de pintura, los nombres de
 // 21 vías, los botines y lo que hay en cada azotea, en la ciudad 1— pero el dibujo no lo mostraba: sólo se veía en el 3D.
-// Va en metros (el contexto ya viene escalado) y cada capa se puede apagar: capas={pintura,equipo,arboles,nombres,botines}.
+// Va en metros (el contexto ya viene escalado) y cada capa se puede apagar: capas={pintura,equipo,arboles,nombres}.
 // `px` es cuántos píxeles mide un metro: lo chico (un hidrante, el nombre de una calle) no se dibuja si no se va a leer.
 const EQUIPO={farol:'#3a3f45',banca:'#8a6a4c',papelera:'#4f7d5a',hidrante:'#d0412f',semaforo:'#23272b',parada:'#2f6fb0',salvavidas:'#e8762c'};
 const AZOTEA={tanque:'#7f97a8',antena:'#4a4f55',matera:'#6f9f5e',tendedero:'#c9c2b4',aire:'#9aa0a6'};
-export const CAPAS={pintura:true,equipo:true,arboles:true,nombres:true,botines:true};
+export const CAPAS={pintura:true,equipo:true,arboles:true,nombres:true};
 function drawExterior(g,bp,{level=0,px=1,capas=CAPAS}){
  const girado=(x,z,ang,f)=>{g.save();g.translate(x,z);g.rotate(ang||0);f();g.restore();};
  if(capas.pintura&&px>=1.5)for(const p of bp.pintura||[]){g.fillStyle=p.tipo==='amarilla'?'#e8b93c':'#ffffff';// (blanca sobre el asfalto gris)
@@ -431,8 +431,6 @@ function drawExterior(g,bp,{level=0,px=1,capas=CAPAS}){
   else{g.beginPath();g.arc(e.x,e.z,e.tipo==='salvavidas'?.6:.32,0,7);g.fill();}}
  // (los contenedores de basura: 1,8 × 1,05 m, sobre el andén y paralelos a la fachada —engine/contenedores.js—)
  if(capas.equipo&&px>=2)for(const c of bp.contenedores||[]){girado(c.x,c.z,c.ang||0,()=>{g.fillStyle=c.sinAnden?'#c0392b':'#2f6b4f';g.fillRect(-.9,-.525,1.8,1.05);g.fillStyle='rgba(255,255,255,.28)';g.fillRect(-.9,-.525,1.8,.22);g.strokeStyle='rgba(0,0,0,.4)';g.lineWidth=.06;g.strokeRect(-.9,-.525,1.8,1.05);});}
- // (los botines: un rombo dorado donde está la pieza, sólo en la planta baja)
- if(capas.botines&&level===0)for(const b of bp.botines||[]){if(b.x==null)continue;const r=Math.max(.7,5/px);g.fillStyle='#e9b23a';g.strokeStyle='#5a3d08';g.lineWidth=r*.22;g.beginPath();g.moveTo(b.x,b.z-r);g.lineTo(b.x+r,b.z);g.lineTo(b.x,b.z+r);g.lineTo(b.x-r,b.z);g.closePath();g.fill();g.stroke();}
  // (las azoteas: en el piso que ya es techo de cada edificio)
  for(const L of bp.lots){if(level<L.floors||!L.azotea?.objetos)continue;for(const o of L.azotea.objetos){g.fillStyle=AZOTEA[o.tipo]||'#999';
   if(o.tipo==='tanque'){g.beginPath();g.arc(o.x,o.z,Math.max(o.w,o.d)/2,0,7);g.fill();}else girado(o.x,o.z,-(o.giro||0),()=>g.fillRect(-o.w/2,-o.d/2,o.w,o.d));}}

@@ -23,7 +23,7 @@ const anda=async u=>{try{return (await fetch(u,{signal:AbortSignal.timeout(1500)
 if(!base)base=await anda('http://localhost:5181/')?'http://localhost:5181':'';
 if(!base){propio=spawn(process.execPath,[join(aqui,'../../node_modules/vite/bin/vite.js'),'--port','5199','--strictPort'],{cwd:join(aqui,'../..'),stdio:'ignore'});base='http://localhost:5199';
  for(let k=0;k<100&&!(await anda(base+'/'));k++)await new Promise(r=>setTimeout(r,200));}
-const N=await abrirNavegador(),P=await N.abrir(`${base}/demo?jugadores=3&ciudad=${S}`);
+const N=await abrirNavegador(),P=await N.abrir(`${base}/ciudad?jugadores=3&ciudad=${S}`);
 const listo=await P.evaluar(`new Promise(r=>{const t0=Date.now(),t=setInterval(()=>{const d=window.__demo;if(d?.world&&d.planoVista&&d.acciones&&d.soc){clearInterval(t);/* (de día: la ronda empieza a cualquier hora y la noche cambia toda la imagen; las referencias son a mediodía) */d.fijarHora(2,12);const st=document.createElement('style');st.textContent='.card{display:none!important}';document.head.appendChild(st);r(Date.now()-t0);}},300);})`,{tiempo:240000});
 // los lugares: posición y mirada, sacadas del plano (determinista por semilla)
 const lugares=await P.evaluar(`(()=>{const d=window.__demo,p=d.plan,w=d.world,sz=w.size,I=p.isla;

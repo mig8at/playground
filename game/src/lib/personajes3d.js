@@ -119,7 +119,7 @@ function simplificar(geo,ratio){const idx=geo.index.array;if(ratio>=1)return idx
 const niveles=geo=>NIVELES_PLANTA.map(N=>{const s=new THREE.BufferGeometry();for(const [k,v] of Object.entries(geo.attributes))s.setAttribute(k,v);s.morphAttributes=geo.morphAttributes;s.morphTargetsRelative=geo.morphTargetsRelative;s.setIndex(new THREE.BufferAttribute(simplificar(geo,N.ratio),1));s.boundingSphere=geo.boundingSphere;return s;});
 
 // ---- Cargar (sin texturas: la ropa es por zonas; cada imagen pedida, un pixel) ----
-const PIXEL='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=';
+const PIXEL='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGP4DwQACfsD/fteaysAAAAASUVORK5CYII=';// (un píxel blanco válido: el de antes no se podía decodificar y cada textura daba un error)
 const gestor=new THREE.LoadingManager();gestor.setURLModifier(u=>/\.png$/i.test(u)?PIXEL:u);
 export const cargar=f=>new GLTFLoader(gestor).loadAsync(DIR+f);
 // (las texturas de la cara y del ojo, como datos: se leen una vez, al armar, y no se dibujan)

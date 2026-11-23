@@ -1,18 +1,19 @@
 import {createRouter,createWebHistory} from 'vue-router';
 
-// FUGA, sólo el juego (2026-10-18, Miguel: «oculta en una carpeta before lo que ya no usamos y deja solamente lo que ya
-// aterrizamos del juego»). Los talleres y el calibrador web viejos están en before/ (fuera del juego); el método de
-// trabajo —las pruebas del 2D, el probador y el calibrador por consola— sigue en harness/pruebas/.
-//  · / : la entrada (título, entrar, perfil, salas —con las salas de prueba precargadas—, crear mundo, sala de espera);
-//  · /juego : la partida (?ciudad=1&jugadores=3&papel=policia); /demo es el mismo (lo usan las pruebas de pantalla).
+// MYCITY (2026-11-22, Miguel: «quitemos todo lo de policías y ladrones para trabajar solamente en mycity»). El juego de
+// policías y ladrones y su entrada (salas, bandos, perfil) quedaron en before/; el método de trabajo —las pruebas del 2D,
+// el probador y el calibrador por consola— sigue en harness/pruebas/.
+//  · / : la entrada: el país y la ciudad (engine/lugares.js);
+//  · /ciudad : la ciudad para caminar (?lugar=bogota; ?ciudad= y ?jugadores= cambian la semilla y el tamaño). /juego y
+//    /demo, las rutas de antes, llevan a /ciudad con lo que traigan.
 const router=createRouter({
  history:createWebHistory(),
  routes:[
   {path:'/',name:'inicio',component:()=>import('./views/InicioView.vue'),meta:{title:'mycity'}},
   {path:'/inicio',redirect:to=>({path:'/',query:to.query})},
-  {path:'/juego',name:'juego',component:()=>import('./views/DemoView.vue'),meta:{title:'En partida'}},
   {path:'/ciudad',name:'ciudad',component:()=>import('./views/DemoView.vue'),meta:{title:'La ciudad'}},
-  {path:'/demo',name:'demo',component:()=>import('./views/DemoView.vue'),meta:{title:'En partida'}},
+  {path:'/juego',redirect:to=>({path:'/ciudad',query:to.query})},
+  {path:'/demo',redirect:to=>({path:'/ciudad',query:to.query})},
   // (el plano 2D entero, sin cargar el 3D: /plano?ciudad=1&jugadores=3)
   {path:'/plano',name:'plano',component:()=>import('./views/PlanoView.vue'),meta:{title:'El plano'}},
   // (el catálogo: los muebles, las fachadas y las texturas, de a uno, sin el mapa)

@@ -406,60 +406,6 @@ export const CHOQUE_MUEBLE={
  // no chocan
  silla:NO('se corre: el 2D camina los cuartos sin las sillas'),lampara:NO('la lámpara de pie, un poste delgado'),
  repisa:NO('en la pared, arriba'),tablero:NO('colgado en la pared'),alfombra:NO('en el piso'),colchoneta:NO('en el piso, 4 cm'),espejo_pared:NO('en la pared')};
-// ======== EL BOTÍN (2026-10-16, idea de Miguel: lo que se roba son cosas del mundo) ========
-// Cada objeto: dónde va (tipos de lote y de cuarto, en la planta baja), su medida (largo × fondo, m; contra la pared o
-// suelto), su valor, cuánto frena al que lo carga (factor de la velocidad cargando del motor) y cuánto tarda en tomarse
-// (s). Pocos objetivos por ciudad (POR_CIUDAD, según el tamaño): que la elección pese. La caja fuerte, con el tiempo de
-// abrir del motor (vault).
-export const BOTIN={
- objetos:{
-  // (2026-10-17, Miguel: «para no complejizar el juego, que no se ponga lento al cargar y que todo le quepa en la mochila,
-  // una sola cosa o varias, acumulando dinero»: en el modo «Botín» todo va en la mochila y no frena; «carga» queda para los
-  // modos anteriores del motor. El riesgo es lo que se lleva encima: en una requisa se pierde todo)
-  caja_fuerte:{nombre:'Caja fuerte',lotes:['objetivo:Banco'],cuartos:['deposito','oficina','recepcion'],largo:.7,fondo:.6,pared:true,valor:5,carga:1,tiempo:8},
-  joyas:{nombre:'Joyas',lotes:['objetivo:Joyería'],cuartos:['recepcion','oficina','deposito'],largo:1.2,fondo:.5,pared:true,valor:4,carga:1.25,tiempo:5},
-  escultura:{nombre:'Escultura',lotes:['hotel','oficinas'],cuartos:['vestibulo','recepcion'],largo:.8,fondo:.8,pared:false,valor:3,carga:.6,tiempo:4},
-  cuadro:{nombre:'Cuadro',lotes:['oficinas','biblioteca','casa_monte'],cuartos:['oficina','lectura','sala'],largo:1.2,fondo:.06,pared:true,valor:2,carga:1.1,tiempo:3}},
- porCiudad:{2:5,3:6,5:7,8:8},monte:{2:1,3:2,5:2,8:3},
- // la meta del motor: los ladrones ganan al entregar esta fracción del valor del botín que el motor juega (punto de
- // partida: obliga a tocar uno de los grandes; se calibra con los bots)
- meta:.5};
-// ======== EL RASTRO (2026-10-18, Miguel: «que la policía tenga el punto del ladrón con signo de pregunta apenas roba, y
-// un tiempo corto antes de perderlo; lo mismo si se le piden papeles y huye: ese tiempo para atraparlo antes de perder
-// el rastro») ========
-// Mientras dura, la policía ve en su mapa EN VIVO a ese ladrón (un «?», no su nombre). Al acabarse queda donde se lo vio
-// por última vez y desde ahí crece la zona donde puede estar (m por minuto, con piso y tope). Punto de partida: se
-// calibra jugando (con jugadores de verdad, no con los bots).
-export const RASTRO={robo:20,huyePapeles:15,zona:{porMinuto:25,min:30,max:150}};
-// ======== EL ALLANAMIENTO (2026-10-18, Miguel: «si la policía lo está persiguiendo, o está con el tiempo del rastro, no
-// puede meter el botín a la guarida; si lo hace, la policía puede allanar la casa luego de un tiempo, y si encuentra
-// botines los incauta y le descuenta a la banda, aunque no agarre al ladrón») ========
-// Guardar con el rastro encendido (o perseguido) delata la guarida: la policía la ve en su mapa y, a los `espera` s (la
-// orden del juez), puede entrar. Lo que encuentra adentro —todo lo guardado ahí, de cualquiera de la banda— se incauta y
-// se descuenta de lo guardado por la banda; la guarida queda cerrada el resto de la ronda. Antes de que entren, la banda
-// puede volver a sacar el botín (a la mochila: el riesgo vuelve a estar encima).
-export const ALLANAMIENTO={espera:30};
-// ======== LAS VIVIENDAS (2026-10-17, Miguel: «la policía no entra a las casas ni a los apartamentos; sí a las zonas
-// comunes»; «forzar una chapa y entrar a un apartamento es para robar o guarecerse: guarecerse no activa alarma, la alarma
-// sólo si roba un objeto»; «en cada puerta de casa o apartamento, mirar por el visor y saber si está llena o vacía») ========
-// Una vivienda: cada apartamento (su puerta al pasillo) y cada casa del monte (sus puertas de afuera). Lo mide
-// validar-viviendas.
-//  · quién está en casa sale de las familias y sus horarios (SOCIEDAD, sociedad.js): lo que se ve por el visor es lo que
-//    hay a esa hora;
-//  · visor: dónde se para el que mira —a «antes» m de la puerta, afuera— y en cuánto tiempo (s) mira;
-//  · forzar: lo que tarda (s) y a cuántos m se oye; entrar a esconderse no hace sonar nada;
-//  · llamada: si se entra con gente adentro, a los «demora» s llaman a la policía (sabe en qué vivienda);
-//  · robables: lo que se roba en una vivienda, de sus muebles —el televisor, el portátil del escritorio, el joyero de la
-//    cómoda—; va a la mochila con el resto; al tomarlo suena la alarma. Poco valor: suma, pero no gana solo.
-export const VIVIENDA={visor:{antes:.35,mira:1.2},forzar:{tiempo:4,ruido:12},llamada:{demora:5},
- robables:{tv:{nombre:'Televisor',valor:1,tiempo:4},escritorio:{nombre:'Portátil',valor:1,tiempo:3},comoda:{nombre:'Joyero',valor:1.5,tiempo:3}}};
-// ======== LA VIDA Y LAS CAÍDAS (2026-10-17, Miguel: «los ladrones pueden saltar ciertas distancias y que tengan una
-// barra de vida: si se bota del edificio, se mató y paila») ========
-// La barra va de 0 a «max». Una caída de hasta «segura» m (un piso, con margen) no hace daño; de «mortal» m o más, mata;
-// en el medio, el daño crece en línea recta. La vida vuelve de a «recupera» por segundo, «espera» s después del último
-// golpe. Un ladrón que muere queda fuera de la ronda (y pierde lo que lleva); cuenta como preso para la policía.
-// engine/juego/huida.js (alcanceSalto, danoDeCaida); lo mide validar-azoteas.
-export const VIDA={max:100,segura:3.5,mortal:10,recupera:2,espera:6};
 // El pretil de las azoteas: el muro de afuera de un edificio choca hasta el techo más «pretil» m (antes, sin tope: el
 // muro seguía invisible hacia arriba y de un techo no se salía ni saltando —lo encontró validar-salto—). Caminando, el
 // que está en la azotea choca con él (nadie se cae sin querer); saltando (el pie sube ~0,7 m y el choque deja pasar
@@ -499,24 +445,6 @@ export const MANSARDA={alto:3,retiro:1,cubierta:2};
 export const MODO_BOTIN={gente:{porJugador:10,velocidad:1.3,papeles:3,papelesA:3,zona:30},velocidad:{ladron:4.8,policia:4.6},vista:40,requisa:1.2,sospecha:20,rescate:3,entrar:2,expuesto:8,aviso:40,
  duracion:300,meta:8,tick:.25};// (meta 8: medir-botin con el dron y la gente, 2 ciudades × 10 rondas: ladrones 50/45/50/45 % en 2/3/5/8; con 7,
 // 60/65/55/45; con 6, 65/75/55/65. Antes del dron y la gente, 7 daba 35/50/55/60)
-// ======== LAS GUARIDAS (2026-10-17, Miguel: «el sistema escoge las guaridas, que estén en lugares estratégicos y
-// roten, que consuman varios lugares del mapa para que no sea preferible cuáles no»; «a los ladrones se les dice el lugar
-// exacto: calle, carrera, casa o edificio, piso, apartamento, y ahí está la caja de guardar los objetos robados») ========
-// Una guarida es un apartamento de un edificio de la ciudad o una casa del monte, con su caja. La policía no entra.
-// Los números salen de medir-guaridas (4 ciudades): de las ~100–150 candidatas por ciudad casi todas tienen 2 entradas
-// (calle y patio); los apartamentos quedan a ~80 m de la comisaría y ~200 m de acceso medio al botín, las casas del
-// monte a ~240 m y ~280 m: por eso la equidad se mide entre las guaridas de una misma ronda, no contra todo el mapa.
-//  · porPolicias: una guarida por cada tantos policías (redondeando arriba): con 2 entradas cada una, siempre hay más
-//    puertas que policías para cuidarlas;
-//  · entradas: puertas de afuera mínimas (calle o patio);
-//  · comisaria: m caminando, como mínimo, desde la comisaría;
-//  · entre: m caminando, como mínimo, entre dos guaridas de la misma ronda;
-//  · equidad: el acceso medio al botín (camino desde las puertas de la guarida a las de cada objetivo) de las guaridas de
-//    una ronda, dentro de ±equidad entre ellas: ninguna es «la buena»;
-//  · rotacion: en «rondas» rondas de una misma ciudad, ningún lugar es guarida en más de «maxUso» de ellas;
-//  · caja: el objeto donde se guarda lo robado, contra una pared libre de un cuarto de la guarida, alcanzable.
-export const GUARIDA={porPolicias:2,entradas:2,comisaria:60,entre:120,equidad:.15,rotacion:{rondas:12,maxUso:.34},
- caja:{nombre:'Caja de la guarida',largo:.9,fondo:.5,pared:true,cuartos:['dormitorio','estudio','sala','sala_cocina','comedor_casa','cocina']}};
 // ======== Las zonas prohibidas (2026-10-16, idea de Miguel: el validador sabe dónde NO puede ir cada cosa) ========
 // Por objeto: las zonas (src/engine/zonas.js) en que no puede caer ninguna parte de su huella (radio r, o su rectángulo),
 // y las que tiene que pisar su centro (solo). La franja de una puerta: lo ancho de la puerta más lado a cada lado y
@@ -733,15 +661,6 @@ export const SOCIEDAD={
 // (parte de los adultos que buscan trabajo; el resto, independientes en casa)
  rutinas:{gimnasio:{parte:.25,dias:3,horas:1.25},compras:{porSemana:3,horas:.75},comerAfuera:{porSemana:1,horas:1.5},parque:{parte:.5,horas:2},paseos:{porSemana:4,horas:[1,3]},paso:1.3},
  cuidado:{solos:10,trabaja:.65,dejar:7,lugares:['oficinas','colegio']}};
-// ======== LAS PATRULLAS (2026-10-17, REGLAS.md paso 4: «sólo para la policía, se sacan de la comisaría —cuántas, según el
-// mapa—, se manejan y se dejan estacionadas donde sea; los ladrones no usan carros») ========
-// Lo arma src/lib/patrulla3d.js y lo mide validar-patrulla.
-//  · cuantas(equipo): cuántas hay, estacionadas en la calle frente a la comisaría, a «separa» m una de otra;
-//  · manejo (m/s, m/s², rad): velocidad máxima y en reversa, aceleración, freno, roce (al soltar), el giro de las ruedas
-//    (menos a más velocidad) y la distancia entre ejes (el radio de giro);
-//  · subir: a cuántos m de la patrulla se ofrece «Subir»; radio: el ancho que choca (medio auto);
-//  · frena sola ante la gente (a «gente» m adelante): no se atropella a nadie.
-export const PATRULLA={cuantas:e=>Math.max(2,Math.ceil(e/2)),separa:7,vmax:16,reversa:5,acel:5,freno:11,roce:1.6,giro:.55,ejes:2.6,subir:2.8,radio:.95,gente:2.2};
 // ======== LA RUTINA: AGENDA Y NECESIDADES (2026-10-18, Miguel: «que tengan agenda y necesidades; si hay un trancón o un
 // robo y el tiempo se descuadró, la necesidad debe priorizar: descartar unas cosas por otras para ponerse al día, y que
 // el juego no se comporte raro después de un tiempo sino que se estabilice; calibrarlo milimétricamente en el 2D») ========

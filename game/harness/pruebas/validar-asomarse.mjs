@@ -18,7 +18,7 @@ if(!base)base=await anda('http://localhost:5181/')?'http://localhost:5181':'';
 if(!base){propio=spawn(process.execPath,[join(aqui,'../../node_modules/vite/bin/vite.js'),'--port','5199','--strictPort'],{cwd:join(aqui,'../..'),stdio:'ignore'});base='http://localhost:5199';for(let i=0;i<60&&!await anda(base+'/');i++)await new Promise(r=>setTimeout(r,500));}
 const TARDA=1.5,GIRO=1.2;const fallas=[];const falla=(k,ej)=>fallas.push([k,ej]);
 const N=await abrirNavegador();
-try{const P=await N.abrir(`${base}/demo?jugadores=3&ciudad=${S}`);
+try{const P=await N.abrir(`${base}/ciudad?jugadores=3&ciudad=${S}`);
  await P.evaluar(`new Promise(r=>{const t=setInterval(()=>{const d=window.__demo;if(d?.world&&d.planoVista&&d.acciones){clearInterval(t);const st=document.createElement('style');st.textContent='.card{display:none!important}';document.head.appendChild(st);r(1);}},300);})`,{tiempo:240000});
  const cuadro=`()=>new Promise(r=>requestAnimationFrame(r))`;
  const info=await P.evaluar(`(async()=>{const d=window.__demo,p=d.plan,w=d.world,A=d.acciones,cuadro=${cuadro};

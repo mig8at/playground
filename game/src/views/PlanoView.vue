@@ -61,7 +61,7 @@ let plano=null,origen={x0:0,y0:0},celda=20,arrastre=null,tocado=false;// (tocado
 const vista=reactive({x:0,y:0,k:1});// (la posición y el zoom del lienzo dentro del visor, en píxeles de pantalla)
 // (los tamaños de ciudad —engine/ciudad.js SIZES—: los cuatro del juego y dos más grandes, para pasear y para otros juegos)
 const TAMANOS=[{team:2,nombre:'Mínima',m:'222 × 168 m'},{team:3,nombre:'Chica',m:'276 × 192 m'},{team:5,nombre:'Mediana',m:'354 × 246 m'},{team:8,nombre:'Grande',m:'444 × 312 m'},{team:12,nombre:'Muy grande',m:'576 × 396 m'},{team:16,nombre:'Enorme',m:'720 × 492 m'}];
-const NOMBRE_CAPA={pintura:'Pintura de vías',equipo:'Mobiliario',arboles:'Árboles',nombres:'Nombres de vías',botines:'Botines'};
+const NOMBRE_CAPA={pintura:'Pintura de vías',equipo:'Mobiliario',arboles:'Árboles',nombres:'Nombres de vías'};
 const TIPO={vivienda:'Vivienda',oficinas:'Oficinas',comercio:'Comercio',hotel:'Hotel',casa:'Casa',local:'Local',colegio:'Colegio',comisaria:'Comisaría',biblioteca:'Biblioteca',hospital:'Hospital',objetivo:'Objetivo',residencial:'Residencial'};
 
 // EL GRAFITI (engine/grafiti.js, engine/muros.js): el lienzo es un muro entero —una fachada, o una pared de un cuarto—,

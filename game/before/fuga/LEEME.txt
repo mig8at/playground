@@ -23,3 +23,12 @@ LO QUE NO SE MUDÓ, Y POR QUÉ
   src/views/DemoView.vue    la pantalla de la ciudad todavía trae adentro el código que llama a todo esto (la ronda, el
                             menú, las patrullas); sólo se ejecuta con el juego viejo. Limpiarla es el paso que sigue.
   src/views/InicioView.vue  las pantallas de salas y perfil siguen ahí, sin enlace desde el título.
+
+ARCHIVADO DEL TODO (2026-11-22)
+  Miguel: «elimina fuga y toda la lógica que aún esté en mycity sobre policías y ladrones; vamos a dejar solamente una
+  ciudad donde se va a poder comprar y hacer pixel art». Esta carpeta pasó de game/fuga/ a game/before/fuga/ y ya no
+  corre: /juego y /demo llevan a la ciudad. Con ella se fueron a before/: la entrada vieja (salas, bandos, perfil),
+  REGLAS.md e IDEAS.md, engine/plano.js, botin.js, guaridas.js, juego/identidad.js y juego/huida.js, lib/core.js,
+  reglasJuego.js, sociedad3d.js y ropaTexto.js, y las pruebas de la partida (juego, guaridas, identidad, azoteas, salto,
+  caídas, gente, fluidez, patrulla, menú y la entrada vieja). Las utilidades de la ciudad que vivían en botin.js y
+  guaridas.js están en src/engine/entradas.js.

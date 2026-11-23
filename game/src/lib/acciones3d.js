@@ -6,7 +6,6 @@
 import * as THREE from 'three';
 import {usosDePiso,miradoresDePiso,miradoresDeCasa,USOS} from '../engine/usos.js';
 import {cuartoDeVentana} from '../engine/cortinas.js';
-// (usosRonda —lo que la ronda del juego viejo deja hacer en un lugar— llega de quien arma las acciones: game/fuga/)
 import {CHOQUE_MUEBLE,CORTINA} from '../engine/medidas.js';
 import {makeSitter,liftFor,FWD,ease} from './sitting3d.js';
 import {moveCharacter} from './characters3d.js';
@@ -15,10 +14,7 @@ import {moveCharacter} from './characters3d.js';
 // (asomado, la cabeza sale ACCION.afuera m más allá del vidrio: desde adentro, al mirar a un lado se veía el muro)
 export const ACCION={alcance:1,cortina:.5,asomarse:.3,asoma:.6,ojos:1.75,afuera:.35,asiento:{silla:.47,sillon:.45,sofa:.45,inodoro:.42,banca:.42,banco:.48},acostarse:1.1,camina:2.2,cuerpo:1.75};
 const CU=new Set(CORTINA.cuartos);
-// ronda (2026-10-17, REGLAS.md): la ronda jugable (engine/juego/ronda.js), si hay: robar lo que está al alcance y guardar
-// en la caja de la guarida; enRonda(uso) lo hace (el 3D lleva la cuenta y lo muestra).
-// casaPlan: el índice en el plano (plan.isla.casas) de la casa i del 3D (que sólo arma las que tienen plano de casa).
-export function createAcciones({plan,world,player,avatar,viviendas=()=>null,ronda=()=>null,enRonda=()=>{},casaPlan=i=>i,usosRonda=()=>[]}){
+export function createAcciones({plan,world,player,avatar,viviendas=()=>null}){
  const cache=new Map();let cur=null,sitter=null;
  // los usos de un piso, en el mundo: los muebles del plano y las ventanas de los cuartos con cortina (con su clave)
  const usosDe=(lote,nivel)=>{const k=lote+':'+nivel;if(cache.has(k))return cache.get(k);const L=plan.lots.find(l=>l.id===lote),lv=L?.levels?.find(l=>l.level===nivel);if(!lv){cache.set(k,[]);return [];}
@@ -44,11 +40,8 @@ export function createAcciones({plan,world,player,avatar,viviendas=()=>null,rond
   for(const s of list||[]){if(s.f!=null&&s.f!==p.nivel)continue;const d=Math.hypot(s.x-u.pose.x,s.z-u.pose.z);if(d<bd){bd=d;best=s;}}return best;};
  const ocupado=(u,p)=>{const s=lugarDe(u,p);return !!(s&&s.by&&s.by!=='jugador');};
  const texto=u=>u.accion==='sentarse'?'Sentarse':u.accion==='acostarse'?'Acostarse':u.accion==='asomarse'?'Asomarse':world.cortinaCerrada?.(u.objeto.key)?'Aclarar el vidrio':'Opacar el vidrio';
- // (lo de la ronda como acción: con su alterna —R—, si tiene)
- const deRonda=(ur,p)=>({ronda:ur,texto:ur.texto,piso:p,...(ur.alterna?{alterna:{ronda:ur.alterna,texto:ur.alterna.texto}}:{})});
  function cerca(){if(cur)return {texto:cur.fase==='quieto'?'Levantarse':null};const p=pisoDe();
-  // (afuera: sólo lo de la ronda —las puertas de las casas del monte dan a la calle o al patio—)
-  if(!p){const R=ronda(),ur=R?usosRonda(R,null,player.x,player.z)[0]:null;return ur?deRonda(ur,null):null;}
+  if(!p)return null;
   let mejor=null,bd=1e9;
   // (la cortina, con ACCION.cortina m de desventaja: su grilla de puntos llega cerca de todo lo que está junto a la ventana, y
   // parado delante del sofá se cerraba la cortina en vez de sentarse)
@@ -59,11 +52,8 @@ export function createAcciones({plan,world,player,avatar,viviendas=()=>null,rond
     const sc=dd+(u.accion==='cortina'?ACCION.cortina:u.accion==='asomarse'?ACCION.asomarse:0);if(sc<bd){bd=sc;mejor={u,de:d,piso:p};}}}
   // (frente a una ventana con cortina, E se asoma y R corre la cortina: la de la misma ventana)
   if(mejor?.u.accion==='asomarse'){const c=cortinas.filter(c=>c.u.objeto.key===mejor.u.objeto.key).sort((a,b)=>a.dd-b.dd)[0];if(c)mejor.cortina={u:c.u,de:c.de,piso:p,texto:texto(c.u)};}
-  // (la ronda: robar o guardar le gana a lo demás si está igual de cerca —lo robable suele estar junto a un sofá o una cama—)
-  const R=ronda(),ur=R?usosRonda(R,p.casa!=null?{...p,casa:casaPlan(p.casa)}:p,player.x,player.z)[0]:null;
-  if(ur&&(!mejor||ur.d<=bd+.4))return deRonda(ur,p);
   return mejor&&{...mejor,texto:texto(mejor.u)};}
- function empezar(c){const av=avatar();if(!c||!av)return false;if(c.ronda){enRonda(c.ronda);return false;}const {u,de,piso}=c;
+ function empezar(c){const av=avatar();if(!c||!av)return false;const {u,de,piso}=c;
   if(u.accion==='cortina'){world.cortina?.(u.objeto.key);return false;}
   if(u.accion==='asomarse'){cur={u,de:{x:de.x,z:de.z},piso,fase:'ir',t:0,yaw0:av.holder.rotation.y};return true;}
   if(ocupado(u,piso))return false;sitter=sitter||makeSitter(av,av.tpl);

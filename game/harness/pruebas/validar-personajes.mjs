@@ -10,11 +10,10 @@
 //    la gente (outfitFor) usa prendas del catálogo;
 //  · sólo se ofrecen y se le ponen a la gente prendas pegadas a la piel (ropa.js SUELTAS), y sus detalles —botones, ribete,
 //    costuras, elástico— llegan al material;
-//  · el uniforme de la policía: el chaleco reflectivo en el tronco y las mangas azules.
 // Uso: node harness/pruebas/validar-personajes.mjs [semillas=2000]
 import {COLORS} from '../../src/engine/vestuario.js';
 import {PEINADOS,CONTEXTURA} from '../../src/lib/personajes3d.js';
-import {lookFor,outfitFor,peinadoDe,uniformeDe,CIVILS} from '../../src/lib/characters3d.js';
+import {lookFor,outfitFor,peinadoDe,CIVILS} from '../../src/lib/characters3d.js';
 import {zonasDeRopa,garmentById,SUELTAS,GARMENTS} from '../../src/lib/ropa.js';
 
 const N=+(process.argv[2]||2000);const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};
@@ -45,8 +44,7 @@ const casos=[['manga corta: 0,3 del brazo',z({top:{id:'camiseta',color:'#111'}})
  ['la ombliguera deja el ombligo',z({top:{id:'ombliguera',color:'#111'}}).ombligo>0],
  ['los largos: calzones < short < falda corta < bermuda < pescador < jean',(()=>{const L=id=>z({bottom:{id,color:'#333'}}).largo;return z({underwear:{id:'calzon',color:'#fff'}}).largo<L('short')&&L('short')<L('falda-corta')&&L('falda-corta')<L('bermuda')&&L('bermuda')<L('pescador')&&L('pescador')<L('jean');})()],
  ['el vestido pinta tronco y falda',(()=>{const k=z({top:{id:'vestido',color:'#444'}});return k.camisa==='#444'&&k.pantalon==='#444'&&k.largo<.6;})()],
- ['las rayas contrastan',(()=>{const a=z({top:{id:'rayas',color:'#f2f0ea'}}),b=z({top:{id:'rayas',color:'#2b3d5c'}});return a.rayas>0&&a.raya!==b.raya;})()],
- ['la policía: chaleco reflectivo y mangas azules largas',(()=>{const k=z(uniformeDe());return k.camisa==='#c6e83a'&&k.antebrazo==='#24406b'&&k.manga>.9&&k.largo===1;})()]];
+ ['las rayas contrastan',(()=>{const a=z({top:{id:'rayas',color:'#f2f0ea'}}),b=z({top:{id:'rayas',color:'#2b3d5c'}});return a.rayas>0&&a.raya!==b.raya;})()]];
 for(const [n,ok] of casos)if(!ok)falla('ropa por zonas: '+n,{});
 // (lo que se ofrece: nada suelto; y los detalles de lo pegado llegan al material)
 for(const g of GARMENTS)if(SUELTAS.has(g.id))falla('el catálogo que se ofrece trae una prenda suelta',{id:g.id});

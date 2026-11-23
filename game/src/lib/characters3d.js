@@ -1,8 +1,8 @@
 /* La gente del juego (2026-11-22, Miguel: «saca todos los muñecos anteriores y mándalos a before para dejar lo que vamos a
    dejar»). Los personajes nuevos de personajes3d.js —los maniquíes con el esqueleto de las Universal Animation Library, el
    pelo amarrado a la cabeza, la ropa por zonas y la contextura— detrás de la MISMA puerta que tenían los muñecos viejos
-   (before/src/lib/characters3d.js): loadCharacters, loadPolice, makeCharacter, moveCharacter, vestirPlantilla,
-   plantillaJugador. Quien los usa no cambia.
+   (before/src/lib/characters3d.js): loadCharacters, makeCharacter, moveCharacter, vestirPlantilla, plantillaJugador.
+   (2026-11-22: sin la policía ni su uniforme, que eran del juego de policías y ladrones —before/fuga/—)
    - Una plantilla: un cuerpo armado (hombre o mujer con su peinado, compartido entre plantillas), su look (piel, pelo,
      contextura), su atuendo y su material (la paleta de las zonas). Cada persona es una copia con su esqueleto y su
      mezclador; comparte la malla y el material de la plantilla: un dibujo por persona.
@@ -49,15 +49,13 @@ export function lookFor(m,r){const pick=a=>a[Math.floor(r()*a.length)],quien=/Fe
   ...(pelos.includes('Hair_Beard')?{barba:'tres_dias'}:{}),forma:contexturaAlAzar(r,quien==='mujer')};}
 // El atuendo de calle (sin género: una sola lista de prendas para todos).
 const NEUTRAL=['#2f3133','#3d5370','#26282a','#5c6340','#7d8284','#c8b48f','#2b3d5c','#6e4e35'];
-export const UNIFORME={top:{id:'camisa',color:'#24406b'},bottom:{id:'pantalon',color:'#1b2a40'},outer:{id:'chaleco',color:'#c6e83a'},shoes:{id:'botas',color:'#232425'},hat:{id:'gorra',color:'#1b2a40'}};
-export function outfitFor(L,r){if(/^BlueSoldier/.test(L.modelo||''))return {underwear:{id:'boxer'},...structuredClone(UNIFORME)};const pick=a=>a[Math.floor(r()*a.length)],oficio=/^(Chef|Worker)/.test(L.modelo||''),formal=/^(Suit|OldClassy|Doctor)/.test(L.modelo||'');
+export function outfitFor(L,r){const pick=a=>a[Math.floor(r()*a.length)],oficio=/^(Chef|Worker)/.test(L.modelo||''),formal=/^(Suit|OldClassy|Doctor)/.test(L.modelo||'');
  const top=formal?pick(['camisa','camisa','polo','manga-larga']):pick(['camiseta','camiseta','manga-larga','polo','camisa','sudadera','sudadera-capucha','sin-mangas','rayas','cuadros','logo','franja','tres-cuartos','manga-codo','ombliguera','cuello-v','cuello-alto']);
  const bottom=formal?'pantalon':pick(['jean','jean','pantalon','cargo','deportivo','bermuda','pantaloneta','leggings','short','pescador',...(oficio?['overol','overol']:['overol'])]);
  // (2026-11-22: sólo prendas pegadas a la piel —ropa.js SUELTAS—: sin lo de encima, sin faldas ni vestido, sin gorras)
  const shoes=formal?'zapatos':pick(['tenis','tenis','botas','zapatos']),c1=pick(PALETTE);let c2=pick(NEUTRAL);while(c2===c1)c2=pick(NEUTRAL);
  const o={underwear:{id:'boxer'},top:{id:top,color:c1},bottom:{id:bottom,color:c2},shoes:{id:shoes,color:pick(['#232425','#34507a','#5b3b25','#f2f0ea'])}};
  return o;}
-export const uniformeDe=({gorra=true}={})=>{const u=structuredClone(UNIFORME);if(!gorra)delete u.hat;return {underwear:{id:'boxer'},...u};};
 
 // ---- Las plantillas ----
 // (el material: la paleta de las zonas, de la piel, el pelo y el atuendo)
@@ -69,14 +67,11 @@ const caches=new Map();
 export function loadCharacters(names=CIVILS,{per=2,seed=7}={}){const key=[names.join(),per,seed].join('|');if(caches.has(key))return caches.get(key);
  const r=rng(seed*7919+1),vr=rng(31337),looks=[];for(const m of names)for(let i=0;i<per;i++)looks.push([lookFor(m,r),m]);
  const p=Promise.all(looks.map(([L,m])=>plantilla(L,m,outfitFor(L,vr)).catch(e=>{console.warn('persona',m,e);return null;}))).then(a=>a.filter(Boolean));caches.set(key,p);return p;}
-// Los policías: el uniforme azul con chaleco reflectivo; dos hombres y dos mujeres.
-let policeCache=null;
-export function loadPolice(){if(!policeCache){const r=rng(4242);policeCache=Promise.all(['BlueSoldier_Male','BlueSoldier_Male','BlueSoldier_Female','BlueSoldier_Female'].map(m=>{const L=lookFor(m,r);return plantilla(L,m,uniformeDe({gorra:r()<.5}));}));}return policeCache;}
 // (el menú del juego: la misma persona con otra ropa)
 export const vestirPlantilla=(t,outfit)=>plantilla(t.look,t.name,outfit);
-// (el perfil del jugador: su cuerpo —piel, pelo, peinado, barba— y la ropa de su bando)
-export function plantillaJugador(cuerpo,outfit,policia=false){const {quien,pelos}=peinadoDe(cuerpo.peinado,cuerpo.barba);
- const L={modelo:policia?'BlueSoldier_Male':'Casual_Male',quien,pelos,piel:cuerpo.piel,pelo:cuerpo.pelo,pzPelo:cuerpo.peinado||'',peinado:cuerpo.peinado?'':'rapado',...(cuerpo.barba?{pzBigote:cuerpo.barba}:{}),forma:{}};
+// (el perfil del jugador: su cuerpo —piel, pelo, peinado, barba— y su ropa)
+export function plantillaJugador(cuerpo,outfit){const {quien,pelos}=peinadoDe(cuerpo.peinado,cuerpo.barba);
+ const L={modelo:'Casual_Male',quien,pelos,piel:cuerpo.piel,pelo:cuerpo.pelo,pzPelo:cuerpo.peinado||'',peinado:cuerpo.peinado?'':'rapado',...(cuerpo.barba?{pzBigote:cuerpo.barba}:{}),forma:{}};
  return plantilla(L,L.modelo,outfit);}
 
 // ---- Las personas ----
