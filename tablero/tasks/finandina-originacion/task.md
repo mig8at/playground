@@ -360,7 +360,7 @@ Detalle de tablas y orden de búsqueda en `knowledge/lender-credential-sources`.
 | Experian, pipeline nuevo (Acierta) | no: lee sólo config | `Modules/RiskV2/App/Http/Clients/ExperianAciertaClient.php:136`, deuda `RKV2TD024` |
 | Mareigua | no: una sola cuenta, global, en los dos clientes | `config/services.php:289`, `app/Actions/RiskCentrals/Mareigua.php:192`, `Modules/RiskV2/App/Http/Clients/MareiguaClient.php:206` |
 | Deceval | sí, sólo en legacy-backend; si falta, cae a comercio o sucursal | `RiskCentralCredential.php:82`, `Modules/Loans/App/Actions/DecevalSoap.php:55` |
-| ADO | sí: la entidad primero, luego config | `app/Actions/RiskCentrals/Ado.php:47` |
+| ADO | sólo en la ruta IMEI: fuera de ella el enroll usa la cuenta de config aunque la entidad tenga la suya (`AdoController::resolveEnrollCredential`); `Ado::getCredentials` busca la entidad primero si se la pasan | `Modules/Identity/App/Http/Controllers/Customer/AdoController.php`, `app/Actions/RiskCentrals/Ado.php:47` |
 | la propia entidad (API) | sí, por sucursal o comercio, en `lender_allied_credentials` | `LenderAlliedCredential::findOrFailByLenderAndAlly` |
 
 - Además, los datos del buró se guardan por cliente y el pipeline no vuelve a consultar si ya hay un dato
