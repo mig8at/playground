@@ -1,7 +1,7 @@
 <script setup>
 // (?lab=1: los botones de prueba a la vista —el juego, sin ellos, como terminado—)
 const LAB=new URLSearchParams(location.search).has('lab');
-/* LA CIUDAD (/ciudad?lugar=bogota): caminar mycity en primera persona. Por ahora sólo la ciudad —sin gente, en boceto—,
+/* LA CIUDAD (/ciudad?lugar=bogota): caminar mycity en primera persona. Por ahora sólo la ciudad —sin gente, de color plano—,
    como base para comprar propiedades y, más adelante, pintar pixel art. El lugar sale de engine/lugares.js (el país y la
    ciudad que se eligen en la entrada); ?ciudad=1234 y ?jugadores=3 cambian la semilla y el tamaño en el laboratorio. */
 import {ref,onMounted,onBeforeUnmount} from 'vue';
@@ -46,7 +46,7 @@ import {sitiosDe,aparecerEn} from '../engine/aparecer.js';
 import {createGrafitis,createMapaPintable} from '../lib/grafitis3d.js';
 import {claveCiudad} from '../engine/grafiti.js';
 import {sincronizar} from '../lib/pinturaGuardada.js';
-import {createBoceto} from '../lib/boceto3d.js';
+import {createColorPlano} from '../lib/colorPlano3d.js';
 import {cerradurasDe,puertaTrancadaEn,trancada,adentroCerrado} from '../engine/propiedad.js';
 import {paredesDeLaCiudad} from '../engine/muros.js';
 
@@ -65,10 +65,10 @@ const pickCity=t=>{if(!parks)return ciudadAlAzar(t);for(let i=0;i<200;i++){const
 // LA CIUDAD SOLA (2026-11-22, Miguel: «quitemos todo lo de policías y ladrones para trabajar solamente en mycity»): se
 // camina, V despega y vuelve a tierra, N cambia el día, y arriba a la derecha va el rendimiento. El juego de policías y
 // ladrones (la ronda, la persecución, las patrullas, las armas, el menú, la vida) quedó en game/before/fuga/.
-// (2026-11-22, Miguel: «la idea es eliminar todo el ruido y centrarnos en las medidas… bórralos, no los dejes ahí, porque
-// la idea es ir progresivamente»): el paseo es un BOCETO —todo blanco, lib/boceto3d.js— y no hay cómo volver a los
-// colores ni a los muebles desde la pantalla. Sin bordes negros: se probaron y Miguel los sacó.
-const EN_BOCETO=true;let boceto=null;
+// EL COLOR PLANO (2026-11-22, Miguel: «aplicar color a todo coherentemente desde el motor 2D hasta el 3D; por ahora no apliquemos
+// texturas a nada, sólo color armónico»): todo de un color, sin texturas —lib/colorPlano3d.js, con los colores del motor:
+// engine/colores.js y color.js—. Reemplaza al boceto blanco del mismo día.
+let colorPlano=null;
 const PRUEBA=route.query.prueba==='edificio',PRUEBA_LOTES=PRUEBA?String(route.query.lotes||'32,34').split(',').map(Number):null;
 const seed=ref(+route.query.ciudad||(PRUEBA?2:LUGAR?.semilla||pickCity(team.value)));
 // characters: los personajes animados (se cargan una vez al entrar): el muñeco del jugador.
@@ -244,10 +244,10 @@ makeAvatar();lap('muñeco');
  if(!PRUEBA){const R=cerradurasDe(plan);trancar(R,conPlano);cerradoAlPasear=adentroCerrado(plan,R);world.setCerrados?.(cerradoAlPasear);}
  // (compilar los shaders ya, en paralelo, en vez de a la primera vez que cada cosa aparece en cámara: eso eran los tirones
  // al girar o al entrar a un edificio)
- // (2026-11-22, Miguel: «al entrar al 3D sigo teniendo un flash de cambio de color»: el blanco del boceto se ponía recién en
+ // (2026-11-22, Miguel: «al entrar al 3D sigo teniendo un flash de cambio de color»: el color plano se ponía recién en
  // el bucle, después de compilar con los materiales de color, y los primeros cuadros salían con color. Ahora se pone acá,
- // antes de compilar: lo que se compila y lo primero que se ve ya es blanco)
- if(EN_BOCETO){boceto||(boceto=createBoceto());boceto.aplicar(world.group);}
+ // antes de compilar: lo que se compila y lo primero que se ve ya es de color plano)
+ colorPlano||(colorPlano=createColorPlano());colorPlano.aplicar(world.group);
  renderer.compileAsync?.(scene,camera).catch(()=>{});
  // (en la ciudad sola se aparece donde dice el plano —engine/aparecer.js—: el sitio del andén con menos gente. Todavía no
  // hay gente de verdad, así que es el más cercano al centro; cuando la haya, se le pasa acá)
@@ -539,7 +539,7 @@ function loop(t){
  // Las luces reales van a los postes más cercanos; se reparten de nuevo cada tanto, no en cada cuadro.
  if(luz.n>.5&&(lightClock-=dt)<=0){lightClock=.35;const cp=camera.position,near=[...world.lights,...(island?.lights||[]),...(barrios?.lights||[]),...(viviendas?.lights||[]),...(planoVista?.lights||[])].map(l=>({l,d:(l.x-cp.x)**2+(l.z-cp.z)**2})).sort((a,b)=>a.d-b.d);streetLights.forEach((s,i)=>{const n=near[i];if(n)s.position.set(n.l.x,n.l.y,n.l.z);s.intensity=n?6:0;});}
  // (justo antes de dibujar: lo que se armó en este cuadro —un interior al acercarse— tampoco llega a verse con color)
- if(EN_BOCETO&&world){boceto||(boceto=createBoceto());boceto.aplicar(world.group);}
+ if(world){colorPlano||(colorPlano=createColorPlano());colorPlano.aplicar(world.group);}
  renderFrame();medir();drawMini();
  if(Math.floor(t/250)!==Math.floor((t-dt*1000)/250)){niebla?.actualizar(camera,scene.fog.far);
   // Dónde estoy (direcciones.js ubicacionDe, validada en validar-ubicacion): la calle y la carrera del punto donde está el
@@ -624,6 +624,7 @@ if(import.meta.env.DEV)window.__demo={aristas,caminar,get mundo(){return world;}
   const calle=(x,z)=>{let best=null,bd=1e9;for(const {a,b} of ejes){const dx=b.x-a.x,dz=b.z-a.z,L2=dx*dx+dz*dz||1,t=Math.max(0,Math.min(1,((x-a.x)*dx+(z-a.z)*dz)/L2)),dd=Math.hypot(x-a.x-t*dx,z-a.z-t*dz);if(dd<bd){bd=dd;best=a.h+(b.h-a.h)*t;}}return bd<14?best:null;};
   for(const c of I.cells){if(!c.lote||c.manzana==='mirador')continue;for(const u of [.1,.5,.9])for(const v of [.1,.5,.9]){const x=(c.x+u)*CELL,z=(c.y+v)*CELL;n++;ray.set(new THREE.Vector3(x,c.terraza+40,z),new THREE.Vector3(0,-1,0));const h=ray.intersectObjects(objs,false)[0];const ys=h?h.point.y:-99,cal=calle(x,z);if(ys<Math.min(c.terraza,cal??c.terraza)-1)out.push({c:[c.x,c.y],visto:+ys.toFixed(2),lote:c.terraza});}}
   return {muestras:n,huecos:out.length,ej:out.slice(0,5)};},get zonaAterrizaje(){return zonaAterrizaje;},toggleDrone,camDbg,get planoVista(){return planoVista;},setNight(v){night.value=v;applyLight(true);},get luz(){return luz;},get jugador(){return player;},get plan(){return plan;},get camara(){return camera;}};
+ if(!host.value)return;// (si se dejó la ciudad mientras cargaba, ya no hay dónde dibujar)
  resize=new ResizeObserver(()=>{const w=host.value.clientWidth,h=host.value.clientHeight;renderer.setSize(w,h);composer.setPixelRatio(renderer.getPixelRatio());composer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();});
  resize.observe(host.value);
  renderer.domElement.addEventListener('pointerdown',onDown);window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp);
@@ -676,7 +677,7 @@ onBeforeUnmount(()=>{
      <p class="carga-papel">{{ LUGAR?`${LUGAR.nombre}, ${LUGAR.pais.nombre}`:'La ciudad' }}</p>
      <div class="carga-barra" role="progressbar" :aria-valuenow="Math.round(carga.parte*100)" aria-valuemin="0" aria-valuemax="100"><i :style="{transform:`scaleX(${carga.parte})`}"></i></div>
      <p class="carga-etapa">{{ carga.etapa }}</p>
-     <p class="carga-pista">En boceto: todo blanco y vacío, sólo el baño y la cocina. Primero las medidas.</p>
+     <p class="carga-pista">De color plano, sin texturas: cada cosa con su color. Las viviendas se entregan vacías, con el baño y la cocina.</p>
     </div>
    </div>
   </Transition>

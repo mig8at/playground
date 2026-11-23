@@ -59,7 +59,8 @@ const NIVELES=[
   {n:'aulas',f:'validar-aulas.mjs',a:[N,S0],fallas:F,res:/^aulas/},
   {n:'giros',f:'validar-giros.mjs',a:[N,S0],fallas:F,res:/^giros/},
   {n:'cortinas',f:'validar-cortinas.mjs',a:[N,S0],fallas:F,res:/^cortinas/}]},
- {n:5,t:'Exterior',d:'árboles, equipamiento, pintura y color',p:[
+ {n:5,t:'Exterior',d:'árboles, equipamiento, pintura, color y los colores del mundo',p:[
+  {n:'colores',f:'validar-colores.mjs',a:[],fallas:F,res:/^colores/},// (2026-11-22: el color del motor llega igual al 3D; la tabla en la familia)
   {n:'vegetación',f:'validar-vegetacion.mjs',a:[N,S0],fallas:F,res:/^3-30-300/},
   {n:'equipamiento',f:'validar-equipamiento.mjs',a:[N,S0],fallas:F,res:/^cobertura/},
   {n:'pintura',f:'validar-pintura.mjs',a:[N,S0],fallas:F,res:/^pintura/},

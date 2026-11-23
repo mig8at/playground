@@ -117,7 +117,7 @@ function abrirPared(f){if(f.clase==='exterior'){ladoAlzado.value=f.P.codigo;next
 const murosPintados=computed(()=>Object.keys(grafitis.value[claveCiudad(seed.value,team.value)]||{}).length);
 const alzado=ref(null),ladoAlzado=ref(null),medidoAlzado=ref(null),NOMBRE_TEX={ladrillo:'ladrillo a la vista',ladrillo_pintado:'ladrillo pintado',sillar:'sillar de piedra',estuco:'estuco',panel:'panel',hormigon:'hormigón a la vista',tablilla:'tablilla'};
 // (el paquete de texturas de las fachadas: se recuerda en este navegador)
-const guardado=(()=>{try{return localStorage.getItem('fuga.paquete');}catch{return null;}})(),paquete=ref(PAQUETES[guardado]?guardado:'ciudad');// (sin nada guardado: «Como el 3D»)
+const guardado=(()=>{try{return localStorage.getItem('fuga.paquete');}catch{return null;}})(),paquete=ref('liso');// (2026-11-22, Miguel: «por ahora no apliquemos texturas a nada, sólo color plano»: el plano arranca liso, como el 3D; el selector sigue para comparar)
 watch(paquete,v=>{try{localStorage.setItem('fuga.paquete',v);}catch{}});
 const LADO={N:'Norte',S:'Sur',E:'Este',W:'Oeste'};
 // (los lados del edificio que dan a algo abierto: una medianera no tiene fachada)
