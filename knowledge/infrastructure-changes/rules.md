@@ -51,8 +51,8 @@ la hace el backend, como el token de sucursal de las rutas server-to-server de e
 `backoffice-authorizer` cuando la hace Cognito) y `request_parameters` con dos sobrescrituras:
 `overwrite:header.host` (el servicio interno que contesta, por el ALB interno) y `overwrite:path` (la
 ruta en ese servicio, para legacy-backend con `/api/…`). Un parámetro de ruta seguido de más segmentos
-se escribe con el `local` del archivo (por ejemplo `${local.order_key_var}`), porque API Gateway ignora
-la forma sin llaves.
+se escribe con el `local` del archivo (por ejemplo `${local.order_key_var}`, `${local.placement_var}` o
+`${local.case_id_var}`), porque API Gateway ignora la forma sin llaves.
 
 Las rutas con `customer-authorizer` cuyo backend confía en la identidad que le llega (por ejemplo las de
 `/legacy-api/v1/mobile-onboarding/…` y `POST /legacy-api/v1/mobile/ecommerce/store-link`) agregan dos
@@ -61,6 +61,13 @@ sobrescrituras más, tomadas del contexto del authorizer: `overwrite:header.x-us
 Así un valor mandado por quien llama no llega al backend. No todas las rutas de cliente las llevan:
 `GET /legacy-api/loans/debt-summary` arma la ruta con `internal_id_expr` en `overwrite:path`, y las de
 `/legacy-api/loans/requests/…` no pasan la identidad.
+
+La identidad que se pasa depende del servicio. Las rutas de form-service con `customer-authorizer`
+(`/customers/form-service/v1/app-forms/{placement}` y `…/responses`, en prod) pasan sólo
+`overwrite:header.X-User-Id`, sin `x-cognito-identity-id`. Las rutas de backoffice de merchant-api
+(`/backoffice/merchant-api-service/v1/…`, en dev) usan `backoffice-authorizer` y sobrescriben
+`x-cognito-identity-id` (`$context.authorizer.cognito_sub`) y `x-principal-id`
+(`$context.authorizer.principal_id`), no `x-user-id`.
 
 En `environments/prod`, las rutas de cliente bajo `/legacy-api/loans/customer/…` (consumer, revolving —incluida
 `GET …/revolving/credits/{revolving_credit_id}/payment-info`— y `customer/payments/{reference}` con su

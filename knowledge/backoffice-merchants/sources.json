@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Comercios en el backoffice nuevo",
   "summary": "Qué hace el backoffice nuevo (apps/backoffice) con un comercio en main: el BFF y sus dos proxies, las rutas de legacy-backend con el token de staff, las ubicaciones en merchant-api y el gateway con su authorizer. El alta y la edición completa de CORE-562 todavía no están en main.",
-  "reviewedAt": "2026-11-20T14:27:19+00:00",
+  "reviewedAt": "2026-11-23T14:35:07+00:00",
   "sources": [
     {
       "repo": "frontend-monorepo",
@@ -101,8 +101,8 @@
     {
       "repo": "infrastructure",
       "path": "environments/prod/ecs-application/terragrunt.hcl",
-      "commit": "0b7cd190eefa66f97a29251dfd032572f6ed3979",
-      "blob": "502973336dda63a24bb20f86dfde71c6172b27d0",
+      "commit": "a1ece0730e0916f8198f57ce27bcfb2c87cb8be3",
+      "blob": "60c7e9fd7f6efbff36e315c5feb56096c9cce547",
       "sections": [
         "el-gateway-del-backoffice"
       ]
@@ -110,8 +110,8 @@
     {
       "repo": "infrastructure",
       "path": "environments/development/ecs-application/terragrunt.hcl",
-      "commit": "0b7cd190eefa66f97a29251dfd032572f6ed3979",
-      "blob": "ef732f54395dba030da459b4cca2a3a26385e87a",
+      "commit": "a1ece0730e0916f8198f57ce27bcfb2c87cb8be3",
+      "blob": "60f301cef8afdcdaea6ba072a71a40824d609339",
       "sections": [
         "el-gateway-del-backoffice"
       ]
