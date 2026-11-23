@@ -142,9 +142,10 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
 
   El backend no cambia: el plan del riel 4 ya calcula la fianza sobre `user_requests.amount` con IVA del 19 % fijo
   (`PaymentPlanPayloadBuilder::DEFAULT_IVA_RATE`) y el 4x1000 según el perfil. Con el card arreglado, la base pasa a
-  ser el monto pedido. Falta el 4x1000: `applies_four_per_thousand = 1` en el perfil de la 149, una escritura en la
-  base compartida de qa (y después en producción, donde la 149 todavía no tiene perfil). Depende de: Miguel — el
-  permiso para escribir en qa. Las solicitudes ya creadas conservan el `amount` con FGA.
+  ser el monto pedido. El 4x1000 ya está prendido en el perfil de la 149 en qa (2026-11-23,
+  `artifacts/qa-149-4x1000.ts`); falta en producción, donde la 149 todavía no tiene perfil. Las solicitudes ya
+  creadas conservan el `amount` con FGA. Con 5.000.000 y el 9 %, lo esperado en qa es fianza 535.500 + 4x1000
+  2.142 = 5.537.642 financiados.
 - [ ] Revisar el cálculo de la primera cuota (reunión del 2026-11-23). En el resumen de qa la primera cuota fue
   370.343 y las demás 322.914: la primera suma el interés diario de los días que pasan de 30 hasta la primera fecha
   (unos 13 días, base 360). Confirmar con Finandina que así cobra el primer período y volver a medirla con la fianza
