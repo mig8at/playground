@@ -25,6 +25,12 @@ Creditop test page where the reviewer chooses the outcome. Everything below can 
 
 Note: the app's screens are in Spanish (our merchants are in Colombia). The labels you will see are quoted below.
 
+**Test store**
+
+- Test store: `https://creditop-dev-store.myshopify.com` (storefront password: `[STORE PASSWORD]`), with Creditop installed,
+  connected to the test branch and in test mode. Reviewers can also install the app on their own development store with
+  the steps below.
+
 **Test credentials**
 
 - Branch code (Código de la sucursal): `e1a675cc3`
@@ -100,5 +106,8 @@ Se aclara que las pantallas de la app están en español y que en modo de prueba
 ## Lo que falta llenar
 
 - `[TOKEN]`: el token de la sucursal `e1a675cc3`; se pega en el formulario, no acá.
+- `[STORE PASSWORD]`: la contraseña de la tienda de pruebas; se pega en el formulario, no acá.
+- Los enlaces del screencast (Danny pide «screencast links»): el video subido a un lugar con enlace (Drive o YouTube
+  oculto).
 - `[INSTALL LINK]`: el enlace de instalación de la app pública (sale de Partner Dashboard → Distribution).
 - `[Name, email]`: el contacto para los revisores.
