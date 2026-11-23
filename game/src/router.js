@@ -21,6 +21,8 @@ const router=createRouter({
   // (el prototipo de personajes humanos —2026-11-22—: el maniquí de la Universal Animation Library, sus animaciones y sus
   // niveles de detalle, para medir antes de decidir)
   {path:'/prototipo-personajes',name:'prototipo-personajes',component:()=>import('./views/PrototipoPersonajesView.vue'),meta:{title:'Prototipo de personajes'}},
+  // (la página para calzar los peinados de los personajes nuevos en una sola cabeza, con cuatro vistas)
+  {path:'/prototipo-pelo',name:'prototipo-pelo',component:()=>import('./views/PrototipoPeloView.vue'),meta:{title:'Calzar peinados'}},
   {path:'/:resto(.*)*',redirect:'/'},
  ],
 });
