@@ -49,7 +49,7 @@ function simplificar(geo,ratio){const idx=geo.index.array;if(ratio>=1)return idx
  const remap=MeshoptSimplifier.generatePositionRemap(pos,3),uso=[...new Set(Array.from(idx,i=>remap[i]))],nuevo=new Map(uso.map((v,k)=>[v,k])),p2=new Float32Array(uso.length*3);
  uso.forEach((v,k)=>p2.set(pos.subarray(v*3,v*3+3),k*3));const i2=Uint32Array.from(idx,i=>nuevo.get(remap[i]));
  const [out]=MeshoptSimplifier.simplify(i2,p2,3,Math.max(12,Math.floor(idx.length*ratio/3)*3),.1,[]);return Uint32Array.from(out,k=>uso[k]);}
-const niveles=geo=>NIVELES_PLANTA.map(N=>{const s=new THREE.BufferGeometry();for(const [k,v] of Object.entries(geo.attributes))s.setAttribute(k,v);s.setIndex(new THREE.BufferAttribute(simplificar(geo,N.ratio),1));s.boundingSphere=geo.boundingSphere;return s;});
+const niveles=geo=>NIVELES_PLANTA.map(N=>{const s=new THREE.BufferGeometry();for(const [k,v] of Object.entries(geo.attributes))s.setAttribute(k,v);s.morphAttributes=geo.morphAttributes;s.morphTargetsRelative=geo.morphTargetsRelative;s.setIndex(new THREE.BufferAttribute(simplificar(geo,N.ratio),1));s.boundingSphere=geo.boundingSphere;return s;});
 
 // ---- Cargar (sin texturas: la ropa es por zonas; cada imagen pedida, un pixel) ----
 const PIXEL='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=';
@@ -121,11 +121,42 @@ export function armarCuerpo(gCuerpo,gPelos,texCara=null,texOjo=null,ajuste=null,
  const zonaPieza=m=>{const t=m.name+' '+(m.material?.name||'')+' '+(m.parent?.name||'');return /brow/i.test(t)?Z.ceja:/eye/i.test(t)?Z.ojo:undefined;};
  const partes=ms.map(m=>pieza(m,zonaPieza(m)));
  for(const g of gPelos){g.scene.updateMatrixWorld(true);g.scene.traverse(o=>{if(o.isSkinnedMesh)partes.push(pieza(o,Z.pelo));});}
- const geo=mergeGeometries(partes,false),malla=new THREE.SkinnedMesh(geo,materialRopa(PIEL[0]));
+ const geo=mergeGeometries(partes,false);formasDeContextura(geo,quedan.map(i=>huesos[i].name),adel);
+ const malla=new THREE.SkinnedMesh(geo,materialRopa(PIEL[0]));
  for(const b of huesos)if(DEDO.test(b.name)&&!DEDO.test(b.parent?.name||''))b.parent.remove(b);
  cuerpo.parent.add(malla);malla.position.copy(cuerpo.position);malla.quaternion.copy(cuerpo.quaternion);malla.scale.copy(cuerpo.scale);
  malla.bind(new THREE.Skeleton(quedan.map(i=>huesos[i]),quedan.map(i=>sk.boneInverses[i])),cuerpo.bindMatrix);for(const m of ms)m.removeFromParent();
- malla.name='cuerpo'+(nVar++);if(conNiveles)NIV[malla.name]=niveles(geo);return raiz;}
+ malla.updateMorphTargets();malla.name='cuerpo'+(nVar++);if(conNiveles)NIV[malla.name]=niveles(geo);return raiz;}
+
+// ---- LA CONTEXTURA (2026-11-22, Miguel: «¿ves posible alterar la contextura corporal?» → «dale, ármalo») ----
+// Dos formas de mezcla, hechas por código una vez por cuerpo, y la estatura por persona:
+//  - peso: cada vértice sale por su normal según su zona —la panza y la cintura, lo que más (y más adelante); caderas, muslos y
+//    brazos, algo; cuello y cara, casi nada—; con peso negativo, entra: delgado;
+//  - musculatura: hombros, pecho, brazos y piernas;
+//  - la estatura: la escala de la persona entera.
+// Las normales se promedian entre los vértices que comparten posición (las costuras de normales): si no, el cuerpo se abría al
+// inflarse. El pelo va con la cabeza. Cada persona lleva sus dos números (morphTargetInfluences): cero memoria por persona.
+export const CONTEXTURA={peso:{m:.065,zona:{spine_01:1,spine_02:.85,pelvis:.8,spine_03:.5,thigh:.6,upperarm:.45,lowerarm:.25,neck:.35,calf:.3,clavicle:.3,Head:.1,hand:.04}},panza:1.6,
+ musculo:{m:.05,zona:{upperarm:1,clavicle:.85,spine_03:.75,lowerarm:.55,thigh:.6,calf:.5,neck:.45,spine_02:.25}},
+ rango:{estatura:[.92,1.08],peso:[-.7,1],musculo:[0,1]}};
+function formasDeContextura(geo,nombres,adel){const pa=geo.attributes.position,no=geo.attributes.normal,si=geo.attributes.skinIndex,sw=geo.attributes.skinWeight,zo=geo.attributes.zona,n=pa.count;
+ // (la normal promediada por posición)
+ const clave=i=>pa.getX(i).toFixed(4)+','+pa.getY(i).toFixed(4)+','+pa.getZ(i).toFixed(4),suma=new Map();
+ for(let i=0;i<n;i++){const k=clave(i),v=suma.get(k)||suma.set(k,new THREE.Vector3()).get(k);v.x+=no.getX(i);v.y+=no.getY(i);v.z+=no.getZ(i);}
+ const peso=new Float32Array(n*3),musculo=new Float32Array(n*3),nn=new THREE.Vector3();
+ const de=(tabla,nombre)=>{for(const [b,w] of Object.entries(tabla))if(nombre.startsWith(b))return w;return 0;};
+ for(let i=0;i<n;i++){nn.copy(suma.get(clave(i))).normalize();let wp=0,wm=0;
+  for(let k=0;k<4;k++){const w=sw.getComponent(i,k);if(!w)continue;const nom=zo.getX(i)===Z.pelo?'Head':nombres[si.getComponent(i,k)]||'';wp+=w*de(CONTEXTURA.peso.zona,nom);wm+=w*de(CONTEXTURA.musculo.zona,nom);}
+  // (la panza: lo de adelante del tronco bajo, más)
+  const nom0=nombres[si.getComponent(i,0)]||'';if(/spine_0[12]|pelvis/.test(nom0)&&nn.z*adel>.3)wp*=CONTEXTURA.panza;
+  peso[i*3]=nn.x*wp*CONTEXTURA.peso.m;peso[i*3+1]=nn.y*wp*CONTEXTURA.peso.m;peso[i*3+2]=nn.z*wp*CONTEXTURA.peso.m;
+  musculo[i*3]=nn.x*wm*CONTEXTURA.musculo.m;musculo[i*3+1]=nn.y*wm*CONTEXTURA.musculo.m;musculo[i*3+2]=nn.z*wm*CONTEXTURA.musculo.m;}
+ geo.morphAttributes.position=[new THREE.BufferAttribute(peso,3),new THREE.BufferAttribute(musculo,3)];geo.morphTargetsRelative=true;}
+// La contextura de una persona: {estatura, peso, musculo}
+export function aplicarContextura(root,{estatura=1,peso=0,musculo=0}={}){root.scale.setScalar(estatura);root.traverse(o=>{if(o.isSkinnedMesh&&o.morphTargetInfluences){o.morphTargetInfluences[0]=peso;o.morphTargetInfluences[1]=musculo;}});}
+// Una al azar: la mayoría cerca de lo normal; la mujer, un poco más baja y con menos musculatura
+export function contexturaAlAzar(r,mujer){const c=()=>(r()+r()+r())/3,[e0,e1]=CONTEXTURA.rango.estatura;
+ return {estatura:(e0+(e1-e0)*c())*(mujer?.97:1),peso:-.6+1.5*c()**1.3,musculo:Math.max(0,(mujer?.5:.9)*(c()*1.6-.5))};}
 
 // ---- Las animaciones para un cuerpo: sólo rotaciones (sin dedos) y la cadera escalada a su altura ----
 export const alturaCadera=escena=>{let y=1;escena.updateMatrixWorld(true);escena.traverse(o=>{if(o.isBone&&o.name==='pelvis')y=new THREE.Vector3().setFromMatrixPosition(o.matrixWorld).y;});return y;};

@@ -16,7 +16,7 @@ import {onMounted,onBeforeUnmount,ref} from 'vue';
 import * as THREE from 'three';
 import {clone as cloneSkinned} from 'three/addons/utils/SkeletonUtils.js';
 import {NIVELES_PLANTA,VUELVE_PLANTA} from '../lib/nature3d.js';
-import {CUERPOS,PEINADOS,NIV,materialRopa,vestimenta,armarCuerpo,cargarTodo} from '../lib/personajes3d.js';
+import {CUERPOS,PEINADOS,NIV,materialRopa,vestimenta,armarCuerpo,cargarTodo,aplicarContextura,contexturaAlAzar} from '../lib/personajes3d.js';
 
 // (qué hace cada persona: la animación y si se mueve, a qué velocidad en m/s)
 const PAPELES=[{clip:'Walk_Loop',v:1.3,peso:5},{clip:'Jog_Fwd_Loop',v:3,peso:2},{clip:'Idle_Loop',v:0,peso:2},{clip:'Idle_Talking_Loop',v:0,peso:2},{clip:'Idle_TalkingPhone_Loop',v:0,peso:1.5},{clip:'Idle_FoldArms_Loop',v:0,peso:1},{clip:'Walk_Carry_Loop',v:1.1,peso:1},{clip:'Sitting_Idle_Loop',v:0,peso:1},{clip:'Walk_Formal_Loop',v:1.1,peso:1},{clip:'Sprint_Loop',v:5.5,peso:.5}];
@@ -29,6 +29,7 @@ function armar(){for(const p of gente)scene.remove(p.root);gente=[];const r=mulb
  for(let i=0;i<n.value;i++){let tiro=r()*pesoTotal;const papel=PAPELES.find(p=>(tiro-=p.peso)<0)||PAPELES[0],quien=i%2?'mujer':'hombre',vs=variantes[quien];
   const root=cloneSkinned(vs[Math.floor(r()*vs.length)]),vest=vestimenta(r,quien==='mujer'),mallas=[];
   root.traverse(o=>{if(o.isSkinnedMesh){o.material=materialRopa(vest.piel,vest.ropa);o.frustumCulled=false;mallas.push({o,niveles:NIV[o.name]});}});
+  aplicarContextura(root,contexturaAlAzar(r,quien==='mujer'));/* (cada persona, su contextura: estatura, peso y musculatura) */
   const ang=r()*Math.PI*2,rad=4+r()*60;root.position.set(Math.cos(ang)*rad,0,Math.sin(ang)*rad);root.rotation.y=r()*Math.PI*2;
   const clip=clipsDe[quien].find(c=>c.name===papel.clip)||clipsDe[quien].find(c=>c.name==='Idle_Loop'),mixer=new THREE.AnimationMixer(root),act=mixer.clipAction(clip);act.play();act.time=r()*clip.duration;
   scene.add(root);gente.push({root,mixer,papel,mallas,nivel:0,giro:(r()-.5)*.6,acum:0,turno:i,quien});}}

@@ -23,6 +23,8 @@ const router=createRouter({
   {path:'/prototipo-personajes',name:'prototipo-personajes',component:()=>import('./views/PrototipoPersonajesView.vue'),meta:{title:'Prototipo de personajes'}},
   // (la página para calzar los peinados de los personajes nuevos en una sola cabeza, con cuatro vistas)
   {path:'/prototipo-pelo',name:'prototipo-pelo',component:()=>import('./views/PrototipoPeloView.vue'),meta:{title:'Calzar peinados'}},
+  // (las contexturas posibles de los personajes nuevos: delgado, normal, robusto, grueso, musculoso, bajo y alto)
+  {path:'/prototipo-contexturas',name:'prototipo-contexturas',component:()=>import('./views/PrototipoContexturasView.vue'),meta:{title:'Contexturas'}},
   {path:'/:resto(.*)*',redirect:'/'},
  ],
 });
