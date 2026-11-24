@@ -38,7 +38,27 @@ se elige a propósito, nunca por defecto. Las capturas incluyen TODA la pantalla
 | `timeline.json` | las pantallas clave con lo que dijo el modelo y cada frase con la captura a la vista | `summarize` |
 | `summary.md` · `summary.html` | el recordatorio: resumen, decisiones, pendientes, momentos en pantalla y la transcripción | `summarize` |
 
-`yo` es el micrófono y `reunión` es el audio del sistema. No hay diarización: dentro de «reunión» no se sabe quién habló.
+`yo` es el micrófono. El audio del sistema se separa en personas (abajo, «Quién dijo qué»): «Persona N» o el nombre que
+les pongas en la app (`speakers.json`); «reunión» queda sólo si no se pudo saber.
+
+## Quién dijo qué (Nemotron-3-Diarization, desde el 2026-11-23)
+
+- **El modelo:** `nvidia/Nemotron-3-Diarization` (hasta 8 personas), en su propio entorno: `~/.cache/my-tools/diarization`
+  (torch + Transformers de la fuente, **sin NeMo**; uso `minutes` del registro, `env:diarization` +
+  `hub:nvidia/Nemotron-3-Diarization`). Lo corre `diarize.py` al armar el resumen, sólo sobre el audio del sistema
+  (el micrófono ya es «yo»), y deja `diarization.json`. Hasta 15 min va de una vez; más largo, por partes con la caché
+  de hablantes del modelo (las dos dan lo mismo en el 98 % del tiempo; por partes tarda ~8 min por hora). Si el entorno
+  no está o falla, el resumen sale igual con «reunión».
+- **Cortar por voz:** Whisper junta en una frase a dos personas que hablan seguido, así que la transcripción guarda el
+  tiempo de cada pedazo de texto del sistema (`-ojf`, `words` en `transcript.jsonl`) y `splitBySpeaker` corta donde
+  cambia la voz, sobre todo el audio junto (un cambio puede caer en el borde de una frase o de un tramo). El modelo
+  marca el cambio con ~0,3 s de error: `snapCuts` corre el corte a la pausa más cercana (±1,2 s; un punto suma, alejarse
+  resta) y sólo antes de una palabra entera. Un pedazo de otra voz de menos de 0,4 s no parte la frase.
+- **Medido:** con voces sintéticas de macOS (Paulina, Mónica, Eddy, Grandpa) NO sirve medirlo: salen del mismo motor
+  y juntó a 4 en 2. Con el video de NVIDIA (9 voces de modelos distintos, 97 s, grabado por Minutes.app desde los
+  parlantes): las presentaciones quedaron cada una en su persona y cortadas en su lugar, Chris volvió como la misma
+  persona; halló 7 de 9 (juntó a Maya con Chatterbox y a Piper con Dia). Falta una reunión real con personas.
+- **Idioma:** `start --lang en|auto` (por defecto `es`), guardado en `meta.json`; sirvió para probar con ese video.
 
 ## Cómo graba sin pisar el micrófono
 

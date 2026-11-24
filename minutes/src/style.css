@@ -94,3 +94,17 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 .lines-btn { float: right; font: inherit; font-size: var(--text-xs); border: 1px solid var(--border); background: none; color: var(--fg-2);
   border-radius: var(--radius-sm); padding: 0 6px; cursor: pointer }
 .lines-btn:hover, .lines-btn[aria-pressed="true"] { color: var(--foreground); border-color: var(--fg-3) }
+
+/* las personas de la reunión: un color por persona (los del tema, --chart-1…5), arriba de la conversación */
+.people { display: flex; flex-wrap: wrap; gap: 6px; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border) }
+.person { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: var(--text-xs); padding: 2px 8px;
+  border: 1px solid var(--border); border-radius: 999px; background: none; color: var(--fg-2); cursor: pointer }
+.person:hover { color: var(--foreground); border-color: var(--fg-3) }
+.person-time { color: var(--fg-3); font-variant-numeric: tabular-nums }
+.person-input { font: inherit; font-size: var(--text-xs); padding: 2px 8px; width: 140px; border: 1px solid var(--ring);
+  border-radius: 999px; background: var(--background); color: var(--foreground) }
+.swatch { width: 8px; height: 8px; border-radius: 50%; background: var(--voice) }
+.p0 { --voice: var(--chart-1) } .p1 { --voice: var(--chart-2) } .p2 { --voice: var(--chart-3) }
+.p3 { --voice: var(--chart-4) } .p4 { --voice: var(--chart-5) }
+.turn.them[class*=" p"] { border-left: 3px solid var(--voice) }
+.turn[class*=" p"] .turn-head .who { color: var(--voice) }

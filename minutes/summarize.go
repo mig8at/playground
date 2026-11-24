@@ -97,6 +97,7 @@ type Timeline struct {
 	Frames   int            `json:"frames"`
 	Screens  []*Screen      `json:"screens"`
 	Segments []TimedSegment `json:"segments"`
+	Speakers []Speaker      `json:"speakers,omitempty"`
 	Summary  string         `json:"summary"`
 	Model    string         `json:"model"`
 }
@@ -106,6 +107,7 @@ type TimedSegment struct {
 	Segment
 	Frame  string `json:"frame"`            // la captura a la vista
 	Screen string `json:"screen,omitempty"` // el id de la pantalla clave, si es una
+	Who    string `json:"who"`              // en palabras, al armar el resumen: yo · Persona 2 · Laura · reunión
 }
 
 const stableSeconds = 4.0
@@ -221,6 +223,12 @@ func summarize(d string, o summarizeOptions) error {
 	if o.MaxScreens <= 0 {
 		o.MaxScreens = 20
 	}
+	// quién habla, antes de cruzar con las pantallas: una frase de dos personas se corta en dos
+	turns, derr := diarize(d)
+	if derr != nil {
+		fmt.Fprintf(os.Stderr, "  ⚠ sin quién habla (queda «reunión»): %v\n", derr)
+	}
+	segs = splitBySpeaker(segs, turns)
 	screens := buildScreens(frames, segs, total, o.MaxScreens)
 	fmt.Fprintf(os.Stderr, "  · %d frases, %d capturas, %d pantallas para mirar\n", len(segs), len(frames), len(screens))
 
@@ -244,6 +252,7 @@ func summarize(d string, o summarizeOptions) error {
 	tl := Timeline{Title: meta.Title, Started: st.Started, Seconds: total, Frames: len(frames), Screens: screens}
 	for _, g := range segs {
 		ts := TimedSegment{Segment: g}
+		ts.Words = nil // ya sirvieron para cortar; en timeline.json sólo pesarían
 		mid := (g.Start + g.End) / 2
 		for _, f := range frames {
 			if f.T <= mid {
@@ -257,6 +266,12 @@ func summarize(d string, o summarizeOptions) error {
 		}
 		tl.Segments = append(tl.Segments, ts)
 	}
+	assignSpeakers(tl.Segments, turns)
+	names := speakerNames(d)
+	for i := range tl.Segments {
+		tl.Segments[i].Who = who(tl.Segments[i], names)
+	}
+	tl.Speakers = speakersOf(tl.Segments, names)
 
 	fmt.Fprintln(os.Stderr, "  · escribiendo el resumen…")
 	prompt := summaryPrompt(tl)
@@ -431,14 +446,14 @@ func summaryPrompt(tl Timeline) string {
 		}
 		b.WriteString("\n")
 	}
-	b.WriteString("\n### Transcripción (yo = quien graba; reunión = los demás)\n")
+	b.WriteString("\n### Transcripción (yo = quien graba; Persona N o un nombre = alguien de la reunión; reunión = no se supo quién)\n")
 	var lines []string
 	for _, g := range tl.Segments {
 		ref := ""
 		if g.Screen != "" {
 			ref = " (" + g.Screen + ")"
 		}
-		lines = append(lines, fmt.Sprintf("[%s] %s%s: %s", clock(g.Start), speakerLabel(g.Source), ref, g.Text))
+		lines = append(lines, fmt.Sprintf("[%s] %s%s: %s", clock(g.Start), g.Who, ref, g.Text))
 	}
 	text := strings.Join(lines, "\n")
 	const limit = 30000
@@ -468,7 +483,7 @@ func renderMarkdown(tl Timeline) string {
 		if g.Screen != "" {
 			ref = " [" + g.Screen + "]"
 		}
-		fmt.Fprintf(&b, "- `%s` **%s**%s %s\n", clock(g.Start), speakerLabel(g.Source), ref, g.Text)
+		fmt.Fprintf(&b, "- `%s` **%s**%s %s\n", clock(g.Start), g.Who, ref, g.Text)
 	}
 	return b.String()
 }
@@ -561,7 +576,7 @@ tr.on td{background:var(--hit)}
 		} else if g.Frame != "" {
 			ref = fmt.Sprintf(` <a href="%s" target="_blank" title="lo que estaba en pantalla">▣</a>`, g.Frame)
 		}
-		fmt.Fprintf(&b, "<tr%s><td class=\"t\">%s</td><td class=\"who\">%s</td><td>%s%s</td></tr>\n", cls, clock(g.Start), speakerLabel(g.Source), html.EscapeString(g.Text), ref)
+		fmt.Fprintf(&b, "<tr%s><td class=\"t\">%s</td><td class=\"who\">%s</td><td>%s%s</td></tr>\n", cls, clock(g.Start), html.EscapeString(g.Who), html.EscapeString(g.Text), ref)
 	}
 	b.WriteString("</table>\n</main></body></html>\n")
 	return b.String()

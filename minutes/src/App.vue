@@ -104,7 +104,36 @@ function clock(sec) {
   const mm = String(Math.floor(s / 60) % 60).padStart(2, '0'), ss = String(s % 60).padStart(2, '0')
   return s >= 3600 ? `${Math.floor(s / 3600)}:${mm}:${ss}` : `${mm}:${ss}`
 }
-const who = (src) => (src === 'mic' ? 'yo' : 'reunión')
+// Quién dijo una frase: «yo» (el micrófono), la persona de la reunión que separó el modelo (con el nombre que le
+// pusiste, o «Persona N»), o «reunión» si no se supo.
+const names = computed(() => detail.value?.names || {})
+const personName = (id) => names.value[String(id)] || `Persona ${id + 1}`
+function who(g) {
+  if (g.source === 'mic') return 'yo'
+  return g.speaker == null ? 'reunión' : personName(g.speaker)
+}
+const voice = (g) => (g.source === 'mic' ? 'me' : g.speaker == null ? 'them' : `p${g.speaker % 5}`)
+const sameVoice = (a, b) => a.source === b.source && a.speaker === b.speaker
+const people = computed(() => (timeline.value?.speakers || []).map((p) => ({ ...p, name: personName(p.id) })))
+
+// Renombrar a una persona: doble clic (o el lápiz) en su nombre, Enter guarda, Esc cancela.
+const renaming = ref(-1)
+const renameValue = ref('')
+async function startRename(p) {
+  renaming.value = p.id
+  renameValue.value = names.value[String(p.id)] || ''
+  await nextTick()
+  document.querySelector('[data-renaming]')?.focus()
+}
+async function finishRename(save) {
+  const id = renaming.value
+  renaming.value = -1
+  if (!save || id < 0) return
+  try {
+    const r = await api(`/api/recordings/${selected.value}/speakers`, { method: 'PUT', body: { [id]: renameValue.value.trim() } })
+    if (detail.value) detail.value = { ...detail.value, names: r.names }
+  } catch (err) { error.value = err.message }
+}
 const liveSeconds = computed(() => {
   const r = list.value.find((x) => x.recording)
   if (!r) return 0
@@ -120,6 +149,7 @@ const when = (r) => { const d = new Date(Date.parse(r.started)); return isNaN(d)
 // El recordatorio que escribe el modelo: títulos, viñetas, negrita y las pantallas [P3] como enlaces.
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
 function md(text) {
+  text = String(text || '').replace(/\bPersona (\d+)\b/g, (m, n) => names.value[String(n - 1)] || m)
   let html = '', list = false
   for (const raw of String(text || '').split('\n')) {
     const t = raw.trim()
@@ -334,12 +364,21 @@ onBeforeUnmount(() => {
         <span class="spacer"></span>
         <button v-if="focusScreen" type="button" class="region-action" title="Dejar de marcar las frases de la pantalla" aria-label="Dejar de marcar" @click="focusScreen = ''"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
       </div>
+      <div v-if="people.length" class="people" aria-label="Las personas de la reunión">
+        <template v-for="p in people" :key="p.id">
+          <input v-if="renaming === p.id" v-model="renameValue" data-renaming class="person-input" :placeholder="`Persona ${p.id + 1}`" aria-label="Nombre de la persona"
+                 @keydown.enter="finishRename(true)" @keydown.esc.stop="finishRename(false)" @blur="finishRename(true)">
+          <button v-else type="button" class="person" :class="`p${p.id % 5}`" :title="`Habló ${clock(p.seconds)}. Tocá para ponerle el nombre`" @click="startRename(p)">
+            <span class="swatch" aria-hidden="true"></span>{{ p.name }}<span class="person-time">{{ clock(p.seconds) }}</span>
+          </button>
+        </template>
+      </div>
       <div ref="dialogBox" class="region-body dialog">
         <div v-if="!segments.length" class="dialog-empty">{{ isLive ? 'Lo que se diga aparece acá unos 15 s después.' : rec ? 'No se transcribió nada.' : '' }}</div>
         <div v-for="(g, i) in segments" :key="i" class="turn"
-             :class="[g.source === 'mic' ? 'me' : 'them', { 'about-screen': g.screen && refers[g.screen], focus: focusScreen && g.screen === focusScreen, linked: !!g.screen, cont: i > 0 && segments[i - 1].source === g.source && g.start - segments[i - 1].end < 20 }]"
+             :class="[g.source === 'mic' ? 'me' : 'them', voice(g), { 'about-screen': g.screen && refers[g.screen], focus: focusScreen && g.screen === focusScreen, linked: !!g.screen, cont: i > 0 && sameVoice(segments[i - 1], g) && g.start - segments[i - 1].end < 20 }]"
              :data-screen-line="g.screen || undefined" @click="lineClick(g)">
-          <div class="turn-head" :title="clock(g.start)"><span class="who">{{ who(g.source) }}</span><span class="t">{{ clock(g.start) }}</span>
+          <div class="turn-head" :title="clock(g.start)"><span class="who">{{ who(g) }}</span><span class="t">{{ clock(g.start) }}</span>
             <span v-if="g.screen" class="ref">{{ g.screen }}</span></div>
           <div class="turn-text">{{ g.text }}</div>
         </div>

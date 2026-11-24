@@ -33,7 +33,7 @@ import (
 func usage() {
 	fmt.Fprint(os.Stderr, `minutes — grabar una reunión: pantalla, micrófono y sistema, transcripción en vivo y un resumen que cruza lo dicho con lo visto
 
-  bin/minutes start [--title '…'] [--no-mic] [--no-system] [--chunk 15] [--direct]
+  bin/minutes start [--title '…'] [--lang es|en|auto] [--no-mic] [--no-system] [--chunk 15] [--direct]
   bin/minutes stop [--no-summary]
   bin/minutes status            la grabación en curso
   bin/minutes live [carpeta]    la transcripción a medida que sale (Ctrl-C sale sin frenar nada)
@@ -108,6 +108,7 @@ func currentFile() string   { return filepath.Join(recordingsDir(), "current") }
 type Meta struct {
 	Title   string `json:"title"`
 	Started string `json:"started"`
+	Lang    string `json:"lang,omitempty"` // el idioma para Whisper: es (por defecto), en, auto…
 }
 
 // RecorderState: recorder.json, lo que escribe la grabadora.
@@ -206,6 +207,7 @@ func start(args []string) error {
 	noMic := fs.Bool("no-mic", false, "sin el micrófono")
 	noSystem := fs.Bool("no-system", false, "sin el audio del sistema")
 	chunk := fs.Int("chunk", 15, "segundos por tramo de audio (lo que tarda en salir el texto)")
+	lang := fs.String("lang", "es", "el idioma de la reunión para Whisper (es, en, auto…)")
 	direct := fs.Bool("direct", false, "corre la grabadora como hija de esta terminal: usa los permisos de la terminal y no los de Minutes.app")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -228,7 +230,7 @@ func start(args []string) error {
 	if err := os.MkdirAll(d, 0o755); err != nil {
 		return err
 	}
-	if err := writeJSON(filepath.Join(d, "meta.json"), Meta{Title: *title, Started: time.Now().Format(time.RFC3339)}); err != nil {
+	if err := writeJSON(filepath.Join(d, "meta.json"), Meta{Title: *title, Started: time.Now().Format(time.RFC3339), Lang: *lang}); err != nil {
 		return err
 	}
 	// `open` para que macOS le pida los permisos a Minutes.app y no a la terminal que la lanzó

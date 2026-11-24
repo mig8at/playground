@@ -37,6 +37,18 @@ type Segment struct {
 	Text   string  `json:"text"`
 	Chunk  string  `json:"chunk"`
 	Echo   bool    `json:"echo,omitempty"`
+	// Words: los pedazos de texto con su tiempo (sólo del sistema): con ellos una frase se corta donde cambia quién
+	// habla (splitBySpeaker), porque Whisper junta en una frase a dos personas que hablan seguido.
+	Words []Word `json:"words,omitempty"`
+	// Speaker: quién de la reunión (diarize.go), al armar el resumen; sin él, «reunión»
+	Speaker *int `json:"speaker,omitempty"`
+}
+
+// Word: un pedazo de texto de Whisper (una palabra o parte de una) con su tiempo en la grabación.
+type Word struct {
+	Start float64 `json:"s"`
+	End   float64 `json:"e"`
+	Text  string  `json:"t"`
 }
 
 // silenceRMS: por debajo, el tramo no se transcribe (≈ -46 dBFS: una sala callada; una voz baja pasa de 0,01).
@@ -159,6 +171,9 @@ func transcribePending(d string, verbose bool) error {
 	if err != nil {
 		return err
 	}
+	var meta Meta
+	readJSON(filepath.Join(d, "meta.json"), &meta)
+	lang := firstNonEmpty(meta.Lang, "es")
 	prev := map[string]string{} // el final de lo último dicho por fuente: Whisper sigue mejor con contexto
 	for _, s := range loadTranscript(d) {
 		if !s.Echo {
@@ -177,7 +192,7 @@ func transcribePending(d string, verbose bool) error {
 			markDone(d, c.rel())
 			continue
 		}
-		segs, err := whisper(model, c, prev[c.Source])
+		segs, err := whisper(model, c, prev[c.Source], lang)
 		if err != nil {
 			return err
 		}
@@ -212,14 +227,14 @@ func tail(s string, n int) string {
 	return string(r[len(r)-n:])
 }
 
-func whisper(model string, c chunk, prompt string) ([]Segment, error) {
+func whisper(model string, c chunk, prompt, lang string) ([]Segment, error) {
 	tmp, err := os.MkdirTemp("", "minutes-whisper")
 	if err != nil {
 		return nil, err
 	}
 	defer os.RemoveAll(tmp)
 	base := filepath.Join(tmp, "out")
-	args := []string{"-m", model, "-l", "es", "-oj", "-of", base, "-np", "-sns", "-f", c.Path}
+	args := []string{"-m", model, "-l", lang, "-ojf", "-of", base, "-np", "-sns", "-f", c.Path}
 	if prompt != "" {
 		args = append(args, "--prompt", prompt)
 	}
@@ -233,7 +248,14 @@ func whisper(model string, c chunk, prompt string) ([]Segment, error) {
 				From int `json:"from"`
 				To   int `json:"to"`
 			} `json:"offsets"`
-			Text string `json:"text"`
+			Text   string `json:"text"`
+			Tokens []struct {
+				Text    string `json:"text"`
+				Offsets struct {
+					From int `json:"from"`
+					To   int `json:"to"`
+				} `json:"offsets"`
+			} `json:"tokens"`
 		} `json:"transcription"`
 	}
 	b, err := os.ReadFile(base + ".json")
@@ -249,10 +271,19 @@ func whisper(model string, c chunk, prompt string) ([]Segment, error) {
 		if text == "" || hallucination(text) {
 			continue
 		}
-		segs = append(segs, Segment{
+		g := Segment{
 			Start: round1(c.Start + float64(t.Offsets.From)/1000), End: round1(c.Start + float64(t.Offsets.To)/1000),
 			Source: c.Source, Text: text, Chunk: c.rel(),
-		})
+		}
+		if c.Source == "system" {
+			for _, k := range t.Tokens {
+				if strings.HasPrefix(k.Text, "[_") || k.Text == "" { // [_BEG_], [_TT_150]: marcas, no texto
+					continue
+				}
+				g.Words = append(g.Words, Word{Start: c.Start + float64(k.Offsets.From)/1000, End: c.Start + float64(k.Offsets.To)/1000, Text: k.Text})
+			}
+		}
+		segs = append(segs, g)
 	}
 	return segs, nil
 }

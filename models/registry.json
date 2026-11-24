@@ -60,6 +60,17 @@
       "what": "minutes: qué se ve en cada pantalla y si lo dicho habla de ella; el resumen",
       "source": "minutes/summarize.go",
       "since": "2026-11-23"
+    },
+    {
+      "tool": "minutes",
+      "model": "nvidia/Nemotron-3-Diarization",
+      "files": [
+        "env:diarization",
+        "hub:nvidia/Nemotron-3-Diarization"
+      ],
+      "what": "minutes: quién habla cuándo en el audio de la reunión",
+      "source": "minutes/diarize.py",
+      "since": "2026-11-23"
     }
   ]
 }

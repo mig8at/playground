@@ -28,7 +28,7 @@ con `bin/models path <herramienta>` (cualquier otra cosa). Cambiar el modelo de 
 |---|---|---|
 | point | el GGUF de Qwen3-VL-4B y su proyector | `point/main.go` (`modelFiles`; `bin/point` le pasa `MY_TOOLS_ROOT`) |
 | chat | el Whisper del dictado (`CHAT_WHISPER_MODEL` lo pisa; si el registro no contesta, el de siempre) | `chat/server/dictation.go` (`whisperModel`, con su prueba) |
-| minutes | el Whisper de la transcripción y Qwen3-VL-4B para las pantallas y el resumen (su llama-server en :5252) | `minutes/transcribe.go` (`whisperModel`) · `minutes/summarize.go` (`visionSpec`) |
+| minutes | el Whisper de la transcripción, Qwen3-VL-4B para las pantallas y el resumen (su llama-server en :5252) y el entorno de Nemotron-3-Diarization para quién habla | `minutes/transcribe.go` (`whisperModel`) · `minutes/summarize.go` (`visionSpec`) · `minutes/diarize.go` (`diarize`) |
 | knowledge | Qwen3-Embedding-0.6B, para la búsqueda por significado (en su llama-server de :5250, `lib/llamaserve`) | `cmd/knowledge/semantic.go` |
 | sentinel | el venv de Timestral-5M (un pronosticador sin registro, como Chronos-2, usa su lugar de antes) | `sentinel/server/forecast.go` (`forecasterPython`) |
 

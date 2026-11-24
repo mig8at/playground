@@ -9,6 +9,7 @@ package main
 //	POST   /api/start {title}                 arranca (como `bin/minutes start`)
 //	POST   /api/stop                          frena, termina de transcribir y arma el resumen (tarda ~1 min: de fondo)
 //	POST   /api/recordings/{id}/summarize     lo vuelve a armar
+//	PUT    /api/recordings/{id}/speakers      los nombres de las personas: {"0": "Laura", "2": ""} (vacío lo quita)
 //	DELETE /api/recordings/{id}               la borra del disco (la interfaz pide dos toques)
 //
 // Sólo desde esta máquina (Host 127.0.0.1 o localhost) y, salvo las imágenes, con el encabezado `X-Minutes: 1`: una
@@ -47,6 +48,7 @@ func serve(addr string) error {
 	mux.HandleFunc("POST /api/start", s.start)
 	mux.HandleFunc("POST /api/stop", s.stop)
 	mux.HandleFunc("POST /api/recordings/{id}/summarize", s.summarize)
+	mux.HandleFunc("PUT /api/recordings/{id}/speakers", s.speakers)
 	mux.HandleFunc("DELETE /api/recordings/{id}", s.remove)
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -163,11 +165,12 @@ func (s *server) one(w http.ResponseWriter, r *http.Request) {
 	var segs []Segment
 	for _, g := range loadTranscript(d) {
 		if !g.Echo {
+			g.Words = nil // la interfaz no los usa
 			segs = append(segs, g)
 		}
 	}
 	sort.SliceStable(segs, func(i, j int) bool { return segs[i].Start < segs[j].Start })
-	out := map[string]any{"recording": describe(d), "frames": loadFrames(d), "segments": segs, "pending": len(pendingChunks(d))}
+	out := map[string]any{"recording": describe(d), "frames": loadFrames(d), "segments": segs, "pending": len(pendingChunks(d)), "names": speakerNames(d)}
 	var tl Timeline
 	if err := readJSON(filepath.Join(d, "timeline.json"), &tl); err == nil {
 		out["timeline"] = tl
@@ -284,4 +287,28 @@ func (s *server) remove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSONResponse(w, map[string]bool{"ok": true})
+}
+
+// speakers guarda los nombres que puso Miguel; los cambios se ven sin volver a armar el resumen (la interfaz nombra
+// con speakers.json), y el texto del resumen los toma la próxima vez que se arme.
+func (s *server) speakers(w http.ResponseWriter, r *http.Request) {
+	d, err := dirOf(r.PathValue("id"))
+	if err != nil {
+		writeErr(w, http.StatusNotFound, err)
+		return
+	}
+	in := map[string]string{}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	names := speakerNames(d)
+	for k, v := range in {
+		names[k] = strings.TrimSpace(v)
+	}
+	if err := saveSpeakerNames(d, names); err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSONResponse(w, map[string]any{"names": speakerNames(d)})
 }
