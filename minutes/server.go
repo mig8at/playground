@@ -293,9 +293,14 @@ func (s *server) summarize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	go func() {
-		err := transcribePending(d, false)
+		// el candado antes de transcribir (como summarizeCmd): otra terminal puede estar trabajando esta grabación
+		done, err := stepsLog(d, "armando el resumen")
 		if err == nil {
-			err = summarize(d, summarizeOptions{MaxScreens: 20})
+			err = transcribePending(d, false)
+			if err == nil {
+				err = summarize(d, summarizeOptions{MaxScreens: 20})
+			}
+			done(&err)
 		}
 		s.end(err)
 	}()

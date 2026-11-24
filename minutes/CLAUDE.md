@@ -7,9 +7,10 @@ Prototipo del 2026-11-23.
 
     bin/minutes start [--title '…'] [--no-screen] [--lang es|en|auto] [--no-mic] [--no-system] [--chunk 15] [--direct]
     bin/minutes live                  la transcripción a medida que sale (Ctrl-C no frena la grabación)
-    bin/minutes status
-    bin/minutes stop [--no-summary]   frena, termina de transcribir y arma el resumen (~1 min por una reunión corta)
-    bin/minutes list · open [carpeta]
+    bin/minutes status [--json]
+    bin/minutes stop [--no-summary] [--json]   frena, termina de transcribir y arma el resumen (~1 min por una reunión corta)
+    bin/minutes list [--json] · open [carpeta]
+    bin/minutes show [id] [--json] · context [id] · wait [id] · search --q '…'   (para un agente: abajo)
     bin/minutes summarize [carpeta] [--local] [--max-screens 20]
     make minutes CMD=start TITLE='Weekly CT'  ·  make minutes CMD=stop
 
@@ -44,6 +45,33 @@ no graba; queda como un ícono para arrancar y frenar sin Cockpit ni terminal. S
 - **Probado (2026-11-24):** ⌃⌥M arrancó y frenó (con resumen) tres veces; el punto rojo y el reloj de arena se vieron;
   abrirla dos veces deja una. NO se probó «Abrir al iniciar sesión» (cambia un ajuste de macOS) ni los clics del menú.
 
+## Para un agente (desde el 2026-11-24)
+
+Minutes se usa sobre todo desde agentes: la app es para ver. Todo lo que sabe la app se pide por consola, con formato
+fijo y códigos de salida (`agent.go`, probado en `agent_test.go`):
+
+- **`show [id] --json`**: la grabación entera, `minutes.recording/v1`: estado, personas (con el nombre que les pusieron),
+  el resumen, las pantallas (con su ruta absoluta) y cada frase con quién, cuándo y su pantalla. `list --json` y
+  `status --json` dan la versión liviana (sin frases ni pantallas). El `id` es el nombre de la carpeta; sin él, la
+  grabación en curso o la última.
+- **`context [id]`**: la reunión en texto compacto para pasarle a un modelo: personas por cuánto hablaron, el resumen
+  (con sus títulos un nivel abajo), las pantallas y lo dicho, con las frases seguidas de la misma persona juntas.
+  `--no-summary` lo deja sin el resumen del modelo (para que otro saque sus conclusiones); `--max-chars` recorta el medio.
+- **`wait [id]`**: espera a que termine de grabar, transcribir y resumir, sin sondear (`--timeout 30m`, `--json`).
+- **`search --q '…'`**: una frase en todas las grabaciones (lo dicho, lo visto en cada pantalla y los resúmenes), sin
+  mayúsculas ni tildes, todas las palabras en el mismo pedazo; la más nueva primero (`--json`: `minutes.search/v1`).
+- **Los estados** (`state`): `recording` · `finishing` (alguien la frenó y transcribe) · `summarizing` · `done` ·
+  `no_summary` (con `interrupted` si se cortó a mitad: `summarize` la rearma).
+- **La salida**: 0 bien · 1 falló · 2 mal pedido · 3 ocupado (grabando, o alguien frenando o resumiendo esa
+  grabación) · 4 no existe (o no hay en curso, o la búsqueda no encontró) · 5 `wait` se cansó · 6 terminó sin resumen.
+  La ayuda (`help` o sin argumentos) sale por stdout con 0.
+- **El candado por grabación**: frenar y resumir dejan `busy.json` (pid y paso) mientras trabajan; otro proceso
+  que quiera trabajar la misma grabación sale con 3 en vez de pisarla. ⚠ Se toma ANTES de transcribir lo pendiente:
+  sin eso, un `summarize` corrido mientras otro frenaba transcribió los mismos tramos y duplicó frases (medido). Un
+  `busy.json` de un proceso muerto quiere decir que se cortó: el estado sale `interrupted` y se puede retomar.
+- **Probado (2026-11-24)**: grabar sólo audio, frenar con `stop --json` y a la vez `wait --json` → los dos `done`;
+  `summarize` por consola y por la API mientras otro frenaba → 3, sin frases duplicadas; `start` grabando → 3.
+
 ## ⚠ Qué sale de la Mac: sólo el texto del resumen
 
 Los audios y las capturas pueden tener datos internos o de clientes. Quedan en `minutes/recordings/<fecha>/`, fuera de
@@ -67,6 +95,7 @@ también lo que no era de la reunión.
 | `recorder.json` · `recorder.log` | pid, comienzo, pantalla; al terminar `ended`, segundos y capturas | la grabadora |
 | `watch.log` | la transcripción de fondo | `watch` |
 | `steps.log` | los pasos de frenar y resumir, con su hora y su error | `stop` · `summarize` |
+| `busy.json` | el candado: pid y paso de quien frena o resume (se borra al terminar) | `stop` · `summarize` |
 | `transcript.jsonl` | `{start, end, source: mic\|system, text, chunk, echo?}` | `watch` (de fondo) |
 | `timeline.json` | las pantallas clave con lo que dijo el modelo y cada frase con la captura a la vista | `summarize` |
 | `summary.md` · `summary.html` | el recordatorio: resumen, decisiones, pendientes, momentos en pantalla y la transcripción | `summarize` |

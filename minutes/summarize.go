@@ -44,7 +44,7 @@ type summarizeOptions struct {
 	MaxScreens int
 }
 
-func summarizeCmd(args []string) error {
+func summarizeCmd(args []string) (err error) {
 	fs := flag.NewFlagSet("summarize", flag.ContinueOnError)
 	local := fs.Bool("local", false, "el resumen con Qwen3-VL-4B en esta Mac, sin sacar el texto (por defecto lo escribe Claude Haiku 5.5 por claude -p)")
 	fs.Bool("remote", true, "ya es lo de siempre (queda por compatibilidad)")
@@ -64,8 +64,14 @@ func summarizeCmd(args []string) error {
 		return err
 	}
 	if !recorderDone(d) {
-		return errors.New("la grabación sigue en curso: bin/minutes stop la frena y arma el resumen")
+		return withCode(exitBusy, "la grabación sigue en curso: bin/minutes stop la frena y arma el resumen")
 	}
+	// el candado ANTES de transcribir: si no, dos a la vez transcriben los mismos tramos y duplican frases (medido)
+	done, err := stepsLog(d, "armando el resumen")
+	if err != nil {
+		return err
+	}
+	defer done(&err)
 	if err := transcribePending(d, true); err != nil {
 		return err
 	}
@@ -216,7 +222,11 @@ func buildScreens(frames []Frame, segs []Segment, total float64, max int) []*Scr
 }
 
 func summarize(d string, o summarizeOptions) (err error) {
-	defer stepsLog(d, "armando el resumen")(&err)
+	done, err := stepsLog(d, "armando el resumen")
+	if err != nil {
+		return err
+	}
+	defer done(&err)
 	var meta Meta
 	readJSON(filepath.Join(d, "meta.json"), &meta)
 	st, _ := recorderState(d)
@@ -329,7 +339,9 @@ func summarize(d string, o summarizeOptions) (err error) {
 	}
 	out := filepath.Join(d, "summary.html")
 	fmt.Fprintf(logw, "✓ resumen: %s\n", out)
-	fmt.Println(out)
+	if !jsonOut {
+		fmt.Println(out)
+	}
 	notice.Send(notice.Notice{App: "minutes", Title: "El resumen de la reunión está listo", Body: firstNonEmpty(meta.Title, filepath.Base(d)), Group: "minutes"})
 	return nil
 }

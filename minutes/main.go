@@ -32,23 +32,32 @@ import (
 )
 
 func usage() {
-	fmt.Fprint(os.Stderr, `minutes — grabar una reunión: pantalla, micrófono y sistema, transcripción en vivo y un resumen que cruza lo dicho con lo visto
+	fmt.Fprint(os.Stdout, `minutes — grabar una reunión: pantalla, micrófono y sistema, transcripción en vivo y un resumen que cruza lo dicho con lo visto
 
   bin/minutes start [--title '…'] [--lang es|en|auto] [--no-screen] [--no-mic] [--no-system] [--chunk 15] [--direct]
-  bin/minutes stop [--no-summary]
-  bin/minutes status            la grabación en curso
+  bin/minutes stop [--no-summary] [--json]
+  bin/minutes status [--json]   la grabación en curso
   bin/minutes live [carpeta]    la transcripción a medida que sale (Ctrl-C sale sin frenar nada)
-  bin/minutes list              las grabaciones
+  bin/minutes list [--json]     las grabaciones
   bin/minutes summarize [carpeta] [--local] [--max-screens 20]
   bin/minutes open [carpeta]    abre el resumen (summary.html)
   bin/minutes serve [127.0.0.1:5249]  la API de la app de Cockpit (make minutes)
+
+  para un agente (la grabación es su id, o la carpeta; sin ella, la en curso o la última):
+  bin/minutes show [id] [--json]          todo: resumen, personas, pantallas y frases (minutes.recording/v1)
+  bin/minutes context [id] [--max-chars N] [--no-summary]   la reunión en texto compacto, para pasarle a un modelo
+  bin/minutes wait [id] [--timeout 30m] [--json]   espera a que termine de grabar, transcribir y resumir
+  bin/minutes search --q '…' [--json] [--limit 50]  una frase en todas las grabaciones (sin tildes ni mayúsculas)
+
+  salida: 0 bien · 1 falló · 2 mal pedido · 3 ocupado (grabando, o alguien frenando o resumiendo) ·
+          4 no existe (o no hay en curso, o search sin resultados) · 5 wait se cansó · 6 terminó sin resumen
 `)
 }
 
 func main() {
 	if len(os.Args) < 2 {
 		usage()
-		os.Exit(2)
+		return
 	}
 	cmd, args := os.Args[1], os.Args[2:]
 	var err error
@@ -58,11 +67,19 @@ func main() {
 	case "stop":
 		err = stop(args)
 	case "status":
-		err = status()
+		err = status(args)
 	case "live":
 		err = live(args)
 	case "list":
-		err = list()
+		err = list(args)
+	case "show":
+		err = show(args)
+	case "context":
+		err = contextCmd(args)
+	case "wait":
+		err = waitCmd(args)
+	case "search":
+		err = searchCmd(args)
 	case "summarize":
 		err = summarizeCmd(args)
 	case "open":
@@ -85,12 +102,12 @@ func main() {
 	case "-h", "--help", "help":
 		usage()
 	default:
-		usage()
-		os.Exit(2)
+		fmt.Fprintf(os.Stderr, "minutes: no conozco «%s» (bin/minutes help)\n", cmd)
+		os.Exit(exitUsage)
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "minutes:", err)
-		os.Exit(1)
+		os.Exit(exitCode(err))
 	}
 }
 
@@ -151,13 +168,27 @@ var logw io.Writer = os.Stderr
 
 // stepsLog manda logw también a <d>/steps.log hasta que se llame lo que devuelve, que anota cómo terminó. Si ya hay
 // una operación anotando (stop llama a summarize), no abre otra.
-func stepsLog(d, what string) func(*error) {
+//
+// También es el CANDADO de la grabación: deja busy.json con su pid y el paso mientras trabaja (así `show`, `wait` y otra
+// terminal saben que está frenando o resumiendo) y, si otro proceso vivo ya lo tiene, sale con exitBusy en vez de
+// pisarle los archivos. Un busy.json de un proceso muerto quiere decir que se cortó a mitad: se toma.
+func stepsLog(d, what string) (func(*error), error) {
+	busyPath := filepath.Join(d, "busy.json")
 	if logw != io.Writer(os.Stderr) {
-		return func(*error) {}
+		// anidada (stop → summarize): sólo cambia el paso
+		if b, ok := readBusy(d); ok && b.Pid == os.Getpid() {
+			b.Step = what
+			writeJSON(busyPath, b)
+		}
+		return func(*error) {}, nil
 	}
+	if b, ok := readBusy(d); ok && b.Pid != os.Getpid() && alive(b.Pid) {
+		return nil, withCode(exitBusy, "%s: el proceso %d ya está %s (bin/minutes wait %s)", filepath.Base(d), b.Pid, b.Step, filepath.Base(d))
+	}
+	writeJSON(busyPath, busyState{Pid: os.Getpid(), Step: what, Started: time.Now().Format(time.RFC3339)})
 	f, err := os.OpenFile(filepath.Join(d, "steps.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
 	if err != nil {
-		return func(*error) {}
+		return func(*error) { os.Remove(busyPath) }, nil
 	}
 	fmt.Fprintf(f, "── %s %s\n", time.Now().Format(time.TimeOnly), what)
 	logw = io.MultiWriter(os.Stderr, f)
@@ -168,8 +199,12 @@ func stepsLog(d, what string) func(*error) {
 		fmt.Fprintf(f, "── %s listo\n", time.Now().Format(time.TimeOnly))
 		logw = os.Stderr
 		f.Close()
-	}
+		os.Remove(busyPath)
+	}, nil
 }
+
+// jsonOut: el comando contesta en JSON por stdout, así que lo demás que imprime (la ruta del resumen) no va ahí.
+var jsonOut bool
 
 func alive(pid int) bool {
 	return pid > 0 && syscall.Kill(pid, 0) == nil
@@ -245,7 +280,7 @@ func start(args []string) error {
 	}
 	if d, err := pick(nil); err == nil {
 		if _, e := os.ReadFile(currentFile()); e == nil && !recorderDone(d) {
-			return fmt.Errorf("ya hay una grabación en curso: %s (bin/minutes stop)", d)
+			return withCode(exitBusy, "ya hay una grabación en curso: %s (bin/minutes stop)", d)
 		}
 	}
 	if err := checkTools(); err != nil {
@@ -339,15 +374,28 @@ func start(args []string) error {
 func stop(args []string) (err error) {
 	fs := flag.NewFlagSet("stop", flag.ContinueOnError)
 	noSummary := fs.Bool("no-summary", false, "sólo frenar y transcribir")
+	fs.BoolVar(&jsonOut, "json", false, "al terminar, minutes.recording/v1 liviano (en vez de la ruta)")
 	if err := fs.Parse(args); err != nil {
-		return err
+		return codeError{exitUsage, err}
 	}
 	b, err := os.ReadFile(currentFile())
 	if err != nil {
-		return errors.New("no hay una grabación en curso")
+		return withCode(exitNotFound, "no hay una grabación en curso")
 	}
 	d := filepath.Join(recordingsDir(), strings.TrimSpace(string(b)))
-	defer stepsLog(d, "frenando")(&err)
+	// el JSON al final de todo, ya soltado el candado (los defer corren al revés: éste se registra primero)
+	if jsonOut {
+		defer func() {
+			if err == nil {
+				printJSON(recordingInfo(d, false))
+			}
+		}()
+	}
+	done, err := stepsLog(d, "frenando")
+	if err != nil {
+		return err
+	}
+	defer done(&err)
 	os.WriteFile(filepath.Join(d, "stop"), nil, 0o644)
 	for i := 0; !recorderDone(d); i++ {
 		if i > 100 {
@@ -380,14 +428,31 @@ func stop(args []string) (err error) {
 		return err
 	}
 	if *noSummary {
-		fmt.Println(d)
+		if !jsonOut {
+			fmt.Println(d)
+		}
 		return nil
 	}
 	return summarize(d, summarizeOptions{MaxScreens: 20})
 }
 
-func status() error {
+func status(args []string) error {
+	fs := flag.NewFlagSet("status", flag.ContinueOnError)
+	asJSON := fs.Bool("json", false, "minutes.status/v1: si se graba, y la grabación en curso")
+	if err := fs.Parse(args); err != nil {
+		return codeError{exitUsage, err}
+	}
 	b, err := os.ReadFile(currentFile())
+	if *asJSON {
+		out := map[string]any{"schema": "minutes.status/v1", "recording": false, "current": nil}
+		if err == nil {
+			if d := filepath.Join(recordingsDir(), strings.TrimSpace(string(b))); fileExists(d) {
+				r := recordingInfo(d, false)
+				out["recording"], out["current"] = r.State == "recording", r
+			}
+		}
+		return printJSON(out)
+	}
 	if err != nil {
 		fmt.Println("no hay una grabación en curso")
 		return nil
@@ -423,7 +488,21 @@ func countLines(path string) int {
 	return n
 }
 
-func list() error {
+func list(args []string) error {
+	fs := flag.NewFlagSet("list", flag.ContinueOnError)
+	asJSON := fs.Bool("json", false, "minutes.recording/v1 liviano de cada una, la más nueva primero")
+	if err := fs.Parse(args); err != nil {
+		return codeError{exitUsage, err}
+	}
+	if *asJSON {
+		all := recordings()
+		sort.Sort(sort.Reverse(sort.StringSlice(all)))
+		out := []recordingJSON{}
+		for _, d := range all {
+			out = append(out, recordingInfo(d, false))
+		}
+		return printJSON(map[string]any{"recordings": out})
+	}
 	for _, d := range recordings() {
 		var m Meta
 		readJSON(filepath.Join(d, "meta.json"), &m)
