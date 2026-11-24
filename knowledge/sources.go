@@ -26,6 +26,8 @@ func (l Library) Check(client *repos.Client) ([]SourceState, error) {
 		return states, fmt.Errorf("knowledge no tiene temas: no hay nada verificado")
 	}
 	var bad int
+	trees := treeCache{}
+	blobAt := trees.blobAt
 	for _, t := range l.Topics {
 		for _, s := range t.Sources {
 			state := SourceState{Topic: t.ID, Repo: s.Repo, Path: s.Path}
@@ -61,7 +63,46 @@ func (l Library) Check(client *repos.Client) ([]SourceState, error) {
 	return states, nil
 }
 
-func blobAt(root, ref, path string) (string, error) {
+// treeCache: el árbol entero de cada repo y commit, leído una vez con `git ls-tree -r`. Antes eran cuatro procesos de git
+// por fuente (~6.000 en fila) y `cat-file -t` bajaba el contenido de cada archivo de los clones parciales (`blob:none`):
+// la comprobación tardaba 6,5 minutos (2026-11-24). El árbol trae el hash y el tipo sin bajar ningún archivo.
+type treeCache map[string]map[string][2]string
+
+func (c treeCache) blobAt(root, ref, path string) (string, error) {
+	key := root + "\x00" + ref
+	tree, ok := c[key]
+	if !ok {
+		tree = map[string][2]string{}
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		out, err := exec.CommandContext(ctx, "git", "-C", root, "ls-tree", "-r", "-z", "--full-tree", ref).Output()
+		cancel()
+		if err != nil {
+			c[key] = nil
+			return blobAtSlow(root, ref, path)
+		}
+		for _, line := range strings.Split(string(out), "\x00") {
+			meta, file, ok := strings.Cut(line, "\t")
+			if f := strings.Fields(meta); ok && len(f) == 3 {
+				tree[file] = [2]string{f[1], f[2]}
+			}
+		}
+		c[key] = tree
+	}
+	if tree == nil {
+		return blobAtSlow(root, ref, path)
+	}
+	e, ok := tree[path]
+	if !ok {
+		return "", fmt.Errorf("%s no está en %s", path, ref)
+	}
+	if e[0] != "blob" {
+		return "", fmt.Errorf("la fuente no es un archivo Git")
+	}
+	return e[1], nil
+}
+
+// blobAtSlow: el camino de antes, por si el árbol no se pudo leer.
+func blobAtSlow(root, ref, path string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	out, err := exec.CommandContext(ctx, "git", "-C", root, "rev-parse", "--verify", ref+":"+path).Output()
