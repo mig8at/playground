@@ -33,3 +33,6 @@ herramienta personal de Miguel en my-tools: no es de CreditOp y no va a Jira. C�
 - Probarla en una reunión real de Meet o Zoom (la prueba del 2026-11-23 fue con voz sintética por los parlantes).
 - Las reuniones largas: el resumen de lo dicho hoy recorta la mitad del texto pasado de ~30 mil caracteres; hace falta
   resumir por partes.
+- Quién dijo qué dentro de «reunión»: Nemotron-3-Diarization (NVIDIA) corre en la Mac sin NeMo y a 135 veces el tiempo
+  real (probado 2026-11-23; el detalle en `news/favorites.json`). Con voces sintéticas de macOS no distingue a las del
+  mismo motor; con voces reales separó 6. Falta medirlo con una reunión real antes de integrarlo.

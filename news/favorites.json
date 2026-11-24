@@ -314,13 +314,14 @@
     "task": "voice-activity-detection",
     "params": 99226504,
     "license": "openmdw-1.1",
-    "mac": "unknown",
+    "mac": "yes",
     "added": "2026-11-19",
     "what": "Separa quién habla cuándo en un audio, hasta 8 personas, en vivo o sobre una grabación.",
     "why": "100 M de parámetros, uso comercial permitido. Ningún modelo pago te da esto en local, y junto con un transcriptor arma la transcripción por persona. Pide NeMo, la librería de NVIDIA, que es pesada.",
     "ideas": [
       "Transcribir una reunión con quién dijo qué, sin que el audio salga de la Mac"
-    ]
+    ],
+    "tried": "2026-11-23, en la Mac, sin NeMo: con Transformers de la fuente (5.24.dev) y torch 2.15 en ~/.cache/my-tools/diarization. Rapidísimo: 60 s de audio en 0,44 s en CPU (135 veces el tiempo real; en Metal, 0,8 s), carga en 2 a 13 s. Con 4 voces sintéticas de macOS que se turnan (Paulina, Mónica, Eddy, Grandpa; 12 turnos con su tiempo exacto) halló sólo 2 personas: juntó a las dos mujeres y a los dos hombres, 7 de 12 turnos bien; Mónica se le distingue apenas (0,7 contra 0,98). Con las voces reales del ejemplo de su ficha (97 s) separó 6 personas, también cuando se pisan. Las voces de macOS salen del mismo motor y no sirven para medirlo: falta medirlo con una reunión real. Candidato para Minutes (quién dijo qué en el audio de la reunión)."
   },
   {
     "id": "Prior-Labs/tabpfn_3_5",
