@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"creditop/my-tools/lib/background"
 )
@@ -148,10 +149,22 @@ func clip(s string, n int) string {
 // (una sola) y, si tampoco, deja la respuesta cruda en rawPath para ver qué escribió.
 func (f *flow) askList(ctx context.Context, r *Run, system, prompt, rawPath string) ([]map[string]any, error) {
 	var last error
-	for try := 0; try < 2; try++ {
+	for try, failures := 0, 0; try < 2; try++ {
 		ans, err := background.Ask(ctx, f.root, background.Request{Prompt: prompt, System: system})
 		if err != nil {
-			return nil, err
+			/* Un 502 o un corte de Bedrock suele ser pasajero (la corrida #23, 2026-11-24, cayó en un grupo que la #22
+			 * había pasado): hasta 3 intentos más, con espera, antes de tirar la corrida entera. */
+			if failures++; failures > 3 || ctx.Err() != nil {
+				return nil, err
+			}
+			last = err
+			try--
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(time.Duration(failures) * 20 * time.Second):
+			}
+			continue
 		}
 		r.Model = ans.Model
 		out, err := parseList(ans.Text)
