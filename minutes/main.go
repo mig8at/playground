@@ -259,7 +259,7 @@ func start(args []string) error {
 		if err := r.Start(); err != nil {
 			return err
 		}
-		r.Process.Release()
+		go r.Wait() // si quien la lanza sigue vivo (el servidor de la app), la recoge al terminar: sin esto queda zombi
 	} else if out, err := exec.Command("open", append([]string{"-n", "-g", app, "--args"}, ra...)...).CombinedOutput(); err != nil {
 		return fmt.Errorf("open Minutes.app: %v: %s", err, out)
 	}
@@ -299,7 +299,10 @@ func start(args []string) error {
 		return err
 	}
 	os.WriteFile(filepath.Join(d, "watch.pid"), []byte(fmt.Sprint(w.Process.Pid)), 0o644)
-	w.Process.Release()
+	// Wait y no Release: lanzada por el servidor de la app (que no termina), una hija que sale sin que nadie la
+	// recoja queda zombi, kill(pid, 0) la sigue viendo viva y `stop` la esperaba 10 min («Terminando de transcribir»
+	// pegado, 2026-11-24). Desde la consola esto sale enseguida y la recoge launchd.
+	go w.Wait()
 	fmt.Fprintf(os.Stderr, "● grabando: %s\n  la transcripción en vivo: bin/minutes live · frenar: bin/minutes stop\n", d)
 	fmt.Println(d)
 	return nil

@@ -106,6 +106,12 @@ resumen sale sin momentos en pantalla y sin levantar el modelo de visión.
   reintenta una vez sin el texto anterior y, si vuelve a fallar, queda en `audio/failed.txt` y se sigue. Antes se
   reintentaba para siempre y «Frenar» no terminaba nunca. Además `stop` espera a la transcripción de fondo a lo sumo
   10 min.
+- **«Terminando de transcribir» pegado al frenar desde Cockpit** (arreglado 2026-11-24): la transcripción de fondo
+  (`watch`) la lanza `start`; desde la app es hija del servidor, que no termina, y con `Process.Release()` nadie la
+  recogía al salir: quedaba zombi, `kill(pid, 0)` la veía viva y `stop` la esperaba los 10 min. Pasaba con cualquier
+  grabación frenada desde Cockpit (desde la consola o el ícono, el que lanza sale enseguida y la recoge launchd).
+  Ahora `go w.Wait()`. Probado: sólo audio por la API, frenada con resumen en 13 s. Si el servidor se reinicia a mitad
+  de un `stop`, la grabación queda sin resumen: el botón de volver a armarlo.
 - **Claude Code no contesta** (sin red, sin sesión de claude.ai o sin `claude` instalado): el resumen lo escribe el modelo
   local y el aviso dice por qué.
 

@@ -318,8 +318,8 @@ onBeforeUnmount(() => {
         </template>
       </div>
       <div class="region-body">
-        <p v-if="error" class="alert alert-bad" role="alert">{{ error }}</p>
-        <p v-if="working" class="alert working">{{ phaseText }}</p>
+        <div v-if="error" class="alert alert-bad" role="alert"><div class="alert-desc"><p>{{ error }}</p></div></div>
+        <div v-if="working" class="alert working"><div class="alert-desc"><p>{{ phaseText }}</p></div></div>
 
         <div v-if="loaded && !rec" class="empty"><div class="empty-head">
           <div class="empty-title">{{ apiError || 'Grabá una reunión' }}</div>
