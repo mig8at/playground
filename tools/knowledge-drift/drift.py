@@ -25,6 +25,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 MY_TOOLS = os.path.dirname(os.path.dirname(HERE))
 KN = os.path.join(MY_TOOLS, "knowledge")
 WORK = os.path.expanduser(os.environ.get("KNOWLEDGE_DRIFT_DIR", os.path.join(HERE, ".runs")))
+TRIAGE_SIZE_CAP = 80000  # caracteres por grupo del triaje (prosa + PRs): una pregunta que Bedrock no corte
+TRIAGE_ITEMS_CAP = 60  # ítems por grupo del triaje: cada uno vuelve con su veredicto y su porqué
 CODE_PROSE_CAP = 15000  # prosa por paquete de código: lo que vuelve reescrito tiene que caber en la respuesta del modelo
 PR_BODY_CAP = 12000  # recortar fijo y corto fabricó dudas: 41 de 60 ítems quedaron «no se sabe» por un PR largo
 
@@ -201,9 +203,13 @@ def step_paquete(args):
     by_topic = collections.defaultdict(list)
     for k, v in items.items():
         by_topic[v["topic"]].append(k)
-    size = lambda t: sum(len(items[k]["prose"]) for k in by_topic[t]) + sum(len(body(prs, p)) for k in by_topic[t] for p in items[k]["prs"])
+    # cada PR una vez por tema: el grupo lo imprime una sola vez, aunque lo citen varias secciones
+    size = lambda t: sum(len(items[k]["prose"]) for k in by_topic[t]) + sum(len(body(prs, p)) for p in {p for k in by_topic[t] for p in items[k]["prs"]})
     os.makedirs(os.path.join(d, "triaje"), exist_ok=True)
-    for g, topics in enumerate(bins(list(by_topic), args.groups, size), 1):
+    # Con 4 grupos fijos, la corrida #20 de Knowledge (2026-11-24, 53 temas) armó grupos de 235 a 350 mil
+    # caracteres y ~400 ítems, y Bedrock cortó la invocación: se arman los que hagan falta para los dos topes.
+    groups = max(args.groups, -(-sum(size(t) for t in by_topic) // TRIAGE_SIZE_CAP), -(-len(items) // TRIAGE_ITEMS_CAP))
+    for g, topics in enumerate(bins(list(by_topic), groups, size), 1):
         o, used = [], set()
         for t in sorted(topics):
             o.append(f"\n\n# TEMA {t}")
