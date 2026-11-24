@@ -297,7 +297,7 @@ const panelH = ref(readSize('minutes.panel-h', 200))
 const panelMax = () => Math.max(cssSize('--panel-min', 124), viewportH.value - 260)
 const panelShown = computed(() => (panelOpen.value ? regionSize(panelH.value, cssSize('--panel-min', 124), panelMax()) : 0))
 const panelResize = {
-  label: 'Alto de la consola', sign: -1, defaultValue: 200,
+  label: 'Alto de la consola', axis: 'y', sign: -1, defaultValue: 200,
   min: () => cssSize('--panel-min', 124), max: panelMax,
   get: () => panelShown.value,
   set: (v) => { if (!v) panelOpen.value = false; else { panelOpen.value = true; panelH.value = v } },
@@ -497,7 +497,7 @@ onBeforeUnmount(() => {
           <span class="ui-icon" data-icon="console" aria-hidden="true"></span>
         </button>
         <button type="button" class="region-action" :aria-pressed="!!shown.aux" title="Mostrar u ocultar la conversación" aria-label="Mostrar u ocultar la conversación" @click="toggleAux">
-          <span class="ui-icon" data-icon="comment" aria-hidden="true"></span>
+          <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
         </button>
       </div>
     </footer>
