@@ -1,0 +1,43 @@
+-- Formulario 25 de Finandina COMPLETO en la base LOCAL: los campos 320-323 como están en qa (2026-11-24), más
+-- lo que pide el diseño de Figma y la política (tarea finandina-originacion, 2026-11-24):
+--   · «Pensionado» en la actividad económica (320); la empresa (321) sólo para «empleado»;
+--   · entidad, fecha de vinculación y fecha de retiro (opcional) debajo de CADA pregunta PEP (322 y 323), con
+--     parent_value = 'si': un campo tiene un solo padre, y el diseño los pide si dice «Sí» a cualquiera de las dos.
+-- Los ids nuevos (9001, 9101-9103, 9111-9113) son sólo de local y coinciden con el esquema del mock
+-- (harness/mock-forms-g2/fixtures/esquema-25.json). En qa los crea una migración con sus propios ids: el armador de
+-- documentos los busca por nombre y padre, no por id.
+-- Se puede correr de nuevo: borra lo suyo antes. Con --default-character-set=utf8mb4, o las tildes quedan rotas:
+--   docker exec -i legacy-backend-mysql-1 sh -c 'mysql --default-character-set=utf8mb4 -uroot -p"$MYSQL_ROOT_PASSWORD" creditop' < este.sql
+DELETE FROM forms WHERE form_type_id = 25;
+DELETE FROM field_options WHERE field_id IN (320,321,322,323);
+DELETE FROM fields WHERE id IN (320,321,322,323,9101,9102,9103,9111,9112,9113);
+
+INSERT INTO fields (id, field_category_id, parent_id, related_field_id, parent_value, name, description, help_message, field_appearance, field_group, type, validation, data_source, status, created_at, updated_at) VALUES (320, 5, NULL, NULL, NULL, 'Actividad económica', NULL, 'Selecciona una opción', 'select', NULL, 'select', '{"nullable":false,"dataType":"string","regex":null,"minLength":1,"maxLength":100,"min":null,"max":null}', NULL, 1, NOW(), NOW());
+INSERT INTO fields (id, field_category_id, parent_id, related_field_id, parent_value, name, description, help_message, field_appearance, field_group, type, validation, data_source, status, created_at, updated_at) VALUES (321, 5, 320, NULL, 'empleado', 'Nombre de la empresa empleadora (Opcional)', NULL, NULL, 'text', NULL, 'text', '{"nullable":true,"dataType":"string","regex":null,"minLength":1,"maxLength":100,"min":null,"max":null}', NULL, 1, NOW(), NOW());
+INSERT INTO fields (id, field_category_id, parent_id, related_field_id, parent_value, name, description, help_message, field_appearance, field_group, type, validation, data_source, status, created_at, updated_at) VALUES (322, 35, NULL, NULL, NULL, '¿Tú, tu cónyuge o familiar hasta 2° grado son PEP?', NULL, NULL, 'radio', NULL, 'radio', '{"nullable":false,"dataType":"string","regex":null,"minLength":1,"maxLength":2,"min":null,"max":null}', NULL, 1, NOW(), NOW());
+INSERT INTO fields (id, field_category_id, parent_id, related_field_id, parent_value, name, description, help_message, field_appearance, field_group, type, validation, data_source, status, created_at, updated_at) VALUES (323, 35, NULL, NULL, NULL, '¿Tienes participación accionaria en compañía con accionistas PEP?', NULL, NULL, 'radio', NULL, 'radio', '{"nullable":false,"dataType":"string","regex":null,"minLength":1,"maxLength":2,"min":null,"max":null}', NULL, 1, NOW(), NOW());
+INSERT INTO fields (id, field_category_id, parent_id, related_field_id, parent_value, name, description, help_message, field_appearance, field_group, type, validation, data_source, status, created_at, updated_at) VALUES (9101, 5, 322, NULL, 'si', 'Nombre de la entidad', NULL, NULL, 'text', NULL, 'text', '{"nullable": false, "dataType": "string", "regex": null, "minLength": 1, "maxLength": 100, "min": null, "max": null}', NULL, 1, NOW(), NOW());
+INSERT INTO fields (id, field_category_id, parent_id, related_field_id, parent_value, name, description, help_message, field_appearance, field_group, type, validation, data_source, status, created_at, updated_at) VALUES (9102, 5, 322, NULL, 'si', 'Fecha de vinculación', NULL, NULL, 'date', NULL, 'date', '{"nullable": false, "dataType": "date", "regex": null, "minLength": null, "maxLength": null, "min": null, "max": null}', NULL, 1, NOW(), NOW());
+INSERT INTO fields (id, field_category_id, parent_id, related_field_id, parent_value, name, description, help_message, field_appearance, field_group, type, validation, data_source, status, created_at, updated_at) VALUES (9103, 5, 322, NULL, 'si', 'Fecha de retiro (Opcional)', NULL, 'Déjala vacía si aún estás vinculado.', 'date', NULL, 'date', '{"nullable": true, "dataType": "date", "regex": null, "minLength": null, "maxLength": null, "min": null, "max": null}', NULL, 1, NOW(), NOW());
+INSERT INTO fields (id, field_category_id, parent_id, related_field_id, parent_value, name, description, help_message, field_appearance, field_group, type, validation, data_source, status, created_at, updated_at) VALUES (9111, 5, 323, NULL, 'si', 'Nombre de la entidad', NULL, NULL, 'text', NULL, 'text', '{"nullable": false, "dataType": "string", "regex": null, "minLength": 1, "maxLength": 100, "min": null, "max": null}', NULL, 1, NOW(), NOW());
+INSERT INTO fields (id, field_category_id, parent_id, related_field_id, parent_value, name, description, help_message, field_appearance, field_group, type, validation, data_source, status, created_at, updated_at) VALUES (9112, 5, 323, NULL, 'si', 'Fecha de vinculación', NULL, NULL, 'date', NULL, 'date', '{"nullable": false, "dataType": "date", "regex": null, "minLength": null, "maxLength": null, "min": null, "max": null}', NULL, 1, NOW(), NOW());
+INSERT INTO fields (id, field_category_id, parent_id, related_field_id, parent_value, name, description, help_message, field_appearance, field_group, type, validation, data_source, status, created_at, updated_at) VALUES (9113, 5, 323, NULL, 'si', 'Fecha de retiro (Opcional)', NULL, 'Déjala vacía si aún estás vinculado.', 'date', NULL, 'date', '{"nullable": true, "dataType": "date", "regex": null, "minLength": null, "maxLength": null, "min": null, "max": null}', NULL, 1, NOW(), NOW());
+INSERT INTO field_options (id, field_id, `key`, name, sort, status, created_at, updated_at) VALUES (240, 322, 'si', 'Sí', 1, 1, NOW(), NOW());
+INSERT INTO field_options (id, field_id, `key`, name, sort, status, created_at, updated_at) VALUES (241, 322, 'no', 'No', 2, 1, NOW(), NOW());
+INSERT INTO field_options (id, field_id, `key`, name, sort, status, created_at, updated_at) VALUES (242, 323, 'si', 'Sí', 1, 1, NOW(), NOW());
+INSERT INTO field_options (id, field_id, `key`, name, sort, status, created_at, updated_at) VALUES (243, 323, 'no', 'No', 2, 1, NOW(), NOW());
+INSERT INTO field_options (id, field_id, `key`, name, sort, status, created_at, updated_at) VALUES (244, 320, 'empleado', 'Empleado', 1, 1, NOW(), NOW());
+INSERT INTO field_options (id, field_id, `key`, name, sort, status, created_at, updated_at) VALUES (9001, 320, 'pensionado', 'Pensionado', 2, 1, NOW(), NOW());
+INSERT INTO forms (form_type_id, field_id, hidden, editable, sort, status, created_at, updated_at) VALUES (25, 184, 0, 1, 1, 1, NOW(), NOW());
+INSERT INTO forms (form_type_id, field_id, hidden, editable, sort, status, created_at, updated_at) VALUES (25, 185, 0, 1, 2, 1, NOW(), NOW());
+INSERT INTO forms (form_type_id, field_id, hidden, editable, sort, status, created_at, updated_at) VALUES (25, 186, 0, 1, 3, 1, NOW(), NOW());
+INSERT INTO forms (form_type_id, field_id, hidden, editable, sort, status, created_at, updated_at) VALUES (25, 320, 0, 1, 4, 1, NOW(), NOW());
+INSERT INTO forms (form_type_id, field_id, hidden, editable, sort, status, created_at, updated_at) VALUES (25, 321, 0, 1, 5, 1, NOW(), NOW());
+INSERT INTO forms (form_type_id, field_id, hidden, editable, sort, status, created_at, updated_at) VALUES (25, 322, 0, 1, 6, 1, NOW(), NOW());
+INSERT INTO forms (form_type_id, field_id, hidden, editable, sort, status, created_at, updated_at) VALUES (25, 9101, 0, 1, 7, 1, NOW(), NOW());
+INSERT INTO forms (form_type_id, field_id, hidden, editable, sort, status, created_at, updated_at) VALUES (25, 9102, 0, 1, 8, 1, NOW(), NOW());
+INSERT INTO forms (form_type_id, field_id, hidden, editable, sort, status, created_at, updated_at) VALUES (25, 9103, 0, 1, 9, 1, NOW(), NOW());
+INSERT INTO forms (form_type_id, field_id, hidden, editable, sort, status, created_at, updated_at) VALUES (25, 323, 0, 1, 10, 1, NOW(), NOW());
+INSERT INTO forms (form_type_id, field_id, hidden, editable, sort, status, created_at, updated_at) VALUES (25, 9111, 0, 1, 11, 1, NOW(), NOW());
+INSERT INTO forms (form_type_id, field_id, hidden, editable, sort, status, created_at, updated_at) VALUES (25, 9112, 0, 1, 12, 1, NOW(), NOW());
+INSERT INTO forms (form_type_id, field_id, hidden, editable, sort, status, created_at, updated_at) VALUES (25, 9113, 0, 1, 13, 1, NOW(), NOW());

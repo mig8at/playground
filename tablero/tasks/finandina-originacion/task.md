@@ -222,7 +222,10 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
   - los montos en letras;
   - la ciudad de firma (sale «BOGOTÁ» siempre).
 
-  Termina con los dos documentos generados para una solicitud local con todos esos datos llenos.
+  Termina con los dos documentos generados para una solicitud local con todos esos datos llenos. **Hecho en local**
+  (2026-11-24): `FinandinaPayloadBuilder` en la rama `legacy-backend:feat/finandina-originacion-documentos` (sin push).
+  Falta llevarlo a qa con las filas del catálogo de firma de la 149, que llevan `template` aunque el pdf-mapper no
+  la use.
 - [ ] Confirmar con Finandina lo que quedó resuelto provisionalmente el 2026-11-24. Depende de: Finandina — si el
   valor a girar es el monto aprobado o el monto menos el aval y otros cobros; si quieren el monto del aval en el
   formulario (su observación 4); y si los T&C con los 21 cambios aceptados son la versión final.
@@ -539,7 +542,17 @@ dejar `document_types` como la entidad y el seguro del convenio en 0,166. El est
 
     make harness-walk-wizard TARGET=local LAMBDA=1 CLOSE=1 MANUAL=1 AMOUNT=5000000 CASES='#03751a1d:149'
 
-Tiene que dar estado 11, pasando por `dynamic-form/25`. En qa el mismo comando con `#5da24bb1:149` (Mediarte ·
+Tiene que dar estado 11, pasando por `dynamic-form/25`. Para ver además los documentos llenos (2026-11-24):
+
+    docker exec -i legacy-backend-mysql-1 sh -c 'mysql --default-character-set=utf8mb4 -uroot -p"$MYSQL_ROOT_PASSWORD" creditop' < tablero/tasks/finandina-originacion/artifacts/finandina-local-formulario-25-completo.sql
+    docker exec -i legacy-backend-mysql-1 sh -c 'mysql --default-character-set=utf8mb4 -uroot -p"$MYSQL_ROOT_PASSWORD" creditop' < tablero/tasks/finandina-originacion/artifacts/finandina-local-documentos.sql
+    AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test aws --endpoint-url http://localhost:4566 s3 mb s3://local-mock   # si se perdió
+    bin/mock-pdf-mapper stop && bin/mock-pdf-mapper start   # reenvía al pdf-mapper-service real (:8080)
+    E2E_ANSWER_YES=1 make harness-walk-wizard TARGET=local LAMBDA=1 CLOSE=1 MANUAL=1 AMOUNT=5000000 CASES='#03751a1d:149'
+
+Con legacy-backend en `feat/finandina-originacion-documentos` y el pdf-mapper-service corriendo con las plantillas
+`finandina/vinculacion` y `finandina/terminos-y-condiciones`. Los documentos firmados quedan en
+`user_request_signing_documents` de la solicitud, con su URL y la misma llave de firma. En qa el mismo comando con `#5da24bb1:149` (Mediarte ·
 Principal) también cierra en 11.
 
 **El riel 4 en local (verificado el 2026-11-03).** Se arma con:
