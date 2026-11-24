@@ -14,14 +14,17 @@ ramas: pdf-mapper-editor:pdf-v2
 - [x] Validar la detección con referencias de varios tipos (`artifacts/referencias/`, armadas con
   `build_references.py`): formulario por recuadros con casillas y fechas partidas, plan de pagos en tabla, pagaré
   con blancos sin marcador y dos columnas de firma, y los T&C reales de Finandina.
-- [ ] Probar el mapper que sale de la detección estampándolo en el servicio (hoy el asistente no exporta el mapper):
-  termina cuando las cuatro referencias se generan con datos de ejemplo y cada dato cae en su lugar.
+- [x] Guardar de verdad y probarlo con el servicio: el asistente arma la plantilla (marcadores tapados sobre el
+  original) y el mapper, los guarda con los ids nuevos en el catálogo, y el servicio los genera bien (formulario, plan
+  de pagos con sus 12 filas y pagaré, en local).
 - [ ] Conversión de Word a PDF: no hay conversor en la Mac (ni LibreOffice ni pandoc); decidir con qué se hace en el
   servicio. Termina cuando `autorizacion-libranza-ejemplo.docx` pasa por el asistente con sus campos.
 - [ ] Una raya de firma dibujada (no con `____`) no se reconoce como zona de firma: el pagaré de ejemplo la tiene.
-- [ ] Conectar los pasos de verdad: convertir Word a PDF, tapar marcadores reservando el espacio, armar el mapper y
-  guardar plantilla y mapper en el servicio. Antes, decidir dónde vive esto (ver «Ojo»).
-- [ ] Conectar la caja de cada página con Claude (pedidos acotados a esa página).
+- [ ] Decidir dónde vive el estudio automático (ver «Ojo»): hoy es la rama `pdf-v2` del Studio, sin push ni PR.
+- [ ] Conectar la caja de cada página con Claude (pedidos acotados a esa página), con las herramientas de la skill
+  (`layout.py`, `grid.py`) para que ubique sin adivinar.
+- [ ] Un marcador que en la referencia se sale de su recuadro (`[AnioNacimiento]` en el formulario de ejemplo) deja un
+  espacio donde el dato no cabe: hoy se avisa; que lo resuelva Claude en la plantilla.
 - [ ] Ids que faltan en el catálogo para los T&C de Finandina: los 5 montos en letras y la prima de Protección
   Financiera (ver la tarea `finandina-originacion`).
 
@@ -45,11 +48,8 @@ antes de construirlo de verdad, decidir si va al módulo del backoffice.
 
 ## Hecho
 
-- Skill `pdf-template` en `pdf-mapper-editor/skills/`: texto marcado → plantilla PDF + mapper.
-- Editor: importar plantilla + mapper; trabajar sólo contra el servicio local (`VITE_PDF_MAPPER_TARGET=local`);
-  arreglos de «Subir PDF» y de la hoja cortada.
-- Prototipo del asistente (`/project/<proyecto>/new`): referencia, preparación, revisión por página con datos demo
-  sobre los marcadores reales del PDF y aviso de «no cabe», y guardado con nombre sugerido.
-- Detección general en el asistente (`src/prototype/detect.ts`): marcadores `[X]`, blancos `____` nombrados por su
-  rótulo, casillas `[ ]`/`( )` agrupadas por pregunta, tablas por fila modelo `[Plan.X]` con las filas contadas en la
-  cuadrícula, y zonas de firma. Cada dato ocupa hasta el próximo texto o raya de su recuadro.
+- El estudio es automático (`pdf-mapper-editor`, rama `pdf-v2`): sin edición manual, sin copias en el navegador (el
+  servicio es la fuente de verdad), un ambiente a la vez elegido en la barra de abajo. Crear: el asistente. Ver: el
+  documento en sólo lectura, con «Generar con datos demo».
+- Skill `pdf-template`: `layout.py` (el plano de la página en coordenadas del mapper) y `grid.py` (cuadrícula y
+  mapper dibujado) para Claude; `build_template.py` para documentos sin PDF de referencia.
