@@ -202,9 +202,12 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
   - debajo de cada pregunta PEP (322 y 323), la entidad, la fecha de vinculación y la fecha de retiro (opcional), con
     `parent_value` = `si`.
 
-  Los campos y las opciones nuevos van con una migración que los busque por nombre, como la de la ciudad de
-  nacimiento, y después se reconstruye el esquema del 25 en form-service. Termina con el flujo cerrando en 11 en qa y
-  los 13 valores en `user_field_values`.
+  La migración ya está en el PR [#2053](pr:legacy-backend#2053) (a qa, con el armador de los documentos); el estilo del
+  formulario según Figma, en [#1537](pr:frontend-monorepo#1537). Al mergear: correr sólo esa migración con `--path`
+  en qa, reconstruir el esquema (`PUT /v1/dynamic-form/25/schema` en form-service), subir las plantillas `vinculacion`
+  y `terminos-y-condiciones` al pdf-mapper de qa (proyecto `finandina`), poner el slug en la 149 y cargar sus filas de
+  `lender_signing_documents` con `template` (receta: `artifacts/finandina-local-documentos.sql`). Termina con el flujo
+  cerrando en 11 en qa, los 13 valores en `user_field_values` y los dos documentos firmados con sus datos.
 - [ ] Partir el formulario como el diseño: la residencia antes de ADO, y lo laboral y las declaraciones después de
   confirmar el plazo. Termina con dos formularios, cada uno en su lugar del flujo, o con la decisión de dejarlo junto.
 - [ ] Mejorar el formulario dinámico para que un campo pueda depender de más de una respuesta. Hoy cada campo tiene
