@@ -15,6 +15,7 @@ import { readFileSync, existsSync, writeFileSync, readdirSync, statSync, mkdirSy
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 import { MockSupervisor, MOCKS as MOCK_REGISTRY } from './mocks.ts';
+import { isMockMode, mockMode, setMockMode } from '../pkg/mock-modes.ts';
 import { linesSince } from './log-lines.ts';
 import { advisorSession } from '../../connectors/advisor/session.ts';
 import { envData, type AutofillData } from '../pkg/autofill.ts';
@@ -2068,6 +2069,20 @@ const server = createServer(async (req, res) => {
 
     /* LOS MOCKS LOCALES: estado, dueño y log de cada uno, y levantar, apagar o reiniciar a pedido. */
     if (path === '/api/mocks' && req.method === 'GET') return json(res, 200, { mocks: await mockSupervisor.list() });
+    // Quién contesta en un mock con servicio de verdad detrás (`pkg/mock-modes.ts`): mock · auto · real. El mock lo lee
+    // en cada pedido, así que no se reinicia nada.
+    {
+        const m = path.match(/^\/api\/mocks\/([a-z0-9-]+)\/mode$/);
+        if (m && req.method === 'POST') {
+            const def = MOCK_REGISTRY.find((x) => x.id === m[1]);
+            if (!def) return json(res, 404, { error: `no conozco el mock «${m[1]}»` });
+            if (!def.real) return json(res, 400, { error: `«${def.label}» no tiene un servicio de verdad detrás: sólo modo mock` });
+            const { mode } = await readBody(req).catch(() => ({}));
+            if (!isMockMode(mode)) return json(res, 400, { error: `modo «${mode}»: va mock, auto o real` });
+            setMockMode(def.id, mode);
+            return json(res, 200, { ok: true, mocks: await mockSupervisor.list() });
+        }
+    }
     {
         const m = path.match(/^\/api\/mocks\/([a-z0-9-]+)\/(start|stop|restart|log)$/);
         if (m) {
@@ -2137,7 +2152,11 @@ const server = createServer(async (req, res) => {
                 const unique = [...new Set(v)];
                 return unique.length === 1
                     ? { modo: unique[0], detalle: unique[0] === 'microservice'
-                        ? 'mock pdf-mapper — rápido, pero NO ejercita las plantillas Blade (F-150)'
+                        ? ({
+                            mock: 'mock pdf-mapper, siempre el demo — rápido, pero NO ejercita las plantillas Blade (F-150)',
+                            auto: 'pdf-mapper: el servicio real lo que tenga, el demo el resto — NO ejercita las plantillas Blade (F-150)',
+                            real: 'pdf-mapper-service REAL, sin demo de respaldo — NO ejercita las plantillas Blade (F-150)',
+                        } as const)[mockMode('pdf-mapper')]
                         : 'plantillas Blade — lento (un caso: 65,7 s vs 9,8 s) y es lo que corre en producción' }
                     : { modo: 'mixto', detalle: `mezclado: ${v.join(' · ')}` };
             } catch { return { modo: '?', detalle: 'no se pudo leer el .env de legacy-backend' }; }

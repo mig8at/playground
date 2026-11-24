@@ -95,3 +95,4 @@ tablero/tasks/*/artifacts/centrales-reales-*/
 # binarios que deja `go build` en jarvis
 /jarvis/cli/cli
 /jarvis/server/server
+harness/.mock-modes.json

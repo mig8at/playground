@@ -6,8 +6,10 @@
 # Apuntá el backend en legacy-backend/.env (host.docker.internal, NO localhost — corre en Docker):
 #   PDF_MAPPER_BASE_URL=http://host.docker.internal:8100  (idem PDF_MAPPER_SERVICE_HOST)
 #
-# uso: bin/mock-pdf-mapper [start|stop|status|logs]
+# uso: bin/mock-pdf-mapper [start|stop|status|logs|mode [mock|auto|real]]
 #   env: MOCK_PDFMAP_PORT (8100) · MOCK_PDFMAP_FAIL=1 → responde 500 (probar el camino de error)
+#   mode: quién contesta (pkg/mock-modes.ts). mock = siempre el demo · auto = el pdf-mapper-service real lo que
+#         tenga y el demo el resto · real = todo al servicio real, sin demo. Sin argumento, dice el actual. No reinicia.
 set -euo pipefail
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
 PORT="${MOCK_PDFMAP_PORT:-8100}"
@@ -36,6 +38,20 @@ case "${1:-start}" in
     if up; then curl -s --max-time 2 "http://localhost:$PORT" 2>/dev/null; echo ""; else echo "○ off (:$PORT)"; fi;;
   logs)
     tail -n "${2:-40}" "$LOG" 2>/dev/null || echo "(sin log)";;
+  mode)
+    node -e '
+      const { mockMode, setMockMode, isMockMode, realUp } = await import(process.argv[1] + "/pkg/mock-modes.ts");
+      const want = process.argv[2];
+      const real = (process.env.MOCK_PDFMAP_REAL || "http://localhost:8080").replace(/\/$/, "");
+      if (want) {
+        if (!isMockMode(want)) { console.error(`✗ modo «${want}»: va mock, auto o real`); process.exit(2); }
+        setMockMode("pdf-mapper", want);
+      }
+      const mode = mockMode("pdf-mapper");
+      const up = await realUp(real + "/health");
+      console.log(`${want ? "✓ " : ""}modo ${mode} · pdf-mapper-service (${real}) ${up ? "contesta" : "NO contesta"}`
+        + (mode === "real" && !up ? " → en modo real los pedidos van a dar 502" : ""));
+    ' --input-type=module "$DIR" "${2:-}";;
   *)
-    echo "uso: bin/mock-pdf-mapper [start|stop|status|logs]";;
+    echo "uso: bin/mock-pdf-mapper [start|stop|status|logs|mode [mock|auto|real]]";;
 esac

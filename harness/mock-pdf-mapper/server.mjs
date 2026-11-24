@@ -26,9 +26,16 @@
 // el documento de verdad, lleno con el payload del backend (así se ven los de Finandina en local). Lo que no tiene
 // sigue saliendo del PDF de demo de siempre, así que el resto de las entidades no cambia. Si el real no contesta, se
 // usa el demo y se avisa en el log.
+//
+// ESO ES EL MODO «auto», y hay otros dos (`pkg/mock-modes.ts`, se eligen en la pestaña Mocks del panel o con
+// `bin/mock-pdf-mapper mode mock|auto|real`; se lee en cada pedido, sin reiniciar):
+//   mock → siempre el PDF de demo, aunque el servicio real tenga el documento.
+//   real → TODO va al pdf-mapper-service (también /health, status y merge-urls), sin demo de respaldo: un documento
+//          que falta da el 404 del servicio y uno que falla, su error. Si el servicio no contesta, 502 y se dice.
 
 import http from 'node:http';
 import { minimalPdf } from '../pkg/pdf-mock.ts';
+import { mockMode } from '../pkg/mock-modes.ts';
 
 const PORT = Number(process.env.MOCK_PDFMAP_PORT || 8100);
 const FAIL = process.env.MOCK_PDFMAP_FAIL === '1';
@@ -48,6 +55,30 @@ async function realHas(slug, doc) {
 }
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 
+// Modo «real»: el pedido tal cual al servicio, y su respuesta tal cual de vuelta.
+async function proxyToReal(req, res, body, url) {
+    if (!REAL) {
+        res.writeHead(502, { 'content-type': 'application/json' });
+        return res.end(JSON.stringify({ error: 'modo real sin servicio: MOCK_PDFMAP_REAL está vacío' }));
+    }
+    try {
+        const r = await fetch(`${REAL}${url.pathname}${url.search}`, {
+            method: req.method,
+            headers: { 'content-type': req.headers['content-type'] ?? 'application/json', accept: req.headers.accept ?? '*/*' },
+            body: req.method === 'GET' || req.method === 'HEAD' ? undefined : body,
+            signal: AbortSignal.timeout(45000),
+        });
+        const bytes = Buffer.from(await r.arrayBuffer());
+        log(`REAL ${req.method} ${url.pathname} → ${r.status} ${bytes.length}b`);
+        res.writeHead(r.status, { 'content-type': r.headers.get('content-type') ?? 'application/octet-stream', 'content-length': bytes.length });
+        res.end(bytes);
+    } catch (e) {
+        log(`✗ REAL ${req.method} ${url.pathname}: el servicio no contestó (${e?.message ?? e})`);
+        res.writeHead(502, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ error: `modo real: el pdf-mapper-service no contesta en ${REAL}`, detail: String(e?.message ?? e) }));
+    }
+}
+
 // `/api/projects/{slug}/documents/{doc}/generate|status`
 const PATH = /^\/api\/projects\/([^/]+)\/documents\/([^/]+)\/(generate|status)$/;
 
@@ -56,7 +87,15 @@ const server = http.createServer((req, res) => {
 
     if (req.method === 'GET' && url.pathname === '/') {
         res.writeHead(200, { 'content-type': 'application/json' });
-        return res.end(JSON.stringify({ mock: 'pdf-mapper-service', port: PORT, fail: FAIL }));
+        return res.end(JSON.stringify({ mock: 'pdf-mapper-service', port: PORT, fail: FAIL, mode: mockMode('pdf-mapper'), real: REAL }));
+    }
+
+    const mode = mockMode('pdf-mapper');
+    if (mode === 'real') {
+        let raw = '';
+        req.on('data', (c) => (raw += c));
+        req.on('end', () => void proxyToReal(req, res, raw, url));
+        return;
     }
 
     // `/health` es la SONDA DEL PRODUCT, no una comodidad del mock: `artisan pdf:health-check` la pega
@@ -131,7 +170,7 @@ const server = http.createServer((req, res) => {
             res.writeHead(200, { 'content-type': 'application/pdf', 'content-length': pdf.length });
             res.end(pdf);
         };
-        realHas(slug, doc).then(async (has) => {
+        (mode === 'mock' ? Promise.resolve(false) : realHas(slug, doc)).then(async (has) => {
             if (!has) return demo();
             try {
                 const r = await fetch(`${REAL}/api/projects/${encodeURIComponent(slug)}/documents/${encodeURIComponent(doc)}/generate`, {
@@ -149,4 +188,4 @@ const server = http.createServer((req, res) => {
     });
 });
 
-server.listen(PORT, () => log(`mock-pdf-mapper escuchando en :${PORT}${FAIL ? ' · modo 503' : ''}`));
+server.listen(PORT, () => log(`mock-pdf-mapper escuchando en :${PORT} · modo ${mockMode('pdf-mapper')}${FAIL ? ' · fallo 503' : ''}`));

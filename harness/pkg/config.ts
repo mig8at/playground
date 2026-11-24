@@ -1,3 +1,4 @@
+import { mockMode } from './mock-modes.ts';
 import { credentialsFor, connectorValue } from './connector-env.ts';
 import { env, TARGET } from './env.ts';
 /**
@@ -153,8 +154,15 @@ export function docGenNotice(target: string): string | null {
     if (target !== 'local') return null;
     const d = docGenLocal();
     if (!d.leido || !d.microservicio.length) return null;
-    return `⚠ PDF por el MOCK (${d.microservicio.join(', ')}): la corrida es 3-4× más rápida y NO ejercita las plantillas Blade`
-        + ' — un «Undefined variable» en el render no se atrapa acá (F-150). Para validar documentos: DOC_GEN_*=blade.';
+    // Quién contesta detrás del puerto del pdf-mapper (`pkg/mock-modes.ts`): el demo, el servicio real o los dos.
+    const who = ({
+        mock: 'el MOCK (siempre el PDF de demo)',
+        auto: 'el pdf-mapper-service real lo que tenga y el demo el resto',
+        real: 'el pdf-mapper-service REAL, sin demo de respaldo',
+    } as const)[mockMode('pdf-mapper')];
+    return `⚠ PDF por el microservicio (${d.microservicio.join(', ')}), contesta ${who}: NO ejercita las plantillas Blade`
+        + ' — un «Undefined variable» en el render no se atrapa acá (F-150). Para validar documentos Blade: DOC_GEN_*=blade.'
+        + ' Quién contesta se cambia en la pestaña Mocks del panel o con `bin/mock-pdf-mapper mode mock|auto|real`.';
 }
 
 /**

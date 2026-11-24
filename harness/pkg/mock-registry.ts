@@ -5,7 +5,15 @@ export type MockDef = {
     port: number;
     portEnv: string;     // la variable con que el mock lee su puerto
     needs: string;       // a quién le hace falta (misma vara que el estado de servicios del panel)
+    /**
+     * El microservicio de verdad que hay detrás, si también corre en la Mac: con él, el mock tiene modos (mock · auto ·
+     * real, `pkg/mock-modes.ts`) y el panel muestra el selector. Sólo servicios PROPIOS: un proveedor externo (centrales,
+     * bancos, Deceval, Wompi) no va acá, porque «real» desde local consultaría o cobraría de verdad.
+     */
+    real?: { label: string; url: string; health: string };
 };
+
+const PDF_MAPPER_REAL = (process.env.MOCK_PDFMAP_REAL || 'http://localhost:8080').replace(/\/$/, '');
 
 // La lista de mocks locales. Los puertos y las variables son los de cada `bin/mock-*` y `server.mjs`.
 export const MOCKS: MockDef[] = [
@@ -14,7 +22,10 @@ export const MOCKS: MockDef[] = [
     { id: 'payvalida', label: 'payvalida', port: 8097, portEnv: 'MOCK_PV_PORT', needs: 'todos' },
     { id: 'mdm', label: 'mdm/IMEI', port: 8098, portEnv: 'MOCK_MDM_PORT', needs: 'smartpay' },
     { id: 'lenders', label: 'entidades', port: 8099, portEnv: 'MOCK_LENDERS_PORT', needs: 'rt1' },
-    { id: 'pdf-mapper', label: 'pdf-mapper', port: 8100, portEnv: 'MOCK_PDFMAP_PORT', needs: 'rt4' },
+    {
+        id: 'pdf-mapper', label: 'pdf-mapper', port: 8100, portEnv: 'MOCK_PDFMAP_PORT', needs: 'rt4',
+        real: { label: 'pdf-mapper-service', url: PDF_MAPPER_REAL, health: `${PDF_MAPPER_REAL}/health` },
+    },
     { id: 'forms', label: 'forms', port: 8101, portEnv: 'MOCK_FORMS_PORT', needs: 'todos' },
     { id: 'abaco', label: 'ábaco', port: 8102, portEnv: 'MOCK_ABACO_PORT', needs: 'motai' },
     { id: 'corbeta', label: 'corbeta/fondos', port: 8103, portEnv: 'MOCK_CORBETA_PORT', needs: 'qr' },

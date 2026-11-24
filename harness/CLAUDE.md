@@ -294,6 +294,14 @@ caen o si su código cambió. Se manejan en la pestaña **Mocks** (`?consola=moc
 panel sin tocar ninguno. Lo de abajo vale cuando el panel no está corriendo (los runners por consola); qué levanta
 `bin/advisor` por su cuenta y el detalle: `HISTORY.md` §«De Mocks».
 
+- **Mock, auto o real: quién contesta** (2026-11-24). Un mock con un microservicio PROPIO que también corre en la Mac
+  (`real` en `pkg/mock-registry.ts`; hoy el del pdf-mapper, con el pdf-mapper-service del PDF Mapper Studio en :8080)
+  tiene tres modos: `mock` (siempre el demo), `auto` (el real si tiene lo pedido, el demo si no; el de siempre) y
+  `real` (todo al servicio, sin demo: un documento que falta o un error del servicio llegan tal cual a la corrida). Se
+  elige en la columna «Contesta» de la pestaña Mocks o con `bin/mock-pdf-mapper mode mock|auto|real`; queda en
+  `harness/.mock-modes.json` y el mock lo lee en cada pedido, sin reiniciar nada (el backend sigue en el mismo puerto).
+  La cabecera del caminador dice quién contestó. Un proveedor externo (centrales, bancos, Deceval, Wompi) no lleva
+  `real`: desde local consultaría o cobraría de verdad.
 - **Los cuatro de Credifamilia no los levanta nadie.** Si tu flujo toca rt=4, corré vos
   `bin/mock-pdf-mapper start` (:8100, la vinculación **y el merge del paquete**), `bin/mock-deceval start`
   (:8106, el pagaré), `bin/mock-netco start` (:8107, la firma) y `bin/mock-credifamilia start` (:8108, la

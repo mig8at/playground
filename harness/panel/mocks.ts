@@ -20,6 +20,7 @@ import { connect } from 'node:net';
 import { join } from 'node:path';
 
 import { MOCKS } from '../pkg/mock-registry.ts';
+import { mockMode, realUp } from '../pkg/mock-modes.ts';
 export { MOCKS, type MockDef } from '../pkg/mock-registry.ts';
 
 export type MockState = 'up' | 'starting' | 'down' | 'stopped' | 'failing';
@@ -197,6 +198,8 @@ export class MockSupervisor {
                 id: m.id, label: m.label, port: m.port, needs: m.needs, state: r.state, owner: r.owner, pid: r.pid,
                 startedAt: r.startedAt, restarts: r.restarts.length, staleCode: r.staleCode, lastExit: r.lastExit,
                 lastLine: r.log[r.log.length - 1] ?? '',
+                // Los que tienen un servicio de verdad detrás: su modo y si ese servicio contesta.
+                real: m.real ? { label: m.real.label, url: m.real.url, up: await realUp(m.real.health), mode: mockMode(m.id) } : null,
             };
         }));
     }

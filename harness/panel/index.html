@@ -653,6 +653,10 @@
     .mocks-table .mock-last { max-width: 0; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
       font-family: var(--font-mono); font-size: var(--text-sm); color: var(--fg-2) }
     .mocks-table .mock-owner { white-space: nowrap; color: var(--fg-2) }
+    /* Quién contesta: el selector mock · auto · real de los que tienen un servicio de verdad detrás. */
+    .mocks-table .mock-mode { white-space: nowrap }
+    .mocks-table .mock-mode-cell { display: inline-flex; align-items: center; gap: var(--space-2) }
+    .mocks-table .mock-mode-only { color: var(--fg-3) }
     .mocks-table .mock-actions { white-space: nowrap; text-align: right }
     .mocks-table .mock-actions .region-action { display: inline-flex }
     .recipes-table tbody tr { cursor: default }
@@ -1040,7 +1044,7 @@
                una fila, su salida abajo. -->
           <div id="mocksScroll" class="region-body mocks-view" style="display:none">
             <table class="table mocks-table">
-              <thead><tr><th>Mock</th><th class="num">Puerto</th><th>Lo levantó</th><th>Última línea</th><th><span class="sr-only">Acciones</span></th></tr></thead>
+              <thead><tr><th>Mock</th><th class="num">Puerto</th><th>Lo levantó</th><th>Contesta</th><th>Última línea</th><th><span class="sr-only">Acciones</span></th></tr></thead>
               <tbody id="mockRows"></tbody>
             </table>
             <div id="mockLog" class="log-lines mock-log" role="log" hidden></div>
@@ -6032,6 +6036,50 @@
       catch { /* el panel se está reiniciando: lo contesta el próximo tick */ }
       if (mockSelected) tickMockLog();
     }
+    // Mock · auto · real: el texto de cada botón y lo que hace, para el title.
+    const MOCK_MODES = [
+      ['mock', 'Mock', 'Siempre el mock (el PDF de demo), aunque el servicio real tenga el documento'],
+      ['auto', 'Auto', 'El servicio real si tiene lo pedido; si no, el mock'],
+      ['real', 'Real', 'Todo al servicio real, sin mock de respaldo: si falla o falta algo, la corrida lo ve'],
+    ];
+    async function setMockModeUi(id, mode) {
+      try {
+        const r = await (await fetch(`/api/mocks/${encodeURIComponent(id)}/mode`, {
+          method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ mode }),
+        })).json();
+        if (r.error) mockErrors[id] = r.error; else delete mockErrors[id];
+        if (r.mocks) renderMocks(r.mocks);
+      } catch { mockErrors[id] = 'el panel no contestó'; }
+    }
+    function mockModeCell(m) {
+      const td = document.createElement('td'); td.className = 'mock-mode';
+      if (!m.real) {
+        const t = document.createElement('span'); t.className = 'mock-mode-only'; t.textContent = 'mock';
+        td.title = 'No tiene un servicio propio que corra en la Mac: contesta siempre el mock';
+        td.append(t);
+        return td;
+      }
+      const wrap = document.createElement('span'); wrap.className = 'mock-mode-cell';
+      const group = document.createElement('span'); group.className = 'toggle-group toggle-outline toggle-joined toggle-xs';
+      group.setAttribute('role', 'group'); group.setAttribute('aria-label', `Quién contesta en ${m.label}`);
+      for (const [mode, text, help] of MOCK_MODES) {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'toggle'; b.textContent = text; b.title = help;
+        b.setAttribute('aria-pressed', String(m.real.mode === mode));
+        b.onclick = (ev) => { ev.stopPropagation(); if (m.real.mode !== mode) setMockModeUi(m.id, mode); };
+        group.append(b);
+      }
+      // La luz del servicio de verdad: en «real» apagado es un problema (la corrida va a fallar); en los otros, un dato.
+      const dot = document.createElement('span');
+      dot.className = 'status-dot ' + (m.real.up ? 'ok' : m.real.mode === 'real' ? 'bad' : '');
+      const svc = document.createElement('span'); svc.textContent = m.real.label;
+      svc.className = m.real.up ? '' : 'mock-mode-only';
+      wrap.append(group, dot, svc);
+      td.title = `${m.real.label} (${m.real.url}) ${m.real.up ? 'contesta' : 'no contesta'}`
+        + (m.real.mode === 'real' && !m.real.up ? ': en modo real los pedidos van a fallar' : '');
+      td.append(wrap);
+      return td;
+    }
     async function mockAction(id, action) {
       try {
         const r = await (await fetch(`/api/mocks/${encodeURIComponent(id)}/${action}`, { method: 'POST' })).json();
@@ -6080,7 +6128,7 @@
                : iconButton('play', `Iniciar ${m.label}`, () => mockAction(m.id, 'start')),
           iconButton('refresh', `Reiniciar ${m.label}`, () => mockAction(m.id, 'restart')),
         );
-        tr.append(name, port, owner, last, actions);
+        tr.append(name, port, owner, mockModeCell(m), last, actions);
         return tr;
       });
       $('mockRows').replaceChildren(...rows);
