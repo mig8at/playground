@@ -76,7 +76,10 @@ Quedaron 7 capturas, la transcripción del sistema bien y el eco del micrófono 
 salieron con `refers` y la frase justa, y apareció la decisión dicha. `stop` → resumen, en 75 s. `go test ./minutes`
 cubre el eco, las alucinaciones, la elección de pantallas y el HTML.
 
-Lo que NO se probó: una reunión real de Meet o Zoom con otras voces, el camino por Minutes.app (sin el permiso), y una
+Después, con el permiso prendido por Miguel, el camino normal (`start` → Minutes.app) grabó pantalla, micrófono y
+sistema igual.
+
+Lo que NO se probó: una reunión real de Meet o Zoom con otras voces, y una
 reunión larga: el resumen de lo dicho recorta el medio pasados ~30 mil caracteres, y todavía no resume por partes.
 
 ## Lo que falta (en la tarea)

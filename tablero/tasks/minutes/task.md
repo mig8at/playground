@@ -30,8 +30,6 @@ herramienta personal de Miguel en my-tools: no es de CreditOp y no va a Jira. C�
 
 ## Pendientes
 
-- Que Miguel prenda «Minutes» en Ajustes → Privacidad y seguridad → Grabación de pantalla y audio del sistema (y
-  Micrófono cuando lo pida). Hasta entonces sólo graba `start --direct` desde una terminal con esos permisos.
 - Probarla en una reunión real de Meet o Zoom (la prueba del 2026-11-23 fue con voz sintética por los parlantes).
 - La app en Cockpit: la lista de grabaciones, el botón de grabar y el resumen adentro (pide tocar `main.rs` y
   reinstalar Cockpit).
