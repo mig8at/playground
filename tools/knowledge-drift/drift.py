@@ -25,6 +25,20 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 MY_TOOLS = os.path.dirname(os.path.dirname(HERE))
 KN = os.path.join(MY_TOOLS, "knowledge")
 WORK = os.path.expanduser(os.environ.get("KNOWLEDGE_DRIFT_DIR", os.path.join(HERE, ".runs")))
+# Con Gemini por AI Studio (ventana de ~1 millón de tokens, de a una pregunta y con cupo por CANTIDAD de preguntas) los
+# paquetes van grandes: pocas preguntas de cientos de miles de tokens en vez de decenas de 20 mil (Miguel, 2026-11-24).
+# Los topes de salida siguen mandando: cada ítem vuelve con su veredicto, o con su sección reescrita.
+BIG = dict(triage_size=1_200_000, triage_items=150, code_prose=60_000)
+
+
+def big_model():
+    """Si el modelo de segundo plano elegido en Cockpit es AI Studio: los paquetes van grandes."""
+    try:
+        return json.load(open(os.path.expanduser("~/.config/creditop-cockpit/settings.json"))).get("backgroundModel") == "aistudio"
+    except (OSError, ValueError):
+        return False
+
+
 TRIAGE_SIZE_CAP = 80000  # caracteres por grupo del triaje (prosa + diffs): una pregunta que el modelo no corte
 TRIAGE_DIFF_CAP = 8000  # diff neto de un archivo en el triaje: más que eso es «cambio grande», y lo mira el paso de código
 TRIAGE_ITEMS_CAP = 60  # ítems por grupo del triaje: cada uno vuelve con su veredicto y su porqué
@@ -245,7 +259,10 @@ def step_paquete(args):
     os.makedirs(os.path.join(d, "triaje"), exist_ok=True)
     # Con 4 grupos fijos, la corrida #20 de Knowledge (2026-11-24, 53 temas) armó grupos de 235 a 350 mil
     # caracteres y ~400 ítems, y Bedrock cortó la invocación: se arman los que hagan falta para los dos topes.
-    groups = max(args.groups, -(-sum(size(t) for t in by_topic) // TRIAGE_SIZE_CAP), -(-len(items) // TRIAGE_ITEMS_CAP))
+    big = args.big or big_model()
+    size_cap, items_cap = (BIG["triage_size"], BIG["triage_items"]) if big else (TRIAGE_SIZE_CAP, TRIAGE_ITEMS_CAP)
+    groups = max(1 if big else args.groups, -(-sum(size(t) for t in by_topic) // size_cap), -(-len(items) // items_cap))
+    print(f"  triaje: {groups} grupo(s){' grandes (AI Studio)' if big else ''}")
     for g, topics in enumerate(bins(list(by_topic), groups, size), 1):
         o, used = [], []
         for t in sorted(topics):
@@ -297,7 +314,9 @@ def step_codigo(args):
     # Cada sección puede volver reescrita en la respuesta: con 4 paquetes fijos, la corrida #19 de Knowledge
     # (2026-11-23, 92 secciones, ~36 mil caracteres por paquete) pasó el tope de salida del modelo y su JSON
     # llegó cortado. Se arman los paquetes que hagan falta para no pasar CODE_PROSE_CAP de prosa por paquete.
-    groups = max(args.groups, -(-sum(prose(t) for t in by_topic) // CODE_PROSE_CAP))
+    big = args.big or big_model()
+    groups = max(1 if big else args.groups, -(-sum(prose(t) for t in by_topic) // (BIG["code_prose"] if big else CODE_PROSE_CAP)))
+    print(f"  código: {groups} paquete(s){' grandes (AI Studio)' if big else ''}")
     for g, topics in enumerate(bins(list(by_topic), groups, prose), 1):
         ids = sorted([i for t in topics for i in by_topic[t]], key=lambda i: (order.get(open_[i]["veredicto"], 2), i))
         o = [f"# Paquete de código {g}: {len(ids)} ítems\n"]
@@ -407,6 +426,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("paso", choices=["paquete", "codigo", "final", "aplicar"])
     ap.add_argument("--run")
+    ap.add_argument("--big", action="store_true", help="paquetes grandes para un modelo de ventana enorme (solo, si el elegido es AI Studio)")
     ap.add_argument("--no-fetch", action="store_true", help="no traer main: ya lo hizo quien llama (la mirada de Knowledge)")
     ap.add_argument("--groups", "--grupos", dest="groups", type=int, default=8)  # --grupos: el nombre de antes
     args = ap.parse_args()

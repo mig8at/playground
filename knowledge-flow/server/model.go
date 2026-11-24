@@ -28,6 +28,8 @@ const (
 	fileCap = 30000
 	// expandBudget: lo más que suman los diffs y archivos de un paquete (~100 mil tokens), con lugar para la respuesta
 	expandBudget = 360000
+	// expandBudgetBig: con Gemini por AI Studio (~1 millón de tokens), unos 400 mil tokens de código por paquete
+	expandBudgetBig = 1600000
 )
 
 // noTools: lo que cambia de los prompts de drift para quien no puede correr comandos.
@@ -59,9 +61,12 @@ func (f *flow) expand(ctx context.Context, pkg string) string {
 	for _, p := range reGitDiff.FindAllStringSubmatch(pkg, -1) {
 		refs[p[1]+":"+strings.TrimSpace(p[4])] = true
 	}
-	dCap, fCap := diffCap, fileCap
-	if n := len(refs); n > 0 && n*(diffCap+fileCap) > expandBudget {
-		share := expandBudget / n
+	dCap, fCap, budget := diffCap, fileCap, expandBudget
+	if background.Chosen() == "aistudio" {
+		budget = expandBudgetBig // ventana de ~1 millón de tokens: el paquete puede llevar mucho más código
+	}
+	if n := len(refs); n > 0 && n*(diffCap+fileCap) > budget {
+		share := budget / n
 		dCap, fCap = share*4/7, share*3/7
 	}
 	seen := map[string]bool{}
