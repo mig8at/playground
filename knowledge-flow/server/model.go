@@ -126,23 +126,50 @@ func clip(s string, n int) string {
 	return s[:n] + fmt.Sprintf("\n… (recortado: %d caracteres más)", len(s)-n)
 }
 
-// askList: una pregunta al modelo y su lista JSON.
-func (f *flow) askList(ctx context.Context, r *Run, system, prompt string) ([]map[string]any, error) {
-	ans, err := background.Ask(ctx, f.root, background.Request{Prompt: prompt, System: system})
-	if err != nil {
-		return nil, err
+// askList: una pregunta al modelo y su lista JSON. Si la respuesta no trae una lista que parsee, pregunta otra vez
+// (una sola) y, si tampoco, deja la respuesta cruda en rawPath para ver qué escribió.
+func (f *flow) askList(ctx context.Context, r *Run, system, prompt, rawPath string) ([]map[string]any, error) {
+	var last error
+	for try := 0; try < 2; try++ {
+		ans, err := background.Ask(ctx, f.root, background.Request{Prompt: prompt, System: system})
+		if err != nil {
+			return nil, err
+		}
+		r.Model = ans.Model
+		out, err := parseList(ans.Text)
+		if err == nil {
+			return out, nil
+		}
+		last = fmt.Errorf("%v (terminó por %q)", err, ans.StopReason)
+		if rawPath != "" {
+			_ = os.WriteFile(rawPath, []byte(ans.Text), 0o644)
+		}
 	}
-	r.Model = ans.Model
-	text := strings.TrimSpace(ans.Text)
-	i, j := strings.Index(text, "["), strings.LastIndex(text, "]")
-	if i < 0 || j < i {
+	return nil, last
+}
+
+// parseList: la primera lista JSON de objetos que parsee en el texto. El modelo a veces escribe un «[» antes de la
+// lista (un enlace, una nota) y tomar el primero hacía fallar la corrida #21 (2026-11-24) con una lista válida más abajo.
+func parseList(text string) ([]map[string]any, error) {
+	text = strings.TrimSpace(text)
+	var first error
+	for i := 0; i < len(text); i++ {
+		if text[i] != '[' {
+			continue
+		}
+		var out []map[string]any
+		if err := json.NewDecoder(strings.NewReader(text[i:])).Decode(&out); err != nil {
+			if first == nil {
+				first = err
+			}
+			continue
+		}
+		return out, nil
+	}
+	if first == nil {
 		return nil, fmt.Errorf("el modelo no devolvió una lista JSON: %.200s", text)
 	}
-	var out []map[string]any
-	if err := json.Unmarshal([]byte(text[i:j+1]), &out); err != nil {
-		return nil, fmt.Errorf("la lista del modelo no parsea: %v", err)
-	}
-	return out, nil
+	return nil, fmt.Errorf("la lista del modelo no parsea: %v", first)
 }
 
 // answerPackages: cada paquete de dir que empieza con prefix → su resultado-N.json al lado, con el prompt dado.
@@ -156,6 +183,16 @@ func (f *flow) answerPackages(ctx context.Context, r *Run, st *Step, dir, prefix
 	for i, p := range pkgs {
 		st.Now = fmt.Sprintf("%d de %d · %s", i+1, len(pkgs), filepath.Base(p))
 		f.runs.save(r)
+		n := strings.TrimSuffix(strings.TrimPrefix(filepath.Base(p), prefix), ".md")
+		result := filepath.Join(dir, "resultado-"+n+".json")
+		/* Al retomar una corrida, lo ya contestado no se vuelve a preguntar (cada paquete es un minuto de modelo). */
+		if done, err := os.ReadFile(result); err == nil {
+			var list []map[string]any
+			if json.Unmarshal(done, &list) == nil {
+				total += len(list)
+				continue
+			}
+		}
 		raw, err := os.ReadFile(p)
 		if err != nil {
 			return total, err
@@ -164,13 +201,12 @@ func (f *flow) answerPackages(ctx context.Context, r *Run, st *Step, dir, prefix
 		if expand {
 			body = f.expand(ctx, body)
 		}
-		list, err := f.askList(ctx, r, system, body)
+		list, err := f.askList(ctx, r, system, body, filepath.Join(dir, "respuesta-"+n+".txt"))
 		if err != nil {
 			return total, fmt.Errorf("%s: %w", filepath.Base(p), err)
 		}
-		n := strings.TrimSuffix(strings.TrimPrefix(filepath.Base(p), prefix), ".md")
 		out, _ := json.MarshalIndent(list, "", " ")
-		if err := os.WriteFile(filepath.Join(dir, "resultado-"+n+".json"), out, 0o644); err != nil {
+		if err := os.WriteFile(result, out, 0o644); err != nil {
 			return total, err
 		}
 		total += len(list)
