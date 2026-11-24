@@ -20,8 +20,8 @@ ramas: pdf-mapper-editor:pdf-v2
 - [ ] Conversión de Word a PDF: no hay conversor en la Mac (ni LibreOffice ni pandoc); decidir con qué se hace en el
   servicio. Termina cuando `autorizacion-libranza-ejemplo.docx` pasa por el asistente con sus campos.
 - [ ] Una raya de firma dibujada (no con `____`) no se reconoce como zona de firma: el pagaré de ejemplo la tiene.
-- [ ] Abrir el PR de la v2 (rama `pdf-v2` → `main` del Studio) y validarlo con el equipo; se mergea sólo si les sirve.
-  Depende de: Miguel — el sí para publicar la rama y el PR.
+- [ ] Validar la v2 con el equipo desde la rama `pdf-v2` (publicada en GitHub, sin PR). Termina cuando se decide si
+  pasa a `main`; el PR se arma recién entonces, con `artifacts/pr-pdf-v2.md`. Depende de: Miguel — cuándo abrir el PR.
 - [ ] Conectar la caja de cada página con Claude (pedidos acotados a esa página), con las herramientas de la skill
   (`layout.py`, `grid.py`) para que ubique sin adivinar.
 - [ ] Un marcador que en la referencia se sale de su recuadro (`[AnioNacimiento]` en el formulario de ejemplo) deja un
@@ -44,8 +44,8 @@ estaban los marcadores. El servicio no distingue un PDF hecho por nosotros de un
 ## Dónde vive
 
 **En el PDF Mapper Studio** (`pdf-mapper-editor`), no en el backoffice (decisión de Miguel, 2026-11-24). La tarea
-`pdf-mapper` (#105, CORE-818) sigue su camino aparte. Esta versión es la **v2**: va en un PR separado desde la rama
-`pdf-v2`, que no se mergea a `main` hasta validarla con el equipo.
+`pdf-mapper` (#105, CORE-818) sigue su camino aparte. Esta versión es la **v2** y vive en la rama `pdf-v2`, publicada
+sin PR: el PR a `main` se decide después de validarla con el equipo.
 
 ## Hecho
 
