@@ -13,3 +13,12 @@ func TestParseListSkipsBracketsBeforeTheList(t *testing.T) {
 		t.Fatal("una lista inválida tiene que fallar")
 	}
 }
+
+// Una respuesta cortada por largo (la corrida #28) rescata los ítems completos, y un «[]» suelto no es la respuesta.
+func TestParseListRescuesACutAnswer(t *testing.T) {
+	text := `[{"id": "a#1", "evidencia": []}, {"id": "a#2", "veredicto": "sigue"}, {"id": "a#3", "texto": "cort`
+	out, err := parseList(text)
+	if err != nil || len(out) != 2 || out[1]["id"] != "a#2" {
+		t.Fatalf("parseList = %v, %v", out, err)
+	}
+}

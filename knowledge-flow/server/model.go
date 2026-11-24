@@ -188,35 +188,67 @@ func (f *flow) askList(ctx context.Context, r *Run, system, prompt, rawPath stri
 	return nil, last
 }
 
-// parseList: la primera lista JSON de objetos que parsee en el texto. El modelo a veces escribe un «[» antes de la
-// lista (un enlace, una nota) y tomar el primero hacía fallar la corrida #21 (2026-11-24) con una lista válida más abajo.
+// parseList: la lista JSON de objetos con «id» que trae el texto. Si la respuesta se cortó por largo (la corrida #28,
+// 2026-11-24: ~50 mil caracteres de secciones reescritas), se rescatan los objetos completos; los que faltan los pide
+// answerPackages. Sólo cuentan objetos con «id»: un «[]» suelto dentro del texto (una evidencia vacía) se había tomado
+// como la respuesta entera, y un paquete de 35 ítems quedó en cero.
 func parseList(text string) ([]map[string]any, error) {
 	text = strings.TrimSpace(text)
+	if text == "[]" {
+		return []map[string]any{}, nil
+	}
+	var best []map[string]any
 	var first error
 	for i := 0; i < len(text); i++ {
 		if text[i] != '[' {
 			continue
 		}
-		var out []map[string]any
-		if err := json.NewDecoder(strings.NewReader(text[i:])).Decode(&out); err != nil {
-			if first == nil {
-				first = err
-			}
+		dec := json.NewDecoder(strings.NewReader(text[i:]))
+		if tok, err := dec.Token(); err != nil || tok != json.Delim('[') {
 			continue
 		}
-		return out, nil
+		var out []map[string]any
+		for dec.More() {
+			var m map[string]any
+			if err := dec.Decode(&m); err != nil {
+				if first == nil {
+					first = err
+				}
+				break
+			}
+			if _, ok := m["id"]; !ok {
+				out = nil
+				break
+			}
+			out = append(out, m)
+		}
+		if len(out) > len(best) {
+			best = out
+		}
+	}
+	if len(best) > 0 {
+		return best, nil
 	}
 	if first == nil {
-		return nil, fmt.Errorf("el modelo no devolvió una lista JSON: %.200s", text)
+		return nil, fmt.Errorf("el modelo no devolvió una lista JSON de ítems: %.200s", text)
 	}
 	return nil, fmt.Errorf("la lista del modelo no parsea: %v", first)
 }
+
+// reItem: los ítems de un paquete («## ÍTEM <id>»): lo que tiene que volver con veredicto.
+var reItem = regexp.MustCompile(`(?m)^## ÍTEM (\S+)`)
 
 // answerPackages: cada paquete de dir que empieza con prefix → su resultado-N.json al lado, con el prompt dado.
 func (f *flow) answerPackages(ctx context.Context, r *Run, st *Step, dir, prefix, promptName string, expand bool) (int, error) {
 	system, err := f.prompt(promptName)
 	if err != nil {
 		return 0, err
+	}
+	// lo que queda sin veredicto tras los reintentos: el triaje lo manda a leer código; los otros pasos lo dejan
+	// «sin decidir», que FRENA la corrida (se decide a mano y se retoma) en vez de fallarla.
+	undecided := "sin_decidir"
+	if promptName == "triage.md" {
+		undecided = "no_se_sabe"
 	}
 	pkgs := filesIn(dir, prefix)
 	total := 0
@@ -225,25 +257,69 @@ func (f *flow) answerPackages(ctx context.Context, r *Run, st *Step, dir, prefix
 		f.runs.save(r)
 		n := strings.TrimSuffix(strings.TrimPrefix(filepath.Base(p), prefix), ".md")
 		result := filepath.Join(dir, "resultado-"+n+".json")
-		/* Al retomar una corrida, lo ya contestado no se vuelve a preguntar (cada paquete es un minuto de modelo). */
-		if done, err := os.ReadFile(result); err == nil {
-			var list []map[string]any
-			if json.Unmarshal(done, &list) == nil {
-				total += len(list)
-				continue
-			}
-		}
 		raw, err := os.ReadFile(p)
 		if err != nil {
 			return total, err
 		}
-		body := string(raw)
-		if expand {
-			body = f.expand(ctx, body)
+		want := []string{}
+		for _, m := range reItem.FindAllStringSubmatch(string(raw), -1) {
+			want = append(want, m[1])
 		}
-		list, err := f.askList(ctx, r, system, body, filepath.Join(dir, "respuesta-"+n+".txt"))
-		if err != nil {
-			return total, fmt.Errorf("%s: %w", filepath.Base(p), err)
+		/* Al retomar, lo ya contestado no se vuelve a preguntar (cada paquete es minutos de modelo): sólo lo que falte. */
+		got := map[string]map[string]any{}
+		if done, err := os.ReadFile(result); err == nil {
+			var list []map[string]any
+			if json.Unmarshal(done, &list) == nil {
+				for _, x := range list {
+					if id, _ := x["id"].(string); id != "" {
+						got[id] = x
+					}
+				}
+			}
+		}
+		missing := func() []string {
+			out := []string{}
+			for _, id := range want {
+				if _, ok := got[id]; !ok {
+					out = append(out, id)
+				}
+			}
+			return out
+		}
+		body := ""
+		for try := 0; try < 3 && len(missing()) > 0; try++ {
+			if body == "" {
+				body = string(raw)
+				if expand {
+					body = f.expand(ctx, body)
+				}
+			}
+			ask := body
+			if len(got) > 0 {
+				ask += "\n\n# FALTAN\n\nYa se contestaron los demás. Devolvé la lista JSON SÓLO con estos ítems, completos y en el mismo formato:\n- " +
+					strings.Join(missing(), "\n- ")
+			}
+			st.Now = fmt.Sprintf("%d de %d · %s · faltan %d", i+1, len(pkgs), filepath.Base(p), len(missing()))
+			f.runs.save(r)
+			list, err := f.askList(ctx, r, system, ask, filepath.Join(dir, "respuesta-"+n+".txt"))
+			if err != nil {
+				if len(got) == 0 && try == 2 {
+					return total, fmt.Errorf("%s: %w", filepath.Base(p), err)
+				}
+				continue
+			}
+			for _, x := range list {
+				if id, _ := x["id"].(string); id != "" {
+					got[id] = x
+				}
+			}
+		}
+		for _, id := range missing() {
+			got[id] = map[string]any{"id": id, "veredicto": undecided, "por_que": "el modelo no lo devolvió en tres intentos"}
+		}
+		list := make([]map[string]any, 0, len(want))
+		for _, id := range want {
+			list = append(list, got[id])
 		}
 		out, _ := json.MarshalIndent(list, "", " ")
 		if err := os.WriteFile(result, out, 0o644); err != nil {
