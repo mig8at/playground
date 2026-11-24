@@ -21,7 +21,10 @@ referencia que mandó la entidad y el Studio arma solo la plantilla y el mapper.
 
    A la derecha están los campos de la página y los ids que el catálogo no tiene. Abajo hay una caja para pedir
    cambios sobre esa página (todavía sin conectar).
-4. **Guardar**: plantilla, mapper y los ids nuevos en el catálogo (sólo se agregan), en el ambiente elegido.
+4. **Guardar**: plantilla, mapper y los ids nuevos en el catálogo, en el ambiente elegido.
+   - Los ids sólo se agregan. El catálogo se relee justo antes de escribirlo; si no se puede leer, no se escribe.
+   - Un documento que ya existe se reemplaza sólo si se confirma. En producción, además, hay que escribir su nombre,
+     porque es el que se usa para firmar y no tiene copia.
 
 Lo que reconoce en la referencia:
 
@@ -45,7 +48,11 @@ producción pide confirmación, y guardar fuera de local también.
 **Se quita** el editor manual:
 - ubicar campos, guías, tablas a mano y deshacer;
 - importar y «Sincronizar» (que escribía en develop y producción a la vez);
+- editar el catálogo a mano: ahora es de sólo lectura, con buscador, y los ids nuevos los agrega el guardado;
 - las copias locales en el navegador: el servicio es la única fuente de verdad.
+
+La rama trae también los pasos intermedios de la v2 (el estilo de paneles, la importación y la vista editable), que
+quedaron reemplazados o quitados por el último commit. Para revisarla, alcanza con el diff completo contra `main`.
 
 ### Para ubicar campos con Claude
 
