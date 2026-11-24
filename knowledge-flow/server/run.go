@@ -74,7 +74,7 @@ func newSteps() []Step {
 	steps := []Step{
 		{ID: "fetch", Label: "Traer main", Who: "comando"},
 		{ID: "detect", Label: "Detectar fuentes que cambiaron", Who: "comando"},
-		{ID: "package", Label: "Armar paquetes (diff, PR y secciones)", Who: "comando"},
+		{ID: "package", Label: "Armar paquetes (diff neto y secciones)", Who: "comando"},
 		{ID: "triage", Label: "Triaje: ¿el cambio toca lo que dice el tema?", Who: "modelo"},
 		{ID: "code", Label: "Leer código de lo que el triaje no descartó", Who: "modelo"},
 		{ID: "second", Label: "Segunda mirada a ciegas sobre lo descartado", Who: "modelo"},

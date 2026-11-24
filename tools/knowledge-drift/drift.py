@@ -5,8 +5,8 @@ knowledge/ es la biblioteca LOCAL del día a día. Cada fuente guarda el COMMIT 
 secciones respalda, así que el diff sale exacto, sin buscar el blob en la historia. El modelo lee código sólo
 donde la prosa probablemente quedó mal.
 
-    paquete     make knowledge-check (con las refs que ya resuelve) → fuentes cambiadas o perdidas → diffs, PRs y
-                secciones; y los paquetes del triaje SIN código (prompts/triage.md)
+    paquete     make knowledge-check (con las refs que ya resuelve) → fuentes cambiadas o perdidas → el diff NETO
+                de cada archivo (del commit revisado a main) y secciones; y los paquetes del triaje (prompts/triage.md)
     codigo      con el triaje hecho: paquetes de código (diff bajo demanda) y de segunda mirada a ciegas
     final       junta código, segunda mirada y overrides.json
     aplicar     escribe rules.md y sources.json: el texto nuevo de cada sección, el título si cambió (y su ancla en
@@ -25,10 +25,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 MY_TOOLS = os.path.dirname(os.path.dirname(HERE))
 KN = os.path.join(MY_TOOLS, "knowledge")
 WORK = os.path.expanduser(os.environ.get("KNOWLEDGE_DRIFT_DIR", os.path.join(HERE, ".runs")))
-TRIAGE_SIZE_CAP = 80000  # caracteres por grupo del triaje (prosa + PRs): una pregunta que Bedrock no corte
+TRIAGE_SIZE_CAP = 80000  # caracteres por grupo del triaje (prosa + diffs): una pregunta que el modelo no corte
+TRIAGE_DIFF_CAP = 8000  # diff neto de un archivo en el triaje: más que eso es «cambio grande», y lo mira el paso de código
 TRIAGE_ITEMS_CAP = 60  # ítems por grupo del triaje: cada uno vuelve con su veredicto y su porqué
 CODE_PROSE_CAP = 15000  # prosa por paquete de código: lo que vuelve reescrito tiene que caber en la respuesta del modelo
-PR_BODY_CAP = 12000  # recortar fijo y corto fabricó dudas: 41 de 60 ítems quedaron «no se sabe» por un PR largo
 
 
 def die(msg):
@@ -48,11 +48,6 @@ def bins(groups, n, size):
     for g in sorted(groups, key=size, reverse=True):
         k = load_.index(min(load_)); buckets[k].append(g); load_[k] += size(g)
     return [b for b in buckets if b]
-
-
-def body(prs, p):
-    b = (prs.get(p) or {}).get("body") or "(sin descripción)"
-    return b if len(b) <= PR_BODY_CAP else b[:PR_BODY_CAP] + " …[recortada]"
 
 
 def body_of(t):
@@ -125,79 +120,6 @@ def fetch_all():
         die("no se pudo traer main a los clones: sin eso, lo que se mide es main viejo")
 
 
-COMMIT_CACHE = os.path.expanduser("~/.cache/my-tools/knowledge-drift-commit-prs.json")
-
-
-def commit_prs(pairs):
-    """{(carpeta, sha): [números de PR]}: los PRs que GitHub asocia a cada commit, lo mismo que daba
-    `commits/{sha}/pulls`, pero 100 commits por consulta GraphQL (antes, una llamada por commit: cientos por corrida).
-    Git solo no alcanza: estos repos mezclan main en las ramas, y el merge más viejo que contiene un commit puede ser de
-    otro PR (medido el 2026-11-24: 642 de 808 no coincidían). Un commit no cambia de PR una vez mergeado: queda en caché."""
-    try:
-        cache = json.load(open(COMMIT_CACHE))
-    except (OSError, ValueError):
-        cache = {}
-    full = {k: sh(["git", "-C", k[0], "rev-parse", k[1]]).strip() for k in pairs}
-    todo = collections.defaultdict(list)
-    for k, oid in full.items():
-        slug = os.path.basename(k[0])
-        if f"{slug}@{oid}" not in cache:
-            todo[slug].append(oid)
-    asked = 0
-    for slug, oids in todo.items():
-        for i in range(0, len(oids), 100):
-            chunk = oids[i:i + 100]
-            fields = " ".join(f'c{j}: object(oid:"{o}") {{ ... on Commit {{ associatedPullRequests(first:5) {{ nodes {{ number mergedAt }} }} }} }}'
-                              for j, o in enumerate(chunk))
-            q = f'{{ repository(owner:"Creditop-SAS", name:"{slug}") {{ {fields} }} }}'
-            r = subprocess.run(["gh", "api", "graphql", "-f", f"query={q}"], capture_output=True, text=True)
-            asked += 1
-            repo = ((json.loads(r.stdout or "{}").get("data") or {}).get("repository") or {}) if r.returncode == 0 else {}
-            for j, o in enumerate(chunk):
-                nodes = ((repo.get(f"c{j}") or {}).get("associatedPullRequests") or {}).get("nodes") or []
-                ns = [n["number"] for n in nodes if n.get("mergedAt")] or [n["number"] for n in nodes]
-                if repo:  # sólo se guarda lo que GitHub contestó
-                    cache[f"{slug}@{o}"] = ns
-    os.makedirs(os.path.dirname(COMMIT_CACHE), exist_ok=True)
-    json.dump(cache, open(COMMIT_CACHE, "w"))
-    print(f"  commits: {len(pairs)} · {len(pairs) - sum(map(len, todo.values()))} de la caché · {asked} consulta(s) a GitHub")
-    return {k: cache.get(f"{os.path.basename(k[0])}@{full[k]}", []) for k in pairs}
-
-
-PR_CACHE = os.path.expanduser("~/.cache/my-tools/knowledge-drift-prs.json")
-
-
-def pr_bodies(keys):
-    """Título y descripción de cada PR. Es lo único que no está en git: va a GitHub, pero un PR mergeado no cambia, así
-    que queda en caché entre corridas y sólo se piden los nuevos."""
-    try:
-        cache = json.load(open(PR_CACHE))
-    except (OSError, ValueError):
-        cache = {}
-
-    def one(rn):
-        slug, n = rn
-        x = json.loads(sh(["gh", "api", f"repos/Creditop-SAS/{slug}/pulls/{n}"]) or "{}")
-        return f"{slug}#{n}", dict(title=x.get("title"), body=(x.get("body") or "").strip(), merged=bool(x.get("merged_at")))
-
-    missing = [rn for rn in keys if f"{rn[0]}#{rn[1]}" not in cache]
-    with ThreadPoolExecutor(8) as ex:
-        for k, v in ex.map(one, missing):
-            if v["title"] is not None and v["merged"]:
-                cache[k] = v
-            elif v["title"] is not None:
-                cache.setdefault("_open", {})[k] = v
-    os.makedirs(os.path.dirname(PR_CACHE), exist_ok=True)
-    json.dump({k: v for k, v in cache.items() if k != "_open"}, open(PR_CACHE, "w"))
-    print(f"  PRs: {len(keys)} · {len(keys) - len(missing)} de la caché · {len(missing)} pedidos a GitHub")
-    out = {}
-    for slug, n in keys:
-        k = f"{slug}#{n}"
-        v = cache.get(k) or cache.get("_open", {}).get(k) or {}
-        out[k] = dict(title=v.get("title"), body=v.get("body", ""))
-    return out
-
-
 def step_paquete(args):
     d = run_dir(args, create=True)
     if not args.no_fetch:
@@ -231,14 +153,7 @@ def step_paquete(args):
     with ThreadPoolExecutor(6) as ex:
         files = list(ex.map(build, drift))
 
-    found = commit_prs(sorted({(f["dir"], c["sha"]) for f in files for c in f["commits"]}))
-    c2p = {(os.path.basename(d_), sha): ns for (d_, sha), ns in found.items()}
-    prs = pr_bodies(sorted({(s_, n) for (s_, _), ns in c2p.items() for n in ns}))
-    for f in files:
-        slug = os.path.basename(f["dir"])
-        f["prs"] = sorted({f"{slug}#{n}" for c in f["commits"] for n in c2p.get((slug, c["sha"]), [])})
     save(d, "files.json", files)
-    save(d, "prs.json", prs)
 
     items = {}
     for t in sorted({f["topic"] for f in files}):
@@ -247,38 +162,47 @@ def step_paquete(args):
             for a in f["sections"]:
                 if a not in secs:
                     print(f"  ⚠ {t}: la fuente {f['path']} respalda «{a}», que no existe en rules.md"); continue
-                it = items.setdefault(f"{t}#{a}", dict(topic=t, prose=secs[a], files=[], prs=[]))
+                it = items.setdefault(f"{t}#{a}", dict(topic=t, prose=secs[a], files=[]))
                 key = f"{f['repo']}:{f['path']}"
                 if key not in it["files"]:
                     it["files"].append(key)
-                it["prs"] = sorted(set(it["prs"]) | set(f["prs"]))
     save(d, "secciones.json", items)
-    stat = {f"{f['repo']}:{f['path']}": (f"{f['diff_lines']} líneas de diff" if f["exists"] else
-            f"YA NO ESTÁ EN MAIN → {(f['moved'] or {}).get('to') or 'borrado'}") for f in files}
+    # El triaje compara la prosa con el CAMBIO NETO de cada archivo: del commit con que se escribió la sección a main.
+    # Si varios PRs encadenados tocaron lo mismo, el diff ya trae sólo el resultado; los PRs no se consultan (Miguel,
+    # 2026-11-24: eran lo más pesado del paquete y una forma indirecta de mirar lo que el diff dice directo).
+    def net(f):
+        if not f["exists"]:
+            return f"YA NO ESTÁ EN MAIN → {(f['moved'] or {}).get('to') or 'borrado'} ({(f['moved'] or {}).get('subject', '')})"
+        diff = sh(["git", "-C", f["dir"], "diff", "-M", f["base"], f["ref"], "--", f["path"]])
+        if len(diff) > TRIAGE_DIFF_CAP:
+            return (f"CAMBIO GRANDE: {f['diff_lines']} líneas de diff; van las primeras.\n```diff\n{diff[:TRIAGE_DIFF_CAP]}\n```")
+        return f"```diff\n{diff}\n```"
+    by_key = {f"{f['repo']}:{f['path']}": f for f in files}
+    with ThreadPoolExecutor(8) as ex:
+        diffs = dict(zip(by_key, ex.map(net, by_key.values())))
     by_topic = collections.defaultdict(list)
     for k, v in items.items():
         by_topic[v["topic"]].append(k)
-    # cada PR una vez por tema: el grupo lo imprime una sola vez, aunque lo citen varias secciones
-    size = lambda t: sum(len(items[k]["prose"]) for k in by_topic[t]) + sum(len(body(prs, p)) for p in {p for k in by_topic[t] for p in items[k]["prs"]})
+    # cada archivo una vez por tema: el grupo imprime su diff una sola vez, aunque lo citen varias secciones
+    size = lambda t: sum(len(items[k]["prose"]) for k in by_topic[t]) + sum(len(diffs[f]) for f in {f for k in by_topic[t] for f in items[k]["files"]})
     os.makedirs(os.path.join(d, "triaje"), exist_ok=True)
     # Con 4 grupos fijos, la corrida #20 de Knowledge (2026-11-24, 53 temas) armó grupos de 235 a 350 mil
     # caracteres y ~400 ítems, y Bedrock cortó la invocación: se arman los que hagan falta para los dos topes.
     groups = max(args.groups, -(-sum(size(t) for t in by_topic) // TRIAGE_SIZE_CAP), -(-len(items) // TRIAGE_ITEMS_CAP))
     for g, topics in enumerate(bins(list(by_topic), groups, size), 1):
-        o, used = [], set()
+        o, used = [], []
         for t in sorted(topics):
             o.append(f"\n\n# TEMA {t}")
             for k in by_topic[t]:
                 s = items[k]
-                o.append(f"\n## ÍTEM {k}\n{s['prose']}\n\narchivos que cambiaron:")
-                o += [f"- {f} — {stat[f]}" for f in s["files"]]
-                o.append("PRs: " + ", ".join(s["prs"]))
-                used |= set(s["prs"])
-        o.append("\n\n# PRs (título y descripción)")
-        o += [f"\n## {p} — {(prs.get(p) or {}).get('title')}\n{body(prs, p)}" for p in sorted(used)]
+                o.append(f"\n## ÍTEM {k}\n{s['prose']}\n\narchivos que cambiaron (su diff, abajo):")
+                o += [f"- {f}" for f in s["files"]]
+                used += [f for f in s["files"] if f not in used]
+        o.append("\n\n# ARCHIVOS: el cambio neto de cada uno, del commit revisado a main")
+        o += [f"\n## {f}\n{diffs[f]}" for f in used]
         open(os.path.join(d, "triaje", f"grupo-{g}.md"), "w").write("\n".join(o))
         print(f"  triaje/grupo-{g}.md · {sum(len(by_topic[t]) for t in topics)} ítems · ~{len(chr(10).join(o)) // 4:,} tokens")
-    print(f"corrida {d}: {len(files)} fuentes · {len(items)} secciones · {len(prs)} PRs")
+    print(f"corrida {d}: {len(files)} fuentes · {len(items)} secciones")
 
 
 # ── codigo ──────────────────────────────────────────────────────────────────────────────────────────
@@ -311,7 +235,6 @@ def step_codigo(args):
         for i in ids:
             o.append(f"\n## ÍTEM {i} — triaje: {open_[i]['veredicto']}\n{items[i]['prose']}\n\n> triaje: {open_[i].get('por_que', '')}\n> mirar: {open_[i].get('mirar', '')}\narchivos:")
             o += [f"- {f}: {cmd(files[f])}" for f in items[i]["files"]]
-        o.append(f"\nDescripciones de PR: `{os.path.join(d, 'prs.json')}`.")
         open(os.path.join(d, "codigo", f"paquete-{g}.md"), "w").write("\n".join(o))
         print(f"  codigo/paquete-{g}.md · {len(ids)} ítems")
     blind = sorted(x["id"] for x in tri if x["veredicto"] == "no_toca")
