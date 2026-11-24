@@ -61,8 +61,11 @@ primero».
 
 **El modelo** es el de segundo plano: Claude por el puente de canon, Gemini por API o, desde el 2026-11-24 (con el puente
 dando 502), **Gemini `gemini-4-hydrogen` por la web de AI Studio** en el Chrome de Miguel con Jarvis (`aistudio`,
-`bin/pg model set aistudio`): ~1,5 min por pregunta, de a una. Los paquetes se arman según su tamaño (el triaje hasta 80
-mil caracteres y 60 ítems; el código, hasta 15 mil de prosa y 360 mil expandido) y una falla pasajera del modelo se
+`bin/pg model set aistudio`): ~1,5 min por pregunta, de a una. Los paquetes se arman según su tamaño y el modelo: con Claude, el
+triaje hasta 80 mil caracteres y 60 ítems y el código hasta 15 mil de prosa y 360 mil expandido; **con AI Studio van
+grandes** para aprovechar su ventana de ~1 millón de tokens (el triaje de 53 temas en 3 preguntas de ~190 mil tokens,
+el código hasta 60 mil de prosa y 1,6 millones expandido): menos preguntas son también menos cortes de Google, que
+limita por cantidad. `drift.py` lo decide solo leyendo el modelo elegido en Cockpit (`--big` lo fuerza) y una falla pasajera del modelo se
 reintenta; tras un corte de Google, el reintento espera su pausa.
 
 | # | paso | quién | qué |
