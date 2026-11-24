@@ -54,11 +54,22 @@ o en cola. La ruta es `#/run/<n>`.
 
 ## Los diez pasos (los de `tools/knowledge-drift`)
 
+⚠ **Local primero** (Miguel, 2026-11-24): main se trae UNA vez y lo demás sale del git local; a la red sólo va lo que
+git no tiene, en lote y con caché. Una mirada no puede tardar 10 minutos consultando cosa por cosa. La regla, con lo que
+tardaba cada paso antes y después: [`tools/knowledge-drift/CLAUDE.md`](../tools/knowledge-drift/CLAUDE.md) §«Local
+primero».
+
+**El modelo** es el de segundo plano: Claude por el puente de canon, Gemini por API o, desde el 2026-11-24 (con el puente
+dando 502), **Gemini `gemini-4-hydrogen` por la web de AI Studio** en el Chrome de Miguel con Jarvis (`aistudio`,
+`bin/pg model set aistudio`): ~1,5 min por pregunta, de a una. Los paquetes se arman según su tamaño (el triaje hasta 80
+mil caracteres y 60 ítems; el código, hasta 15 mil de prosa y 360 mil expandido) y una falla pasajera del modelo se
+reintenta; tras un corte de Google, el reintento espera su pausa.
+
 | # | paso | quién | qué |
 |---|---|---|---|
 | 1 | Traer main | comando | `cmd/knowledge fetch` (lo hace la mirada que dispara la corrida) |
-| 2 | Detectar | comando | `knowledge check`: qué fuentes cambiaron o se perdieron |
-| 3 | Armar paquetes | comando | `drift.py paquete`: diffs, PRs (con `gh`) y secciones; los paquetes del triaje |
+| 2 | Detectar | comando | `knowledge check`: qué fuentes cambiaron o se perdieron (2 s: un `ls-tree` por repo y commit) |
+| 3 | Armar paquetes | comando | `drift.py paquete --no-fetch`: diffs locales, PRs por GraphQL en lote y con caché, y secciones; los paquetes del triaje |
 | 4 | Triaje | modelo | `prompts/triage.md`, sin código: `no_toca` · `contradice` · `no_se_sabe` |
 | 5 | Leer código | modelo | `drift.py codigo` arma los paquetes; `prompts/code.md` decide `sigue` · `cambia` (con el texto nuevo) |
 | 6 | Segunda mirada | modelo | `prompts/second-look.md` sobre lo que el triaje descartó, a ciegas |

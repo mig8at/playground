@@ -15,6 +15,30 @@ barato a lo caro**: el modelo lee código sólo donde la prosa probablemente que
 | `final` | comando | junta código, segunda mirada y `overrides.json`: las correcciones a mano, que mandan |
 | `aplicar` | comando | escribe `rules.md` y `sources.json` (commit y blob al día, sigue los renombres; `reemplazos.json` para un archivo borrado que otro reemplazó) |
 
+## ⚠ Local primero: medir knowledge son segundos, no minutos
+
+Decisión de Miguel (2026-11-24), cuando una mirada tardaba 10 minutos consultando cosa por cosa lo que un `git fetch`
+ya había traído. **La regla: se trae main UNA vez y todo lo demás sale del git local. A la red sólo va lo que git no
+tiene, de a montones y con caché.**
+
+| qué | cómo | tarda |
+|---|---|---|
+| traer main | `cmd/knowledge fetch`: UN fetch por clon sólo-main, que baja también el contenido (son parciales, `blob:none`). Lo hace la mirada; `drift.py paquete` lo repite sólo a mano (Knowledge le pasa `--no-fetch`) | ~1–4 min, 25 repos |
+| qué fuente cambió | `knowledge check`: UN `git ls-tree -r` por repo y commit, nunca un proceso por fuente | 2 s (antes 6,5 min: 4 gits por fuente y `cat-file` que bajaba cada archivo) |
+| diffs, commits, renombres | `git diff` / `git log` en el clon | local |
+| de qué PR viene cada commit | GraphQL, 100 commits por consulta, en `~/.cache/my-tools/knowledge-drift-commit-prs.json` (un commit no cambia de PR) | segundos (antes una llamada a la API por commit: cientos) |
+| título y descripción del PR | `gh api`, sólo los que no están en `~/.cache/my-tools/knowledge-drift-prs.json` (un PR mergeado no cambia) | segundos |
+
+- **Git solo no sabe de qué PR viene un commit**: estos repos mezclan main en las ramas, y el merge más viejo que
+  contiene al commit puede ser de otro PR (642 de 808 no coincidían con GitHub). Por eso eso va a GitHub, en lote.
+- **Antes de sumar una consulta por ítem** (por fuente, por commit, por archivo), pensá cómo sale de UNA lectura local
+  o de un lote. Un paso nuevo que tarde minutos con 500 fuentes está mal armado.
+- **SSH puede no entrar** (2026-11-24: entraba una llave personal sin acceso a la org y el fetch fallaba con «Repository
+  not found» mientras `check` decía «al día» leyendo main viejo). Los clones sólo-main van por HTTPS con la sesión de
+  `gh` (config local de cada clon: `url.https://github.com/Creditop-SAS/.insteadOf` y `credential.helper` de `gh`), y
+  `cmd/knowledge fetch` reintenta así si un clon nuevo no lo tiene. Un fetch que falla corta la corrida: nunca se mide
+  contra main viejo.
+
 Después van `make knowledge-check` y `make knowledge-test`. **La verificación independiente de los textos reescritos
 es obligatoria**: en la corrida del 2026-11-10 encontró 6 contradicciones y unos 30 matices en 63 secciones.
 

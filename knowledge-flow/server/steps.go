@@ -46,7 +46,11 @@ func (f *flow) sh(ctx context.Context, name string, args ...string) (string, err
 }
 
 func (f *flow) drift(ctx context.Context, r *Run, step string) (string, error) {
-	return f.sh(ctx, "python3", "tools/knowledge-drift/drift.py", step, "--run", r.driftDir(), "--groups", "4")
+	args := []string{"tools/knowledge-drift/drift.py", step, "--run", r.driftDir(), "--groups", "4"}
+	if step == "paquete" {
+		args = append(args, "--no-fetch") // la mirada que disparó la corrida ya trajo main
+	}
+	return f.sh(ctx, "python3", args...)
 }
 
 func (r *Run) driftDir() string { return filepath.Join(r.dir, "drift") }

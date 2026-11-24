@@ -116,21 +116,92 @@ def sections_of(topic):
 # ── paquete ─────────────────────────────────────────────────────────────────────────────────────────
 
 def fetch_all():
-    """Todos los clones de trabajo, no sólo los citados: un agente que mira un repo vecino (messaging-service)
-    con su origin atrasado 18 días afirmó que una ruta no existía. El fetch sólo mueve refs remotas."""
-    def one(item):
-        k, p = item
-        if os.path.isdir(os.path.join(p, ".git")):
-            subprocess.run(["git", "-C", p, "fetch", "-q", "origin"], capture_output=True)
-    gh = os.path.expanduser("~/Desktop/CREDITOP/github")
-    extra = {n: os.path.join(gh, n) for n in os.listdir(gh)}
-    with ThreadPoolExecutor(6) as ex:
-        list(ex.map(one, {**extra, **repo_dirs()}.items()))
+    """Trae main a los clones sólo-main, lo mismo que la mirada de Knowledge (`cmd/knowledge fetch`, que entra por HTTPS
+    con `gh` si SSH no tiene acceso). Antes hacía fetch de los ~38 clones de trabajo, uno por uno: minutos, y con SSH
+    caído fallaba en silencio. Knowledge pasa --no-fetch porque su mirada ya lo hizo."""
+    r = subprocess.run(["go", "run", "./cmd/knowledge", "fetch"], cwd=MY_TOOLS, capture_output=True, text=True)
+    if r.returncode != 0:
+        print(r.stdout + r.stderr)
+        die("no se pudo traer main a los clones: sin eso, lo que se mide es main viejo")
+
+
+COMMIT_CACHE = os.path.expanduser("~/.cache/my-tools/knowledge-drift-commit-prs.json")
+
+
+def commit_prs(pairs):
+    """{(carpeta, sha): [números de PR]}: los PRs que GitHub asocia a cada commit, lo mismo que daba
+    `commits/{sha}/pulls`, pero 100 commits por consulta GraphQL (antes, una llamada por commit: cientos por corrida).
+    Git solo no alcanza: estos repos mezclan main en las ramas, y el merge más viejo que contiene un commit puede ser de
+    otro PR (medido el 2026-11-24: 642 de 808 no coincidían). Un commit no cambia de PR una vez mergeado: queda en caché."""
+    try:
+        cache = json.load(open(COMMIT_CACHE))
+    except (OSError, ValueError):
+        cache = {}
+    full = {k: sh(["git", "-C", k[0], "rev-parse", k[1]]).strip() for k in pairs}
+    todo = collections.defaultdict(list)
+    for k, oid in full.items():
+        slug = os.path.basename(k[0])
+        if f"{slug}@{oid}" not in cache:
+            todo[slug].append(oid)
+    asked = 0
+    for slug, oids in todo.items():
+        for i in range(0, len(oids), 100):
+            chunk = oids[i:i + 100]
+            fields = " ".join(f'c{j}: object(oid:"{o}") {{ ... on Commit {{ associatedPullRequests(first:5) {{ nodes {{ number mergedAt }} }} }} }}'
+                              for j, o in enumerate(chunk))
+            q = f'{{ repository(owner:"Creditop-SAS", name:"{slug}") {{ {fields} }} }}'
+            r = subprocess.run(["gh", "api", "graphql", "-f", f"query={q}"], capture_output=True, text=True)
+            asked += 1
+            repo = ((json.loads(r.stdout or "{}").get("data") or {}).get("repository") or {}) if r.returncode == 0 else {}
+            for j, o in enumerate(chunk):
+                nodes = ((repo.get(f"c{j}") or {}).get("associatedPullRequests") or {}).get("nodes") or []
+                ns = [n["number"] for n in nodes if n.get("mergedAt")] or [n["number"] for n in nodes]
+                if repo:  # sólo se guarda lo que GitHub contestó
+                    cache[f"{slug}@{o}"] = ns
+    os.makedirs(os.path.dirname(COMMIT_CACHE), exist_ok=True)
+    json.dump(cache, open(COMMIT_CACHE, "w"))
+    print(f"  commits: {len(pairs)} · {len(pairs) - sum(map(len, todo.values()))} de la caché · {asked} consulta(s) a GitHub")
+    return {k: cache.get(f"{os.path.basename(k[0])}@{full[k]}", []) for k in pairs}
+
+
+PR_CACHE = os.path.expanduser("~/.cache/my-tools/knowledge-drift-prs.json")
+
+
+def pr_bodies(keys):
+    """Título y descripción de cada PR. Es lo único que no está en git: va a GitHub, pero un PR mergeado no cambia, así
+    que queda en caché entre corridas y sólo se piden los nuevos."""
+    try:
+        cache = json.load(open(PR_CACHE))
+    except (OSError, ValueError):
+        cache = {}
+
+    def one(rn):
+        slug, n = rn
+        x = json.loads(sh(["gh", "api", f"repos/Creditop-SAS/{slug}/pulls/{n}"]) or "{}")
+        return f"{slug}#{n}", dict(title=x.get("title"), body=(x.get("body") or "").strip(), merged=bool(x.get("merged_at")))
+
+    missing = [rn for rn in keys if f"{rn[0]}#{rn[1]}" not in cache]
+    with ThreadPoolExecutor(8) as ex:
+        for k, v in ex.map(one, missing):
+            if v["title"] is not None and v["merged"]:
+                cache[k] = v
+            elif v["title"] is not None:
+                cache.setdefault("_open", {})[k] = v
+    os.makedirs(os.path.dirname(PR_CACHE), exist_ok=True)
+    json.dump({k: v for k, v in cache.items() if k != "_open"}, open(PR_CACHE, "w"))
+    print(f"  PRs: {len(keys)} · {len(keys) - len(missing)} de la caché · {len(missing)} pedidos a GitHub")
+    out = {}
+    for slug, n in keys:
+        k = f"{slug}#{n}"
+        v = cache.get(k) or cache.get("_open", {}).get(k) or {}
+        out[k] = dict(title=v.get("title"), body=v.get("body", ""))
+    return out
 
 
 def step_paquete(args):
     d = run_dir(args, create=True)
-    fetch_all()
+    if not args.no_fetch:
+        fetch_all()
     check = json.loads(sh(["go", "run", "./cmd/knowledge", "check", "--json"], cwd=MY_TOOLS) or "[]")
     drift = [c for c in check if c["state"] != "unchanged"]
     dirs = repo_dirs()
@@ -160,25 +231,9 @@ def step_paquete(args):
     with ThreadPoolExecutor(6) as ex:
         files = list(ex.map(build, drift))
 
-    def pulls(rc):
-        f, sha = rc
-        full = sh(["git", "-C", f["dir"], "rev-parse", sha]).strip()
-        slug = os.path.basename(f["dir"])
-        r = subprocess.run(["gh", "api", f"repos/Creditop-SAS/{slug}/commits/{full}/pulls"], capture_output=True, text=True)
-        data = json.loads(r.stdout) if r.returncode == 0 else []
-        return (slug, sha), [p["number"] for p in data if p.get("merged_at")] or [p["number"] for p in data]
-
-    keys = {(os.path.basename(f["dir"]), c["sha"]): f for f in files for c in f["commits"]}
-    with ThreadPoolExecutor(8) as ex:
-        c2p = dict(ex.map(pulls, [(f, k[1]) for k, f in keys.items()]))
-
-    def pr(rn):
-        slug, n = rn
-        x = json.loads(sh(["gh", "api", f"repos/Creditop-SAS/{slug}/pulls/{n}"]) or "{}")
-        return f"{slug}#{n}", dict(title=x.get("title"), body=(x.get("body") or "").strip())
-
-    with ThreadPoolExecutor(8) as ex:
-        prs = dict(ex.map(pr, sorted({(s, n) for (s, _), ns in c2p.items() for n in ns})))
+    found = commit_prs(sorted({(f["dir"], c["sha"]) for f in files for c in f["commits"]}))
+    c2p = {(os.path.basename(d_), sha): ns for (d_, sha), ns in found.items()}
+    prs = pr_bodies(sorted({(s_, n) for (s_, _), ns in c2p.items() for n in ns}))
     for f in files:
         slug = os.path.basename(f["dir"])
         f["prs"] = sorted({f"{slug}#{n}" for c in f["commits"] for n in c2p.get((slug, c["sha"]), [])})
@@ -360,6 +415,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("paso", choices=["paquete", "codigo", "final", "aplicar"])
     ap.add_argument("--run")
+    ap.add_argument("--no-fetch", action="store_true", help="no traer main: ya lo hizo quien llama (la mirada de Knowledge)")
     ap.add_argument("--groups", "--grupos", dest="groups", type=int, default=8)  # --grupos: el nombre de antes
     args = ap.parse_args()
     globals()[f"step_{args.paso}"](args)
