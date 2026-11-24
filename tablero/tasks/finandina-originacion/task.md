@@ -6,7 +6,7 @@ created: "2026-10-28T10:38:26-05:00"
 knowledge: [lender-response-types, lender-credential-sources, lender-listing, field-scoring-policy, creditopx-quota, kyc-pipeline, identity-name-validation, credifamilia-origination, client-profiling, deceval-promissory-note, finandina-policy, signing-document-generation]
 jira: [CORE-845, CRED-519]
 jira_title: "Finandina: originación completa en Creditop"
-ramas: legacy-backend:finandina-originacion, legacy-backend:mareigua-cuenta-por-entidad, CORE-845
+ramas: legacy-backend:finandina-originacion, legacy-backend:mareigua-cuenta-por-entidad, CORE-845, pdf-mapper-editor:pdf-v2
 ---
 
 ## Pendientes
