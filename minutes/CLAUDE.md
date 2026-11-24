@@ -20,6 +20,23 @@ derecha, «reunión» a la izquierda), también en vivo. Tocar una frase lleva a
 marca sus frases (decisión de Miguel, 2026-11-23). Usa las mismas funciones que el CLI (`server.go`, con la
 guarda de Host y `X-Minutes` como el Llavero); al terminar un resumen avisa por `lib/notice`.
 
+**El ícono de la barra de menús** (desde el 2026-11-24, `recorder/menubar.swift`): Minutes.app abierta SIN `--out`
+no graba; queda como un ícono para arrancar y frenar sin Cockpit ni terminal. Se abre con
+`open -g minutes/recorder/.build/Minutes.app` (o queda sola con «Abrir al iniciar sesión», en su menú).
+
+- **⌃⌥M en cualquier app** graba o frena, con el último modo elegido (con pantalla o sólo audio). Es un atajo de
+  Carbon: no pide el permiso de Accesibilidad. Frenar arma el resumen.
+- **El menú:** Grabar · Grabar sólo audio · Frenar y resumir · Ver en Cockpit · Abrir al iniciar sesión · Salir.
+- **No tiene lógica propia:** corre `bin/minutes start|stop` y lee `recordings/current` y su `recorder.json`, así que
+  lo que arranca el ícono se ve en Cockpit, y al revés. Una sola a la vez (pid en `~/.cache/my-tools/minutes-menubar.pid`).
+  `start` abre la grabadora con `open -n`, así que convive con el ícono.
+- **El ícono:** una onda sin grabar, un punto rojo grabando (el tiempo va en el menú y en el tooltip), un reloj de
+  arena mientras arranca o arma el resumen. ⚠ En una MacBook con notch, macOS **esconde** los íconos que no caben
+  cuando la app del frente tiene muchos menús (con Chrome desapareció, junto con el de Docker): por eso no lleva el
+  reloj al lado. ⌘-arrastrarlo a la derecha lo deja entre los que se ven; ⌃⌥M anda igual aunque no se vea.
+- **Probado (2026-11-24):** ⌃⌥M arrancó y frenó (con resumen) tres veces; el punto rojo y el reloj de arena se vieron;
+  abrirla dos veces deja una. NO se probó «Abrir al iniciar sesión» (cambia un ajuste de macOS) ni los clics del menú.
+
 ## ⚠ Qué sale de la Mac: sólo el texto del resumen
 
 Los audios y las capturas pueden tener datos internos o de clientes. Quedan en `minutes/recordings/<fecha>/`, fuera de

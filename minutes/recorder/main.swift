@@ -35,10 +35,8 @@ func arg(_ name: String) -> String? {
 }
 func has(_ name: String) -> Bool { CommandLine.arguments.contains(name) }
 
-guard let outPath = arg("--out") else {
-    FileHandle.standardError.write("falta --out <carpeta>\n".data(using: .utf8)!)
-    exit(2)
-}
+// sin --out no graba: es el ícono de la barra de menús (menubar.swift), que arranca y frena por el CLI
+guard let outPath = arg("--out") else { runMenuBar() }
 let out = URL(fileURLWithPath: outPath)
 let chunkSeconds = Double(arg("--chunk") ?? "15") ?? 15
 let wantMic = !has("--no-mic")

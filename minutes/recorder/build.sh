@@ -1,5 +1,5 @@
 #!/bin/bash
-# Arma minutes/recorder/.build/Minutes.app si main.swift o Info.plist cambiaron.
+# Arma minutes/recorder/.build/Minutes.app si main.swift, menubar.swift o Info.plist cambiaron.
 #
 # Firma con el mismo certificado autofirmado que Captura («Captura playground local», ver captura/build.sh): macOS
 # ata los permisos de Grabación de pantalla y Micrófono al requisito de la firma (identificador + certificado), que no
@@ -9,11 +9,11 @@ cd "$(dirname "$0")"
 app=.build/Minutes.app
 bin=$app/Contents/MacOS/minutes-recorder
 identity="Captura playground local"
-if [ -x "$bin" ] && [ "$bin" -nt main.swift ] && [ "$bin" -nt Info.plist ]; then exit 0; fi
+if [ -x "$bin" ] && [ "$bin" -nt main.swift ] && [ "$bin" -nt menubar.swift ] && [ "$bin" -nt Info.plist ]; then exit 0; fi
 echo "  · compilando Minutes.app" >&2
 mkdir -p "$app/Contents/MacOS"
 cp Info.plist "$app/Contents/Info.plist"
-swiftc -O main.swift -o "$bin"
+swiftc -O main.swift menubar.swift -o "$bin"
 if security find-identity -p codesigning 2>/dev/null | grep -q "\"$identity\""; then
   codesign --force --sign "$identity" "$app"
 else
