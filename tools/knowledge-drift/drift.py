@@ -25,6 +25,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 MY_TOOLS = os.path.dirname(os.path.dirname(HERE))
 KN = os.path.join(MY_TOOLS, "knowledge")
 WORK = os.path.expanduser(os.environ.get("KNOWLEDGE_DRIFT_DIR", os.path.join(HERE, ".runs")))
+CODE_PROSE_CAP = 15000  # prosa por paquete de código: lo que vuelve reescrito tiene que caber en la respuesta del modelo
 PR_BODY_CAP = 12000  # recortar fijo y corto fabricó dudas: 41 de 60 ítems quedaron «no se sabe» por un PR largo
 
 
@@ -238,7 +239,12 @@ def step_codigo(args):
         by_topic[items[i]["topic"]].append(i)
     os.makedirs(os.path.join(d, "codigo"), exist_ok=True)
     order = {"contradice": 0, "no_se_sabe": 1}
-    for g, topics in enumerate(bins(list(by_topic), args.groups, lambda t: sum(len(items[i]["prose"]) for i in by_topic[t])), 1):
+    prose = lambda t: sum(len(items[i]["prose"]) for i in by_topic[t])
+    # Cada sección puede volver reescrita en la respuesta: con 4 paquetes fijos, la corrida #19 de Knowledge
+    # (2026-11-23, 92 secciones, ~36 mil caracteres por paquete) pasó el tope de salida del modelo y su JSON
+    # llegó cortado. Se arman los paquetes que hagan falta para no pasar CODE_PROSE_CAP de prosa por paquete.
+    groups = max(args.groups, -(-sum(prose(t) for t in by_topic) // CODE_PROSE_CAP))
+    for g, topics in enumerate(bins(list(by_topic), groups, prose), 1):
         ids = sorted([i for t in topics for i in by_topic[t]], key=lambda i: (order.get(open_[i]["veredicto"], 2), i))
         o = [f"# Paquete de código {g}: {len(ids)} ítems\n"]
         for i in ids:

@@ -107,7 +107,18 @@ func run(args []string) int {
 				fmt.Printf("  · %s: sin clon en main_clones, no se toca (%s)\n", alias, dir)
 				continue
 			}
+			var viaGH []string
 			out, err := exec.Command("git", "-C", dir, "fetch", "-q", "origin").CombinedOutput()
+			if err != nil {
+				/* Por SSH puede entrar una llave de otra cuenta de GitHub sin acceso a la org (2026-11-24: la personal,
+				 * con «Repository not found»): reintenta por HTTPS con la sesión de `gh`, sólo para este comando. */
+				viaGH = []string{
+					"-c", "url.https://github.com/Creditop-SAS/.insteadOf=git@github.com:Creditop-SAS/",
+					"-c", "credential.https://github.com.helper=",
+					"-c", "credential.https://github.com.helper=!gh auth git-credential",
+				}
+				out, err = exec.Command("git", append(viaGH, "-C", dir, "fetch", "-q", "origin")...).CombinedOutput()
+			}
 			if err != nil {
 				bad++
 				fmt.Printf("  ✗ %s: %s\n", alias, strings.TrimSpace(string(out)))
@@ -115,8 +126,9 @@ func run(args []string) int {
 			}
 			/* Los clones sólo-main son parciales (`blob:none`): el primer `git grep` sobre main baja el contenido de los
 			 * archivos de a uno y tardaba ~24 s por búsqueda en Wally. Se baja acá, una vez, con una búsqueda que no
-			 * encuentra nada; después cada búsqueda tarda centésimas. */
-			_ = exec.Command("git", "-C", dir, "grep", "-q", "-F", "-e", "knowledge fetch: texto que no existe en ningún repo", "FETCH_HEAD").Run()
+			 * encuentra nada; después cada búsqueda tarda centésimas. Va por el mismo camino que el fetch: si el
+			 * contenido no baja, `check` da por perdidas fuentes que siguen en main (343 el 2026-11-24). */
+			_ = exec.Command("git", append(viaGH, "-C", dir, "grep", "-q", "-F", "-e", "knowledge fetch: texto que no existe en ningún repo", "FETCH_HEAD")...).Run()
 			head, _ := exec.Command("git", "-C", dir, "log", "-1", "--format=%h · %cr", "FETCH_HEAD").Output()
 			fmt.Printf("  ✓ %s · %s\n", alias, strings.TrimSpace(string(head)))
 		}
