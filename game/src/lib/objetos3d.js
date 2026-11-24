@@ -680,6 +680,21 @@ export function partsMesh(list,{cast=true,light=LIGHT}={}){const g=new THREE.Gro
   L.forEach((b,i)=>{o.position.set(b.x,b.y,b.z);o.rotation.set(b.rx||0,b.ry||0,b.rz||0,'YXZ');o.scale.set(b.sx,b.sy,b.sz);o.updateMatrix();m.setMatrixAt(i,o.matrix);if(mat===MAT)m.setColorAt(i,c.set(b.color||'#999'));});
   m.castShadow=cast;m.receiveShadow=true;g.add(m);tris+=L.length*(geo===CYL_G?40:12);}
  g.userData.tris=tris;return g;}
+// Lo mismo, pero cada pieza se descarta sola (2026-11-23, el pase de sombras: el equipamiento de la calle iba en mallas de
+// instancias por baldosa de 144 m —cajas de 12 triángulos y cilindros de 40, de 200 a 650 por malla—, y como la caja de
+// sombras del sol siempre tocaba alguna, se dibujaban todas sus piezas: quitarles la sombra bajaba el pase de 335 a 177 mil
+// triángulos). Una malla por lotes por forma y material para todo el mundo: three descarta cada pieza frente a la cámara y
+// frente a la del sol, y setCeldas apaga las de las casillas que la oclusión no ve —como las plantas, nature3d plantBatched—.
+// Devuelve {group, setCeldas(celdas|null, W, H, fuera), tris}.
+export function partsBatched(list,{cast=true,light=LIGHT}={}){const group=new THREE.Group(),o=new THREE.Object3D(),c=new THREE.Color(),mallas=[];let tris=0;
+ for(const [geo,mat,L] of [[BOX_G,GLASS,list.filter(b=>b.vidrio)],[BOX_G,MAT,list.filter(b=>!b.luz&&!b.cyl&&!b.vidrio)],[CYL_G,MAT,list.filter(b=>!b.luz&&b.cyl)],[BOX_G,light,list.filter(b=>b.luz&&!b.cyl)],[CYL_G,light,list.filter(b=>b.luz&&b.cyl)]]){if(!L.length)continue;
+  const bm=new THREE.BatchedMesh(L.length,geo.attributes.position.count,geo.index.count,mat),gid=bm.addGeometry(geo),ids=[];bm.sortObjects=!!mat.transparent;
+  for(const b of L){const i=bm.addInstance(gid);o.position.set(b.x,b.y,b.z);o.rotation.set(b.rx||0,b.ry||0,b.rz||0,'YXZ');o.scale.set(b.sx,b.sy,b.sz);o.updateMatrix();bm.setMatrixAt(i,o.matrix);if(mat===MAT)bm.setColorAt(i,c.set(b.color||'#999'));ids.push(i);}
+  bm.castShadow=cast&&!mat.transparent;bm.receiveShadow=true;bm.name='equipamiento';group.add(bm);mallas.push({bm,L,ids,vis:new Uint8Array(L.length).fill(1)});tris+=L.length*(geo===CYL_G?40:12);}
+ // (la casilla de 6 m de cada pieza; fuera de la grilla, lo decide `fuera` —engine/visibles.js visibilidadFuera—)
+ const setCeldas=(celdas,W,H=Infinity,fuera=null)=>{for(const M of mallas)M.L.forEach((b,i)=>{let v=1;if(celdas){const cx=Math.floor(b.x/6),cz=Math.floor(b.z/6);v=cx<0||cz<0||cx>=W||cz>=H?(!fuera||fuera(b.x,b.z,b.y+b.sy)?1:0):celdas.has(cz*W+cx)?1:0;}
+  if(v!==M.vis[i]){M.vis[i]=v;M.bm.setVisibleAt(M.ids[i],!!v);}});};
+ group.userData.tris=tris;return {group,setCeldas,tris};}
 
 // Las piezas como cajas {x0,x1,y0,y1,z0,z1,color} (las casas armadas, vivienda.js): el objeto girado de a 90° y sin
 // piezas inclinadas.

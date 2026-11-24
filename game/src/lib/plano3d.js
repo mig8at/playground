@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 import {contrato,PLACA} from '../engine/contrato3d.js';
 import {colisiones,indiceColisiones,distForma} from '../engine/colisiones.js';
-import {OBJETOS,placeParts,partsMesh} from './objetos3d.js';
+import {OBJETOS,placeParts,partsMesh,partsBatched} from './objetos3d.js';
 import {plantInstances,plantBatched} from './nature3d.js';
 import {dibujarPintura} from './pintura3d.js';
 const PLANA=new Set(['banca','papelera','kiosco','parada','salvavidas','hidrante']);
@@ -86,13 +86,14 @@ export function dibujarPlano(bp,{kits={},suelo=()=>0}={}){
  const lotes=[];for(const [M,items] of plantas){const b=plantBatched({m:M},'m',items,group);if(b){b.modelo=nombres.get(M);lotes.push(b);}}
  // (los árboles se pueden ocultar: la vista de arriba no los quiere —2026-10-18, Miguel: «oculta todos los árboles»—)
  const ARBOL=/tree|pine|palm|birch|willow|arbol|pino|palmera/i,setArboles=on=>{for(const b of lotes)if(ARBOL.test(b.modelo||''))for(const m of b.meshes)m.visible=on;};
- const setCeldas=(celdas,W,H,fuera)=>{for(const b of lotes)b.setCeldas(celdas,W,6,H,fuera);};
+ const setCeldas=(celdas,W,H,fuera)=>{for(const b of lotes)b.setCeldas(celdas,W,6,H,fuera);equipo?.setCeldas(celdas,W,H,fuera);};
  // (cada planta, su versión de lejos según dónde está la cámara —nature3d plantBatched setLejos—)
  const setLejos=(x,z)=>{for(const b of lotes)b.setLejos?.(x,z);};
  // (2026-10-16, medido en el navegador sin ventana —validar-3d—: todo el equipamiento del mundo iba en una malla por pieza
  // y color —350 mil triángulos también desde adentro de un edificio—; ahora por baldosas de 144 m: la cámara deja afuera
  // las que no mira y la niebla —niebla3d.js— las que quedan detrás de ella)
- if(piezas.length){const B=144,por=new Map();for(const q of piezas){const k=Math.floor(q.x/B)+','+Math.floor(q.z/B);(por.get(k)||por.set(k,[]).get(k)).push(q);}for(const l of por.values())group.add(partsMesh(l));}
+ // (2026-11-23: en mallas por lotes —objetos3d partsBatched—: cada pieza se descarta sola, también en el pase de sombras)
+ const equipo=piezas.length?partsBatched(piezas):null;if(equipo)group.add(equipo.group);
  const pintura=dibujarPintura(bp.pintura||[],suelo);group.add(pintura.mesh);
  if(placas.length)group.add(dibujarPlacas(placas));
  // las colisiones: las del 2D (colisiones.js, COLISION de medidas.js), cada una con la altura del suelo donde está.
