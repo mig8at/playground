@@ -17,9 +17,10 @@ import (
 //	claude  Claude Sonnet 5.5 en el Bedrock de CreditOp, por el puente de canon (connectors/claude). El de siempre.
 //	gemini  Gemini por su API, con la llave de connectors/.env (connectors/gemini): gasta la cuota de esa llave.
 //
-// Gemini por la web de AI Studio (lo de Wally) no sirve acá: necesita Chrome abierto con Jarvis y la cuenta cortada
-// si se le pide seguido.
-var BackgroundModels = []string{"claude", "gemini"}
+//	aistudio  Gemini (gemini-4-hydrogen) por la web de AI Studio, en el Chrome de Miguel con Jarvis (bin/aistudio): sin
+//	          llave ni Bedrock, pero necesita Chrome abierto con la extensión, va de a una pregunta y Google corta la
+//	          cuenta si se le pide mucho seguido. Decisión de Miguel (2026-11-24), cuando el puente de canon daba 502.
+var BackgroundModels = []string{"claude", "gemini", "aistudio"}
 
 const DefaultBackgroundModel = "claude"
 
