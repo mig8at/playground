@@ -10,7 +10,7 @@
 // Las piezas que se cambian: las de muro, ventana, vidriera, puerta, cornisa, columna y banda. Los accesorios (escaleras,
 // barandas, aire acondicionado, mansarda, losas) siguen siendo del paquete, ya lisos. (2026-11-22: las hojas de puerta, también
 // propias: la minimalista —ver piezaBase—)
-import {COLUMNA} from '../engine/medidas.js';
+import {COLUMNA,PUERTA} from '../engine/medidas.js';
 export const ES_DE_FACHADA=n=>(/(Window|FirstFloor|Plain|BottomTrim|TopTrim|Inset|Cornice_|Column|Ornament|DoorFrame)/.test(n)||/^Door_\d$/.test(n))&&!/InteriorWall|Wall_Guard|SlateCornice/.test(n);
 // Medidas del acabado (m): el marco alrededor del vidrio, lo que sobresale, el alféizar y el dintel.
 export const ACABADO={marco:.08,saliente:.05,alfeizar:{alto:.06,sale:.1,sobra:.08},dintel:{alto:.12,sale:.06,sobra:.06},zocalo:.8,capa:.1};
@@ -76,17 +76,21 @@ function piezaBase(nombre,M){const out=[],X0=M.__x||[-1,1],X=/DoorFrame/.test(no
   out.push(caja(x0,x1,y0,y0+.55*h,zi,0,pared),caja(x0,x1,y0+.55*h,y0+.78*h,zi,Math.min(.22,z1+.22),mol),caja(x0,x1,y0+.78*h,y0+.9*h,zi,Math.min(.12,z1+.12),mol));return out;}
  // la banda: un listón horizontal
  if(/Ornament/.test(nombre)){out.push(caja(x0,x1,y0,y1,z0,z1+.03,mol));return out;}
+ if(/DoorFrame/.test(nombre)){// el marco de la puerta, HERMÉTICO (2026-11-23, Miguel: «no dejar pasar ni un haz de luz», para el occlusion
+  // culling): el hueco es exactamente la hoja —M.__hueco, la mitad de su ancho; la sencilla, la luz libre de PUERTA.calle—
+  // por PUERTA.alto; a los lados las jambas, arriba el dintel y el muro. Antes el hueco salía de la pieza del paquete
+  // (1,84 × 2,88 m el de madera, con 42 cm a cada lado de la hoja y 68 arriba; banderola de vidrio en el de piedra).
+  // (el muro deja el hueco CON las jambas y el dintel, que van de lado a lado del espesor —de −0,2 a afuera—: no queda una
+  // capa de muro detrás de ellos en el mismo plano que otra pieza. Si la jamba quedaría a menos de 15 cm del borde del
+  // módulo —la doble—, llega hasta el borde: no queda una franja de muro suelta, que titilaba con lo que hay en la junta)
+  const W=M.__hueco??(PUERTA.calle-2*PUERTA.marco)/2,dx0=-W,dx1=W,top=PUERTA.alto,Fm=PUERTA.jamba(W);
+  muro(out,x0,x1,y0,y1,pared,[dx0-Fm,dx1+Fm,y0,top+PUERTA.dintel]);
+  out.push(caja(dx0-Fm,dx0,y0,top,-.2,A.saliente,MARCO),caja(dx1,dx1+Fm,y0,top,-.2,A.saliente,MARCO),caja(dx0-Fm,dx1+Fm,top,top+PUERTA.dintel,-.2,A.dintel.sale,mol));
+  return out;}
  // con vidrio: el vano del vidrio, el marco, el alféizar y el dintel (o, en la planta baja, la vidriera con su zócalo)
  // (el vano: el vidrio más el marco, sin salirse de la pieza —en las vidrieras el vidrio llega casi al borde—)
  if(g){const gx0=g.min[0],gx1=g.max[0],gy0=g.min[1],gy1=g.max[1],F=A.marco,vano=[Math.max(x0,gx0-F),Math.min(x1,gx1+F),Math.max(y0,gy0-F),Math.min(y1,gy1+F)];
-  const puerta=/DoorFrame/.test(nombre),vidriera=/FirstFloor/.test(nombre);
-  if(puerta){// el marco de la puerta: el vano (de la moldura, como mínimo del ancho del vidrio más su marco, dentro de la
-   // pieza) y, si el vidrio está arriba (una banderola), su travesaño; si no, el vidrio va en la hoja y no acá
-   const t=M[mol]||{min:[-.57,0,-.2],max:[.57,2.81,0]},trans=gy0>1.9,dx0=Math.max(x0+F,Math.min(t.min[0]+F,trans?gx0-F:1e9)),dx1=Math.min(x1-F,Math.max(t.max[0]-F,trans?gx1+F:-1e9)),top=Math.min(y1-A.dintel.alto,trans?gy1+F:t.max[1]);
-   muro(out,x0,x1,y0,y1,pared,[dx0,dx1,y0,top]);
-   out.push(caja(dx0-F,dx0,y0,top,-.2,A.saliente,MARCO),caja(dx1,dx1+F,y0,top,-.2,A.saliente,MARCO),caja(dx0-F,dx1+F,top,top+A.dintel.alto,-.2,A.dintel.sale,mol));
-   if(trans){out.push(caja(dx0,dx1,gy0-F,gy0,-.2,A.saliente,MARCO));out.push(caja(gx0,gx1,gy0,gy1,-.1,-.09,'MI_Glass'));}
-   return out;}
+  const vidriera=/FirstFloor/.test(nombre);
   muro(out,x0,x1,y0,y1,pared,vano);
   // el marco (cuatro listones) y un parante al medio en las anchas
   out.push(caja(vano[0],vano[0]+F,vano[2],vano[3],-.2,A.saliente,MARCO),caja(vano[1]-F,vano[1],vano[2],vano[3],-.2,A.saliente,MARCO),caja(vano[0],vano[1],vano[3]-F,vano[3],-.2,A.saliente,MARCO),caja(vano[0],vano[1],vano[2],vano[2]+F,-.2,A.saliente,MARCO));
@@ -113,7 +117,7 @@ export function medidasDePartes(parts){const M={};let X=[1e9,-1e9],Y=[1e9,-1e9];
 // el material del muro (el de la fachada de su familia, para que la pinte su tinte).
 export const PUERTA_DOBLE=pared=>'LP_PuertaDoble_'+pared;
 export function puertaDobleLowPoly(pared,ancho){const a=ancho/2;
- return piezaLowPoly('DoorFrame_Doble',{[pared]:{min:[-1,0,-.1],max:[1,3,0]},MI_Trim:{min:[-a-.08,0,-.2],max:[a+.08,2.45,0]},MI_Glass:{min:[-a+.04,2.3,-.1],max:[a-.04,2.4,-.1]},__x:[-1,1],__y:[0,3]});}
+ return piezaLowPoly('DoorFrame_Doble',{[pared]:{min:[-1,0,-.1],max:[1,3,0]},MI_Trim:{min:[-a-.08,0,-.2],max:[a+.08,2.45,0]},MI_Glass:{min:[-a+.04,2.3,-.1],max:[a-.04,2.4,-.1]},__x:[-1,1],__y:[0,3],__hueco:a});}
 
 // La marquesina de la entrada principal (2026-10-18, FACHADAS.md B5): una losa delgada que sale 1,5 m sobre la puerta, a
 // 2,7 m, con su frente; la del hospital, blanca con la cruz roja en el frente (urgencias), la del hotel, del acento

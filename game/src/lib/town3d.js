@@ -15,7 +15,8 @@ import {texturaDeMuro} from '../engine/fachada-medida.js';
 import {modulosDeFachada,VENTANAL as VENTANAL_PLANO,TERRAZA} from '../engine/fachada-piezas.js';
 import {PUERTA_DOBLE,MARQUESINA,VENTANAL} from './fachada3d.js';
 import {pendienteEn} from '../engine/techos.js';
-import {ALTURA,COLUMNA,CHOQUE_MUEBLE,CORTINA,AZOTEA,MANSARDA,ESCALERA,esVidriera} from '../engine/medidas.js';
+import {ALTURA,COLUMNA,CHOQUE_MUEBLE,CORTINA,AZOTEA,MANSARDA,ESCALERA,esVidriera,PUERTA} from '../engine/medidas.js';
+const HOJA_CALLE=PUERTA.calle-2*PUERTA.marco;// (la hoja de la puerta de calle sencilla: la luz libre de su vano, lo que mide el hueco de su marco)
 import {cuartoDeVentana,peliculaCerrada,PELICULA} from '../engine/cortinas.js';
 import {esVivienda} from '../engine/entrega.js';
 import {piezasSinTitilar} from '../engine/titileo.js';
@@ -271,14 +272,14 @@ export function buildTown(bp,ctx){SIN_DECO=!!bp.entrega;
      const dw=door?Math.hypot(door.x1-door.x0,door.y1-door.y0):0,doble=door&&LOWPOLY.on&&dw>=1.6;
      // (la marquesina de la entrada principal del hospital y del hotel —blueprint marcarEntradas—, sobre la puerta)
      if(door?.entrada)items.push({piece:MARQUESINA(door.entrada),x:mx,y:0,z:mz,ry,tint});
-     if(door&&doble){const tienda=['comercio','local'].includes(B.type)||B.levels[0].rooms.some(q=>q.type==='local'&&q.id===door.a),hoja=tienda?'Door_2':fs.leaf,h2=dw/2;
+     if(door&&doble){const tienda=['comercio','local'].includes(B.type)||B.levels[0].rooms.some(q=>q.type==='local'&&q.id===door.a),hoja=tienda?'Door_2':fs.leaf,h2=PUERTA.doble.ancho/2;// (las hojas, del hueco del marco —puertaDobleLowPoly con PUERTA.doble.ancho—; el plano la pone siempre de ese ancho)
       anota('puerta_doble');items.push({piece:PUERTA_DOBLE((fs.paintOn||[])[0]||'MI_RedBrick'),x:mx,y:0,z:mz,ry,tint,lit:lit(0)});
       leaves.push({piece:hoja,x:mx+tx*h2-dx*.12,y:0,z:mz+tz*h2-dy*.12,ry,sx:h2,cx:mx,cz:mz,tint},{piece:hoja,x:mx-tx*h2-dx*.12,y:0,z:mz-tz*h2-dy*.12,ry:ry+Math.PI,sx:h2,dir:-1,cx:mx,cz:mz,tint});
       gaps.push([-1e3,2.5]);hg=h2+.02;doorFronts.push({x:mx,z:mz,nx:dx,nz:dy,half:h2+.4});streetDoors.push({x:mx,z:mz,nx:dx,nz:dy,w:dw});
       if(!plaqueDone){plaques.push({x:mx+dx*.08,z:mz+dy*.08,ry,name:L.bname});plaqueDone=true;}continue;}
      if(door){anota('puerta',fs.door);items.push({piece:fs.door,x:mx,y:0,z:mz,ry,tint,lit:lit(0)});
-      leaves.push({piece:fs.leaf,x:mx+tx*.5-dx*.12,y:0,z:mz+tz*.5-dy*.12,ry,cx:mx,cz:mz,tint});
-      gaps.push([-1e3,2.5]);doorFronts.push({x:mx,z:mz,nx:dx,nz:dy,half:1});streetDoors.push({x:mx,z:mz,nx:dx,nz:dy});
+      leaves.push({piece:fs.leaf,x:mx+tx*HOJA_CALLE/2-dx*.12,y:0,z:mz+tz*HOJA_CALLE/2-dy*.12,ry,sx:HOJA_CALLE,cx:mx,cz:mz,tint});/* (2026-11-23: la hoja, del ancho del hueco de su marco —fachada3d, hermético—; la pieza del paquete mide 1 m) */
+      gaps.push([-1e3,2.5]);hg=HOJA_CALLE/2+.02;doorFronts.push({x:mx,z:mz,nx:dx,nz:dy,half:1});streetDoors.push({x:mx,z:mz,nx:dx,nz:dy});
       if(!plaqueDone){plaques.push({x:mx+dx*.08,z:mz+dy*.08,ry,name:L.bname});plaqueDone=true;}continue;}
      if(f===0&&R)fixed.push({piece:fs.plain,x:mx,y:0,z:mz,ry,sy:R/3,tint});// el zócalo bajo la planta baja
      const bl=f>0&&blank.has(`${x},${y},${dx},${dy},${f}`);

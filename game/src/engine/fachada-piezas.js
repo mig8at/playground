@@ -16,7 +16,7 @@
 //     seguidos con ventana que no tengan un tabique en el medio (primero los dos de la izquierda).
 // Puro: sale del plano, sin azar. modulosDeFachada(bp, L) da la lista; cada uno {lote, x, y, dx, dy, k, f, tipo, pieza}.
 import {CELL} from './veredas.js';
-import {ALTURA,esVidriera} from './medidas.js';
+import {ALTURA,esVidriera,PUERTA} from './medidas.js';
 import {facadeStyle,LEGACY,WINDOWS,VIDRIO_PIEZA,VIDRIO_VENTANAL} from './fachada.js';
 
 export const GRILLA_FACHADA={casilla:CELL,modulo:2,modulos:3,piso:ALTURA.piso};
@@ -79,8 +79,11 @@ export function modulosDeFachada(bp,B){const S=CELL,de=loteEn(bp),id=B.id,fs=est
 //   · puerta doble: el ancho que dice el plano más su marco, hasta 2,6 m (encima queda un paño de muro de 40 cm);
 //   · vidriera, portón y balcón: el módulo entero (la losa del balcón sale delante del muro: no es vano).
 export const CERCO={lado:.16,abajo:.24,arriba:.26};
-export const PUERTA_VANO={DoorFrame_Wooden:[-1,1,0,3],DoorFrame_Trim:[-.68,.68,0,2.96],DoorFrame_Metal_Single:[-.57,.57,0,2.93]};
-export const PUERTA_DOBLE_ALTO=2.6;
+// (2026-11-23, el marco HERMÉTICO —fachada3d.js—: los tres marcos tienen el mismo vano, el largo de la puerta de calle de
+// ancho —la luz libre más sus dos jambas— y de alto la hoja más el dintel)
+const W_CALLE=(PUERTA.calle-2*PUERTA.marco)/2,VANO_CALLE=[-(W_CALLE+PUERTA.jamba(W_CALLE)),W_CALLE+PUERTA.jamba(W_CALLE),0,PUERTA.alto+PUERTA.dintel];
+export const PUERTA_VANO={DoorFrame_Wooden:VANO_CALLE,DoorFrame_Trim:VANO_CALLE,DoorFrame_Metal_Single:VANO_CALLE};
+export const PUERTA_DOBLE_ALTO=PUERTA.alto+PUERTA.dintel;// (el marco hermético: la hoja más el dintel; antes 2,6, con la banderola)
 // El balcón: el marco de una puerta sencilla, sin hoja (se sale caminando), y sólo delante de estos cuartos.
 // (la terraza del dúplex: el paso, el marco metálico de una puerta sin hoja; los costados, paños de vidrio entero)
 export const TERRAZA={fondo:1.4,paso:'DoorFrame_Metal_Single',vidrio:'Metal_FullWindow',baranda:1.05};
@@ -92,7 +95,7 @@ export function vanoDeModulo(m){const v=vanoSinRecorte(m),R=RECORTE(m);return v&
 function vanoSinRecorte(m){const cl=(v,a,b)=>Math.max(a,Math.min(b,v));
  if(m.tipo==='ventana'||m.tipo==='doble'){const g=vidrioCrudo(m),x1=m.tipo==='doble'?3:1;return g?[cl(g[0]-CERCO.lado,-1,x1),cl(g[1]+CERCO.lado,-1,x1),cl(g[2]-CERCO.abajo,0,3),cl(g[3]+CERCO.arriba,0,3)]:[-1,x1,.3,2.8];}
  if(m.tipo==='puerta')return PUERTA_VANO[m.pieza]||[-1,1,0,3];
- if(m.tipo==='puerta_doble'){const a=cl((m.ancho||1.8)/2+.16,0,1);return [-a,a,0,PUERTA_DOBLE_ALTO];}
+ if(m.tipo==='puerta_doble'){const a=cl(PUERTA.doble.ancho/2+PUERTA.jamba(PUERTA.doble.ancho/2),0,1);return [-a,a,0,PUERTA_DOBLE_ALTO];}
  if(m.tipo==='vidriera'||m.tipo==='porton')return [-1,1,0,3];
  // (2026-11-22, Miguel: «esto debería ser lineal, sin sobreposiciones: ¿por qué el morado baja más de su planta?»: el
  // balcón ocupaba desde −0,15 —el canto de su losa— y se metía 15 cm en el piso de abajo. La losa sale hacia afuera, delante

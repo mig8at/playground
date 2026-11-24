@@ -28,8 +28,8 @@ for(const nombre of todas){const M=medidas(nombre);if(!M){falla('pieza sin su .g
  // (las columnas de esquina no: son el pilar de COLUMNA, que town3d corre hacia afuera de la esquina)
  if(!/Column_(Bottom|Center|Top)|CornerColumn/.test(nombre))for(const c of C){if(c.x0<X[0]-.01||c.x1>X[1]+.01||c.y0<Y[0]-.02||c.y1>Y[1]+.02||c.z1>Z[1]+.25||c.z0<Z[0]-.05){falla('pieza que se sale de su huella',{nombre,mat:c.mat,caja:[c.x0,c.x1,c.y0,c.y1,c.z0,c.z1].map(v=>+v.toFixed(2))});break;}}
  const g=M.MI_Glass;if(!g)continue;vidrios++;
- // (una puerta con el vidrio en la hoja —no una banderola arriba—: el vidrio va en la hoja, no en el marco)
- if(/DoorFrame/.test(nombre)&&g.min[1]<=1.9)continue;const v=C.filter(c=>c.mat==='MI_Glass');
+ // (un marco de puerta no lleva vidrio: el hermético —2026-11-23— no tiene banderola; lo revisa «la puerta hermética», abajo)
+ if(/DoorFrame/.test(nombre))continue;const v=C.filter(c=>c.mat==='MI_Glass');
  if(v.length!==1){falla('ventana sin un vidrio (o con varios)',{nombre,vidrios:v.length});continue;}const gv=v[0],E=.005;
  if(Math.abs(gv.x0-g.min[0])>E||Math.abs(gv.x1-g.max[0])>E||Math.abs(gv.y0-g.min[1])>E||Math.abs(gv.y1-g.max[1])>E)falla('vidrio distinto del original',{nombre});
  const k=deVentana[nombre];if(k&&VIDRIO.ventana[k]){const a=(gv.x1-gv.x0)*(gv.y1-gv.y0),b=VIDRIO.ventana[k];if(Math.abs(a-b)>.02*b)falla('vidrio distinto del que el 2D usa para la luz (VIDRIO.ventana)',{nombre,tipo:k,dibujo:+a.toFixed(3),plano:+b.toFixed(3)});}
@@ -63,6 +63,20 @@ const MARCO=new Set(['MI_Trim']);let dobles=0;
 for(const m of PARED){const C=puertaDobleLowPoly(m,PUERTA.doble.ancho),a=PUERTA.doble.ancho/2;dobles++;
  for(const c of C){if(c.x0<-1.01||c.x1>1.01||c.y1>3.01){falla('puerta doble que se sale del módulo',{pared:m});break;}
   if(c.mat==='MI_Glass')continue;const ox=Math.min(c.x1,a)-Math.max(c.x0,-a),oy=Math.min(c.y1,2.2)-Math.max(c.y0,0);if(ox>.005&&oy>.005){falla('algo tapa el vano de la puerta doble',{pared:m,mat:c.mat,caja:[c.x0,c.x1,c.y0,c.y1].map(v=>+v.toFixed(2))});break;}}}
+// LA PUERTA HERMÉTICA (2026-11-23, Miguel: «debería ser hermético todo, no dejar pasar ni un haz de luz», para calibrar el
+// occlusion culling): el frente del módulo de cada marco de puerta, en una grilla de 1 cm, está tapado por alguna caja
+// opaca que cruza el plano del muro (z entre −0,2 y 0), salvo justo el hueco de la hoja —PUERTA.alto de alto y, de ancho,
+// la luz libre de PUERTA.calle en la sencilla y PUERTA.doble.ancho en la doble—; y ese hueco, libre del todo. Con la hoja
+// cerrada (del mismo tamaño, town3d.js) no queda una rendija.
+const hermetica=(C,W,nombre)=>{let rendijas=0,tapado=0;const R=[];
+ for(let x=-.995;x<1;x+=.01)for(let y=.005;y<3;y+=.01){const hueco=Math.abs(x)<W&&y<PUERTA.alto;
+  const tapa=C.some(c=>c.mat!=='MI_Glass'&&c.x0<=x&&x<=c.x1&&c.y0<=y&&y<=c.y1&&c.z0<-.05&&c.z1>-.15);
+  if(hueco&&tapa)tapado++;else if(!hueco&&!tapa){rendijas++;if(R.length<3)R.push([+x.toFixed(2),+y.toFixed(2)]);}}
+ if(rendijas)falla('rendija en el marco de una puerta (deja pasar luz fuera de la hoja)',{nombre,cm2:rendijas,ej:R});
+ if(tapado)falla('algo tapa el hueco de la hoja',{nombre,cm2:tapado});return !rendijas&&!tapado;};
+let herm=0;for(const nombre of todas.filter(n=>/DoorFrame/.test(n))){const M=medidas(nombre);if(M&&hermetica(piezaLowPoly(nombre,M),(PUERTA.calle-2*PUERTA.marco)/2,nombre))herm++;}
+for(const m of PARED)if(hermetica(puertaDobleLowPoly(m,PUERTA.doble.ancho),PUERTA.doble.ancho/2,'puerta doble '+m))herm++;
+console.log(`puerta hermética · ${herm} marcos sin una rendija: el hueco es la hoja (sencilla ${(PUERTA.calle-2*PUERTA.marco).toFixed(2)} × ${PUERTA.alto} m, doble ${PUERTA.doble.ancho} × ${PUERTA.alto} m)`);
 console.log(`columnas de esquina · ${columnas} revisadas contra las ventanas de su estilo · lo más cerca que quedan del vidrio: ${cerca.toFixed(2)} m`);
 console.log(`fachada low poly · ${n} piezas propias (${cajas} cajas, ${caras} pares de caras que titilan) · ${vidrios} con vidrio, todas con el del original y el de VIDRIO · puerta doble (${dobles} muros): vano libre de ${PUERTA.doble.ancho} m`);
 console.log(`fallas: ${[...fallas.values()].reduce((a,f)=>a+f.n,0)}`);for(const [k,f] of fallas)console.log(`  ${f.n}\t${k}\n${f.ej.map(e=>'        '+JSON.stringify(e)).join('\n')}`);

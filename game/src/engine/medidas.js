@@ -69,6 +69,14 @@ export const MURO={fachada:.25,tabique:.12,medianera:.12};
 
 // Vanos de puerta (largo en la pared; la luz libre es el largo menos los marcos).
 export const PUERTA={cuarto:1,calle:1.1,ascensor:1.4,marco:.08,
+ // (2026-11-23, Miguel: «las puertas parecen que tienen una entrada de aire arriba; debería ser hermético todo, no dejar
+ // pasar ni un haz de luz: eso se hace para calibrar el occlusion culling»): el alto de la hoja de la puerta de calle, y el
+ // vano del marco llega justo ahí —arriba, el dintel y el muro—. El hueco del marco y la hoja miden lo mismo: la luz libre
+ // —el largo menos los dos marcos en la sencilla; el ancho de PUERTA.doble en la doble— por este alto. Sin banderola.
+ alto:2.2,dintel:.12,
+ // (la jamba de un hueco de medio ancho W en su módulo de 2 m: PUERTA.marco; si quedaría a menos de 15 cm del borde —la doble—,
+ // llega hasta el borde, sin franja de muro suelta)
+ jamba(W){return 1-W<.15?Math.max(this.marco,1-W):this.marco;},
  // (la de la escalera va a lo ancho de sus dos tramos: el ancho de la escalera menos 20 cm)
  escalera:ancho=>ancho-.2,
  // (la puerta de calle doble, 2026-10-16, Miguel: «para los comercios y en algunos lugares puertas dobles o más grandes»: dos
