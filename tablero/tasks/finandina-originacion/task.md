@@ -207,10 +207,10 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
   traiga `fianza_amount_iva` lleno (sin motor sale vacío). Sigue: sumar los 6 ids al catálogo y al armador del backend.
   Con el estudio automático (v2, rama `pdf-v2` del PDF Mapper Studio) se armaron los dos documentos de Drive, en local:
   `finandina/vinculacion` sale completo desde el PDF de Finandina (26 campos, las preguntas PEP y sus tres celdas
-  vacías, sin nada que no quepa salvo «Entidad», una celda de 65 pt); `finandina/terminos-y-condiciones` NO: los montos
-  en letras van en medio de la oración y no tienen espacio. Para los T&C hay que elegir: la versión rehecha con la
-  skill (texto idéntico, letras en línea entera, otro diseño) o pedirle a Finandina una con las letras en su renglón.
-  Depende de: Miguel / Finandina — qué versión de los T&C. Ids nuevos de los dos documentos (11): los 5 montos en letras,
+  vacías, sin nada que no quepa salvo «Entidad», una celda de 65 pt). `finandina/terminos-y-condiciones` sale desde su
+  Word, con cada monto en letras en su propio renglón (mismo texto, mismo diseño): entra hasta el monto más largo. El
+  Word que compartieron tenía 21 cambios con control de cambios sin aceptar: se aceptaron para convertir, y hay que
+  confirmar con Finandina que ésa es la versión final. Depende de: Finandina — confirmar la versión final de los T&C. Ids nuevos de los dos documentos (11): los 5 montos en letras,
   `financial_protection_premium`, `economic_activity`, `pep_self_or_family`, `pep_shareholder`, `pep_start_date`,
   `pep_end_date` (y `pep_entity`).
 - [ ] Pagaré en Deceval con la credencial real de Finandina y la certificación. Depende de: Hans — CRED-463.

@@ -6,7 +6,7 @@ created: "2026-11-24T07:52:37-05:00"
 knowledge: [signing-document-generation]
 jira: []
 jira_title: "PDF Mapper: plantillas y mapper desde la referencia de la entidad"
-ramas: pdf-mapper-editor:pdf-v2
+ramas: pdf-mapper-editor:pdf-v2, pdf-mapper-service:convert-docx
 ---
 
 ## Pendientes
@@ -17,8 +17,11 @@ ramas: pdf-mapper-editor:pdf-v2
 - [x] Guardar de verdad y probarlo con el servicio: el asistente arma la plantilla (marcadores tapados sobre el
   original) y el mapper, los guarda con los ids nuevos en el catálogo, y el servicio los genera bien (formulario, plan
   de pagos con sus 12 filas y pagaré, en local).
-- [ ] Conversión de Word a PDF: no hay conversor en la Mac (ni LibreOffice ni pandoc); decidir con qué se hace en el
-  servicio. Termina cuando `autorizacion-libranza-ejemplo.docx` pasa por el asistente con sus campos.
+- [x] Conversión de Word a PDF: `POST /api/convert` en el servicio (rama `convert-docx`), con LibreOffice; acepta los
+  cambios sin aceptar y reemplaza Segoe UI por Selawik. Probado con los dos Word de Finandina.
+- [ ] Llevar LibreOffice y las fuentes (Selawik, y las de Office: Carlito, Caladea) a la imagen de Docker del servicio,
+  o decidir un contenedor aparte (Gotenberg). Termina cuando `/api/convert` responde 200 en develop; hoy sólo en local
+  (sin LibreOffice responde 503).
 - [ ] Una raya de firma dibujada (no con `____`) no se reconoce como zona de firma: el pagaré de ejemplo la tiene.
 - [ ] Validar la v2 con el equipo desde la rama `pdf-v2` (publicada en GitHub, sin PR). Termina cuando se decide si
   pasa a `main`; el PR se arma recién entonces, con `artifacts/pr-pdf-v2.md`. Depende de: Miguel — cuándo abrir el PR.
