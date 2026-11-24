@@ -24,12 +24,15 @@ guarda de Host y `X-Minutes` como el Llavero); al terminar un resumen avisa por 
 
 Los audios y las capturas pueden tener datos internos o de clientes. Quedan en `minutes/recordings/<fecha>/`, fuera de
 git (`minutes/.gitignore`), y nunca salen: Whisper, el modelo de voces y Qwen3-VL (que mira cada pantalla) corren en
-esta Mac. **El resumen lo escribe Claude Sonnet 5.5 en el Bedrock de CreditOp** (`bin/pg model ask`; decisión de Miguel
-del 2026-11-23, después de medirlo: el de 4B se perdía pendientes y decisiones). A Bedrock va sólo ese texto: la
-transcripción con quién dijo qué y lo que se vio en cada pantalla, en palabras. Si el modelo de fondo elegido en Cockpit
-no es Claude (Gemini iría a Google) o no contesta (falta `playground login`), el resumen lo escribe Qwen3-VL-4B acá y
-lo dice. `summarize --local` (o `make minutes CMD=summarize LOCAL=1`) lo deja en la Mac. Las capturas incluyen TODA la
-pantalla, también lo que no era de la reunión.
+esta Mac. **El resumen lo escribe Claude Haiku 5.5 por Claude Code** (`claude -p`, `askHaiku`; decisión de Miguel del
+2026-11-23: primero fue Bedrock, pero dependía del playground, que a veces no contesta). Va a Anthropic con la sesión
+de claude.ai de Miguel (el plan de equipo): sólo ese texto, la transcripción con quién dijo qué y lo que se vio en cada
+pantalla, en palabras. Gasta el límite de su asiento, como usar Claude Code (unos centavos eq. API por reunión). Corre
+aislado como la ortografía de Captura: sin herramientas, sin MCP, sin ajustes, en una carpeta vacía y sin guardar la
+sesión. ⚠ El alias `haiku` da Haiku 4.5: va el id `claude-haiku-5-5` (la CLI avisa que no lo reconoce, pero lo corre, y
+`askHaiku` comprueba en `modelUsage` que contestó ese). Si no contesta, el resumen lo escribe Qwen3-VL-4B acá y lo dice;
+`summarize --local` (o `make minutes CMD=summarize LOCAL=1`) lo deja en la Mac. Las capturas incluyen TODA la pantalla,
+también lo que no era de la reunión.
 
 ## Lo que queda en la carpeta
 
@@ -67,9 +70,10 @@ les pongas en la app (`speakers.json`); «reunión» queda sólo si no se pudo s
   tiempo y el 80 % de las frases quedaron con la persona correcta. Lo que falla es lo que no detecta (26 %: pedacitos y
   voces encima en la mezcla). Pasada entera (Whisper + voces + resumen), 5:45 con el modo por partes de entonces.
   Contra el resumen humano de AMI, el de Qwen3-VL-4B acertó los temas y el precio, pero no vio el próximo paso ni el
-  riesgo del presupuesto, y mezcló algo que no se dijo. Con Claude Sonnet 5.5 en el Bedrock de CreditOp (10 s, hoy el de siempre) cubrió casi
+  riesgo del presupuesto, y mezcló algo que no se dijo. Con Claude Sonnet 5.5 (Bedrock, 10 s) cubrió casi
   todo el resumen humano: la meta de ganancia, el próximo paso, el riesgo del costo de la pantalla, y separó las ideas
-  abiertas de lo decidido. Por eso quedó por defecto. El armado de la prueba (la carpeta desde un WAV, el puntaje DER) está en la tarea.
+  abiertas de lo decidido. Claude Haiku 5.5 por `claude -p` (10 s, el de siempre desde entonces)
+  salió casi igual: la meta, el próximo paso y la duda de la pantalla; se equivocó en una moneda (12,50 «libras»). El armado de la prueba (la carpeta desde un WAV, el puntaje DER) está en la tarea.
 - **Idioma:** `start --lang en|auto` (por defecto `es`), guardado en `meta.json`; sirvió para probar con ese video.
 
 ## Sólo audio (desde el 2026-11-23)
@@ -85,8 +89,8 @@ resumen sale sin momentos en pantalla y sin levantar el modelo de visión.
   reintenta una vez sin el texto anterior y, si vuelve a fallar, queda en `audio/failed.txt` y se sigue. Antes se
   reintentaba para siempre y «Frenar» no terminaba nunca. Además `stop` espera a la transcripción de fondo a lo sumo
   10 min.
-- **Bedrock no contesta** (sin red o sin la sesión del playground): el resumen lo escribe el modelo local y el aviso dice
-  por qué (`bin/pg model info`).
+- **Claude Code no contesta** (sin red, sin sesión de claude.ai o sin `claude` instalado): el resumen lo escribe el modelo
+  local y el aviso dice por qué.
 
 ## Cómo graba sin pisar el micrófono
 
@@ -121,7 +125,7 @@ resumen sale sin momentos en pantalla y sin levantar el modelo de visión.
 - **¿Lo dicho habla de la pantalla?** Qwen3-VL-4B (el de `point`, del registro) recibe la captura y lo dicho mientras
   estaba a la vista, y devuelve `seen`, `refers`, `evidence` y `key` (0–3). Corre en su propio llama-server en :5252
   (`lib/llamaserve`, se apaga a los 3 min sin uso). Ronda los 5 s por pantalla.
-- **El resumen** (resumen, decisiones, pendientes, citando `[P3]`) lo escribe Claude en Bedrock (arriba); con
+- **El resumen** (resumen, decisiones, pendientes, citando `[P3]`) lo escribe Claude Haiku 5.5 (arriba); con
   `--local`, Qwen3-VL-4B, al que hubo que nombrarle qué es una decisión («decidimos», «quedamos en»).
 
 ## Lo probado (2026-11-23)

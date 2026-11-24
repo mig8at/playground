@@ -144,7 +144,7 @@ captura: ## @dia captura de pantalla (Captura.app nativa, captura/main.swift): o
 	 l=$$(cat $$r); \
 	 case "$$l" in "ok "*) echo "$${l#ok }";; cancel) exit 1;; "") echo "  ✗ Captura se cerró sin resultado" >&2; exit 2;; *) echo "  ✗ $${l#error }" >&2; exit 2;; esac
 .PHONY: minutes
-minutes: ## @dia abre Minutes (:5248 · API :5249): grabar una reunión sin tomar notas. La pantalla (las capturas que cambian), el micrófono y el audio del sistema sin quitarle el micrófono a la reunión, la transcripción en vivo con Whisper y un recordatorio que cruza lo dicho con lo visto (Qwen3-VL), todo en esta Mac; queda en minutes/recordings/. Por consola (bin/minutes): CMD=start|stop|status|live|list|open|summarize [TITLE='…'] [DIRECT=1 con los permisos de la terminal] [LOCAL=1 el resumen con el modelo local, sin sacar el texto de la Mac; por defecto lo escribe Claude en el Bedrock de CreditOp]
+minutes: ## @dia abre Minutes (:5248 · API :5249): grabar una reunión sin tomar notas. La pantalla (las capturas que cambian), el micrófono y el audio del sistema sin quitarle el micrófono a la reunión, la transcripción en vivo con Whisper y un recordatorio que cruza lo dicho con lo visto (Qwen3-VL), todo en esta Mac; queda en minutes/recordings/. Por consola (bin/minutes): CMD=start|stop|status|live|list|open|summarize [TITLE='…'] [DIRECT=1 con los permisos de la terminal] [LOCAL=1 el resumen con el modelo local, sin sacar el texto de la Mac; por defecto lo escribe Claude Haiku 5.5 por claude -p, con el asiento del plan]
 	@$(if $(CMD),bin/minutes $(CMD) $(if $(filter start,$(CMD)),$(if $(TITLE),--title '$(TITLE)') $(if $(DIRECT),--direct)) $(if $(filter summarize,$(CMD)),$(if $(LOCAL),--local)),cd minutes && npm run dev)
 
 .PHONY: captura-panel

@@ -1,7 +1,7 @@
 // minutes — graba una reunión sin tomar notas: la pantalla (≈1 captura por segundo, sólo las que cambian), el
 // micrófono y el audio del sistema, los transcribe en vivo con Whisper en esta Mac y al final arma un recordatorio que
 // cruza lo dicho con lo que estaba en pantalla, con Qwen3-VL-4B también en esta Mac. Nada sale a un servicio externo
-// salvo el texto del resumen, que lo escribe Claude en el Bedrock de CreditOp (`--local` lo deja en la Mac).
+// salvo el texto del resumen, que lo escribe Claude Haiku 5.5 por `claude -p` (`--local` lo deja en la Mac).
 //
 //	bin/minutes start [--title '…'] [--no-mic] [--no-system]   arranca (la grabadora y la transcripción, de fondo)
 //	bin/minutes stop                                            frena, termina de transcribir y arma el resumen

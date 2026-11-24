@@ -8,14 +8,16 @@ package main
 //     MaxScreens, en orden de tiempo.
 //  2. Para cada una, Qwen3-VL-4B en esta Mac (su propio llama-server en :5252, se apaga solo) ve la captura y lo que se
 //     dijo mientras estaba a la vista, y contesta qué se ve, si lo dicho habla de eso y la frase que lo muestra.
-//  3. El resumen de lo dicho (resumen, decisiones, pendientes, citando las pantallas [P3]) lo escribe Claude en el
-//     Bedrock de CreditOp (`bin/pg model ask`, decisión de Miguel del 2026-11-23: el de 4B se perdía los pendientes).
+//  3. El resumen de lo dicho (resumen, decisiones, pendientes, citando las pantallas [P3]) lo escribe Claude Haiku 5.5
+//     por `claude -p` (askHaiku; decisión de Miguel del 2026-11-23: el de 4B se perdía los pendientes, y con Claude
+//     Code no se depende del playground ni de Bedrock).
 //     Sale de la Mac SÓLO ese texto (la transcripción y lo que se vio en cada pantalla, en palabras): el audio y las
-//     capturas no. Si el modelo de fondo no es Claude o no contesta, lo escribe Qwen3-VL-4B acá; --local lo fuerza.
+//     capturas no. Si Claude Code no contesta, lo escribe Qwen3-VL-4B acá; --local lo fuerza.
 //  4. Quedan timeline.json, summary.md y summary.html (las imágenes por ruta relativa a frames/).
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -44,7 +46,7 @@ type summarizeOptions struct {
 
 func summarizeCmd(args []string) error {
 	fs := flag.NewFlagSet("summarize", flag.ContinueOnError)
-	local := fs.Bool("local", false, "el resumen con Qwen3-VL-4B en esta Mac, sin sacar el texto (por defecto lo escribe Claude en Bedrock)")
+	local := fs.Bool("local", false, "el resumen con Qwen3-VL-4B en esta Mac, sin sacar el texto (por defecto lo escribe Claude Haiku 5.5 por claude -p)")
 	fs.Bool("remote", true, "ya es lo de siempre (queda por compatibilidad)")
 	maxScreens := fs.Int("max-screens", 20, "cuántas pantallas mira el modelo de visión, como mucho")
 	if err := fs.Parse(args); err != nil {
@@ -295,11 +297,10 @@ func summarize(d string, o summarizeOptions) error {
 	var summary string
 	var err error
 	if !o.Local {
-		var name string
-		name, summary, err = askBedrock(prompt)
-		tl.Model = name + " (Bedrock de CreditOp)"
+		tl.Model = "Claude Haiku 5.5 (claude -p)"
+		summary, err = askHaiku(prompt)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "  ⚠ el resumen no salió de Bedrock (%v): lo escribe Qwen3-VL-4B en esta Mac\n", err)
+			fmt.Fprintf(os.Stderr, "  ⚠ el resumen no salió de Claude Haiku (%v): lo escribe Qwen3-VL-4B en esta Mac\n", err)
 			o.Local = true
 		}
 	}
@@ -442,47 +443,56 @@ func chat(vision llamaserve.Spec, content []any, maxTokens int) (string, error) 
 	return r.Choices[0].Message.Content, nil
 }
 
-// askBedrock: el resumen con el modelo de fondo, sólo si es Claude (el de Bedrock): si en Cockpit se eligió Gemini,
-// el texto iría a Google, y eso no es lo que Miguel decidió. Devuelve el nombre del modelo.
-func askBedrock(prompt string) (string, string, error) {
-	// sale con 1 cuando el modelo no está listo, pero igual trae el JSON con el porqué (`detail`)
-	out, _ := exec.Command(filepath.Join(root(), "bin", "pg"), "model", "info", "--json").Output()
-	var info struct {
-		Model  string `json:"model"`
-		Name   string `json:"name"`
-		Ready  bool   `json:"ready"`
-		Detail string `json:"detail"`
-	}
-	if json.Unmarshal(out, &info) != nil {
-		return "Claude", "", fmt.Errorf("bin/pg model info no contestó")
-	}
-	name := "Claude"
-	if strings.Contains(info.Name, "sonnet-5-5") {
-		name = "Claude Sonnet 5.5"
-	}
-	if info.Model != "claude" {
-		return name, "", fmt.Errorf("el modelo de fondo es %s, no Claude", info.Model)
-	}
-	if !info.Ready {
-		return name, "", fmt.Errorf("Claude no está listo: %s", firstNonEmpty(tail(info.Detail, 160), "¿falta `playground login`?"))
-	}
-	text, err := askRemote(prompt)
-	return name, text, err
-}
+// haikuModel: el id completo. ⚠ El alias «haiku» de Claude Code da Haiku 4.5 (medido el 2026-11-23); con el id de 5.5
+// la CLI avisa «unrecognized_model» por stderr pero lo corre (modelUsage dice claude-haiku-5-5).
+const haikuModel = "claude-haiku-5-5"
 
-func askRemote(prompt string) (string, error) {
-	f, err := os.CreateTemp("", "minutes-prompt-*.md")
+// askHaiku: el resumen con Claude Haiku 5.5 por Claude Code (`claude -p`), como la ortografía de Captura: sin
+// herramientas, sin MCP, sin ajustes, en una carpeta vacía y sin guardar la sesión. No depende del playground: entra con
+// la sesión de claude.ai de Miguel. ⚠ Gasta el límite de su asiento (unos centavos eq. API por reunión).
+func askHaiku(prompt string) (string, error) {
+	claude := findTool("claude")
+	if claude == "" {
+		home, _ := os.UserHomeDir()
+		if p := filepath.Join(home, ".local", "bin", "claude"); fileExists(p) {
+			claude = p
+		}
+	}
+	if claude == "" {
+		return "", errors.New("no está `claude` (Claude Code) en esta máquina")
+	}
+	dir, err := os.MkdirTemp("", "minutes-summary")
 	if err != nil {
 		return "", err
 	}
-	defer os.Remove(f.Name())
-	f.WriteString(prompt)
-	f.Close()
-	out, err := exec.Command(filepath.Join(root(), "bin", "pg"), "model", "ask", "--file", f.Name(), "--max-tokens", "1500").Output()
-	if err != nil {
-		return "", fmt.Errorf("bin/pg model ask: %v", err)
+	defer os.RemoveAll(dir)
+	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, claude, "-p", "--model", haikuModel, "--output-format", "json", "--tools", "",
+		"--strict-mcp-config", "--restricted", "--no-session-persistence")
+	cmd.Dir = dir
+	cmd.Stdin = strings.NewReader(prompt)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	var r struct {
+		Result  string         `json:"result"`
+		IsError bool           `json:"is_error"`
+		Usage   map[string]any `json:"modelUsage"`
 	}
-	return string(out), nil
+	if jerr := json.Unmarshal(out, &r); jerr != nil {
+		if err == nil {
+			err = jerr
+		}
+		return "", fmt.Errorf("claude -p: %v: %s", err, tail(strings.TrimSpace(stderr.String()+" "+string(out)), 200))
+	}
+	if r.IsError || strings.TrimSpace(r.Result) == "" {
+		return "", fmt.Errorf("claude -p no devolvió el resumen: %s", tail(r.Result, 200))
+	}
+	if _, ok := r.Usage[haikuModel]; !ok && len(r.Usage) > 0 {
+		return "", fmt.Errorf("contestó otro modelo, no %s", haikuModel)
+	}
+	return r.Result, nil
 }
 
 // summaryPrompt: lo dicho con sus tiempos y quién (yo = el micrófono, reunión = el audio del sistema), y lo que se vio

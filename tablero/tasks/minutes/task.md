@@ -36,5 +36,5 @@ herramienta personal de Miguel en my-tools: no es de CreditOp y no va a Jira. C�
 - Quién dijo qué: integrado y medido con una reunión real de AMI (4 de 4 personas, 0,5 % confundido, 80 % de frases
   bien). Falta que la app proponga el nombre leyendo el recuadro de quien habla en Meet o Zoom.
 - El resumen con Qwen3-VL-4B se pierde pendientes y decisiones (medido contra el resumen humano de AMI ES2004a);
-  Claude Sonnet 5.5 en Bedrock los saca casi todos y quedó por defecto (decisión de Miguel, 2026-11-23); el
-  4B queda con `--local` y de respaldo.
+  Claude los saca casi todos: va Haiku 5.5 por `claude -p` (decisión de Miguel, 2026-11-23, para no
+  depender del playground; antes Sonnet en Bedrock); el 4B queda con `--local` y de respaldo.

@@ -57,7 +57,7 @@ const busy = computed(() => !!state.value.phase)
 const phaseText = computed(() => ({
   starting: 'Arrancando la grabadora…',
   finishing: 'Terminando de transcribir y armando el resumen (alrededor de un minuto)…',
-  summarizing: 'Armando el resumen (las pantallas en esta Mac, el texto con Claude)…',
+  summarizing: 'Armando el resumen (las pantallas en esta Mac, el texto con Claude Haiku)…',
 }[state.value.phase] || ''))
 
 async function startRecording() {
@@ -296,7 +296,7 @@ onBeforeUnmount(() => {
               <span class="ui-icon" data-icon="mic" aria-hidden="true"></span>{{ state.phase === 'starting' ? 'Arrancando…' : 'Grabar' }}
             </button>
           </form>
-          <p class="rec-note">{{ audioOnly ? 'Micrófono y audio de la reunión, sin capturas,' : 'Pantalla, micrófono y audio de la reunión,' }} sin quitarle el micrófono a Meet o Zoom. El audio y las capturas quedan en esta Mac; el resumen lo escribe Claude (Bedrock de CreditOp) con el texto.</p>
+          <p class="rec-note">{{ audioOnly ? 'Micrófono y audio de la reunión, sin capturas,' : 'Pantalla, micrófono y audio de la reunión,' }} sin quitarle el micrófono a Meet o Zoom. El audio y las capturas quedan en esta Mac; el resumen lo escribe Claude Haiku con el texto.</p>
         </div>
         <a v-for="r in list" :key="r.id" class="rec-row" :class="{ on: r.id === selected }" :href="`#/r/${r.id}`">
           <span class="ui-icon" :data-icon="r.recording ? 'mic' : r.audio_only ? 'audio' : r.has_summary ? 'paper' : 'image'" :class="{ 'is-live': r.recording }" aria-hidden="true"></span>
@@ -399,7 +399,7 @@ onBeforeUnmount(() => {
     </aside>
 
     <footer class="statusbar">
-      <span>{{ apiError || (recording ? `● grabando · ${clock(liveSeconds)}` : phaseText || `${plural(list.length, 'grabación', 'grabaciones')} · audio y capturas en esta Mac · resumen con Claude`) }}</span>
+      <span>{{ apiError || (recording ? `● grabando · ${clock(liveSeconds)}` : phaseText || `${plural(list.length, 'grabación', 'grabaciones')} · audio y capturas en esta Mac · resumen con Claude Haiku`) }}</span>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
         <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
         <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Mostrar u ocultar las grabaciones" aria-label="Mostrar u ocultar las grabaciones" @click="toggleSidebar">
