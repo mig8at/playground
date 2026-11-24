@@ -30,6 +30,7 @@ const (
 	expandBudget = 360000
 	// expandBudgetBig: con Gemini por AI Studio (~1 millón de tokens), unos 400 mil tokens de código por paquete
 	expandBudgetBig = 1600000
+	bigFileCap      = 250000 // por archivo con AI Studio: en la práctica, el archivo entero
 )
 
 // noTools: lo que cambia de los prompts de drift para quien no puede correr comandos.
@@ -57,26 +58,15 @@ func (f *flow) prompt(name string) (string, error) {
 // varias veces se expande la primera, y todo el paquete cabe en expandBudget: la corrida #22 (2026-11-24) citó 20
 // archivos en un paquete, que con los topes por archivo pasaban el millón de caracteres, y Bedrock cortó la invocación.
 func (f *flow) expand(ctx context.Context, pkg string) string {
-	refs := map[string]bool{}
+	type part struct{ diff, file string }
+	parts := map[string]*part{}
+	order := []string{}
 	for _, p := range reGitDiff.FindAllStringSubmatch(pkg, -1) {
-		refs[p[1]+":"+strings.TrimSpace(p[4])] = true
-	}
-	dCap, fCap, budget := diffCap, fileCap, expandBudget
-	if background.Chosen() == "aistudio" {
-		budget = expandBudgetBig // ventana de ~1 millón de tokens: el paquete puede llevar mucho más código
-	}
-	if n := len(refs); n > 0 && n*(diffCap+fileCap) > budget {
-		share := budget / n
-		dCap, fCap = share*4/7, share*3/7
-	}
-	seen := map[string]bool{}
-	return reGitDiff.ReplaceAllStringFunc(pkg, func(m string) string {
-		p := reGitDiff.FindStringSubmatch(m)
 		dir, base, ref, path := p[1], p[2], p[3], strings.TrimSpace(p[4])
-		if seen[dir+":"+path] {
-			return m + " (el diff y el archivo van más arriba, en su primera mención)"
+		key := dir + ":" + path
+		if parts[key] != nil {
+			continue
 		}
-		seen[dir+":"+path] = true
 		diff, err := f.sh(ctx, "git", "-C", dir, "diff", "-M", base, ref, "--", path)
 		if err != nil {
 			diff = "(no se pudo sacar el diff: " + err.Error() + ")"
@@ -85,8 +75,36 @@ func (f *flow) expand(ctx context.Context, pkg string) string {
 		if err != nil {
 			file = "(no está en main)"
 		}
-		return fmt.Sprintf("%s\n\nDIFF desde %s hasta %s:\n```diff\n%s\n```\nEL ARCHIVO EN %s:\n```\n%s\n```\n", m, short(base), ref,
-			clip(diff, dCap), ref, clip(file, fCap))
+		parts[key] = &part{diff, file}
+		order = append(order, key)
+	}
+	dCap, fCap, budget := diffCap, fileCap, expandBudget
+	if background.Chosen() == "aistudio" {
+		// ventana de ~1 millón de tokens: cada archivo entero. Con los topes por archivo de Claude, la corrida #28 dejó
+		// 52 secciones sin decidir porque routes/admin.php, UserController.php o backoffice.php llegaban recortados.
+		dCap, fCap, budget = bigFileCap, bigFileCap, expandBudgetBig
+	}
+	/* El presupuesto se reparte por tamaño real: lo chico va entero y sólo se recorta lo enorme, si no entra todo. */
+	total := 0
+	for _, k := range order {
+		total += min(len(parts[k].diff), dCap) + min(len(parts[k].file), fCap)
+	}
+	if total > budget {
+		scale := float64(budget) / float64(total)
+		dCap = max(4000, int(float64(dCap)*scale))
+		fCap = max(4000, int(float64(fCap)*scale))
+	}
+	seen := map[string]bool{}
+	return reGitDiff.ReplaceAllStringFunc(pkg, func(m string) string {
+		p := reGitDiff.FindStringSubmatch(m)
+		key := p[1] + ":" + strings.TrimSpace(p[4])
+		if seen[key] {
+			return m + " (el diff y el archivo van más arriba, en su primera mención)"
+		}
+		seen[key] = true
+		x := parts[key]
+		return fmt.Sprintf("%s\n\nDIFF desde %s hasta %s:\n```diff\n%s\n```\nEL ARCHIVO EN %s:\n```\n%s\n```\n", m, short(p[2]), p[3],
+			clip(x.diff, dCap), p[3], clip(x.file, fCap))
 	})
 }
 
@@ -235,6 +253,39 @@ func parseList(text string) ([]map[string]any, error) {
 	return nil, fmt.Errorf("la lista del modelo no parsea: %v", first)
 }
 
+// onlyItems: el paquete con sólo los ítems pedidos (lo de antes del primer ítem y lo de después del último, como el
+// apéndice de archivos del triaje, se conserva).
+func onlyItems(pkg string, ids []string) string {
+	want := map[string]bool{}
+	for _, id := range ids {
+		want[id] = true
+	}
+	locs := reItem.FindAllStringSubmatchIndex(pkg, -1)
+	if len(locs) == 0 {
+		return pkg
+	}
+	var b strings.Builder
+	b.WriteString(pkg[:locs[0][0]])
+	tail := ""
+	for i, l := range locs {
+		end := len(pkg)
+		if i+1 < len(locs) {
+			end = locs[i+1][0]
+		}
+		block := pkg[l[0]:end]
+		if i+1 == len(locs) {
+			if j := strings.Index(block, "\n# "); j >= 0 { // el apéndice («# ARCHIVOS…») va siempre
+				block, tail = block[:j], block[j:]
+			}
+		}
+		if want[pkg[l[2]:l[3]]] {
+			b.WriteString(block)
+		}
+	}
+	b.WriteString(tail)
+	return b.String()
+}
+
 // reItem: los ítems de un paquete («## ÍTEM <id>»): lo que tiene que volver con veredicto.
 var reItem = regexp.MustCompile(`(?m)^## ÍTEM (\S+)`)
 
@@ -288,7 +339,7 @@ func (f *flow) answerPackages(ctx context.Context, r *Run, st *Step, dir, prefix
 		}
 		body := ""
 		for try := 0; try < 3 && len(missing()) > 0; try++ {
-			if body == "" {
+			if body == "" && len(got) == 0 {
 				body = string(raw)
 				if expand {
 					body = f.expand(ctx, body)
@@ -296,6 +347,11 @@ func (f *flow) answerPackages(ctx context.Context, r *Run, st *Step, dir, prefix
 			}
 			ask := body
 			if len(got) > 0 {
+				/* Sólo los ítems que faltan, con sus archivos: no el paquete entero otra vez. */
+				ask = onlyItems(string(raw), missing())
+				if expand {
+					ask = f.expand(ctx, ask)
+				}
 				ask += "\n\n# FALTAN\n\nYa se contestaron los demás. Devolvé la lista JSON SÓLO con estos ítems, completos y en el mismo formato:\n- " +
 					strings.Join(missing(), "\n- ")
 			}

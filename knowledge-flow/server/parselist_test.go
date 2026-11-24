@@ -22,3 +22,11 @@ func TestParseListRescuesACutAnswer(t *testing.T) {
 		t.Fatalf("parseList = %v, %v", out, err)
 	}
 }
+
+func TestOnlyItemsKeepsTheAppendix(t *testing.T) {
+	pkg := "# Paquete\n\n## ÍTEM a#1 — x\nuno\n\n## ÍTEM a#2 — y\ndos\n\n# ARCHIVOS\nf"
+	got := onlyItems(pkg, []string{"a#2"})
+	if got != "# Paquete\n\n## ÍTEM a#2 — y\ndos\n\n# ARCHIVOS\nf" {
+		t.Fatalf("onlyItems = %q", got)
+	}
+}
