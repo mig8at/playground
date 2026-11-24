@@ -125,10 +125,10 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
 
 - [ ] Que la tarjeta del listado no muestre el FGA (reunión del 2026-11-23). Hoy el «valor a financiar» del riel 4
   lo incluye: 5.000.000 pedidos salen como 5.450.000, con el FGA al 9 % sin IVA, porque `lenders_by_allieds.iva` de
-  la 149 está en 0 en qa. Termina con la tarjeta mostrando el monto pedido. Arreglo en la rama local
-  `fix/CORE-845-delegated-origination-no-fga-on-card` de frontend-monorepo (sin publicar): el riel 4 no suma FGA en
-  el card (`CalculateLoanFinancialsUc::cardGuaranteeRate`), así que muestra y persiste el monto pedido. Falta:
-  pasarla por Goldfish, el PR (con permiso de Miguel) y verla en qa.
+  la 149 está en 0 en qa. Termina con la tarjeta mostrando el monto pedido. Arreglo en
+  [#1515](https://github.com/Creditop-SAS/frontend-monorepo/pull/1515) (abierto contra `main`, pasado por Goldfish):
+  el riel 4 no suma FGA en el card (`CalculateLoanFinancialsUc::cardGuaranteeRate`), así que muestra y persiste el
+  monto pedido. Falta: la revisión, el merge y verlo en qa con una solicitud nueva.
 - [ ] Que la fianza se cobre una sola vez y como la calcula Finandina. El plan del riel 4 la vuelve a calcular sobre
   `user_requests.amount`, que ya trae el FGA de la tarjeta: con 5.000.000 cobró 583.695 (9 % + IVA sobre 5.450.000)
   y financió 6.033.695. Según el simulador de Finandina («Simulacion Aval Libre Inversion FGA», Drive, 2026-11-23):
