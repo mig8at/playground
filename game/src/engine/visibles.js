@@ -20,9 +20,15 @@ export function alturasDe(bp){if(cache.has(bp))return cache.get(bp);const {W,H}=
 // Un rayo desde (x, y, z) hacia (dx, dy, dz), unitario: el lote que lo tapa primero (o −1). Recorre la grilla de 6 m
 // casilla por casilla (DDA) y en cada una mira la altura más baja del rayo adentro.
 rayo.celdas=[];
-export function rayo(A,x,y,z,dx,dy,dz,salvo=-1,alcance=VISIBLES.alcance){const {W,H,lote,alto}=A;let cx=Math.floor(x/CELL),cz=Math.floor(z/CELL);
+export function rayo(A,x,y,z,dx,dy,dz,salvo=-1,alcance=VISIBLES.alcance){const {W,H,lote,alto}=A;rayo.celdas.length=0;
+ // (2026-11-23: si arranca fuera de la grilla —la cámara en el monte o en la playa, mirando la ciudad—, avanza hasta donde
+ // entra; antes devolvía «nada» en el primer paso y desde afuera no se veía ningún lote)
+ let t00=0;if(x<0||z<0||x>=W*CELL||z>=H*CELL){let t0=0,t1=alcance;
+  for(const [p,d,L] of [[x,dx,W*CELL],[z,dz,H*CELL]]){if(Math.abs(d)<1e-12){if(p<0||p>=L)return -1;continue;}let a=(0-p)/d,b=(L-p)/d;if(a>b)[a,b]=[b,a];t0=Math.max(t0,a);t1=Math.min(t1,b);}
+  if(t0>=t1)return -1;t00=t0+1e-6;x+=dx*t00;y+=dy*t00;z+=dz*t00;alcance-=t00;if(y>VISIBLES.techo&&dy>=0)return -1;}
+ const r=rayoAdentro(A,x,y,z,dx,dy,dz,salvo,alcance,W,H,lote,alto);if(r>=0)rayo.t+=t00;return r;}
+function rayoAdentro(A,x,y,z,dx,dy,dz,salvo,alcance,W,H,lote,alto){let cx=Math.min(W-1,Math.max(0,Math.floor(x/CELL))),cz=Math.min(H-1,Math.max(0,Math.floor(z/CELL)));
  const sx=Math.sign(dx),sz=Math.sign(dz),tdx=dx?Math.abs(CELL/dx):1e9,tdz=dz?Math.abs(CELL/dz):1e9;let tx=dx?((sx>0?(cx+1)*CELL-x:x-cx*CELL)/Math.abs(dx)):1e9,tz=dz?((sz>0?(cz+1)*CELL-z:z-cz*CELL)/Math.abs(dz)):1e9,t0=0;
- rayo.celdas.length=0;
  for(let n=0;n<400;n++){const t1=Math.min(tx,tz,alcance);if(cx<0||cz<0||cx>=W||cz>=H)return -1;const i=cz*W+cx,l=lote[i];if(Math.min(y+dy*t0,y+dy*t1)<VISIBLES.arbol)rayo.celdas.push(i);
   if(l>=0&&l!==salvo){const ymin=Math.min(y+dy*t0,y+dy*t1);if(ymin<alto[i]){rayo.t=t0;rayo.x=x+dx*t0;rayo.z=z+dz*t0;return l;}}
   if(y+dy*t1>VISIBLES.techo&&dy>0||t1>=alcance)return -1;t0=t1;if(tx<tz){cx+=sx;tx+=tdx;}else{cz+=sz;tz+=tdz;}}

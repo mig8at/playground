@@ -10,21 +10,23 @@ import {rng} from '../../src/engine/veredas.js';
 
 const N=+(process.argv[2]||2),S0=+(process.argv[3]||1),P=+(process.argv[4]||200),R=+(process.argv[5]||300),PASO=.25,FOV=72,ASPECTO=16/9;
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};
-const med={puntos:0,rayos:0,pegan:0,lista:[],ms:[],total:0};
+const med={afuera:0,puntos:0,rayos:0,pegan:0,lista:[],ms:[],total:0};
 for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:3}),A=alturasDe(bp),r=rng(s*131),{W,H,lote,alto}=A;
- for(let p=0;p<P;){const x=r()*W*CELL,z=r()*H*CELL,cx=Math.floor(x/CELL),cz=Math.floor(z/CELL);if(lote[cz*W+cx]>=0)continue;p++;med.puntos++;
+ // (uno de cada cuatro puntos, AFUERA de la grilla —hasta 80 m: el monte, la playa—, mirando hacia cualquier lado)
+ for(let p=0;p<P;){const fuera=r()<.25,x=fuera?-80+r()*(W*CELL+160):r()*W*CELL,z=fuera?-80+r()*(H*CELL+160):r()*H*CELL,cx=Math.floor(x/CELL),cz=Math.floor(z/CELL);
+  const dentro=cx>=0&&cz>=0&&cx<W&&cz<H;if(fuera&&dentro||dentro&&lote[cz*W+cx]>=0)continue;p++;med.puntos++;if(!dentro)med.afuera++;
   const cam={x,y:r()<.5?1.65:2.6,z,yaw:r()*Math.PI*2,fov:FOV,aspect:ASPECTO};
   const t0=performance.now(),V=visiblesCalle(bp,cam);med.ms.push(performance.now()-t0);med.lista.push(V.lotes.size/bp.lots.length);
   const hf=Math.atan(Math.tan(FOV*Math.PI/360)*ASPECTO)+VISIBLES_CALLE.margen*Math.PI/180,vf=FOV*Math.PI/360,fx=-Math.sin(cam.yaw),fz=-Math.cos(cam.yaw),base=Math.atan2(fz,fx);
   for(let k=0;k<R;k++){const az=base+(2*r()-1)*hf,el=(2*r()-1)*vf,c=Math.cos(el),dx=Math.cos(az)*c,dy=Math.sin(el),dz=Math.sin(az)*c;med.rayos++;
-   let px=x,py=cam.y,pz=z;
-   for(let t=0;t<VISIBLES.alcance;t+=PASO){const nx=px+dx*PASO,ny=py+dy*PASO,nz=pz+dz*PASO,ix=Math.floor(nx/CELL),iz=Math.floor(nz/CELL);if(ix<0||iz<0||ix>=W||iz>=H||ny>VISIBLES.techo)break;
+   let px=x,py=cam.y,pz=z,entro=false;
+   for(let t=0;t<VISIBLES.alcance;t+=PASO){const nx=px+dx*PASO,ny=py+dy*PASO,nz=pz+dz*PASO,ix=Math.floor(nx/CELL),iz=Math.floor(nz/CELL);const sale=ix<0||iz<0||ix>=W||iz>=H;if(sale&&entro||ny>VISIBLES.techo)break;if(sale){px=nx;py=ny;pz=nz;continue;}entro=true;
     // (la esquina que cruza el paso cuando cambia de casilla en los dos ejes, como validar-visibles)
-    {const ax=Math.floor(px/CELL),az2=Math.floor(pz/CELL);if(ax!==ix&&az2!==iz){const lx=(dx>0?ix:ax)*CELL,lz=(dz>0?iz:az2)*CELL,tx=(lx-px)/dx,tz=(lz-pz)/dz,[mx,mz]=tx<tz?[ix,az2]:[ax,iz],mi=mz*W+mx,ml=lote[mi];
+    {const ax=Math.floor(px/CELL),az2=Math.floor(pz/CELL);if(ax!==ix&&az2!==iz){const lx=(dx>0?ix:ax)*CELL,lz=(dz>0?iz:az2)*CELL,tx=(lx-px)/dx,tz=(lz-pz)/dz,[mx,mz]=tx<tz?[ix,az2]:[ax,iz],mi=mz*W+mx,ml=mx>=0&&mz>=0&&mx<W&&mz<H?lote[mi]:-1;
      if(ml>=0&&Math.min(py,ny)<alto[mi]){med.pegan++;if(!V.lotes.has(ml))falla('un lote que se ve desde la calle falta en la lista (no se dibujaría)',{semilla:s,cam:[+x.toFixed(1),cam.y,+z.toFixed(1),+cam.yaw.toFixed(3)],lote:ml,a:+t.toFixed(1)});break;}}}
     const i=iz*W+ix,l=lote[i];if(l>=0&&ny<alto[i]){med.pegan++;if(!V.lotes.has(l))falla('un lote que se ve desde la calle falta en la lista (no se dibujaría)',{semilla:s,cam:[+x.toFixed(1),cam.y,+z.toFixed(1),+cam.yaw.toFixed(3)],lote:l,a:+t.toFixed(1)});break;}
     px=nx;py=ny;pz=nz;}}}
  med.total+=bp.lots.length;}
 const q=(a,p)=>{const b=[...a].sort((x,y)=>x-y);return b[Math.floor(p*(b.length-1))];};
-console.log(`calle · ${N} ciudad(es) · ${med.puntos} puntos de calle, ${med.rayos} rayos en lo que abarca la cámara más ${VISIBLES_CALLE.margen}° a cada lado, ${med.pegan} dan contra un edificio · la lista: mediana ${(100*q(med.lista,.5)).toFixed(0)} % de los lotes (p90 ${(100*q(med.lista,.9)).toFixed(0)} %) · cálculo: mediana ${q(med.ms,.5).toFixed(2)} ms, p90 ${q(med.ms,.9).toFixed(2)} ms`);
+console.log(`calle · ${N} ciudad(es) · ${med.puntos} puntos de calle (${med.afuera} fuera de la grilla), ${med.rayos} rayos en lo que abarca la cámara más ${VISIBLES_CALLE.margen}° a cada lado, ${med.pegan} dan contra un edificio · la lista: mediana ${(100*q(med.lista,.5)).toFixed(0)} % de los lotes (p90 ${(100*q(med.lista,.9)).toFixed(0)} %) · cálculo: mediana ${q(med.ms,.5).toFixed(2)} ms, p90 ${q(med.ms,.9).toFixed(2)} ms`);
 console.log(`fallas: ${[...fallas.values()].reduce((a,f)=>a+f.n,0)}`);for(const [k,f] of fallas)console.log(`  ${f.n}\t${k}\n${f.ej.map(e=>'        '+JSON.stringify(e)).join('\n')}`);
