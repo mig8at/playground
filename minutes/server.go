@@ -45,6 +45,7 @@ func serve(addr string) error {
 	mux.HandleFunc("GET /api/recordings", s.list)
 	mux.HandleFunc("GET /api/recordings/{id}", s.one)
 	mux.HandleFunc("GET /api/recordings/{id}/frames/{file}", s.frame)
+	mux.HandleFunc("GET /api/recordings/{id}/log", s.logs)
 	mux.HandleFunc("POST /api/start", s.start)
 	mux.HandleFunc("POST /api/stop", s.stop)
 	mux.HandleFunc("POST /api/recordings/{id}/summarize", s.summarize)
@@ -188,6 +189,33 @@ func (s *server) frame(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Cache-Control", "max-age=86400")
 	http.ServeFile(w, r, filepath.Join(d, "frames", f))
+}
+
+// logs: lo que la app muestra en la consola de abajo, los tres registros de la grabación tal cual (el final de cada
+// uno, hasta 64 KB): los pasos de frenar y resumir (steps.log), la transcripción de fondo (watch.log) y la grabadora
+// (recorder.log). El «\r» de las barras de avance viaja crudo: la interfaz se queda con lo último de cada línea.
+func (s *server) logs(w http.ResponseWriter, r *http.Request) {
+	d, err := dirOf(r.PathValue("id"))
+	if err != nil {
+		writeErr(w, http.StatusNotFound, err)
+		return
+	}
+	type source struct {
+		ID   string `json:"id"`
+		Text string `json:"text"`
+	}
+	out := []source{}
+	for _, id := range []string{"steps", "watch", "recorder"} {
+		b, err := os.ReadFile(filepath.Join(d, id+".log"))
+		if err != nil {
+			continue
+		}
+		if len(b) > 64<<10 {
+			b = b[len(b)-64<<10:]
+		}
+		out = append(out, source{ID: id, Text: string(b)})
+	}
+	writeJSONResponse(w, map[string]any{"sources": out})
 }
 
 // busy: una operación a la vez (arrancar, frenar, resumir).

@@ -72,7 +72,7 @@ func diarize(d string) ([]TurnSpan, error) {
 		if b, err := cmd.CombinedOutput(); err != nil {
 			return nil, fmt.Errorf("diarize.py: %v: %s", err, tail(string(b), 400))
 		}
-		fmt.Fprintf(os.Stderr, "  · quién habla: %s\n", time.Since(began).Round(100*time.Millisecond))
+		fmt.Fprintf(logw, "  · quién habla: %s\n", time.Since(began).Round(100*time.Millisecond))
 	}
 	var r struct {
 		Segments []TurnSpan `json:"segments"`

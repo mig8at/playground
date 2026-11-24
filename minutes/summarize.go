@@ -215,7 +215,8 @@ func buildScreens(frames []Frame, segs []Segment, total float64, max int) []*Scr
 	return all
 }
 
-func summarize(d string, o summarizeOptions) error {
+func summarize(d string, o summarizeOptions) (err error) {
+	defer stepsLog(d, "armando el resumen")(&err)
 	var meta Meta
 	readJSON(filepath.Join(d, "meta.json"), &meta)
 	st, _ := recorderState(d)
@@ -231,11 +232,11 @@ func summarize(d string, o summarizeOptions) error {
 	// quién habla, antes de cruzar con las pantallas: una frase de dos personas se corta en dos
 	turns, derr := diarize(d)
 	if derr != nil {
-		fmt.Fprintf(os.Stderr, "  ⚠ sin quién habla (queda «reunión»): %v\n", derr)
+		fmt.Fprintf(logw, "  ⚠ sin quién habla (queda «reunión»): %v\n", derr)
 	}
 	segs = splitBySpeaker(segs, turns)
 	screens := buildScreens(frames, segs, total, o.MaxScreens)
-	fmt.Fprintf(os.Stderr, "  · %d frases, %d capturas, %d pantallas para mirar\n", len(segs), len(frames), len(screens))
+	fmt.Fprintf(logw, "  · %d frases, %d capturas, %d pantallas para mirar\n", len(segs), len(frames), len(screens))
 
 	vision := visionSpec()
 	visionUp := false
@@ -243,7 +244,7 @@ func summarize(d string, o summarizeOptions) error {
 		if visionUp {
 			return nil
 		}
-		fmt.Fprintln(os.Stderr, "  · levantando Qwen3-VL-4B en esta Mac…")
+		fmt.Fprintln(logw, "  · levantando Qwen3-VL-4B en esta Mac…")
 		if err := vision.Ensure(90 * time.Second); err != nil {
 			return fmt.Errorf("el modelo de visión: %w", err)
 		}
@@ -256,13 +257,13 @@ func summarize(d string, o summarizeOptions) error {
 		}
 	}
 	for i, s := range screens {
-		fmt.Fprintf(os.Stderr, "\r  · mirando la pantalla %d/%d", i+1, len(screens))
+		fmt.Fprintf(logw, "\r  · mirando la pantalla %d/%d", i+1, len(screens))
 		if err := lookAt(vision, d, s); err != nil {
-			fmt.Fprintf(os.Stderr, "\n  ⚠ %s: %v\n", s.ID, err)
+			fmt.Fprintf(logw, "\n  ⚠ %s: %v\n", s.ID, err)
 		}
 	}
 	if len(screens) > 0 {
-		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(logw)
 	}
 
 	if screens == nil {
@@ -292,15 +293,14 @@ func summarize(d string, o summarizeOptions) error {
 	}
 	tl.Speakers = speakersOf(tl.Segments, names)
 
-	fmt.Fprintln(os.Stderr, "  · escribiendo el resumen…")
+	fmt.Fprintln(logw, "  · escribiendo el resumen…")
 	prompt := summaryPrompt(tl)
 	var summary string
-	var err error
 	if !o.Local {
 		tl.Model = "Claude Haiku 5.5 (claude -p)"
 		summary, err = askHaiku(prompt)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "  ⚠ el resumen no salió de Claude Haiku (%v): lo escribe Qwen3-VL-4B en esta Mac\n", err)
+			fmt.Fprintf(logw, "  ⚠ el resumen no salió de Claude Haiku (%v): lo escribe Qwen3-VL-4B en esta Mac\n", err)
 			o.Local = true
 		}
 	}
@@ -328,7 +328,7 @@ func summarize(d string, o summarizeOptions) error {
 		return err
 	}
 	out := filepath.Join(d, "summary.html")
-	fmt.Fprintf(os.Stderr, "✓ resumen: %s\n", out)
+	fmt.Fprintf(logw, "✓ resumen: %s\n", out)
 	fmt.Println(out)
 	notice.Send(notice.Notice{App: "minutes", Title: "El resumen de la reunión está listo", Body: firstNonEmpty(meta.Title, filepath.Base(d)), Group: "minutes"})
 	return nil

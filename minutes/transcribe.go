@@ -156,14 +156,14 @@ func markFailed(d, rel string, cause error) {
 
 // watch: transcribe mientras la grabadora corre y sale cuando ya no queda nada.
 func watch(d string) error {
-	fmt.Fprintln(os.Stderr, time.Now().Format(time.TimeOnly), "transcribiendo", d)
+	fmt.Fprintln(logw, time.Now().Format(time.TimeOnly), "transcribiendo", d)
 	for {
 		finished := recorderDone(d)
 		if err := transcribePending(d, false); err != nil {
-			fmt.Fprintln(os.Stderr, "error:", err)
+			fmt.Fprintln(logw, "error:", err)
 		}
 		if finished && len(pendingChunks(d)) == 0 {
-			fmt.Fprintln(os.Stderr, time.Now().Format(time.TimeOnly), "listo")
+			fmt.Fprintln(logw, time.Now().Format(time.TimeOnly), "listo")
 			return nil
 		}
 		time.Sleep(time.Second)
@@ -191,7 +191,7 @@ func transcribePending(d string, verbose bool) error {
 	}
 	for i, c := range pend {
 		if verbose {
-			fmt.Fprintf(os.Stderr, "\r  · transcribiendo %d/%d", i+1, len(pend))
+			fmt.Fprintf(logw, "\r  · transcribiendo %d/%d", i+1, len(pend))
 		}
 		rms, err := wavRMS(c.Path)
 		if err != nil {
@@ -208,7 +208,7 @@ func transcribePending(d string, verbose bool) error {
 			// para siempre y «Frenar» no terminaba nunca (visto el 2026-11-23).
 			time.Sleep(time.Second)
 			if segs, err = whisper(model, c, "", lang); err != nil {
-				fmt.Fprintf(os.Stderr, "\n  ⚠ %s no se pudo transcribir, se salta: %v\n", c.rel(), tail(err.Error(), 160))
+				fmt.Fprintf(logw, "\n  ⚠ %s no se pudo transcribir, se salta: %v\n", c.rel(), tail(err.Error(), 160))
 				markFailed(d, c.rel(), err)
 				markDone(d, c.rel())
 				continue
@@ -231,7 +231,7 @@ func transcribePending(d string, verbose bool) error {
 		}
 	}
 	if verbose {
-		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(logw)
 	}
 	return nil
 }

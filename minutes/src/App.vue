@@ -6,7 +6,7 @@
  * Todo pasa por la API (`bin/minutes serve`, minutes/server.go), que usa las mismas funciones que el CLI. Lo grabado
  * no sale de la Mac. Rutas: `#/r/<id>`. */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle } from './workbench.js'
+import { vResize, readSize, saveSize, fitRegions, cssSize, regionSize, reopenSize, bindThemeToggle, bindPanelMaximize } from './workbench.js'
 
 const list = ref([])
 const state = ref({ current: '', phase: '', working: '', error: '' })
@@ -43,7 +43,7 @@ async function load() {
     apiError.value = ''
     if (s.error && s.error !== before.error) error.value = s.error
     if (!selected.value && list.value.length) selected.value = s.current || list.value[0].id
-    if (selected.value) await loadDetail()
+    if (selected.value) await Promise.all([loadDetail(), loadLogs()])
   } catch { apiError.value = 'No contesta la API de Minutes (bin/minutes serve).' }
   loaded.value = true
 }
@@ -247,8 +247,74 @@ const auxResize = {
 function toggleSidebar() { sidebarOpen.value = !shown.value.sidebar; saveSize('minutes.sidebar-open', sidebarOpen.value ? 1 : 0) }
 function toggleAux() { auxOpen.value = !shown.value.aux; saveSize('minutes.aux-open', auxOpen.value ? 1 : 0) }
 
+// ── la consola: los registros de la grabación abierta, en pestañas ──
+// Pasos: lo que hicieron frenar y resumir (steps.log, desde el 2026-11-24). Transcripción: Whisper de fondo
+// (watch.log). Grabadora: Minutes.app (recorder.log). Sirve para ver en qué anda un «Frenar» que tarda.
+const LOG_TABS = [{ id: 'steps', label: 'Pasos' }, { id: 'watch', label: 'Transcripción' }, { id: 'recorder', label: 'Grabadora' }]
+const logTab = ref(readPref('minutes.log-tab', 'steps'))
+watch(logTab, (v) => { try { localStorage.setItem('minutes.log-tab', v) } catch {} })
+const logs = ref({})
+const logBox = ref(null)
+// Una línea: lo último después de un «\r» (las barras de avance se reescriben) y la hora aparte, si la trae. La de la
+// grabadora viene en UTC (ISO): se muestra en la hora de la Mac.
+function parseLog(text) {
+  const out = []
+  for (const raw of String(text || '').split('\n')) {
+    const t = raw.split('\r').filter((x) => x.trim()).pop()?.trimEnd() || ''
+    if (!t) continue
+    let time = '', rest = t, m
+    if ((m = t.match(/^(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ) (.*)$/))) {
+      time = new Date(m[1]).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }); rest = m[2]
+    } else if ((m = t.match(/^── (\d\d:\d\d:\d\d) (.*)$/))) {
+      // el comienzo y el fin de una operación de steps.log
+      out.push({ time: m[1], text: m[2], head: m[2] !== 'listo', end: m[2] === 'listo' })
+      continue
+    } else if ((m = t.match(/^(\d\d:\d\d:\d\d) (.*)$/))) { time = m[1]; rest = m[2] }
+    out.push({ time, text: rest, bad: /^\s*(✗|⚠|error)/i.test(rest) })
+  }
+  return out
+}
+async function loadLogs() {
+  if (!selected.value || !panelShown.value) return
+  const id = selected.value
+  try {
+    const r = await api(`/api/recordings/${id}/log`)
+    if (id !== selected.value) return
+    const el = logBox.value
+    const atEnd = !el || el.scrollHeight - el.scrollTop - el.clientHeight < 40
+    logs.value = Object.fromEntries((r.sources || []).map((x) => [x.id, parseLog(x.text)]))
+    await nextTick()
+    if (atEnd && logBox.value) logBox.value.scrollTop = logBox.value.scrollHeight
+  } catch {}
+}
+const logLines = computed(() => logs.value[logTab.value] || [])
+watch(selected, () => { logs.value = {}; loadLogs() })
+watch(logTab, async () => { await nextTick(); if (logBox.value) logBox.value.scrollTop = logBox.value.scrollHeight })
+
+const viewportH = ref(window.innerHeight)
+const panelOpen = ref(readSize('minutes.panel-open', 1) !== 0)
+const panelH = ref(readSize('minutes.panel-h', 200))
+const panelMax = () => Math.max(cssSize('--panel-min', 124), viewportH.value - 260)
+const panelShown = computed(() => (panelOpen.value ? regionSize(panelH.value, cssSize('--panel-min', 124), panelMax()) : 0))
+const panelResize = {
+  label: 'Alto de la consola', sign: -1, defaultValue: 200,
+  min: () => cssSize('--panel-min', 124), max: panelMax,
+  get: () => panelShown.value,
+  set: (v) => { if (!v) panelOpen.value = false; else { panelOpen.value = true; panelH.value = v } },
+  reopen: () => panelH.value,
+  commit: (v) => { saveSize('minutes.panel-open', v ? 1 : 0); if (v) saveSize('minutes.panel-h', panelH.value) },
+}
+function togglePanel() {
+  if (panelShown.value) panelOpen.value = false
+  else { panelH.value = reopenSize(panelH.value, cssSize('--panel-min', 124), panelMax(), 200); panelOpen.value = true; nextTick(loadLogs) }
+  saveSize('minutes.panel-open', panelOpen.value ? 1 : 0)
+}
+const panelMaxButton = ref(null)
+let panelMaxBinding = null
+watch(panelMaxButton, (el) => { panelMaxBinding?.destroy?.(); panelMaxBinding = el ? bindPanelMaximize(el) : null })
+
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`
-const onWindowResize = () => { viewportW.value = window.innerWidth }
+const onWindowResize = () => { viewportW.value = window.innerWidth; viewportH.value = window.innerHeight }
 const themeToggle = ref(null)
 let themeBinding = null
 let poll = null
@@ -270,6 +336,7 @@ onBeforeUnmount(() => {
   clearInterval(poll)
   clearInterval(tick)
   themeBinding?.destroy?.()
+  panelMaxBinding?.destroy?.()
 })
 </script>
 
@@ -367,6 +434,27 @@ onBeforeUnmount(() => {
       </div>
     </main>
 
+    <section v-if="panelShown && selected" class="panel log-panel" :style="{ height: `${panelShown}px` }" aria-label="El registro de la grabación">
+      <div class="rsz rsz-edge-top" data-rsz="panel" v-resize="panelResize"></div>
+      <nav class="tabs" role="tablist" aria-label="Qué registro">
+        <button v-for="t in LOG_TABS" :key="t.id" type="button" role="tab" class="tab" :aria-selected="logTab === t.id" @click="logTab = t.id">
+          <span>{{ t.label }}</span><span class="count">{{ (logs[t.id] || []).length }}</span>
+        </button>
+        <div class="region-actions">
+          <button ref="panelMaxButton" type="button" class="region-action"></button>
+          <button type="button" class="region-action" title="Cerrar la consola" aria-label="Cerrar la consola" @click="togglePanel">
+            <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+          </button>
+        </div>
+      </nav>
+      <div ref="logBox" class="region-body log-body" role="log">
+        <div v-for="(l, i) in logLines" :key="i" class="log-line" :class="{ 'log-bad': l.bad, 'log-head': l.head, 'log-end': l.end }">
+          <span v-if="l.time" class="log-time">{{ l.time }}</span><span>{{ l.text }}</span>
+        </div>
+        <div v-if="!logLines.length" class="log-empty">{{ logTab === 'steps' ? 'Sin pasos anotados: se anotan al frenar o armar el resumen (desde el 24 de nov.).' : 'Sin registro.' }}</div>
+      </div>
+    </section>
+
     <aside v-show="shown.aux" class="auxiliarybar" aria-label="La conversación">
       <div class="rsz rsz-edge-left" v-resize="auxResize"></div>
       <div class="region-head">
@@ -404,6 +492,9 @@ onBeforeUnmount(() => {
         <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
         <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Mostrar u ocultar las grabaciones" aria-label="Mostrar u ocultar las grabaciones" @click="toggleSidebar">
           <span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span>
+        </button>
+        <button type="button" class="region-action" :aria-pressed="!!panelShown" title="Mostrar u ocultar la consola (el registro de la grabación)" aria-label="Mostrar u ocultar la consola" @click="togglePanel">
+          <span class="ui-icon" data-icon="console" aria-hidden="true"></span>
         </button>
         <button type="button" class="region-action" :aria-pressed="!!shown.aux" title="Mostrar u ocultar la conversación" aria-label="Mostrar u ocultar la conversación" @click="toggleAux">
           <span class="ui-icon" data-icon="comment" aria-hidden="true"></span>

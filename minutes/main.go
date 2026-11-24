@@ -19,6 +19,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -141,6 +142,33 @@ func writeJSON(path string, v any) error {
 		return err
 	}
 	return os.Rename(tmp, path)
+}
+
+// logw: adonde van los pasos de frenar, transcribir y resumir. Además de la terminal (o del log del servidor), mientras
+// dura una operación sobre una grabación quedan en su `steps.log`, que la app muestra en la consola de abajo. Las
+// operaciones van de a una (el servidor las serializa con begin/end, la consola corre una), así que alcanza una variable.
+var logw io.Writer = os.Stderr
+
+// stepsLog manda logw también a <d>/steps.log hasta que se llame lo que devuelve, que anota cómo terminó. Si ya hay
+// una operación anotando (stop llama a summarize), no abre otra.
+func stepsLog(d, what string) func(*error) {
+	if logw != io.Writer(os.Stderr) {
+		return func(*error) {}
+	}
+	f, err := os.OpenFile(filepath.Join(d, "steps.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	if err != nil {
+		return func(*error) {}
+	}
+	fmt.Fprintf(f, "── %s %s\n", time.Now().Format(time.TimeOnly), what)
+	logw = io.MultiWriter(os.Stderr, f)
+	return func(errp *error) {
+		if errp != nil && *errp != nil {
+			fmt.Fprintf(f, "✗ %v\n", *errp)
+		}
+		fmt.Fprintf(f, "── %s listo\n", time.Now().Format(time.TimeOnly))
+		logw = os.Stderr
+		f.Close()
+	}
 }
 
 func alive(pid int) bool {
@@ -308,7 +336,7 @@ func start(args []string) error {
 	return nil
 }
 
-func stop(args []string) error {
+func stop(args []string) (err error) {
 	fs := flag.NewFlagSet("stop", flag.ContinueOnError)
 	noSummary := fs.Bool("no-summary", false, "sólo frenar y transcribir")
 	if err := fs.Parse(args); err != nil {
@@ -319,6 +347,7 @@ func stop(args []string) error {
 		return errors.New("no hay una grabación en curso")
 	}
 	d := filepath.Join(recordingsDir(), strings.TrimSpace(string(b)))
+	defer stepsLog(d, "frenando")(&err)
 	os.WriteFile(filepath.Join(d, "stop"), nil, 0o644)
 	for i := 0; !recorderDone(d); i++ {
 		if i > 100 {
@@ -328,18 +357,18 @@ func stop(args []string) error {
 	}
 	os.Remove(currentFile())
 	st, _ := recorderState(d)
-	fmt.Fprintf(os.Stderr, "■ frenada: %.0f s, %d capturas distintas de %d\n", st.Seconds, st.FramesKept, st.FramesSeen)
+	fmt.Fprintf(logw, "■ frenada: %.0f s, %d capturas distintas de %d\n", st.Seconds, st.FramesKept, st.FramesSeen)
 	// la transcripción de fondo termina los tramos que quedan y sale
 	if pb, err := os.ReadFile(filepath.Join(d, "watch.pid")); err == nil {
 		var pid int
 		fmt.Sscan(string(pb), &pid)
 		if alive(pid) {
-			fmt.Fprintln(os.Stderr, "  · terminando de transcribir…")
+			fmt.Fprintln(logw, "  · terminando de transcribir…")
 		}
 		// a lo sumo 10 min: si la de fondo se quedó trabada, se la corta y lo que falte se transcribe acá abajo
 		for waited := time.Duration(0); alive(pid); waited += 500 * time.Millisecond {
 			if waited > 10*time.Minute {
-				fmt.Fprintln(os.Stderr, "  ⚠ la transcripción de fondo no terminó en 10 min: se corta y se sigue acá")
+				fmt.Fprintln(logw, "  ⚠ la transcripción de fondo no terminó en 10 min: se corta y se sigue acá")
 				syscall.Kill(pid, syscall.SIGTERM)
 				break
 			}

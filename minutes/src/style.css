@@ -110,3 +110,12 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 .p3 { --voice: var(--chart-4) } .p4 { --voice: var(--chart-5) }
 .turn.them[class*=" p"] { border-left: 3px solid var(--voice) }
 .turn[class*=" p"] .turn-head .who { color: var(--voice) }
+
+/* la consola: el registro de la grabación abierta */
+.log-panel { display: flex; flex-direction: column }
+.log-body { flex: 1; padding: var(--space-2) 0 }
+.log-line.log-bad { color: var(--status-bad) }
+.log-line.log-head { color: var(--foreground); margin-top: var(--space-2) }
+.log-line.log-end { color: var(--fg-3) }
+.log-line.log-head:first-child { margin-top: 0 }
+.log-empty { padding: 0 var(--gutter); font-size: var(--text-sm); color: var(--fg-3) }

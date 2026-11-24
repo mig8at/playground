@@ -20,6 +20,13 @@ derecha, «reunión» a la izquierda), también en vivo. Tocar una frase lleva a
 marca sus frases (decisión de Miguel, 2026-11-23). Usa las mismas funciones que el CLI (`server.go`, con la
 guarda de Host y `X-Minutes` como el Llavero); al terminar un resumen avisa por `lib/notice`.
 
+**La consola de abajo** (desde el 2026-11-24; se abre y cierra con su botón en el pie, se maximiza y se arrastra como
+la de Sentinel): los registros de la grabación abierta, en pestañas. **Pasos** (`steps.log`): lo que hicieron frenar
+y resumir, con la hora de comienzo y de fin y el error si lo hubo; es lo que hay que mirar cuando «Frenar» tarda.
+**Transcripción** (`watch.log`, Whisper de fondo) y **Grabadora** (`recorder.log`, Minutes.app). Lo sirve
+`GET /api/recordings/{id}/log` (el final de cada archivo, 64 KB). Los pasos los escribe `stepsLog` (`main.go`): mientras
+dura `stop` o `summarize`, lo que imprimen (`logw`) va a la terminal y al archivo.
+
 **El ícono de la barra de menús** (desde el 2026-11-24, `recorder/menubar.swift`): Minutes.app abierta SIN `--out`
 no graba; queda como un ícono para arrancar y frenar sin Cockpit ni terminal. Se abre con
 `open -g minutes/recorder/.build/Minutes.app` (o queda sola con «Abrir al iniciar sesión», en su menú).
@@ -58,6 +65,8 @@ también lo que no era de la reunión.
 | `frames/<ms>.jpg` + `frames.jsonl` | las capturas que cambiaron (`t` en segundos, `change` = fracción que cambió) | la grabadora |
 | `audio/mic/<ms>.wav` · `audio/system/<ms>.wav` | tramos de 15 s, 16 kHz mono; el nombre es su comienzo | la grabadora |
 | `recorder.json` · `recorder.log` | pid, comienzo, pantalla; al terminar `ended`, segundos y capturas | la grabadora |
+| `watch.log` | la transcripción de fondo | `watch` |
+| `steps.log` | los pasos de frenar y resumir, con su hora y su error | `stop` · `summarize` |
 | `transcript.jsonl` | `{start, end, source: mic\|system, text, chunk, echo?}` | `watch` (de fondo) |
 | `timeline.json` | las pantallas clave con lo que dijo el modelo y cada frase con la captura a la vista | `summarize` |
 | `summary.md` · `summary.html` | el recordatorio: resumen, decisiones, pendientes, momentos en pantalla y la transcripción | `summarize` |
