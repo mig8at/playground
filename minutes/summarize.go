@@ -351,7 +351,8 @@ func lookAt(vision llamaserve.Spec, d string, s *Screen) error {
 		s.Seen = strings.TrimSpace(text)
 		return fmt.Errorf("el modelo no devolvió JSON: %.120s", text)
 	}
-	s.Seen, s.Refers, s.Evidence, s.Key = r.Seen, r.Refers, r.Evidence, max(0, min(3, r.Key))
+	// el modelo a veces trae la frase ya entre comillas, y la interfaz le pone las suyas
+	s.Seen, s.Refers, s.Evidence, s.Key = r.Seen, r.Refers, strings.Trim(strings.TrimSpace(r.Evidence), `«»"“”`), max(0, min(3, r.Key))
 	if s.Said == "" {
 		s.Refers, s.Evidence = false, ""
 	}

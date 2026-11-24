@@ -289,7 +289,7 @@ onBeforeUnmount(() => {
                 <div class="screen-body">
                   <div class="screen-when"><strong>{{ s.id }}</strong> · {{ clock(s.start) }}–{{ clock(s.end) }} <span class="stars">{{ '★'.repeat(s.key || 0) }}</span></div>
                   <div>{{ s.seen || '(sin descripción)' }}</div>
-                  <div v-if="s.refers" class="said">Se habló de esto: «{{ s.evidence }}»</div>
+                  <div v-if="s.refers" class="said">Se habló de esto: «{{ String(s.evidence || '').replace(/^[«»"“”\s]+|[«»"“”\s]+$/g, '') }}»</div>
                 </div>
               </article>
             </div>
