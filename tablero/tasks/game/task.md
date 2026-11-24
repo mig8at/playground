@@ -14,6 +14,11 @@ jira_title: ""
 - [ ] Limpiar de `DemoView.vue` el código dormido del juego viejo: termina cuando el archivo no nombra la ronda ni la persecución fuera de `cargarFuga`.
 - [x] Llevar la vivienda vacía y el punto de aparición al 3D: el paseo dibuja 3.033 muebles menos que el juego viejo en la ciudad chica (los que saca el plano) y la persona aparece en el sitio que da el plano.
 - [x] Sacar de las cocinas vacías lo que el 3D ponía encima de la estufa (una olla y una sartén): en la ciudad chica salieron 236 y 236; la comida que queda es la de los locales.
+- [x] Hacer hermética la puerta de calle (el hueco del marco es la hoja): `validar-fachada3d` da 8 de 8 marcos sin rendija.
+- [x] Dibujar desde la calle sólo lo que se ve, más 35° a cada lado (occlusion culling de los lotes y las plantas del plano): `validar-calle` sin lotes visibles fuera de la lista; de 36 a 61 % menos triángulos en ocho vistas de la ciudad 1.
+- [ ] Llevar la oclusión a lo que está fuera de la grilla del plano —las casas del monte (~390 mil triángulos en una vista de calle), los árboles del mundo, los barrios—: termina cuando una prueba como `validar-calle` los cubre y una vista de calle deja de dibujar los que tapa la ciudad.
+- [ ] Hacer herméticos también los marcos sin hoja (balcón y paso de la terraza del dúplex). Depende de: Miguel — hoy son pasos abiertos a propósito («se sale caminando»); para la oclusión cuentan como una abertura siempre abierta.
+- [ ] Medir los cuadros por segundo y el peor cuadro con y sin oclusión en la Mac, caminando (`?oclusion=0` la apaga): termina cuando se mide con el panel del navegador visible; oculto, los cuadros no corren y los números no sirven.
 - [x] Caminar Colombia (720 m) en 3D con la primera imagen en menos de 15 s: abre en 14 s y rinde 60–74 cuadros por segundo, sin cargar por zonas.
 - [ ] Decidir si hace falta cargar el 3D por zonas. Depende de: Miguel — hoy no hace falta para 720 m; haría falta para una ciudad bastante más grande o para una máquina más lenta que este PC.
 - [x] Dar textura a las fachadas en el 3D: siete texturas dibujadas (ladrillo, ladrillo pintado, sillar, estuco, panel, hormigón, tablilla), la misma en el alzado 2D y en el 3D.
