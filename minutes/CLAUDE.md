@@ -10,7 +10,7 @@ Prototipo del 2026-11-23.
     bin/minutes status
     bin/minutes stop [--no-summary]   frena, termina de transcribir y arma el resumen (~1 min por una reunión corta)
     bin/minutes list · open [carpeta]
-    bin/minutes summarize [carpeta] [--remote] [--max-screens 20]
+    bin/minutes summarize [carpeta] [--local] [--max-screens 20]
     make minutes CMD=start TITLE='Weekly CT'  ·  make minutes CMD=stop
 
 **La app de Cockpit** (`minutes`, `make minutes`: la interfaz en :5248 y la API `bin/minutes serve` en :5249): el botón
@@ -20,12 +20,16 @@ derecha, «reunión» a la izquierda), también en vivo. Tocar una frase lleva a
 marca sus frases (decisión de Miguel, 2026-11-23). Usa las mismas funciones que el CLI (`server.go`, con la
 guarda de Host y `X-Minutes` como el Llavero); al terminar un resumen avisa por `lib/notice`.
 
-## ⚠ Lo grabado no sale de la Mac
+## ⚠ Qué sale de la Mac: sólo el texto del resumen
 
-Los audios y las capturas pueden tener datos internos o de clientes. Quedan en `minutes/recordings/<fecha>/`, que está
-fuera de git (`minutes/.gitignore`). Whisper y Qwen3-VL corren en esta Mac. Lo único que sale es el texto del resumen,
-y sólo con `summarize --remote` (`bin/pg model ask`, el modelo de fondo: el Bedrock de CreditOp). Un servicio externo
-se elige a propósito, nunca por defecto. Las capturas incluyen TODA la pantalla, también lo que no era de la reunión.
+Los audios y las capturas pueden tener datos internos o de clientes. Quedan en `minutes/recordings/<fecha>/`, fuera de
+git (`minutes/.gitignore`), y nunca salen: Whisper, el modelo de voces y Qwen3-VL (que mira cada pantalla) corren en
+esta Mac. **El resumen lo escribe Claude Sonnet 5.5 en el Bedrock de CreditOp** (`bin/pg model ask`; decisión de Miguel
+del 2026-11-23, después de medirlo: el de 4B se perdía pendientes y decisiones). A Bedrock va sólo ese texto: la
+transcripción con quién dijo qué y lo que se vio en cada pantalla, en palabras. Si el modelo de fondo elegido en Cockpit
+no es Claude (Gemini iría a Google) o no contesta (falta `playground login`), el resumen lo escribe Qwen3-VL-4B acá y
+lo dice. `summarize --local` (o `make minutes CMD=summarize LOCAL=1`) lo deja en la Mac. Las capturas incluyen TODA la
+pantalla, también lo que no era de la reunión.
 
 ## Lo que queda en la carpeta
 
@@ -63,10 +67,9 @@ les pongas en la app (`speakers.json`); «reunión» queda sólo si no se pudo s
   tiempo y el 80 % de las frases quedaron con la persona correcta. Lo que falla es lo que no detecta (26 %: pedacitos y
   voces encima en la mezcla). Pasada entera (Whisper + voces + resumen), 5:45 con el modo por partes de entonces.
   Contra el resumen humano de AMI, el de Qwen3-VL-4B acertó los temas y el precio, pero no vio el próximo paso ni el
-  riesgo del presupuesto, y mezcló algo que no se dijo. Con `--remote` (Claude Sonnet 5.5 en el Bedrock de CreditOp, 10 s) cubrió casi
+  riesgo del presupuesto, y mezcló algo que no se dijo. Con Claude Sonnet 5.5 en el Bedrock de CreditOp (10 s, hoy el de siempre) cubrió casi
   todo el resumen humano: la meta de ganancia, el próximo paso, el riesgo del costo de la pantalla, y separó las ideas
-  abiertas de lo decidido. Para una reunión real eso saca el texto (no el audio ni las capturas) de la Mac: lo decide
-  Miguel por reunión. El armado de la prueba (la carpeta desde un WAV, el puntaje DER) está en la tarea.
+  abiertas de lo decidido. Por eso quedó por defecto. El armado de la prueba (la carpeta desde un WAV, el puntaje DER) está en la tarea.
 - **Idioma:** `start --lang en|auto` (por defecto `es`), guardado en `meta.json`; sirvió para probar con ese video.
 
 ## Cómo graba sin pisar el micrófono
@@ -102,8 +105,8 @@ les pongas en la app (`speakers.json`); «reunión» queda sólo si no se pudo s
 - **¿Lo dicho habla de la pantalla?** Qwen3-VL-4B (el de `point`, del registro) recibe la captura y lo dicho mientras
   estaba a la vista, y devuelve `seen`, `refers`, `evidence` y `key` (0–3). Corre en su propio llama-server en :5252
   (`lib/llamaserve`, se apaga a los 3 min sin uso). Ronda los 5 s por pantalla.
-- **El resumen** (resumen, decisiones, pendientes, citando `[P3]`) lo escribe el mismo modelo, o el de fondo con
-  `--remote`. Con 4B hubo que nombrarle qué es una decisión («decidimos», «quedamos en»): sin eso, no la veía.
+- **El resumen** (resumen, decisiones, pendientes, citando `[P3]`) lo escribe Claude en Bedrock (arriba); con
+  `--local`, Qwen3-VL-4B, al que hubo que nombrarle qué es una decisión («decidimos», «quedamos en»).
 
 ## Lo probado (2026-11-23)
 

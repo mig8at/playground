@@ -1,12 +1,12 @@
 // minutes — graba una reunión sin tomar notas: la pantalla (≈1 captura por segundo, sólo las que cambian), el
 // micrófono y el audio del sistema, los transcribe en vivo con Whisper en esta Mac y al final arma un recordatorio que
 // cruza lo dicho con lo que estaba en pantalla, con Qwen3-VL-4B también en esta Mac. Nada sale a un servicio externo
-// salvo que se pida (`summarize --remote`).
+// salvo el texto del resumen, que lo escribe Claude en el Bedrock de CreditOp (`--local` lo deja en la Mac).
 //
 //	bin/minutes start [--title '…'] [--no-mic] [--no-system]   arranca (la grabadora y la transcripción, de fondo)
 //	bin/minutes stop                                            frena, termina de transcribir y arma el resumen
 //	bin/minutes status | live | list | open [carpeta]
-//	bin/minutes summarize [carpeta] [--remote] [--max-screens N]  lo vuelve a armar
+//	bin/minutes summarize [carpeta] [--local] [--max-screens N]  lo vuelve a armar
 //
 // Las piezas: la grabadora es nativa (recorder/main.swift, Minutes.app); `watch` transcribe los tramos a medida que
 // aparecen (transcribe.go); `summarize` arma la línea de tiempo y el resumen (summarize.go). Todo queda en
@@ -38,7 +38,7 @@ func usage() {
   bin/minutes status            la grabación en curso
   bin/minutes live [carpeta]    la transcripción a medida que sale (Ctrl-C sale sin frenar nada)
   bin/minutes list              las grabaciones
-  bin/minutes summarize [carpeta] [--remote] [--max-screens 20]
+  bin/minutes summarize [carpeta] [--local] [--max-screens 20]
   bin/minutes open [carpeta]    abre el resumen (summary.html)
   bin/minutes serve [127.0.0.1:5249]  la API de la app de Cockpit (make minutes)
 `)

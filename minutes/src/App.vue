@@ -53,7 +53,7 @@ const busy = computed(() => !!state.value.phase)
 const phaseText = computed(() => ({
   starting: 'Arrancando la grabadora…',
   finishing: 'Terminando de transcribir y armando el resumen (alrededor de un minuto)…',
-  summarizing: 'Armando el resumen con Qwen3-VL en esta Mac…',
+  summarizing: 'Armando el resumen (las pantallas en esta Mac, el texto con Claude)…',
 }[state.value.phase] || ''))
 
 async function startRecording() {
@@ -288,7 +288,7 @@ onBeforeUnmount(() => {
               <span class="ui-icon" data-icon="mic" aria-hidden="true"></span>{{ state.phase === 'starting' ? 'Arrancando…' : 'Grabar' }}
             </button>
           </form>
-          <p class="rec-note">Pantalla, micrófono y audio de la reunión, sin quitarle el micrófono a Meet o Zoom. Todo queda en esta Mac.</p>
+          <p class="rec-note">Pantalla, micrófono y audio de la reunión, sin quitarle el micrófono a Meet o Zoom. El audio y las capturas quedan en esta Mac; el resumen lo escribe Claude (Bedrock de CreditOp) con el texto.</p>
         </div>
         <a v-for="r in list" :key="r.id" class="rec-row" :class="{ on: r.id === selected }" :href="`#/r/${r.id}`">
           <span class="ui-icon" :data-icon="r.recording ? 'mic' : r.has_summary ? 'paper' : 'audio'" :class="{ 'is-live': r.recording }" aria-hidden="true"></span>
@@ -387,7 +387,7 @@ onBeforeUnmount(() => {
     </aside>
 
     <footer class="statusbar">
-      <span>{{ apiError || (recording ? `● grabando · ${clock(liveSeconds)}` : phaseText || `${plural(list.length, 'grabación', 'grabaciones')} · Whisper y Qwen3-VL en esta Mac`) }}</span>
+      <span>{{ apiError || (recording ? `● grabando · ${clock(liveSeconds)}` : phaseText || `${plural(list.length, 'grabación', 'grabaciones')} · audio y capturas en esta Mac · resumen con Claude`) }}</span>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
         <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
         <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Mostrar u ocultar las grabaciones" aria-label="Mostrar u ocultar las grabaciones" @click="toggleSidebar">

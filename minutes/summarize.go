@@ -8,8 +8,10 @@ package main
 //     MaxScreens, en orden de tiempo.
 //  2. Para cada una, Qwen3-VL-4B en esta Mac (su propio llama-server en :5252, se apaga solo) ve la captura y lo que se
 //     dijo mientras estaba a la vista, y contesta qué se ve, si lo dicho habla de eso y la frase que lo muestra.
-//  3. El resumen de lo dicho (resumen, decisiones, pendientes, citando las pantallas [P3]) lo escribe el mismo modelo;
-//     con --remote, el modelo de fondo (`bin/pg model ask`, el Bedrock de CreditOp): el texto sale de la Mac.
+//  3. El resumen de lo dicho (resumen, decisiones, pendientes, citando las pantallas [P3]) lo escribe Claude en el
+//     Bedrock de CreditOp (`bin/pg model ask`, decisión de Miguel del 2026-11-23: el de 4B se perdía los pendientes).
+//     Sale de la Mac SÓLO ese texto (la transcripción y lo que se vio en cada pantalla, en palabras): el audio y las
+//     capturas no. Si el modelo de fondo no es Claude o no contesta, lo escribe Qwen3-VL-4B acá; --local lo fuerza.
 //  4. Quedan timeline.json, summary.md y summary.html (las imágenes por ruta relativa a frames/).
 
 import (
@@ -36,13 +38,14 @@ import (
 )
 
 type summarizeOptions struct {
-	Remote     bool
+	Local      bool // el resumen con Qwen3-VL-4B en esta Mac, sin sacar el texto
 	MaxScreens int
 }
 
 func summarizeCmd(args []string) error {
 	fs := flag.NewFlagSet("summarize", flag.ContinueOnError)
-	remote := fs.Bool("remote", false, "el resumen del texto con el modelo de fondo (bin/pg model ask): sale de la Mac")
+	local := fs.Bool("local", false, "el resumen con Qwen3-VL-4B en esta Mac, sin sacar el texto (por defecto lo escribe Claude en Bedrock)")
+	fs.Bool("remote", true, "ya es lo de siempre (queda por compatibilidad)")
 	maxScreens := fs.Int("max-screens", 20, "cuántas pantallas mira el modelo de visión, como mucho")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -64,7 +67,7 @@ func summarizeCmd(args []string) error {
 	if err := transcribePending(d, true); err != nil {
 		return err
 	}
-	return summarize(d, summarizeOptions{Remote: *remote, MaxScreens: *maxScreens})
+	return summarize(d, summarizeOptions{Local: *local, MaxScreens: *maxScreens})
 }
 
 // Frame: una captura guardada (frames.jsonl).
@@ -233,10 +236,21 @@ func summarize(d string, o summarizeOptions) error {
 	fmt.Fprintf(os.Stderr, "  · %d frases, %d capturas, %d pantallas para mirar\n", len(segs), len(frames), len(screens))
 
 	vision := visionSpec()
-	if len(screens) > 0 || !o.Remote {
+	visionUp := false
+	ensureVision := func() error {
+		if visionUp {
+			return nil
+		}
 		fmt.Fprintln(os.Stderr, "  · levantando Qwen3-VL-4B en esta Mac…")
 		if err := vision.Ensure(90 * time.Second); err != nil {
 			return fmt.Errorf("el modelo de visión: %w", err)
+		}
+		visionUp = true
+		return nil
+	}
+	if len(screens) > 0 {
+		if err := ensureVision(); err != nil {
+			return err
 		}
 	}
 	for i, s := range screens {
@@ -277,12 +291,20 @@ func summarize(d string, o summarizeOptions) error {
 	prompt := summaryPrompt(tl)
 	var summary string
 	var err error
-	if o.Remote {
-		tl.Model = "modelo de fondo (bin/pg model ask)"
-		summary, err = askRemote(prompt)
-	} else {
+	if !o.Local {
+		var name string
+		name, summary, err = askBedrock(prompt)
+		tl.Model = name + " (Bedrock de CreditOp)"
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "  ⚠ el resumen no salió de Bedrock (%v): lo escribe Qwen3-VL-4B en esta Mac\n", err)
+			o.Local = true
+		}
+	}
+	if o.Local {
 		tl.Model = "Qwen3-VL-4B en esta Mac"
-		summary, err = chat(vision, []any{map[string]any{"type": "text", "text": prompt}}, 1200)
+		if err = ensureVision(); err == nil {
+			summary, err = chat(vision, []any{map[string]any{"type": "text", "text": prompt}}, 1200)
+		}
 	}
 	if err != nil {
 		summary = "_(no se pudo escribir el resumen: " + err.Error() + ")_"
@@ -415,6 +437,32 @@ func chat(vision llamaserve.Spec, content []any, maxTokens int) (string, error) 
 		return "", fmt.Errorf("respuesta sin contenido: %.300s", raw)
 	}
 	return r.Choices[0].Message.Content, nil
+}
+
+// askBedrock: el resumen con el modelo de fondo, sólo si es Claude (el de Bedrock): si en Cockpit se eligió Gemini,
+// el texto iría a Google, y eso no es lo que Miguel decidió. Devuelve el nombre del modelo.
+func askBedrock(prompt string) (string, string, error) {
+	out, err := exec.Command(filepath.Join(root(), "bin", "pg"), "model", "info", "--json").Output()
+	var info struct {
+		Model string `json:"model"`
+		Name  string `json:"name"`
+		Ready bool   `json:"ready"`
+	}
+	if err != nil || json.Unmarshal(out, &info) != nil {
+		return "Claude", "", fmt.Errorf("bin/pg model info no contestó")
+	}
+	name := "Claude"
+	if strings.Contains(info.Name, "sonnet-5-5") {
+		name = "Claude Sonnet 5.5"
+	}
+	if info.Model != "claude" {
+		return name, "", fmt.Errorf("el modelo de fondo es %s, no Claude", info.Model)
+	}
+	if !info.Ready {
+		return name, "", fmt.Errorf("Claude no está listo (¿falta `playground login`?)")
+	}
+	text, err := askRemote(prompt)
+	return name, text, err
 }
 
 func askRemote(prompt string) (string, error) {
