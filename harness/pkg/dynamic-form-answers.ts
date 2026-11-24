@@ -81,7 +81,11 @@ export function answersFromSchema(loaderData: any, ctx: FormContext): Record<str
             else if (ds === 'field_options.countries') { value = String(colombia?.id ?? ''); label = colombia?.name ?? ''; }
             else if (options.length) {
                 const answer = yes ? /^s[ií]$/i : /^no$/i;
-                const pick = options.find((o) => answer.test(o.key ?? o.value ?? '') || answer.test(o.name ?? o.label ?? '')) ?? options[0];
+                // Una lista que ofrece la ocupación del caso (la actividad económica de Finandina: Empleado / Pensionado)
+                // contesta ésa, la misma que se le dicta a las centrales con `--occupation`; si no, sí/no o la primera.
+                const occupation = norm(ctx.occupation ?? '');
+                const pick = options.find((o) => occupation && (norm(o.key ?? o.value ?? '') === occupation || norm(o.name ?? o.label ?? '') === occupation))
+                    ?? options.find((o) => answer.test(o.key ?? o.value ?? '') || answer.test(o.name ?? o.label ?? '')) ?? options[0];
                 value = String(pick.key ?? pick.value ?? pick.id ?? '');
                 label = pick.name ?? pick.label ?? value;
                 optionKey = value;
