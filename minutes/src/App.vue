@@ -146,13 +146,27 @@ function onSummaryClick(e) {
   if (a) { e.preventDefault(); jump(a.dataset.screen) }
 }
 
-// En vivo, la transcripción baja sola al final.
-const liveBox = ref(null)
+// La conversación, a la derecha. En vivo baja sola al final (salvo que la hayas subido para leer algo).
+const dialogBox = ref(null)
+const focusScreen = ref('')
 watch(() => segments.value.length, async () => {
-  if (!isLive.value) return
+  const el = dialogBox.value
+  if (!isLive.value || !el) return
+  const atEnd = el.scrollHeight - el.scrollTop - el.clientHeight < 80
   await nextTick()
-  if (liveBox.value) liveBox.value.scrollTop = liveBox.value.scrollHeight
+  if (atEnd) el.scrollTop = el.scrollHeight
 })
+watch(selected, () => { focusScreen.value = '' })
+// Tocar una pantalla marca sus frases y lleva a la primera.
+async function showLines(id) {
+  focusScreen.value = focusScreen.value === id ? '' : id
+  if (!focusScreen.value) return
+  if (!shown.value.aux) toggleAux()
+  await nextTick()
+  dialogBox.value?.querySelector(`[data-screen-line="${id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+}
+// Tocar una frase lleva a su pantalla.
+function lineClick(g) { if (g.screen) { focusScreen.value = g.screen; jump(g.screen) } }
 
 // ── rutas ──
 function readRoute() {
@@ -168,20 +182,36 @@ const go = (hash) => { if (location.hash === hash) readRoute(); else location.ha
 const viewportW = ref(window.innerWidth)
 const sidebarOpen = ref(readSize('minutes.sidebar-open', 1) !== 0)
 const sidebarW = ref(readSize('minutes.sidebar-w', 260))
-const shownSidebar = computed(() => {
-  const [w] = fitRegions(viewportW.value - cssSize('--editor-min', 360), [{ size: sidebarOpen.value ? sidebarW.value : 0, min: cssSize('--sidebar-min', 200) }])
-  return w
+const auxOpen = ref(readSize('minutes.aux-open', 1) !== 0)
+const auxW = ref(readSize('minutes.aux-w', 400))
+const shown = computed(() => {
+  const min = cssSize('--sidebar-min', 200)
+  // la conversación pesa más que la lista: si no entran las dos, se achica primero la lista
+  const [aux, sidebar] = fitRegions(viewportW.value - cssSize('--editor-min', 360), [
+    { size: auxOpen.value ? auxW.value : 0, min },
+    { size: sidebarOpen.value ? sidebarW.value : 0, min },
+  ])
+  return { sidebar, aux }
 })
-const layoutVars = computed(() => ({ '--sidebar-w': `${shownSidebar.value}px`, '--auxiliarybar-w': '0px' }))
+const layoutVars = computed(() => ({ '--sidebar-w': `${shown.value.sidebar}px`, '--auxiliarybar-w': `${shown.value.aux}px` }))
 const sidebarResize = {
   label: 'Ancho de las grabaciones', sign: 1, defaultValue: 260,
-  min: () => cssSize('--sidebar-min', 200), max: () => viewportW.value - cssSize('--editor-min', 360),
-  get: () => shownSidebar.value,
+  min: () => cssSize('--sidebar-min', 200), max: () => viewportW.value - shown.value.aux - cssSize('--editor-min', 360),
+  get: () => shown.value.sidebar,
   set: (v) => { if (!v) sidebarOpen.value = false; else { sidebarOpen.value = true; sidebarW.value = v } },
   reopen: () => sidebarW.value,
   commit: (v) => { saveSize('minutes.sidebar-open', v ? 1 : 0); if (v) saveSize('minutes.sidebar-w', sidebarW.value) },
 }
-function toggleSidebar() { sidebarOpen.value = !shownSidebar.value; saveSize('minutes.sidebar-open', sidebarOpen.value ? 1 : 0) }
+const auxResize = {
+  label: 'Ancho de la conversación', sign: -1, defaultValue: 400,
+  min: () => cssSize('--sidebar-min', 200), max: () => viewportW.value - shown.value.sidebar - cssSize('--editor-min', 360),
+  get: () => shown.value.aux,
+  set: (v) => { if (!v) auxOpen.value = false; else { auxOpen.value = true; auxW.value = v } },
+  reopen: () => auxW.value,
+  commit: (v) => { saveSize('minutes.aux-open', v ? 1 : 0); if (v) saveSize('minutes.aux-w', auxW.value) },
+}
+function toggleSidebar() { sidebarOpen.value = !shown.value.sidebar; saveSize('minutes.sidebar-open', sidebarOpen.value ? 1 : 0) }
+function toggleAux() { auxOpen.value = !shown.value.aux; saveSize('minutes.aux-open', auxOpen.value ? 1 : 0) }
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`
 const onWindowResize = () => { viewportW.value = window.innerWidth }
@@ -211,7 +241,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="workbench" :style="layoutVars" @click="(e) => { if (confirmDelete && !e.target.closest('[data-confirm]')) confirmDelete = false }">
-    <aside v-show="shownSidebar" class="sidebar" aria-label="Grabaciones">
+    <aside v-show="shown.sidebar" class="sidebar" aria-label="Grabaciones">
       <div class="rsz rsz-edge-right" v-resize="sidebarResize"></div>
       <div class="region-head"><span>Minutes</span><span class="count">{{ list.length }}</span></div>
       <div class="region-body">
@@ -258,17 +288,11 @@ onBeforeUnmount(() => {
           <div v-if="!apiError" class="empty-desc">Tocá «Grabar» antes de que empiece. Al frenar queda un recordatorio con lo dicho, las pantallas que se mostraron y qué frase habla de cuál.</div>
         </div></div>
 
-        <!-- en vivo -->
-        <div v-else-if="isLive" class="live">
-          <figure class="live-frame">
-            <img v-if="lastFrame" :src="frameURL(lastFrame.file)" alt="La última captura">
-            <figcaption>{{ lastFrame ? `Última captura distinta, a los ${clock(lastFrame.t)} · ${plural(detail.frames.length, 'captura', 'capturas')}` : 'Esperando la primera captura…' }}</figcaption>
-          </figure>
-          <div ref="liveBox" class="live-text">
-            <div v-for="(g, i) in segments" :key="i" class="line"><span class="t">{{ clock(g.start) }}</span><span class="who">{{ who(g.source) }}</span><span>{{ g.text }}</span></div>
-            <div class="line pending">{{ segments.length ? 'El texto llega unos 15 s detrás de lo dicho.' : 'La transcripción aparece acá unos 15 s después de que alguien hable.' }}</div>
-          </div>
-        </div>
+        <!-- en vivo: la última captura; lo que se dice va a la derecha -->
+        <figure v-else-if="isLive" class="live-frame">
+          <img v-if="lastFrame" :src="frameURL(lastFrame.file)" alt="La última captura">
+          <figcaption>{{ lastFrame ? `Última captura distinta, a los ${clock(lastFrame.t)} · ${plural(detail.frames.length, 'captura', 'capturas')}` : 'Esperando la primera captura…' }}</figcaption>
+        </figure>
 
         <!-- frenada -->
         <div v-else-if="rec" class="doc">
@@ -277,6 +301,7 @@ onBeforeUnmount(() => {
             <div class="md" v-html="md(timeline.summary)"></div>
           </section>
           <section v-else-if="!working" class="summary">
+            <p v-if="!segments.length" class="doc-meta">No se transcribió nada{{ detail?.pending ? ` (faltan ${detail.pending} tramos)` : '' }}.</p>
             <p class="doc-meta">Todavía no tiene resumen.</p>
             <button type="button" class="btn btn-sm" :disabled="busy" @click="resummarize">Armar el resumen</button>
           </section>
@@ -284,10 +309,11 @@ onBeforeUnmount(() => {
           <template v-if="screens.length">
             <h2>Momentos en pantalla</h2>
             <div class="screens">
-              <article v-for="s in screens" :id="`screen-${s.id}`" :key="s.id" class="screen">
+              <article v-for="s in screens" :id="`screen-${s.id}`" :key="s.id" class="screen" :class="{ focus: focusScreen === s.id }">
                 <a :href="frameURL(s.file)" target="_blank"><img :src="frameURL(s.file)" :alt="s.id" loading="lazy"></a>
                 <div class="screen-body">
-                  <div class="screen-when"><strong>{{ s.id }}</strong> · {{ clock(s.start) }}–{{ clock(s.end) }} <span class="stars">{{ '★'.repeat(s.key || 0) }}</span></div>
+                  <div class="screen-when"><strong>{{ s.id }}</strong> · {{ clock(s.start) }}–{{ clock(s.end) }} <span class="stars">{{ '★'.repeat(s.key || 0) }}</span>
+                    <button v-if="segments.some((g) => g.screen === s.id)" type="button" class="lines-btn" :aria-pressed="focusScreen === s.id" @click="showLines(s.id)">Lo dicho</button></div>
                   <div>{{ s.seen || '(sin descripción)' }}</div>
                   <div v-if="s.refers" class="said">Se habló de esto: «{{ String(s.evidence || '').replace(/^[«»"“”\s]+|[«»"“”\s]+$/g, '') }}»</div>
                 </div>
@@ -295,28 +321,41 @@ onBeforeUnmount(() => {
             </div>
           </template>
 
-          <h2>Transcripción</h2>
-          <div v-if="!segments.length" class="doc-meta">No se transcribió nada{{ detail?.pending ? ` (faltan ${detail.pending} tramos)` : '' }}.</div>
-          <table v-else class="transcript">
-            <tr v-for="(g, i) in segments" :key="i" :class="{ on: g.screen && refers[g.screen] }">
-              <td class="t">{{ clock(g.start) }}</td>
-              <td class="who">{{ who(g.source) }}</td>
-              <td>{{ g.text }}
-                <a v-if="g.screen" class="ref" href="#" @click.prevent="jump(g.screen)">{{ g.screen }}</a>
-                <a v-else-if="g.frame" class="ref muted" :href="frameURL(g.frame)" target="_blank" title="Lo que estaba en pantalla">▣</a>
-              </td>
-            </tr>
-          </table>
         </div>
       </div>
     </main>
+
+    <aside v-show="shown.aux" class="auxiliarybar" aria-label="La conversación">
+      <div class="rsz rsz-edge-left" v-resize="auxResize"></div>
+      <div class="region-head">
+        <span>Conversación</span>
+        <span class="count">{{ segments.length }}</span>
+        <span v-if="isLive" class="live-tag"><span class="rec-dot" aria-hidden="true"></span>en vivo</span>
+        <span class="spacer"></span>
+        <button v-if="focusScreen" type="button" class="region-action" title="Dejar de marcar las frases de la pantalla" aria-label="Dejar de marcar" @click="focusScreen = ''"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
+      </div>
+      <div ref="dialogBox" class="region-body dialog">
+        <div v-if="!segments.length" class="dialog-empty">{{ isLive ? 'Lo que se diga aparece acá unos 15 s después.' : rec ? 'No se transcribió nada.' : '' }}</div>
+        <div v-for="(g, i) in segments" :key="i" class="turn"
+             :class="[g.source === 'mic' ? 'me' : 'them', { 'about-screen': g.screen && refers[g.screen], focus: focusScreen && g.screen === focusScreen, linked: !!g.screen, cont: i > 0 && segments[i - 1].source === g.source && g.start - segments[i - 1].end < 20 }]"
+             :data-screen-line="g.screen || undefined" @click="lineClick(g)">
+          <div class="turn-head" :title="clock(g.start)"><span class="who">{{ who(g.source) }}</span><span class="t">{{ clock(g.start) }}</span>
+            <span v-if="g.screen" class="ref">{{ g.screen }}</span></div>
+          <div class="turn-text">{{ g.text }}</div>
+        </div>
+        <div v-if="isLive && segments.length" class="dialog-empty">El texto llega unos 15 s detrás de lo dicho.</div>
+      </div>
+    </aside>
 
     <footer class="statusbar">
       <span>{{ apiError || (recording ? `● grabando · ${clock(liveSeconds)}` : phaseText || `${plural(list.length, 'grabación', 'grabaciones')} · Whisper y Qwen3-VL en esta Mac`) }}</span>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
         <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
-        <button type="button" class="region-action" :aria-pressed="!!shownSidebar" title="Mostrar u ocultar las grabaciones" aria-label="Mostrar u ocultar las grabaciones" @click="toggleSidebar">
+        <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Mostrar u ocultar las grabaciones" aria-label="Mostrar u ocultar las grabaciones" @click="toggleSidebar">
           <span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span>
+        </button>
+        <button type="button" class="region-action" :aria-pressed="!!shown.aux" title="Mostrar u ocultar la conversación" aria-label="Mostrar u ocultar la conversación" @click="toggleAux">
+          <span class="ui-icon" data-icon="comment" aria-hidden="true"></span>
         </button>
       </div>
     </footer>

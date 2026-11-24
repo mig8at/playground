@@ -14,8 +14,10 @@ Prototipo del 2026-11-23.
     make minutes CMD=start TITLE='Weekly CT'  ·  make minutes CMD=stop
 
 **La app de Cockpit** (`minutes`, `make minutes`: la interfaz en :5248 y la API `bin/minutes serve` en :5249): el botón
-de grabar y frenar, las grabaciones, la vista en vivo (la última captura y lo que se va diciendo) y, ya frenada, el
-recordatorio con las pantallas enlazadas a la transcripción. Usa las mismas funciones que el CLI (`server.go`, con la
+de grabar y frenar y las grabaciones a la izquierda; al centro, en vivo la última captura y, ya frenada, el
+recordatorio y los momentos en pantalla; a la derecha (la barra auxiliar), TODA la conversación, como un chat («yo» a la
+derecha, «reunión» a la izquierda), también en vivo. Tocar una frase lleva a su pantalla y «Lo dicho» en una pantalla
+marca sus frases (decisión de Miguel, 2026-11-23). Usa las mismas funciones que el CLI (`server.go`, con la
 guarda de Host y `X-Minutes` como el Llavero); al terminar un resumen avisa por `lib/notice`.
 
 ## ⚠ Lo grabado no sale de la Mac

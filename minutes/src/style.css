@@ -46,17 +46,32 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 .alert-bad[role="alert"], .alert.working { margin: var(--space-3) var(--space-6) 0; width: auto; box-sizing: border-box }
 .alert.working { color: var(--fg-2) }
 
-/* en vivo */
-.live { display: grid; grid-template-columns: minmax(0, 3fr) minmax(260px, 2fr); gap: var(--space-4); padding: var(--space-4) var(--space-6);
-  height: 100%; box-sizing: border-box }
-.live-frame { margin: 0; min-width: 0 }
+/* en vivo: la última captura ocupa el centro */
+.live-frame { margin: 0; padding: var(--space-4) var(--space-6) }
 .live-frame img { width: 100%; border: 1px solid var(--border); border-radius: var(--radius-md); display: block }
 .live-frame figcaption { margin-top: var(--space-2); font-size: var(--text-xs); color: var(--fg-3) }
-.live-text { overflow-y: auto; min-height: 0; border-left: 1px solid var(--border); padding-left: var(--space-4) }
-.line { display: grid; grid-template-columns: auto auto 1fr; gap: var(--space-2); padding: 4px 0; line-height: 1.45 }
-.line .t, .transcript .t { color: var(--fg-3); font-variant-numeric: tabular-nums; white-space: nowrap }
-.line .who, .transcript .who { color: var(--fg-3); white-space: nowrap }
-.line.pending { display: block; color: var(--fg-3); font-size: var(--text-xs) }
+
+/* la conversación, a la derecha: «yo» a la derecha, «reunión» a la izquierda, como un chat */
+.auxiliarybar .region-head { gap: var(--space-2); justify-content: flex-start }
+.live-tag { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-xs); color: var(--fg-3); font-weight: 400 }
+.live-tag .rec-dot { width: 7px; height: 7px }
+.dialog { display: flex; flex-direction: column; gap: 2px; padding: var(--space-2) var(--space-3) var(--space-4) }
+.dialog-empty { color: var(--fg-3); font-size: var(--text-xs); padding: var(--space-2) 0 }
+.turn { max-width: 88%; align-self: flex-start; margin-top: var(--space-2); padding: 6px 10px; border-radius: var(--radius-md);
+  background: var(--card); border: 1px solid var(--border); line-height: 1.45 }
+.turn.me { align-self: flex-end; background: var(--muted) }
+.turn.cont { margin-top: 0 }
+/* una frase seguida de la misma voz no repite quién ni cuándo, pero sí su pantalla */
+.turn.cont .turn-head .who, .turn.cont .turn-head .t { display: none }
+.turn.cont:not(.linked) .turn-head { display: none }
+.turn.linked { cursor: pointer }
+.turn.linked:hover { border-color: var(--fg-3) }
+.turn.about-screen { box-shadow: inset 3px 0 0 var(--primary) }
+.turn.focus { background: var(--accent); color: var(--accent-foreground) }
+.turn-head { display: flex; gap: var(--space-2); align-items: baseline; font-size: var(--text-xs); color: var(--fg-3); margin-bottom: 2px }
+.turn-head .who { font-weight: 600; color: var(--fg-2) }
+.turn-head .t { font-variant-numeric: tabular-nums }
+.turn-head .ref { margin-left: auto }
 
 /* el recordatorio */
 .doc { padding: var(--space-4) var(--space-6) var(--space-6); max-width: 1100px }
@@ -75,6 +90,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 .screen-when { color: var(--fg-3); font-size: var(--text-xs); margin-bottom: 2px }
 .stars { color: var(--status-warn) }
 .said { margin-top: var(--space-2); padding: 6px 8px; border-radius: var(--radius-sm); background: var(--accent); color: var(--accent-foreground); font-size: var(--text-xs) }
-.transcript { border-collapse: collapse; width: 100% }
-.transcript td { vertical-align: top; padding: 4px 6px; border-bottom: 1px solid var(--border); line-height: 1.45 }
-.transcript tr.on td { background: var(--accent) }
+.screen.focus { box-shadow: 0 0 0 2px var(--primary) }
+.lines-btn { float: right; font: inherit; font-size: var(--text-xs); border: 1px solid var(--border); background: none; color: var(--fg-2);
+  border-radius: var(--radius-sm); padding: 0 6px; cursor: pointer }
+.lines-btn:hover, .lines-btn[aria-pressed="true"] { color: var(--foreground); border-color: var(--fg-3) }
