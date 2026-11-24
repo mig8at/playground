@@ -120,6 +120,55 @@ def fetch_all():
         die("no se pudo traer main a los clones: sin eso, lo que se mide es main viejo")
 
 
+RE_MERGE = re.compile(r"^Merge pull request #(\d+) from \S+?/(\S+)$")
+SYNC_BRANCH = re.compile(r"^(qa|develop|staging|main|main-pro|lab)$|^(merge/|chore/sync|chore/merge)")
+PR_BODY_CAP = 2000  # la descripción de un PR es contexto, no evidencia: lo que decide es el diff
+PR_CACHE = os.path.expanduser("~/.cache/my-tools/knowledge-drift-prs.json")
+
+
+def merged_prs(f):
+    """Los PRs que cambiaron este archivo entre el commit revisado y main, sacados del git local: cada merge «Merge pull
+    request #N from org/rama» cuyo resultado cambió el archivo respecto de su primer padre. Sin los de sincronización
+    (qa, develop, lab… → otra rama), que repiten lo que trajeron los de feature. Es contexto para el triaje (qué se quiso
+    hacer y cuándo); lo que decide es el diff neto."""
+    out = []
+    log = sh(["git", "-C", f["dir"], "log", "--full-history", "--merges", "--format=%H %cs %s",
+              f"{f['base']}..{f['ref']}", "--", f["path"]])
+    for line in log.splitlines():
+        sha, date, subject = (line.split(" ", 2) + ["", ""])[:3]
+        m = RE_MERGE.match(subject)
+        if not m or SYNC_BRANCH.search(m.group(2)):
+            continue
+        if subprocess.run(["git", "-C", f["dir"], "diff", "--quiet", f"{sha}^1", sha, "--", f["path"]]).returncode == 0:
+            continue  # ese merge no cambió el archivo
+        out.append(dict(pr=f"{os.path.basename(f['dir'])}#{m.group(1)}", date=date, branch=m.group(2)))
+    return out
+
+
+def pr_bodies(keys):
+    """Título y descripción de cada PR: lo único que no está en git. Un PR mergeado no cambia, así que queda en caché
+    entre corridas y sólo se piden los nuevos, en paralelo."""
+    try:
+        cache = json.load(open(PR_CACHE))
+    except (OSError, ValueError):
+        cache = {}
+
+    def one(k):
+        slug, n = k.split("#")
+        x = json.loads(sh(["gh", "api", f"repos/Creditop-SAS/{slug}/pulls/{n}"]) or "{}")
+        return k, dict(title=x.get("title"), body=(x.get("body") or "").strip())
+
+    missing = [k for k in keys if k not in cache]
+    with ThreadPoolExecutor(8) as ex:
+        for k, v in ex.map(one, missing):
+            if v["title"] is not None:
+                cache[k] = v
+    os.makedirs(os.path.dirname(PR_CACHE), exist_ok=True)
+    json.dump(cache, open(PR_CACHE, "w"))
+    print(f"  PRs: {len(keys)} · {len(keys) - len(missing)} de la caché · {len(missing)} pedidos a GitHub")
+    return {k: cache.get(k, {}) for k in keys}
+
+
 def step_paquete(args):
     d = run_dir(args, create=True)
     if not args.no_fetch:
@@ -153,7 +202,12 @@ def step_paquete(args):
     with ThreadPoolExecutor(6) as ex:
         files = list(ex.map(build, drift))
 
+    with ThreadPoolExecutor(8) as ex:
+        for f, prs_ in zip(files, ex.map(merged_prs, files)):
+            f["prs"] = prs_
+    bodies = pr_bodies(sorted({p["pr"] for f in files for p in f["prs"]}))
     save(d, "files.json", files)
+    save(d, "prs.json", bodies)
 
     items = {}
     for t in sorted({f["topic"] for f in files}):
@@ -184,7 +238,10 @@ def step_paquete(args):
     for k, v in items.items():
         by_topic[v["topic"]].append(k)
     # cada archivo una vez por tema: el grupo imprime su diff una sola vez, aunque lo citen varias secciones
-    size = lambda t: sum(len(items[k]["prose"]) for k in by_topic[t]) + sum(len(diffs[f]) for f in {f for k in by_topic[t] for f in items[k]["files"]})
+    files_of = lambda t: {f for k in by_topic[t] for f in items[k]["files"]}
+    pr_len = lambda p: min(len((bodies.get(p) or {}).get("body") or ""), PR_BODY_CAP) + 200
+    size = lambda t: (sum(len(items[k]["prose"]) for k in by_topic[t]) + sum(len(diffs[f]) for f in files_of(t))
+                      + sum(pr_len(p) for p in {p["pr"] for f in files_of(t) for p in by_key[f]["prs"]}))
     os.makedirs(os.path.join(d, "triaje"), exist_ok=True)
     # Con 4 grupos fijos, la corrida #20 de Knowledge (2026-11-24, 53 temas) armó grupos de 235 a 350 mil
     # caracteres y ~400 ítems, y Bedrock cortó la invocación: se arman los que hagan falta para los dos topes.
@@ -198,6 +255,18 @@ def step_paquete(args):
                 o.append(f"\n## ÍTEM {k}\n{s['prose']}\n\narchivos que cambiaron (su diff, abajo):")
                 o += [f"- {f}" for f in s["files"]]
                 used += [f for f in s["files"] if f not in used]
+        timeline = {}
+        for f in used:
+            for p in by_key[f]["prs"]:
+                timeline.setdefault(p["pr"], dict(p, files=[]))["files"].append(f)
+        if timeline:
+            o.append("\n\n# CONTEXTO: los PRs que cambiaron estos archivos en este tiempo, por fecha (qué se quiso hacer; lo que decide es el diff)")
+            for p in sorted(timeline.values(), key=lambda x: (x["date"], x["pr"])):
+                b = bodies.get(p["pr"]) or {}
+                body = (b.get("body") or "(sin descripción)")
+                body = body if len(body) <= PR_BODY_CAP else body[:PR_BODY_CAP] + " …[recortada]"
+                quoted = "\n".join("> " + line for line in body.splitlines())  # sus «##» no se confunden con el paquete
+                o.append(f"\n## {p['date']} · {p['pr']} · {p['branch']} — {b.get('title')}\narchivos: {', '.join(p['files'])}\n{quoted}")
         o.append("\n\n# ARCHIVOS: el cambio neto de cada uno, del commit revisado a main")
         o += [f"\n## {f}\n{diffs[f]}" for f in used]
         open(os.path.join(d, "triaje", f"grupo-{g}.md"), "w").write("\n".join(o))

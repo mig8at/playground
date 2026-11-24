@@ -1,6 +1,6 @@
 Sos el paso de TRIAJE de una revisión de knowledge (la biblioteca técnica local de CreditOp) contra main.
 
-Leé ENTERO `{paquete}` (con Read, en tramos). Cada «ÍTEM» es una sección de prosa vigente (o el objetivo de un área sin sección) y los archivos que cambiaron en main desde que se verificó. Al final, en «ARCHIVOS», el CAMBIO NETO de cada archivo: el diff desde el commit con que se escribió la sección hasta main. Si varios PRs lo tocaron, el diff ya trae sólo el resultado final: es lo único que importa.
+Leé ENTERO `{paquete}` (con Read, en tramos). Cada «ÍTEM» es una sección de prosa vigente (o el objetivo de un área sin sección) y los archivos que cambiaron en main desde que se verificó. Después, en «CONTEXTO», los PRs que cambiaron esos archivos en este tiempo, por fecha, con su descripción: sirven para entender QUÉ se quiso hacer, no para decidir. Al final, en «ARCHIVOS», el CAMBIO NETO de cada archivo: el diff desde el commit con que se escribió la sección hasta main. Si varios PRs lo tocaron, el diff ya trae sólo el resultado final: **lo que decide es el diff**; si un PR dice algo que el diff no muestra, manda el diff.
 
 Para CADA ítem, comparando lo que AFIRMA la prosa con lo que el diff cambia:
 - `no_toca`: el diff cambia cosas que la prosa no afirma (otro método, otro caso, nombres, formato, tests, logs). Exigí poder decir QUÉ afirma la prosa y por qué ese diff no lo toca.

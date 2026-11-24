@@ -69,8 +69,8 @@ reintenta; tras un corte de Google, el reintento espera su pausa.
 |---|---|---|---|
 | 1 | Traer main | comando | `cmd/knowledge fetch` (lo hace la mirada que dispara la corrida) |
 | 2 | Detectar | comando | `knowledge check`: qué fuentes cambiaron o se perdieron (2 s: un `ls-tree` por repo y commit) |
-| 3 | Armar paquetes | comando | `drift.py paquete --no-fetch`: el diff neto de cada archivo (del commit revisado a main) y las secciones; los paquetes del triaje. Sin PRs. ~4 s |
-| 4 | Triaje | modelo | `prompts/triage.md`, la prosa contra el diff neto: `no_toca` · `contradice` · `no_se_sabe` |
+| 3 | Armar paquetes | comando | `drift.py paquete --no-fetch`: el diff neto de cada archivo (del commit revisado a main), la línea de tiempo de los PRs que entraron (de git, con su descripción en caché) y las secciones. ~16 s |
+| 4 | Triaje | modelo | `prompts/triage.md`, la prosa contra el diff neto (los PRs, como contexto): `no_toca` · `contradice` · `no_se_sabe` |
 | 5 | Leer código | modelo | `drift.py codigo` arma los paquetes; `prompts/code.md` decide `sigue` · `cambia` (con el texto nuevo) |
 | 6 | Segunda mirada | modelo | `prompts/second-look.md` sobre lo que el triaje descartó, a ciegas |
 | 7 | Juntar | comando | `drift.py final` (con `overrides.json`). **Frena** si queda algo `sin_decidir` o un `cambia` sin texto |

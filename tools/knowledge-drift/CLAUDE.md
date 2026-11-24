@@ -26,15 +26,17 @@ tiene, de a montones y con caché.**
 | traer main | `cmd/knowledge fetch`: UN fetch por clon sólo-main, que baja también el contenido (son parciales, `blob:none`). Lo hace la mirada; `drift.py paquete` lo repite sólo a mano (Knowledge le pasa `--no-fetch`) | ~1–4 min, 25 repos |
 | qué fuente cambió | `knowledge check`: UN `git ls-tree -r` por repo y commit, nunca un proceso por fuente | 2 s (antes 6,5 min: 4 gits por fuente y `cat-file` que bajaba cada archivo) |
 | diffs, commits, renombres | `git diff` / `git log` en el clon | local |
-| armar los paquetes | `drift.py paquete --no-fetch`: el diff NETO de cada archivo, del commit revisado a main | 4 s con 463 fuentes (antes 7 min) |
-| PRs | **no se consultan** | — |
+| armar los paquetes | `drift.py paquete --no-fetch`: el diff NETO de cada archivo, del commit revisado a main | segundos |
+| qué PRs entraron en ese tiempo | del git local: cada «Merge pull request #N from org/rama» entre el commit revisado y main cuyo merge cambió el archivo, sin las ramas de sincronización (qa, develop, lab, `merge/…`, `chore/merge…`) | local |
+| la descripción de esos PRs | `gh api`, sólo las que no están en `~/.cache/my-tools/knowledge-drift-prs.json` (un PR mergeado no cambia), 8 en paralelo | 53 s la primera vez con 85 PRs; 16 s todo el paso con caché (antes 7 min) |
 
 - **Lo que se compara es el cambio NETO, no la historia** (Miguel, 2026-11-24): el archivo en el commit con que se
   escribió la sección contra el archivo en main. Si varios PRs encadenados tocaron lo mismo, el diff ya trae sólo el
   resultado final, que es lo que importa. El triaje leía antes las descripciones de los PRs para decidir sin mirar
-  código: era lo más pesado de cada paquete (una llamada a GitHub por commit) y una forma indirecta de ver lo que el
-  diff dice directo. Ahora el triaje recibe la prosa y el diff neto (hasta 8 mil caracteres por archivo; más es
-  «CAMBIO GRANDE» y va al paso de código, que lee el archivo entero en main).
+  código, y buscarlas costaba una llamada a GitHub por commit. Ahora el triaje recibe la prosa, el diff neto (hasta 8
+  mil caracteres por archivo; más es «CAMBIO GRANDE» y va al paso de código, que lee el archivo entero en main) y, como
+  CONTEXTO, la línea de tiempo de los PRs que entraron en ese tiempo (fecha, rama, título y descripción hasta 2 mil
+  caracteres): qué se quiso hacer, no qué decidir. Si un PR dice algo que el diff no muestra, manda el diff.
 - **Antes de sumar una consulta por ítem** (por fuente, por commit, por archivo), pensá cómo sale de UNA lectura local
   o de un lote. Un paso nuevo que tarde minutos con 500 fuentes está mal armado.
 - **SSH puede no entrar** (2026-11-24: entraba una llave personal sin acceso a la org y el fetch fallaba con «Repository
