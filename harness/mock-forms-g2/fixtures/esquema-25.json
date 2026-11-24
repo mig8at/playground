@@ -1,1 +1,444 @@
-{"code":"DYNAMIC_FORM_SCHEMA_FOUND","message":"Dynamic form schema found.","payload":{"formType":{"id":25,"name":"finandina-creditop-x-additional-info","description":"formulario dinámico de finandina para creditop x (additional info)","status":true},"sections":[{"id":5,"name":"Información personal","description":"Información personal","image":null,"status":true,"sort":1,"fields":[{"id":184,"name":"Departamento de residencia","label":"Departamento de residencia","description":null,"helpMessage":null,"fieldGroup":null,"fieldAppearance":"select","type":"select","validation":{"nullable":false,"dataType":"string","regex":null,"minLength":1,"maxLength":100,"min":null,"max":null},"dataSource":"field_options.country_tree.zones","parentId":null,"relatedFieldId":null,"parentValue":null,"hidden":false,"editable":true,"sort":1,"status":true,"options":[]},{"id":185,"name":"Ciudad de residencia","label":"Ciudad de residencia","description":null,"helpMessage":null,"fieldGroup":null,"fieldAppearance":"select","type":"select","validation":{"nullable":false,"dataType":"string","regex":null,"minLength":1,"maxLength":100,"min":null,"max":null},"dataSource":"field_options.country_tree.zones.cities","parentId":null,"relatedFieldId":184,"parentValue":null,"hidden":false,"editable":true,"sort":2,"status":true,"options":[]},{"id":186,"name":"Dirección de residencia","label":"Dirección de residencia","description":null,"helpMessage":null,"fieldGroup":null,"fieldAppearance":"text","type":"text","validation":{"nullable":false,"dataType":"string","regex":null,"minLength":1,"maxLength":100,"min":null,"max":null},"dataSource":null,"parentId":null,"relatedFieldId":null,"parentValue":null,"hidden":false,"editable":true,"sort":3,"status":true,"options":[]},{"id":320,"name":"Actividad económica","label":"Actividad económica","description":null,"helpMessage":"Selecciona una opción","fieldGroup":null,"fieldAppearance":"select","type":"select","validation":{"nullable":false,"dataType":"string","regex":null,"minLength":1,"maxLength":100,"min":null,"max":null},"dataSource":null,"parentId":null,"relatedFieldId":null,"parentValue":null,"hidden":false,"editable":true,"sort":4,"status":true,"options":[{"id":244,"key":"empleado","name":"Empleado","sort":1,"status":true}]},{"id":321,"name":"Nombre de la empresa empleadora (Opcional)","label":"Nombre de la empresa empleadora (Opcional)","description":null,"helpMessage":null,"fieldGroup":null,"fieldAppearance":"text","type":"text","validation":{"nullable":true,"dataType":"string","regex":null,"minLength":1,"maxLength":100,"min":null,"max":null},"dataSource":null,"parentId":null,"relatedFieldId":null,"parentValue":null,"hidden":false,"editable":true,"sort":5,"status":true,"options":[]}]},{"id":35,"name":"Otras declaraciones","description":"","image":null,"status":true,"sort":6,"fields":[{"id":322,"name":"¿Tú, tu cónyuge o familiar hasta 2° grado son PEP?","label":"¿Tú, tu cónyuge o familiar hasta 2° grado son PEP?","description":null,"helpMessage":null,"fieldGroup":null,"fieldAppearance":"radio","type":"radio","validation":{"nullable":false,"dataType":"string","regex":null,"minLength":1,"maxLength":2,"min":null,"max":null},"dataSource":null,"parentId":null,"relatedFieldId":null,"parentValue":null,"hidden":false,"editable":true,"sort":6,"status":true,"options":[{"id":240,"key":"si","name":"Sí","sort":1,"status":true},{"id":241,"key":"no","name":"No","sort":2,"status":true}]},{"id":323,"name":"¿Tienes participación accionaria en compañía con accionistas PEP?","label":"¿Tienes participación accionaria en compañía con accionistas PEP?","description":null,"helpMessage":null,"fieldGroup":null,"fieldAppearance":"radio","type":"radio","validation":{"nullable":false,"dataType":"string","regex":null,"minLength":1,"maxLength":2,"min":null,"max":null},"dataSource":null,"parentId":null,"relatedFieldId":null,"parentValue":null,"hidden":false,"editable":true,"sort":7,"status":true,"options":[{"id":242,"key":"si","name":"Sí","sort":1,"status":true},{"id":243,"key":"no","name":"No","sort":2,"status":true}]}]}]},"errors":null}
+{
+  "code": "DYNAMIC_FORM_SCHEMA_FOUND",
+  "message": "Dynamic form schema found.",
+  "payload": {
+    "formType": {
+      "id": 25,
+      "name": "finandina-creditop-x-additional-info",
+      "description": "formulario dinámico de finandina para creditop x (additional info)",
+      "status": true
+    },
+    "sections": [
+      {
+        "id": 5,
+        "name": "Información personal",
+        "description": "Información personal",
+        "image": null,
+        "status": true,
+        "sort": 1,
+        "fields": [
+          {
+            "id": 184,
+            "name": "Departamento de residencia",
+            "label": "Departamento de residencia",
+            "description": null,
+            "helpMessage": null,
+            "fieldGroup": null,
+            "fieldAppearance": "select",
+            "type": "select",
+            "validation": {
+              "nullable": false,
+              "dataType": "string",
+              "regex": null,
+              "minLength": 1,
+              "maxLength": 100,
+              "min": null,
+              "max": null
+            },
+            "dataSource": "field_options.country_tree.zones",
+            "parentId": null,
+            "relatedFieldId": null,
+            "parentValue": null,
+            "hidden": false,
+            "editable": true,
+            "sort": 1,
+            "status": true,
+            "options": []
+          },
+          {
+            "id": 185,
+            "name": "Ciudad de residencia",
+            "label": "Ciudad de residencia",
+            "description": null,
+            "helpMessage": null,
+            "fieldGroup": null,
+            "fieldAppearance": "select",
+            "type": "select",
+            "validation": {
+              "nullable": false,
+              "dataType": "string",
+              "regex": null,
+              "minLength": 1,
+              "maxLength": 100,
+              "min": null,
+              "max": null
+            },
+            "dataSource": "field_options.country_tree.zones.cities",
+            "parentId": null,
+            "relatedFieldId": 184,
+            "parentValue": null,
+            "hidden": false,
+            "editable": true,
+            "sort": 2,
+            "status": true,
+            "options": []
+          },
+          {
+            "id": 186,
+            "name": "Dirección de residencia",
+            "label": "Dirección de residencia",
+            "description": null,
+            "helpMessage": null,
+            "fieldGroup": null,
+            "fieldAppearance": "text",
+            "type": "text",
+            "validation": {
+              "nullable": false,
+              "dataType": "string",
+              "regex": null,
+              "minLength": 1,
+              "maxLength": 100,
+              "min": null,
+              "max": null
+            },
+            "dataSource": null,
+            "parentId": null,
+            "relatedFieldId": null,
+            "parentValue": null,
+            "hidden": false,
+            "editable": true,
+            "sort": 3,
+            "status": true,
+            "options": []
+          },
+          {
+            "id": 320,
+            "name": "Actividad económica",
+            "label": "Actividad económica",
+            "description": null,
+            "helpMessage": "Selecciona una opción",
+            "fieldGroup": null,
+            "fieldAppearance": "select",
+            "type": "select",
+            "validation": {
+              "nullable": false,
+              "dataType": "string",
+              "regex": null,
+              "minLength": 1,
+              "maxLength": 100,
+              "min": null,
+              "max": null
+            },
+            "dataSource": null,
+            "parentId": null,
+            "relatedFieldId": null,
+            "parentValue": null,
+            "hidden": false,
+            "editable": true,
+            "sort": 4,
+            "status": true,
+            "options": [
+              {
+                "id": 244,
+                "key": "empleado",
+                "name": "Empleado",
+                "sort": 1,
+                "status": true
+              },
+              {
+                "id": 9001,
+                "key": "pensionado",
+                "name": "Pensionado",
+                "sort": 2,
+                "status": true
+              }
+            ]
+          },
+          {
+            "id": 321,
+            "name": "Nombre de la empresa empleadora (Opcional)",
+            "label": "Nombre de la empresa empleadora (Opcional)",
+            "description": null,
+            "helpMessage": null,
+            "fieldGroup": null,
+            "fieldAppearance": "text",
+            "type": "text",
+            "validation": {
+              "nullable": true,
+              "dataType": "string",
+              "regex": null,
+              "minLength": 1,
+              "maxLength": 100,
+              "min": null,
+              "max": null
+            },
+            "dataSource": null,
+            "parentId": 320,
+            "relatedFieldId": null,
+            "parentValue": "empleado",
+            "hidden": false,
+            "editable": true,
+            "sort": 5,
+            "status": true,
+            "options": []
+          }
+        ]
+      },
+      {
+        "id": 35,
+        "name": "Otras declaraciones",
+        "description": "",
+        "image": null,
+        "status": true,
+        "sort": 6,
+        "fields": [
+          {
+            "id": 322,
+            "name": "¿Tú, tu cónyuge o familiar hasta 2° grado son PEP?",
+            "label": "¿Tú, tu cónyuge o familiar hasta 2° grado son PEP?",
+            "description": null,
+            "helpMessage": null,
+            "fieldGroup": null,
+            "fieldAppearance": "radio",
+            "type": "radio",
+            "validation": {
+              "nullable": false,
+              "dataType": "string",
+              "regex": null,
+              "minLength": 1,
+              "maxLength": 2,
+              "min": null,
+              "max": null
+            },
+            "dataSource": null,
+            "parentId": null,
+            "relatedFieldId": null,
+            "parentValue": null,
+            "hidden": false,
+            "editable": true,
+            "sort": 1,
+            "status": true,
+            "options": [
+              {
+                "id": 240,
+                "key": "si",
+                "name": "Sí",
+                "sort": 1,
+                "status": true
+              },
+              {
+                "id": 241,
+                "key": "no",
+                "name": "No",
+                "sort": 2,
+                "status": true
+              }
+            ]
+          },
+          {
+            "id": 9101,
+            "name": "Nombre de la entidad",
+            "label": "Nombre de la entidad",
+            "description": null,
+            "helpMessage": null,
+            "fieldGroup": null,
+            "fieldAppearance": "text",
+            "type": "text",
+            "validation": {
+              "nullable": false,
+              "dataType": "string",
+              "regex": null,
+              "minLength": 1,
+              "maxLength": 100,
+              "min": null,
+              "max": null
+            },
+            "dataSource": null,
+            "parentId": 322,
+            "relatedFieldId": null,
+            "parentValue": "si",
+            "hidden": false,
+            "editable": true,
+            "sort": 2,
+            "status": true,
+            "options": []
+          },
+          {
+            "id": 9102,
+            "name": "Fecha de vinculación",
+            "label": "Fecha de vinculación",
+            "description": null,
+            "helpMessage": null,
+            "fieldGroup": null,
+            "fieldAppearance": "date",
+            "type": "date",
+            "validation": {
+              "nullable": false,
+              "dataType": "date",
+              "regex": null,
+              "minLength": null,
+              "maxLength": null,
+              "min": null,
+              "max": null
+            },
+            "dataSource": null,
+            "parentId": 322,
+            "relatedFieldId": null,
+            "parentValue": "si",
+            "hidden": false,
+            "editable": true,
+            "sort": 3,
+            "status": true,
+            "options": []
+          },
+          {
+            "id": 9103,
+            "name": "Fecha de retiro",
+            "label": "Fecha de retiro (Opcional)",
+            "description": null,
+            "helpMessage": null,
+            "fieldGroup": null,
+            "fieldAppearance": "date",
+            "type": "date",
+            "validation": {
+              "nullable": true,
+              "dataType": "date",
+              "regex": null,
+              "minLength": null,
+              "maxLength": null,
+              "min": null,
+              "max": null
+            },
+            "dataSource": null,
+            "parentId": 322,
+            "relatedFieldId": null,
+            "parentValue": "si",
+            "hidden": false,
+            "editable": true,
+            "sort": 4,
+            "status": true,
+            "options": []
+          },
+          {
+            "id": 323,
+            "name": "¿Tienes participación accionaria en compañía con accionistas PEP?",
+            "label": "¿Tienes participación accionaria en compañía con accionistas PEP?",
+            "description": null,
+            "helpMessage": null,
+            "fieldGroup": null,
+            "fieldAppearance": "radio",
+            "type": "radio",
+            "validation": {
+              "nullable": false,
+              "dataType": "string",
+              "regex": null,
+              "minLength": 1,
+              "maxLength": 2,
+              "min": null,
+              "max": null
+            },
+            "dataSource": null,
+            "parentId": null,
+            "relatedFieldId": null,
+            "parentValue": null,
+            "hidden": false,
+            "editable": true,
+            "sort": 5,
+            "status": true,
+            "options": [
+              {
+                "id": 242,
+                "key": "si",
+                "name": "Sí",
+                "sort": 1,
+                "status": true
+              },
+              {
+                "id": 243,
+                "key": "no",
+                "name": "No",
+                "sort": 2,
+                "status": true
+              }
+            ]
+          },
+          {
+            "id": 9111,
+            "name": "Nombre de la entidad",
+            "label": "Nombre de la entidad",
+            "description": null,
+            "helpMessage": null,
+            "fieldGroup": null,
+            "fieldAppearance": "text",
+            "type": "text",
+            "validation": {
+              "nullable": false,
+              "dataType": "string",
+              "regex": null,
+              "minLength": 1,
+              "maxLength": 100,
+              "min": null,
+              "max": null
+            },
+            "dataSource": null,
+            "parentId": 323,
+            "relatedFieldId": null,
+            "parentValue": "si",
+            "hidden": false,
+            "editable": true,
+            "sort": 6,
+            "status": true,
+            "options": []
+          },
+          {
+            "id": 9112,
+            "name": "Fecha de vinculación",
+            "label": "Fecha de vinculación",
+            "description": null,
+            "helpMessage": null,
+            "fieldGroup": null,
+            "fieldAppearance": "date",
+            "type": "date",
+            "validation": {
+              "nullable": false,
+              "dataType": "date",
+              "regex": null,
+              "minLength": null,
+              "maxLength": null,
+              "min": null,
+              "max": null
+            },
+            "dataSource": null,
+            "parentId": 323,
+            "relatedFieldId": null,
+            "parentValue": "si",
+            "hidden": false,
+            "editable": true,
+            "sort": 7,
+            "status": true,
+            "options": []
+          },
+          {
+            "id": 9113,
+            "name": "Fecha de retiro",
+            "label": "Fecha de retiro (Opcional)",
+            "description": null,
+            "helpMessage": null,
+            "fieldGroup": null,
+            "fieldAppearance": "date",
+            "type": "date",
+            "validation": {
+              "nullable": true,
+              "dataType": "date",
+              "regex": null,
+              "minLength": null,
+              "maxLength": null,
+              "min": null,
+              "max": null
+            },
+            "dataSource": null,
+            "parentId": 323,
+            "relatedFieldId": null,
+            "parentValue": "si",
+            "hidden": false,
+            "editable": true,
+            "sort": 8,
+            "status": true,
+            "options": []
+          }
+        ]
+      }
+    ]
+  },
+  "errors": null
+}

@@ -1,6 +1,7 @@
 // dynamic-form-answers.ts — llena un formulario dinámico de form-service (el «backend-driven») a partir de su
 // esquema, como lo haría un cliente que contesta lo mínimo: «no» en las preguntas de sí/no, la primera opción en
-// las listas, Bogotá en las ubicaciones y un texto plausible en lo libre.
+// las listas, Bogotá en las ubicaciones y un texto plausible en lo libre. Con `E2E_ANSWER_YES=1` contesta «sí» en las de
+// sí/no, para recorrer lo que aparece sólo con «sí» (los datos de una PEP de Finandina).
 //
 // ⚠ RESPETA LAS DEPENDENCIAS DEL ESQUEMA. Un campo con `parentId` sólo aparece si su padre tiene el valor
 // `parentValue` (por ejemplo, las preguntas de empleo dependen de la ocupación, el campo 29, que no está en el
@@ -49,9 +50,14 @@ export function answersFromSchema(loaderData: any, ctx: FormContext): Record<str
         || zone?.cities?.find((c) => /bogot/i.test(c.name)) || zone?.cities?.[0];
     const colombia = countries.find((c) => /colombia/i.test(c.name)) ?? countries[0];
 
-    // Lo que «muestra» cada campo contestado, para resolver las dependencias: el nombre de la opción elegida
-    // (`parentValue` compara contra el nombre, «Sí»), o el valor tal cual.
-    const shown = new Map<number, string>([[29, ctx.occupation]]);
+    // Lo que «muestra» cada campo contestado, para resolver las dependencias: la clave y el nombre de la opción
+    // elegida, o el valor tal cual. `parentValue` se compara como el wizard (`field-visibility.ts`): sin tildes ni
+    // mayúsculas, y con varios valores separados por «|». Antes se comparaba exacto contra el nombre («Sí»), y un
+    // `parentValue` con la clave («si», «empleado»), que es como está en qa, dejaba el campo sin contestar.
+    const shown = new Map<number, string[]>([[29, [ctx.occupation]]]);
+    const sameAs = (allowed: string, current: string[]) =>
+        allowed.split('|').map(norm).some((a) => current.map(norm).includes(a));
+    const yes = process.env.E2E_ANSWER_YES === '1';
     const out: Record<string, string | number> = {};
 
     // Varias pasadas: un campo puede depender de otro que aparece más abajo en el esquema.
@@ -64,32 +70,38 @@ export function answersFromSchema(loaderData: any, ctx: FormContext): Record<str
             if (key in out) continue;
             const parent = f.parentId ?? idOfKey(f.dependency?.parentFormKey);
             const parentValue = f.parentValue ?? f.dependency?.parentValue;
-            if (parent != null && shown.get(parent) !== parentValue) continue;
+            if (parent != null && !(shown.has(parent) && sameAs(String(parentValue ?? ''), shown.get(parent)!))) continue;
             const ds = f.dataSource ?? '';
             const options = f.options ?? [];
             let value: string | number;
             let label: string;
+            let optionKey = '';
             if (ds === 'field_options.country_tree.zones') { value = zone?.name ?? ''; label = value; }
             else if (ds === 'field_options.country_tree.zones.cities') { value = city?.name ?? ''; label = value; }
             else if (ds === 'field_options.countries') { value = String(colombia?.id ?? ''); label = colombia?.name ?? ''; }
             else if (options.length) {
-                const pick = options.find((o) => /^no$/i.test(o.key ?? o.value ?? '') || /^no$/i.test(o.name ?? o.label ?? '')) ?? options[0];
+                const answer = yes ? /^s[ií]$/i : /^no$/i;
+                const pick = options.find((o) => answer.test(o.key ?? o.value ?? '') || answer.test(o.name ?? o.label ?? '')) ?? options[0];
                 value = String(pick.key ?? pick.value ?? pick.id ?? '');
                 label = pick.name ?? pick.label ?? value;
+                optionKey = value;
             } else if (/^field_options\.years/.test(ds)) {
                 // Los años del vehículo: la fuente no viaja en el esquema; un año reciente es una respuesta válida.
                 value = String(new Date().getFullYear() - 2); label = value;
             } else if (f.type === 'date') {
-                // Una fecha a futuro (p. ej. el vencimiento de la licencia), en el formato del input de fecha.
-                value = `${new Date().getFullYear() + 3}-01-15`; label = value;
+                // Una fecha en el formato del input de fecha: a futuro (el vencimiento de la licencia), o en el pasado si
+                // es de una vinculación (la de una PEP).
+                const past = /vincula|retiro|ingreso/i.test(f.label ?? '');
+                value = past ? `${new Date().getFullYear() - (/retiro/i.test(f.label ?? '') ? 1 : 4)}-02-01` : `${new Date().getFullYear() + 3}-01-15`;
+                label = value;
             } else if (f.type === 'currency') {
                 value = /pasiv/i.test(f.label ?? '') ? (ctx.liabilities ?? 1_000_000) : (ctx.assets ?? 10_000_000);
                 label = String(value);
             } else if (f.type === 'tel') { value = '3000000000'; label = value; }
             else if (f.type === 'number') { value = 0; label = '0'; }
             else { value = /direcc/i.test(f.label ?? '') ? 'CALLE 10 # 20-30' : 'PRUEBA HARNESS'; label = value; }
-            out[key] = value;
-            shown.set(f.id, label);
+            out[String(f.id)] = value;
+            shown.set(f.id, [label, optionKey].filter(Boolean));
         }
     }
     return out;
