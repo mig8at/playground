@@ -182,10 +182,12 @@ export function plantBatched(kit,name,items,group,{shadow=true}={}){
    const bm=new THREE.BatchedMesh(items.length,g.attributes.position.count*subs.length,subs.reduce((t,x)=>t+x.index.count,0),mat);bm.sortObjects=!!mat.transparent;const gids=subs.map(x=>bm.addGeometry(x)),ids=[];
    items.forEach(it=>{const iid=bm.addInstance(gids[0]);o.position.set(it.x,it.y,it.z);o.rotation.set(0,it.ry||0,0);o.scale.set(it.sx??it.s??1,it.sy??it.s??1,it.sz??it.sx??it.s??1);o.updateMatrix();bm.setMatrixAt(iid,o.matrix);if(it.tint)bm.setColorAt(iid,c.set(it.tint));ids.push(iid);});
    bm.castShadow=shadow;bm.receiveShadow=true;bm.name='plantas';bm.userData.niveles=subs.map(x=>x.index.count/3);group.add(bm);todas.push({bm,ids,gids});}}
- let antes=null,celdasW=0;const nivel=new Uint8Array(items.length);
- const enCelda=it=>!antes||antes.has(Math.floor(it.z/6)*celdasW+Math.floor(it.x/6));
+ let antes=null,celdasW=0,celdasH=Infinity;const nivel=new Uint8Array(items.length);
+ // (lo que queda fuera de la grilla del plano —las palmeras de la playa— ningún rayo lo marca: se queda prendido. 2026-11-23,
+ // con la oclusión desde la calle desaparecían)
+ const enCelda=it=>{if(!antes)return true;const cx=Math.floor(it.x/6),cz=Math.floor(it.z/6);return cx<0||cz<0||cx>=celdasW||cz>=celdasH||antes.has(cz*celdasW+cx);};
  const aplicar=i=>{const v=enCelda(items[i]);for(const {bm,ids} of todas)bm.setVisibleAt(ids[i],v);};
- const setCeldas=(celdas,W,S=6)=>{if(celdas===antes)return;antes=celdas;celdasW=W;items.forEach((it,i)=>aplicar(i));};
+ const setCeldas=(celdas,W,S=6,H=Infinity)=>{if(celdas===antes)return;antes=celdas;celdasW=W;celdasH=H;items.forEach((it,i)=>aplicar(i));};
  // (entera hasta PLANTA_LEJOS.enteraHasta; más allá, la liviana; vuelve a entera más acá de vuelve × eso, para no titilar)
  const setLejos=(x,z)=>{const L=PLANTA_LEJOS.enteraHasta;items.forEach((it,i)=>{const d=Math.hypot(it.x-x,it.z-z),k=nivel[i]?(d<L*PLANTA_LEJOS.vuelve?0:1):(d>L?1:0);
    if(k!==nivel[i]){nivel[i]=k;for(const t of todas)t.bm.setGeometryIdAt(t.ids[i],t.gids[k]);}});};

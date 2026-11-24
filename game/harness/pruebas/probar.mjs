@@ -81,8 +81,9 @@ const NIVELES=[
   {n:'colisiones',f:'validar-colisiones.mjs',a:[N,S0],fallas:F,res:/^paso libre/,node:grande},
   {n:'suelo',f:'validar-suelo.mjs',a:[2,S0],fallas:F,res:/^suelo/,node:grande},
   {n:'pisos',f:'validar-pisos.mjs',a:[RAP?1:2,S0],fallas:F,res:/^pisos/,node:grande}]},
- {n:8,t:'Visibilidad',d:'qué se ve desde adentro y qué se aclara',p:[
-  {n:'visibles',f:'validar-visibles.mjs',a:[2,S0,800],fallas:F,res:/^visibles/,lento:true}]},
+ {n:8,t:'Visibilidad',d:'qué se ve desde adentro, qué se ve desde la calle (la oclusión) y qué se aclara',p:[
+  {n:'visibles',f:'validar-visibles.mjs',a:[2,S0,800],fallas:F,res:/^visibles/,lento:true},
+  {n:'calle',f:'validar-calle.mjs',a:[RAP?1:2,S0],fallas:F,res:/^calle/}]},
  {n:9,t:'Ciudad',d:'los personajes, las viviendas, la sociedad (familias, trabajos y horarios), la gente caminando y la rutina (agenda y necesidades)',p:[
   {n:'personajes',f:'validar-personajes.mjs',a:[],fallas:F,res:/^personajes/},
   {n:'estado',f:'validar-estado.mjs',a:[],fallas:F,res:/^estado/},

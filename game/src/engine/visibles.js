@@ -39,23 +39,49 @@ export function visiblesDesde(bp,loteId,nivel){const A=alturasDe(bp),k=loteId+':
  const V=VISIBLES;
  if(lv){const y0=nivel*ALTURA.piso;
   for(const [ax,az,bx,bz,nx,nz] of aberturasDe(L,lv))for(let k2=0;k2<V.puntos;k2++){const t=(k2+.5)/V.puntos,px=ax+(bx-ax)*t+nx*.05,pz=az+(bz-az)*t+nz*.05,base=Math.atan2(nz,nx);
-   for(const oj of V.ojos){
-    // (un rayo por dirección de la grilla —azimut, elevación— y, donde dos vecinos dan distinto —uno pasa por encima de
-    // un techo o por el costado y el otro pega—, rayos en el medio hasta V.fino grados, en los dos sentidos: lo que asoma
-    // entre los dos no se escapa)
-    const tira=(a,e)=>{const az2=base+a*Math.PI/180,el=e*Math.PI/180,c=Math.cos(el),l=rayo(A,px,y0+oj,pz,Math.cos(az2)*c,Math.sin(el),Math.sin(az2)*c,loteId);for(const ci of rayo.celdas)celdas.add(ci);if(l>=0){lotes.add(l);
-      const hueco=1.5*rayo.t*Math.sin(V.fino*Math.PI/180)+2,c0=Math.floor((rayo.x-hueco)/CELL),c1=Math.floor((rayo.x+hueco)/CELL),r0=Math.floor((rayo.z-hueco)/CELL),r1=Math.floor((rayo.z+hueco)/CELL);
-      for(let cz=r0;cz<=r1;cz++)for(let cx=c0;cx<=c1;cx++){if(cx<0||cz<0||cx>=A.W||cz>=A.H)continue;const m=A.lote[cz*A.W+cx];if(m>=0)lotes.add(m);}}
-     return l;};
-    const parteE=(a,e0,l0,e1,l1)=>{if(l0===l1||e1-e0<=V.fino)return;const em=(e0+e1)/2,lm=tira(a,em);parteE(a,e0,l0,em,lm);parteE(a,em,lm,e1,l1);};
-    const parteA=(e,a0,l0,a1,l1)=>{if(l0===l1||a1-a0<=V.fino)return;const am=(a0+a1)/2,lm=tira(am,e);parteA(e,a0,l0,am,lm);parteA(e,am,lm,a1,l1);};
-    const es=[];for(let e=V.elevacion[0];e<=V.elevacion[1];e+=V.elevacion[2])es.push(e);let prev=null;
-    for(let a=-88;a<=88;a+=V.azimut){const fila=es.map(e=>tira(a,e));for(let k=1;k<es.length;k++)parteE(a,es[k-1],fila[k-1],es[k],fila[k]);
-     if(prev)for(let k=0;k<es.length;k++)parteA(es[k],a-V.azimut,prev[k],a,fila[k]);prev=fila;}}}}
+   for(const oj of V.ojos)abanico(A,px,y0+oj,pz,base,-88,88,V.elevacion,loteId,lotes,celdas);}}
+ const r=cerrar(bp,A,lotes,celdas);A.pvs.set(k,r);return r;}
+
+// EL ABANICO DE RAYOS (de visiblesDesde, 2026-11-23 aparte para usarlo también desde la calle): desde (px, py, pz), un rayo
+// por dirección de la grilla —azimut desde `base` (rad) entre a0 y a1 grados, cada V.azimut; elevación según E =
+// [desde, hasta, paso]— y, donde dos vecinos dan distinto —uno pasa por encima de un techo o por el costado y el otro pega—,
+// rayos en el medio hasta V.fino grados, en los dos sentidos: lo que asoma entre los dos no se escapa. Lo que pega va a
+// `lotes` (con lo que queda a su alrededor, por el hueco entre rayos), y las casillas que cruza bajo los árboles a `celdas`.
+function abanico(A,px,py,pz,base,a0,a1,E,salvo,lotes,celdas,alcance=VISIBLES.alcance){const V=VISIBLES;
+ const tira=(a,e)=>{const az2=base+a*Math.PI/180,el=e*Math.PI/180,c=Math.cos(el),l=rayo(A,px,py,pz,Math.cos(az2)*c,Math.sin(el),Math.sin(az2)*c,salvo,alcance);for(const ci of rayo.celdas)celdas.add(ci);if(l>=0){lotes.add(l);
+   const hueco=1.5*rayo.t*Math.sin(V.fino*Math.PI/180)+2,c0=Math.floor((rayo.x-hueco)/CELL),c1=Math.floor((rayo.x+hueco)/CELL),r0=Math.floor((rayo.z-hueco)/CELL),r1=Math.floor((rayo.z+hueco)/CELL);
+   for(let cz=r0;cz<=r1;cz++)for(let cx=c0;cx<=c1;cx++){if(cx<0||cz<0||cx>=A.W||cz>=A.H)continue;const m=A.lote[cz*A.W+cx];if(m>=0)lotes.add(m);}}
+  return l;};
+ const parteE=(a,e0,l0,e1,l1)=>{if(l0===l1||e1-e0<=V.fino)return;const em=(e0+e1)/2,lm=tira(a,em);parteE(a,e0,l0,em,lm);parteE(a,em,lm,e1,l1);};
+ const parteA=(e,a0_,l0,a1_,l1)=>{if(l0===l1||a1_-a0_<=V.fino)return;const am=(a0_+a1_)/2,lm=tira(am,e);parteA(e,a0_,l0,am,lm);parteA(e,am,lm,a1_,l1);};
+ const es=[];for(let e=E[0];e<=E[1];e+=E[2])es.push(e);let prev=null,ap=null;
+ for(let a=a0;;a=Math.min(a1,a+V.azimut)){const fila=es.map(e=>tira(a,e));for(let k=1;k<es.length;k++)parteE(a,es[k-1],fila[k-1],es[k],fila[k]);
+  if(prev)for(let k=0;k<es.length;k++)parteA(es[k],ap,prev[k],a,fila[k]);prev=fila;ap=a;if(a>=a1)break;}}
+// Lo que se ve, con sus márgenes (de visiblesDesde).
+function cerrar(bp,A,lotes,celdas){const V=VISIBLES;
  // (las celdas, con una de margen alrededor: el árbol de la casilla vecina asoma con su copa —y el hueco entre rayos—)
  const conMargen=new Set();for(const ci of celdas){const cx=ci%A.W,cz=(ci-cx)/A.W;for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++){const x=cx+dx,z=cz+dz;if(x>=0&&z>=0&&x<A.W&&z<A.H)conMargen.add(z*A.W+x);}}
  // (y los lotes que tocan una casilla que se ve: una rendija entre dos edificios, más angosta que lo que separa los puntos
  // de partida, deja ver un pedazo de lo de atrás desde un solo punto de la ventana —se escapaba un lote a 92 m—; si su
  // vereda se ve, el lote entra)
  if(V.vecinos)for(const ci of celdas){const m=A.lote[ci];if(m>=0)lotes.add(m);const cx=ci%A.W,cz=(ci-cx)/A.W;for(const [ex,ez] of [[1,0],[-1,0],[0,1],[0,-1]]){const x=cx+ex,z=cz+ez;if(x>=0&&z>=0&&x<A.W&&z<A.H){const n=A.lote[z*A.W+x];if(n>=0)lotes.add(n);}}}
- const manzanas=new Set([...lotes].map(id=>bp.lots.find(l=>l.id===id)?.block));const r={lotes,manzanas,celdas:conMargen,W:A.W};A.pvs.set(k,r);return r;}
+ const manzanas=new Set([...lotes].map(id=>bp.lots.find(l=>l.id===id)?.block)); return {lotes,manzanas,celdas:conMargen,W:A.W,H:A.H};}
+
+// ======== Qué se puede ver desde la CALLE (2026-11-23, Miguel: «calibrar el occlusion culling… que calcule todo sólo lo
+// que tiene a la vista, más un desfase a los costados para aprovechar el movimiento de la cámara») ========
+// visiblesCalle(bp, cam): los lotes que se pueden ver desde la cámara (afuera, o en el aire) en lo que abarca su ángulo de
+// visión MÁS VISIBLES_CALLE.margen grados a cada lado, el mismo abanico de rayos de adentro desde el ojo de la cámara. Con
+// las puertas y las ventanas cerradas la fachada es hermética: lo que está detrás de la primera fila no se ve (las alturas
+// que tapan, las mínimas: se ve de más, nunca de menos). Los lotes a menos de VISIBLES_CALLE.cerca m entran siempre (la
+// cámara de tercera persona, un giro brusco). cam: {x, y, z, yaw, fov (vertical, grados), aspect}; alcance: hasta dónde
+// miran los rayos (m: el juego pasa la niebla —más allá no se ve nada—).
+export const VISIBLES_CALLE={margen:35,cerca:14,elevacion:[-6,70,4]};
+export function visiblesCalle(bp,cam,margen=VISIBLES_CALLE.margen,alcance=VISIBLES.alcance){const A=alturasDe(bp),lotes=new Set(),celdas=new Set(),C=VISIBLES_CALLE;
+ const hf=Math.atan(Math.tan((cam.fov||72)*Math.PI/360)*(cam.aspect||1.6))*180/Math.PI,ancho=Math.min(180,hf+margen);
+ // (three: la cámara mira hacia −z girada yaw; adelante = (−sin yaw, −cos yaw). El rayo va por (cos a, sin a) en (x, z))
+ const base=Math.atan2(-Math.cos(cam.yaw),-Math.sin(cam.yaw));
+ abanico(A,cam.x,cam.y,cam.z,base,-ancho,ancho,C.elevacion,-1,lotes,celdas,alcance);
+ {const r=Math.ceil(C.cerca/CELL)+1,cx0=Math.floor(cam.x/CELL),cz0=Math.floor(cam.z/CELL);
+  for(let cz=cz0-r;cz<=cz0+r;cz++)for(let cx=cx0-r;cx<=cx0+r;cx++){if(cx<0||cz<0||cx>=A.W||cz>=A.H)continue;const m=A.lote[cz*A.W+cx];
+   if(m>=0&&Math.hypot(Math.max(cx*CELL-cam.x,0,cam.x-(cx+1)*CELL),Math.max(cz*CELL-cam.z,0,cam.z-(cz+1)*CELL))<C.cerca)lotes.add(m);}}
+ return cerrar(bp,A,lotes,celdas);}

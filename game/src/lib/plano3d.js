@@ -86,7 +86,7 @@ export function dibujarPlano(bp,{kits={},suelo=()=>0}={}){
  const lotes=[];for(const [M,items] of plantas){const b=plantBatched({m:M},'m',items,group);if(b){b.modelo=nombres.get(M);lotes.push(b);}}
  // (los árboles se pueden ocultar: la vista de arriba no los quiere —2026-10-18, Miguel: «oculta todos los árboles»—)
  const ARBOL=/tree|pine|palm|birch|willow|arbol|pino|palmera/i,setArboles=on=>{for(const b of lotes)if(ARBOL.test(b.modelo||''))for(const m of b.meshes)m.visible=on;};
- const setCeldas=(celdas,W)=>{for(const b of lotes)b.setCeldas(celdas,W);};
+ const setCeldas=(celdas,W,H)=>{for(const b of lotes)b.setCeldas(celdas,W,6,H);};
  // (cada planta, su versión de lejos según dónde está la cámara —nature3d plantBatched setLejos—)
  const setLejos=(x,z)=>{for(const b of lotes)b.setLejos?.(x,z);};
  // (2026-10-16, medido en el navegador sin ventana —validar-3d—: todo el equipamiento del mundo iba en una malla por pieza
