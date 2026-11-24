@@ -5,7 +5,7 @@ tiempos, las capturas de lo que se mostraba y las referencias entre ambos («est
 estaba a la vista). Es una herramienta personal de Miguel, no de CreditOp. Tarea: `tablero/tasks/minutes` (#138).
 Prototipo del 2026-11-23.
 
-    bin/minutes start [--title '…'] [--no-mic] [--no-system] [--chunk 15] [--direct]
+    bin/minutes start [--title '…'] [--no-screen] [--lang es|en|auto] [--no-mic] [--no-system] [--chunk 15] [--direct]
     bin/minutes live                  la transcripción a medida que sale (Ctrl-C no frena la grabación)
     bin/minutes status
     bin/minutes stop [--no-summary]   frena, termina de transcribir y arma el resumen (~1 min por una reunión corta)
@@ -71,6 +71,22 @@ les pongas en la app (`speakers.json`); «reunión» queda sólo si no se pudo s
   todo el resumen humano: la meta de ganancia, el próximo paso, el riesgo del costo de la pantalla, y separó las ideas
   abiertas de lo decidido. Por eso quedó por defecto. El armado de la prueba (la carpeta desde un WAV, el puntaje DER) está en la tarea.
 - **Idioma:** `start --lang en|auto` (por defecto `es`), guardado en `meta.json`; sirvió para probar con ese video.
+
+## Sólo audio (desde el 2026-11-23)
+
+`start --no-screen`, o el interruptor «Sólo audio, sin pantalla» de la app (que se recuerda en ese navegador): graba
+micrófono y sistema sin capturas. El stream de ScreenCaptureKit sigue haciendo falta para el audio del sistema (mismo
+permiso), pero sin salida de pantalla (64x36 cada 10 s, sin recibir cuadros). `meta.json` lleva `audio_only`; el
+resumen sale sin momentos en pantalla y sin levantar el modelo de visión.
+
+## Cuando algo falla
+
+- **Whisper se cae a veces** (abort trap con la GPU ocupada; no se repite al reintentar): un tramo que falla se
+  reintenta una vez sin el texto anterior y, si vuelve a fallar, queda en `audio/failed.txt` y se sigue. Antes se
+  reintentaba para siempre y «Frenar» no terminaba nunca. Además `stop` espera a la transcripción de fondo a lo sumo
+  10 min.
+- **Bedrock no contesta** (sin red o sin la sesión del playground): el resumen lo escribe el modelo local y el aviso dice
+  por qué (`bin/pg model info`).
 
 ## Cómo graba sin pisar el micrófono
 

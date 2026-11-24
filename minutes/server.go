@@ -123,6 +123,7 @@ type recordingOut struct {
 	Frames     int     `json:"frames"`
 	Recording  bool    `json:"recording"`
 	HasSummary bool    `json:"has_summary"`
+	AudioOnly  bool    `json:"audio_only"`
 }
 
 func describe(d string) recordingOut {
@@ -130,7 +131,7 @@ func describe(d string) recordingOut {
 	readJSON(filepath.Join(d, "meta.json"), &m)
 	st, _ := recorderState(d)
 	o := recordingOut{ID: filepath.Base(d), Title: m.Title, Started: firstNonEmpty(st.Started, m.Started), Seconds: st.Seconds,
-		Frames: countLines(filepath.Join(d, "frames.jsonl")), HasSummary: fileExists(filepath.Join(d, "timeline.json"))}
+		Frames: countLines(filepath.Join(d, "frames.jsonl")), HasSummary: fileExists(filepath.Join(d, "timeline.json")), AudioOnly: m.AudioOnly}
 	if o.ID == currentID() {
 		o.Recording = true
 		if t, err := time.Parse(time.RFC3339, st.Started); err == nil {
@@ -211,7 +212,8 @@ func (s *server) end(err error) {
 
 func (s *server) start(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		Title string `json:"title"`
+		Title     string `json:"title"`
+		AudioOnly bool   `json:"audio_only"`
 	}
 	json.NewDecoder(r.Body).Decode(&in)
 	if err := s.begin("starting", ""); err != nil {
@@ -221,6 +223,9 @@ func (s *server) start(w http.ResponseWriter, r *http.Request) {
 	args := []string{}
 	if t := strings.TrimSpace(in.Title); t != "" {
 		args = append(args, "--title", t)
+	}
+	if in.AudioOnly {
+		args = append(args, "--no-screen")
 	}
 	err := start(args)
 	s.end(err)

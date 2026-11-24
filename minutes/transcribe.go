@@ -145,6 +145,15 @@ func markDone(d, rel string) {
 	}
 }
 
+// markFailed anota un tramo que Whisper no pudo transcribir (audio/failed.txt: el tramo y el error).
+func markFailed(d, rel string, cause error) {
+	f, err := os.OpenFile(filepath.Join(d, "audio", "failed.txt"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	if err == nil {
+		fmt.Fprintf(f, "%s\t%s\n", rel, strings.ReplaceAll(tail(cause.Error(), 200), "\n", " "))
+		f.Close()
+	}
+}
+
 // watch: transcribe mientras la grabadora corre y sale cuando ya no queda nada.
 func watch(d string) error {
 	fmt.Fprintln(os.Stderr, time.Now().Format(time.TimeOnly), "transcribiendo", d)
@@ -194,7 +203,16 @@ func transcribePending(d string, verbose bool) error {
 		}
 		segs, err := whisper(model, c, prev[c.Source], lang)
 		if err != nil {
-			return err
+			// whisper-cli a veces se cae (abort trap) con la GPU ocupada, y no se repite: un reintento sin el texto
+			// anterior; si vuelve a fallar, el tramo queda anotado en audio/failed.txt y se sigue. Antes se reintentaba
+			// para siempre y «Frenar» no terminaba nunca (visto el 2026-11-23).
+			time.Sleep(time.Second)
+			if segs, err = whisper(model, c, "", lang); err != nil {
+				fmt.Fprintf(os.Stderr, "\n  ⚠ %s no se pudo transcribir, se salta: %v\n", c.rel(), tail(err.Error(), 160))
+				markFailed(d, c.rel(), err)
+				markDone(d, c.rel())
+				continue
+			}
 		}
 		if c.Source == "mic" {
 			markEcho(segs, loadTranscript(d))

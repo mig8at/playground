@@ -16,6 +16,10 @@ const apiError = ref('')
 const error = ref('')
 const selected = ref('')
 const title = ref('')
+// Sólo audio: se recuerda en este navegador (una preferencia, no un dato)
+const readPref = (k, d) => { try { return localStorage.getItem(k) ?? d } catch { return d } }
+const audioOnly = ref(readPref('minutes.audio-only', '0') === '1')
+watch(audioOnly, (v) => { try { localStorage.setItem('minutes.audio-only', v ? '1' : '0') } catch {} })
 const confirmDelete = ref(false)
 const now = ref(Date.now())
 
@@ -60,7 +64,7 @@ async function startRecording() {
   error.value = ''
   state.value = { ...state.value, phase: 'starting' }
   try {
-    const r = await api('/api/start', { method: 'POST', body: { title: title.value } })
+    const r = await api('/api/start', { method: 'POST', body: { title: title.value, audio_only: audioOnly.value } })
     title.value = ''
     go(`#/r/${r.id}`)
   } catch (err) { error.value = err.message }
@@ -284,15 +288,19 @@ onBeforeUnmount(() => {
           </template>
           <form v-else @submit.prevent="startRecording">
             <input v-model="title" class="rec-title" placeholder="Nombre de la reunión (opcional)" aria-label="Nombre de la reunión" :disabled="busy">
+            <label class="rec-option">
+              <button type="button" class="switch" role="switch" :aria-checked="audioOnly" :disabled="busy" aria-label="Sólo audio, sin pantalla" @click="audioOnly = !audioOnly"></button>
+              Sólo audio, sin pantalla
+            </label>
             <button type="submit" class="btn btn-sm rec-start" :disabled="busy">
               <span class="ui-icon" data-icon="mic" aria-hidden="true"></span>{{ state.phase === 'starting' ? 'Arrancando…' : 'Grabar' }}
             </button>
           </form>
-          <p class="rec-note">Pantalla, micrófono y audio de la reunión, sin quitarle el micrófono a Meet o Zoom. El audio y las capturas quedan en esta Mac; el resumen lo escribe Claude (Bedrock de CreditOp) con el texto.</p>
+          <p class="rec-note">{{ audioOnly ? 'Micrófono y audio de la reunión, sin capturas,' : 'Pantalla, micrófono y audio de la reunión,' }} sin quitarle el micrófono a Meet o Zoom. El audio y las capturas quedan en esta Mac; el resumen lo escribe Claude (Bedrock de CreditOp) con el texto.</p>
         </div>
         <a v-for="r in list" :key="r.id" class="rec-row" :class="{ on: r.id === selected }" :href="`#/r/${r.id}`">
-          <span class="ui-icon" :data-icon="r.recording ? 'mic' : r.has_summary ? 'paper' : 'audio'" :class="{ 'is-live': r.recording }" aria-hidden="true"></span>
-          <span class="rec-name"><span class="rec-label">{{ label(r) }}</span><span class="rec-sub">{{ r.title ? when(r) + ' · ' : '' }}{{ clock(r.seconds) }} · {{ plural(r.frames, 'captura', 'capturas') }}</span></span>
+          <span class="ui-icon" :data-icon="r.recording ? 'mic' : r.audio_only ? 'audio' : r.has_summary ? 'paper' : 'image'" :class="{ 'is-live': r.recording }" aria-hidden="true"></span>
+          <span class="rec-name"><span class="rec-label">{{ label(r) }}</span><span class="rec-sub">{{ r.title ? when(r) + ' · ' : '' }}{{ clock(r.seconds) }} · {{ r.audio_only ? 'sólo audio' : plural(r.frames, 'captura', 'capturas') }}</span></span>
         </a>
         <div v-if="loaded && !list.length && !apiError" class="rec-empty">Todavía no hay grabaciones.</div>
       </div>
@@ -319,6 +327,10 @@ onBeforeUnmount(() => {
         </div></div>
 
         <!-- en vivo: la última captura; lo que se dice va a la derecha -->
+        <div v-else-if="isLive && rec.audio_only" class="empty"><div class="empty-head">
+          <div class="empty-title"><span class="rec-dot" aria-hidden="true"></span> Grabando sólo audio</div>
+          <div class="empty-desc">Sin capturas de pantalla. Lo que se dice va apareciendo a la derecha.</div>
+        </div></div>
         <figure v-else-if="isLive" class="live-frame">
           <img v-if="lastFrame" :src="frameURL(lastFrame.file)" alt="La última captura">
           <figcaption>{{ lastFrame ? `Última captura distinta, a los ${clock(lastFrame.t)} · ${plural(detail.frames.length, 'captura', 'capturas')}` : 'Esperando la primera captura…' }}</figcaption>
@@ -327,7 +339,7 @@ onBeforeUnmount(() => {
         <!-- frenada -->
         <div v-else-if="rec" class="doc">
           <section v-if="timeline" class="summary" @click="onSummaryClick">
-            <div class="doc-meta">{{ plural(timeline.frames, 'captura distinta', 'capturas distintas') }} · {{ plural(screens.length, 'momento', 'momentos') }} en pantalla · resumen: {{ timeline.model }}</div>
+            <div class="doc-meta">{{ rec.audio_only ? 'Sólo audio' : `${plural(timeline.frames, 'captura distinta', 'capturas distintas')} · ${plural(screens.length, 'momento', 'momentos')} en pantalla` }} · resumen: {{ timeline.model }}</div>
             <div class="md" v-html="md(timeline.summary)"></div>
           </section>
           <section v-else-if="!working" class="summary">

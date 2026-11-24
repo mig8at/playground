@@ -263,6 +263,9 @@ func summarize(d string, o summarizeOptions) error {
 		fmt.Fprintln(os.Stderr)
 	}
 
+	if screens == nil {
+		screens = []*Screen{} // sólo audio: una lista vacía, no null
+	}
 	tl := Timeline{Title: meta.Title, Started: st.Started, Seconds: total, Frames: len(frames), Screens: screens}
 	for _, g := range segs {
 		ts := TimedSegment{Segment: g}
@@ -442,13 +445,15 @@ func chat(vision llamaserve.Spec, content []any, maxTokens int) (string, error) 
 // askBedrock: el resumen con el modelo de fondo, sólo si es Claude (el de Bedrock): si en Cockpit se eligió Gemini,
 // el texto iría a Google, y eso no es lo que Miguel decidió. Devuelve el nombre del modelo.
 func askBedrock(prompt string) (string, string, error) {
-	out, err := exec.Command(filepath.Join(root(), "bin", "pg"), "model", "info", "--json").Output()
+	// sale con 1 cuando el modelo no está listo, pero igual trae el JSON con el porqué (`detail`)
+	out, _ := exec.Command(filepath.Join(root(), "bin", "pg"), "model", "info", "--json").Output()
 	var info struct {
-		Model string `json:"model"`
-		Name  string `json:"name"`
-		Ready bool   `json:"ready"`
+		Model  string `json:"model"`
+		Name   string `json:"name"`
+		Ready  bool   `json:"ready"`
+		Detail string `json:"detail"`
 	}
-	if err != nil || json.Unmarshal(out, &info) != nil {
+	if json.Unmarshal(out, &info) != nil {
 		return "Claude", "", fmt.Errorf("bin/pg model info no contestó")
 	}
 	name := "Claude"
@@ -459,7 +464,7 @@ func askBedrock(prompt string) (string, string, error) {
 		return name, "", fmt.Errorf("el modelo de fondo es %s, no Claude", info.Model)
 	}
 	if !info.Ready {
-		return name, "", fmt.Errorf("Claude no está listo (¿falta `playground login`?)")
+		return name, "", fmt.Errorf("Claude no está listo: %s", firstNonEmpty(tail(info.Detail, 160), "¿falta `playground login`?"))
 	}
 	text, err := askRemote(prompt)
 	return name, text, err

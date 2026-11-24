@@ -33,7 +33,7 @@ import (
 func usage() {
 	fmt.Fprint(os.Stderr, `minutes — grabar una reunión: pantalla, micrófono y sistema, transcripción en vivo y un resumen que cruza lo dicho con lo visto
 
-  bin/minutes start [--title '…'] [--lang es|en|auto] [--no-mic] [--no-system] [--chunk 15] [--direct]
+  bin/minutes start [--title '…'] [--lang es|en|auto] [--no-screen] [--no-mic] [--no-system] [--chunk 15] [--direct]
   bin/minutes stop [--no-summary]
   bin/minutes status            la grabación en curso
   bin/minutes live [carpeta]    la transcripción a medida que sale (Ctrl-C sale sin frenar nada)
@@ -109,6 +109,8 @@ type Meta struct {
 	Title   string `json:"title"`
 	Started string `json:"started"`
 	Lang    string `json:"lang,omitempty"` // el idioma para Whisper: es (por defecto), en, auto…
+	// AudioOnly: se grabó sin pantalla (--no-screen): no hay capturas ni momentos en pantalla
+	AudioOnly bool `json:"audio_only,omitempty"`
 }
 
 // RecorderState: recorder.json, lo que escribe la grabadora.
@@ -206,6 +208,7 @@ func start(args []string) error {
 	title := fs.String("title", "", "el nombre de la reunión")
 	noMic := fs.Bool("no-mic", false, "sin el micrófono")
 	noSystem := fs.Bool("no-system", false, "sin el audio del sistema")
+	noScreen := fs.Bool("no-screen", false, "sólo audio: sin capturas de pantalla")
 	chunk := fs.Int("chunk", 15, "segundos por tramo de audio (lo que tarda en salir el texto)")
 	lang := fs.String("lang", "es", "el idioma de la reunión para Whisper (es, en, auto…)")
 	direct := fs.Bool("direct", false, "corre la grabadora como hija de esta terminal: usa los permisos de la terminal y no los de Minutes.app")
@@ -230,7 +233,7 @@ func start(args []string) error {
 	if err := os.MkdirAll(d, 0o755); err != nil {
 		return err
 	}
-	if err := writeJSON(filepath.Join(d, "meta.json"), Meta{Title: *title, Started: time.Now().Format(time.RFC3339), Lang: *lang}); err != nil {
+	if err := writeJSON(filepath.Join(d, "meta.json"), Meta{Title: *title, Started: time.Now().Format(time.RFC3339), Lang: *lang, AudioOnly: *noScreen}); err != nil {
 		return err
 	}
 	// `open` para que macOS le pida los permisos a Minutes.app y no a la terminal que la lanzó
@@ -241,6 +244,9 @@ func start(args []string) error {
 	}
 	if *noSystem {
 		ra = append(ra, "--no-system")
+	}
+	if *noScreen {
+		ra = append(ra, "--no-screen")
 	}
 	if *direct {
 		logf, err := os.OpenFile(filepath.Join(d, "recorder.out"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
@@ -327,7 +333,13 @@ func stop(args []string) error {
 		if alive(pid) {
 			fmt.Fprintln(os.Stderr, "  · terminando de transcribir…")
 		}
-		for alive(pid) {
+		// a lo sumo 10 min: si la de fondo se quedó trabada, se la corta y lo que falte se transcribe acá abajo
+		for waited := time.Duration(0); alive(pid); waited += 500 * time.Millisecond {
+			if waited > 10*time.Minute {
+				fmt.Fprintln(os.Stderr, "  ⚠ la transcripción de fondo no terminó en 10 min: se corta y se sigue acá")
+				syscall.Kill(pid, syscall.SIGTERM)
+				break
+			}
 			time.Sleep(500 * time.Millisecond)
 		}
 	}

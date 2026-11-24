@@ -9,7 +9,10 @@
 // Permisos: macOS los da a la app RESPONSABLE. Por eso `bin/minutes start` arma Minutes.app y la abre con `open`:
 // pide «Grabación de pantalla» (cubre también el audio del sistema) y «Micrófono» una sola vez, para ella.
 //
-//   minutes-recorder --out <carpeta> [--chunk 15] [--no-mic] [--no-system] [--display <id>]
+//   minutes-recorder --out <carpeta> [--chunk 15] [--no-mic] [--no-system] [--no-screen] [--display <id>]
+//
+// --no-screen: sólo audio. El stream de ScreenCaptureKit igual hace falta para el audio del sistema (y pide el mismo
+// permiso), pero no se le pide la pantalla: va a 64x36 cada 10 s y nadie recibe esos cuadros, así que no hay capturas.
 //
 // La carpeta:
 //   frames/<ms>.jpg + frames.jsonl   {"t": segundos, "file": "frames/…", "change": 0..1}
@@ -40,6 +43,7 @@ let out = URL(fileURLWithPath: outPath)
 let chunkSeconds = Double(arg("--chunk") ?? "15") ?? 15
 let wantMic = !has("--no-mic")
 let wantSystem = !has("--no-system")
+let wantScreen = !has("--no-screen")
 let sampleRate = 16000.0
 
 let fm = FileManager.default
@@ -248,6 +252,11 @@ final class Recorder: NSObject, SCStreamOutput, SCStreamDelegate {
         cfg.width = w
         cfg.height = Int(Double(w) * Double(display.height) / Double(display.width))
         cfg.minimumFrameInterval = CMTime(value: 1, timescale: 1)
+        if !wantScreen { // sólo audio: lo mínimo que acepta el stream, y sin salida de pantalla
+            cfg.width = 64
+            cfg.height = 36
+            cfg.minimumFrameInterval = CMTime(value: 10, timescale: 1)
+        }
         cfg.queueDepth = 3
         cfg.showsCursor = true
         cfg.capturesAudio = wantSystem
@@ -256,20 +265,20 @@ final class Recorder: NSObject, SCStreamOutput, SCStreamDelegate {
         cfg.channelCount = 1
         if #available(macOS 15.0, *) { cfg.captureMicrophone = wantMic }
         let s = SCStream(filter: filter, configuration: cfg, delegate: self)
-        try s.addStreamOutput(self, type: .screen, sampleHandlerQueue: videoQ)
+        if wantScreen { try s.addStreamOutput(self, type: .screen, sampleHandlerQueue: videoQ) }
         if wantSystem { try s.addStreamOutput(self, type: .audio, sampleHandlerQueue: audioQ) }
         if #available(macOS 15.0, *), wantMic { try s.addStreamOutput(self, type: .microphone, sampleHandlerQueue: audioQ) }
         try await s.startCapture()
         stream = s
         displayInfo = ["id": display.displayID, "width": cfg.width, "height": cfg.height]
-        log("grabando: pantalla \(display.displayID) a \(cfg.width)x\(cfg.height), micrófono=\(wantMic), sistema=\(wantSystem)")
+        log("grabando: pantalla \(display.displayID) a \(cfg.width)x\(cfg.height), micrófono=\(wantMic), sistema=\(wantSystem), pantalla=\(wantScreen)")
         writeState(ended: nil)
     }
 
     func writeState(ended: Date?) {
         var o: [String: Any] = [
             "pid": Int(getpid()), "started": ISO8601DateFormatter().string(from: startDate),
-            "display": displayInfo, "chunk_seconds": chunkSeconds, "mic": wantMic, "system": wantSystem,
+            "display": displayInfo, "chunk_seconds": chunkSeconds, "mic": wantMic, "system": wantSystem, "screen": wantScreen,
         ]
         if let ended {
             o["ended"] = ISO8601DateFormatter().string(from: ended)

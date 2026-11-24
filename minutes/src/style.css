@@ -23,6 +23,8 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 .rec-time { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--fg-2); font-weight: 400 }
 .rec-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--status-bad); animation: pulse 1.2s ease-in-out infinite }
 @keyframes pulse { 50% { opacity: .35 } }
+.rec-option { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-xs); color: var(--fg-2); cursor: pointer }
+.empty-title .rec-dot { display: inline-block; vertical-align: middle; margin-right: 4px }
 .rec-note { margin: var(--space-2) 0 0; font-size: var(--text-xs); color: var(--fg-3); line-height: 1.4 }
 
 /* las grabaciones */
