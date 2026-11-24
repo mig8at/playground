@@ -40,6 +40,26 @@
       "what": "knowledge-search: la búsqueda por significado",
       "source": "cmd/knowledge/semantic.go",
       "since": "2026-11-19"
+    },
+    {
+      "tool": "minutes",
+      "model": "openai/whisper-large-v3-turbo",
+      "files": [
+        "whisper:ggml-large-v3-turbo-q5_0"
+      ],
+      "what": "minutes: la transcripción en vivo de una reunión",
+      "source": "minutes/transcribe.go",
+      "since": "2026-11-23"
+    },
+    {
+      "tool": "minutes",
+      "model": "Qwen/Qwen3-VL-4B-Instruct",
+      "files": [
+        "gguf:Qwen3VL-4B-Instruct"
+      ],
+      "what": "minutes: qué se ve en cada pantalla y si lo dicho habla de ella; el resumen",
+      "source": "minutes/summarize.go",
+      "since": "2026-11-23"
     }
   ]
 }

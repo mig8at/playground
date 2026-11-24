@@ -1,0 +1,21 @@
+#!/bin/sh
+# minutes — grabar una reunión sin tomar notas (minutes/main.go): la pantalla, el micrófono y el audio del sistema,
+# la transcripción en vivo con Whisper y un resumen que cruza lo dicho con lo visto, todo en esta Mac.
+# Lo compila la primera vez y cada vez que cambia su código, a ~/.cache/my-tools/minutes-bin.
+#
+#   bin/minutes start [--title '…']   ·   bin/minutes live   ·   bin/minutes stop   ·   bin/minutes list
+root=$(cd "$(dirname "$0")/.." && pwd -P) || exit 1
+bin="${XDG_CACHE_HOME:-$HOME/.cache}/my-tools/minutes-bin"
+stale=$(find "$root/minutes" "$root/lib/models" "$root/lib/llamaserve" "$root/lib/notice" -name '*.go' -newer "$bin" 2>/dev/null | head -n 1)
+if [ ! -x "$bin" ] || [ -n "$stale" ] || [ "$root/go.mod" -nt "$bin" ]; then
+  mkdir -p "$(dirname "$bin")" || exit 1
+  tmp="$bin.$$"
+  if ! (cd "$root" && go build -o "$tmp" ./minutes) >&2; then
+    rm -f "$tmp"
+    echo "minutes: no compila minutes/" >&2
+    exit 1
+  fi
+  mv -f "$tmp" "$bin"
+fi
+# los modelos salen del registro de la raíz (models/registry.json): se le dice dónde está
+MY_TOOLS_ROOT="$root" exec "$bin" "$@"
