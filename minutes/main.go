@@ -40,6 +40,7 @@ func usage() {
   bin/minutes list              las grabaciones
   bin/minutes summarize [carpeta] [--remote] [--max-screens 20]
   bin/minutes open [carpeta]    abre el resumen (summary.html)
+  bin/minutes serve [127.0.0.1:5249]  la API de la app de Cockpit (make minutes)
 `)
 }
 
@@ -68,6 +69,12 @@ func main() {
 		if d, err = pick(args); err == nil {
 			err = exec.Command("open", filepath.Join(d, "summary.html")).Run()
 		}
+	case "serve": // la API de la app (server.go)
+		addr := "127.0.0.1:5249"
+		if len(args) > 0 {
+			addr = args[0]
+		}
+		err = serve(addr)
 	case "watch": // interno: lo lanza start, de fondo
 		if len(args) != 1 {
 			err = errors.New("watch <carpeta>")

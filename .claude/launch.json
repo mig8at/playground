@@ -410,6 +410,17 @@
       "cwd": "sabueso",
       "port": 5244,
       "autoPort": false
+    },
+    {
+      "name": "minutes",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "cwd": "minutes",
+      "port": 5248,
+      "autoPort": false
     }
   ]
 }

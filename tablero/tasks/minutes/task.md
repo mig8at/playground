@@ -31,7 +31,5 @@ herramienta personal de Miguel en my-tools: no es de CreditOp y no va a Jira. C�
 ## Pendientes
 
 - Probarla en una reunión real de Meet o Zoom (la prueba del 2026-11-23 fue con voz sintética por los parlantes).
-- La app en Cockpit: la lista de grabaciones, el botón de grabar y el resumen adentro (pide tocar `main.rs` y
-  reinstalar Cockpit).
 - Las reuniones largas: el resumen de lo dicho hoy recorta la mitad del texto pasado de ~30 mil caracteres; hace falta
   resumir por partes.

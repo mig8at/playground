@@ -159,6 +159,15 @@ const APPS: &[AppDef] = &[
         ready: &["localhost:5244", "127.0.0.1:5245"],
         start: Start::Make("sabueso"),
     },
+    AppDef {
+        // Minutes (minutes/): grabar una reunión sin tomar notas y quedarse con un recordatorio que cruza lo dicho con
+        // lo visto. Por consola es `bin/minutes`, que no necesita este servidor.
+        id: "minutes",
+        name: "Minutes",
+        url: "http://localhost:5248/",
+        ready: &["localhost:5248", "127.0.0.1:5249"],
+        start: Start::Make("minutes"),
+    },
 ];
 
 fn answers(hostport: &str) -> bool {

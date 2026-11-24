@@ -1,0 +1,80 @@
+/* EL VOCABULARIO VISUAL DE MINUTES.
+ *
+ * Las mismas capas que las demás herramientas: Tailwind (utilidades, sin preflight), el tema compartido y la base
+ * (`workbench.css`). Abajo, lo propio: el grabador, la lista de grabaciones, la vista en vivo y el recordatorio.
+ */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "./theme.css";
+@import "./workbench.css";
+
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--background); color: var(--foreground);
+  font-family: var(--font-sans); font-size: var(--text-base) }
+#app { height: 100% }
+
+/* el grabador, arriba de la lista */
+.recorder { margin: 0 var(--space-1) var(--space-3); padding: var(--space-2); border-bottom: 1px solid var(--border) }
+.recorder form { display: flex; flex-direction: column; gap: var(--space-2) }
+.rec-title { font: inherit; font-size: var(--text-xs); padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--background); color: var(--foreground) }
+.rec-start, .rec-stop { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); width: 100% }
+.rec-stop { background: var(--destructive); color: var(--primary-foreground) }
+.rec-live { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); font-weight: 600 }
+.rec-time { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--fg-2); font-weight: 400 }
+.rec-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--status-bad); animation: pulse 1.2s ease-in-out infinite }
+@keyframes pulse { 50% { opacity: .35 } }
+.rec-note { margin: var(--space-2) 0 0; font-size: var(--text-xs); color: var(--fg-3); line-height: 1.4 }
+
+/* las grabaciones */
+.rec-row { display: flex; align-items: flex-start; gap: var(--space-2); margin: 0 var(--space-1); padding: 7px var(--space-2);
+  border-radius: var(--radius-sm); color: var(--fg-2); text-decoration: none }
+.rec-row:hover { background: var(--hover); color: var(--foreground) }
+.rec-row.on { background: var(--accent); color: var(--accent-foreground); box-shadow: inset 2px 0 0 var(--primary) }
+.rec-row > .ui-icon { flex: none; margin-top: 2px }
+.rec-row > .ui-icon.is-live { color: var(--status-bad) }
+.rec-name { display: flex; flex-direction: column; min-width: 0 }
+.rec-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.rec-sub { font-size: var(--text-xs); color: var(--fg-3); font-variant-numeric: tabular-nums }
+.rec-empty { padding: var(--space-2) var(--space-3); color: var(--fg-3); font-size: var(--text-xs) }
+
+/* la cabecera del centro */
+.editor .region-head { gap: var(--space-2); justify-content: flex-start }
+.head-sub { color: var(--fg-3); font-weight: 400 }
+.spacer { flex: 1 }
+.confirm { font: inherit; font-size: var(--text-xs); border: 0; border-radius: var(--radius-sm); padding: 4px 10px; cursor: pointer;
+  background: var(--destructive); color: var(--primary-foreground) }
+.alert-bad[role="alert"], .alert.working { margin: var(--space-3) var(--space-6) 0; width: auto; box-sizing: border-box }
+.alert.working { color: var(--fg-2) }
+
+/* en vivo */
+.live { display: grid; grid-template-columns: minmax(0, 3fr) minmax(260px, 2fr); gap: var(--space-4); padding: var(--space-4) var(--space-6);
+  height: 100%; box-sizing: border-box }
+.live-frame { margin: 0; min-width: 0 }
+.live-frame img { width: 100%; border: 1px solid var(--border); border-radius: var(--radius-md); display: block }
+.live-frame figcaption { margin-top: var(--space-2); font-size: var(--text-xs); color: var(--fg-3) }
+.live-text { overflow-y: auto; min-height: 0; border-left: 1px solid var(--border); padding-left: var(--space-4) }
+.line { display: grid; grid-template-columns: auto auto 1fr; gap: var(--space-2); padding: 4px 0; line-height: 1.45 }
+.line .t, .transcript .t { color: var(--fg-3); font-variant-numeric: tabular-nums; white-space: nowrap }
+.line .who, .transcript .who { color: var(--fg-3); white-space: nowrap }
+.line.pending { display: block; color: var(--fg-3); font-size: var(--text-xs) }
+
+/* el recordatorio */
+.doc { padding: var(--space-4) var(--space-6) var(--space-6); max-width: 1100px }
+.doc h2 { font-size: var(--text-base); margin: var(--space-6) 0 var(--space-3); padding-bottom: var(--space-2); border-bottom: 1px solid var(--border) }
+.doc-meta { color: var(--fg-3); font-size: var(--text-xs); margin-bottom: var(--space-2) }
+.md h3 { font-size: var(--text-base); margin: var(--space-4) 0 var(--space-1) }
+.md ul { margin: 0; padding-left: 1.2em }
+.md li { margin: 3px 0; line-height: 1.5 }
+.ref { font-weight: 600; text-decoration: none; color: var(--primary); margin-left: 4px }
+.ref.muted { color: var(--fg-3); font-weight: 400 }
+.screens { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--space-3) }
+.screen { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; transition: box-shadow .3s }
+.screen.flash { box-shadow: 0 0 0 2px var(--primary) }
+.screen img { width: 100%; display: block; border-bottom: 1px solid var(--border) }
+.screen-body { padding: var(--space-2) var(--space-3); line-height: 1.45 }
+.screen-when { color: var(--fg-3); font-size: var(--text-xs); margin-bottom: 2px }
+.stars { color: var(--status-warn) }
+.said { margin-top: var(--space-2); padding: 6px 8px; border-radius: var(--radius-sm); background: var(--accent); color: var(--accent-foreground); font-size: var(--text-xs) }
+.transcript { border-collapse: collapse; width: 100% }
+.transcript td { vertical-align: top; padding: 4px 6px; border-bottom: 1px solid var(--border); line-height: 1.45 }
+.transcript tr.on td { background: var(--accent) }

@@ -73,7 +73,7 @@ tener la herramienta: es suponer que no está y contestar de memoria.
 ### Cockpit: donde Miguel ve las herramientas, y lo que hacés
 
 Las interfaces de my-tools —chat, tablero, el panel del harness, Jarvis, Designer (el visor),
-ecommerce, Sentinel, Correo y Wally (un chat con Gemini por la web de AI Studio: [`wally/CLAUDE.md`](wally/CLAUDE.md))— viven juntas en **Cockpit**, la app de escritorio de Miguel (`make cockpit` la instala). Cambia tres cosas
+ecommerce, Sentinel, Correo, Minutes y Wally (un chat con Gemini por la web de AI Studio: [`wally/CLAUDE.md`](wally/CLAUDE.md))— viven juntas en **Cockpit**, la app de escritorio de Miguel (`make cockpit` la instala). Cambia tres cosas
 en cualquier tarea:
 
 - **Lo que hacés se ve solo.** Cada herramienta que usás llega al panel «Claude» de Cockpit, y USAR una (correr el

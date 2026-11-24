@@ -13,6 +13,11 @@ Prototipo del 2026-11-23.
     bin/minutes summarize [carpeta] [--remote] [--max-screens 20]
     make minutes CMD=start TITLE='Weekly CT'  ·  make minutes CMD=stop
 
+**La app de Cockpit** (`minutes`, `make minutes`: la interfaz en :5248 y la API `bin/minutes serve` en :5249): el botón
+de grabar y frenar, las grabaciones, la vista en vivo (la última captura y lo que se va diciendo) y, ya frenada, el
+recordatorio con las pantallas enlazadas a la transcripción. Usa las mismas funciones que el CLI (`server.go`, con la
+guarda de Host y `X-Minutes` como el Llavero); al terminar un resumen avisa por `lib/notice`.
+
 ## ⚠ Lo grabado no sale de la Mac
 
 Los audios y las capturas pueden tener datos internos o de clientes. Quedan en `minutes/recordings/<fecha>/`, que está
@@ -84,4 +89,4 @@ reunión larga: el resumen de lo dicho recorta el medio pasados ~30 mil caracter
 
 ## Lo que falta (en la tarea)
 
-La app en Cockpit (las grabaciones, el botón y el resumen adentro), resumir por partes y, si hace falta, diarización.
+Resumir por partes y, si hace falta, diarización.

@@ -26,6 +26,7 @@ La lista vive en UN lugar: `APPS`, en `src-tauri/src/main.rs`. `bin/cockpit stat
 | `news` | News: lo nuevo de Hugging Face cada semana, con lo más innovador, los modelos documentados y los papers en español | `news/` | :5240 · :5241 | `make news` |
 | `sabueso` | Sabueso: comercios y entidades que no trabajan con CreditOp, buscados en el registro mercantil, con su encaje y la relación con cada uno | `sabueso/` | :5244 · :5245 | `make sabueso` |
 | `vault` | el Llavero: tus llaves que no se comparten, en llaveros como tarjetas, cifradas con tu llave personal; exportar e importar para otra máquina | `vault/` | :5236 · :5237 | `make vault` |
+| `minutes` | Minutes: grabar una reunión sin tomar notas (pantalla, micrófono y sistema), la transcripción en vivo y un recordatorio que cruza lo dicho con lo visto | `minutes/` | :5248 · :5249 | `make minutes` |
 
 En la barra el visor se llama **Designer**; por dentro la carpeta y sus `make` siguen siendo `visor`.
 

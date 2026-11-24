@@ -285,6 +285,8 @@ func cockpitTarget(tool string, in map[string]any, root string) (app, route stri
 			return "chat", ""
 		case regexp.MustCompile(`\bbin/pg vault\b|\bmake vault\b`).MatchString(cmd):
 			return "vault", ""
+		case regexp.MustCompile(`\bbin/minutes\b|\bmake minutes\b`).MatchString(cmd):
+			return "minutes", ""
 		}
 	case "Edit", "Write":
 		// El documento o la pila de una tarea: es escribir EN el tablero.
