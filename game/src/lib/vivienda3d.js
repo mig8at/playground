@@ -56,6 +56,10 @@ export function createHouses(items,{kit=null,shadows=true}={}){
  // triángulos de casas que no se veían. Ahora por baldosas de BALDOSA m: la cámara deja afuera las que no mira y
  // fueraDeNiebla() las que quedan enteras detrás de la niebla)
  const BALDOSA=144,baldosaDe=(x,z)=>Math.floor(x/BALDOSA)+','+Math.floor(z/BALDOSA);for(const h of houses)h.t=baldosaDe(h.x,h.z);
+ // (2026-11-23, la oclusión desde la calle: cada baldosa en su grupo, para apagarla entera —setVisiblesFuera— cuando
+ // ninguna de sus casas se ve; un grupo y no la malla, porque la niebla —niebla3d.js— prende y apaga las mallas)
+ const baldosas=new Map(),grupoDe=t=>{let g=baldosas.get(t);if(!g){g=new THREE.Group();g.name='casas:baldosa '+t;baldosas.set(t,g);group.add(g);}return g;};
+ for(const h of houses)h.alto=Math.max(3,...h.plan.boxes.map(b=>b.y1||0),...h.plan.quads.flatMap(q=>q.p.map(v=>v[1])));
  // ---------- La parte fija, fundida por material ----------
  // (LOWPOLY: las tablas y las tejas, lisas —el color de la casa, sin la textura—)
  const LP=LOWPOLY.on&&!TEXTURAS3D.on,/* (2026-11-21: con TEXTURAS3D vuelven las tablas y las tejas dibujadas) */MATS={tablas:LP?{roughness:.85,flatShading:true}:{map:siding(),roughness:.85},liso:{roughness:.9},interior:{roughness:.95,emissive:'#2e2b27'},zocalo:{roughness:.95},techo:{roughness:.8},teja_barro:LP?{roughness:.8,flatShading:true}:{map:tileTex('barro'),roughness:.8},teja_madera:LP?{roughness:.85,flatShading:true}:{map:tileTex('madera'),roughness:.85},madera:{roughness:.75},cielo:{roughness:1,emissive:'#5a564e'},marco:{roughness:.7},farol:{roughness:.4,emissive:'#ffc46b',emissiveIntensity:0},
@@ -82,7 +86,7 @@ export function createHouses(items,{kit=null,shadows=true}={}){
  let tris=0;const mats={};
  for(const [kk,B] of Object.entries(buf)){if(!B.p.length)continue;const k=kk.split('|')[0];const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(B.p,3));g.setAttribute('normal',new THREE.Float32BufferAttribute(B.n,3));
   g.setAttribute('color',new THREE.Float32BufferAttribute(B.c,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(B.u,2));g.computeBoundingSphere();
-  const m=new THREE.MeshStandardMaterial({vertexColors:true,flatShading:true,...MATS[k]});(mats[k]||(mats[k]=[])).push(m);const mesh=new THREE.Mesh(g,m);mesh.castShadow=shadows&&k!=='cielo'&&k!=='vidrio';if(k==='vidrio')mesh.renderOrder=2;mesh.receiveShadow=true;mesh.name='casas:'+k;group.add(mesh);own.push(g,m);tris+=B.p.length/9;}
+  const m=new THREE.MeshStandardMaterial({vertexColors:true,flatShading:true,...MATS[k]});(mats[k]||(mats[k]=[])).push(m);const mesh=new THREE.Mesh(g,m);mesh.castShadow=shadows&&k!=='cielo'&&k!=='vidrio';if(k==='vidrio')mesh.renderOrder=2;mesh.receiveShadow=true;mesh.name='casas:'+k;grupoDe(kk.split('|')[1]).add(mesh);own.push(g,m);tris+=B.p.length/9;}
 
  // ---------- Ventanas, puertas y garajes ----------
  const glass=new THREE.MeshStandardMaterial({color:'#cfe4ee',transparent:true,opacity:.22,roughness:.05,metalness:.1,depthWrite:false,side:THREE.DoubleSide,emissive:'#ffcf8a',emissiveIntensity:0});own.push(glass);
@@ -94,12 +98,12 @@ export function createHouses(items,{kit=null,shadows=true}={}){
   return houseM(h).multiply(new THREE.Matrix4().makeRotationY(r).setPosition(pos));};
  const tint=new THREE.Color(),mm=new THREE.Matrix4();
  // Un modelo del paquete en instancias, por material: paint (el marco o la hoja) con el color de cada una; el vidrio aparte.
- const kitInstances=(name,list,paintName,vidrio='opaco')=>{const m=kit?.[name];if(!m||!list.length)return [];const meshes=[];
+ const kitInstances=(name,list,paintName,vidrio='opaco',t=null)=>{const m=kit?.[name];if(!m||!list.length)return [];const meshes=[];
   for(const part of m.parts){const mats=Array.isArray(part.materials)?part.materials:[part.materials];
    for(const {geo,mi} of splitGroups(part.geometry)){const src=mats[mi]||mats[0],isGlass=/glass/i.test(src.name),paint=src.name===paintName;if(isGlass&&vidrio==='fuera')continue;/* (el de las ventanas va aparte, con su estado) */
     const mat=isGlass?glassOpaco:paint?new THREE.MeshStandardMaterial({color:'#ffffff',roughness:.7,flatShading:true}):src;if(paint)own.push(mat);
     const im=new THREE.InstancedMesh(geo,mat,list.length);list.forEach((it,i)=>{im.setMatrixAt(i,it.m);if(paint)im.setColorAt(i,tint.set(it.color));});
-    im.castShadow=!isGlass&&shadows;im.receiveShadow=true;im.computeBoundingSphere();group.add(im);meshes.push(im);own.push(geo);tris+=geo.attributes.position.count/3*list.length;}}
+    im.castShadow=!isGlass&&shadows;im.receiveShadow=true;im.computeBoundingSphere();(t!=null?grupoDe(t):group).add(im);meshes.push(im);own.push(geo);tris+=geo.attributes.position.count/3*list.length;}}
   return meshes;};
  const wins={},doors=[],garages=[],vidriosKit=[];
  for(const h of houses)for(const o of h.plan.openings){
@@ -110,14 +114,14 @@ export function createHouses(items,{kit=null,shadows=true}={}){
   else if(o.kind==='door'&&!o.abierta)doors.push({h,o,a:0,frame:frameOf(h,o),color:houseColorDoor(h)});
   else if(o.kind==='garage')garages.push({h,o,a:0,frame:frameOf(h,o),color:o.color});}
  // (por baldosa, como la parte fija)
- const porBaldosa=list=>{const m=new Map();for(const it of list){const t=it.h?it.h.t:baldosaDe(it.m.elements[12],it.m.elements[14]);(m.get(t)||m.set(t,[]).get(t)).push(it);}return [...m.values()];};
- for(const [n,list] of Object.entries(wins))for(const sub of porBaldosa(list))kitInstances(n,sub,'White','fuera');
+ const porBaldosa=list=>{const m=new Map();for(const it of list){const t=it.h?it.h.t:baldosaDe(it.m.elements[12],it.m.elements[14]);(m.get(t)||m.set(t,[]).get(t)).push(it);}return [...m.entries()].map(([t,l])=>Object.assign(l,{t}));};
+ for(const [n,list] of Object.entries(wins))for(const sub of porBaldosa(list))kitInstances(n,sub,'White','fuera',sub.t);
  // Las hojas: una instancia por puerta, agrupadas por modelo; la matriz cambia al abrirse.
  const leafM=d=>{const m=kit?.[d.o.m];const b=m.box,bw=b.max.x-b.min.x,bh=b.max.y-b.min.y;
   return d.frame.clone().multiply(new THREE.Matrix4().makeTranslation(d.o.w/2,0,0)).multiply(new THREE.Matrix4().makeRotationY(-1.5*d.a))
    .multiply(mm.makeScale(d.o.w/bw,d.o.h/bh,.45)).multiply(new THREE.Matrix4().makeTranslation(-b.max.x,-b.min.y,-(b.min.z+b.max.z)/2));};
  const byModel={};for(const d of doors)if(kit?.[d.o.m])(byModel[d.o.m]||(byModel[d.o.m]=[])).push(d);
- for(const [n,list0] of Object.entries(byModel))for(const list of porBaldosa(list0)){list.forEach((d,i)=>{d.i=i;d.m=leafM(d);});const meshes=kitInstances(n,list,'White');list.forEach(d=>{d.meshes=meshes;});}
+ for(const [n,list0] of Object.entries(byModel))for(const list of porBaldosa(list0)){list.forEach((d,i)=>{d.i=i;d.m=leafM(d);});const meshes=kitInstances(n,list,'White','opaco',list.t);list.forEach(d=>{d.meshes=meshes;});}
  // El portón del garaje: un panel de tablas que gira hacia adentro y arriba desde su borde de arriba.
  const gGeo=new THREE.BoxGeometry(1,1,1),gMat=new THREE.MeshStandardMaterial(LOWPOLY.on&&!TEXTURAS3D.on?{roughness:.8,flatShading:true}:{map:siding(),roughness:.8});own.push(gGeo,gMat);
  const gIm=garages.length?new THREE.InstancedMesh(gGeo,gMat,garages.length):null;
@@ -272,7 +276,10 @@ export function createHouses(items,{kit=null,shadows=true}={}){
    out.push({cx:g.cx,cz:g.cz,cy:g.h.y,seg:[g.cx-ex*w,g.cz-ez*w,g.cx+ex*w,g.cz+ez*w],choque:false,garaje:true,get a(){return g.a;},get abierta(){return !!g.mano;},alternar(){g.mano=!g.mano;},
     trancada:()=>!!trancadaFn&&doors.some(d=>d.h===g.h&&!d.o.inner&&trancadaFn(d.cx,d.cz,d.cy))});}
   return out;}
- return {group,houses,count:houses.length,tris:Math.round(tris),lights,floorAt,collide:collideAll,dentro,houseAt,updateDoors,puertasCerca,setTrancadas:fn=>{trancadaFn=fn;},update,sofa,visita,setInteriores:sel=>{porVista=true;return setInteriores(sel);},get piezasInterior(){return piezasInterior;},
+ // (fn(x, z, alto) → ¿se ve? —engine/visibles.js visibilidadFuera—, o null: todas)
+ const setVisiblesFuera=fn=>{let n=0;const ve=new Map();if(fn)for(const h of houses)if(!ve.get(h.t)&&fn(h.x,h.z,h.y+h.alto))ve.set(h.t,true);
+  for(const [t,g] of baldosas){g.visible=!fn||!!ve.get(t);if(!g.visible)n++;}return n;};
+ return {group,houses,count:houses.length,setVisiblesFuera,tris:Math.round(tris),lights,floorAt,collide:collideAll,dentro,houseAt,updateDoors,puertasCerca,setTrancadas:fn=>{trancadaFn=fn;},update,sofa,visita,setInteriores:sel=>{porVista=true;return setInteriores(sel);},get piezasInterior(){return piezasInterior;},
   vidrios:()=>vidrios,ventanaAbierta:k=>abiertas.has(k),setVentana(k,abierta){if(!vidrios.has(k))return false;abierta?abiertas.add(k):abiertas.delete(k);pintar(k);return abierta;},
   setMarcas(m){const antes=[...marcas.keys()];marcas.clear();for(const [k,c] of m)marcas.set(k,c);for(const k of new Set([...antes,...marcas.keys()]))pintar(k);},
   setNight(on){glass.emissiveIntensity=on?.9:0;glass.opacity=on?.55:.22;for(const m of mats.vidrio||[]){m.emissiveIntensity=on?.9:0;m.opacity=on?.55:.22;}for(const m of mats.farol||[])m.emissiveIntensity=on?2.2:0;},

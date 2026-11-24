@@ -91,3 +91,19 @@ export function visiblesCalle(bp,cam,margen=VISIBLES_CALLE.margen,alcance=VISIBL
   for(let cz=cz0-r;cz<=cz0+r;cz++)for(let cx=cx0-r;cx<=cx0+r;cx++){if(cx<0||cz<0||cx>=A.W||cz>=A.H)continue;const m=A.lote[cz*A.W+cx];
    if(m>=0&&Math.hypot(Math.max(cx*CELL-cam.x,0,cam.x-(cx+1)*CELL),Math.max(cz*CELL-cam.z,0,cam.z-(cz+1)*CELL))<C.cerca)lotes.add(m);}}
  return cerrar(bp,A,lotes,celdas);}
+
+// LO DE AFUERA DE LA GRILLA, desde la calle (2026-11-23: las plantas de la isla, las palmeras de la playa; lo que el plano no
+// tiene en casillas): visibilidadFuera(bp, cam, margen, alcance) da una función (x, z, alto) → ¿se puede ver? No, si queda
+// más lejos que el alcance (la niebla) o fuera del ángulo de la cámara más el margen; sí, a menos de VISIBLES_CALLE.cerca m;
+// y si no, sí cuando al menos uno de tres rayos de la cámara a lo alto del objeto —el centro de su casilla de FUERA.casilla m
+// y sus dos costados— llega sin que lo tape un edificio de la ciudad. Cachea por casilla y altura: los rayos salen de a
+// uno por casilla, no por objeto.
+export const FUERA={casilla:12};
+export function visibilidadFuera(bp,cam,margen=VISIBLES_CALLE.margen,alcance=VISIBLES.alcance){const A=alturasDe(bp),C=VISIBLES_CALLE,S=FUERA.casilla,cache=new Map();
+ const hf=Math.atan(Math.tan((cam.fov||72)*Math.PI/360)*(cam.aspect||1.6))+margen*Math.PI/180,base=Math.atan2(-Math.cos(cam.yaw),-Math.sin(cam.yaw));
+ const llega=(x,y,z)=>{const dx=x-cam.x,dy=y-cam.y,dz=z-cam.z,d=Math.hypot(dx,dy,dz);if(d<1e-6)return true;return rayo(A,cam.x,cam.y,cam.z,dx/d,dy/d,dz/d,-1,d)<0;};
+ return (x,z,alto=10)=>{const dx=x-cam.x,dz=z-cam.z,d=Math.hypot(dx,dz);if(d<C.cerca)return true;if(d>alcance+S)return false;
+  const da=Math.abs(Math.atan2(Math.sin(Math.atan2(dz,dx)-base),Math.cos(Math.atan2(dz,dx)-base)));if(da>Math.min(Math.PI,hf+Math.atan2(S,d)))return false;
+  const bx=Math.floor(x/S),bz=Math.floor(z/S),h=Math.ceil(alto/4)*4,k=bx+','+bz+','+h;let v=cache.get(k);if(v!==undefined)return v;
+  const cx=(bx+.5)*S,cz=(bz+.5)*S,ex=cx-cam.x,ez=cz-cam.z,el=Math.hypot(ex,ez)||1,px=-ez/el*S/2,pz=ex/el*S/2;
+  v=llega(cx,h,cz)||llega(cx+px,h,cz+pz)||llega(cx-px,h,cz-pz);cache.set(k,v);return v;};}

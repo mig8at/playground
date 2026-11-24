@@ -5,12 +5,12 @@
 // puertas y ventanas herméticas, lo de detrás de la primera fachada no se ve; mide cuánto se deja de dibujar.
 // Uso: node harness/pruebas/validar-calle.mjs [ciudades=2] [semilla0=1] [puntos=200] [rayos por punto=300]
 import {generateBlueprint,CELL} from '../../src/engine/blueprint.js';
-import {visiblesCalle,alturasDe,VISIBLES_CALLE,VISIBLES} from '../../src/engine/visibles.js';
+import {visiblesCalle,visibilidadFuera,alturasDe,VISIBLES_CALLE,VISIBLES} from '../../src/engine/visibles.js';
 import {rng} from '../../src/engine/veredas.js';
 
-const N=+(process.argv[2]||2),S0=+(process.argv[3]||1),P=+(process.argv[4]||200),R=+(process.argv[5]||300),PASO=.25,FOV=72,ASPECTO=16/9;
+const N=+(process.argv[2]||2),S0=+(process.argv[3]||1),P=+(process.argv[4]||200),R=+(process.argv[5]||300),PASO=.25,FOV=72,ASPECTO=16/9,ALCANCE=270;// (ALCANCE: la niebla a pie, 240 m, más 30 —como el juego—)
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};
-const med={afuera:0,puntos:0,rayos:0,pegan:0,lista:[],ms:[],total:0};
+const med={fuera:0,fueraTapados:0,afuera:0,puntos:0,rayos:0,pegan:0,lista:[],ms:[],total:0};
 for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:3}),A=alturasDe(bp),r=rng(s*131),{W,H,lote,alto}=A;
  // (uno de cada cuatro puntos, AFUERA de la grilla —hasta 80 m: el monte, la playa—, mirando hacia cualquier lado)
  for(let p=0;p<P;){const fuera=r()<.25,x=fuera?-80+r()*(W*CELL+160):r()*W*CELL,z=fuera?-80+r()*(H*CELL+160):r()*H*CELL,cx=Math.floor(x/CELL),cz=Math.floor(z/CELL);
@@ -25,8 +25,18 @@ for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:3}),A=alturasDe
     {const ax=Math.floor(px/CELL),az2=Math.floor(pz/CELL);if(ax!==ix&&az2!==iz){const lx=(dx>0?ix:ax)*CELL,lz=(dz>0?iz:az2)*CELL,tx=(lx-px)/dx,tz=(lz-pz)/dz,[mx,mz]=tx<tz?[ix,az2]:[ax,iz],mi=mz*W+mx,ml=mx>=0&&mz>=0&&mx<W&&mz<H?lote[mi]:-1;
      if(ml>=0&&Math.min(py,ny)<alto[mi]){med.pegan++;if(!V.lotes.has(ml))falla('un lote que se ve desde la calle falta en la lista (no se dibujaría)',{semilla:s,cam:[+x.toFixed(1),cam.y,+z.toFixed(1),+cam.yaw.toFixed(3)],lote:ml,a:+t.toFixed(1)});break;}}}
     const i=iz*W+ix,l=lote[i];if(l>=0&&ny<alto[i]){med.pegan++;if(!V.lotes.has(l))falla('un lote que se ve desde la calle falta en la lista (no se dibujaría)',{semilla:s,cam:[+x.toFixed(1),cam.y,+z.toFixed(1),+cam.yaw.toFixed(3)],lote:l,a:+t.toFixed(1)});break;}
-    px=nx;py=ny;pz=nz;}}}
+    px=nx;py=ny;pz=nz;}}
+  // LO DE AFUERA (visibilidadFuera: las plantas de la isla, las casas del monte): puntos al azar fuera de la grilla, a menos de
+  // 200 m de ella y entre 0 y 10 m de alto, en lo que abarca la cámara más el margen y antes de la niebla; si el rayo de la
+  // cámara al punto llega sin pegar en un edificio, un objeto que llega hasta 0 a 8 m más arriba TIENE que darse por visible.
+  const deFuera=visibilidadFuera(bp,cam,VISIBLES_CALLE.margen,ALCANCE);
+  for(let k=0;k<R/3;k++){const qx=-200+r()*(W*CELL+400),qz=-200+r()*(H*CELL+400),qy=r()*10;if(qx>=0&&qz>=0&&qx<W*CELL&&qz<H*CELL)continue;
+   const ex=qx-x,ey=qy-cam.y,ez=qz-z,d=Math.hypot(ex,ey,ez),dh=Math.hypot(ex,ez);if(dh>ALCANCE||dh<1)continue;
+   const da=Math.abs(Math.atan2(Math.sin(Math.atan2(ez,ex)-base),Math.cos(Math.atan2(ez,ex)-base)));if(da>hf)continue;med.fuera++;
+   let tapa=-1;for(let t=PASO;t<d;t+=PASO){const nx=x+ex/d*t,ny=cam.y+ey/d*t,nz=z+ez/d*t,ix=Math.floor(nx/CELL),iz=Math.floor(nz/CELL);if(ix<0||iz<0||ix>=W||iz>=H)continue;const i=iz*W+ix;if(lote[i]>=0&&ny<alto[i]){tapa=lote[i];break;}}
+   if(tapa>=0){med.fueraTapados++;continue;}const top=qy+r()*8;if(!deFuera(qx,qz,top))falla('algo de afuera que se ve desde la calle se da por tapado (no se dibujaría)',{semilla:s,cam:[+x.toFixed(1),cam.y,+z.toFixed(1),+cam.yaw.toFixed(3)],punto:[+qx.toFixed(1),+qy.toFixed(1),+qz.toFixed(1)],alto:+top.toFixed(1)});}}
  med.total+=bp.lots.length;}
 const q=(a,p)=>{const b=[...a].sort((x,y)=>x-y);return b[Math.floor(p*(b.length-1))];};
 console.log(`calle · ${N} ciudad(es) · ${med.puntos} puntos de calle (${med.afuera} fuera de la grilla), ${med.rayos} rayos en lo que abarca la cámara más ${VISIBLES_CALLE.margen}° a cada lado, ${med.pegan} dan contra un edificio · la lista: mediana ${(100*q(med.lista,.5)).toFixed(0)} % de los lotes (p90 ${(100*q(med.lista,.9)).toFixed(0)} %) · cálculo: mediana ${q(med.ms,.5).toFixed(2)} ms, p90 ${q(med.ms,.9).toFixed(2)} ms`);
+console.log(`afuera · ${med.fuera} puntos fuera de la grilla en lo que abarca la cámara, ${med.fueraTapados} tapados por la ciudad`);
 console.log(`fallas: ${[...fallas.values()].reduce((a,f)=>a+f.n,0)}`);for(const [k,f] of fallas)console.log(`  ${f.n}\t${k}\n${f.ej.map(e=>'        '+JSON.stringify(e)).join('\n')}`);
