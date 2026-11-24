@@ -186,12 +186,16 @@ export function plantBatched(kit,name,items,group,{shadow=true}={}){
  let antes=null,celdasW=0,celdasH=Infinity,fuera=null;const nivel=new Uint8Array(items.length);
  // (lo que queda fuera de la grilla del plano —las palmeras de la playa— ningún rayo de la grilla lo marca: lo decide `fuera`
  // —engine/visibles.js visibilidadFuera: la niebla, el ángulo y si la ciudad lo tapa—, y sin ella se queda prendido. 2026-11-23)
- const enCelda=it=>{if(!antes)return true;const cx=Math.floor(it.x/6),cz=Math.floor(it.z/6);return cx<0||cz<0||cx>=celdasW||cz>=celdasH?(!fuera||fuera(it.x,it.z,ALTO_PLANTA)):antes.has(cz*celdasW+cx);};
- const aplicar=i=>{const v=enCelda(items[i]);for(const {bm,ids} of todas)bm.setVisibleAt(ids[i],v);};
+ let ve=null;// (ve: ¿se ve? —fn(x, z, alto)— sobre TODAS las plantas, adentro o afuera de la grilla: las de la isla. setVe)
+ const enCelda=it=>{if(ve&&!ve(it.x,it.z,it.y+ALTO_PLANTA))return false;if(!antes)return true;const cx=Math.floor(it.x/6),cz=Math.floor(it.z/6);return cx<0||cz<0||cx>=celdasW||cz>=celdasH?(!fuera||fuera(it.x,it.z,ALTO_PLANTA)):antes.has(cz*celdasW+cx);};
+ // (sólo se toca la que cambia: con las de la isla son miles por recálculo, y setVisibleAt en todas costaba milisegundos)
+ const vis=new Uint8Array(items.length).fill(1);
+ const aplicar=i=>{const v=enCelda(items[i])?1:0;if(v===vis[i])return;vis[i]=v;for(const {bm,ids} of todas)bm.setVisibleAt(ids[i],!!v);};
  const setCeldas=(celdas,W,S=6,H=Infinity,fueraFn=null)=>{if(celdas===antes)return;antes=celdas;celdasW=W;celdasH=H;fuera=fueraFn;items.forEach((it,i)=>aplicar(i));};
  // (entera hasta PLANTA_LEJOS.enteraHasta; más allá, la liviana; vuelve a entera más acá de vuelve × eso, para no titilar)
  const setLejos=(x,z)=>{const L=PLANTA_LEJOS.enteraHasta;items.forEach((it,i)=>{const d=Math.hypot(it.x-x,it.z-z),k=nivel[i]?(d<L*PLANTA_LEJOS.vuelve?0:1):(d>L?1:0);
    if(k!==nivel[i]){nivel[i]=k;for(const t of todas)t.bm.setGeometryIdAt(t.ids[i],t.gids[k]);}});};
- return {setCeldas,setLejos,n:items.length,meshes:todas.map(t=>t.bm)};}
+ const setVe=fn=>{if(fn===ve)return;ve=fn;items.forEach((it,i)=>aplicar(i));};
+ return {setCeldas,setLejos,setVe,n:items.length,meshes:todas.map(t=>t.bm)};}
 // (compatibilidad: la distancia del último nivel)
 export const LEJOS_PLANTA={lejos:PLANTA_LEJOS.enteraHasta,cerca:PLANTA_LEJOS.enteraHasta*PLANTA_LEJOS.vuelve};

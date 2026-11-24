@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 import {CELL} from './world3d.js';
 import {OBJLoader} from 'three/addons/loaders/OBJLoader.js';
-import {plantInstances} from './nature3d.js';
+import {plantBatched} from './nature3d.js';
 import {liftFor} from './sitting3d.js';
 import {islaDe,CLIFF,WATER,mascaraRebaje} from '../engine/isla.js';
 import {CALLE,TERRAZA} from '../engine/medidas.js';
@@ -89,6 +89,9 @@ function muroDePiedra(){
 export function buildIsland(map,{plan=null,buildings=null,plants=null,nature=null,furniture=null}={}){
  // La isla como datos (src/engine/isla.js): los macizos, el contorno y la altura de cada punto. El azar r sigue desde ahí.
  const I=islaDe(map),{S,Wm,Hm,cx,cz,r,fbm,sectors,angDiff,mountain,outside,rimOf,edgeAlong,rimAt,rimPoint,beyond}=I,group=new THREE.Group(),own=[];
+ // (2026-11-23, la oclusión desde la calle: las plantas de la isla en mallas por lotes —nature3d plantBatched—, no en una
+ // InstancedMesh por modelo, cuya esfera era la isla entera y nunca se descartaba; cada planta se apaga sola —setVisiblesFuera—)
+ const plantas=[],plantar=(kit,name,list,g,opt)=>{const b=plantBatched(kit,name,list,g,opt);if(b)plantas.push(b);return b?b.n:0;};
  // El rebaje de la montaña, sólo junto a la grilla (la huella del plano): el resto, la montaña natural.
  if(plan?.isla?.huella)I.setMascara(mascaraRebaje(plan.isla.huella));
  // Con el plano, cada casa se asienta al nivel del suelo frente a su puerta, y el terreno se rebaja o se rellena alrededor
@@ -341,9 +344,9 @@ export function buildIsland(map,{plan=null,buildings=null,plants=null,nature=nul
    const c=(j%2?furrow:soil);for(const v of [q[0],q[2],q[1],q[0],q[3],q[2]]){sp.push(...v);sc.push(c.r,c.g,c.b);}}}
   if(sp.length){const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(sp,3));g.setAttribute('color',new THREE.Float32BufferAttribute(sc,3));g.computeVertexNormals();
    const m=new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,flatShading:true,side:THREE.DoubleSide});const mesh=new THREE.Mesh(g,m);mesh.receiveShadow=true;group.add(mesh);own.push(g,m);}
-  for(const [name,list] of Object.entries(crops))plantInstances(plants,name,list,group);
-  plantInstances(plants,'Apple_4',fruit.filter(t=>t.kind==='Apple_4'),group);plantInstances(plants,'Orange_4',fruit.filter(t=>t.kind==='Orange_4'),group);
-  plantInstances(plants,'BushBerries_4',bushes,group);
+  for(const [name,list] of Object.entries(crops))plantar(plants,name,list,group);
+  plantar(plants,'Apple_4',fruit.filter(t=>t.kind==='Apple_4'),group);plantar(plants,'Orange_4',fruit.filter(t=>t.kind==='Orange_4'),group);
+  plantar(plants,'BushBerries_4',bushes,group);
  }
 
  // ---------- Pinos, árboles redondos y palmeras ----------
@@ -377,28 +380,28 @@ export function buildIsland(map,{plan=null,buildings=null,plants=null,nature=nul
  // ---------- Naturaleza: árboles de los prados, arbustos, pasto y rocas (paquete de naturaleza, con su propio azar) ----------
  const rocks=[];
  if(nature){const nr=rng(map.seed*733+41),TREES=[['Tree1',4.1],['Tree2',4.98],['Tree3',4.08],['Tree4',6.85]],TINT=['#ffffff','#eef6dc','#f6f0cf','#dfeccb','#fff3d8','#e6f0c4'];
-  const byModel=(list,names,mk)=>names.forEach((n,i)=>plantInstances(nature,Array.isArray(n)?n[0]:n,list.filter((t,k)=>k%names.length===i).map(t=>mk(t,n)),group));
+  const byModel=(list,names,mk)=>names.forEach((n,i)=>plantar(nature,Array.isArray(n)?n[0]:n,list.filter((t,k)=>k%names.length===i).map(t=>mk(t,n)),group));
   byModel(round,TREES,(t,[n,h])=>({x:t.x,y:t.y-.1,z:t.z,ry:hash01(t.x,t.z)*6.28,s:(5.5+2.5*t.s)/h,tint:TINT[Math.floor(hash01(t.z,t.x)*TINT.length)]}));
   // Arbustos y pasto en los prados (no en la playa ni en la montaña alta).
   const bushes=[],tufts=[];for(let k=0;k<12000&&(bushes.length<320||tufts.length<900);k++){const x=x0+nr()*span,z=z0+nr()*span,h=height(x,z);
    if(beyond(x,z)>-5||outside(x,z)<4||h<.9||h>9||nearHouse(x,z,5)||inPlot(x,z,1))continue;const it={x,y:h-.05,z,ry:nr()*6.28};
    if(nr()<.27){if(bushes.length<320)bushes.push({...it,s:1+nr()*.9});}else if(tufts.length<900)tufts.push({...it,s:2.6+nr()*1.6});}
   byModel(bushes,['Bush1','Bush2','Bush3'],t=>t);
-  ['Grass1','Grass2','Grass3'].forEach((n,i)=>plantInstances(nature,n,tufts.filter((t,k)=>k%3===i),group,{shadow:false}));
+  ['Grass1','Grass2','Grass3'].forEach((n,i)=>plantar(nature,n,tufts.filter((t,k)=>k%3===i),group,{shadow:false}));
   // Rocas: muchas en las laderas de los cerros (más grandes arriba) y unas pocas en la orilla de la playa. No se atraviesan.
   for(let k=0;k<9000&&rocks.length<260;k++){const x=x0+nr()*span,z=z0+nr()*span,h=height(x,z);if(beyond(x,z)>-3||outside(x,z)<6||nearHouse(x,z,9)||inPlot(x,z,2))continue; // lejos de las casas: ninguna roca frente a una puerta
    const beach=h>.08&&h<.6,slope=h>5;if(!(beach&&nr()<.18||slope&&nr()<.5))continue;const s=beach?.4+nr()*.6:.7+nr()*1.6*Math.min(1,h/30)+nr()*.5;
    rocks.push({x,y:h-.25*s,z,ry:nr()*6.28,s,r:1.05*s});}
   byModel(rocks,['Rock1','Rock2','Rock3'],t=>t);}
  // Con el paquete de cultivos, las palmeras son las suyas (dos tamaños); sin él, las de tronco y hojas.
- if(plants?.PalmTree_4){plantInstances(plants,'PalmTree_4',palms.filter((p,i)=>i%3).map(p=>({x:p.x,y:p.y-.05,z:p.z,ry:p.ry,s:2.3*p.sx})),group);
-  plantInstances(plants,'PalmTree_3',palms.filter((p,i)=>!(i%3)).map(p=>({x:p.x,y:p.y-.05,z:p.z,ry:p.ry,s:2.6*p.sx})),group);palms.length=0;fronds.length=0;
+ if(plants?.PalmTree_4){plantar(plants,'PalmTree_4',palms.filter((p,i)=>i%3).map(p=>({x:p.x,y:p.y-.05,z:p.z,ry:p.ry,s:2.3*p.sx})),group);
+  plantar(plants,'PalmTree_3',palms.filter((p,i)=>!(i%3)).map(p=>({x:p.x,y:p.y-.05,z:p.z,ry:p.ry,s:2.6*p.sx})),group);palms.length=0;fronds.length=0;
   // Pasto alto y flores por los prados (no en la montaña ni en la playa).
   const tufts=[],flowers=[];for(let k=0;k<9000&&(tufts.length<900||flowers.length<380);k++){const x=x0+pr()*span,z=z0+pr()*span,h=height(x,z);
    if(beyond(x,z)>-6||outside(x,z)<5||h<1||h>7||nearHouse(x,z,4)||inPlot(x,z,1))continue;const it={x,y:h-.03,z,ry:pr()*6.28,s:1.3+pr()*.6};
    if(fbm(x*.05+9,z*.05,2)>.55){if(flowers.length<380)flowers.push(it);}else if(tufts.length<900)tufts.push(it);}
-  plantInstances(plants,'Grass_3',tufts.filter((t,i)=>i%2),group,{shadow:false});plantInstances(plants,'Grass_2',tufts.filter((t,i)=>!(i%2)),group,{shadow:false});
-  plantInstances(plants,'Flower_4',flowers.filter((t,i)=>i%2),group,{shadow:false});plantInstances(plants,'Flower_3',flowers.filter((t,i)=>!(i%2)),group,{shadow:false});}
+  plantar(plants,'Grass_3',tufts.filter((t,i)=>i%2),group,{shadow:false});plantar(plants,'Grass_2',tufts.filter((t,i)=>!(i%2)),group,{shadow:false});
+  plantar(plants,'Flower_4',flowers.filter((t,i)=>i%2),group,{shadow:false});plantar(plants,'Flower_3',flowers.filter((t,i)=>!(i%2)),group,{shadow:false});}
  const palmTrunk=new THREE.CylinderGeometry(.18,.3,7.2,7);palmTrunk.translate(0,3.6,0);
  inst(palmTrunk,new THREE.MeshStandardMaterial({color:'#8a6c4c',roughness:.9,flatShading:true}),palms,(o,p)=>{o.position.set(p.x,p.y,p.z);o.rotation.set(Math.cos(p.ry)*p.lean,0,-Math.sin(p.ry)*p.lean);o.scale.set(p.sx,p.sy,p.sz);});
  const frond=new THREE.BoxGeometry(.7,.06,3.4);frond.translate(0,0,1.6);
@@ -490,7 +493,7 @@ export function buildIsland(map,{plan=null,buildings=null,plants=null,nature=nul
  inst(box,new THREE.MeshStandardMaterial({color:'#c39a6b',roughness:.8}),steps,put);
  edge(inst(box,new THREE.MeshStandardMaterial({roughness:.9,emissive:'#57524a'}),ceilings,put));
  inst(box,new THREE.MeshStandardMaterial({color:'#3a3f43',roughness:.5}),rails,(o,p)=>{o.position.set(p.x,p.y,p.z);o.rotation.set(p.tilt||0,p.ry,0,'YXZ');o.scale.set(p.sx,p.sy,p.sz);});
- for(const [name,list] of Object.entries(furn))plantInstances(furniture,name,list,group);
+ for(const [name,list] of Object.entries(furn))plantar(furniture,name,list,group);
  // La puerta de cada casa (del paquete de muebles): gira hacia adentro cuando alguien se acerca. Sin el paquete, una tabla.
  const doorLeaves=[];
  for(const h of doorsH){const pivot=new THREE.Group(),hinge=at(h,h.door-DW/2,0,h.d/2-T/2);pivot.position.set(hinge.x,hinge.y,hinge.z);pivot.rotation.y=h.ry;group.add(pivot);
@@ -968,5 +971,5 @@ obj.traverse(o=>{if(o.isMesh){o.material=o.geometry.attributes.uv?mats.get(h.tex
  // las puertas cerca de (x, z, y), como world3d.puertasCerca (la hoja: DW a lo largo del frente de la casa)
  const puertasCerca=(x,z,y,r=1.5)=>doorLeaves.filter(d=>Math.abs(d.h.base-y)<1.6&&Math.hypot(d.cx-x,d.cz-z)<=r).map(d=>{const ex=Math.cos(d.h.ry),ez=-Math.sin(d.h.ry),w=DW/2;
   return {cx:d.cx,cz:d.cz,cy:d.h.base,seg:[d.cx-ex*w,d.cz-ez*w,d.cx+ex*w,d.cz+ez*w],get a(){return d.a;},get abierta(){return !!d.mano;},alternar(){d.mano=!d.mano;},trancada:()=>!!trancadaFn?.(d.cx,d.cz,d.h.base)};});
- return {setTrancadas:fn=>{trancadaFn=fn;},puertasCerca,lights:roadLights,superficie,lotesTri:()=>lotesTri,casaDentro:(x,z)=>{const hf=houseFloor(x,z);return hf?.inside&&hf.h.casaIdx!=null?hf.h.casaIdx:null;},rampaEn:(cx,cy)=>rampas.has(cx+','+cy),techo:(x,z)=>{const r=rampas.get(Math.floor(x/6)+','+Math.floor(z/6));return Math.max(sueloEn(x,z),r?r.orig:-Infinity);},group,seats,sleeps,insideHouse:(x,z)=>!!houseFloor(x,z)?.inside,setEdges(on){for(const m of edgeMeshes)m.userData.edges=on;},landmarks:modelHouses,plots,update,updateDoors,setNight,dispose,walkable,where,houses,spot,doorPath,names:{beaches:beaches.map(b=>b.name),cerros:sectors.map(s=>s.name)},ground:(x,z,feet)=>{const hf=houseFloor(x,z);if(!hf)return sueloEn(x,z);if(!hf.inside)return hf.h.base;const [lx,lz]=local(hf.h,x,z);return insideFloor(hf.h,lx,lz,feet);},height:(x,z)=>beyond(x,z)>0?-Infinity:sueloEn(x,z),agua,water:WATER};
+ return {setVisiblesFuera:fn=>{for(const b of plantas)b.setVe(fn);},setTrancadas:fn=>{trancadaFn=fn;},puertasCerca,lights:roadLights,superficie,lotesTri:()=>lotesTri,casaDentro:(x,z)=>{const hf=houseFloor(x,z);return hf?.inside&&hf.h.casaIdx!=null?hf.h.casaIdx:null;},rampaEn:(cx,cy)=>rampas.has(cx+','+cy),techo:(x,z)=>{const r=rampas.get(Math.floor(x/6)+','+Math.floor(z/6));return Math.max(sueloEn(x,z),r?r.orig:-Infinity);},group,seats,sleeps,insideHouse:(x,z)=>!!houseFloor(x,z)?.inside,setEdges(on){for(const m of edgeMeshes)m.userData.edges=on;},landmarks:modelHouses,plots,update,updateDoors,setNight,dispose,walkable,where,houses,spot,doorPath,names:{beaches:beaches.map(b=>b.name),cerros:sectors.map(s=>s.name)},ground:(x,z,feet)=>{const hf=houseFloor(x,z);if(!hf)return sueloEn(x,z);if(!hf.inside)return hf.h.base;const [lx,lz]=local(hf.h,x,z);return insideFloor(hf.h,lx,lz,feet);},height:(x,z)=>beyond(x,z)>0?-Infinity:sueloEn(x,z),agua,water:WATER};
 }

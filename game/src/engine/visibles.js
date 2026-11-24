@@ -104,6 +104,6 @@ export function visibilidadFuera(bp,cam,margen=VISIBLES_CALLE.margen,alcance=VIS
  const llega=(x,y,z)=>{const dx=x-cam.x,dy=y-cam.y,dz=z-cam.z,d=Math.hypot(dx,dy,dz);if(d<1e-6)return true;return rayo(A,cam.x,cam.y,cam.z,dx/d,dy/d,dz/d,-1,d)<0;};
  return (x,z,alto=10)=>{const dx=x-cam.x,dz=z-cam.z,d=Math.hypot(dx,dz);if(d<C.cerca)return true;if(d>alcance+S)return false;
   const da=Math.abs(Math.atan2(Math.sin(Math.atan2(dz,dx)-base),Math.cos(Math.atan2(dz,dx)-base)));if(da>Math.min(Math.PI,hf+Math.atan2(S,d)))return false;
-  const bx=Math.floor(x/S),bz=Math.floor(z/S),h=Math.ceil(alto/4)*4,k=bx+','+bz+','+h;let v=cache.get(k);if(v!==undefined)return v;
+  const bx=Math.floor(x/S),bz=Math.floor(z/S),h=Math.ceil(alto/4)*4,k=((bx+2048)*4096+(bz+2048))*64+Math.max(0,Math.min(63,h/4));let v=cache.get(k);if(v!==undefined)return v;
   const cx=(bx+.5)*S,cz=(bz+.5)*S,ex=cx-cam.x,ez=cz-cam.z,el=Math.hypot(ex,ez)||1,px=-ez/el*S/2,pz=ex/el*S/2;
   v=llega(cx,h,cz)||llega(cx+px,h,cz+pz)||llega(cx-px,h,cz-pz);cache.set(k,v);return v;};}

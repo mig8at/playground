@@ -19,16 +19,19 @@ export function lodInstances(group,kits,items,{near=70,shadow=true,step=6}={}){
  // el navegador sin ventana: los árboles de los jardines del monte se dibujaban todos, también desde adentro de un
  // edificio de la ciudad)
  let ll=Infinity;
- function update(cx,cz,force=false,lejos=Infinity){if(!force&&(cx-lx)**2+(cz-lz)**2<step*step&&lejos===ll)return;lx=cx;lz=cz;ll=lejos;const far2=(lejos+12)**2;
+ // (ve: ¿se ve? —fn(x, z, alto)—, la oclusión desde la calle —engine/visibles.js visibilidadFuera—: lo tapado no se pone.
+ // setVe la cambia y obliga a repartir de nuevo. 2026-11-23)
+ let ve=null,otraVez=false;const setVe=fn=>{if(fn!==ve){ve=fn;otraVez=true;}};
+ function update(cx,cz,force=false,lejos=Infinity){if(!force&&!otraVez&&(cx-lx)**2+(cz-lz)**2<step*step&&lejos===ll)return;otraVez=false;lx=cx;lz=cz;ll=lejos;const far2=(lejos+12)**2;
   for(const M of models.values())if(M)M.n=0;
   const put=(M,m,tint)=>{const i=M.n++;for(const im of M.ims){im.setMatrixAt(i,m);if(tint)im.setColorAt(i,col.set(tint));}};
-  for(const it of items){const d2=(it.x-cx)**2+(it.z-cz)**2;if(d2>far2)continue;const near2=d2<(it.near??near)**2;if(near2&&it.H)put(it.H,it.mH,it.tint);else if(!near2&&it.L)put(it.L,it.mL,it.tint);}
+  for(const it of items){const d2=(it.x-cx)**2+(it.z-cz)**2;if(d2>far2)continue;if(ve&&!ve(it.x,it.z,it.y+(it.lo?9:2)))continue;const near2=d2<(it.near??near)**2;if(near2&&it.H)put(it.H,it.mH,it.tint);else if(!near2&&it.L)put(it.L,it.mL,it.tint);}
   for(const M of models.values())if(M)for(const im of M.ims){im.count=M.n;im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;}}
  update(0,0,true);
  const calls=()=>[...models.values()].reduce((a,M)=>a+(M?M.ims.length:0),0);
  // (ocultar unos modelos —por su nombre: los árboles en la vista de arriba—)
  const setVisible=(test,on)=>{for(const [k,M] of models)if(M&&test(k.slice(k.indexOf(':')+1)))for(const im of M.ims)im.visible=on;};
- return {update,calls,setVisible,
+ return {update,calls,setVisible,setVe,
   // triángulos dibujados ahora
   tris(){let t=0;for(const M of models.values())if(M)for(const im of M.ims)t+=im.count*im.geometry.attributes.position.count/3;return t;}};
 }
