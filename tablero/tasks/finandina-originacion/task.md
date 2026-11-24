@@ -148,8 +148,13 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
   2.142 = 5.537.642 financiados.
 - [ ] Revisar el cálculo de la primera cuota (reunión del 2026-11-23). En el resumen de qa la primera cuota fue
   370.343 y las demás 322.914: la primera suma el interés diario de los días que pasan de 30 hasta la primera fecha
-  (unos 13 días, base 360). Confirmar con Finandina que así cobra el primer período y volver a medirla con la fianza
-  corregida. Depende de: Finandina — cómo liquida el primer período.
+  (unos 13 días). Es la calculadora del riel 4, que es la de Credifamilia: el motor está en código
+  (`AmortizationEngine`, `formula_version` `CREDIFAMILIA_V3_FRENCH_PREAPPROVAL_MV_CALENDAR` en `origin/qa`), no en
+  `lenders.calculator` (la 149 la tiene en `NULL`), y el primer período usa la regla de los 30 días en días
+  calendario que confirmó Credifamilia (`CalendarDaysCalculator`). Finandina recibe sus insumos (tasa de la línea,
+  fianza, seguro, 4x1000, días de pago) pero no su forma de liquidar. Confirmar con Finandina cómo liquida el primer
+  período, comparándolo con su simulador, y volver a medirla con la fianza corregida. Depende de: Finandina — cómo
+  liquida el primer período.
 
 ### Fase 2 · Cerrar el QA de CRED-519 (corrida del 9-nov: 6 pasan, 4 fallan, 5 abiertos)
 
