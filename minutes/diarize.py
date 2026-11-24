@@ -6,9 +6,10 @@ de modelos (`env:diarization`, en ~/.cache/my-tools/diarization): torch y Transf
     {"model": "...", "seconds": 0.4, "segments": [{"speaker": 0, "start": 1.2, "end": 7.9}, ...]}
 
 Los tramos de audio/system/<ms>.wav se ponen en su lugar en la línea de tiempo de la grabación (silencio entre medio),
-así los tiempos que salen son los mismos que los de la transcripción. Hasta OFFLINE_MAX segundos se corre de una vez
-(el modo que mejor separa); más largo, por partes con la caché de hablantes del modelo, que mantiene a cada persona
-con el mismo número de una parte a otra. Medido el 2026-11-23: un minuto de audio en 0,44 s en CPU.
+así los tiempos que salen son los mismos que los de la transcripción. Hasta OFFLINE_MAX (3 h) se corre de una vez;
+más largo, por partes con la caché de hablantes del modelo, que mantiene a cada persona con el mismo número de una parte
+a otra. Medido el 2026-11-23 con la reunión ES2004a de AMI (17,5 min, 4 personas): de una vez 8 s y por partes 4 min,
+con el mismo resultado; de una vez, 52 min en 19 s y 2,5 GB de memoria.
 """
 
 import glob
@@ -23,7 +24,7 @@ import torch
 from transformers import AutoModelForAudioFrameClassification, AutoProcessor
 
 MODEL_ID = "nvidia/Nemotron-3-Diarization"
-OFFLINE_MAX = float(os.environ.get("MINUTES_DIARIZE_OFFLINE_MAX", 15 * 60))  # para probar el modo por partes
+OFFLINE_MAX = float(os.environ.get("MINUTES_DIARIZE_OFFLINE_MAX", 3 * 3600))  # para probar el modo por partes
 
 
 def load_timeline(folder, rate):

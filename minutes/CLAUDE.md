@@ -46,8 +46,8 @@ les pongas en la app (`speakers.json`); «reunión» queda sólo si no se pudo s
 - **El modelo:** `nvidia/Nemotron-3-Diarization` (hasta 8 personas), en su propio entorno: `~/.cache/my-tools/diarization`
   (torch + Transformers de la fuente, **sin NeMo**; uso `minutes` del registro, `env:diarization` +
   `hub:nvidia/Nemotron-3-Diarization`). Lo corre `diarize.py` al armar el resumen, sólo sobre el audio del sistema
-  (el micrófono ya es «yo»), y deja `diarization.json`. Hasta 15 min va de una vez; más largo, por partes con la caché
-  de hablantes del modelo (las dos dan lo mismo en el 98 % del tiempo; por partes tarda ~8 min por hora). Si el entorno
+  (el micrófono ya es «yo»), y deja `diarization.json`. Hasta 3 h va de una vez (52 min en 19 s y 2,5 GB); más largo,
+  por partes con la caché de hablantes del modelo (da lo mismo, pero tarda ~14 s por minuto de audio). Si el entorno
   no está o falla, el resumen sale igual con «reunión».
 - **Cortar por voz:** Whisper junta en una frase a dos personas que hablan seguido, así que la transcripción guarda el
   tiempo de cada pedazo de texto del sistema (`-ojf`, `words` en `transcript.jsonl`) y `splitBySpeaker` corta donde
@@ -57,7 +57,14 @@ les pongas en la app (`speakers.json`); «reunión» queda sólo si no se pudo s
 - **Medido:** con voces sintéticas de macOS (Paulina, Mónica, Eddy, Grandpa) NO sirve medirlo: salen del mismo motor
   y juntó a 4 en 2. Con el video de NVIDIA (9 voces de modelos distintos, 97 s, grabado por Minutes.app desde los
   parlantes): las presentaciones quedaron cada una en su persona y cortadas en su lugar, Chris volvió como la misma
-  persona; halló 7 de 9 (juntó a Maya con Chatterbox y a Piper con Dia). Falta una reunión real con personas.
+  persona; halló 7 de 9 (juntó a Maya con Chatterbox y a Piper con Dia).
+- **Con una reunión real** (ES2004a del corpus AMI, CC BY 4.0: 17,5 min, 4 personas, en inglés, con la respuesta de
+  quién habló cuándo de BUTSpeechFIT/AMI-diarization-setup): halló las 4, confundió a una con otra sólo el 0,5 % del
+  tiempo y el 80 % de las frases quedaron con la persona correcta. Lo que falla es lo que no detecta (26 %: pedacitos y
+  voces encima en la mezcla). Pasada entera (Whisper + voces + resumen), 5:45 con el modo por partes de entonces.
+  Contra el resumen humano de AMI, el de Qwen3-VL-4B acertó los temas y el precio, pero no vio el próximo paso ni el
+  riesgo del presupuesto, y mezcló algo que no se dijo: para pendientes y decisiones, `--remote` o un modelo local más
+  grande. El armado de la prueba (la carpeta desde un WAV, el puntaje DER) está en la tarea.
 - **Idioma:** `start --lang en|auto` (por defecto `es`), guardado en `meta.json`; sirvió para probar con ese video.
 
 ## Cómo graba sin pisar el micrófono

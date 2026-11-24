@@ -33,6 +33,7 @@ herramienta personal de Miguel en my-tools: no es de CreditOp y no va a Jira. C�
 - Probarla en una reunión real de Meet o Zoom (la prueba del 2026-11-23 fue con voz sintética por los parlantes).
 - Las reuniones largas: el resumen de lo dicho hoy recorta la mitad del texto pasado de ~30 mil caracteres; hace falta
   resumir por partes.
-- Quién dijo qué: integrado con Nemotron-3-Diarization (2026-11-23). Falta medirlo con una reunión real de
-  personas (con voces de modelos distintos halló 7 de 9) y que la app proponga el nombre leyendo el recuadro de quien
-  habla en Meet o Zoom.
+- Quién dijo qué: integrado y medido con una reunión real de AMI (4 de 4 personas, 0,5 % confundido, 80 % de frases
+  bien). Falta que la app proponga el nombre leyendo el recuadro de quien habla en Meet o Zoom.
+- El resumen con Qwen3-VL-4B se pierde pendientes y decisiones (medido contra el resumen humano de AMI ES2004a):
+  probar `--remote` o un modelo local más grande con la misma reunión.
