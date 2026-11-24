@@ -159,10 +159,14 @@ func (f *flow) askList(ctx context.Context, r *Run, system, prompt, rawPath stri
 			}
 			last = err
 			try--
+			wait := time.Duration(failures) * 20 * time.Second
+			if strings.Contains(err.Error(), "Google está cortando") {
+				wait = time.Duration(failures) * 150 * time.Second // bin/aistudio se pone en pausa 2 min tras un corte
+			}
 			select {
 			case <-ctx.Done():
 				return nil, ctx.Err()
-			case <-time.After(time.Duration(failures) * 20 * time.Second):
+			case <-time.After(wait):
 			}
 			continue
 		}
