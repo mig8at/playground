@@ -63,8 +63,10 @@ les pongas en la app (`speakers.json`); «reunión» queda sólo si no se pudo s
   tiempo y el 80 % de las frases quedaron con la persona correcta. Lo que falla es lo que no detecta (26 %: pedacitos y
   voces encima en la mezcla). Pasada entera (Whisper + voces + resumen), 5:45 con el modo por partes de entonces.
   Contra el resumen humano de AMI, el de Qwen3-VL-4B acertó los temas y el precio, pero no vio el próximo paso ni el
-  riesgo del presupuesto, y mezcló algo que no se dijo: para pendientes y decisiones, `--remote` o un modelo local más
-  grande. El armado de la prueba (la carpeta desde un WAV, el puntaje DER) está en la tarea.
+  riesgo del presupuesto, y mezcló algo que no se dijo. Con `--remote` (Claude Sonnet 5.5 en el Bedrock de CreditOp, 10 s) cubrió casi
+  todo el resumen humano: la meta de ganancia, el próximo paso, el riesgo del costo de la pantalla, y separó las ideas
+  abiertas de lo decidido. Para una reunión real eso saca el texto (no el audio ni las capturas) de la Mac: lo decide
+  Miguel por reunión. El armado de la prueba (la carpeta desde un WAV, el puntaje DER) está en la tarea.
 - **Idioma:** `start --lang en|auto` (por defecto `es`), guardado en `meta.json`; sirvió para probar con ese video.
 
 ## Cómo graba sin pisar el micrófono
