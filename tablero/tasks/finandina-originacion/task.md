@@ -195,6 +195,23 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
   Lo que entra al formulario es sólo lo que piden Finandina o el diseño (Miguel, 2026-11-24): la actividad
   económica según la política (empleado y pensionado, sin independiente), y la entidad y las fechas de una PEP, que
   piden el diseño y el documento.
+- [ ] Llevar a qa los cambios del formulario 25 que ya se probaron en local (el esquema del mock,
+  `harness/mock-forms-g2/fixtures/esquema-25.json`):
+  - la opción «Pensionado» en la actividad económica (320);
+  - la empresa (321) sólo cuando la actividad es «Empleado» (`parent_value` = `empleado`);
+  - debajo de cada pregunta PEP (322 y 323), la entidad, la fecha de vinculación y la fecha de retiro (opcional), con
+    `parent_value` = `si`.
+
+  Los campos y las opciones nuevos van con una migración que los busque por nombre, como la de la ciudad de
+  nacimiento, y después se reconstruye el esquema del 25 en form-service. Termina con el flujo cerrando en 11 en qa y
+  los 13 valores en `user_field_values`.
+- [ ] Partir el formulario como el diseño: la residencia antes de ADO, y lo laboral y las declaraciones después de
+  confirmar el plazo. Termina con dos formularios, cada uno en su lugar del flujo, o con la decisión de dejarlo junto.
+- [ ] Mejorar el formulario dinámico para que un campo pueda depender de más de una respuesta. Hoy cada campo tiene
+  un solo padre (`fields.parent_id`), y el wizard compara contra él (`field-visibility.ts`). Para Finandina se
+  resolvió repitiendo los datos de la vinculación debajo de cada pregunta PEP: si responde «Sí» a las dos, ve los dos
+  bloques. Termina con la dependencia de varios padres en form-service y en el wizard, y los datos de la vinculación de
+  Finandina en un solo bloque.
 - [ ] Llevar al armador de los documentos de Finandina los datos que hoy no llegan (cruce del 2026-11-24, en
   `artifacts/finandina-datos-de-los-documentos-2026-11-24.md`):
   - la actividad económica (campo 320);
