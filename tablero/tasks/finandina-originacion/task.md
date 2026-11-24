@@ -192,6 +192,23 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
   Termina con la lista de campos por ocupación acordada y el formulario (o los formularios) configurado así en qa. Por
   verificar: si form-service puede mostrar un campo según otra respuesta; el único vínculo entre campos documentado
   es departamento → ciudad.
+  Lo que entra al formulario es sólo lo que piden Finandina o el diseño (Miguel, 2026-11-24): la actividad
+  económica según la política (empleado y pensionado, sin independiente), y la entidad y las fechas de una PEP, que
+  piden el diseño y el documento.
+- [ ] Llevar al armador de los documentos de Finandina los datos que hoy no llegan (cruce del 2026-11-24, en
+  `artifacts/finandina-datos-de-los-documentos-2026-11-24.md`):
+  - la actividad económica (campo 320);
+  - la empresa que escribe el cliente (campo 321; el armador lee 199, 191 y 72);
+  - las dos PEP (322 y 323) y la entidad y fechas de una PEP;
+  - los ingresos de Mareigua o Ágil Data (hoy toma el campo 87, que el formulario de Finandina no pide);
+  - el valor a girar, igual al monto aprobado por ahora;
+  - los montos en letras;
+  - la ciudad de firma (sale «BOGOTÁ» siempre).
+
+  Termina con los dos documentos generados para una solicitud local con todos esos datos llenos.
+- [ ] Confirmar con Finandina lo que quedó resuelto provisionalmente el 2026-11-24. Depende de: Finandina — si el
+  valor a girar es el monto aprobado o el monto menos el aval y otros cobros; si quieren el monto del aval en el
+  formulario (su observación 4); y si los T&C con los 21 cambios aceptados son la versión final.
 - [ ] Plantillas del formulario de vinculación (24 marcadores) y de los T&C (15), con los montos en letras y las
   observaciones del mapa resueltas (PEP con marcadores propios, monto del aval en el formulario, segundo nombre,
   fecha y ciudad de firma). Termina con los tres documentos generados para una solicitud local con todos los
