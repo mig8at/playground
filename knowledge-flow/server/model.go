@@ -25,6 +25,8 @@ import (
 const (
 	diffCap = 40000 // por archivo: más que eso, se corta y se dice
 	fileCap = 30000
+	// expandBudget: lo más que suman los diffs y archivos de un paquete (~100 mil tokens), con lugar para la respuesta
+	expandBudget = 360000
 )
 
 // noTools: lo que cambia de los prompts de drift para quien no puede correr comandos.
@@ -48,11 +50,27 @@ func (f *flow) prompt(name string) (string, error) {
 	return text + noTools, nil
 }
 
-// expand: un paquete con cada `git -C … diff …` reemplazado por el diff y el archivo en main.
+// expand: un paquete con cada `git -C … diff …` reemplazado por el diff y el archivo en main. Un archivo que se cita
+// varias veces se expande la primera, y todo el paquete cabe en expandBudget: la corrida #22 (2026-11-24) citó 20
+// archivos en un paquete, que con los topes por archivo pasaban el millón de caracteres, y Bedrock cortó la invocación.
 func (f *flow) expand(ctx context.Context, pkg string) string {
+	refs := map[string]bool{}
+	for _, p := range reGitDiff.FindAllStringSubmatch(pkg, -1) {
+		refs[p[1]+":"+strings.TrimSpace(p[4])] = true
+	}
+	dCap, fCap := diffCap, fileCap
+	if n := len(refs); n > 0 && n*(diffCap+fileCap) > expandBudget {
+		share := expandBudget / n
+		dCap, fCap = share*4/7, share*3/7
+	}
+	seen := map[string]bool{}
 	return reGitDiff.ReplaceAllStringFunc(pkg, func(m string) string {
 		p := reGitDiff.FindStringSubmatch(m)
 		dir, base, ref, path := p[1], p[2], p[3], strings.TrimSpace(p[4])
+		if seen[dir+":"+path] {
+			return m + " (el diff y el archivo van más arriba, en su primera mención)"
+		}
+		seen[dir+":"+path] = true
 		diff, err := f.sh(ctx, "git", "-C", dir, "diff", "-M", base, ref, "--", path)
 		if err != nil {
 			diff = "(no se pudo sacar el diff: " + err.Error() + ")"
@@ -62,7 +80,7 @@ func (f *flow) expand(ctx context.Context, pkg string) string {
 			file = "(no está en main)"
 		}
 		return fmt.Sprintf("%s\n\nDIFF desde %s hasta %s:\n```diff\n%s\n```\nEL ARCHIVO EN %s:\n```\n%s\n```\n", m, short(base), ref,
-			clip(diff, diffCap), ref, clip(file, fileCap))
+			clip(diff, dCap), ref, clip(file, fCap))
 	})
 }
 
