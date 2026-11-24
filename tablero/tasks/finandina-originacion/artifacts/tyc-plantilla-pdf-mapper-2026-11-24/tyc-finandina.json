@@ -1,0 +1,182 @@
+{
+  "config": {
+    "globalFontSize": 15,
+    "globalFontWeight": "normal"
+  },
+  "1": {
+    "fields": [
+      {
+        "id": "credit_amount_letters",
+        "type": "text",
+        "x": 0.09427,
+        "y": 0.31662,
+        "w": 0.7962,
+        "fontSize": 14
+      },
+      {
+        "id": "credit_amount",
+        "type": "text",
+        "x": 0.15694,
+        "y": 0.33493,
+        "w": 0.12969,
+        "fontSize": 15
+      },
+      {
+        "id": "nominal_monthly_rate",
+        "type": "text",
+        "x": 0.6655,
+        "y": 0.36081,
+        "w": 0.06484,
+        "fontSize": 15
+      },
+      {
+        "id": "interest_rate",
+        "type": "text",
+        "x": 0.19601,
+        "y": 0.37912,
+        "w": 0.06484,
+        "fontSize": 15
+      },
+      {
+        "id": "fee_number",
+        "type": "text",
+        "x": 0.42757,
+        "y": 0.43089,
+        "w": 0.05558,
+        "fontSize": 15
+      },
+      {
+        "id": "fee_value_letters",
+        "type": "text",
+        "x": 0.09427,
+        "y": 0.47508,
+        "w": 0.7962,
+        "fontSize": 14
+      },
+      {
+        "id": "fee_value",
+        "type": "text",
+        "x": 0.15694,
+        "y": 0.49339,
+        "w": 0.12969,
+        "fontSize": 15
+      },
+      {
+        "id": "fianza_amount_letters",
+        "type": "text",
+        "x": 0.09427,
+        "y": 0.64743,
+        "w": 0.7962,
+        "fontSize": 14
+      },
+      {
+        "id": "fianza_amount_iva",
+        "type": "text",
+        "x": 0.15694,
+        "y": 0.66574,
+        "w": 0.12969,
+        "fontSize": 15
+      }
+    ],
+    "guides": []
+  },
+  "2": {
+    "fields": [
+      {
+        "id": "insurance_quota_letters",
+        "type": "text",
+        "x": 0.09427,
+        "y": 0.62672,
+        "w": 0.7962,
+        "fontSize": 14
+      },
+      {
+        "id": "insurance_quota",
+        "type": "text",
+        "x": 0.15694,
+        "y": 0.64503,
+        "w": 0.12969,
+        "fontSize": 15
+      },
+      {
+        "id": "financial_protection_premium_letters",
+        "type": "text",
+        "x": 0.09427,
+        "y": 0.72584,
+        "w": 0.7962,
+        "fontSize": 14
+      },
+      {
+        "id": "financial_protection_premium",
+        "type": "text",
+        "x": 0.1515,
+        "y": 0.74414,
+        "w": 0.12969,
+        "fontSize": 15
+      }
+    ],
+    "guides": []
+  },
+  "3": {
+    "fields": [],
+    "guides": []
+  },
+  "4": {
+    "fields": [
+      {
+        "id": "signature_day",
+        "type": "text",
+        "x": 0.37303,
+        "y": 0.43606,
+        "w": 0.05558,
+        "fontSize": 15
+      },
+      {
+        "id": "signature_month",
+        "type": "text",
+        "x": 0.55304,
+        "y": 0.43606,
+        "w": 0.13895,
+        "fontSize": 15
+      },
+      {
+        "id": "signature_year",
+        "type": "text",
+        "x": 0.75467,
+        "y": 0.43606,
+        "w": 0.08337,
+        "fontSize": 15
+      },
+      {
+        "id": "signature_city",
+        "type": "text",
+        "x": 0.16967,
+        "y": 0.45437,
+        "w": 0.20843,
+        "fontSize": 15
+      }
+    ],
+    "guides": []
+  },
+  "5": {
+    "fields": [
+      {
+        "id": "full_name",
+        "type": "text",
+        "x": 0.14511,
+        "y": 0.14313,
+        "w": 0.41686,
+        "fontSize": 15
+      },
+      {
+        "id": "document_number",
+        "type": "text",
+        "x": 0.23885,
+        "y": 0.16902,
+        "w": 0.18527,
+        "fontSize": 15
+      }
+    ],
+    "guides": []
+  }
+}

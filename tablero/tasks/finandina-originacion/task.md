@@ -199,6 +199,12 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
   El motor es Blade por el catálogo, como Alta Fleet, salvo que Finandina exija su PDF tal cual (pdf-mapper). Las
   filas del catálogo de la 149 van juntas: formulario, T&C y `promissory_note` sin plantilla; si entran sólo las
   dos nuevas, Finandina firma sin pagaré. Depende de: Oscar / Finandina — si aceptan los documentos rehechos.
+  Los T&C ya salen como plantilla de pdf-mapper con la skill `pdf-template` (pdf-mapper-editor, rama `pdf-v2`, sin
+  push): 19 campos, estampados bien con el código del servicio (`artifacts/tyc-plantilla-pdf-mapper-2026-11-24/`).
+  Faltan en el catálogo 6 ids: los 5 montos en letras (crédito, cuota, aval, prima, protección financiera; el
+  backend ya tiene la forma `calc_{nombre}_words` en `AltaPayloadBuilder`) y la prima de Protección Financiera,
+  que hoy no sale de ningún lado. Sin verificar: que con la 149 `OnboardingPayloadBuilder` llegue al motor y
+  traiga `fianza_amount_iva` lleno (sin motor sale vacío). Sigue: sumar los 6 ids al catálogo y al armador del backend.
 - [ ] Pagaré en Deceval con la credencial real de Finandina y la certificación. Depende de: Hans — CRED-463.
 
 ### Fase 4 · Entrega a Finandina y después del 11
