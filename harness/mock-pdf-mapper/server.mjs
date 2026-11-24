@@ -19,12 +19,33 @@
 //
 // Uso:  node mock-pdf-mapper/server.mjs   (o  bin/mock-pdf-mapper start)
 //   env: MOCK_PDFMAP_PORT (8100) · MOCK_PDFMAP_FAIL=1 → 503 (probar la política de "no degradar")
+//        MOCK_PDFMAP_REAL (http://localhost:8080; vacío = nunca) → el pdf-mapper-service REAL de la máquina
+//
+// LO QUE EL SERVICIO REAL TIENE, LO GENERA ÉL (2026-11-24). Si el pdf-mapper-service de la máquina (el que corre el
+// PDF Mapper Studio, :8080) tiene ese proyecto y ese documento, el pedido se le reenvía tal cual y vuelve su PDF:
+// el documento de verdad, lleno con el payload del backend (así se ven los de Finandina en local). Lo que no tiene
+// sigue saliendo del PDF de demo de siempre, así que el resto de las entidades no cambia. Si el real no contesta, se
+// usa el demo y se avisa en el log.
 
 import http from 'node:http';
 import { minimalPdf } from '../pkg/pdf-mock.ts';
 
 const PORT = Number(process.env.MOCK_PDFMAP_PORT || 8100);
 const FAIL = process.env.MOCK_PDFMAP_FAIL === '1';
+const REAL = (process.env.MOCK_PDFMAP_REAL ?? 'http://localhost:8080').replace(/\/$/, '');
+
+// ¿El servicio real tiene este documento? Pregunta la lista de documentos del proyecto (2 s como mucho).
+async function realHas(slug, doc) {
+    if (!REAL) return false;
+    try {
+        const r = await fetch(`${REAL}/api/projects/${encodeURIComponent(slug)}/documents`, { signal: AbortSignal.timeout(2000) });
+        if (!r.ok) return false;
+        const docs = (await r.json())?.documents ?? [];
+        return docs.includes(doc);
+    } catch {
+        return false;
+    }
+}
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 
 // `/api/projects/{slug}/documents/{doc}/generate|status`
@@ -102,12 +123,29 @@ const server = http.createServer((req, res) => {
             return res.end(JSON.stringify({ error: 'servicio no disponible (simulado)' }));
         }
 
-        // Éxito: el BODY es el PDF. Lo etiquetamos con el proyecto y el documento para poder reconocerlo
-        // si alguien lo abre (es un documento de demo, no el real).
-        const pdf = minimalPdf(`DEMO ${slug} / ${doc} - generado por el mock del pdf-mapper`);
-        log(`generate proyecto=${slug} doc=${doc} payload=${body.length}b → PDF ${pdf.length}b`);
-        res.writeHead(200, { 'content-type': 'application/pdf', 'content-length': pdf.length });
-        res.end(pdf);
+        const demo = () => {
+            // Éxito: el BODY es el PDF. Lo etiquetamos con el proyecto y el documento para poder reconocerlo
+            // si alguien lo abre (es un documento de demo, no el real).
+            const pdf = minimalPdf(`DEMO ${slug} / ${doc} - generado por el mock del pdf-mapper`);
+            log(`generate proyecto=${slug} doc=${doc} payload=${body.length}b → PDF ${pdf.length}b`);
+            res.writeHead(200, { 'content-type': 'application/pdf', 'content-length': pdf.length });
+            res.end(pdf);
+        };
+        realHas(slug, doc).then(async (has) => {
+            if (!has) return demo();
+            try {
+                const r = await fetch(`${REAL}/api/projects/${encodeURIComponent(slug)}/documents/${encodeURIComponent(doc)}/generate`, {
+                    method: 'POST', headers: { 'content-type': 'application/json' }, body: body || '{}', signal: AbortSignal.timeout(45000),
+                });
+                const bytes = Buffer.from(await r.arrayBuffer());
+                log(`generate proyecto=${slug} doc=${doc} payload=${body.length}b → REAL ${REAL} ${r.status} ${bytes.length}b`);
+                res.writeHead(r.status, { 'content-type': r.headers.get('content-type') ?? 'application/pdf', 'content-length': bytes.length });
+                res.end(bytes);
+            } catch (e) {
+                log(`⚠ el servicio real no contestó (${e?.message ?? e}): se usa el demo`);
+                demo();
+            }
+        });
     });
 });
 
