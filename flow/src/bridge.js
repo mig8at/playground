@@ -46,7 +46,7 @@ const HANDLERS = {
 }
 
 function report() {
-  const listing = Object.fromEntries(lenders.value.map(r => [r.name, { ok: r.ok, reason: r.reason || null, cupo: r.cupo, category: r.category || null, dues: r.dues }]))
+  const listing = Object.fromEntries(lenders.value.map(r => [r.name, { ok: r.ok, reason: r.reason || null, prob: r.prob || null, cupo: r.cupo, category: r.category || null, dues: r.dues }]))
   const body = {
     merchant: { name: merchant.nombre, branch: merchant.sucursal },
     selected: ui.selected,

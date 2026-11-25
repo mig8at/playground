@@ -133,7 +133,7 @@ async function main() {
       for (const e of rep.entities) {
         console.log(`  ${e.name === rep.selected ? '▸' : ' '} ${e.name} · rt${e.rt} · ${e.product}${e.production ? ` · real #${e.production.lenderId} de la sucursal ${e.production.branchId}` : ' · de ejemplo'}${e.delegated ? ` · ${e.delegated.usesQuotaEngine ? 'motor' : 'su API'}${e.delegated.formalization ? ', radica' : ''}, días ${e.delegated.paymentDays.join('/')}` : ''}`)
         const g = e.listing
-        if (g) console.log(`      listado: ${g.ok ? `se ofrece · cupo ${Number(g.cupo || 0).toLocaleString('es-CO')}${g.category ? ' · ' + g.category : ''}` : 'no se ofrece · ' + (g.reason || 'sin motivo')}`)
+        if (g) console.log(`      listado: ${g.ok ? `se ofrece · cupo ${Number(g.cupo || 0).toLocaleString('es-CO')}${g.category ? ' · ' + g.category : ''}${g.prob && g.prob !== 'alta' ? ` · prioridad ${g.prob}${g.reason ? ': ' + g.reason : ''}` : ''}` : 'no se ofrece · ' + (g.reason || 'sin motivo')}`)
         else if (e.enabled === false) console.log('      listado: no habilitada en el comercio')
       }
       return

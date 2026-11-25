@@ -561,7 +561,7 @@ export function applyProductionImport({ comercio, sucursal, item, profiles = [],
     // la misma semántica se lee como “está / no está en esta lista”.
     const rawOp = String(r.operator || '').trim().toLowerCase()
     const op = set ? (['!=', '<>', 'not in'].includes(rawOp) ? 'not in' : 'in') : (rawOp === '=' ? '==' : rawOp)
-    const value = set ? String(r.value || '').split('|').map(x => x.trim().toLowerCase()).filter(Boolean).map(x => field === 'gender' ? x.toUpperCase() : x) : flowNum(r.value)
+    const value = set ? String(r.value || '').split('|').map(x => x.trim().toLowerCase()).filter(Boolean).map(x => (field === 'gender' || field === 'documentType') ? x.toUpperCase() : x) /* género y tipo de documento van en mayúscula (M, F, CC): en minúscula la regla no coincidía nunca */ : flowNum(r.value)
     byGroup.get(id).conds.push({ field, op, value })
   }
   const importedGroups = [...byGroup.values()]
