@@ -172,12 +172,43 @@ const SELECTED_LAYOUT = {
 // todo, no un zoom en la esquina. Al SELECCIONAR: NO se re-encuadra solo (la cámara la maneja el
 // usuario con scroll para zoom y arrastrando para mover).
 // Depende también de isDark → al cambiar de tema los edges se reconstruyen con el color adecuado.
+// EL CAMINO DE LA ENTIDAD ELEGIDA (2026-11-25): lo que recorre queda pleno; la configuración que lo alimenta, a media
+// luz («contexto»); y lo que esa entidad NO usa, apagado (al pasar el mouse vuelve, para poder leerlo). Las líneas
+// siguen a sus nodos, y las del camino se engrosan. Sin entidad elegida, todo igual.
+const CONTEXT = new Set(['lenders-cfg', 'merch', 'default', 'comercio', 'relacion', 'branchstatus', 'grouprules', 'delegated'])
+function offFor(def) {
+  const off = new Set()
+  if (!usesQuotaEngine(def) && !isInHouse(def.rt)) off.add('engine')   // agregador y redirect: nunca le preguntan
+  if (!usesCategories(def)) off.add('perfil')                         // sin categorías: el hub no decide nada
+  if (def.rt === 0) off.add('preapproval')                            // el redirect no pasa por la preaprobación
+  return off
+}
+function paint(def, ns, es) {
+  if (!def) {
+    nodes.value = ns.map(n => ({ ...n, class: undefined }))
+    edges.value = es
+    return
+  }
+  const off = offFor(def)
+  const role = (id) => (off.has(id) ? 'off' : CONTEXT.has(id) ? 'context' : 'path')
+  nodes.value = ns.map(n => ({ ...n, class: 'node-' + role(n.id) }))
+  edges.value = es.map(e => {
+    const a = role(e.source), b = role(e.target)
+    const r = a === 'off' || b === 'off' ? 'off' : a === 'context' || b === 'context' ? 'context' : 'path'
+    const st = { ...(e.style || {}) }
+    if (r === 'off') st.opacity = 0.12
+    else if (r === 'context') st.opacity = Math.min(st.opacity ?? 1, 0.45)
+    else st.strokeWidth = Math.max(Number(st.strokeWidth) || 1.5, 2.2)
+    return { ...e, style: st, class: 'edge-' + r }
+  })
+}
+
 // La ficha del riel 4 cambia la cadena (categorías o su API, radicación): también la mira.
 const selDelegated = computed(() => JSON.stringify(findLenderDef(ui.selected)?.entidad?.delegated || null))
 watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, selIncome, selCanContinue, selDelegated], ([sel]) => {
   const base = nodes.value.filter(n => !DYN.includes(n.id) && !n.id.startsWith('cat-') && n.id !== 'tramo' && n.id !== 'grouprules' && n.id !== 'branchstatus' && n.id !== 'extra' && n.id !== 'selection' && n.id !== 'identity' && n.id !== 'planpagos' && n.id !== 'firma' && n.id !== 'estado' && n.id !== 'codeudor' && n.id !== 'infoadicional' && n.id !== 'delegated' && !n.id.startsWith('stage-') && n.id !== 'return' && n.id !== 'cstatus')
   const def = sel ? findLenderDef(sel) : null
-  if (!def) { nodes.value = base; edges.value = baseEdges(); return } // cerrar: quita la plantilla, sin mover la cámara
+  if (!def) { paint(null, base, baseEdges()); return } // cerrar: quita la plantilla, sin mover la cámara
   // Cadena config-de-lender → comercio → sucursal, para CUALQUIER lender (CreditopX o externo).
   // "Config de lender" (n0) = plantilla del lender (familia CreditopX o config propia del externo);
   // la sucursal COPIA de ahí y comercio/sucursal la pisan (puntitos). Ownership: comercio dueño de
@@ -269,7 +300,7 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
         prevSrc = id; prevH = 'out'; x += adv(type)
       }
       step('selection', 'selection')
-      if (!selCanContinue.value) { nodes.value = [...base, ...add]; edges.value = [...baseEdges(), ...addE]; return }
+      if (!selCanContinue.value) { paint(def, [...base, ...add], [...baseEdges(), ...addE]); return }
       step('identity', 'identity')
       engineToIdentity()
       step('infoadicional', 'infoadicional')
@@ -284,8 +315,7 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
       addE.push({ id: 'e-selection', source: prevSrc, sourceHandle: prevH, target: 'selection', targetHandle: 'in', animated: false, style: GS })
       prevSrc = 'selection'; prevH = 'out'; x += adv('selection')
       if (!selCanContinue.value) {
-        nodes.value = [...base, ...add]
-        edges.value = [...baseEdges(), ...addE]
+        paint(def, [...base, ...add], [...baseEdges(), ...addE])
         return
       }
       // Flujo in-platform, en reconstrucción PASO A PASO. Renting/rto: primero Ábaco (ingreso extra
@@ -344,8 +374,7 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
     }
   }
 
-  nodes.value = [...base, ...add]
-  edges.value = [...baseEdges(), ...addE]
+  paint(def, [...base, ...add], [...baseEdges(), ...addE])
 }, { immediate: true }) // immediate: reconstruye la config del lender seleccionado al rehidratar
 </script>
 
@@ -400,6 +429,7 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
             <div class="lg"><span class="lg__chip rt0">rt0</span> redirect · decide su sitio</div>
             <div class="lg lg--dash"><span class="lg__dash"></span> config / herencia</div>
             <div class="lg"><span class="lg__ext"></span> con halo: contesta un tercero</div>
+            <div class="lg"><span class="lg__dim"></span> con entidad elegida: a media luz su config · apagado lo que no usa</div>
             <div class="lg"><span class="lg__chip mprod--credito">C</span><span class="lg__chip mprod--renting">R</span><span class="lg__chip mprod--rto">RB</span> productos</div>
             <div class="lg"><i class="kv-dot inh-heredada"></i> heredada <i class="kv-dot inh-editada"></i> editada</div>
             <div class="lg"><i class="lg-sw lg-sw--won"></i> categoría gana <i class="lg-sw lg-sw--off"></i> no aplica <i class="lg-sw lg-sw--fail"></i> no cumple</div>

@@ -958,4 +958,10 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   outline: 2px solid var(--ext-ring); outline-offset: 4px;
   box-shadow: 0 0 18px var(--ext-glow), var(--shadow-1);
 }
+.lg__dim { width: 14px; height: 10px; border: 1.5px solid var(--line); border-radius: 3px; opacity: .4; margin: 0 2px; }
 .lg__ext { width: 14px; height: 10px; border: 1.5px solid var(--line); border-radius: 3px; outline: 1.5px solid var(--ext-ring); outline-offset: 2px; margin: 0 2px; }
+
+/* El camino de la entidad elegida (App.vue, paint): pleno · contexto a media luz · fuera apagado; al pasar, vuelve. */
+.vue-flow__node.node-context { opacity: .62; transition: opacity .15s ease; }
+.vue-flow__node.node-off { opacity: .22; transition: opacity .15s ease; }
+.vue-flow__node.node-context:hover, .vue-flow__node.node-off:hover { opacity: 1; }

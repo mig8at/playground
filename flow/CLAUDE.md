@@ -48,6 +48,8 @@ sola «delegada»: no se distingue Finandina de Credifamilia. Dos nodos lo expli
   Renting (158), Rent to Own (205) y AltaX (211); CrediPullman y Credifamilia no: `extended` les aprueba sin evaluar.
 - **Halo = contesta un tercero** (2026-11-25; antes fue borde punteado): las centrales, Ábaco y el servicio de preaprobación cuando
   decide la API de la entidad (agregador o delegada sin motor). Una central «caída» se marca con borde rojo.
+- **El camino de la entidad elegida** (`paint` en `App.vue`): lo que recorre, pleno y con líneas gruesas; su configuración,
+  a media luz; lo que no usa (el perfilamiento sin categorías, el motor para agregador y redirect), apagado.
 - **Elegir la entidad** (`LenderSelectionNode.vue`, `selectionCheck`): `update-user-request` NO vuelve a consultar el
   cupo; rechaza el monto distinto del pedido de la tienda, la cuota inicial que alcanza el monto y la originación apagada,
   y pasa a 3. Reemplazó a la «Re-evaluación en POS», que dibujaba una consulta que no existe.
