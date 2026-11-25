@@ -1,0 +1,349 @@
+<title>Riel 4 de punta a punta</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: una línea de tiempo vertical (los pasos de la solicitud, con el estado como hito) y, debajo, la bifurcación
+   Finandina / Credifamilia como un diagrama: dos fuentes de números entran al mismo motor de plan. */
+:root {
+  --bg: #f6f5fb;
+  --surface: #ffffff;
+  --ink: #1d1b3a;
+  --muted: #5d5a7a;
+  --line: #dcd9ee;
+  --accent: #4c39ff;
+  --accent-soft: #ebe8ff;
+  --fin: #0f7b6c;
+  --fin-soft: #e3f4f1;
+  --cf: #b4570f;
+  --cf-soft: #fbeedf;
+  --code-bg: #efedf8;
+  --font-display: "Sora", "Avenir Next", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12111f; --surface: #1c1a30; --ink: #ecebfa; --muted: #a9a6c8; --line: #34314f;
+    --accent: #8b7dff; --accent-soft: #2a2550; --fin: #4fd1bd; --fin-soft: #143630; --cf: #f0a35e; --cf-soft: #3a2714;
+    --code-bg: #262341; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12111f; --surface: #1c1a30; --ink: #ecebfa; --muted: #a9a6c8; --line: #34314f;
+  --accent: #8b7dff; --accent-soft: #2a2550; --fin: #4fd1bd; --fin-soft: #143630; --cf: #f0a35e; --cf-soft: #3a2714;
+  --code-bg: #262341; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.55;
+  padding-block: 32px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1040px; margin: 0 auto; display: flex; flex-direction: column; gap: 40px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(28px, 4.4vw, 42px); font-weight: 700; letter-spacing: -0.02em; }
+h2 { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+h3 { font-size: 16px; font-weight: 600; }
+p { margin: 0; max-width: 68ch; }
+code { font-family: var(--font-mono); font-size: 0.84em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.lede { color: var(--muted); font-size: 17px; }
+header { display: flex; flex-direction: column; gap: 12px; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+/* La línea de tiempo */
+.timeline { display: flex; flex-direction: column; }
+.step { display: grid; grid-template-columns: 88px 1fr; gap: 0 18px; position: relative; }
+.rail { display: flex; flex-direction: column; align-items: center; }
+.state {
+  font-family: var(--font-mono); font-size: 13px; font-weight: 500; min-width: 64px; text-align: center;
+  padding: 4px 8px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--surface); color: var(--muted);
+}
+.state.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.state.final { border-color: var(--accent); background: var(--accent); color: #fff; }
+.rail::after { content: ""; flex: 1; width: 2px; background: var(--line); margin: 6px 0; min-height: 18px; }
+.step:last-child .rail::after { display: none; }
+.card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; margin-bottom: 14px;
+  display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 10px 24px; min-width: 0;
+}
+.card .what { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.screen { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.tables { display: flex; flex-direction: column; gap: 6px; font-size: 13px; min-width: 0; }
+.tables .label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.tables ul { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 3px; }
+.tables li { overflow-wrap: anywhere; }
+.diff { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font-size: 12.5px; padding: 3px 9px; border-radius: 6px; line-height: 1.4; }
+.chip.fin { background: var(--fin-soft); color: var(--fin); }
+.chip.cf { background: var(--cf-soft); color: var(--cf); }
+.chip b { font-weight: 600; }
+
+/* La bifurcación */
+.fork { display: flex; flex-direction: column; gap: 16px; }
+.diagram { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px; overflow-x: auto; }
+.diagram svg { display: block; min-width: 760px; width: 100%; height: auto; }
+.svg-box { stroke-width: 1.5; }
+.svg-title { font-family: var(--font-display); font-size: 15px; font-weight: 600; }
+.svg-text { font-family: var(--font-body); font-size: 12.5px; }
+.svg-mono { font-family: var(--font-mono); font-size: 11.5px; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: 0; }
+th { font-family: var(--font-display); font-weight: 600; font-size: 13px; }
+th.fin { color: var(--fin); } th.cf { color: var(--cf); }
+td:first-child { color: var(--muted); width: 22%; }
+.note { border-left: 3px solid var(--accent); padding: 4px 0 4px 14px; color: var(--muted); }
+footer { font-size: 12.5px; color: var(--muted); display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--line); padding-top: 18px; }
+
+@media (max-width: 720px) {
+  .step { grid-template-columns: 70px 1fr; gap: 0 10px; }
+  .state { min-width: 56px; font-size: 12px; }
+  .card { grid-template-columns: minmax(0, 1fr); }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Originación delegada · response_type 4</span>
+    <h1>Riel 4 de punta a punta</h1>
+    <p class="lede">Qué pasa desde que el cliente elige Finandina hasta que la solicitud queda «Autorizada» (estado 11), qué
+      tabla escribe cada paso, y por qué Finandina y Credifamilia comparten el motor del plan pero no sus números.</p>
+    <div class="legend">
+      <span><i class="dot" style="background:var(--accent)"></i>estado de <code>user_requests.user_request_status_id</code></span>
+      <span><i class="dot" style="background:var(--fin)"></i>Finandina (149)</span>
+      <span><i class="dot" style="background:var(--cf)"></i>Credifamilia (24 y 216)</span>
+    </div>
+  </header>
+
+  <section class="timeline" aria-label="Los pasos de la solicitud">
+    <div class="step">
+      <div class="rail"><span class="state on">9</span></div>
+      <div class="card">
+        <div class="what">
+          <span class="screen">/lenders · listado</span>
+          <h3>La tarjeta pide la preaprobación</h3>
+          <p>El wizard le pregunta a <b>pre-approvals-service</b> por cada entidad. Ahí se aprueba o se rechaza, y sale el cupo. Si
+            sale rechazada o el monto pasa el cupo, la tarjeta no deja elegirla.</p>
+        </div>
+        <div class="tables">
+          <span class="label">Lee</span>
+          <ul><li><code>risk_central_user_data</code> (lo que guardaron Ágil Data y Experian)</li><li><code>lender_users_categories</code> y las reglas de perfil (sólo Finandina)</li></ul>
+          <span class="label">Escribe</span>
+          <ul><li>el intento en DynamoDB de pre-approvals-service</li></ul>
+        </div>
+        <div class="diff">
+          <span class="chip fin"><b>Finandina:</b> contesta el motor de cupo de Creditop con su política (alias <code>creditop_x</code>)</span>
+          <span class="chip cf"><b>Credifamilia:</b> contesta la API de Credifamilia (su análisis «PC Follow»)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="rail"><span class="state on">3</span></div>
+      <div class="card">
+        <div class="what">
+          <span class="screen">/confirmation</span>
+          <h3>El cliente elige la entidad y confirma</h3>
+          <p>Queda la entidad en la solicitud. El backend decide si falta validar identidad y corre otra vez la política
+            (<code>available-quota/extended</code>) para saber si sigue, si pide codeudor o si se rechaza.</p>
+        </div>
+        <div class="tables">
+          <span class="label">Escribe</span>
+          <ul><li><code>user_requests</code>: <code>lender_id</code>, <code>amount</code>, estado 3 «Seleccionó entidad»</li></ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="rail"><span class="state on">3</span></div>
+      <div class="card">
+        <div class="what">
+          <span class="screen">/dynamic-form/25</span>
+          <h3>Formulario dinámico de la entidad</h3>
+          <p>form-service arma el formulario desde las tablas de formularios y guarda las respuestas.</p>
+        </div>
+        <div class="tables">
+          <span class="label">Escribe</span>
+          <ul><li><code>user_field_values</code> con el <code>form_id</code> del formulario</li></ul>
+        </div>
+        <div class="diff">
+          <span class="chip fin"><b>Finandina:</b> formulario 25 (residencia, actividad, empresa, PEP) después de confirmar</span>
+          <span class="chip cf"><b>Credifamilia:</b> su formulario adicional (6), antes de firmar</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="rail"><span class="state on">10</span></div>
+      <div class="card">
+        <div class="what">
+          <span class="screen">/first-payment-date</span>
+          <h3>Fecha de la primera cuota</h3>
+          <p>El cliente elige el día de pago entre los que permite la ficha de la entidad. La solicitud pasa a
+            «Pendiente de autorización».</p>
+        </div>
+        <div class="tables">
+          <span class="label">Lee</span>
+          <ul><li><code>delegated_origination_profiles.payment_days</code></li></ul>
+          <span class="label">Escribe</span>
+          <ul><li><code>user_requests.selected_payment_date</code>, estado 10</li></ul>
+        </div>
+        <div class="diff">
+          <span class="chip fin"><b>Finandina:</b> días 5, 10, 15 o 20</span>
+          <span class="chip cf"><b>Credifamilia:</b> días 2 o 16</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="rail"><span class="state on">10</span></div>
+      <div class="card">
+        <div class="what">
+          <span class="screen">/payment-schedule</span>
+          <h3>Plan de pagos</h3>
+          <p>El motor de originación delegada simula los plazos y el cliente elige uno. Para armar el plan vuelve a consultar
+            la preaprobación en vivo: de ahí salen el monto máximo, la tasa y la fianza. Es la bifurcación de abajo.</p>
+        </div>
+        <div class="tables">
+          <span class="label">Lee</span>
+          <ul><li><code>delegated_origination_profiles</code> (la ficha)</li><li>la preaprobación, otra vez</li><li><code>credit_line_by_lenders</code> y <code>lenders_by_allieds</code> (sólo Finandina)</li></ul>
+          <span class="label">Escribe</span>
+          <ul><li><code>user_requests.fee_number</code></li></ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="rail"><span class="state on">10</span></div>
+      <div class="card">
+        <div class="what">
+          <span class="screen">/sign-documents</span>
+          <h3>Documentos</h3>
+          <p>El catálogo de firma dice qué documentos van. Los que tienen plantilla propia los llena pdf-mapper-service con el
+            armador de la entidad; el resto sale por su servicio de siempre.</p>
+        </div>
+        <div class="tables">
+          <span class="label">Lee</span>
+          <ul><li><code>lender_signing_documents</code></li><li><code>lenders.pdf_mapper_project_slug</code></li></ul>
+          <span class="label">Escribe</span>
+          <ul><li><code>user_request_signing_documents</code> (la URL de cada PDF en S3)</li><li><code>promissory_notes</code></li></ul>
+        </div>
+        <div class="diff">
+          <span class="chip fin"><b>Finandina:</b> vinculación y T&amp;C por pdf-mapper (<code>FinandinaPayloadBuilder</code>), pagaré sin Deceval</span>
+          <span class="chip cf"><b>Credifamilia:</b> seis documentos fijos en código, firma por Netco, pagaré por Deceval</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="rail"><span class="state final">11</span></div>
+      <div class="card">
+        <div class="what">
+          <span class="screen">/otp-validation → /loan-approved</span>
+          <h3>Firma con OTP y autorización</h3>
+          <p><code>LoanAuthorizationService</code> pasa la solicitud a «Autorizada». Después busca la formalización de la ficha:
+            con una clave, radica con la entidad; sin ella, termina ahí.</p>
+        </div>
+        <div class="tables">
+          <span class="label">Escribe</span>
+          <ul><li><code>otps</code> (su hash es la llave de firma de los T&amp;C)</li><li><code>user_requests</code>: estado 11</li></ul>
+        </div>
+        <div class="diff">
+          <span class="chip fin"><b>Finandina:</b> <code>formalization</code> = NULL, no radica</span>
+          <span class="chip cf"><b>Credifamilia:</b> <code>credifamilia_radication</code>, radica el crédito</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="fork">
+    <span class="eyebrow">La bifurcación</span>
+    <h2>Mismo motor de plan, distinta fuente de números</h2>
+    <p>Las dos entidades calculan con el mismo motor (<code>app/Services/PaymentPlan/DelegatedOrigination</code>): cuota francesa, fianza,
+      4×1000, seguro de vida e interés por días. Lo que cambia es de dónde salen los números, y eso lo dice
+      <code>inputs_source</code> en la ficha de cada entidad.</p>
+
+    <div class="diagram" role="img" aria-label="Dos fuentes de números, una por entidad, entran al mismo motor de plan">
+      <svg viewBox="0 0 960 400" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"></path>
+          </marker>
+        </defs>
+        <!-- Finandina -->
+        <rect x="16" y="20" width="300" height="160" rx="10" fill="var(--fin-soft)" stroke="var(--fin)" class="svg-box"></rect>
+        <text x="32" y="48" class="svg-title" fill="var(--fin)">Finandina · creditop_x_pre_approval</text>
+        <text x="32" y="74" class="svg-text" fill="var(--ink)">Decide nuestro motor de cupo, con la</text>
+        <text x="32" y="92" class="svg-text" fill="var(--ink)">política de Finandina</text>
+        <text x="32" y="118" class="svg-mono" fill="var(--muted)">tasa: credit_line_by_lenders (N.M.→E.A.)</text>
+        <text x="32" y="136" class="svg-mono" fill="var(--muted)">fianza: % de la categoría, anticipada</text>
+        <text x="32" y="154" class="svg-mono" fill="var(--muted)">seguro: lenders_by_allieds</text>
+        <text x="32" y="172" class="svg-mono" fill="var(--muted)">monto máx.: el cupo del cliente</text>
+
+        <!-- Credifamilia -->
+        <rect x="16" y="220" width="300" height="160" rx="10" fill="var(--cf-soft)" stroke="var(--cf)" class="svg-box"></rect>
+        <text x="32" y="248" class="svg-title" fill="var(--cf)">Credifamilia · credifamilia_pre_approval</text>
+        <text x="32" y="274" class="svg-text" fill="var(--ink)">Decide la API de Credifamilia</text>
+        <text x="32" y="292" class="svg-text" fill="var(--ink)">(«PC Follow»)</text>
+        <text x="32" y="318" class="svg-mono" fill="var(--muted)">tasa: la que contesta la entidad</text>
+        <text x="32" y="336" class="svg-mono" fill="var(--muted)">fianza: tipo y % que contesta (216: FNG)</text>
+        <text x="32" y="354" class="svg-mono" fill="var(--muted)">seguro: el que contesta</text>
+        <text x="32" y="372" class="svg-mono" fill="var(--muted)">monto máx.: su montoMaximo</text>
+
+        <!-- arrows to engine -->
+        <path d="M316,100 C380,100 380,200 440,200" fill="none" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arrow)"></path>
+        <path d="M316,300 C380,300 380,200 440,200" fill="none" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arrow)"></path>
+
+        <!-- engine -->
+        <rect x="444" y="140" width="220" height="120" rx="10" fill="var(--accent-soft)" stroke="var(--accent)" class="svg-box"></rect>
+        <text x="460" y="170" class="svg-title" fill="var(--accent)">Motor de plan</text>
+        <text x="460" y="194" class="svg-text" fill="var(--ink)">el mismo para las dos</text>
+        <text x="460" y="216" class="svg-mono" fill="var(--muted)">cuota francesa · fianza</text>
+        <text x="460" y="234" class="svg-mono" fill="var(--muted)">4×1000 · seguro · días</text>
+
+        <!-- arrow to plan -->
+        <path d="M664,200 L740,200" fill="none" stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arrow)"></path>
+
+        <!-- plan + formalization -->
+        <rect x="744" y="150" width="200" height="100" rx="10" fill="var(--surface)" stroke="var(--line)" class="svg-box"></rect>
+        <text x="760" y="180" class="svg-title" fill="var(--ink)">Plan y firma</text>
+        <text x="760" y="204" class="svg-text" fill="var(--ink)">plazos, cuota, aval</text>
+        <text x="760" y="224" class="svg-mono" fill="var(--muted)">→ estado 11</text>
+
+        <text x="744" y="290" class="svg-mono" fill="var(--fin)">Finandina: sin formalización</text>
+        <text x="744" y="310" class="svg-mono" fill="var(--cf)">Credifamilia: radica al autorizar</text>
+      </svg>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Ficha <code>delegated_origination_profiles</code></th><th class="fin">Finandina (149)</th><th class="cf">Credifamilia (24 · 216)</th></tr></thead>
+        <tbody>
+          <tr><td><code>inputs_source</code></td><td><code>creditop_x_pre_approval</code></td><td><code>credifamilia_pre_approval</code></td></tr>
+          <tr><td><code>bond_percentage_source</code></td><td><code>pre_approval</code> (el % de la categoría)</td><td><code>pre_approval</code> (24) · <code>fng_table</code> (216)</td></tr>
+          <tr><td><code>forced_bond_type</code></td><td>Anticipada</td><td>— (24) · Anticipada (216)</td></tr>
+          <tr><td><code>payment_days</code></td><td>5, 10, 15, 20</td><td>2, 16</td></tr>
+          <tr><td><code>formalization</code></td><td>NULL</td><td><code>credifamilia_radication</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="note">Una consecuencia que se vio en qa el 2026-11-24: cuando la preaprobación de Credifamilia empezó a salir
+      rechazada, las dos Credifamilia dejaron de armar el plan y Finandina siguió cerrando en 11. Comparten el motor, no la
+      fuente.</p>
+  </section>
+
+  <footer>
+    <span>Verificado contra el código de la rama <code>qa</code> de legacy-backend y frontend-monorepo, y con corridas en qa
+      (solicitudes 505285 a 505310), el 2026-11-24 y 2026-11-25.</span>
+    <span>Fuentes: <code>DocumentSigningService</code>, <code>LoanAuthorizationService</code>, <code>CreditopXPreApprovalInputs</code>,
+      <code>CredifamiliaPreApprovalInputs</code>, <code>CredifamiliaDocumentsBuilder</code>, <code>FinandinaPayloadBuilder</code> y la tabla
+      <code>delegated_origination_profiles</code> de qa.</span>
+  </footer>
+</div>
