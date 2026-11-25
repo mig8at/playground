@@ -196,7 +196,7 @@ function placeDecisionColumn(ns) {
   // La ficha de originación delegada, sobre «Plan de pagos», que es quien la lee (días, fianza, de dónde salen los
   // números); de ahí baja también a la radicación o al estado final (formalización). Sin plan a la vista, a su lado.
   const pp = ns.find(n => n.id === 'planpagos')
-  at.delegated = pp ? { x: pp.position.x + 115 - 174, y: -110 } : { x: ex + 380, y: -110 }
+  at.delegated = pp ? { x: pp.position.x + 115 - 174, y: -300 } : { x: ex + 380, y: -300 }   // ~560 de alto: termina antes del plan
   return ns.map(n => (at[n.id] ? { ...n, position: at[n.id] } : n))
 }
 // Lo que lee la ficha delegada en main (2026-11-25): el plan de pagos (PaymentDateService y los controladores de

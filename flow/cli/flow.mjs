@@ -22,7 +22,7 @@ const USAGE = `bin/flow — Flow por consola (le habla a la app abierta; si no h
   bin/flow add --name <n> --rt 2|4|1|0 [--product credito|renting|rto] [--engine 0|1] [--radica 0|1] [--days 5,10]
                                                  una entidad de ejemplo, sin base
   bin/flow select <nombre> · unselect · remove <nombre> · clear
-  bin/flow delegated <nombre> [--engine 0|1] [--radica 0|1] [--days 2,16] [--bond 10] [--bond-type anticipada|vencida]
+  bin/flow delegated <nombre> [--engine 0|1] [--radica 0|1] [--days 2,16] [--bond 10] [--bond-type anticipada|vencida] [--bond-source pre_approval|fng_table]
   bin/flow client [--score 800] [--negatives 0] [--arrears 0] [--inquiries 2] [--history 24] [--occupation empleado|independiente|pensionado|desempleado]
                   [--continuity <3m|3m|6m|12m] [--age 41] [--gender F|M] [--income 5400000] [--amount 1200000]
                                                  el cliente de la solicitud (lo que contestan las centrales) y el monto
@@ -81,6 +81,7 @@ const delegatedFlags = (o) => {
   if (o.radica !== undefined) d.formalization = String(o.radica) === '1'
   if (o.days) d.paymentDays = ids(o.days)
   if (o.bond) d.bondPct = Number(o.bond)
+  if (o['bond-source']) d.bondSource = String(o['bond-source']) === 'fng_table' ? 'fng_table' : 'pre_approval'
   if (o['bond-type']) d.bondType = ['vencida', 'mensual'].includes(String(o['bond-type']).toLowerCase()) ? 'mensual' : 'anticipada'
   return d
 }
@@ -102,13 +103,14 @@ async function lenderPhoto(target, branch, lender) {
     sql(target, `SELECT c.id, c.name, c.loan_limit, c.already_used_loan, c.min_initial_fee, c.max_fee_number, c.max_amount, c.\`order\` AS priority, r.occupation, r.min_age, r.max_age, r.monthly_income, r.gender, r.negative_reports_last_12_months, r.current_delinquencies, r.financial_history_length, r.min_score, r.employment_continuity, r.consulted_last_6_months FROM lender_users_categories c JOIN lender_users_category_rules r ON r.lender_users_category_id = c.id AND r.lender_id = c.lender_id AND r.lender_users_category_type_id = 1 WHERE c.lender_id = ${lender} AND c.active = 1 ORDER BY c.\`order\`, c.id`),
     sql(target, `SELECT min_amount, max_amount, max_fee_number, mandatory_fee_number FROM creditop_x_conditions_by_amount_by_lender WHERE lender_id = ${lender} ORDER BY min_amount, max_amount, id`),
     sql(target, `SELECT gr.id AS group_id, gr.rule_name, lr.name, lr.specific_table, lr.\`column\`, lr.operator, lr.value FROM group_rules gr JOIN lender_rules lr ON lr.group_rule_id = gr.id WHERE gr.allied_branch_id = ${branch.id} AND lr.status = 1 ORDER BY gr.id, lr.id`),
-    Number(item.response_type) === 4 ? sql(target, `SELECT inputs_source, forced_bond_type, payment_days, formalization FROM delegated_origination_profiles WHERE lender_id = ${lender} LIMIT 1`) : Promise.resolve([]),
+    Number(item.response_type) === 4 ? sql(target, `SELECT inputs_source, bond_percentage_source, forced_bond_type, payment_days, formalization FROM delegated_origination_profiles WHERE lender_id = ${lender} LIMIT 1`) : Promise.resolve([]),
   ])
   let delegated
   if (delegatedRows[0]) {
     const d = delegatedRows[0]
     let days = []; try { days = JSON.parse(d.payment_days) } catch { days = String(d.payment_days || '').match(/\d+/g)?.map(Number) || [] }
     delegated = { usesQuotaEngine: d.inputs_source === 'creditop_x_pre_approval', formalization: !!d.formalization, paymentDays: days.length ? days : undefined,
+      bondSource: d.bond_percentage_source === 'fng_table' ? 'fng_table' : 'pre_approval',
       // En main los tipos son «Anticipada» y «Vencida» (PaymentPlanPayloadBuilder::mapGuaranteeType); Flow llama «mensual» a la vencida.
       bondType: d.forced_bond_type ? (['vencida', 'mensual'].includes(String(d.forced_bond_type).toLowerCase()) ? 'mensual' : 'anticipada') : undefined }
   }
@@ -133,7 +135,7 @@ async function main() {
       console.log(`Flow · ${r.data.apps} app(s) abierta(s)` + (rep ? ` · ${rep.merchant?.name || ''} / ${rep.merchant?.branch || ''}` : ''))
       if (!rep) return
       for (const e of rep.entities) {
-        console.log(`  ${e.name === rep.selected ? '▸' : ' '} ${e.name} · rt${e.rt} · ${e.product}${e.production ? ` · real #${e.production.lenderId} de la sucursal ${e.production.branchId}` : ' · de ejemplo'}${e.delegated ? ` · ${e.delegated.usesQuotaEngine ? 'motor' : 'su API'}${e.delegated.formalization ? ', radica' : ''}, días ${e.delegated.paymentDays.join('/')}` : ''}`)
+        console.log(`  ${e.name === rep.selected ? '▸' : ' '} ${e.name} · rt${e.rt} · ${e.product}${e.production ? ` · real #${e.production.lenderId} de la sucursal ${e.production.branchId}` : ' · de ejemplo'}${e.delegated ? ` · ${e.delegated.usesQuotaEngine ? 'creditop_x_pre_approval' : 'credifamilia_pre_approval'} · fianza ${e.delegated.bondSource}, ${e.delegated.bondType === 'mensual' ? 'vencida' : 'anticipada'}${e.delegated.formalization ? ' · credifamilia_radication' : ' · sin formalización'} · días ${e.delegated.paymentDays.join('/')}` : ''}`)
         const g = e.listing
         if (g) console.log(`      listado: ${g.ok ? `se ofrece · cupo ${Number(g.cupo || 0).toLocaleString('es-CO')}${g.category ? ' · ' + g.category : ''}${g.prob && g.prob !== 'alta' ? ` · prioridad ${g.prob}${g.reason ? ': ' + g.reason : ''}` : ''}` : 'no se ofrece · ' + (g.reason || 'sin motivo')}`)
         else if (e.enabled === false) console.log('      listado: no habilitada en el comercio')

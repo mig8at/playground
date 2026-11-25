@@ -73,18 +73,20 @@ export const RT_LABEL = { 0: 'Redirect', 1: 'Agregador', 2: 'CreditopX', 4: 'Ori
 // Una por entidad. Dice cómo se arma el plan y qué pasa al autorizar; QUÉ se aprueba y por cuánto lo contesta el
 // servicio de preaprobación (`preApprovalResponseOf`), igual para todas las delegadas.
 //   paymentDays   los días de pago que se ofrecen para la primera cuota
-//   bondPct       el % de la fianza (aval), con IVA aparte
+//   bondPct       el % de la fianza (aval), con IVA aparte (en Flow se dicta; en main lo dice bondSource)
+//   bondSource    bond_percentage_source: 'pre_approval' (lo trae la preaprobación) · 'fng_table' (tabla del FNG por plazo)
 //   bondType      'anticipada' (se financia junto al crédito) · 'mensual' (se cobra en cada cuota)
 //   formalization true → al autorizar se radica con la entidad; false → termina en el 11 al firmar
 //   usesQuotaEngine true → la evalúa el motor de cupo de CreditOp (legacy-backend), con categorías, como a CreditopX
 //                   (Finandina, por alias); false → contesta su propia API (Credifamilia)
-const DELEGATED_DEFAULT = { paymentDays: [5, 10, 15, 20], bondPct: 10, bondType: 'anticipada', formalization: false, usesQuotaEngine: true }
+const DELEGATED_DEFAULT = { paymentDays: [5, 10, 15, 20], bondPct: 10, bondSource: 'pre_approval', bondType: 'anticipada', formalization: false, usesQuotaEngine: true }
 export function delegatedOf(lender) {
   const d = (lender && lender.entidad && lender.entidad.delegated) || {}
   const base = DELEGATED_DEFAULT
   return {
     paymentDays: Array.isArray(d.paymentDays) && d.paymentDays.length ? d.paymentDays : base.paymentDays,
     bondPct: Number.isFinite(Number(d.bondPct)) ? Number(d.bondPct) : base.bondPct,
+    bondSource: d.bondSource === 'fng_table' ? 'fng_table' : 'pre_approval',
     bondType: d.bondType === 'mensual' ? 'mensual' : 'anticipada',
     formalization: d.formalization == null ? base.formalization : !!d.formalization,
     usesQuotaEngine: d.usesQuotaEngine == null ? base.usesQuotaEngine : !!d.usesQuotaEngine,

@@ -20,13 +20,8 @@ de vez en cuando y **no tiene que seguir al código al pie de la letra**. Lo que
     Banco Finandina (2247), con el cliente empleado, sin negativos y 12 meses de continuidad.
   - ⚠ Cada ventana guarda su propio escenario: con dos apps abiertas (Cockpit y un navegador), las dos reciben el
     comando. El botón «Importar prod» se fue: leía por el trazador, que se borró el 2026-10-13.
-- **Armar un escenario sin clics:** `bin/cockpit open flow '#/lender?name=Finandina&rt=4'` crea la entidad si no
-  existe y la elige en el listado, con la oferta guardada (`src/route.js`). Para una delegada, su ficha: `engine=1|0`,
-  `radica=1|0`, `days=2,16`; `select=0` la crea sin elegirla. Las tres de ejemplo (2026-11-25):
-  `name=Credifamilia&rt=4&engine=0&radica=1&days=2,16` · `name=CrediPullman&rt=2` · `name=Finandina&rt=4&engine=1&radica=0`.
-  Y con renting y política de codeudor: `name=Motai%20Renting&rt=2&product=renting` · `name=Rent%20to%20Own&rt=2&product=rto`.
-  `remove=1` borra una. ⚠ Dentro de Cockpit los espacios del nombre se pierden: van como `%20`. Cada navegador guarda sus propias
-  entidades: lo de Cockpit no está en el navegador de la sesión, ni al revés.
+- Las rutas por hash (`#/lender?…`) se quitaron el 2026-11-25: Cockpit guarda la última ruta y la volvía a aplicar al
+  reiniciar, y creaba entidades de ejemplo solas. Todo eso lo hace `bin/flow`.
 - **Por consola, para un modelo:** `python3 flow/tools/flow_context.py map --text` · `route "<pregunta>" --text` ·
   `brief <tema> --text`. Mapa → una ficha → la fuente que cita. No le pases cédulas, solicitudes ni datos de un caso.
 - **Un caso o un estado real** no se contesta acá: el harness (correr), `bin/pg` (la base, Loki) y, en prod, el
