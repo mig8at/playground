@@ -1,15 +1,15 @@
 <script setup>
 import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
-import { ui, findLenderDef, lenders, preApprovalResponseOf, setPreApprovalField, usesPreApproval, money, openFieldInfo } from '../store'
+import { ui, findLenderDef, lenders, preApprovalResponseOf, setPreApprovalField, usesPreApproval, usesQuotaEngine, money, openFieldInfo } from '../store'
 import { ShieldCheck } from 'lucide-vue-next'
 import MoneyInput from '../MoneyInput.vue'
 import AffixField from '../AffixField.vue'
 
 // El servicio de preaprobación (pre-approvals-service). Cuelga ARRIBA de «Entidades disponibles» porque es ahí, tarjeta
 // por tarjeta, donde se le consulta. Siempre está y muestra la entidad ELEGIDA: para el agregador (rt=1) le pregunta a
-// la API de la entidad y para la delegada (rt=4) al motor de la entidad, y ahí se dicta lo que contesta; CreditopX y el
-// redirect lo dicen sin campos. No guarda la respuesta: cada consulta vuelve a evaluar.
+// la API de la entidad (y a la de la delegada que no usa el motor), y ahí se dicta lo que contesta; con CreditopX y la
+// delegada que sí lo usa, le pregunta al motor de cupo (otro nodo); el redirect no pasa. No guarda la respuesta: cada consulta vuelve a evaluar.
 const name = computed(() => ui.selected)
 const lender = computed(() => findLenderDef(name.value))
 const r = computed(() => preApprovalResponseOf(name.value))
@@ -26,6 +26,7 @@ const outcome = computed(() => {
 
 <template>
   <div class="node node--tramo prov-node node--preapproval">
+    <Handle id="fromengine" type="target" :position="Position.Top" />
     <div class="node__hd node__hd--teal nhd-doc" title="clic: dónde vive y por qué" @click="openFieldInfo('psel.preapproval')">
       <div class="node__title"><ShieldCheck :size="13" /> Servicio de preaprobación</div>
       <div class="node__kind">{{ lender ? lender.name : 'pre-approvals-service' }}</div>
@@ -33,7 +34,7 @@ const outcome = computed(() => {
     <div class="node__body">
       <div v-if="!lender" class="tr-hint">Se consulta por cada tarjeta del listado. Elegí una entidad en «Entidades disponibles» para ver o dictar lo que contesta.</div>
       <template v-else-if="editable">
-        <div class="tr-hint">Lo que contesta {{ lender.rt === 4 ? 'el motor de la entidad' : 'la API de ' + lender.name }} para esta tarjeta. Editalo:</div>
+        <div class="tr-hint">Lo que contesta la API de {{ lender.name }} para esta tarjeta. Editalo:</div>
         <div class="cat__chips">
           <button v-for="[k, label] in STATUS" :key="k" class="chip-toggle nodrag" :class="{ on: r.status === k }" @click.stop="set('status', k)">{{ label }}</button>
         </div>
@@ -47,7 +48,10 @@ const outcome = computed(() => {
         </template>
         <div class="tr-active" :class="{ 'tr-active--no': row && !row.ok }">→ {{ outcome }}</div>
       </template>
-      <div v-else-if="lender.rt === 2" class="tr-hint">CreditopX: lo decide el motor de cupo de CreditOp con las categorías de perfilamiento (en el servicio, el adaptador de CreditopX). Se edita en las categorías, a la izquierda.</div>
+      <template v-else-if="usesQuotaEngine(lender)">
+        <div class="tr-hint">{{ lender.rt === 2 ? 'CreditopX' : lender.name + ' (por alias, como CreditopX)' }}: el servicio no decide, le pregunta al motor de cupo ↑ y devuelve lo que contesta. Se cambia en las categorías, a la izquierda.</div>
+        <div class="tr-active" :class="{ 'tr-active--no': row && !row.ok }">→ {{ outcome }}</div>
+      </template>
       <div v-else class="tr-hint">Redirect: no pasa por la preaprobación. La entidad decide en su sitio.</div>
     </div>
     <Handle id="down" type="source" :position="Position.Bottom" />

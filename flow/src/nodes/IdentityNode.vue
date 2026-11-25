@@ -10,6 +10,7 @@ import { User } from 'lucide-vue-next'
 <template>
   <div class="node node--identity">
     <Handle id="in" type="target" :position="Position.Left" />
+    <Handle id="fromengine" type="target" :position="Position.Top" />
     <div class="node__hd node__hd--green nhd-doc" title="Validación de identidad — primer paso tras elegir el lender de crédito">
       <div class="node__title">Validación de identidad</div>
     </div>

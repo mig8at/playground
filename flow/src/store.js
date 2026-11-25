@@ -76,7 +76,9 @@ export const RT_LABEL = { 0: 'Redirect', 1: 'Agregador', 2: 'CreditopX', 4: 'Ori
 //   bondPct       el % de la fianza (aval), con IVA aparte
 //   bondType      'anticipada' (se financia junto al crédito) · 'mensual' (se cobra en cada cuota)
 //   formalization true → al autorizar se radica con la entidad; false → termina en el 11 al firmar
-const DELEGATED_DEFAULT = { paymentDays: [5, 10, 15, 20], bondPct: 10, bondType: 'anticipada', formalization: false }
+//   usesQuotaEngine true → la evalúa el motor de cupo de CreditOp (legacy-backend), con categorías, como a CreditopX
+//                   (Finandina, por alias); false → contesta su propia API (Credifamilia)
+const DELEGATED_DEFAULT = { paymentDays: [5, 10, 15, 20], bondPct: 10, bondType: 'anticipada', formalization: false, usesQuotaEngine: true }
 export function delegatedOf(lender) {
   const d = (lender && lender.entidad && lender.entidad.delegated) || {}
   const base = DELEGATED_DEFAULT
@@ -85,6 +87,7 @@ export function delegatedOf(lender) {
     bondPct: Number.isFinite(Number(d.bondPct)) ? Number(d.bondPct) : base.bondPct,
     bondType: d.bondType === 'mensual' ? 'mensual' : 'anticipada',
     formalization: d.formalization == null ? base.formalization : !!d.formalization,
+    usesQuotaEngine: d.usesQuotaEngine == null ? base.usesQuotaEngine : !!d.usesQuotaEngine,
   }
 }
 export function setDelegated(lender, key, value) {
@@ -95,9 +98,12 @@ export function setDelegated(lender, key, value) {
 // ¿Se origina en casa? CreditopX (rt=2) y la originación delegada (rt=4) recorren nuestro flujo hasta el 11.
 export const isInHouse = (rt) => Number(rt) === 2 || Number(rt) === 4
 // ¿Decide con categorías de perfilamiento? Sólo CreditopX: la delegada y el agregador los contesta la preaprobación.
-export const usesCategories = (lender) => !!lender && lender.rt === 2
+export const usesCategories = (lender) => !!lender && (lender.rt === 2 || (lender.rt === 4 && delegatedOf(lender).usesQuotaEngine))
+// ¿Lo evalúa el motor de cupo de legacy-backend? Los mismos: CreditopX y la delegada que lo usa. (Hoy coincide con
+// `usesCategories`: el motor ES quien aplica las categorías; se nombra aparte porque habla de otra cosa.)
+export const usesQuotaEngine = (lender) => usesCategories(lender)
 // ¿Pasa por el servicio de preaprobación con una respuesta que Flow deja editar? El agregador y la delegada.
-export const usesPreApproval = (lender) => !!lender && (lender.rt === 1 || lender.rt === 4)
+export const usesPreApproval = (lender) => !!lender && (lender.rt === 1 || (lender.rt === 4 && !delegatedOf(lender).usesQuotaEngine))
 export function entidadCfg(lender) {
   if (!lender) return null
   const t = lender.terms || {}, ov = lender.overrides || {}, e = lender.entidad || {}
@@ -1148,12 +1154,20 @@ export const lenders = computed(() => {
     } else if (l.rt === 4) {                     // originación delegada: la política es de la entidad
       // Sin enganche. Aprueba o rechaza el servicio de preaprobación (su respuesta se edita en su nodo); el cupo es el
       // máximo que contesta. Un monto mayor BLOQUEA la tarjeta (el wizard dice «ingresa máximo hasta $…»).
+      // Si la evalúa el motor de cupo (Finandina), el cupo y el plazo salen de la categoría ganadora, como en CreditopX.
       pct = 0
-      const pa = preApprovalResponseOf(l.name)
-      if (pa.status === 'rechaza') { ok = false; reason = 'preaprobación: rechazada (sin cupo disponible)' }
-      else if (pa.status === 'timeout') { ok = false; reason = 'preaprobación: no contestó' }
-      if (pa.rate != null) rate = pa.rate
-      const cupoC = Math.min(pa.maxAmount ?? (t.amountMax || Infinity), montoMaxCom)
+      let cupoC
+      if (delegatedOf(l).usesQuotaEngine) {
+        cat = ok ? resolveCategory(l.name) : null
+        if (cat) { cupoC = Math.min(catCupo(l, cat, s), montoMaxCom); dues = dues.filter(n => n <= cat.maxFeeNumber) }
+        else { cupoC = 0; if (ok) { ok = false; reason = isBlacklisted(l.name) ? 'documento en lista negra' : 'motor de cupo: sin categoría (sin cupo disponible)' } }
+      } else {
+        const pa = preApprovalResponseOf(l.name)
+        if (pa.status === 'rechaza') { ok = false; reason = 'preaprobación: rechazada (sin cupo disponible)' }
+        else if (pa.status === 'timeout') { ok = false; reason = 'preaprobación: no contestó' }
+        if (pa.rate != null) rate = pa.rate
+        cupoC = Math.min(pa.maxAmount ?? (t.amountMax || Infinity), montoMaxCom)
+      }
       if (ok && s.amount > cupoC) { ok = false; reason = `monto > cupo ${money(cupoC)}: la tarjeta pide bajarlo` }
       cupo = Math.min(s.amount, cupoC)
     } else {                                     // rt≠2: enganche por regla del lender; la API externa decide (pre-aprobación)

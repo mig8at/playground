@@ -30,6 +30,11 @@ sola «delegada»: no se distingue Finandina de Credifamilia. Dos nodos lo expli
   «Entidades disponibles» —es ahí, tarjeta por tarjeta, donde se le consulta— y muestra la entidad elegida. Para rt=4 y
   rt=1 dictás lo que contesta pre-approvals-service —aprueba, rechaza o no contesta, el monto máximo y la tasa— y el
   listado y el resto del flujo reaccionan.
+- **Motor de cupo · legacy-backend** (`QuotaEngineNode.vue`, arriba de la preaprobación): aplica las categorías. Verificado
+  en main el 2026-11-25: lo pide pre-approvals-service por cada tarjeta CreditopX (`POST /api/loans/lender/available-quota`,
+  `CreditopXQuotaController::getAvailableQuota`) y el wizard después de validar la identidad del titular
+  (`available-quota/extended`). La re-evaluación del punto de venta de Flow NO se conectó: no se encontró que lo llame.
+  La delegada lo usa si su ficha lo dice (Finandina, por un alias de pre-approvals-service que está en develop y no en main).
 - **Ficha de originación delegada** (`DelegatedProfileNode.vue`, `delegatedOf`): `delegated_origination_profiles`
   —días de pago, fianza (% y anticipada o mensual) y si radica al autorizar—.
 

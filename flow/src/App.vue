@@ -33,6 +33,7 @@ import IdentityNode from './nodes/IdentityNode.vue'
 import PlanPagosNode from './nodes/PlanPagosNode.vue'
 import DelegatedProfileNode from './nodes/DelegatedProfileNode.vue'
 import PreApprovalNode from './nodes/PreApprovalNode.vue'
+import QuotaEngineNode from './nodes/QuotaEngineNode.vue'
 import FirmaNode from './nodes/FirmaNode.vue'
 import EstadoNode from './nodes/EstadoNode.vue'
 import CodeudorNode from './nodes/CodeudorNode.vue'
@@ -40,7 +41,7 @@ import InfoAdicionalNode from './nodes/InfoAdicionalNode.vue'
 import CreditStatusNode from './nodes/CreditStatusNode.vue'
 import FieldInfoPanel from './nodes/FieldInfoPanel.vue'
 import ProdImportPanel from './nodes/ProdImportPanel.vue'
-import { ui, findLenderDef, entidadCfg, perfilOf, perfil, bureau, fieldNull, providerDown, lenders, postSelSteps, recheckStatus, usesCategories, isInHouse, delegatedOf, closeFieldInfo, focusWinningProfile, persistPing } from './store'
+import { ui, findLenderDef, entidadCfg, perfilOf, perfil, bureau, fieldNull, providerDown, lenders, postSelSteps, recheckStatus, usesCategories, usesQuotaEngine, isInHouse, delegatedOf, closeFieldInfo, focusWinningProfile, persistPing } from './store'
 import { Check } from 'lucide-vue-next'
 
 // El tema lo pone workbench.js (el de Cockpit) como clase `dark` en el <html>; acá sólo se sigue, para los colores
@@ -105,6 +106,8 @@ const nodes = ref([
   // El servicio de preaprobación cuelga ARRIBA del listado: es ahí, tarjeta por tarjeta, donde se le consulta. Muestra
   // la entidad elegida. (Los burós se corrieron a la izquierda, sobre canal y solicitud, para dejarle el lugar.)
   { id: 'preapproval', type: 'preapproval', position: { x: 1640, y: 110 } },
+  // El motor de cupo de legacy-backend, arriba de la preaprobación: se le pregunta, no lo ve el cliente.
+  { id: 'engine', type: 'engine', position: { x: 1640, y: -230 } },
 ])
 
 // Colores de los conectores por tema [oscuro, claro]: en claro se oscurecen para no perder contraste.
@@ -129,6 +132,7 @@ function baseEdges() {
     { id: 'e0b', source: 'canal', sourceHandle: 'out', target: 'sol', animated: false, style: { stroke: ec('flow'), strokeWidth: 2 } },
     { id: 'e1', source: 'sol', target: 'buro', targetHandle: 'in', animated: false, style: { stroke: ec('purp'), strokeWidth: 2 } },
     { id: 'e2', source: 'buro', sourceHandle: 'out', target: 'out', animated: false, style: { stroke: ec('green'), strokeWidth: 2 } },
+    { id: 'e-engine-pa', source: 'engine', sourceHandle: 'down', target: 'preapproval', targetHandle: 'fromengine', animated: false, style: { stroke: ec('purp'), strokeWidth: 1.4, strokeDasharray: '5 4', opacity: usesQuotaEngine(findLenderDef(ui.selected)) ? 1 : 0.25 } },
     { id: 'e-preapproval', source: 'preapproval', sourceHandle: 'down', target: 'out', targetHandle: 'top', animated: false, style: { stroke: ec('base'), strokeWidth: 1.4, strokeDasharray: '5 4' } },
     { id: 'pe1', source: 'exp', target: 'buro', targetHandle: 'top', animated: false, style: { stroke: ec('exp'), strokeWidth: 1.5 } },
     { id: 'pe1b', source: 'quanto', target: 'buro', targetHandle: 'top', animated: false, style: { stroke: ec('quanto'), strokeWidth: 1.5 } },
@@ -154,7 +158,7 @@ const DYN = ['default', 'comercio', 'relacion', 'perfil']
 // scroll, estas bandas dejan aire fijo entre tarjetas y evitan los grandes saltos verticales.
 const SELECTED_LAYOUT = {
   profileInputs: { x: -1060, y: -470 }, // categoría + tramo, misma fila (las categorías son altas)
-  preApprovalRow: { y: -250 },          // la ficha delegada: más baja que las categorías, pegada al hub
+  preApprovalRow: { y: -310 },          // la ficha delegada (~345 de alto): termina 50 px arriba del hub
   profileHub: { x: -680, y: 90 },
   lender: { x: -320, y: 90 },
   commerce: { x: -320, y: 570 },
@@ -240,6 +244,9 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
     // Cada paso avanza lo que mide el nodo anterior más un hueco fijo, así la cadena queda pareja.
     const WIDTH = { recheck: 295, extra: 300, identity: 165, codeudor: 260, planpagos: 230, infoadicional: 305, firma: 195, return: 250, formstage: 210 }
     const GAP = 70
+    // Después de validar la identidad del titular, el wizard le vuelve a preguntar al motor de cupo con la política
+    // «titular extendida» (`available-quota/extended`, que decide el paso siguiente). Medido en main sólo para CreditopX.
+    const engineToIdentity = () => { if (def.rt === 2) addE.push({ id: 'e-engine-identity', source: 'engine', sourceHandle: 'right', target: 'identity', targetHandle: 'fromengine', animated: false, style: { stroke: ec('purp'), strokeWidth: 1.4, strokeDasharray: '5 4' } }) }
     const adv = (key) => (WIDTH[key] || 280) + GAP
     let x = 1920, prevSrc = 'out', prevH = 'psel-' + sel   // arranca en la fila del lender del listado
     // Flujo de CRÉDITO (producto crédito + Credifamilia rt=4): lo estamos rearmando PASO A PASO.
@@ -284,6 +291,7 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
         prevSrc = 'extra'; prevH = 'out'; x += adv('extra')
       }
       add.push({ id: 'identity', type: 'identity', position: { x, y: LIFE_Y } })
+      engineToIdentity()
       addE.push({ id: 'e-identity', source: prevSrc, sourceHandle: prevH, target: 'identity', targetHandle: 'in', animated: false, style: GS })
       prevSrc = 'identity'; prevH = 'out'; x += adv('identity')
       // Renting: bifurcación por ingreso. Si el ingreso del solicitante ≤ 3.000.000 se exige CODEUDOR
@@ -373,6 +381,7 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
           <template #node-planpagos="props"><PlanPagosNode v-bind="props" /></template>
           <template #node-delegated="props"><DelegatedProfileNode v-bind="props" /></template>
           <template #node-preapproval="props"><PreApprovalNode v-bind="props" /></template>
+          <template #node-engine="props"><QuotaEngineNode v-bind="props" /></template>
           <template #node-firma="props"><FirmaNode v-bind="props" /></template>
           <template #node-estado="props"><EstadoNode v-bind="props" /></template>
           <template #node-codeudor="props"><CodeudorNode v-bind="props" /></template>

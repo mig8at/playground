@@ -35,6 +35,9 @@ const setDays = (txt) => {
           <option value="mensual">mensual (en cada cuota)</option>
         </select>
       </label>
+      <label class="field dl-check"><input class="nodrag" type="checkbox" :checked="d.usesQuotaEngine" @change="e => set('usesQuotaEngine', e.target.checked)" />
+        <span>La evalúa el motor de cupo de CreditOp (como Finandina, por un alias que hoy está en develop); sin marcar, contesta su API (como Credifamilia)</span>
+      </label>
       <label class="field dl-check"><input class="nodrag" type="checkbox" :checked="d.formalization" @change="e => set('formalization', e.target.checked)" />
         <span>Al autorizar, se radica con la entidad</span>
       </label>
