@@ -47,6 +47,9 @@ func (f *flow) sh(ctx context.Context, name string, args ...string) (string, err
 
 func (f *flow) drift(ctx context.Context, r *Run, step string) (string, error) {
 	args := []string{"tools/knowledge-drift/drift.py", step, "--run", r.driftDir(), "--groups", "4"}
+	if knowledgeModel == "aistudio" && (step == "paquete" || step == "codigo") {
+		args = append(args, "--big") // paquetes grandes: la ventana de AI Studio
+	}
 	if step == "paquete" {
 		args = append(args, "--no-fetch") // la mirada que disparó la corrida ya trajo main
 	}
@@ -104,7 +107,10 @@ func modelUnavailable(err error) bool {
 		return true
 	}
 	msg := strings.ToLower(err.Error())
-	for _, s := range []string{"playground login", "sesión del playground", "connection refused", "no such host", "timeout", "deadline exceeded", "eof"} {
+	// el 502 del puente de Bedrock y las pausas de AI Studio (cupo diario, corte de Google, Chrome sin Jarvis) también
+	// son «el modelo no contesta»: la corrida espera y se retoma desde el paso donde cayó, sin contar como intento.
+	for _, s := range []string{"playground login", "sesión del playground", "connection refused", "no such host", "timeout", "deadline exceeded", "eof",
+		"502", "no pudo completar la invocación", "cupo diario", "daily limit", "en pausa", "está cortando", "quota exceeded", "jarvis"} {
 		if strings.Contains(msg, s) {
 			return true
 		}

@@ -1,6 +1,7 @@
 // Package background es EL MODELO DE SEGUNDO PLANO: el que usa lo que corre solo (agendado, a ciertas horas, sin nadie
-// mirando). Cuál es lo decide la configuración de Cockpit («Modelo», lib/cockpit/settings.go): Claude por el puente
-// de canon (connectors/claude), por defecto, o Gemini por su API con la llave de connectors/.env (connectors/gemini).
+// mirando). Cuál es lo decide la configuración de Cockpit («Modelo», lib/cockpit/settings.go): Gemini por la web de AI
+// Studio en el Chrome de Miguel (bin/aistudio), por defecto desde el 2026-11-24; Claude por el puente de canon
+// (connectors/claude) o Gemini por su API (connectors/gemini), a mano. Una pregunta puede fijar el suyo (Request.Model).
 // Lo usan `bin/pg model` y lo agendado (la daily del tablero).
 package background
 
@@ -12,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"creditop/my-tools/connectors/claude"
 	"creditop/my-tools/connectors/gemini"
@@ -20,6 +22,7 @@ import (
 
 // Request: una pregunta. MaxTokens 0 es el tope del modelo.
 type Request struct {
+	Model     string // vacío: el elegido en Cockpit
 	Prompt    string
 	System    string
 	MaxTokens int
@@ -46,8 +49,11 @@ type Status struct {
 func Chosen() string { return cockpit.LoadSettings().BackgroundModel }
 
 // Info: si el elegido contesta. root es la raíz de my-tools.
-func Info(ctx context.Context, root string) Status {
-	st := Status{Model: Chosen(), Choice: cockpit.BackgroundModels}
+func Info(ctx context.Context, root string) Status { return InfoFor(ctx, root, Chosen()) }
+
+// InfoFor: si un modelo dado contesta, sin preguntarle nada.
+func InfoFor(ctx context.Context, root, model string) Status {
+	st := Status{Model: model, Choice: cockpit.BackgroundModels}
 	switch st.Model {
 	case "claude":
 		info, err := claude.New(root).Info(ctx)
@@ -73,11 +79,45 @@ func Info(ctx context.Context, root string) Status {
 			st.Detail = "no está bin/aistudio en " + root
 			return st
 		}
-		st.Ready, st.Name = true, aistudioModel()
+		st.Name = aistudioModel()
+		if until, reason := aistudioPause(st.Name); !until.IsZero() {
+			// En pausa (cupo diario o corte de Google): no está listo. Lo agendado espera en vez de gastar un intento.
+			st.Detail = fmt.Sprintf("%s en pausa hasta %s: %s", st.Name, until.Format("02/01 15:04"), reason)
+			st.Fix = "vuelve sola a esa hora"
+			return st
+		}
+		st.Ready = true
 		st.Detail = st.Name + " por la web de AI Studio, en tu Chrome con Jarvis (de a una pregunta)"
 		st.Fix = "Chrome abierto con la extensión Jarvis"
 	}
 	return st
+}
+
+// aistudioPause: si bin/aistudio está en pausa para ese modelo (o para toda la cuenta, «*»), hasta cuándo y por qué.
+// La escribe la receta de Jarvis al ver un corte o el cupo diario agotado (~/.cache/my-tools/aistudio-pausa.json).
+func aistudioPause(model string) (time.Time, string) {
+	home, _ := os.UserHomeDir()
+	raw, err := os.ReadFile(filepath.Join(home, ".cache", "my-tools", "aistudio-pausa.json"))
+	if err != nil {
+		return time.Time{}, ""
+	}
+	var pauses map[string]struct {
+		Until  int64  `json:"until"`
+		Reason string `json:"reason"`
+	}
+	if json.Unmarshal(raw, &pauses) != nil {
+		return time.Time{}, ""
+	}
+	for _, k := range []string{model, "*"} {
+		if p, ok := pauses[k]; ok && p.Until > time.Now().UnixMilli() {
+			reason := p.Reason
+			if i := strings.Index(reason, ":"); i > 0 && i < 80 {
+				reason = reason[:i]
+			}
+			return time.UnixMilli(p.Until), reason
+		}
+	}
+	return time.Time{}, ""
 }
 
 // aistudioModel: el modelo de AI Studio; AISTUDIO_MODEL lo cambia.
@@ -131,6 +171,9 @@ func askAIStudio(ctx context.Context, root string, in Request) (string, error) {
 // Ask: la pregunta al elegido.
 func Ask(ctx context.Context, root string, in Request) (Answer, error) {
 	out := Answer{Model: Chosen()}
+	if in.Model != "" {
+		out.Model = in.Model
+	}
 	switch out.Model {
 	case "claude":
 		ans, err := claude.New(root).Ask(ctx, claude.Request{Prompt: in.Prompt, System: in.System, MaxTokens: in.MaxTokens})

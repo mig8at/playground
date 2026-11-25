@@ -330,7 +330,9 @@ func (f *flow) cycle() {
 		// el paso donde cayó (los anteriores ya están hechos): no nace otra que repita los pasos 1 a 3 y deje la vieja
 		// como ruido en la lista.
 		var r *Run
-		if last := f.lastRun(); last != nil && last.Fingerprint == fp && last.State == stFailed && last.ModelDown {
+		// Aunque haya cambiado el conjunto de fuentes viejas: lo nuevo lo toma la corrida siguiente, y rehacer desde cero
+		// gastaría otra vez el cupo de AI Studio (la #28, 2026-11-24, llegó a la verificación y se cortó por el cupo).
+		if last := f.lastRun(); last != nil && last.State == stFailed && last.ModelDown {
 			r = f.resume(last)
 		} else {
 			r = f.newRun(changes, fp, start, fetchSec, checkSec)
@@ -415,7 +417,7 @@ func (f *flow) retryable(last *Run, fp string) bool {
 func (f *flow) modelReady() (bool, string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	st := background.Info(ctx, f.root)
+	st := background.InfoFor(ctx, f.root, knowledgeModel)
 	f.mu.Lock()
 	was := f.modelDown
 	f.modelDown = !st.Ready

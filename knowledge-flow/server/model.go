@@ -80,7 +80,7 @@ func (f *flow) expand(ctx context.Context, pkg string) string {
 		order = append(order, key)
 	}
 	dCap, fCap, budget := diffCap, fileCap, expandBudget
-	if background.Chosen() == "aistudio" {
+	if knowledgeModel == "aistudio" {
 		// ventana de ~1 millón de tokens: cada archivo entero. Con los topes por archivo de Claude, la corrida #28 dejó
 		// 52 secciones sin decidir porque routes/admin.php, UserController.php o backoffice.php llegaban recortados.
 		dCap, fCap, budget = bigFileCap, bigFileCap, expandBudgetBig
@@ -169,12 +169,18 @@ func clip(s string, n int) string {
 	return s[:n] + fmt.Sprintf("\n… (recortado: %d caracteres más)", len(s)-n)
 }
 
+// knowledgeModel: Knowledge pregunta SIEMPRE por la web de AI Studio, elija lo que elija Cockpit para lo demás (Miguel,
+// 2026-11-24): sin costo, con ventana de ~1 millón de tokens y paquetes grandes. Si está en pausa (cupo diario o corte),
+// el vigía espera a que vuelva en vez de pasarse a otro modelo. Lo que queda sin decidir lo decide Claude en una sesión.
+const knowledgeModel = "aistudio"
+
 // askRetry: una pregunta al modelo con reintentos ante una falla pasajera. Un 502 o un corte de Bedrock suele pasar
 // (la corrida #23, 2026-11-24, cayó en un grupo que la #22 había pasado; el puente se cortaba y volvía en minutos):
 // hasta 5 intentos más, con espera creciente, antes de tirar la corrida. Tras un corte de Google por AI Studio, la
 // espera es la de su pausa.
 func (f *flow) askRetry(ctx context.Context, req background.Request) (background.Answer, error) {
 	for failures := 0; ; {
+		req.Model = knowledgeModel
 		ans, err := background.Ask(ctx, f.root, req)
 		if err == nil {
 			return ans, nil

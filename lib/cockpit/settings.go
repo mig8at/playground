@@ -12,17 +12,18 @@ import (
 	"path/filepath"
 )
 
-// Los modelos de segundo plano: los que contestan sin Chrome ni una persona mirando.
+// Los modelos de segundo plano: los que contestan lo que corre solo (agendado, sin una persona mirando).
 //
-//	claude  Claude Sonnet 5.5 en el Bedrock de CreditOp, por el puente de canon (connectors/claude). El de siempre.
+//	claude  Claude Sonnet 5.5 en el Bedrock de CreditOp, por el puente de canon (connectors/claude). Opción manual
+//	        desde el 2026-11-24: el puente se cortaba y volvía, y comparte cuenta con el canon de producción del equipo.
 //	gemini  Gemini por su API, con la llave de connectors/.env (connectors/gemini): gasta la cuota de esa llave.
 //
-//	aistudio  Gemini (gemini-4-hydrogen) por la web de AI Studio, en el Chrome de Miguel con Jarvis (bin/aistudio): sin
-//	          llave ni Bedrock, pero necesita Chrome abierto con la extensión, va de a una pregunta y Google corta la
-//	          cuenta si se le pide mucho seguido. Decisión de Miguel (2026-11-24), cuando el puente de canon daba 502.
+//	aistudio  Gemini (gemini-4-hydrogen) por la web de AI Studio, en el Chrome de Miguel con Jarvis (bin/aistudio). EL DE
+//	          POR DEFECTO (Miguel, 2026-11-24): sin costo y aguantó ~5 millones de tokens en un día. Necesita Chrome
+//	          abierto con la extensión, va de a una pregunta y tiene cupo diario por modelo; en pausa, Info lo dice.
 var BackgroundModels = []string{"claude", "gemini", "aistudio"}
 
-const DefaultBackgroundModel = "claude"
+const DefaultBackgroundModel = "aistudio"
 
 // Settings: lo que se guarda. Lo que falta vale lo de siempre.
 type Settings struct {
