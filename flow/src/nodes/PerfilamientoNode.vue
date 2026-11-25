@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
-import { ui, perfil, findLenderDef, perfilDiagSel, perfilOf, isBlacklisted, setBlacklist, preApprovalOf, setPreApproval, money, openFieldInfo, usesCategories } from '../store'
+import { ui, perfil, findLenderDef, perfilDiagSel, perfilOf, isBlacklisted, setBlacklist, money, openFieldInfo, usesCategories, usesPreApproval } from '../store'
 import { Check, X, Layers } from 'lucide-vue-next'
 
 // HUB del perfilamiento: los DATOS del usuario que perfilan + el VEREDICTO (qué categoría gana).
@@ -11,7 +11,7 @@ const lender = computed(() => ui.selected ? findLenderDef(ui.selected) : null)
 // Categoriza CreditopX y la originación delegada cuya política aplica nuestro motor (Finandina). Pregunta a su API el
 // agregador y la delegada que decide afuera (Credifamilia).
 const isCx = computed(() => usesCategories(lender.value))
-const isRt1 = computed(() => lender.value?.rt === 1 || (lender.value?.rt === 4 && !isCx.value))
+const isRt1 = computed(() => usesPreApproval(lender.value))
 const diag = perfilDiagSel // computed compartido del store (null si no es rt=2)
 const blacklisted = computed(() => !!diag.value?.blacklisted)
 const PA = ['aprueba', 'rechaza', 'timeout']
@@ -50,12 +50,8 @@ const winner = computed(() => diag.value?.winner ? perfilOf(ui.selected).find(c 
 
       <!-- Agregador (rt=1): pre-aprobación EXTERNA — la API de la entidad decide -->
       <template v-else-if="isRt1">
-        <div class="pl-sec">Pre-aprobación externa <span class="pl-hint">· su API</span></div>
-        <div class="dn-hint">CreditOp no perfila acá: le pregunta a la API de {{ lender.name }} y respeta su respuesta. Simulá el resultado:</div>
-        <div class="cat__chips">
-          <button v-for="p in PA" :key="p" class="chip-toggle nodrag" :class="{ on: preApprovalOf(ui.selected) === p }" @click="setPreApproval(ui.selected, p)">{{ p }}</button>
-        </div>
-        <div class="dn-hint">{{ lender.rt === 4 ? 'rechaza/timeout → la tarjeta sale sin cupo (originación delegada: la política es de la entidad, el flujo es nuestro).' : 'rechaza/timeout → sale del listado (removeNonPreapprovedLenders).' }}</div>
+        <div class="pl-sec">Preaprobación <span class="pl-hint">· pre-approvals-service</span></div>
+        <div class="dn-hint">CreditOp no perfila {{ lender.name }} con categorías: le pregunta al servicio de preaprobación y respeta lo que contesta. ↑ Su respuesta se edita en el nodo de arriba.</div>
       </template>
 
       <div v-else-if="lender" class="dn-hint">{{ lender.name }} es rt{{ lender.rt }} (redirect): sin pre-aprobación, se redirige al sitio de la entidad y decide allá.</div>

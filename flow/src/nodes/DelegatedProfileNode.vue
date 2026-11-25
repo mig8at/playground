@@ -1,11 +1,12 @@
 <script setup>
 import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
-import { ui, findLenderDef, delegatedOf, setDelegated, applyDelegatedPreset, DELEGATED_PRESETS, openFieldInfo } from '../store'
+import { ui, findLenderDef, delegatedOf, setDelegated, openFieldInfo } from '../store'
 import { FileCog } from 'lucide-vue-next'
 
 // Riel 4 · la ficha de originación delegada (`delegated_origination_profiles`) de la entidad elegida. Arriba del
-// hub de perfilamiento, como las categorías: dice de dónde salen los números del plan y qué pasa al autorizar.
+// hub de perfilamiento: cómo se arma el plan y qué pasa al autorizar. Qué se aprueba lo contesta el servicio de
+// preaprobación, en su nodo.
 const lender = computed(() => findLenderDef(ui.selected))
 const d = computed(() => delegatedOf(lender.value))
 const set = (k, v) => setDelegated(lender.value, k, v)
@@ -22,15 +23,6 @@ const setDays = (txt) => {
       <div class="node__kind">rt=4</div>
     </div>
     <div class="node__body">
-      <div class="dl-presets">
-        <button v-for="(p, k) in DELEGATED_PRESETS" :key="k" class="pp-date nodrag" @click.stop="applyDelegatedPreset(lender, k)">{{ p.label }}</button>
-      </div>
-      <label class="field"><span>¿Quién aplica la política?</span>
-        <select class="nodrag" :value="d.source" @change="e => set('source', e.target.value)">
-          <option value="motor">nuestro motor de cupo (categorías)</option>
-          <option value="entidad">la API de la entidad</option>
-        </select>
-      </label>
       <label class="field"><span>Días de pago</span>
         <input class="nodrag" :value="d.paymentDays.join(', ')" @change="e => setDays(e.target.value)" />
       </label>
@@ -47,9 +39,6 @@ const setDays = (txt) => {
         <span>Al autorizar, se radica con la entidad</span>
       </label>
       <div class="tr-hint">
-        {{ d.source === 'motor'
-          ? 'El cupo y el plazo salen de la categoría, como en CreditopX, pero con la política de la entidad. Un monto mayor al cupo bloquea la tarjeta.'
-          : 'Aprueba o rechaza su API; el cupo es el máximo que devuelve. Un monto mayor bloquea la tarjeta.' }}
         {{ d.formalization ? 'Después de la firma, la radicación; el 11 llega cuando la entidad la acepta.' : 'Termina en el 11 al firmar.' }}
       </div>
     </div>
@@ -58,6 +47,5 @@ const setDays = (txt) => {
 </template>
 
 <style scoped>
-.dl-presets { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
 .dl-check { display: flex; align-items: center; gap: 6px; flex-direction: row; }
 </style>

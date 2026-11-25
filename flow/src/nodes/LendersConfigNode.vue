@@ -21,9 +21,7 @@ const newName = ref('')
 const newRt = ref('2')
 const newProducto = ref('credito')
 function create() {
-  // rt=4 nace con la ficha de originación delegada de uno de los dos casos reales ('4f' Finandina · '4c' Credifamilia).
-  const delegated = String(newRt.value).startsWith('4')
-  const l = addCustomLender(newName.value, delegated ? 4 : newRt.value, newProducto.value, newRt.value === '4c' ? 'credifamilia' : 'finandina')
+  const l = addCustomLender(newName.value, newRt.value, newProducto.value)
   if (l) { ui.selected = l.name; creating.value = false; newName.value = ''; newRt.value = '2'; newProducto.value = 'credito' }
 }
 // Duplicar: clona la entidad (nombre único) y la deja seleccionada para editar la copia.
@@ -62,8 +60,7 @@ function dup(name) { const l = duplicateCustomLender(name); if (l) ui.selected =
         <input class="nodrag" v-model="newName" placeholder="Nombre de la entidad" title="Nombre de la nueva entidad." @keyup.enter="create" />
         <select class="nodrag" v-model="newRt" title="Tipo de respuesta (categoría): define quién decide el crédito. rt2 CreditopX · rt4 originación delegada · rt1 agregador · rt0 redirect.">
           <option value="2">CreditopX · rt2</option>
-          <option value="4f">Delegada, como Finandina · rt4</option>
-          <option value="4c">Delegada, como Credifamilia · rt4</option>
+          <option value="4">Delegada · rt4</option>
           <option value="1">Agregador · rt1</option>
           <option value="0">Redirect · rt0</option>
         </select>

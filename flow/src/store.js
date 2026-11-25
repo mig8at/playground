@@ -70,24 +70,17 @@ const L = (def) => {
 export const RT_LABEL = { 0: 'Redirect', 1: 'Agregador', 2: 'CreditopX', 4: 'Originación delegada' }
 
 // ── Riel 4 · la FICHA de originación delegada (`delegated_origination_profiles`) ─────────────────────────────────
-// Una por entidad. Dice de dónde salen los números del plan y qué pasa al autorizar:
-//   source        'motor'   → la política de la entidad la aplica el motor de cupo de Creditop (Finandina: categorías
-//                             y cupo como CreditopX, `inputs_source = creditop_x_pre_approval`)
-//                 'entidad' → la decide la API de la entidad (Credifamilia: aprueba o rechaza y fija tasa, fianza y
-//                             monto máximo, `inputs_source = credifamilia_pre_approval`)
+// Una por entidad. Dice cómo se arma el plan y qué pasa al autorizar; QUÉ se aprueba y por cuánto lo contesta el
+// servicio de preaprobación (`preApprovalResponseOf`), igual para todas las delegadas.
 //   paymentDays   los días de pago que se ofrecen para la primera cuota
 //   bondPct       el % de la fianza (aval), con IVA aparte
 //   bondType      'anticipada' (se financia junto al crédito) · 'mensual' (se cobra en cada cuota)
-//   formalization true → al autorizar se radica con la entidad (Credifamilia); false → termina en el 11 (Finandina)
-export const DELEGATED_PRESETS = {
-  finandina: { label: 'como Finandina', source: 'motor', paymentDays: [5, 10, 15, 20], bondPct: 10, bondType: 'anticipada', formalization: false },
-  credifamilia: { label: 'como Credifamilia', source: 'entidad', paymentDays: [2, 16], bondPct: 18, bondType: 'anticipada', formalization: true },
-}
+//   formalization true → al autorizar se radica con la entidad; false → termina en el 11 al firmar
+const DELEGATED_DEFAULT = { paymentDays: [5, 10, 15, 20], bondPct: 10, bondType: 'anticipada', formalization: false }
 export function delegatedOf(lender) {
   const d = (lender && lender.entidad && lender.entidad.delegated) || {}
-  const base = DELEGATED_PRESETS.finandina
+  const base = DELEGATED_DEFAULT
   return {
-    source: d.source === 'entidad' ? 'entidad' : 'motor',
     paymentDays: Array.isArray(d.paymentDays) && d.paymentDays.length ? d.paymentDays : base.paymentDays,
     bondPct: Number.isFinite(Number(d.bondPct)) ? Number(d.bondPct) : base.bondPct,
     bondType: d.bondType === 'mensual' ? 'mensual' : 'anticipada',
@@ -99,16 +92,12 @@ export function setDelegated(lender, key, value) {
   lender.entidad = { ...(lender.entidad || {}), delegated: { ...delegatedOf(lender), [key]: value } }
   editTick.n++
 }
-export function applyDelegatedPreset(lender, presetKey) {
-  const p = DELEGATED_PRESETS[presetKey]; if (!lender || !p) return
-  const { label, ...profile } = p
-  lender.entidad = { ...(lender.entidad || {}), delegated: { ...profile } }
-  editTick.n++
-}
 // ¿Se origina en casa? CreditopX (rt=2) y la originación delegada (rt=4) recorren nuestro flujo hasta el 11.
 export const isInHouse = (rt) => Number(rt) === 2 || Number(rt) === 4
-// ¿Decide con categorías de perfilamiento? CreditopX y la originación delegada cuya política aplica nuestro motor.
-export const usesCategories = (lender) => !!lender && (lender.rt === 2 || (lender.rt === 4 && delegatedOf(lender).source === 'motor'))
+// ¿Decide con categorías de perfilamiento? Sólo CreditopX: la delegada y el agregador los contesta la preaprobación.
+export const usesCategories = (lender) => !!lender && lender.rt === 2
+// ¿Pasa por el servicio de preaprobación con una respuesta que Flow deja editar? El agregador y la delegada.
+export const usesPreApproval = (lender) => !!lender && (lender.rt === 1 || lender.rt === 4)
 export function entidadCfg(lender) {
   if (!lender) return null
   const t = lender.terms || {}, ov = lender.overrides || {}, e = lender.entidad || {}
@@ -460,7 +449,7 @@ watch(customLenders, () => {                                    // persiste cat�
   } catch {}
 }, { deep: true })
 // Crear entidad: Nombre + categoría (rt) + producto. El producto siembra defaults desde su plantilla.
-export function addCustomLender(name, rt, producto, delegatedPreset = 'finandina') {
+export function addCustomLender(name, rt, producto) {
   const nm = String(name || '').trim()
   if (!nm || customLenders.some(l => l.name === nm)) return null // nombre libre; solo evita duplicar custom
   const norm = normalizeType(rt, producto)        // rt=3 → rt=2 CreditopX (crédito); rt=4 queda propio
@@ -471,7 +460,6 @@ export function addCustomLender(name, rt, producto, delegatedPreset = 'finandina
     overrides: tpl ? clone(tpl.overrides) : {},
     entidad: { paisId: merchant.paisId, documentTypes: normalizeEntityDocumentTypes(merchant.paisId) },
   }))
-  if (l.rt === 4) applyDelegatedPreset(l, delegatedPreset)   // nace con la ficha de originación delegada
   customLenders.push(l)
   merchant.enabled[nm] = true                     // nace habilitada
   return l
@@ -828,11 +816,24 @@ export function perfilOf(lenderName) {
 }
 // Lista negra de documentos (1ra compuerta de getLenderUserCategory) + pre-aprobación externa rt=1.
 const perfilBlacklist = reactive({}) // { [lenderName]: bool } — documento en lista negra → sin categoría
-const preApproval = reactive({})     // { [lenderName]: 'aprueba' | 'rechaza' | 'timeout' } — API externa rt=1
+// La respuesta del servicio de preaprobación (pre-approvals-service) por entidad, editable en su nodo:
+// { status: 'aprueba' | 'rechaza' | 'timeout', maxAmount: número | null, rate: % N.M. | null }. null = usa lo
+// configurado en la entidad. (Antes era sólo el string del estado: se sigue leyendo.)
+const preApproval = reactive({})
 export function isBlacklisted(lenderName) { return !!perfilBlacklist[lenderName] }
 export function setBlacklist(lenderName, on) { perfilBlacklist[lenderName] = !!on; editTick.n++ }
-export function preApprovalOf(lenderName) { return preApproval[lenderName] || 'aprueba' }
-export function setPreApproval(lenderName, v) { preApproval[lenderName] = v; editTick.n++ }
+export function preApprovalResponseOf(lenderName) {
+  const r = preApproval[lenderName]
+  const o = typeof r === 'string' ? { status: r } : (r || {})
+  const num = (v) => (v === '' || v == null || !Number.isFinite(Number(v)) ? null : Number(v))
+  return { status: ['rechaza', 'timeout'].includes(o.status) ? o.status : 'aprueba', maxAmount: num(o.maxAmount) || null, rate: num(o.rate) }
+}
+export function preApprovalOf(lenderName) { return preApprovalResponseOf(lenderName).status }
+export function setPreApproval(lenderName, v) { setPreApprovalField(lenderName, 'status', v) }
+export function setPreApprovalField(lenderName, key, v) {
+  preApproval[lenderName] = { ...preApprovalResponseOf(lenderName), [key]: v }
+  editTick.n++
+}
 function catChecks(c, s) {
   return {
     // Perfil (regla de categoría, parte demográfica)
@@ -1119,7 +1120,7 @@ export const lenders = computed(() => {
     const montoMaxCom = calcValue(merchant.nombre, 'montoMax', l) || Infinity
     const gate = sucursalGate(l.name, s, l.rt)   // 2ª capa: group_rules + datacrédito por sucursal (ANTES del perfilamiento)
     const t = l.terms || {}
-    let ok = true, prob = 'alta', pct, cupo, dues = entidadCfg(l).dues, cat = null
+    let ok = true, prob = 'alta', pct, cupo, dues = entidadCfg(l).dues, cat = null, rate = t.rate
     let reason = s.score == null ? 'sin historial, cumple' : `score ${s.score} · edad ${s.age}`
     if (!gate.ok) {
       if (l.rt === 2) { ok = false; reason = 'excluido: ' + gate.reason }   // rt=2 → EXCLUYE del listado
@@ -1145,38 +1146,31 @@ export const lenders = computed(() => {
         cupo = Math.min(s.amount, catC)
       } else { pct = 0; cupo = 0 }
     } else if (l.rt === 4) {                     // originación delegada: la política es de la entidad
-      // Sin enganche. El corte lo pone el cupo de la preaprobación, y un monto mayor BLOQUEA la tarjeta (el wizard dice
-      // «ingresa máximo hasta $…»), como en CreditopX y no como en el agregador.
+      // Sin enganche. Aprueba o rechaza el servicio de preaprobación (su respuesta se edita en su nodo); el cupo es el
+      // máximo que contesta. Un monto mayor BLOQUEA la tarjeta (el wizard dice «ingresa máximo hasta $…»).
       pct = 0
-      const d = delegatedOf(l)
-      let cupoC = 0
-      if (d.source === 'motor') {                // Finandina: nuestro motor aplica SU política con categorías
-        cat = ok ? resolveCategory(l.name) : null
-        if (cat) {
-          cupoC = Math.min(catCupo(l, cat, s), montoMaxCom)
-          dues = dues.filter(n => n <= cat.maxFeeNumber)
-        } else if (ok) { ok = false; reason = isBlacklisted(l.name) ? 'documento en lista negra' : 'sin categoría: la política de la entidad rechaza' }
-      } else {                                   // Credifamilia: la API de la entidad decide
-        const pa = preApprovalOf(l.name)
-        if (pa === 'rechaza') { ok = false; reason = 'su API: rechazado' }
-        else if (pa === 'timeout') { ok = false; reason = 'su API: no contestó' }
-        cupoC = Math.min(t.amountMax || Infinity, montoMaxCom)
-      }
+      const pa = preApprovalResponseOf(l.name)
+      if (pa.status === 'rechaza') { ok = false; reason = 'preaprobación: rechazada (sin cupo disponible)' }
+      else if (pa.status === 'timeout') { ok = false; reason = 'preaprobación: no contestó' }
+      if (pa.rate != null) rate = pa.rate
+      const cupoC = Math.min(pa.maxAmount ?? (t.amountMax || Infinity), montoMaxCom)
       if (ok && s.amount > cupoC) { ok = false; reason = `monto > cupo ${money(cupoC)}: la tarjeta pide bajarlo` }
       cupo = Math.min(s.amount, cupoC)
     } else {                                     // rt≠2: enganche por regla del lender; la API externa decide (pre-aprobación)
       pct = ruleValue(l, 'initialFeePct') || 0
       cupo = Math.min(t.amountMax || Infinity, montoMaxCom)
-      if (l.rt === 1 && ok) {                    // pre-aprobación externa rt=1: la API de la entidad decide
-        const pa = preApprovalOf(l.name)
-        if (pa === 'rechaza') { ok = false; reason = 'su API: rechazado' }
-        else if (pa === 'timeout') { ok = false; reason = 'su API: timeout' }
+      if (l.rt === 1) {                          // pre-aprobación externa rt=1: la API de la entidad decide
+        const pa = preApprovalResponseOf(l.name)
+        if (pa.maxAmount != null) cupo = Math.min(pa.maxAmount, montoMaxCom)
+        if (pa.rate != null) rate = pa.rate
+        if (ok && pa.status === 'rechaza') { ok = false; reason = 'su API: rechazado' }
+        else if (ok && pa.status === 'timeout') { ok = false; reason = 'su API: timeout' }
       }
     }
     return {
       name: l.name, rt: l.rt, category: cat ? cat.label : (l.category || null), catId: cat ? cat.id : null,
       ok, reason, prob, initialFeePct: pct, initialFeeAmount: Math.round((pct || 0) / 100 * s.amount),
-      rate: t.rate, maxFee: t.maxFee, amountMax: t.amountMax, dues, cupo,
+      rate, maxFee: t.maxFee, amountMax: t.amountMax, dues, cupo,
     }
   }).sort((a, b) => (b.ok ? 1 : 0) - (a.ok ? 1 : 0) || (PROB_RANK[a.prob] ?? 0) - (PROB_RANK[b.prob] ?? 0))
 })

@@ -16,15 +16,20 @@ de vez en cuando y **no tiene que seguir al código al pie de la letra**. Lo que
 | rt | riel | quién decide | después de elegir |
 |---|---|---|---|
 | 2 | CreditopX | CreditOp, con categorías y tramos | recheck → identidad → [Ábaco, codeudor] → plan (6/15/28) → firma → 11 |
-| 4 | originación delegada | la política de la entidad: la aplica nuestro motor (Finandina) o la decide su API (Credifamilia) | recheck → identidad → formulario de la entidad → plan con su ficha → firma → [radicación] → 11 |
+| 4 | originación delegada | la entidad, por el servicio de preaprobación | recheck → identidad → formulario de la entidad → plan con su ficha → firma → [radicación] → 11 |
 | 1 | agregador | la API de la entidad | radica → la entidad contesta después |
 | 0 | redirect | la entidad, en su sitio | se redirige |
 
-El rt=3 (rotativo) se dobla a rt=2. **El riel 4 se separó el 2026-11-25** (antes se doblaba a CreditopX): su ficha
-(`delegatedOf` en `src/store.js`, el nodo `DelegatedProfileNode.vue`) modela `delegated_origination_profiles` —de
-dónde salen los números (`source`), días de pago, fianza (% y anticipada o mensual) y si radica al autorizar—, con
-dos presets: Finandina y Credifamilia. La cuota del riel 4 es aproximada (sin 4×1000 ni intereses de los días hasta
-la primera cuota).
+El rt=3 (rotativo) se dobla a rt=2. **El riel 4 se separó el 2026-11-25** (antes se doblaba a CreditopX) y es UNA
+sola «delegada»: no se distingue Finandina de Credifamilia. Dos nodos lo explican:
+
+- **Servicio de preaprobación** (`PreApprovalNode.vue`, `preApprovalResponseOf` en `src/store.js`), también para el
+  rt=1: dictás lo que contesta pre-approvals-service —aprueba, rechaza o no contesta, el monto máximo y la tasa— y el
+  listado y el resto del flujo reaccionan.
+- **Ficha de originación delegada** (`DelegatedProfileNode.vue`, `delegatedOf`): `delegated_origination_profiles`
+  —días de pago, fianza (% y anticipada o mensual) y si radica al autorizar—.
+
+La cuota del riel 4 es aproximada (sin 4×1000 ni intereses de los días hasta la primera cuota).
 
 ## Lo que conviene saber antes de tocarlo
 

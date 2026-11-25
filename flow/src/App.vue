@@ -32,6 +32,7 @@ import ReturnNode from './nodes/ReturnNode.vue'
 import IdentityNode from './nodes/IdentityNode.vue'
 import PlanPagosNode from './nodes/PlanPagosNode.vue'
 import DelegatedProfileNode from './nodes/DelegatedProfileNode.vue'
+import PreApprovalNode from './nodes/PreApprovalNode.vue'
 import FirmaNode from './nodes/FirmaNode.vue'
 import EstadoNode from './nodes/EstadoNode.vue'
 import CodeudorNode from './nodes/CodeudorNode.vue'
@@ -39,7 +40,7 @@ import InfoAdicionalNode from './nodes/InfoAdicionalNode.vue'
 import CreditStatusNode from './nodes/CreditStatusNode.vue'
 import FieldInfoPanel from './nodes/FieldInfoPanel.vue'
 import ProdImportPanel from './nodes/ProdImportPanel.vue'
-import { ui, findLenderDef, entidadCfg, perfilOf, perfil, bureau, fieldNull, providerDown, lenders, postSelSteps, recheckStatus, usesCategories, isInHouse, delegatedOf, closeFieldInfo, focusWinningProfile } from './store'
+import { ui, findLenderDef, entidadCfg, perfilOf, perfil, bureau, fieldNull, providerDown, lenders, postSelSteps, recheckStatus, usesCategories, usesPreApproval, isInHouse, delegatedOf, closeFieldInfo, focusWinningProfile } from './store'
 import { settings } from './settings'
 
 // El tema/visibilidad los maneja la barra "Configuraciones" (settings.js). Acá solo derivamos isDark
@@ -158,7 +159,7 @@ const SELECTED_LAYOUT = {
 // La ficha del riel 4 cambia la cadena (categorías o su API, radicación): también la mira.
 const selDelegated = computed(() => JSON.stringify(findLenderDef(ui.selected)?.entidad?.delegated || null))
 watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, selIncome, selCanContinue, selDelegated], ([sel]) => {
-  const base = nodes.value.filter(n => !DYN.includes(n.id) && !n.id.startsWith('cat-') && n.id !== 'tramo' && n.id !== 'grouprules' && n.id !== 'branchstatus' && n.id !== 'extra' && n.id !== 'recheck' && n.id !== 'identity' && n.id !== 'planpagos' && n.id !== 'firma' && n.id !== 'estado' && n.id !== 'codeudor' && n.id !== 'infoadicional' && n.id !== 'delegated' && !n.id.startsWith('stage-') && n.id !== 'return' && n.id !== 'cstatus')
+  const base = nodes.value.filter(n => !DYN.includes(n.id) && !n.id.startsWith('cat-') && n.id !== 'tramo' && n.id !== 'grouprules' && n.id !== 'branchstatus' && n.id !== 'extra' && n.id !== 'recheck' && n.id !== 'identity' && n.id !== 'planpagos' && n.id !== 'firma' && n.id !== 'estado' && n.id !== 'codeudor' && n.id !== 'infoadicional' && n.id !== 'delegated' && n.id !== 'preapproval' && !n.id.startsWith('stage-') && n.id !== 'return' && n.id !== 'cstatus')
   const def = sel ? findLenderDef(sel) : null
   if (!def) { nodes.value = base; edges.value = baseEdges(); return } // cerrar: quita la plantilla, sin mover la cámara
   // Cadena config-de-lender → comercio → sucursal, para CUALQUIER lender (CreditopX o externo).
@@ -202,10 +203,16 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
       addE.push({ id: 'e-tramo', source: 'tramo', sourceHandle: 'down', target: 'perfil', targetHandle: 'fromcats', animated: false, style: { stroke: ec('base'), strokeWidth: 1.4, strokeDasharray: '5 4' } })
     }
   }
-  // rt=4: la FICHA de originación delegada, al lado de las categorías (o en su lugar, si decide la API de la entidad).
+  // rt=1 y rt=4: el SERVICIO DE PREAPROBACIÓN, con su respuesta editable, donde CreditopX tiene las categorías. Y en
+  // rt=4, a su lado, la ficha de originación delegada.
+  if (usesPreApproval(def)) {
+    const { x: x0, y: rowY } = SELECTED_LAYOUT.profileInputs
+    add.push({ id: 'preapproval', type: 'preapproval', position: { x: x0, y: rowY } })
+    addE.push({ id: 'e-preapproval', source: 'preapproval', sourceHandle: 'down', target: 'perfil', targetHandle: 'fromcats', animated: false, style: { stroke: ec('base'), strokeWidth: 1.4, strokeDasharray: '5 4' } })
+  }
   if (def.rt === 4) {
     const { x: x0, y: rowY } = SELECTED_LAYOUT.profileInputs
-    add.push({ id: 'delegated', type: 'delegated', position: { x: x0 + (usesCategories(def) ? 300 : 0), y: rowY } })
+    add.push({ id: 'delegated', type: 'delegated', position: { x: x0 + 320, y: rowY } })
     addE.push({ id: 'e-delegated', source: 'delegated', sourceHandle: 'down', target: 'perfil', targetHandle: 'fromcats', animated: false, style: { stroke: ec('base'), strokeWidth: 1.4, strokeDasharray: '5 4' } })
   }
   // Estado en sucursal (lenders_by_allied_branches.status): membresía solo-BD (default true; NO filtra el getLenders vivo, solo la lee el simulador viejo). Nodo propio
@@ -352,6 +359,7 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
           <template #node-identity="props"><IdentityNode v-bind="props" /></template>
           <template #node-planpagos="props"><PlanPagosNode v-bind="props" /></template>
           <template #node-delegated="props"><DelegatedProfileNode v-bind="props" /></template>
+          <template #node-preapproval="props"><PreApprovalNode v-bind="props" /></template>
           <template #node-firma="props"><FirmaNode v-bind="props" /></template>
           <template #node-estado="props"><EstadoNode v-bind="props" /></template>
           <template #node-codeudor="props"><CodeudorNode v-bind="props" /></template>
