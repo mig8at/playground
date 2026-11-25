@@ -25,7 +25,7 @@ const outcome = computed(() => {
 </script>
 
 <template>
-  <div class="node node--tramo prov-node node--preapproval">
+  <div class="node node--tramo prov-node node--preapproval" :class="{ 'node--external': editable }">
     <Handle id="fromengine" type="target" :position="Position.Top" />
     <div class="node__hd node__hd--teal nhd-doc" title="clic: dónde vive y por qué" @click="openFieldInfo('psel.preapproval')">
       <div class="node__title"><ShieldCheck :size="13" /> Servicio de preaprobación</div>

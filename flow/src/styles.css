@@ -167,7 +167,7 @@ body { font-family: var(--font-sans); color: var(--ink); overflow: hidden; }
 .hd-right { display: flex; align-items: center; gap: 8px; }
 .hd-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .api-down { font-size: 12px; color: var(--red); font-style: italic; padding: 8px 2px; text-align: center; }
-.node--down { opacity: .85; border-style: dashed !important; }
+.node--down { opacity: .7; border-color: var(--red) !important; } /* caída: borde rojo (el punteado ahora dice «tercero») */
 .pv-hint { font-size: 9.5px; color: var(--mut); margin: -2px 0 3px; }
 .pv-hint.src-on { color: var(--green); }
 .src-on { color: var(--green); font-style: normal; font-size: 9.5px; margin-left: auto; }
@@ -947,3 +947,9 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 /* Riel 4 · originación delegada (2026-11-25): verde azulado, aparte de CreditopX (violeta). */
 .lender__rt.rt4, .cfg-rt.rt4, .lg__chip.rt4 { background: var(--tint-green2); color: var(--teal); }
+
+/* LO QUE CONTESTA UN TERCERO va con borde punteado (2026-11-25): las centrales (Experian, Quanto, Ágil Data, TusDatos,
+   Mareigua), Ábaco y, en el servicio de preaprobación, la API de la entidad cuando es ella la que decide (agregador o
+   delegada sin el motor de cupo). Lo de CreditOp va con borde lleno. */
+.node--exp, .node--quanto, .node--agil, .node--tus, .node--mareigua, .node--extra, .node--external { border-style: dashed; }
+.lg__ext { width: 16px; height: 11px; border: 1.5px dashed var(--fg-3); border-radius: 3px; }

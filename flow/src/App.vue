@@ -399,6 +399,7 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
             <div class="lg"><span class="lg__chip rt1">rt1</span> agregador · decide su API</div>
             <div class="lg"><span class="lg__chip rt0">rt0</span> redirect · decide su sitio</div>
             <div class="lg lg--dash"><span class="lg__dash"></span> config / herencia</div>
+            <div class="lg"><span class="lg__ext"></span> borde punteado: contesta un tercero</div>
             <div class="lg"><span class="lg__chip mprod--credito">C</span><span class="lg__chip mprod--renting">R</span><span class="lg__chip mprod--rto">RB</span> productos</div>
             <div class="lg"><i class="kv-dot inh-heredada"></i> heredada <i class="kv-dot inh-editada"></i> editada</div>
             <div class="lg"><i class="lg-sw lg-sw--won"></i> categoría gana <i class="lg-sw lg-sw--off"></i> no aplica <i class="lg-sw lg-sw--fail"></i> no cumple</div>
