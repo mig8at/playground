@@ -1254,6 +1254,24 @@ export function setCommittedSinceOffer(name, val) {
   postSelBag(name).committed = Math.max(0, Number(val) || 0)
   editTick.n++
 }
+// ELEGIR LA ENTIDAD (2026-11-25, verificado en main): el wizard llama `update-user-request` y el backend NO vuelve a
+// consultar el cupo. Sólo rechaza tres cosas (Onboarding UserRequestService::updateUserRequest) y pasa la solicitud a 3:
+//   · el monto distinto del total del pedido, si viene de una tienda (rejectAmountOutsideTheOrder)
+//   · una cuota inicial igual o mayor que el monto (rejectInitialFeeReachingAmount)
+//   · la originación apagada en la sucursal o el comercio (rejectDisabledOrigination, OriginationGuard)
+// Flow modela las dos primeras con sus datos; la tercera no tiene dato acá y se muestra como información.
+export function selectionCheck(name) {
+  const row = lenders.value.find(l => l.name === name)
+  const amount = montoNum()
+  const fee = row ? row.initialFeeAmount || 0 : 0
+  const checks = [
+    { key: 'offer', ok: !!row?.ok, label: row?.ok ? 'la tarjeta se ofreció en el listado' : 'la tarjeta no se ofrece: ' + (row?.reason || 'no está en el listado') },
+    { key: 'fee', ok: fee < amount, label: fee < amount ? 'cuota inicial menor que el monto' : 'cuota inicial igual o mayor que el monto: «La cuota inicial debe ser menor que el monto solicitado»' },
+    { key: 'order', ok: true, info: true, label: canal.tipo === 'ecommerce' ? 'el monto tiene que ser el total del pedido de la tienda' : 'no viene de una tienda: no hay pedido que comparar' },
+    { key: 'origination', ok: true, info: true, label: 'la originación tiene que estar habilitada en la sucursal y el comercio' },
+  ]
+  return { allowed: checks.every(c => c.ok), checks }
+}
 export function recheckStatus(name) {
   const snapshot = postSel[name]?.snapshot
   const offer = liveOffer(name)

@@ -27,7 +27,7 @@ import TramoNode from './nodes/TramoNode.vue'
 import GroupRulesNode from './nodes/GroupRulesNode.vue'
 import BranchStatusNode from './nodes/BranchStatusNode.vue'
 import FormStageNode from './nodes/FormStageNode.vue'
-import RecheckNode from './nodes/RecheckNode.vue'
+import LenderSelectionNode from './nodes/LenderSelectionNode.vue'
 import ReturnNode from './nodes/ReturnNode.vue'
 import IdentityNode from './nodes/IdentityNode.vue'
 import PlanPagosNode from './nodes/PlanPagosNode.vue'
@@ -41,7 +41,7 @@ import InfoAdicionalNode from './nodes/InfoAdicionalNode.vue'
 import CreditStatusNode from './nodes/CreditStatusNode.vue'
 import FieldInfoPanel from './nodes/FieldInfoPanel.vue'
 import ProdImportPanel from './nodes/ProdImportPanel.vue'
-import { ui, findLenderDef, entidadCfg, perfilOf, perfil, bureau, fieldNull, providerDown, lenders, postSelSteps, recheckStatus, usesCategories, usesQuotaEngine, isInHouse, delegatedOf, closeFieldInfo, focusWinningProfile, persistPing } from './store'
+import { ui, findLenderDef, entidadCfg, perfilOf, perfil, bureau, fieldNull, providerDown, lenders, postSelSteps, selectionCheck, usesCategories, usesQuotaEngine, isInHouse, delegatedOf, closeFieldInfo, focusWinningProfile, persistPing } from './store'
 import { Check } from 'lucide-vue-next'
 
 // El tema lo pone workbench.js (el de Cockpit) como clase `dark` en el <html>; acá sólo se sigue, para los colores
@@ -66,11 +66,10 @@ const selIncome = computed(() => {
   const extra = (providerDown.abaco || fieldNull('abacoIncome')) ? 0 : (bureau.abacoIncome ?? 0)
   return base + extra
 })
-// Solo CreditopX pasa por la re-evaluación local. Si cambió desde que se mostró el listado, el
-// recorrido se corta visualmente ahí: formalizar una oferta que ya no alcanza sería engañoso.
+// Al elegir, el backend sólo valida (selectionCheck): si algo se rechaza, el recorrido se corta ahí.
 const selCanContinue = computed(() => {
   const name = ui.selected, lender = name ? findLenderDef(name) : null
-  return !!(lender && (!isInHouse(lender.rt) || recheckStatus(name).allowed))
+  return !!(lender && (!isInHouse(lender.rt) || selectionCheck(name).allowed))
 })
 // El carrusel es propio de cada entidad: al cambiar de lender volvemos al primer perfil.
 watch(() => ui.selected, (next, prev) => { if (next !== prev) { if (next) focusWinningProfile(next); else ui.profileIndex = 0 } })
@@ -173,7 +172,7 @@ const SELECTED_LAYOUT = {
 // La ficha del riel 4 cambia la cadena (categorías o su API, radicación): también la mira.
 const selDelegated = computed(() => JSON.stringify(findLenderDef(ui.selected)?.entidad?.delegated || null))
 watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, selIncome, selCanContinue, selDelegated], ([sel]) => {
-  const base = nodes.value.filter(n => !DYN.includes(n.id) && !n.id.startsWith('cat-') && n.id !== 'tramo' && n.id !== 'grouprules' && n.id !== 'branchstatus' && n.id !== 'extra' && n.id !== 'recheck' && n.id !== 'identity' && n.id !== 'planpagos' && n.id !== 'firma' && n.id !== 'estado' && n.id !== 'codeudor' && n.id !== 'infoadicional' && n.id !== 'delegated' && !n.id.startsWith('stage-') && n.id !== 'return' && n.id !== 'cstatus')
+  const base = nodes.value.filter(n => !DYN.includes(n.id) && !n.id.startsWith('cat-') && n.id !== 'tramo' && n.id !== 'grouprules' && n.id !== 'branchstatus' && n.id !== 'extra' && n.id !== 'selection' && n.id !== 'identity' && n.id !== 'planpagos' && n.id !== 'firma' && n.id !== 'estado' && n.id !== 'codeudor' && n.id !== 'infoadicional' && n.id !== 'delegated' && !n.id.startsWith('stage-') && n.id !== 'return' && n.id !== 'cstatus')
   const def = sel ? findLenderDef(sel) : null
   if (!def) { nodes.value = base; edges.value = baseEdges(); return } // cerrar: quita la plantilla, sin mover la cámara
   // Cadena config-de-lender → comercio → sucursal, para CUALQUIER lender (CreditopX o externo).
@@ -242,11 +241,13 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
     const LIFE_Y = 380
     const GS = { stroke: ec('green'), strokeWidth: 1.6 }
     // Cada paso avanza lo que mide el nodo anterior más un hueco fijo, así la cadena queda pareja.
-    const WIDTH = { recheck: 295, extra: 300, identity: 165, codeudor: 260, planpagos: 230, infoadicional: 305, firma: 195, return: 250, formstage: 210 }
+    const WIDTH = { selection: 295, extra: 300, identity: 165, codeudor: 260, planpagos: 230, infoadicional: 305, firma: 195, return: 250, formstage: 210 }
     const GAP = 70
     // Después de validar la identidad del titular, el wizard le vuelve a preguntar al motor de cupo con la política
-    // «titular extendida» (`available-quota/extended`, que decide el paso siguiente). Medido en main sólo para CreditopX.
-    const engineToIdentity = () => { if (def.rt === 2) addE.push({ id: 'e-engine-identity', source: 'engine', sourceHandle: 'right', target: 'identity', targetHandle: 'fromengine', animated: false, style: { stroke: ec('purp'), strokeWidth: 1.4, strokeDasharray: '5 4' } }) }
+    // «titular extendida» (`available-quota/extended`, que decide el paso siguiente). Lo llama el servidor del wizard,
+    // no la preaprobación, y para cualquier entidad que siga en casa (rt 2 y 4): si no tiene esa política, aprueba sin
+    // evaluar y va a la fecha de pago. Verificado en main el 2026-11-25 (post-validation-step.server.ts).
+    const engineToIdentity = () => { if (isInHouse(def.rt)) addE.push({ id: 'e-engine-identity', source: 'engine', sourceHandle: 'right', target: 'identity', targetHandle: 'fromengine', animated: false, style: { stroke: ec('purp'), strokeWidth: 1.4, strokeDasharray: '5 4' } }) }
     const adv = (key) => (WIDTH[key] || 280) + GAP
     let x = 1920, prevSrc = 'out', prevH = 'psel-' + sel   // arranca en la fila del lender del listado
     // Flujo de CRÉDITO (producto crédito + Credifamilia rt=4): lo estamos rearmando PASO A PASO.
@@ -256,7 +257,7 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
     const isCredit = def.rt === 2 && (def.producto === 'credito' || def.producto === 'consumo')
     const isRenting = def.rt === 2 && (def.producto === 'renting' || def.producto === 'rto')
     if (isDelegated) {
-      // ── Riel 4 · originación delegada: recheck → identidad → formulario de la entidad → plan (con la ficha) →
+      // ── Riel 4 · originación delegada: elegir → identidad → formulario de la entidad → plan (con la ficha) →
       // firma → [radicación si la ficha la pide] → estado 11. El orden es el del wizard: el formulario de la
       // entidad (form 25 en Finandina) va ANTES de elegir la primera fecha de pago.
       const step = (id, type, data) => {
@@ -264,9 +265,10 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
         addE.push({ id: 'e-' + id, source: prevSrc, sourceHandle: prevH, target: id, targetHandle: 'in', animated: false, style: GS })
         prevSrc = id; prevH = 'out'; x += adv(type)
       }
-      step('recheck', 'recheck')
+      step('selection', 'selection')
       if (!selCanContinue.value) { nodes.value = [...base, ...add]; edges.value = [...baseEdges(), ...addE]; return }
       step('identity', 'identity')
+      engineToIdentity()
       step('infoadicional', 'infoadicional')
       step('planpagos', 'planpagos')
       step('firma', 'firma')
@@ -275,9 +277,9 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
     } else if (isCredit || isRenting) {
       // El listado es solo una oferta. Antes de cualquier formulario in-platform aparece el segundo
       // motor; si bloquea, el gráfico termina aquí y deja visible la causa.
-      add.push({ id: 'recheck', type: 'recheck', position: { x, y: LIFE_Y } })
-      addE.push({ id: 'e-recheck', source: prevSrc, sourceHandle: prevH, target: 'recheck', targetHandle: 'in', animated: false, style: GS })
-      prevSrc = 'recheck'; prevH = 'out'; x += adv('recheck')
+      add.push({ id: 'selection', type: 'selection', position: { x, y: LIFE_Y } })
+      addE.push({ id: 'e-selection', source: prevSrc, sourceHandle: prevH, target: 'selection', targetHandle: 'in', animated: false, style: GS })
+      prevSrc = 'selection'; prevH = 'out'; x += adv('selection')
       if (!selCanContinue.value) {
         nodes.value = [...base, ...add]
         edges.value = [...baseEdges(), ...addE]
@@ -375,7 +377,7 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
           <template #node-grouprules="props"><GroupRulesNode v-bind="props" /></template>
           <template #node-branchstatus="props"><BranchStatusNode v-bind="props" /></template>
           <template #node-formstage="props"><FormStageNode v-bind="props" /></template>
-          <template #node-recheck="props"><RecheckNode v-bind="props" /></template>
+          <template #node-selection="props"><LenderSelectionNode v-bind="props" /></template>
           <template #node-return="props"><ReturnNode v-bind="props" /></template>
           <template #node-identity="props"><IdentityNode v-bind="props" /></template>
           <template #node-planpagos="props"><PlanPagosNode v-bind="props" /></template>

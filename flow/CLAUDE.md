@@ -33,10 +33,16 @@ sola «delegada»: no se distingue Finandina de Credifamilia. Dos nodos lo expli
   rt=1 dictás lo que contesta pre-approvals-service —aprueba, rechaza o no contesta, el monto máximo y la tasa— y el
   listado y el resto del flujo reaccionan.
 - **Motor de cupo · legacy-backend** (`QuotaEngineNode.vue`, arriba de la preaprobación): aplica las categorías. Verificado
-  en main el 2026-11-25: lo pide pre-approvals-service por cada tarjeta CreditopX (`POST /api/loans/lender/available-quota`,
-  `CreditopXQuotaController::getAvailableQuota`) y el wizard después de validar la identidad del titular
-  (`available-quota/extended`). La re-evaluación del punto de venta de Flow NO se conectó: no se encontró que lo llame.
-  La delegada lo usa si su ficha lo dice (Finandina, por un alias de pre-approvals-service que está en develop y no en main).
+  en main el 2026-11-25, se le pregunta en dos momentos y los dos los dispara el servidor del wizard:
+  1. en el listado, por pre-approvals-service, por cada tarjeta CreditopX (`POST /api/loans/lender/available-quota`,
+     `CreditopXQuotaController::getAvailableQuota`); la delegada que lo usa (Finandina) llega por un alias que está en
+     develop y no en main; Credifamilia contesta con su API;
+  2. después de validar la identidad (o del formulario de la entidad si no hay validación pendiente), directo y para
+     CUALQUIER entidad en casa (`available-quota/extended`): decide codeudor, fecha de pago o cancelada; sin política
+     «titular extendida», aprueba sin evaluar.
+- **Elegir la entidad** (`LenderSelectionNode.vue`, `selectionCheck`): `update-user-request` NO vuelve a consultar el
+  cupo; rechaza el monto distinto del pedido de la tienda, la cuota inicial que alcanza el monto y la originación apagada,
+  y pasa a 3. Reemplazó a la «Re-evaluación en POS», que dibujaba una consulta que no existe.
 - **Ficha de originación delegada** (`DelegatedProfileNode.vue`, `delegatedOf`): `delegated_origination_profiles`
   —días de pago, fianza (% y anticipada o mensual) y si radica al autorizar—.
 
