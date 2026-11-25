@@ -123,36 +123,16 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
   `CredifamiliaLenders::engineLenderIdFor`, 500 sin perfil, y firma Netco sin SigningV1. Termina con cada uno
   corregido o descartado.
 
-- [ ] Ver en qa que la tarjeta del listado ya no suma el FGA: una solicitud nueva de Banco Finandina con `amount` igual
-  al pedido. El arreglo (`CalculateLoanFinancialsUc::cardGuaranteeRate`, 0 en el riel 4) entró a `qa` con el
-  [#1562](https://github.com/Creditop-SAS/frontend-monorepo/pull/1562) (mergeado el 2026-11-25); falta desplegarlo y
-  medirlo.
-- [ ] Que la fianza se cobre una sola vez y como la calcula Finandina. El plan del riel 4 la vuelve a calcular sobre
-  `user_requests.amount`, que ya trae el FGA de la tarjeta: con 5.000.000 cobró 583.695 (9 % + IVA sobre 5.450.000)
-  y financió 6.033.695. Según el simulador de Finandina («Simulacion Aval Libre Inversion FGA», Drive, 2026-11-23):
-  - la base es el valor solicitado más los cobros administrativos (5.000.000);
-  - el aval es el % del perfil más IVA del 19 %;
-  - se cobra 4x1000 sobre el aval, y la 149 tiene `applies_four_per_thousand = 0`;
-  - con 9 %: aval 450.000 + IVA 85.500 + 4x1000 2.142 = 5.537.642 financiados, y 5.000.000 netos al cliente.
-
-  El simulador deja abierto si el % va sobre el valor desembolsado o el aprobado. Termina con el plan de qa dando lo
-  mismo que el simulador.
-
-  El backend no cambia: el plan del riel 4 ya calcula la fianza sobre `user_requests.amount` con IVA del 19 % fijo
-  (`PaymentPlanPayloadBuilder::DEFAULT_IVA_RATE`) y el 4x1000 según el perfil. Con el card arreglado, la base pasa a
-  ser el monto pedido. El 4x1000 ya está prendido en el perfil de la 149 en qa (2026-11-23,
-  `artifacts/qa-149-4x1000.ts`); falta en producción, donde la 149 todavía no tiene perfil. Las solicitudes ya
-  creadas conservan el `amount` con FGA. Con 5.000.000 y el 9 %, lo esperado en qa es fianza 535.500 + 4x1000
-  2.142 = 5.537.642 financiados.
-- [ ] Que la primera cuota de Finandina valga lo mismo que las demás. Sus T&C (numeral 5) dicen que todas las cuotas
-  valen lo mismo y que la última recoge los días reales cobrados; el motor del riel cobraba los días que pasan de 30 en
-  la primera (la regla de Credifamilia). Arreglo en
-  [#2100](https://github.com/Creditop-SAS/legacy-backend/pull/2100) (`delegated_origination_profiles.extra_days_interest`,
-  `last_installment` para `banco-finandina`) y el detalle de la pantalla en
-  [#1563](https://github.com/Creditop-SAS/frontend-monorepo/pull/1563). El #2100 está mergeado y su migración
-  (`2026_11_25_160000_add_extra_days_interest_to_delegated_origination_profiles`) corrió en la base de qa el 2026-11-25
-  (batch 367): la 149 quedó en `last_installment` y la 24 y la 216 en `first_installment`. Termina con el #1563
-  mergeado, los dos desplegados en qa y una solicitud nueva de Finandina con la primera cuota igual a la segunda.
+- [x] ~~Ver en qa que la tarjeta del listado ya no suma el FGA~~ — 2026-11-25: con el
+  [#1562](https://github.com/Creditop-SAS/frontend-monorepo/pull/1562) desplegado, la 505322 (Banco Finandina) quedó
+  con `amount` 5.000.000 sobre 5.000.000 pedidos.
+- [x] ~~Que la fianza se cobre una sola vez y como la calcula Finandina~~ — 2026-11-25: en la confirmación de la 505322
+  la fianza es 537.642 (9 % + IVA + 4x1000 sobre 5.000.000) y el monto total 5.537.642, igual que el simulador de
+  Finandina al 9 %.
+- [x] ~~Que la primera cuota de Finandina valga lo mismo que las demás~~ — 2026-11-25: con el
+  [#2100](https://github.com/Creditop-SAS/legacy-backend/pull/2100) desplegado y su migración en qa (la 149 en
+  `last_installment`), la 505322 da primera cuota 220.563 igual a la mensual; el detalle con intereses es el
+  [#1563](https://github.com/Creditop-SAS/frontend-monorepo/pull/1563).
 - [ ] Ver en qa la dirección del deudor en el pie del pagaré, con una solicitud de Banco Finandina y una de una entidad
   sin catálogo. Arreglo en [#2101](https://github.com/Creditop-SAS/legacy-backend/pull/2101), contra `qa`. Termina con
   el #2101 mergeado y desplegado y la dirección de residencia impresa en los dos pagarés.
