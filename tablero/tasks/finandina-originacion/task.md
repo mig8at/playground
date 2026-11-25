@@ -149,9 +149,10 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
   la primera (la regla de Credifamilia). Arreglo en
   [#2100](https://github.com/Creditop-SAS/legacy-backend/pull/2100) (`delegated_origination_profiles.extra_days_interest`,
   `last_installment` para `banco-finandina`) y el detalle de la pantalla en
-  [#1563](https://github.com/Creditop-SAS/frontend-monorepo/pull/1563). Termina con los dos mergeados, la migración
-  `2026_11_25_160000_add_extra_days_interest_to_delegated_origination_profiles` aplicada en qa (`--path`) y una
-  solicitud nueva de Finandina con la primera cuota igual a la segunda.
+  [#1563](https://github.com/Creditop-SAS/frontend-monorepo/pull/1563). El #2100 está mergeado y su migración
+  (`2026_11_25_160000_add_extra_days_interest_to_delegated_origination_profiles`) corrió en la base de qa el 2026-11-25
+  (batch 367): la 149 quedó en `last_installment` y la 24 y la 216 en `first_installment`. Termina con el #1563
+  mergeado, los dos desplegados en qa y una solicitud nueva de Finandina con la primera cuota igual a la segunda.
 - [ ] Cargar el perfil del riel 4 de la 149 en producción con `extra_days_interest = last_installment` (y el 4x1000).
   Hoy no tiene perfil y la migración no toca nada ahí; sin ese valor calcularía con la regla de Credifamilia. Depende de:
   Oscar o Laura — la migración y el perfil en producción, a mano.
