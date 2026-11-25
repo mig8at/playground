@@ -6,6 +6,20 @@ perfilamiento → listado → lo que pasa después de elegir. Es de Miguel, para
 de vez en cuando y **no tiene que seguir al código al pie de la letra**. Lo que muestra Flow nunca es evidencia.
 
 - **Abrir:** la app Flow de Cockpit, o `make flow` (:5252, Vite). Sin servidor propio.
+- **Por consola, lo carga y lo cambia Claude: `bin/flow`** (`flow/cli/flow.mjs`). Le habla a la app ABIERTA (la de
+  Cockpit) por su servidor (`server/bridge.mjs`: la CLI manda comandos, la app los aplica con su propia lógica y contesta);
+  si no hay ninguna, la abre. Lee las bases por `bin/pg`, sólo lectura, qa por defecto:
+  - `bin/flow status` — qué entidades tiene, cuál está elegida y cómo sale cada una en el listado (y por qué no).
+  - `bin/flow branches --target qa --lender 149` — sucursales activas con esa entidad.
+  - `bin/flow import --target qa --branch <id|hash> --lender 149[,24] [--select <nombre>] [--replace]` — la entidad REAL:
+    línea, categorías activas con su regla de titular inicial, tramos, reglas de la sucursal, producto y la ficha delegada
+    (`delegated_origination_profiles`).
+  - `bin/flow client --occupation pensionado --continuity 12m --score 800 …` — el cliente de la solicitud.
+  - `bin/flow add|select|remove|clear|delegated|open`. `bin/flow` sin argumentos lo dice todo.
+  - Hoy en Cockpit (2026-11-25, de qa): Motai Renting y Rent to Own (sucursal 682), Credifamilia y CrediPullman (2232) y
+    Banco Finandina (2247), con el cliente empleado, sin negativos y 12 meses de continuidad.
+  - ⚠ Cada ventana guarda su propio escenario: con dos apps abiertas (Cockpit y un navegador), las dos reciben el
+    comando. El botón «Importar prod» se fue: leía por el trazador, que se borró el 2026-10-13.
 - **Armar un escenario sin clics:** `bin/cockpit open flow '#/lender?name=Finandina&rt=4'` crea la entidad si no
   existe y la elige en el listado, con la oferta guardada (`src/route.js`). Para una delegada, su ficha: `engine=1|0`,
   `radica=1|0`, `days=2,16`; `select=0` la crea sin elegirla. Las tres de ejemplo (2026-11-25):

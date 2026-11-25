@@ -1,0 +1,5 @@
+#!/bin/sh
+# flow — manejar Flow por consola (flow/cli/flow.mjs): cargar entidades reales de una base y cambiar lo que se ve
+# en la app abierta (la de Cockpit). `bin/flow` sin argumentos dice cómo.
+root=$(cd "$(dirname "$0")/.." && pwd -P) || exit 1
+exec node "$root/flow/cli/flow.mjs" "$@"

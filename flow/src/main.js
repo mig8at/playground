@@ -2,6 +2,7 @@ import { createApp } from 'vue'
 import App from './App.vue'
 import './styles.css'
 import { startRoutes } from './route'
+import { startBridge } from './bridge'
 import { bindThemeToggle } from './workbench.js'
 
 /* Con el estilo «Paneles» de la base (`workbench.css`), como el resto de las herramientas. */
@@ -12,3 +13,4 @@ bindThemeToggle(document.createElement('button'))
 
 createApp(App).mount('#app')
 startRoutes()
+startBridge()   // los comandos de bin/flow

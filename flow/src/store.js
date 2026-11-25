@@ -512,9 +512,11 @@ function flowDocumentTypes(v, countryId) {
   }
   return normalizeEntityDocumentTypes(countryId, values.map(x => String(x).trim()).filter(Boolean))
 }
+// lenders.product → el producto de Flow (el codeudor y Ábaco dependen de renting / renting con compra).
+const FLOW_PRODUCT = { credit: 'credito', renting: 'renting', rto: 'rto' }
 export function applyProductionImport({ comercio, sucursal, item, profiles = [], tramos = [], groupRules = [], importedAt = new Date().toISOString() }) {
   const lenderId = flowNum(item.id); let l = customLenders.find(x => x.production?.lenderId === lenderId && x.production?.branchId === flowNum(sucursal.id))
-  if (!l) { let name = String(item.name || 'Entidad de producción'), n = 2; while (customLenders.some(x => x.name === name)) name = String(item.name || 'Entidad') + ' (prod ' + n++ + ')'; const norm = normalizeType(item.response_type, 'credito'); l = L({ name, rt: norm.rt, custom: true, producto: norm.producto, terms: {}, overrides: {}, entidad: {} }); customLenders.push(l) }
+  if (!l) { let name = String(item.name || 'Entidad de producción'), n = 2; while (customLenders.some(x => x.name === name)) name = String(item.name || 'Entidad') + ' (prod ' + n++ + ')'; const norm = normalizeType(item.response_type, FLOW_PRODUCT[item.product] || 'credito'); l = L({ name, rt: norm.rt, custom: true, producto: norm.producto, terms: {}, overrides: {}, entidad: {} }); customLenders.push(l) }
   const amountMin = flowNum(item.min_amount), amountMax = flowNum(item.max_amount), dues = flowDues(item.fee_numbers, flowNum(item.max_fee_number)), rate = item.rate == null ? null : flowNum(item.rate)
   // El comercio aporta el país real del wizard. Si el lender conserva el default histórico 1,
   // ése también es el fallback con el que se interpreta document_types.
@@ -523,6 +525,7 @@ export function applyProductionImport({ comercio, sucursal, item, profiles = [],
   ensureSolicitudDocumentType()
   const lenderCountry = flowNum(item.country_id, branchCountry)
   const documentTypes = flowDocumentTypes(item.document_types, lenderCountry)
+  if (FLOW_PRODUCT[item.product]) l.producto = FLOW_PRODUCT[item.product]
   l.rt = normalizeType(item.response_type, l.producto).rt; l.terms = { ...l.terms, amountMax, maxFee: Math.max(...dues), rate }; l.entidad = { ...l.entidad, amountMin, dues, paisId: lenderCountry, documentTypes }
   if (l.rt !== 2) l.overrides = { ...l.overrides, amount: { min: amountMin, max: amountMax } }
   merchant.nombre = comercio.name; merchant.sucursal = sucursal.name; merchant.enabled[l.name] = true

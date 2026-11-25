@@ -49,7 +49,7 @@ concreto vive al lado de ese algo, y se lee ahí:
 | Minutes (grabar una reunión sin tomar notas: pantalla, micrófono y sistema, transcripción en vivo y un resumen que cruza lo dicho con lo visto; `make minutes CMD=start\|stop`, `bin/minutes`) | [`minutes/CLAUDE.md`](minutes/CLAUDE.md) |
 | point (dónde tocar en una captura: `bin/point captura.png '¿dónde le doy para continuar?'`, con un modelo de visión en la Mac) | [`point/CLAUDE.md`](point/CLAUDE.md) |
 | los modelos de IA de la Mac: qué herramienta usa cuál, borrar lo que nadie usa, reemplazar uno por otro mejor (`bin/models`) | [`models/CLAUDE.md`](models/CLAUDE.md) |
-| Flow (el simulador de cómo camina una solicitud, con el riel 4 aparte; `make flow`) | [`flow/CLAUDE.md`](flow/CLAUDE.md) |
+| Flow (el simulador de cómo camina una solicitud, con el riel 4 aparte; `make flow`; lo carga y lo cambia Claude con `bin/flow`, desde qa por `bin/pg`) | [`flow/CLAUDE.md`](flow/CLAUDE.md) |
 | Goldfish (validar un PR con Elephant-Goldfish: `make goldfish`, `make goldfish-run PR=<url>`) | [`goldfish/CLAUDE.md`](goldfish/CLAUDE.md) |
 | Office (la llamada en papel cortado, el editor de personajes y su CLI: `make office`, `make office-character`) | [`office/CLAUDE.md`](office/CLAUDE.md) |
 | la tienda VTEX de pruebas (tema, checkout, auto-onboarding con CreditOp) | [`tienda-simple/VTEX.md`](tienda-simple/VTEX.md) |

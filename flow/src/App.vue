@@ -40,7 +40,6 @@ import CodeudorNode from './nodes/CodeudorNode.vue'
 import InfoAdicionalNode from './nodes/InfoAdicionalNode.vue'
 import CreditStatusNode from './nodes/CreditStatusNode.vue'
 import FieldInfoPanel from './nodes/FieldInfoPanel.vue'
-import ProdImportPanel from './nodes/ProdImportPanel.vue'
 import { ui, findLenderDef, entidadCfg, perfilOf, perfil, bureau, fieldNull, providerDown, lenders, postSelSteps, selectionCheck, usesCategories, usesQuotaEngine, isInHouse, delegatedOf, closeFieldInfo, focusWinningProfile, persistPing } from './store'
 import { Check } from 'lucide-vue-next'
 
@@ -52,7 +51,6 @@ const onTheme = () => { isDark.value = document.documentElement.classList.contai
 const justSaved = ref(false)
 let savedTimer
 watch(() => persistPing.n, () => { justSaved.value = true; clearTimeout(savedTimer); savedTimer = setTimeout(() => { justSaved.value = false }, 1600) })
-const showProdImport = ref(false)
 // ¿La entidad seleccionada realmente se OFRECE (pasó el listado)? Si no pasa, no tiene sentido mostrar
 // la formalización post-selección. Es dependencia del watch para que aparezca/desaparezca al cambiar el escenario.
 const selPasses = computed(() => { const s = ui.selected; return s ? !!lenders.value.find(l => l.name === s)?.ok : false })
@@ -197,17 +195,17 @@ function placeDecisionColumn(ns) {
   const at = { engine: { x: ex, y: 100 }, perfil: { x: ex + 24, y: -230 }, 'cat-carousel': { x: ex - 158, y: -770 }, tramo: { x: ex + 142, y: -770 } }
   return ns.map(n => (at[n.id] ? { ...n, position: at[n.id] } : n))
 }
-function paint(def, ns, es) {
+function paint(def, ns, edgeList) {
   ns = placeDecisionColumn(ns)
   if (!def) {
     nodes.value = ns.map(n => ({ ...n, class: undefined }))
-    edges.value = es
+    edges.value = edgeList
     return
   }
   const off = offFor(def)
   const role = (id) => (off.has(id) ? 'off' : CONTEXT.has(id) ? 'context' : 'path')
   nodes.value = ns.map(n => ({ ...n, class: 'node-' + role(n.id) }))
-  edges.value = es.map(e => {
+  edges.value = edgeList.map(e => {
     const a = role(e.source), b = role(e.target)
     const r = a === 'off' || b === 'off' ? 'off' : a === 'context' || b === 'context' ? 'context' : 'path'
     const st = { ...(e.style || {}) }
@@ -399,7 +397,7 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
       <div class="region-head">
         <span class="flow-title">Flujo de una solicitud</span>
         <span class="flow-crumbs">comercio → solicitud → burós → perfil → entidades → después de elegir</span>
-        <EditorActions @import-prod="showProdImport = true" />
+        <EditorActions />
       </div>
       <div class="region-body canvas">
         <VueFlow :nodes="nodes" :edges="edges" :min-zoom="0.2" :max-zoom="2" :nodes-draggable="true" :fit-view-on-init="true" :fit-view-options="{ padding: 0.14 }" @pane-click="closeFieldInfo">
@@ -449,7 +447,6 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
             <div class="lg"><i class="kv-dot inh-heredada"></i> heredada <i class="kv-dot inh-editada"></i> editada</div>
             <div class="lg"><i class="lg-sw lg-sw--won"></i> categoría gana <i class="lg-sw lg-sw--off"></i> no aplica <i class="lg-sw lg-sw--fail"></i> no cumple</div>
           </Panel>
-          <Panel v-if="showProdImport" position="bottom-left"><ProdImportPanel @close="showProdImport = false" /></Panel>
         </VueFlow>
       </div>
     </main>
