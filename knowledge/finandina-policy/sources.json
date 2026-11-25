@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Política de Finandina en el motor de CreditopX",
   "summary": "Perfiles con capacity_method finandina_v1: compuertas de la entidad, letra por Advance 1.1, ingreso sólo de Ágil Data o Mareigua, reporte de 60 días, experiencia, zonas en la etapa extendida, plazos que caben, oferta sostenida hasta firmar, topes del mes atados al tipo 2, y lo que se carga a mano.",
-  "reviewedAt": "2026-11-25T14:12:19+00:00",
+  "reviewedAt": "2026-11-25T14:24:33+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -138,8 +138,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/ClientMonthlyCreditRuleEvaluator.php",
-      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
-      "blob": "2f749bbb12011e61fd157d2a50b26d9de107786f",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "3d0a26bc72428cff37aeb412b6ed5f4da1e05428",
       "sections": [
         "el-orden-en-que-decide",
         "los-topes-del-mes-de-la-entidad-y-por-cliente"
@@ -148,8 +148,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Support/LenderMonthlyLimits.php",
-      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
-      "blob": "2fc085ee34f96b229da02f3f07791cd91402f353",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "29fb27108695ba493b57963c11a7d716b1ec2df7",
       "sections": [
         "los-topes-del-mes-de-la-entidad-y-por-cliente"
       ]
@@ -175,8 +175,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/PaymentSchedule/CapacityTermPolicy.php",
-      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
-      "blob": "27cc1ccb4d7cda7ebe7e308857efdb40bb747638",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "e29fa9bd43fd97896a95014d31f839478c81e35b",
       "sections": [
         "del-cupo-a-la-firma-el-plazo-y-la-oferta"
       ]
@@ -184,8 +184,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/InitialFee/OfferSnapshotRecorder.php",
-      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
-      "blob": "ddf8df02f1c96141a4767e7bfebd57d698a72b04",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "cbe528fec65b20980983135530bf091dd20b6f77",
       "sections": [
         "del-cupo-a-la-firma-el-plazo-y-la-oferta"
       ]

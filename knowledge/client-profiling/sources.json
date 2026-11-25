@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Perfilamiento del cliente: probabilidades, pantallas y aprobación manual",
   "summary": "Qué es el perfilamiento (el perfil de riesgo de un cliente, no su rol): cómo se calcula la probabilidad de cada entidad al listar (demográfica, matriz y ML), las pantallas que lo muestran y quién las ve, y cómo funciona la aprobación manual entre los dos monolitos.",
-  "reviewedAt": "2026-11-25T14:12:19+00:00",
+  "reviewedAt": "2026-11-25T14:24:33+00:00",
   "sources": [
     {
       "repo": "legacy-application",
@@ -62,8 +62,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Services/UserProfilingService.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "40196f06e3ff1c3583bdab5831e9f29deb5cbadc",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "c06d9c9d2281ec639884484cf1288aee1fc8f08e",
       "sections": [
         "las-pantallas-del-perfilamiento"
       ]
@@ -71,8 +71,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/UserRequestProfilingController.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "fb4354e2fbb167b2660e90cd083170c3e617bfcf",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "997f70e443f311e9d27591ffcc8c18a551017827",
       "sections": [
         "las-pantallas-del-perfilamiento",
         "la-aprobacion-manual"
@@ -81,8 +81,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/ProfilingReviewController.php",
-      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
-      "blob": "b213ff5a6dc70fcf50731b0bd9c9a65ce22fd99e",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "fe6842aa9cda667c2017c71576019f0e6a8c4da9",
       "sections": [
         "las-pantallas-del-perfilamiento"
       ]
@@ -108,8 +108,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/UserProfilingService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "f55b352de3d032d609d725b28ac2f5d0bf30f92f",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "642c7df1e7ff0eacce43fd30be7e98e6be717a63",
       "sections": [
         "las-pantallas-del-perfilamiento"
       ]
@@ -117,8 +117,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Policies/UserRequestPolicy.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "a9251832ecd42a0e22e1b2a44f45466c041fc2e4",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "33df499dde5de9d62abaf75c55524e2e6e969cbf",
       "sections": [
         "las-pantallas-del-perfilamiento",
         "la-aprobacion-manual"

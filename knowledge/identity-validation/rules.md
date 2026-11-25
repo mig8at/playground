@@ -123,11 +123,19 @@ no elegibles las vetadas en `CreditopXBlacklistedDocument` —que prima— o las
 o rechazo, de cualquier entidad— al microservicio de préstamos de `legacy-backend` (`handleManualVaidation`,
 pasando el `user_request_id` elegido).
 
-En `legacy-application` ya no existe respaldo local ni envío directo por Twilio: el microservicio es el único punto
-de control (ventana de 24 horas, lista negra de la entidad, ADO, hallazgos «alto» de AML, escritura de los flags y
-envío del enlace). Si el microservicio responde éxito, `UserController` emite el evento de socket al asistente
+En ese flujo `legacy-application` no tiene respaldo local ni envío directo por Twilio: el microservicio es el único
+punto de control (ventana de 24 horas, lista negra de la entidad, ADO, hallazgos «alto» de AML, escritura de los flags
+y envío del enlace). Si el microservicio responde éxito, `UserController` emite el evento de socket al asistente
 (`ValidationStatusChanged` con `APPROVED` o `REJECT`); si falla o rechaza, no emite socket y devuelve el mensaje
 del microservicio.
+
+Aparte queda la pantalla de validación manual por solicitud del mismo admin (`GET|POST validacion-manual`,
+`ManualValidationController`, sin permiso propio en la ruta), que no pasa por el microservicio ni toca
+`users.manual_validation`: pone la solicitud en 10 si se aprueba o en 6 si se niega (una en 21 vuelve a 2), guarda la
+decisión en `validations` y le manda al cliente el WhatsApp por Twilio (`TwilioController::sendValidationResponse`).
+El enlace (`validationResponseLink`) va a la firma del pagaré, a `stand-by` si quedó negada o a continuar el flujo si
+quedó en 2; para una entidad de riel 4 que no quedó negada (`DelegatedOrigination::covers`) va al front nuevo
+(`DelegatedOrigination::continuationUrl`) y, si ese enlace no se puede armar, a la firma de esta app.
 
 ## Las listas restrictivas (TusDatos AML) sólo frenan con hallazgos «alto»
 

@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Perfiles de una entidad: orden, criterios y bloqueos del cupo",
   "summary": "En legacy-backend: la primera regla activa por priority asigna la categoría, la capacidad se vuelve cupo por anualidad o por multiplicador, el otorgamiento especial se topa con max_amount, la continuidad laboral en escalones 0/3/6/12, la vigencia de la licencia sólo en la etapa extendida, cuándo se puede saltar Ábaco, el rechazo por riel 0/1 y por crédito vigente con la misma entidad, y el corte que se congela.",
-  "reviewedAt": "2026-11-25T14:12:19+00:00",
+  "reviewedAt": "2026-11-25T14:24:33+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -47,8 +47,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/ActiveCreditRuleEvaluator.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "c9dc777f6fc4a5344c44840ee0601bca668a401c",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "cc12b304cab9392c65de47918328831af4639f36",
       "sections": [
         "lo-que-niega-el-cupo-antes-de-mirar-perfiles"
       ]
@@ -56,8 +56,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Repositories/ActiveCreditRepository.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "df02a9df6001b8b348f434f9d1ea27dd81d54f0b",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "ad89fceb1c449ea1c2e063040bd50bc6545927c1",
       "sections": [
         "lo-que-niega-el-cupo-antes-de-mirar-perfiles"
       ]
@@ -146,8 +146,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Support/LenderMonthlyLimits.php",
-      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
-      "blob": "2fc085ee34f96b229da02f3f07791cd91402f353",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "29fb27108695ba493b57963c11a7d716b1ec2df7",
       "sections": [
         "de-la-capacidad-mensual-al-cupo"
       ]

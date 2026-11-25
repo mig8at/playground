@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Entidades integradas: reglas propias de cada una",
   "summary": "Reglas por entidad con su porqué en Jira: la compuerta de buró de Prami y su policy_blocked en el asistente, las cuatro variantes de Welli con Sonría aparte y pendiente_desembolso en 28 (legacy-application) o 11 (legacy-backend), los reintentos y el 401 de Meddipay, Sistecrédito oculto al moroso sólo en el camino viejo (el asistente nuevo lo aprueba), el NIT de Corbeta que marca el canal en Bancolombia BNPL, los estados de Crédito 365, el endpoint de UMA y la probabilidad oculta por convenio o comercio.",
-  "reviewedAt": "2026-11-25T14:12:19+00:00",
+  "reviewedAt": "2026-11-25T14:24:33+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -262,8 +262,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Partner/App/Services/UserRequestManagementService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "69c25adcd59a7f818caa5452b9128727ebf7425d",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "8c8b4e6919dd8bacfdcb9402a6d923a965880ab4",
       "sections": [
         "uma-el-aliado-que-gestiona-por-su-propio-endpoint"
       ]

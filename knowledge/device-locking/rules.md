@@ -68,9 +68,11 @@ y `backoff = 60`. En V1, `LockDeviceJob` (3 intentos, 60 s) sólo reintenta prov
 
 ## Desbloqueo y liberación
 
-- `app:unlock-devices-paid` (legacy, diario): créditos con `creditop_x_requests_status_id` 1 o 3,
-  entidad IMEI y un producto con `activeDeviceLock` (`locked` o `unlock_failed`; éste cuenta porque
-  el equipo sigue físicamente bloqueado).
+- `app:unlock-devices-paid` (legacy, diario): créditos con fila vigente en Al día (1), Paz y salvo (3)
+  o Insolvencia (13) con `days_past_due = 0` (`UnlockDevicesPaidCommand::unlockCandidates`; un crédito
+  en Insolvencia guarda siempre 13, así que su «sin mora» sale de los días), entidad IMEI y un producto
+  con `activeDeviceLock` (`locked` o `unlock_failed`; éste cuenta porque el equipo sigue físicamente
+  bloqueado).
 - `device-locking:reconcile-payment-unlocks` (V1, cada 10 minutos salvo de 00:00 a 01:00), agendado
   con cualquier motor pero apagado si el setting `device_locking_payment_unlock_enabled` es falso o
   no existe. Toma el último pago aplicado de cada crédito y desbloquea cuando el crédito queda al día

@@ -85,26 +85,46 @@ refinanciación deja el cupo bloqueado para compras hasta que se salde.
 ## El historial de un crédito CreditopX lleva dos estados
 
 En `creditop_x_requests_history`, `creditop_x_requests_status_id` es el estado del crédito, del catálogo
-`creditop_x_user_request_statuses`. El código nombra 1 al día, 2 en mora y 3 paz y salvo
-(`CreditopXUserRequestStatus` de legacy-backend), 4 cancelado (lo escriben la anulación y la anulación de un cupo rotativo), 6 producto
-recuperado, 7 recuperado por fondo de garantías y 8 administrado externamente; el resto del catálogo
-vive en la base. `status` es el de la fila: 1 la vigente, 0 una reemplazada o desactivada, 2 una
-anulada (`ANNULLED_REGISTER_STATUS`), 5 una reversada por un pago revertido, 6 y 7 una fila de recuperación y 8 la de un crédito de
-entidad `externally_serviced` (en los dos monolitos).
+`creditop_x_user_request_statuses`. `CreditopXUserRequestStatus`, con las mismas constantes en los dos monolitos,
+nombra 1 al día, 2 en mora, 3 paz y salvo, 4 cancelado (lo escriben la anulación y la anulación de un cupo
+rotativo), 6 producto recuperado, 7 recuperado por fondo de garantías, 8 administrado externamente, 9 fallecido,
+11 fraude, 12 incapacidad total o permanente, 13 insolvencia y 14, 15 y 16 los recuperados por reclamación
+(fallecido, incapacidad y fraude). No hay 5, y el 10 (`RESERVED_PARKED`) no tiene fila en el catálogo. Fallecido,
+fraude e incapacidad (`SUSPENDED`) suspenden el crédito; 1, 2 y 13 (`LIVE`) son los vivos, y sólo 1 y 2
+(`COLLECTABLE`) reciben cobranza. `status` es el de la fila: 1 la vigente, 0 una reemplazada o desactivada, 2 una
+anulada (`CancelCredit::ANNULLED_REGISTER_STATUS`), 5 una reversada por un pago revertido, 8 la de un crédito de
+entidad `externally_serviced` (en los dos monolitos) y, en la fila que cierra un crédito, el mismo número de su
+estado: 6 y 7 las de recuperación, 9, 11 y 12 la de un suspendido y 14 a 16 la de un recuperado por reclamación.
+Insolvencia no cierra: el crédito sigue en una fila con `status` 1 y estado 13.
 
-Anular desde este admin (`disable`, con `cancel creditop x requests`) rechaza primero las utilizaciones
-de cupo rotativo (`revolving_credit_id` no nulo: se gestionan desde el cupo). Dentro de la transacción
-bloquea la solicitud y la fila (`lockCurrentHistory`), que tiene que ser la más reciente del crédito sin
-contar las de `status` 0 y 5 (si no, pide recargar), rechaza un crédito ya anulado y uno cuya fila no
-está en `status` 1 (`manageRejection`). Si pasa, pone la solicitud en 8, deja esa fila en `status` 2 y
-estado 4, pone en 0 los días de mora y registra un `ANNULMENT` en `creditop_x_log`. Los rechazos vuelven
-como 422 con el mensaje a una petición JSON y como flash a una de Inertia.
+Anular desde este admin (`disable`, con `cancel creditop x requests`; las reglas viven en `CancelCredit`) exige el
+motivo (`reason`: `retracto` u `operativa`, de `CreditopXCreditStateChange::CANCELLATION_REASONS`) y admite una
+nota. Rechaza primero las utilizaciones de cupo rotativo (`revolving_credit_id` no nulo: se gestionan desde el
+cupo). Dentro de la transacción, `CreditStateWriter::lockCurrent` bloquea la solicitud y la fila, que tiene que ser
+la más reciente del crédito sin contar las de `status` 0 y 5 (si no, pide recargar), y rechaza el cambio si el
+crédito tiene otra fila viva (`status` 1 u 8). Después rechaza un crédito ya anulado, uno cuya fila no está en
+`status` 1 y uno con plata en camino (`MoneyInTransit`: pagos retenidos, un pago en caja pendiente o una
+transacción de pasarela abierta, o aprobada sin aplicar, de los últimos `WINDOW_DAYS` días). Si pasa, pone la
+solicitud en 8, deja en cero los saldos de esa misma fila (`ZeroBalances`, también los días de mora), la pasa a
+`status` 2 y estado 4, y deja el rastro en `creditop_x_credit_state_changes` (acción `cancel`, con el motivo y el
+saldo que tenía) y un `ANNULMENT` en `creditop_x_log`. Los rechazos vuelven como 422 con el mensaje a una petición
+JSON y como flash a una de Inertia.
 
 La cancelación del monolito nuevo (`CreditopXRequestHistoryService::disableCreditopXRequest`) sólo pone
 la fila en `status` 0 y registra un `CANCELLATION`: no toca la solicitud ni el estado del crédito. Para
-saber si un crédito se anuló o canceló hay que mirar también `creditop_x_log`. Marcar recuperado (6 o 7)
-sólo se puede sobre la fila vigente y nunca sobre una utilización de cupo rotativo: la replica con el
-mismo número en `status` y en el estado, y deja la anterior en 0.
+saber si un crédito se anuló o canceló hay que mirar también `creditop_x_log`. Marcar producto recuperado
+(`MarkProductRecovered`) pasa por el mismo bloqueo y la misma revisión de plata en camino y cierra el crédito en
+una fila nueva con 6 en `status` y en el estado y los saldos en cero, y deja la anterior en 0. Recuperado por fondo
+de garantías (`applyRecovery`) sólo se puede sobre la fila vigente y nunca sobre una utilización de cupo rotativo
+(`manageRejection`): la replica con 7 en `status` y en el estado, sin tocar los saldos, y deja la anterior en 0.
+
+Los estados especiales los gestiona `CreditopXCreditStateController` (rutas `estado-especial`, `reclamacion`,
+`condonar-perdida` y `quitar-estado-especial`), que escribe por `CreditStateWriter`. Marcar fallecido, fraude o
+incapacidad (`MarkSpecialState`) aplica antes el saldo a favor retenido y cierra el crédito en una fila con el
+mismo saldo, sin fila vigente; marcar insolvencia lo reemplaza por otra fila vigente con estado 13. Una reclamación
+pagada (`SettleClaim`) aplica lo indemnizado, condona el resto y cierra en el recuperado que corresponde (14 a 16);
+condonar la pérdida (`WaiveSuspendedLoss`) deja el saldo en cero sin cambiar el estado; quitar el estado
+(`ReleaseSpecialState`) devuelve el crédito a al día o en mora según sus días de mora.
 
 ## Facturación y recaudo suma por mes, no cuota por cuota
 

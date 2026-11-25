@@ -40,7 +40,7 @@ AuthV1 decide por HTTP: 200 acepta sin exigir `payload.success:true`; 429 limita
 
 ## Estado del saga y sincronización de la espera
 
-`merchant-api` separa API y worker: `cmd/http-server` conecta HTTP, MySQL y cliente Temporal; `cmd/worker` ejecuta workflows/actividades sin MySQL. Necesitan servidor, namespace y task queue coincidentes. Levantar sólo HTTP no ejecuta el saga. La Query exige `HOLDER` o `COSIGNER`, con esas mayúsculas.
+`merchant-api` separa API y worker: `cmd/http-server` conecta HTTP, MySQL, cliente Temporal y la base Postgres propia del módulo `onboarding` (`onboarding_postgres.*`, con ping al arrancar: sin ella el API no levanta); `cmd/worker` ejecuta workflows/actividades sin MySQL. Necesitan servidor, namespace y task queue coincidentes. Levantar sólo HTTP no ejecuta el saga. La Query exige `HOLDER` o `COSIGNER`, con esas mayúsculas.
 
 `RegisterCosignerService` crea la aplicación, persiste el marcador `merchant_api_workflow` en `user_request_additional_information` tras HTTP 2xx y registra al codeudor. Sin 2xx no marca ni registra. El marcador usa `corporate_user_id` obligatorio; fallar al guardarlo no deshace la creación. `hasStarted` comprueba su existencia, no salud del saga: perderlo omite el reporte del titular. Resolver un token válido reporta inicio en cada consulta; evaluar cupo reporta validación si hay `has_quota`. Transporte o HTTP no exitoso se registran sin invalidar el resultado local. Un inicio repetido fuera de turno puede recibir 409; el comentario de idempotencia no acredita aceptación en cualquier estado.
 

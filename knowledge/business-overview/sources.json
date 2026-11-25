@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Negocio: cómo funciona CreditOp",
   "summary": "El mapa del negocio: quién es quién (cliente, comercio y sucursal, asesor, entidad, solicitud), los rieles por response_type, los cuatro canales de entrada, las etapas de una originación hasta Autorizada, qué pasa después según la entidad, qué sistema hace qué, y qué tema de esta biblioteca contesta cada pregunta.",
-  "reviewedAt": "2026-11-25T14:12:19+00:00",
+  "reviewedAt": "2026-11-25T14:24:33+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -90,8 +90,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Partner/App/Services/UserRequestManagementService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "69c25adcd59a7f818caa5452b9128727ebf7425d",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "8c8b4e6919dd8bacfdcb9402a6d923a965880ab4",
       "sections": [
         "el-recorrido-de-una-solicitud"
       ]
@@ -210,8 +210,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Console/Commands/UpdateCreditopXRequestsCommand.php",
-      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
-      "blob": "0551de7cb168f8a5231cc7357c688d163ab34fc6",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "f1cd517702b20adef772ead526454892a04916b2",
       "sections": [
         "despues-de-originar"
       ]

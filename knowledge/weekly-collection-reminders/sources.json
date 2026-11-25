@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Corte semanal y recordatorios de cobranza",
   "summary": "Cortes 3 (viernes) y 4 (martes): primera cuota y tasa semanal en los dos monolitos; quién agenda cada comando de recordatorios, qué excluyen los generales, qué tiene que ser cierto para que salga una plantilla semanal y sus variables.",
-  "reviewedAt": "2026-11-25T14:12:19+00:00",
+  "reviewedAt": "2026-11-25T14:24:33+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -73,8 +73,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/Reminders/WeeklyReminderQuery.php",
-      "commit": "e76dc44419cfe137d0de17bfdf547e06dce03cbe",
-      "blob": "3ac243ad3477e656c48fca12865bba57f479d84b",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "4ab115a85c80e1c13471f27806899ae7d9bee4ad",
       "sections": [
         "quien-envia-cada-recordatorio",
         "cuando-sale-cada-plantilla"
@@ -93,8 +93,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Console/Commands/ReminderCreditopXRequestsCommand.php",
-      "commit": "e76dc44419cfe137d0de17bfdf547e06dce03cbe",
-      "blob": "c33cf33fa8df309f5faad2ae1cebbd58b0e4a665",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "8556e05cfc89c370962fb69b4bcb37039737a948",
       "sections": [
         "quien-envia-cada-recordatorio",
         "que-tiene-que-ser-cierto-para-que-un-credito-reciba-algo"
@@ -112,8 +112,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Console/Commands/ReminderCreditopXRequestsCommand.php",
-      "commit": "9ec33cd7e73de6be6b6cd92a8344cdda49ac5216",
-      "blob": "475fb8f506942a4885c24cb9fdcdefaf0b1080e1",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "0a7a85c1009b89c4156d2946a313cb0fe5ce6429",
       "sections": [
         "quien-envia-cada-recordatorio",
         "que-tiene-que-ser-cierto-para-que-un-credito-reciba-algo"
@@ -151,8 +151,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/CreditopXPaymentService.php",
-      "commit": "117399f0c44ecbcfbe0a230a4546fa1744c273b4",
-      "blob": "60ad88c13a37edbe9a1bd454697bac7aa78bdb4d",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "bd2f27b8f92fb5928bffd35805e4d49154010b6b",
       "sections": [
         "que-tiene-que-ser-cierto-para-que-un-credito-reciba-algo",
         "variables-de-los-mensajes"

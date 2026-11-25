@@ -17,6 +17,28 @@ en `status = 0`. Diferencias: legacy-backend rechaza los pagos de ciclo de vida 
 y es el único que aplica el descuento por pronto pago (registro tipo 9). legacy-backend calcula ese
 descuento para mostrarlo, pero su `processPayment` no lo aplica.
 
+Los dos bloquean la fila vigente antes de aplicar (`CreditopXRequestHistoryRepository::lockActiveForPayment` en
+legacy-backend, `lockLiveRegister` en el controlador de legacy-application): primero, por llave primaria, la fila
+que acaban de leer y, si mientras esperaban dejó de ser la vigente, la que lo sea ahora. Las lecturas siguientes
+del mismo pago (la fila sobre la que sigue después del mínimo y la de los retenidos) también van con
+`lockForUpdate`. La causación nocturna (`UpdateCreditopXRequestsCommand`) relee su fila bloqueada, así que un pago
+y la causación sobre el mismo crédito pasan uno detrás del otro.
+
+Un crédito en estado especial no tiene fila vigente. legacy-application lo detecta con
+`SpecialStateGate::paymentRejection` (Fallecido, Fraude, Incapacidad, sus recuperaciones por reclamación, Cancelado
+y Producto recuperado; Insolvencia sí recibe pagos): el registro de pago del admin (`store`) y el pendiente de caja
+(`storePending`) lo rechazan con un mensaje, y `processPayment`, con la plata ya cobrada y sin `revolving_credit_id`,
+no sigue el camino normal. Si el crédito está suspendido con saldo, `ApplyPaymentToSuspendedCredit` descuenta el
+monto de los saldos en el orden de la cascada, en una fila nueva que sigue suspendida (`movement_type`
+`PAGO EN ESTADO ESPECIAL`); lo que no se puede aplicar (el sobrante, o todo si no hay saldo o no es un suspendido)
+queda como aviso en `creditop_x_log` con tipo `UNAPPLIED PAYMENT SPECIAL STATE`, uno por transacción o recaudo. El
+mismo chequeo se repite, con lectura bloqueada, si la fila vigente desaparece mientras el pago esperaba el
+bloqueo. legacy-backend no aplica nada a un crédito así: su `processPayment` lanza por falta de cartera activa, y
+el webhook de Wompi deja el mismo aviso (`SpecialStateUnappliedPayment`).
+
+En los dos modelos `CreditopXRequestHistory`, una fila nueva que llega con estado Al día (1) o En mora (2) sobre un
+crédito cuya fila anterior está en Insolvencia (13) conserva Insolvencia, salvo que la marque `leavesInsolvency`.
+
 ## El pago mínimo va en cascada
 
 Si la fila vigente tiene `next_payment_amount > 0`, el dinero se imputa en este orden, cada componente
@@ -102,7 +124,11 @@ no se conoce el id aprobado, se ignoran y se registran como `wompi.webhook.forei
 En APPROVED rutea dentro de la misma transacción de base (si el post-proceso lanza, todo vuelve atrás):
 por la columna del cupo si la tiene y, si no, por concepto. Una cuota sin cartera activa, un cupo sin
 utilizaciones vigentes o un concepto desconocido se registra en el log y se corta, para reconciliar a
-mano.
+mano. Si la cuota no tiene cartera porque el crédito está en un estado especial (Fallecido, Fraude,
+Incapacidad o una recuperación por reclamación), `SpecialStateUnappliedPayment::flag` deja además, una vez
+por transacción, el aviso `UNAPPLIED PAYMENT SPECIAL STATE` en `creditop_x_log` (el mismo que escribe y lee
+legacy-application en la tarjeta de estados del crédito) y lo traza como
+`wompi.webhook.special_state_unapplied_payment`; el pago no se aplica.
 
 ## Wompi: vista previa pública
 
@@ -123,6 +149,14 @@ documento enmascarado salvo los últimos 4 dígitos, fecha y estado del crédito
 cobrar y los montos del concepto (próxima cuota y total, o mínimo y base de la cuota inicial). Con ids
 crudos cualquier entero secuencial devuelve esos datos de la solicitud o cupo que le corresponda; con el
 interruptor encendido sólo se llega a un crédito cuyo token ya entregó otro endpoint, y mientras no venza.
+
+En una solicitud (`PaymentIntentService::preview`), si el estado actual del crédito (el de su última fila sin
+contar las de `status` 0 ni 5, `CreditopXRequestHistory::currentCreditStatusId`) está en
+`CreditopXUserRequestStatus::HIDDEN_FROM_CLIENT` (Fallecido y su recuperación), responde
+`LoanRequestNotFoundException`, como si no existiera. En Fraude o Incapacidad no hay fila vigente: el estado
+sale de la última fila suspendida (`clientVisibleSuspendedRow`) y los montos quedan vacíos. Para los
+suspendidos y sus recuperaciones `credit_status_id` sale en null (`clientStatusId`) y `credit_status` con la
+etiqueta neutra de `clientLabel` (`config('creditop_x_states.client_label')`, «En revisión» por defecto).
 
 ## Wompi: consulta de estado y reconciliación
 
@@ -166,12 +200,22 @@ tipo 7.
 
 Sólo existe en application. El asesor registra el pago: se busca el pedido «credipullman» del cliente
 en la base de Pullman, se inserta un recaudo allí y se crea un registro pendiente (`status_id = 3`) con
-el id de ese recaudo como referencia. `ValidatePullmanPayment` consulta cada 15 s, hasta 30 minutos,
-los recaudos que Pullman confirmó; el que cruza el monto con un centavo de tolerancia se aplica con
-`processPayment` y el pendiente se borra. Un administrador puede reabrir el sondeo.
+el id de ese recaudo como referencia. Si el crédito está en un estado especial
+(`SpecialStateGate::paymentRejection`), `storePending` lo rechaza con un mensaje antes de tocar Pullman.
+`ValidatePullmanPayment` consulta cada 15 s, hasta 30 minutos, los recaudos que Pullman confirmó; el que
+cruza el monto con un centavo de tolerancia se aplica con `processPayment` (con la referencia del recaudo
+y del pendiente como `cashReference`) y el pendiente se borra. Si el crédito pasó a un estado especial
+después de generado el código y `processPayment` no aplicó nada (`leftUnappliedBySpecialState`), el
+pendiente no se borra: queda con `status_id = 2` (reversado), para conservar la referencia de Pullman y que
+no se vuelva a intentar, y el aviso de plata sin aplicar lleva esa referencia. Un administrador puede
+reabrir el sondeo.
 
 ## Límites
 
 En main de los dos monolitos no hay recaudo BHD. El reverso administrativo (legacy-application) marca el
-registro con `status_id = 2` y los retenidos como PAGO REVERSADO. Ninguno de los dos agenda la cadena
-nocturna de cartera; legacy-application la dejó comentada atribuyéndola a otro servicio.
+registro con `status_id = 2` y los retenidos como PAGO REVERSADO. Antes de tocar nada revisa cada pago que no
+es retenido con `SpecialStateGate::reversalRejection` y se niega si alguno se aplicó sobre un crédito
+suspendido (`movement_type` `PAGO EN ESTADO ESPECIAL`) o es anterior a un cambio de estado del crédito
+(`creditop_x_credit_state_changes` con `to_history_id` igual o posterior a su fila), porque reactivar la fila
+anterior desharía ese cambio. Ninguno de los dos agenda la cadena nocturna de cartera; legacy-application la
+dejó comentada atribuyéndola a otro servicio.

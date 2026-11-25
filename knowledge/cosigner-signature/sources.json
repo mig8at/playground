@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Firma y cierre del codeudor",
   "summary": "Firma del codeudor, autorización y documentos; política de entrada, saga, confirmación persistida y límites de recuperación.",
-  "reviewedAt": "2026-11-25T14:12:19+00:00",
+  "reviewedAt": "2026-11-25T14:24:33+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -382,8 +382,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Repositories/CreditopXRequestHistoryRepository.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "ba9f215d61f709d5b3688b3f11153f9ed60c724f",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "aaa8673a8d94f4eda0214ec20e4d5b7683fc3fc9",
       "sections": [
         "reanudar-autorizacion-y-efectos-posteriores"
       ]
@@ -391,8 +391,8 @@
     {
       "repo": "merchant-api",
       "path": "cmd/http-server/main.go",
-      "commit": "58e5b28fe2d5546bee1437b1a95561e794fc241c",
-      "blob": "ea25eeb66f4c05ba8100e18c675294672d0e3d99",
+      "commit": "22bc51bfdbd10c4949d008f919abe0aed0610630",
+      "blob": "c080a3e1b71e8a4aa084033bb08c687ef1ed4650",
       "sections": [
         "estado-del-saga-y-sincronizacion-de-la-espera"
       ]
@@ -454,8 +454,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Models/CreditopXRequestHistory.php",
-      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
-      "blob": "53a9f81892c6fbf8c923f25e869d54d5dcf4df4a",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "c2331363405fa17324c654f1f58ef78bf1aecc08",
       "sections": [
         "reanudar-autorizacion-y-efectos-posteriores"
       ]

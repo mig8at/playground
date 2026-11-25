@@ -2,7 +2,7 @@
   "version": 1,
   "title": "CreditopX: alta de una entidad y por qué no aparece",
   "summary": "Qué filas necesita una entidad CreditopX (plantilla de reglas y copias por sucursal, regla de datacrédito sin sucursal, perfiles por priority, proveedor de identidad order 1) y cómo leer hard_rules, la razón de available-quota, el rechazo de la autorización sin categoría y users_category_log para saber por qué un cliente no la vio, la vio sin cupo o no pudo autorizar.",
-  "reviewedAt": "2026-11-25T14:12:19+00:00",
+  "reviewedAt": "2026-11-25T14:24:33+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -17,8 +17,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/LenderRuleEvaluator.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "cdf338b1094333be38fe046d94bd41f5f591459b",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "0d40b956e41423273c657e711c6e1d4d779e22bf",
       "sections": [
         "dos-puertas-evaluan-la-misma-politica",
         "diagnostico-salio-sin-cupo"
@@ -36,8 +36,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/DatacreditoRuleEvaluator.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "066257010729a9f2f3e4a1004b2b6e41d7c01c16",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "c546f30215d86a0182f96858612e164795a33b76",
       "sections": [
         "dos-puertas-evaluan-la-misma-politica",
         "diagnostico-salio-sin-cupo"
@@ -165,8 +165,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/CreditopXFlowService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "07b48b30765d5cb0fd35294bf7019ba4f728e75a",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "36c0f8fd626d1ffe62f9a494a4adee0f6cdbd21a",
       "sections": [
         "identidad-y-nit"
       ]
@@ -250,8 +250,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/ActiveCreditRuleEvaluator.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "c9dc777f6fc4a5344c44840ee0601bca668a401c",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "cc12b304cab9392c65de47918328831af4639f36",
       "sections": [
         "diagnostico-salio-sin-cupo"
       ]

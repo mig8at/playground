@@ -2,7 +2,7 @@
   "version": 1,
   "title": "SmartPay: qué lo identifica en el código y qué cambia",
   "summary": "isSmartPay (ruta IMEI + id fijo) frente a isSmartpayChannel (id de config), el id que fuera de producción vale 152, 153 o 160 según el sitio, y sus tratos: sin TusDatos, acuerdo de bloqueo, desembolso IMEI, correo propio, recordatorios, República Dominicana en Gestionar, permisos y validación manual.",
-  "reviewedAt": "2026-11-25T14:12:19+00:00",
+  "reviewedAt": "2026-11-25T14:24:33+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -138,8 +138,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Console/Commands/ReminderCreditopXRequestsCommand.php",
-      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
-      "blob": "c33cf33fa8df309f5faad2ae1cebbd58b0e4a665",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "8556e05cfc89c370962fb69b4bcb37039737a948",
       "sections": [
         "el-id-fijo-y-por-que-no-coincide-fuera-de-produccion",
         "recordatorios-de-cobro"

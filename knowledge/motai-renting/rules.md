@@ -132,6 +132,10 @@ manda un solo recordatorio por cliente y día y no les escribe a los créditos d
 propia solicitud). Los dos filtros miran el corte 3 exacto: un lender con
 el corte semanal de martes (4) no lo excluye `legacy-application` ni lo toma el comando semanal.
 
+Los dos comandos, además del estado del mensaje configurado, sólo toman créditos Al día (1) o En mora
+(2) (`CreditopXUserRequestStatus::COLLECTABLE`): uno en Insolvencia u otro estado no recibe
+recordatorio aunque haya un mensaje configurado para ese estado.
+
 Además, el comando semanal descarta los lenders listados en `settings.reminders_disabled_lender_ids`
 (`DisabledReminderLenders::ids()`, leído al inicio de la corrida). `WeeklyReminderQuery` los excluye con
 `whereKeyNot` dentro de la condición sobre el lender, tanto al enviar como al registrar los saltos por día no

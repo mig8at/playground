@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Validación de identidad: proveedores y cuándo corre",
   "summary": "Qué proveedor valida a la persona después de elegir una entidad que origina en casa (ADO, AWS, CrossCore, Evidente o ninguno), cómo se elige por entidad y en orden, los estados de ADO y su re-validación sólo con selfie, y en qué se diferencia de la validación de datos del tramo común.",
-  "reviewedAt": "2026-11-25T14:12:19+00:00",
+  "reviewedAt": "2026-11-25T14:24:33+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -46,8 +46,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/CreditopXFlowService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "07b48b30765d5cb0fd35294bf7019ba4f728e75a",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "36c0f8fd626d1ffe62f9a494a4adee0f6cdbd21a",
       "sections": [
         "cada-entidad-elige-sus-proveedores-en-orden"
       ]
@@ -128,8 +128,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/TwilioController.php",
-      "commit": "2798bb7aa41fe406ed4335845c7e814dfbc5f4dc",
-      "blob": "a9cf07143f80d5611f549b4cea97ba2fcdc1b694",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "036ca81582a46818483bdefdd7a094f7b5715b85",
       "sections": [
         "la-validacion-manual-quien-la-escribe-y-que-la-frena"
       ]
@@ -155,8 +155,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/CreditopXFlowService.php",
-      "commit": "e76dc44419cfe137d0de17bfdf547e06dce03cbe",
-      "blob": "07b48b30765d5cb0fd35294bf7019ba4f728e75a",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "36c0f8fd626d1ffe62f9a494a4adee0f6cdbd21a",
       "sections": [
         "la-validacion-manual-quien-la-escribe-y-que-la-frena"
       ]
@@ -182,8 +182,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Actions/RiskCentrals/Ado.php",
-      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
-      "blob": "0d312e18a43932558d793fc08ac61413ecd8251a",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "66a344c2a9b0c36af0ac7a5fe40b1ff1fdbd4779",
       "sections": [
         "ado-paso-a-paso-enroll-callback-y-estado"
       ]

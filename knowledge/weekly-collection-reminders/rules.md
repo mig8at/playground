@@ -54,6 +54,12 @@ sin créditos de prueba (`user_requests.is_test` o `users.is_test` del dueño; c
 cupo se juzga por su propia solicitud): a esos no se les manda mensajería. El corte 4 no entra en
 esa consulta.
 
+Los tres comandos tienen además un tope fijo de estado: la fila del crédito sólo entra si su
+`creditop_x_requests_status_id` está en `CreditopXUserRequestStatus::COLLECTABLE` (al día o en mora),
+aunque haya una plantilla activa para otro estado. Insolvencia y los estados especiales no reciben
+recordatorios. En legacy-application ese tope está en el recorrido de créditos de consumo; el de cupos
+rotativos (`creditop_x_revolving_credits`) filtra sólo por el estado de la plantilla.
+
 Tampoco entran las entidades de `settings.reminders_disabled_lender_ids`. El comando lee
 `DisabledReminderLenders::ids()` al arrancar y `WeeklyReminderQuery` las descarta con `whereKeyNot` dentro del
 EXISTS del lender; la corrida deja un aviso en su resumen. Si el valor del setting es ilegible, la corrida aborta
@@ -94,10 +100,11 @@ día en `reminder_dispatch_log`. Cada plantilla sale una vez por crédito y cicl
 ## Qué tiene que ser cierto para que un crédito reciba algo
 
 Para un crédito con corte 3 tienen que darse todas: una entidad con corte 3 activa en su país que no esté en
-`settings.reminders_disabled_lender_ids`; una plantilla semanal activa cuyo estado y offset le toquen ese día; una
-fila en `payment_methods_by_lender` para su entidad; país en el comercio (las plantillas por corte rutean el
-WhatsApp por él); y que messaging-service acepte el `template_name` con sus variables. Si falla alguna de las tres
-últimas, el intento queda `failed` y no se reintenta en esa corrida.
+`settings.reminders_disabled_lender_ids`; el crédito al día o en mora (`CreditopXUserRequestStatus::COLLECTABLE`:
+una plantilla activa para otro estado, como Insolvencia, no le llega a nadie); una plantilla semanal activa cuyo
+estado y offset le toquen ese día; una fila en `payment_methods_by_lender` para su entidad; país en el comercio
+(las plantillas por corte rutean el WhatsApp por él); y que messaging-service acepte el `template_name` con sus
+variables. Si falla alguna de las tres últimas, el intento queda `failed` y no se reintenta en esa corrida.
 
 `app:reminder-weekly-loans` lee `DisabledReminderLenders::ids()` en cada corrida, después de validar las plantillas.
 `WeeklyReminderQuery` descarta esos lenders con `whereKeyNot` dentro del EXISTS del lender, así que sus créditos ni

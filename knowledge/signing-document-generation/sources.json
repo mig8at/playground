@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Documentos de firma: Blade y pdf-mapper",
   "summary": "Los dos motores vigentes de los PDF de firma (Blade con DomPDF y pdf-mapper-service), quién elige cuál en cada juego (SigningV1 sin respaldo, el fijo de Credifamilia por pdf-mapper, el catálogo con respaldo a Blade y el estándar por config), el payload builder por entidad y qué hace falta para los documentos de una entidad nueva.",
-  "reviewedAt": "2026-11-25T14:12:19+00:00",
+  "reviewedAt": "2026-11-25T14:24:33+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -139,8 +139,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/DocumentGeneration/CatalogDocumentPayloadResolver.php",
-      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
-      "blob": "53eff617408e64f2425037835de677e2d0ce33bd",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "6a23c88f6337fb8ffc4491f32f31829fc00fd150",
       "sections": [
         "los-datos-un-payload-builder-por-entidad-igual-para-los-dos-motores",
         "que-hace-falta-para-los-documentos-de-una-entidad-nueva"

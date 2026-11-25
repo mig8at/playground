@@ -2,7 +2,7 @@
   "version": 1,
   "title": "De dónde sale cada credencial de una entidad",
   "summary": "Las dos tablas de credenciales (lender_allied_credentials y risk_central_credentials), el orden en que cada monolito busca la fila, qué integraciones leen certificados y cómo (y el desajuste de llaves y el log de contraseña de Credifamilia Consumo), la ausencia de control de vencimiento, la elección POS/PAY de Sistecrédito y cómo se genera el token de una tienda ecommerce.",
-  "reviewedAt": "2026-11-25T14:12:19+00:00",
+  "reviewedAt": "2026-11-25T14:24:33+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -101,8 +101,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Actions/RiskCentrals/Ado.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "0d312e18a43932558d793fc08ac61413ecd8251a",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "66a344c2a9b0c36af0ac7a5fe40b1ff1fdbd4779",
       "sections": [
         "credencial-de-central-la-entidad-primero-solo-en-legacy-backend",
         "dos-tablas-y-dos-formas-de-buscar"

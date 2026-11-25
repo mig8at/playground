@@ -13,6 +13,12 @@ regla en los dos monolitos, define el tope del mes como `period_loan_limit` si e
 `max(0, tope − colocado)`. Autorizar no se frena por cupo, así que lo colocado puede pasar el tope. El
 mes es calendario en `America/Bogota`, calculado en el código y no con la zona de la aplicación.
 
+En el monolito nuevo, `MonthlyQuota::available` acepta además un monto liberado que se descuenta de lo
+colocado antes de restar (sin bajar de 0). Sólo lo pasa la revisión de capacidad de endeudamiento del
+backoffice (`DebtCapacityReviewService`, por `FinandinaTerms::fromCategory`) al volver a medir una solicitud
+ya autorizada, cuyo propio cargo del mes ya está en `already_used_loan`; el motor y los demás usan 0. El
+monolito viejo no tiene ese parámetro.
+
 ## Se carga al autorizar, con la fila bloqueada
 
 Cada crédito autorizado suma su monto (`final_amount`) redondeado a `already_used_loan` y escribe un

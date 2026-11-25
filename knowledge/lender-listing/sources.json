@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Listado de entidades",
   "summary": "Puertas del listado en ambos monolitos, resolución del monto en lenders-v2, reescritura del perfilamiento guardado, requisitos de Welli Risk, las entidades excluidas del preaprobado y del listado v1, y la oferta especial de Bancolombia en Sonría.",
-  "reviewedAt": "2026-11-25T14:12:19+00:00",
+  "reviewedAt": "2026-11-25T14:24:33+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -166,8 +166,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/DatacreditoRuleEvaluator.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "066257010729a9f2f3e4a1004b2b6e41d7c01c16",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "c546f30215d86a0182f96858612e164795a33b76",
       "sections": [
         "las-reglas-duras-solo-sacan-del-listado-a-algunas-entidades"
       ]
@@ -184,8 +184,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/RevolvingCredit/RevolvingHardPolicyGate.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
-      "blob": "b263414d840d83f091fbd629ce9b9604a4a05a76",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "d069965481f81422b64bcc9f276198a748f7e31f",
       "sections": [
         "las-reglas-duras-solo-sacan-del-listado-a-algunas-entidades"
       ]

@@ -65,8 +65,13 @@ scheduler de ese monolito, y en producción su rol de IAM sólo puede lanzar
 ## La causación por dentro: corte, interés del día y mora
 
 `UpdateCreditopXRequestsCommand` recorre toda fila vigente (`status = 1`), compras de cupos rotativos incluidas. Cada
-crédito va en su propia transacción: si falla, se deshace sólo ese, queda en `creditop_x_log` y la corrida sigue. Por
-cada crédito escribe una fila nueva con todos los saldos y apaga la anterior, en este orden:
+crédito va en su propia transacción: si falla, se deshace sólo ese, queda en `creditop_x_log` y la corrida sigue. Las
+filas se cargan al empezar la corrida, sin bloqueo, así que antes de causar cada una se relee bloqueada
+(`liveRowFor`): si sigue vigente, se causa sobre ella; si dejó de serlo y el crédito no tiene otra fila vigente
+(suspendido, cancelado, en paz y salvo), esa noche no se causa y queda «Causación omitida» en `creditop_x_log`; si
+hay otra vigente (entró un pago mientras corría), se causa sobre esa, salvo que el crédito ya tenga una causación de
+hoy posterior a la fila cargada. Por cada crédito escribe una fila nueva con todos los saldos y apaga la anterior, en
+este orden:
 
 1. **El corte**, si `next_billing_date` ya llegó (movimiento `FECHA DE CORTE`). La próxima fecha de corte la da
    `CutoffCalendar::nextBillingDate` según el tipo de corte de la entidad: en mensual, el mismo día del mes siguiente;
@@ -81,8 +86,10 @@ cada crédito escribe una fila nueva con todos los saldos y apaga la anterior, e
    amortizar, el interés es 0 (`InstallmentFreeze`). Se suma al interés de la cuota y al saldo de intereses.
 3. **La mora**, si `next_payment_date` ya pasó: un día más de mora, estado 2, y la mora del día = (capital del mínimo −
    capital recién facturado) × tasa de mora de la entidad / 30, que se suma al mínimo. El capital recién facturado no
-   causa mora los primeros días del ciclo (`latePrincipalExcludeDays`: 7 en mensual y quincenal, 2 en semanal). Después
-   la colilla y el gasto de cobranza de las secciones siguientes.
+   causa mora los primeros días del ciclo (`latePrincipalExcludeDays`: 7 en mensual y quincenal, 2 en semanal). Un
+   crédito en Insolvencia (13) causa intereses y mora igual, pero conserva el 13: la guardia de
+   `CreditopXRequestHistory` no deja que una fila nueva con 1 o 2 lo saque de ahí. Después la colilla y el gasto de
+   cobranza de las secciones siguientes (en Insolvencia no se carga gasto de cobranza).
 4. **El cierre:** rearma el saldo total desde los componentes, la fianza crece sólo en el corte
    (`GuaranteeInsuranceBalance`), condona intereses si la cuota está dentro de `installments_waived_interest` y deja el
    rastro en `creditop_x_log` (si condonó, si entró en mora, si fue corte). El subsidio de Creditop no se aplica acá.
@@ -101,6 +108,9 @@ inicio de un tramo (`min_due_days`), se aplica ese monto: se suma al pago mínim
 suben de a uno por causación, pero un pago parcial que baja capital o interés los reconstruye: si
 con eso el crédito vuelve a pasar por el inicio de un tramo, el cargo se repite, y si lo saltea, ese
 tramo no se cobra.
+
+Un crédito en Insolvencia (`creditop_x_requests_status_id = 13`) sigue contando días de mora, pero la
+causación no le carga gasto de cobranza: con ese estado ni siquiera busca el tramo.
 
 En cada corte, el gasto de cobranza pendiente del mínimo se arrastra y vuelve a entrar al nuevo pago
 mínimo, como cualquier otro componente.
@@ -142,7 +152,12 @@ consumo (no utilizaciones de rotativo) que cortan hoy o antes:
   mora del período, el capital exigido vuelve a quedar por facturar, la fecha de pago avanza un ciclo
   y el crédito queda al día y puede cortar;
 - si el exigible ya es 0 pero el crédito sigue en mora con la fecha de pago vencida, se regulariza
-  igual: vuelve a al día.
+  igual: vuelve a al día. Cuenta como «en mora» el estado 2 y también Insolvencia (13), que cuenta
+  días de mora sin cambiar de estado (`PAST_DUE_CAPABLE_STATUSES`).
+
+Un crédito en Insolvencia que pasa por cualquiera de las dos ramas queda con los días de mora en 0
+pero conserva el 13: la fila nueva se escribe como al día y la guardia de `CreditopXRequestHistory`
+le devuelve el estado de Insolvencia de la fila anterior.
 
 El gasto de cobranza no se condona como colilla: su saldo y su componente del mínimo se arrastran.
 El saldo total se copia sin recalcular; la causación de las 00:30 lo rearma desde los componentes.
@@ -177,13 +192,16 @@ Todo corre en una transacción: si algo falla no queda nada escrito.
 
 ## Acciones del admin sobre la cartera
 
-Cada acción está detrás de su propio permiso, exige la fila vigente del histórico (`status = 1`) y
-deja su movimiento con nombre propio. Ninguna se aplica a una utilización de cupo rotativo
-(`manageRejection`): comparte fecha, plazo y saldo con la cabecera del cupo y se gestiona desde el
-cupo. Ninguna toca los acumulados `paid_*`, porque no son pagos del cliente:
+Cada acción está detrás de su propio permiso y deja su movimiento con nombre propio. Las de esta lista
+exigen la fila vigente del histórico (`status = 1`). Ninguna se aplica a una utilización de cupo rotativo
+(`manageRejection`, o el mismo rechazo dentro de la acción): comparte fecha, plazo y saldo con la cabecera
+del cupo y se gestiona desde el cupo. Ninguna toca los acumulados `paid_*`, porque no son pagos del
+cliente:
 
-- **Producto recuperado** → estado 6; **recuperado por fondo de garantías** → estado 7. Copian la
-  fila sin tocar saldos.
+- **Producto recuperado** → estado 6 (`MarkProductRecovered`): deja todos los saldos y el exigible en 0
+  (`ZeroBalances`) y se niega si hay plata del cliente sin aplicar (`MoneyInTransit`); el saldo que
+  tenía queda en `creditop_x_credit_state_changes` y en el log. **Recuperado por fondo de garantías** →
+  estado 7: copia la fila sin tocar saldos. Las dos dejan el crédito sin fila vigente.
 - **Condonación libre:** quien la aplica elige monto por ítem (capital, interés, mora, seguro de
   vida, fianza, cobranza), topado al saldo de cada uno redondeado a centavos, sin dejar ningún saldo
   negativo. Si el total queda en 0, paz y salvo; si pide dejarlo al día, se condona toda la mora y
@@ -216,8 +234,31 @@ cupo. Ninguna toca los acumulados `paid_*`, porque no son pagos del cliente:
   (llevada al comienzo del día) en lugar de calcularse por compra. Sin ese parámetro, el camino de un
   crédito de consumo, la primera cuota sale como se describe arriba. El cupo queda bloqueado para
   compras hasta que se salde.
-- **Condonar y pasar a paz y salvo:** todos los saldos a 0 y estado 3, con el movimiento
-  `CONDONACIÓN Y PASO A PAZ Y SALVO`.
+- **Condonar y pasar a paz y salvo:** todos los saldos y el exigible a 0 (`ZeroBalances`) y estado 3,
+  con el movimiento `CONDONACIÓN Y PASO A PAZ Y SALVO`.
+
+Los **estados especiales** (`CreditopXCreditStateController`, rastro en
+`creditop_x_credit_state_changes`, escritura por `CreditStateWriter`) también los aplica el admin:
+
+- **Marcar** (`MarkSpecialState`, permiso `mark creditop x credit special state`): Fallecido (9), Fraude
+  (11) e Incapacidad total o permanente (12) **suspenden** el crédito desde Al día, En mora o
+  Insolvencia: antes se le aplica el saldo a favor del cliente (sus pagos retenidos), y el crédito queda
+  en una fila cerrada con el id del estado como `status`, con el mismo saldo y sin fila vigente, así que
+  ni la causación ni la cobranza lo toman. Se niega si hay otra plata sin aplicar. Insolvencia (13), desde
+  Al día o En mora, deja el crédito vivo en una fila vigente: sigue causando y recibiendo pagos, pero la
+  cobranza no lo toma. Movimientos `FALLECIDO`, `FRAUDE`, `INCAPACIDAD TOTAL O PERMANENTE` e
+  `INSOLVENCIA`.
+- **Recuperación por reclamación** (`SettleClaim`, permiso `settle creditop x credit claim`): el valor
+  que pagó la aseguradora o el proveedor de identidad se aplica al saldo suspendido y el resto se
+  condona; los saldos quedan en 0 y el crédito pasa al estado de recuperación de su suspensión
+  (`CreditopXUserRequestStatus::CLAIM_RECOVERY`: 14, 15 o 16). No crea pagos.
+- **Condonar la pérdida** (`WaiveSuspendedLoss`, con el permiso de la condonación a paz y salvo): saldos
+  a 0 sin pago; el crédito se queda en su estado suspendido. Es la única condonación que admite un
+  suspendido.
+- **Quitar el estado** (`ReleaseSpecialState`, permiso `release creditop x credit special state`):
+  devuelve el crédito a Al día o En mora según sus días de mora. A uno suspendido le vuelve a dar fila
+  vigente con el mismo saldo y le reprograma las fechas, sin causar ni facturar el tiempo suspendido; no
+  aplica si ya no tiene saldo.
 
 ## Subsidio de intereses Creditop
 

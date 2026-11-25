@@ -45,7 +45,7 @@ El motor sólo dibuja. Las variables las arma un `DocumentPayloadBuilder`, que s
 (`CatalogDocumentPayloadResolver::builderClassFor`), en este orden:
 
 1. por prefijo de la plantilla (`creditopxpdf.lenders.alta.` → `AltaPayloadBuilder`);
-2. por `slug` de la entidad (`credi-asyco` → `CrediAsycoPayloadBuilder`);
+2. por `slug` de la entidad (`credi-asyco` → `CrediAsycoPayloadBuilder`, `banco-finandina` → `FinandinaPayloadBuilder`);
 3. por `lenders.product` (`renting` → `MotaiRentingPayloadBuilder`, `rto` → `MotaiRentToOwnPayloadBuilder`);
 4. si no, `OnboardingPayloadBuilder`, el genérico, que es el que usa Credifamilia.
 

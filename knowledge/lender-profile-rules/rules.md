@@ -48,7 +48,7 @@ multiplicador: el monto lo calcula `FinandinaAmountCalculator`, con las condicio
 `FinandinaTerms`. La capacidad es el ingreso menos el porcentaje de ley y el de gastos de la banda del
 perfil (`income_bands`), menos las cuotas del buró (Tabla 3) y las de los créditos del cliente con la
 entidad autorizados en los últimos 60 días (`LenderMonthlyLimits::clientRecentInstallments`), que el buró
-todavía no ve. Esa capacidad se lleva a monto con la anualidad de la tasa de modelado (`capacity_rate` de la
+todavía no ve; si se evalúa una solicitud concreta, su propia cuota no cuenta como deuda previa. Esa capacidad se lleva a monto con la anualidad de la tasa de modelado (`capacity_rate` de la
 línea; sin valor, `rate`) y el plazo (`CapacityToAmount`). El FGA y el seguro de vida no entran: con
 `FinandinaPolicy::INSTALLMENT_INCLUDES_COSTS` en `false` la cuota se compara sin costos, y los plazos que ofrece
 el plan leen la misma constante. El cupo es el menor entre ese monto, el múltiplo de ingreso de la banda, el tope sin experiencia
@@ -104,12 +104,19 @@ categoría caerá el cliente. El resto del requisito está en `abaco-requirement
 `available-quota` (y sus variantes de etapa extendida y codeudor) decide en este orden antes de mirar
 perfiles:
 
-- **riel 3 (rotativo):** sale por `RevolvingCreditsService`, que evalúa la misma política dura y no pasa
-  por el crédito activo ni por la categoría.
+- **riel 3 (rotativo):** sale por `RevolvingCreditsService`, que evalúa la misma política dura y el
+  bloqueo por estado especial (`RevolvingHardPolicyGate`), pero no pasa por el crédito activo con la
+  entidad ni por la categoría.
 - **`lender_not_creditop_x`** si la entidad es de riel 0 o 1: no tienen cupo financiado por Creditop.
+- **`special_state_credit_exists`** si la última fila (sin las de status 0 y 5) de cualquier crédito
+  del cliente, con **cualquier** entidad, está en Fallecido, Fraude o Incapacidad o en sus
+  recuperaciones (`ActiveCreditRuleEvaluator::evaluateSpecialStates`,
+  `ActiveCreditRepository::findSpecialStateCreditopXForUser`). No mira saldo ni entidad; si el estado
+  se quita, deja de bloquear.
 - **`active_credit_exists`** si el cliente ya tiene con **esa misma entidad** de riel 2 un crédito
-  vivo (fila vigente del histórico) con saldo de capital de $1.000 o más. Por debajo se trata como
-  residuo y no bloquea. Otras entidades y el rotativo no cuentan.
+  vivo (fila vigente del histórico, o la de un crédito suspendido en Fallecido, Fraude o Incapacidad)
+  con saldo de capital de $1.000 o más. Por debajo se trata como residuo y no bloquea. Otras entidades
+  y el rotativo no cuentan.
 - **`client_monthly_credits_exhausted`** si la entidad declara
   `lender_requirements.max_credits_per_client_month` y el cliente ya llegó a ese número de créditos con
   ella en el mes calendario (`ClientMonthlyCreditRuleEvaluator`: solicitudes con `disbursed_at` en el

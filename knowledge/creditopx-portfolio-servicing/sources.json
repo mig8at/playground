@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Cartera CreditopX: noche, cobranza, colilla y beneficios",
   "summary": "Qué le pasa a un crédito CreditopX sin que el cliente pague: la cadena nocturna que corre loan-servicing sobre los comandos de legacy-application, el gasto de cobranza por tramo de mora y qué caminos lo incluyen en el saldo total (y por qué la vista previa de la refinanciación lo cuenta dos veces), la colilla que se condona en el corte, cuándo se puede cambiar la fecha de pago, recuperación, condonación libre, refinanciación y paz y salvo desde el admin, y el subsidio de intereses Creditop.",
-  "reviewedAt": "2026-11-25T14:12:19+00:00",
+  "reviewedAt": "2026-11-25T14:24:33+00:00",
   "sources": [
     {
       "repo": "legacy-application",
@@ -116,8 +116,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Console/Commands/UpdateCreditopXRequestsCommand.php",
-      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
-      "blob": "0551de7cb168f8a5231cc7357c688d163ab34fc6",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "f1cd517702b20adef772ead526454892a04916b2",
       "sections": [
         "gasto-de-cobranza-por-dias-de-mora",
         "saldo-total-y-gasto-de-cobranza",
@@ -128,8 +128,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/CreditopXPaymentController.php",
-      "commit": "9ec33cd7e73de6be6b6cd92a8344cdda49ac5216",
-      "blob": "0c17f254fb8ea9b7e8e0bd22327bddf6539baef3",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "a97b15050b85c026c3a2d5da2545aa0be1624139",
       "sections": [
         "gasto-de-cobranza-por-dias-de-mora",
         "saldo-total-y-gasto-de-cobranza"
@@ -138,8 +138,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/CreditopXPaymentService.php",
-      "commit": "117399f0c44ecbcfbe0a230a4546fa1744c273b4",
-      "blob": "60ad88c13a37edbe9a1bd454697bac7aa78bdb4d",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "bd2f27b8f92fb5928bffd35805e4d49154010b6b",
       "sections": [
         "saldo-total-y-gasto-de-cobranza"
       ]
@@ -166,8 +166,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Console/Commands/UpdateCreditopXRemoveOutstandingBalances.php",
-      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
-      "blob": "47965d59ef11771ac47b13e120c08826ee693caa",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "d9ff18d54201089e7be8933b012c02d3b58cfc2c",
       "sections": [
         "colilla-el-residuo-se-condona-en-el-corte",
         "saldo-total-y-gasto-de-cobranza"
@@ -216,8 +216,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Actions/CreditopX/CondoneCreditToSettled.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "51138fc108cc6c526cd35541da9b6b73769c797a",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "8f06c9daa5679857e35f2a1ed389a1e8a4ec010d",
       "sections": [
         "acciones-del-admin-sobre-la-cartera"
       ]

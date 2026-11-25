@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Recorrido de una solicitud: canal, riel y variaciones",
   "summary": "El vocabulario para describir el camino de una solicitud —canal, tramo común, riel, producto, variaciones, campos, ajustes y desenlace—, qué activa cada variación y qué decide cada campo del formulario.",
-  "reviewedAt": "2026-11-25T14:12:19+00:00",
+  "reviewedAt": "2026-11-25T14:24:33+00:00",
   "sources": [
     {
       "repo": "frontend-monorepo",
@@ -72,8 +72,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/DocumentGeneration/CatalogDocumentPayloadResolver.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "53eff617408e64f2425037835de677e2d0ce33bd",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "6a23c88f6337fb8ffc4491f32f31829fc00fd150",
       "sections": [
         "producto-que-se-financia"
       ]
@@ -165,8 +165,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/InitialFee/InitialFeePolicyResolver.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "cf0fe77cceaa956629b77e49dc978adcb648c6c6",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "9a94560a72d2f8f2cdf318040e230f2ebca47f57",
       "sections": [
         "variaciones-y-ajustes"
       ]
@@ -384,8 +384,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Partner/App/Services/UserRequestManagementService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "69c25adcd59a7f818caa5452b9128727ebf7425d",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "8c8b4e6919dd8bacfdcb9402a6d923a965880ab4",
       "sections": [
         "despues-del-11-quien-administra-el-credito"
       ]

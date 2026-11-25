@@ -41,14 +41,14 @@ modelo demográfico no se actualiza solo.
 
 | pantalla | qué muestra | quién la ve |
 |---|---|---|
-| **Usuarios perfilamiento** (admin y comercio) | qué entidades se le mostraron a cada solicitud y con qué probabilidad; se puede descargar | recorta por rol en el servicio; la ruta no pide permiso |
-| **Pestaña Perfilamiento** de una solicitud | Datacrédito, ocupación, ingresos, continuidad laboral, la revisión de la política de riesgo y la capacidad de endeudamiento (pedidas a `legacy-backend`), el formulario dinámico y la última decisión manual | sólo si la entidad tiene aprobación manual y el usuario puede aprobar |
+| **Usuarios perfilamiento** (admin y comercio) | qué entidades se le mostraron a cada solicitud y con qué probabilidad, con la revisión más reciente de cada una; se puede descargar | recorta por rol en el servicio; la ruta no pide permiso |
+| **Pestaña Perfilamiento** de una solicitud | Datacrédito, ocupación, ingresos, continuidad laboral, la revisión de la política de riesgo y la capacidad de endeudamiento (pedidas a `legacy-backend`), el formulario dinámico, la última decisión manual y, si la solicitud tiene una decisión guardada en `user_request_policy_decisions`, el bloque «Cómo se calculó el cupo» (`policyDecision`: la decisión de la política de crédito de la entidad y su recálculo, también pedidos a `legacy-backend`) | si la entidad tiene aprobación manual, quien puede aprobar; si no, sólo el Administrador y sólo si la solicitud tiene una decisión guardada (`UserRequestPolicyDecision::existsFor`), de sólo lectura. La decisión y el bloque de la política dentro de la capacidad de endeudamiento le llegan sólo al Administrador y a los usuarios de la entidad dueña de la decisión (`policyDecisionLenderIdFor`, `canSeePolicyOf`); las obligaciones una por una, sólo a quien puede aprobar |
 | **Revisión de perfilamiento** | cuántas veces la entidad recomendada fue la que desembolsó, por comercio y entidad | el menú pide «ver centrales de riesgo»; la ruta no pide permiso |
 | **Validar usuario** | el perfil de riesgo de una cédula (Datacrédito, Ágil Data, Mareigua, TusDatos, capacidad de endeudamiento) y su historial por comercio | la ruta pide `view user validation module`; deja rastro. Quien no es Administrador sólo ve cédulas con solicitudes en sus comercios (`allied_id` o `multiple_allieds`, `RiskProfilePolicy::canViewClient`; si no, 403, después de dejar el rastro) y el historial por comercio se recorta a los suyos. El botón de consulta a Datacrédito sólo aparece con `view risk centrals module` (`can_query_datacredito`) |
 | **Validar perfil** y **Pruebas del modelo** | el resultado demográfico y la matriz de una solicitud; las entidades y reglas duras de una cédula con un modelo local | sin permiso en la ruta |
 | **Formulario de perfilamiento** (cliente, aplicación anterior) | ocupación, ingreso, estrato, central y estado civil antes del listado | ruta pública |
 
-El recorte de **Validar usuario** se hace en el controlador y no en la vista: Inertia manda el payload igual, así que ocultar en el front no alcanzaría.
+El recorte de **Validar usuario** se hace en el controlador y no en la vista: Inertia manda el payload igual, así que ocultar en el front no alcanzaría. Lo mismo vale para la decisión de la política en la pestaña Perfilamiento: `UserRequestProfilingController` la quita del payload antes de mandarlo.
 
 El lado del comercio en el asistente usa el puerto de `legacy-backend`
 (`/api/loans/customer/user-profiling`), que hoy recorta distinto que `legacy-application`: sólo

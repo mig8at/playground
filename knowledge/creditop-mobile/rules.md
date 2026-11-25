@@ -101,16 +101,22 @@ agregadores, su detalle lleva a la pantalla de «sin cupo».
 ## Comprar en un comercio: canal y código
 
 Los canales de compra **salen de las sedes** del comercio (`merchants/storefronts` de merchant-api),
-según su `point_of_sale_type`:
+según su `point_of_sale_type`, más la tienda online:
 
+- **Tienda online**: sólo con `ff_online_store` prendido y una `merchant_url` del comercio que sea una
+  URL web válida (se normaliza a `https`; `OnlineStore.offered`). Va primera y nunca es el único canal:
+  con ella siempre hay que elegir. **No genera código**: la app pide un enlace tokenizado a legacy
+  (`POST /legacy-api/v1/mobile/ecommerce/store-link` con `merchantId`, a lo sumo 5 s) y lo abre en el
+  navegador externo; si el enlace falla o no abre, abre la `merchant_url`.
 - **Venta asistida**: sedes `assisted_sale` o `both` con teléfono o WhatsApp válido. El cliente
   contacta a un vendedor.
 - **Tienda física**: sedes `physical` o `both`, con mapa y orden por cercanía. También es el canal
-  por defecto si no hay contactos, o si las sedes no cargaron (sólo código).
+  por defecto si no hay contactos, o si las sedes no cargaron (sólo código, más la tienda online si
+  se ofrece).
 - Si ninguna sede declara tipo, sus sedes con dirección o ubicación cuentan como tiendas. Si alguna
   declara tipo, las que no lo declaran se ignoran.
 
-Con más de un canal, el cliente elige. Después la app pide el código a self-manager-api
+Con más de un canal, el cliente elige. En asistida o física la app pide el código a self-manager-api
 (`POST /generate/code` con comercio, entidad y canal `assisted` o `physical`). self-manager-api
 **no lee el canal**: su pedido sólo toma comercio y entidad, y el usuario sale del encabezado. El
 código nuevo es de dos letras y cuatro dígitos; el servicio sigue aceptando los viejos de cuatro
@@ -119,8 +125,8 @@ en que se generó, con fecha y comparación en UTC: lo da por vencido desde las 
 siguiente (19:00 en Colombia). La app, en cambio, lo muestra válido hasta el final de ese día en hora
 de Colombia, cinco horas más. El cliente se lo da al comercio y
 ahí se canjea (ver `client-code-redemption`). `store_type` del comercio ya no decide el
-flujo, y «online» dejó de ser un canal: la ruta de la tienda virtual sigue registrada pero nada
-navega a ella.
+flujo, y la ruta de la tienda virtual en WebView (`virtualStore`) sigue registrada pero nada navega a
+ella: la tienda online se abre fuera de la app.
 
 ## Mis créditos
 
@@ -128,6 +134,15 @@ El listado sale de legacy (`/legacy-api/loans/debt-summary?include=revolving`): 
 créditos y capacidad de endeudamiento. El estado de cada crédito es «Al día», «Pagar» o «En mora»
 (uno desconocido se muestra como «Pagar»), y el tipo es `consumer` o `revolving`. La capacidad se pinta
 por porcentaje: más de 70 saludable, de 30 a 70 moderado, menos de 30 en riesgo.
+
+Legacy (`DebtSummaryService`) lista los créditos de consumo CreditopX vivos
+(`CreditopXUserRequestStatus::LIVE`: al día, en mora e Insolvencia) y, además, los suspendidos que el
+cliente sí ve (`CLIENT_VISIBLE_SUSPENDED`: Fraude e Incapacidad; Fallecido no sale). Un suspendido va
+con la etiqueta neutra (`clientLabel`, «En revisión» por defecto, configurable en
+`creditop_x_states.client_label`), con `status.id` en `null` y con `payment_allowed` en `false`, y no
+suma a la deuda total. Cada ítem trae `payment_allowed` (en el cupo, si tiene una utilización viva).
+La app no lee ese campo del listado: Insolvencia y la etiqueta neutra caen en «Pagar» como cualquier
+estado desconocido, y lo que frena el pago es el `payment_allowed` de la información de pago.
 
 Ese porcentaje es la capacidad **disponible**: legacy calcula ingreso menos cuotas mensuales de
 Datacrédito (con el ajuste CreditopX y sin la deuda de tarjetas que ignora) sobre el ingreso, entre 0 y 100. El comentario del DTO de la app que lo
@@ -228,6 +243,15 @@ no existe en el User Pool la app lo crea en Cognito con `signUp` y usa las APIs 
 (términos, `is-temporal`, `update-info`, `DELETE /users`); apagado, sigue el registro de siempre por
 legacy (ver la entrada por OTP). Lo resuelve un solo provider (`authCognitoSignupEnabled`). El flavor
 mock no lo lee: siempre corre el flujo nuevo.
+
+Hay dos más:
+
+- `ff_ad_consent_prompt` (en vivo, **encendido** por defecto): el interruptor de la pantalla de
+  consentimiento de medición publicitaria (Meta y Google), que sale en el registro y una vez a quien
+  ya tenía cuenta, sólo si no hay una decisión guardada. Apagado no sale y, sin decisión, no se mandan
+  señales de anuncios; el toggle de Perfil > Privacidad (`/profile/privacy`) no depende del flag;
+- `ff_online_store` (de sesión, **apagado** por defecto): suma la tienda online a la selección de canal
+  de compra (ver «Comprar en un comercio»); apagado, sólo venta asistida y tienda física.
 
 La app también trae el mecanismo para apagar un flujo entero (`ff_flow_<flujo>`, que manda sus rutas a
 «no disponible»), pero en `main-pro` no hay ningún flujo declarado (`appFlowKillSwitches` vacío).

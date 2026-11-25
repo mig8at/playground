@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Canje del código de preaprobado",
   "summary": "Consulta, creación, consumo y filtro del listado; formatos y diferencias con el receptor anterior.",
-  "reviewedAt": "2026-11-25T14:12:19+00:00",
+  "reviewedAt": "2026-11-25T14:24:33+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -53,8 +53,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Models/CreditopXRequestHistory.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "24653d6fbd2221b05bcf6940fe633c6e4ce9f4da",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "38dbef7e53d0db5caccdca9165b8cdce46b98b58",
       "sections": [
         "se-crea-la-solicitud-antes-de-consumir-el-codigo"
       ]
@@ -145,8 +145,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Models/CreditopXRequestHistory.php",
-      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
-      "blob": "53a9f81892c6fbf8c923f25e869d54d5dcf4df4a",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "c2331363405fa17324c654f1f58ef78bf1aecc08",
       "sections": [
         "se-crea-la-solicitud-antes-de-consumir-el-codigo"
       ]

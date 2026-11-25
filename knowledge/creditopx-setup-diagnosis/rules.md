@@ -130,11 +130,15 @@ entidad (`PUT lenders/{lender}/config/payment-method`, `payment_methods_by_lende
 
 `CreditopXFlowService` toma el proveedor de identidad de la fila con `order = 1` de `lender_identity_validation_types`,
 sin mirar su estado. Sin esa fila devuelve el paso `error` con tipo `no_validation_configured`, salvo que el cliente
-tenga una validación manual de menos de 24 horas. El estado de la validación (`ValidationStatusService`) usa la misma
-fila: sin ella el tipo queda en desconocido (0) y sólo exige TusDatos; la columna heredada `lenders.validation_type`
-(2 AWS, 4 ADO, 5 CrossCore, entre otros) sólo se usa si la fila trae un tipo fuera del catálogo, y si las dos difieren
-se registra la deriva. El backoffice de configuración avisa `no_primary_provider`, `primary_inactive` o
-`no_active_provider`.
+tenga una validación manual de menos de 24 horas. Si el proveedor es ADO y `RecentAdoApprovalResolver` encuentra una
+aprobación reusable, devuelve el paso `ado_validation_status` (`validation_flow = ado_recent_approval`, la pantalla de
+carga que espera el AML de TusDatos) en vez de un enroll nuevo: el último registro ADO del usuario, de menos de 24
+horas, hecho para esta misma solicitud y en el mismo proyecto de ADO que usaría su enroll, aprobado
+(`ado_confirmed_state_id = 2`) o, si está pendiente, confirmado por una consulta a ADO (`checkStatus`). El estado de la
+validación (`ValidationStatusService`) usa la misma fila: sin ella el tipo queda en desconocido (0) y sólo exige
+TusDatos; la columna heredada `lenders.validation_type` (2 AWS, 4 ADO, 5 CrossCore, entre otros) sólo se usa si la
+fila trae un tipo fuera del catálogo, y si las dos difieren se registra la deriva. El backoffice de configuración avisa
+`no_primary_provider`, `primary_inactive` o `no_active_provider`.
 
 El backoffice (`LenderConfigService::saveIdentity`) recibe `originatorTaxId` y persiste sólo los dígitos en
 `lenders.originator_nit` y el dígito de verificación aparte en `lenders.originator_tax_id_check_digit` (conservando el
@@ -171,12 +175,12 @@ La falta de categoría no saca a una entidad CreditopX de `lenders-v2`: el lista
 ## Diagnóstico: salió sin cupo
 
 Si la tarjeta aparece rechazada, decidió `available-quota`. Para `response_type` 2 recorre, en
-orden: entidad inactiva, crédito activo, tope de créditos del cliente en el mes, plantilla de reglas,
-regla de datacrédito, categoría, bloqueo por categoría de puntaje, otorgación especial, tope por
-condiciones de monto, piso de `min_amount` y cupo. Una rotativa (3) va por su propio cálculo y los
-tipos 0 y 1 se rechazan con `lender_not_creditop_x`. La razón viaja en `reason`
-(`active_credit_exists`, `client_monthly_credits_exhausted`, `lender_rule_failed`,
-`missing_field_value_<id>`, `no_datacredito_data`, `datacredito_data_incomplete`,
+orden: entidad inactiva, crédito en estado especial o crédito activo, tope de créditos del cliente en
+el mes, plantilla de reglas, regla de datacrédito, categoría, bloqueo por categoría de puntaje,
+otorgación especial, tope por condiciones de monto, piso de `min_amount` y cupo. Una rotativa (3) va
+por su propio cálculo y los tipos 0 y 1 se rechazan con `lender_not_creditop_x`. La razón viaja en
+`reason` (`special_state_credit_exists`, `active_credit_exists`, `client_monthly_credits_exhausted`,
+`lender_rule_failed`, `missing_field_value_<id>`, `no_datacredito_data`, `datacredito_data_incomplete`,
 `score_below_threshold`, `negative_historical_exceeded`, `consulted_6m_exceeded`,
 `time_finance_sector_insufficient`, `eligibility_criteria_not_met`,
 `scoring_policy_fallback_blocked`, `insufficient_debt_capacity`, `below_min_amount`,
@@ -184,6 +188,13 @@ tipos 0 y 1 se rechazan con `lender_not_creditop_x`. La razón viaja en `reason`
 `QUOTA_CHECK_REJECTED`. Ese log trae `rejection_stage` sólo hasta el bloqueo por puntaje (validación,
 crédito activo, tope mensual del cliente, plantilla, datacrédito, puntaje). `profile_quota_exhausted`
 es el perfil sin bolsa en el mes, no el cliente.
+
+`special_state_credit_exists` lo da `ActiveCreditRuleEvaluator::evaluateSpecialStates`, antes de
+buscar un crédito activo con la entidad y con la misma etapa del log (`active_credit_rule_evaluator`):
+la última fila de alguno de los créditos CreditopX de la persona, con **cualquier** entidad, está en
+Fallecido, Fraude o Incapacidad o en su recuperación por reclamación
+(`ActiveCreditRepository::BLOCKING_SPECIAL_STATES`). Insolvencia no bloquea. El cupo rotativo hace la
+misma revisión en su compuerta (`RevolvingHardPolicyGate`).
 
 El tope de créditos del cliente (`ClientMonthlyCreditRuleEvaluator`) sólo aplica si la entidad tiene
 `lender_requirements.max_credits_per_client_month`: cuenta los créditos del cliente con esa entidad en

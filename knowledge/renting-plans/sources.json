@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Planes de renting y RTO",
   "summary": "Calculadora por entidad, planes y conteo de pagos, tarjeta y recálculo; límites entre listado, simulación y firma; montos que se guardan al autorizar con calculadora.",
-  "reviewedAt": "2026-11-25T14:12:19+00:00",
+  "reviewedAt": "2026-11-25T14:24:33+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -85,8 +85,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/DocumentGeneration/CatalogDocumentPayloadResolver.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "53eff617408e64f2425037835de677e2d0ce33bd",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "6a23c88f6337fb8ffc4491f32f31829fc00fd150",
       "sections": [
         "simulacion-y-documentos"
       ]
