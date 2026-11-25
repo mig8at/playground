@@ -69,6 +69,9 @@ function toggleMulti(key) { openMulti.value = openMulti.value === key ? null : k
         <div class="ent-row"><span class="fld-doc" title="clic: dónde vive y por qué" @click="openFieldInfo('cat.plazoMax')">Plazo máx</span>
           <input class="nodrag ent-in afld--cnum" type="number" min="0" :value="cat.maxFeeNumber" @input="e => set('maxFeeNumber', e.target.value)" />
         </div>
+        <div v-if="cat.fga != null" class="ent-row"><span class="fld-doc" title="lender_users_categories.fga: el % de fianza (FGA) que da esta categoría; en la delegada con el motor es el % de la fianza del plan">FGA</span>
+          <AffixField suffix="%" class="afld--cnum"><input class="nodrag afld__in" type="number" min="0" step="0.1" :value="cat.fga" @input="e => set('fga', e.target.value)" /></AffixField>
+        </div>
         <div class="ent-row ent-row--stack"><span class="fld-doc" title="clic: dónde vive y por qué" @click="openFieldInfo('cat.fondo')">Fondo <em class="ent-hint">límite − usado</em></span>
           <div class="ent-substack">
             <AffixField currency class="afld--mny"><MoneyInput class="afld__in" :model-value="cat.loanLimit" @update:model-value="v => set('loanLimit', v)" /></AffixField>

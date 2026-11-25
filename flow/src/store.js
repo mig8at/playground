@@ -73,9 +73,11 @@ export const RT_LABEL = { 0: 'Redirect', 1: 'Agregador', 2: 'CreditopX', 4: 'Ori
 // Una por entidad. Dice cómo se arma el plan y qué pasa al autorizar; QUÉ se aprueba y por cuánto lo contesta el
 // servicio de preaprobación (`preApprovalResponseOf`), igual para todas las delegadas.
 //   paymentDays   los días de pago que se ofrecen para la primera cuota
-//   bondPct       el % de la fianza (aval), con IVA aparte (en Flow se dicta; en main lo dice bondSource)
+//   bondPct       el % de la fianza cuando Flow no tiene el dato: la tabla del FNG (fng_table) o el convenio
+//                 (lenders_by_allieds.guarantee_fund_percentage) si la categoría no trae FGA. Ver `bondOf`.
 //   bondSource    bond_percentage_source: 'pre_approval' (lo trae la preaprobación) · 'fng_table' (tabla del FNG por plazo)
-//   bondType      'anticipada' (se financia junto al crédito) · 'mensual' (se cobra en cada cuota)
+//   bondType      forced_bond_type: 'anticipada' (se financia junto al crédito) · 'mensual' (vencida, en cada cuota) ·
+//                 'pre_approval' (la columna en NULL: el tipo lo trae la preaprobación)
 //   formalization true → al autorizar se radica con la entidad; false → termina en el 11 al firmar
 //   usesQuotaEngine true → la evalúa el motor de cupo de CreditOp (legacy-backend), con categorías, como a CreditopX
 //                   (Finandina, por alias); false → contesta su propia API (Credifamilia)
@@ -87,7 +89,7 @@ export function delegatedOf(lender) {
     paymentDays: Array.isArray(d.paymentDays) && d.paymentDays.length ? d.paymentDays : base.paymentDays,
     bondPct: Number.isFinite(Number(d.bondPct)) ? Number(d.bondPct) : base.bondPct,
     bondSource: d.bondSource === 'fng_table' ? 'fng_table' : 'pre_approval',
-    bondType: d.bondType === 'mensual' ? 'mensual' : 'anticipada',
+    bondType: ['mensual', 'pre_approval'].includes(d.bondType) ? d.bondType : 'anticipada',
     formalization: d.formalization == null ? base.formalization : !!d.formalization,
     usesQuotaEngine: d.usesQuotaEngine == null ? base.usesQuotaEngine : !!d.usesQuotaEngine,
   }
@@ -96,6 +98,43 @@ export function setDelegated(lender, key, value) {
   if (!lender) return
   lender.entidad = { ...(lender.entidad || {}), delegated: { ...delegatedOf(lender), [key]: value } }
   editTick.n++
+}
+// Lo que vino de la base al importar (`bin/flow import`), para marcar lo que se cambió en Flow y volver a eso.
+export const DELEGATED_EDITABLE = ['paymentDays', 'bondType', 'bondPct']
+export function delegatedBaselineOf(lender) { return lender?.production?.baseline?.delegated || null }
+export function markDelegatedBaseline(lender) {
+  if (lender?.production?.baseline) lender.production.baseline.delegated = clone(delegatedOf(lender))
+}
+export function delegatedChanged(lender, key) {
+  const b = delegatedBaselineOf(lender)
+  return !!b && key in b && JSON.stringify(b[key]) !== JSON.stringify(delegatedOf(lender)[key])
+}
+export function resetDelegated(lender) {
+  const b = delegatedBaselineOf(lender); if (!b) return
+  for (const k of DELEGATED_EDITABLE) if (k in b) setDelegated(lender, k, clone(b[k]))
+}
+// La fianza que usa el plan de una delegada, con DE DÓNDE sale cada mitad (PaymentPlanPayloadBuilder::resolveBond,
+// verificado en main el 2026-11-25):
+//   %    fng_table → la tabla del FNG por plazo (Flow la simula con bondPct) · pre_approval → `guarantee_percentage`
+//        de la preaprobación: con el motor (creditop_x_pre_approval) es el FGA de la categoría ganadora y, sin él, el
+//        del convenio; con la API de la entidad, lo que ella contesta (se dicta en el nodo de preaprobación).
+//   tipo forced_bond_type si la ficha lo fuerza; si no, el de la preaprobación (con el motor, siempre anticipada).
+export function bondOf(lender) {
+  if (!lender) return null
+  const d = delegatedOf(lender), pa = preApprovalResponseOf(lender.name)
+  let pct, pctFrom
+  if (d.bondSource === 'fng_table') { pct = d.bondPct; pctFrom = 'tabla FNG (simulada en Flow)' }
+  else if (d.usesQuotaEngine) {
+    const cat = resolveCategory(lender.name)
+    if (cat && cat.fga != null) { pct = cat.fga; pctFrom = 'FGA de la categoría ' + cat.label }
+    else { pct = d.bondPct; pctFrom = cat ? 'convenio (la categoría no trae FGA)' : 'convenio (sin categoría ganadora)' }
+  } else if (pa.bondPct != null) { pct = pa.bondPct; pctFrom = 'la preaprobación de ' + lender.name }
+  else { pct = d.bondPct; pctFrom = 'la preaprobación (sin dictar: ' + d.bondPct + ' %)' }
+  let type, typeFrom
+  if (d.bondType !== 'pre_approval') { type = d.bondType; typeFrom = 'forced_bond_type' }
+  else if (d.usesQuotaEngine) { type = 'anticipada'; typeFrom = 'la preaprobación (con el motor, siempre anticipada)' }
+  else { type = pa.bondType === 'mensual' ? 'mensual' : 'anticipada'; typeFrom = 'la preaprobación de ' + lender.name }
+  return { pct, pctFrom, type, typeFrom }
 }
 // ¿Se origina en casa? CreditopX (rt=2) y la originación delegada (rt=4) recorren nuestro flujo hasta el 11.
 export const isInHouse = (rt) => Number(rt) === 2 || Number(rt) === 4
@@ -537,7 +576,7 @@ export function applyProductionImport({ comercio, sucursal, item, profiles = [],
   // simulador evalúe la primera coincidencia igual que el motor.
   {
     const cats = profiles.map((c, i) => ({
-      id: String(c.id), label: c.name || ('Perfil ' + (i + 1)), minInitialFee: flowNum(c.min_initial_fee), maxAmount: flowNum(c.max_amount), maxFeeNumber: flowNum(c.max_fee_number), loanLimit: flowNum(c.loan_limit), usedLoan: flowNum(c.already_used_loan), capacityCheck: false, capacityPct: 30, priority: flowNum(c.priority, i + 1),
+      id: String(c.id), label: c.name || ('Perfil ' + (i + 1)), minInitialFee: flowNum(c.min_initial_fee), maxAmount: flowNum(c.max_amount), maxFeeNumber: flowNum(c.max_fee_number), fga: c.fga == null ? null : flowNum(c.fga), loanLimit: flowNum(c.loan_limit), usedLoan: flowNum(c.already_used_loan), capacityCheck: false, capacityPct: 30, priority: flowNum(c.priority, i + 1),
       occupation: String(c.occupation || '').split('|').map(x => x.trim().toLowerCase()).filter(Boolean), minAge: flowNum(c.min_age, 18), maxAge: flowNum(c.max_age, 100), minIncome: flowNum(c.monthly_income), verifiedIncome: false, minContinuity: flowNum(c.employment_continuity), gender: String(c.gender || 'M|F').split('|').map(x => x.trim()).filter(Boolean), minScore: flowNum(c.min_score), maxNegatives: c.negative_reports_last_12_months == null ? 20 : flowNum(c.negative_reports_last_12_months), maxDelinq: c.current_delinquencies == null ? 10 : flowNum(c.current_delinquencies), minHistory: flowNum(c.financial_history_length), maxInquiries: c.consulted_last_6_months == null ? 20 : flowNum(c.consulted_last_6_months),
     }))
   perfilOf(l.name).splice(0, perfilOf(l.name).length, ...cats)
@@ -828,7 +867,8 @@ export function perfilOf(lenderName) {
 // Lista negra de documentos (1ra compuerta de getLenderUserCategory) + pre-aprobación externa rt=1.
 const perfilBlacklist = reactive({}) // { [lenderName]: bool } — documento en lista negra → sin categoría
 // La respuesta del servicio de preaprobación (pre-approvals-service) por entidad, editable en su nodo:
-// { status: 'aprueba' | 'rechaza' | 'timeout', maxAmount: número | null, rate: % N.M. | null }. null = usa lo
+// { status: 'aprueba' | 'rechaza' | 'timeout', maxAmount: número | null, rate: % N.M. | null, bondPct: % | null,
+// bondType: 'anticipada' | 'mensual' | null } (la fianza: `guarantee_percentage` y `guarantee_type`). null = usa lo
 // configurado en la entidad. (Antes era sólo el string del estado: se sigue leyendo.)
 const preApproval = reactive({})
 export function isBlacklisted(lenderName) { return !!perfilBlacklist[lenderName] }
@@ -837,7 +877,8 @@ export function preApprovalResponseOf(lenderName) {
   const r = preApproval[lenderName]
   const o = typeof r === 'string' ? { status: r } : (r || {})
   const num = (v) => (v === '' || v == null || !Number.isFinite(Number(v)) ? null : Number(v))
-  return { status: ['rechaza', 'timeout'].includes(o.status) ? o.status : 'aprueba', maxAmount: num(o.maxAmount) || null, rate: num(o.rate) }
+  return { status: ['rechaza', 'timeout'].includes(o.status) ? o.status : 'aprueba', maxAmount: num(o.maxAmount) || null, rate: num(o.rate),
+    bondPct: num(o.bondPct), bondType: o.bondType === 'mensual' ? 'mensual' : (o.bondType === 'anticipada' ? 'anticipada' : null) }
 }
 export function preApprovalOf(lenderName) { return preApprovalResponseOf(lenderName).status }
 export function setPreApproval(lenderName, v) { setPreApprovalField(lenderName, 'status', v) }
@@ -1201,15 +1242,15 @@ export function cuotaBreakdown(l, n) {
   const monto = montoNum(), c = merchant.nombre, rate = (l.rate || 0) / 100
   if (!monto || !n) return { cuota: 0, financiado: 0, admin: 0, fga: 0, seguros: 0, capital: 0 }
   if (l.rt === 4) {
-    // Originación delegada: sin costos admin del comercio. La FIANZA sale de la ficha de la entidad (+ IVA 19 %):
+    // Originación delegada: sin costos admin del comercio. La FIANZA (`bondOf`: % y tipo, + IVA 19 %):
     // anticipada se suma al capital que se financia; mensual se reparte en las cuotas. (Aproximado: el motor real
     // suma además el 4×1000 y el interés de los días hasta la primera cuota.)
-    const d = delegatedOf(findLenderDef(l.name))
+    const b = bondOf(findLenderDef(l.name))
     const financiado = monto
-    const fga = financiado * (d.bondPct / 100) * 1.19
-    const capital = financiado + (d.bondType === 'anticipada' ? fga : 0)
+    const fga = financiado * (b.pct / 100) * 1.19
+    const capital = financiado + (b.type === 'anticipada' ? fga : 0)
     const base = rate ? capital * rate / (1 - Math.pow(1 + rate, -n)) : capital / n
-    const seguros = financiado * (calcValue(c, 'seguroVidaVar') / 100) + calcValue(c, 'seguroVidaFijo') + (d.bondType === 'mensual' ? fga / n : 0)
+    const seguros = financiado * (calcValue(c, 'seguroVidaVar') / 100) + calcValue(c, 'seguroVidaFijo') + (b.type === 'mensual' ? fga / n : 0)
     return { cuota: Math.round(base + seguros), financiado: Math.round(financiado), admin: 0, fga: Math.round(fga), seguros: Math.round(seguros), capital: Math.round(capital) }
   }
   const financiado = Math.max(0, monto - (l.initialFeeAmount || 0))

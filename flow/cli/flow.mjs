@@ -22,7 +22,7 @@ const USAGE = `bin/flow — Flow por consola (le habla a la app abierta; si no h
   bin/flow add --name <n> --rt 2|4|1|0 [--product credito|renting|rto] [--engine 0|1] [--radica 0|1] [--days 5,10]
                                                  una entidad de ejemplo, sin base
   bin/flow select <nombre> · unselect · remove <nombre> · clear
-  bin/flow delegated <nombre> [--engine 0|1] [--radica 0|1] [--days 2,16] [--bond 10] [--bond-type anticipada|vencida] [--bond-source pre_approval|fng_table]
+  bin/flow delegated <nombre> [--engine 0|1] [--radica 0|1] [--days 2,16] [--bond 10] [--bond-type anticipada|vencida|pre_approval] [--bond-source pre_approval|fng_table]
   bin/flow client [--score 800] [--negatives 0] [--arrears 0] [--inquiries 2] [--history 24] [--occupation empleado|independiente|pensionado|desempleado]
                   [--continuity <3m|3m|6m|12m] [--age 41] [--gender F|M] [--income 5400000] [--amount 1200000]
                                                  el cliente de la solicitud (lo que contestan las centrales) y el monto
@@ -82,7 +82,7 @@ const delegatedFlags = (o) => {
   if (o.days) d.paymentDays = ids(o.days)
   if (o.bond) d.bondPct = Number(o.bond)
   if (o['bond-source']) d.bondSource = String(o['bond-source']) === 'fng_table' ? 'fng_table' : 'pre_approval'
-  if (o['bond-type']) d.bondType = ['vencida', 'mensual'].includes(String(o['bond-type']).toLowerCase()) ? 'mensual' : 'anticipada'
+  if (o['bond-type']) { const t = String(o['bond-type']).toLowerCase(); d.bondType = ['vencida', 'mensual'].includes(t) ? 'mensual' : t === 'pre_approval' ? 'pre_approval' : 'anticipada' }
   return d
 }
 
@@ -100,7 +100,7 @@ async function lenderPhoto(target, branch, lender) {
   const [item] = await sql(target, `SELECT l.id, l.name, l.response_type, l.product, l.country_id, l.status, lbab.document_types, clbl.min_amount, clbl.max_amount, NULL AS max_fee_number, clbl.fee_numbers, clbl.rate, d.score AS min_score, d.negative_historical_last_12_months AS max_negatives, d.consulted_last_6_months AS max_inquiries, d.time_finance_sector AS min_maturation, d.allow_0_score FROM lenders l JOIN lenders_by_allied_branches lbab ON lbab.lender_id = l.id AND lbab.allied_branch_id = ${branch.id} LEFT JOIN credit_line_by_lenders clbl ON clbl.lender_id = l.id AND clbl.status = 1 LEFT JOIN lender_datacredito_rules d ON d.lender_id = l.id AND d.allied_branch_id = ${branch.id} WHERE l.id = ${lender} ORDER BY clbl.sort, clbl.id LIMIT 1`)
   if (!item) throw new Error(`la entidad ${lender} no está en la sucursal ${branch.id} (${target})`)
   const [profiles, tramos, groupRules, delegatedRows] = await Promise.all([
-    sql(target, `SELECT c.id, c.name, c.loan_limit, c.already_used_loan, c.min_initial_fee, c.max_fee_number, c.max_amount, c.\`order\` AS priority, r.occupation, r.min_age, r.max_age, r.monthly_income, r.gender, r.negative_reports_last_12_months, r.current_delinquencies, r.financial_history_length, r.min_score, r.employment_continuity, r.consulted_last_6_months FROM lender_users_categories c JOIN lender_users_category_rules r ON r.lender_users_category_id = c.id AND r.lender_id = c.lender_id AND r.lender_users_category_type_id = 1 WHERE c.lender_id = ${lender} AND c.active = 1 ORDER BY c.\`order\`, c.id`),
+    sql(target, `SELECT c.id, c.name, c.fga, c.loan_limit, c.already_used_loan, c.min_initial_fee, c.max_fee_number, c.max_amount, c.\`order\` AS priority, r.occupation, r.min_age, r.max_age, r.monthly_income, r.gender, r.negative_reports_last_12_months, r.current_delinquencies, r.financial_history_length, r.min_score, r.employment_continuity, r.consulted_last_6_months FROM lender_users_categories c JOIN lender_users_category_rules r ON r.lender_users_category_id = c.id AND r.lender_id = c.lender_id AND r.lender_users_category_type_id = 1 WHERE c.lender_id = ${lender} AND c.active = 1 ORDER BY c.\`order\`, c.id`),
     sql(target, `SELECT min_amount, max_amount, max_fee_number, mandatory_fee_number FROM creditop_x_conditions_by_amount_by_lender WHERE lender_id = ${lender} ORDER BY min_amount, max_amount, id`),
     sql(target, `SELECT gr.id AS group_id, gr.rule_name, lr.name, lr.specific_table, lr.\`column\`, lr.operator, lr.value FROM group_rules gr JOIN lender_rules lr ON lr.group_rule_id = gr.id WHERE gr.allied_branch_id = ${branch.id} AND lr.status = 1 ORDER BY gr.id, lr.id`),
     Number(item.response_type) === 4 ? sql(target, `SELECT inputs_source, bond_percentage_source, forced_bond_type, payment_days, formalization FROM delegated_origination_profiles WHERE lender_id = ${lender} LIMIT 1`) : Promise.resolve([]),
@@ -112,7 +112,8 @@ async function lenderPhoto(target, branch, lender) {
     delegated = { usesQuotaEngine: d.inputs_source === 'creditop_x_pre_approval', formalization: !!d.formalization, paymentDays: days.length ? days : undefined,
       bondSource: d.bond_percentage_source === 'fng_table' ? 'fng_table' : 'pre_approval',
       // En main los tipos son «Anticipada» y «Vencida» (PaymentPlanPayloadBuilder::mapGuaranteeType); Flow llama «mensual» a la vencida.
-      bondType: d.forced_bond_type ? (['vencida', 'mensual'].includes(String(d.forced_bond_type).toLowerCase()) ? 'mensual' : 'anticipada') : undefined }
+      // NULL = no se fuerza: el tipo lo trae la preaprobación (Credifamilia Salud).
+      bondType: d.forced_bond_type ? (['vencida', 'mensual'].includes(String(d.forced_bond_type).toLowerCase()) ? 'mensual' : 'anticipada') : 'pre_approval' }
   }
   const payload = { comercio: { id: branch.allied_id, name: branch.allied_name, country_id: branch.country_id }, sucursal: { id: branch.id, name: branch.name }, item, profiles, tramos, groupRules }
   return { payload, delegated, summary: `${item.name} (#${item.id}, rt${item.response_type}, ${item.product}) · ${profiles.length} categorías · ${tramos.length} tramos${delegated ? ` · ficha: ${delegated.usesQuotaEngine ? 'motor' : 'su API'}${delegated.formalization ? ', radica' : ''}` : ''}` }
@@ -135,7 +136,7 @@ async function main() {
       console.log(`Flow · ${r.data.apps} app(s) abierta(s)` + (rep ? ` · ${rep.merchant?.name || ''} / ${rep.merchant?.branch || ''}` : ''))
       if (!rep) return
       for (const e of rep.entities) {
-        console.log(`  ${e.name === rep.selected ? '▸' : ' '} ${e.name} · rt${e.rt} · ${e.product}${e.production ? ` · real #${e.production.lenderId} de la sucursal ${e.production.branchId}` : ' · de ejemplo'}${e.delegated ? ` · ${e.delegated.usesQuotaEngine ? 'creditop_x_pre_approval' : 'credifamilia_pre_approval'} · fianza ${e.delegated.bondSource}, ${e.delegated.bondType === 'mensual' ? 'vencida' : 'anticipada'}${e.delegated.formalization ? ' · credifamilia_radication' : ' · sin formalización'} · días ${e.delegated.paymentDays.join('/')}` : ''}`)
+        console.log(`  ${e.name === rep.selected ? '▸' : ' '} ${e.name} · rt${e.rt} · ${e.product}${e.production ? ` · real #${e.production.lenderId} de la sucursal ${e.production.branchId}` : ' · de ejemplo'}${e.delegated ? ` · ${e.delegated.usesQuotaEngine ? 'creditop_x_pre_approval' : 'credifamilia_pre_approval'} · fianza ${e.bond ? e.bond.pct + ' % ' + (e.bond.type === 'mensual' ? 'vencida' : 'anticipada') + ' (' + e.bond.pctFrom + ')' : e.delegated.bondSource}${e.delegated.formalization ? ' · credifamilia_radication' : ' · sin formalización'} · días ${e.delegated.paymentDays.join('/')}` : ''}`)
         const g = e.listing
         if (g) console.log(`      listado: ${g.ok ? `se ofrece · cupo ${Number(g.cupo || 0).toLocaleString('es-CO')}${g.category ? ' · ' + g.category : ''}${g.prob && g.prob !== 'alta' ? ` · prioridad ${g.prob}${g.reason ? ': ' + g.reason : ''}` : ''}` : 'no se ofrece · ' + (g.reason || 'sin motivo')}`)
         else if (e.enabled === false) console.log('      listado: no habilitada en el comercio')

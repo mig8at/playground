@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
-import { ui, findLenderDef, lenders, preApprovalResponseOf, setPreApprovalField, usesPreApproval, usesQuotaEngine, money, openFieldInfo } from '../store'
+import { ui, findLenderDef, lenders, preApprovalResponseOf, setPreApprovalField, usesPreApproval, usesQuotaEngine, delegatedOf, money, openFieldInfo } from '../store'
 import { ShieldCheck } from 'lucide-vue-next'
 import MoneyInput from '../MoneyInput.vue'
 import AffixField from '../AffixField.vue'
@@ -17,6 +17,11 @@ const row = computed(() => lenders.value.find(x => x.name === name.value) || nul
 const set = (k, v) => setPreApprovalField(name.value, k, v)
 const editable = computed(() => usesPreApproval(lender.value))
 const STATUS = [['aprueba', 'aprueba'], ['rechaza', 'rechaza'], ['timeout', 'no contesta']]
+// La fianza de la delegada con su propia API: la contesta la preaprobación, y el plan la usa sólo si la ficha lo dice
+// (bond_percentage_source = pre_approval para el %; forced_bond_type en NULL para el tipo). Ver `bondOf`.
+const BOND_TYPES = [['anticipada', 'Anticipada'], ['mensual', 'Vencida']]
+const bondFromHere = computed(() => lender.value?.rt === 4 && delegatedOf(lender.value).bondSource === 'pre_approval')
+const typeFromHere = computed(() => lender.value?.rt === 4 && delegatedOf(lender.value).bondType === 'pre_approval')
 const outcome = computed(() => {
   if (!row.value) return ''
   if (row.value.ok) return `la tarjeta sale con cupo ${money(row.value.cupo)} a ${row.value.rate}%`
@@ -44,6 +49,17 @@ const outcome = computed(() => {
           <label class="field"><span>Tasa % N.M.</span>
             <input class="nodrag" type="number" min="0" step="0.01" placeholder="la de la entidad" :value="r.rate ?? ''" @input="e => set('rate', e.target.value)" />
           </label>
+          <template v-if="lender.rt === 4">
+            <label class="field" :title="bondFromHere ? 'guarantee_percentage: lo usa el plan porque la ficha dice bond_percentage_source = pre_approval' : 'la ficha toma el % de la tabla del FNG: este no se usa'"><span>Fianza % <em class="ent-hint">guarantee_percentage</em></span>
+              <input class="nodrag" type="number" min="0" step="0.1" placeholder="10" :disabled="!bondFromHere" :value="r.bondPct ?? ''" @input="e => set('bondPct', e.target.value)" />
+            </label>
+            <div class="field"><span>Tipo <em class="ent-hint">guarantee_type</em></span>
+              <div class="cat__chips">
+                <button v-for="[k, label] in BOND_TYPES" :key="k" class="chip-toggle nodrag" :class="{ on: (r.bondType || 'anticipada') === k }" :disabled="!typeFromHere" @click.stop="set('bondType', k)">{{ label }}</button>
+              </div>
+            </div>
+            <div v-if="!typeFromHere" class="tr-hint">El tipo no se usa: la ficha lo fuerza (forced_bond_type).</div>
+          </template>
         </template>
         <div class="tr-active" :class="{ 'tr-active--no': row && !row.ok }">→ {{ outcome }}</div>
       </template>

@@ -66,8 +66,19 @@ sola «delegada»: no se distingue Finandina de Credifamilia. Dos nodos lo expli
 - **Ficha de originación delegada** (`DelegatedProfileNode.vue`, `delegatedOf`), sobre «Plan de pagos» y con líneas a lo que
   la lee en main (2026-11-25): el plan (`PaymentDateService`, controladores de PaymentPlan) y la formalización al autorizar
   (`LoanAuthorizationService`), hacia la radicación o el estado final. La tabla `delegated_origination_profiles` es de
-  CORE-918 (merge del 2026-11-03); la fila de Finandina, del 2026-11-17 (CORE-845). Modela
-  —días de pago, fianza (% y anticipada o mensual) y si radica al autorizar—.
+  CORE-918 (merge del 2026-11-03); la fila de Finandina, del 2026-11-17 (CORE-845). Las tres claves que eligen código
+  (`inputs_source`, `bond_percentage_source`, `formalization`) son de sólo lectura; los valores fijos se pueden cambiar
+  ahí mismo para probar «¿y si la fila dijera otra cosa?»: `payment_days` (fichas) y `forced_bond_type` (anticipada,
+  vencida o NULL = lo trae la preaprobación), y el % cuando sale de la tabla del FNG, que Flow simula. Lo cambiado se marca
+  en ámbar contra lo que vino de qa (`production.baseline.delegated`, lo guarda `bin/flow import`) y «Volver a lo de qa»
+  lo deshace.
+- **La fianza de la delegada** (`bondOf` en `src/store.js`, como `PaymentPlanPayloadBuilder::resolveBond`, verificado en
+  main el 2026-11-25): el % con `fng_table` sale de la tabla del FNG por plazo; con `pre_approval` es el
+  `guarantee_percentage` de la preaprobación, que con el motor (`creditop_x_pre_approval`, Finandina) es el **FGA de la
+  categoría ganadora** (`lender_users_categories.fga`: 5 % en AA·A·B y 9 % en C·S·Y en qa; sin él, el del convenio) y
+  con la API de la entidad (Credifamilia) se dicta en el nodo de preaprobación. El tipo es `forced_bond_type` si la ficha
+  lo fuerza; si no, el de la preaprobación (con el motor, siempre anticipada). Hasta el 2026-11-25 Flow simulaba un 10 %
+  fijo para todas.
 
 La cuota del riel 4 es aproximada (sin 4×1000 ni intereses de los días hasta la primera cuota).
 

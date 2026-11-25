@@ -2,7 +2,7 @@
 // misma lógica de la interfaz, contesta, y cuenta qué tiene después de cada guardado. Así lo carga y lo cambia Claude por
 // consola y Miguel sólo lo mira en Cockpit.
 import { watch, nextTick } from 'vue'
-import { customLenders, addCustomLender, removeCustomLender, selectOffer, findLenderDef, setDelegated, delegatedOf,
+import { customLenders, addCustomLender, removeCustomLender, selectOffer, findLenderDef, setDelegated, delegatedOf, markDelegatedBaseline, bondOf,
   applyProductionImport, merchant, ui, persistPing, lenders, bureau, state, setNull } from './store'
 
 const KEYS = { usesQuotaEngine: 'usesQuotaEngine', formalization: 'formalization', paymentDays: 'paymentDays', bondPct: 'bondPct', bondType: 'bondType', bondSource: 'bondSource' }
@@ -18,7 +18,7 @@ const CONT = ['<3m', '3m', '6m', '12m'], EMP = ['empleado', 'independiente', 'pe
 const HANDLERS = {
   // La foto de una entidad leída de la base (bin/flow import): categorías, tramos, reglas de sucursal y, si es
   // delegada, su ficha.
-  import(c) { const l = applyProductionImport(c.payload); applyDelegated(l, c.delegated); return { name: l.name, rt: l.rt } },
+  import(c) { const l = applyProductionImport(c.payload); applyDelegated(l, c.delegated); markDelegatedBaseline(l); return { name: l.name, rt: l.rt } },
   add(c) {
     if (!findLenderDef(c.name)) { if (!addCustomLender(c.name, Number(c.rt ?? 2), c.product || 'credito')) throw new Error('no se pudo crear ' + c.name) }
     applyDelegated(findLenderDef(c.name), c.delegated)
@@ -56,7 +56,7 @@ function report() {
     selected: ui.selected,
     entities: customLenders.map(l => ({ name: l.name, rt: l.rt, product: l.producto, enabled: !!merchant.enabled[l.name],
       production: l.production ? { lenderId: l.production.lenderId, branchId: l.production.branchId, importedAt: l.production.importedAt } : null,
-      delegated: l.rt === 4 ? delegatedOf(l) : undefined, listing: listing[l.name] || null })),
+      delegated: l.rt === 4 ? delegatedOf(l) : undefined, bond: l.rt === 4 ? bondOf(l) : undefined, listing: listing[l.name] || null })),
   }
   fetch('/api/report', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).catch(() => {})
 }
