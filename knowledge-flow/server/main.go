@@ -102,10 +102,10 @@ func main() {
 		return
 	}
 	f := &flow{root: root, runs: &runStore{dir: filepath.Join(root, "knowledge-flow", ".data", "runs")}, wake: make(chan struct{}, 1), resumeReq: make(chan int, 1)}
-	f.recover()
 	f.loadLook()
 	f.once = *once
 	if *once {
+		f.recover()
 		f.cycle()
 		f.mu.Lock()
 		fmt.Printf("%d fuentes viejas · %s\n", len(f.look.Changes), f.look.Waiting)
@@ -196,13 +196,17 @@ func main() {
 			continue
 		}
 		log.Printf("knowledge-flow: escuchando en %s", *serve)
+		/* Recién acá, con el puerto tomado: una segunda instancia que espera el puerto (la de Cockpit mientras corre la
+		 * de fondo) marcaba como cortada la corrida que la otra seguía haciendo (la #28, 2026-11-25). */
+		f.recover()
 		go f.loop()
 		log.Fatal(http.Serve(ln, mux))
 	}
 }
 
-// recover: una corrida que quedó «corriendo» de un proceso cortado no se retoma a mitad (el modelo y aplicar no son
-// idempotentes): se marca fallada, y la próxima mirada arranca otra limpia.
+// recover: una corrida que quedó «corriendo» de un proceso cortado se marca fallada y se RETOMA desde el paso donde iba
+// (ModelDown: la retoma la próxima mirada, como cuando el modelo no contesta). Rehacerla entera gastaba el cupo de AI
+// Studio; hoy cada paso con modelo guarda lo contestado (resultado-N.json, verificacion/), y aplicar se deshace acá.
 func (f *flow) recover() {
 	for _, id := range f.runs.ids() {
 		r, err := f.runs.load(id)
@@ -214,7 +218,8 @@ func (f *flow) recover() {
 				r.Steps[i].State, r.Steps[i].FinishedAt = stFailed, now()
 			}
 		}
-		r.State, r.Result, r.FinishedAt = stFailed, "se cortó: Knowledge se reinició a mitad de la corrida", now()
+		r.State, r.Result, r.FinishedAt = stFailed, "se cortó: Knowledge se reinició a mitad de la corrida; se retoma desde ese paso", now()
+		r.ModelDown = true
 		f.undoApply(r)
 		f.runs.save(r)
 	}
