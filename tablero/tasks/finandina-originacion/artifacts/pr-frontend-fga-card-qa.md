@@ -1,4 +1,4 @@
-fix(lenders-marketplace): delegated origination leaves the guarantee to its payment plan
+fix(lenders-marketplace): delegated origination leaves the guarantee to its plan, and the first installment adds up
 
 ## Qué cambia y por qué
 
@@ -29,10 +29,23 @@ Credifamilia (el otro lender del riel) no cambia en la práctica: no recibe FGA 
 tienen `amount` igual a `original_amount`. El cambio anula todo FGA de la tarjeta en `response_type` 4, también el
 propio de la entidad: en ese riel la fianza es del plan.
 
+## La pantalla «Continúa con tu solicitud»
+
+El detalle de la primera cuota mostraba capital y seguro de vida pero no los intereses, así que no sumaba su total (en
+qa: 119.934 + 10.020 para un total de 280.561). Ahora muestra el interés del mes y, si los hay, el interés de los días
+que pasan de 30 hasta la primera fecha de pago; los dos llegan en la respuesta de continuar la solicitud (cambio de
+legacy-backend que va junto). Con un backend que todavía no los manda, la pantalla queda como antes. Un plan sin fianza
+(ni en la cuota ni anticipada) ya no muestra «Tipo de fianza».
+
 ## Qué se tocó
 
 - `modules/loan-request-wizard/lenders-marketplace/src/lib/application/calculate-loan-financials.uc.ts`: el FGA de la
   tarjeta pasa por `cardGuaranteeRate`, que es 0 en `response_type` 4.
+- `modules/loan-request-wizard/lenders-marketplace/src/components/PaymentPlanBreakdown.tsx` y
+  `src/lib/domain/entities/loan-request.entity.ts`: los dos intereses (opcionales en el esquema) y «Tipo de fianza» sólo
+  con fianza.
+- `modules/loan-request-wizard/lenders-marketplace/src/components/LoanConfirmation.test.tsx`: tres casos nuevos (sin
+  fianza, con los dos intereses, sin intereses de días adicionales).
 - `modules/loan-request-wizard/lenders-marketplace/src/lib/application/calculate-loan-financials.uc.test.ts`: el caso
   que fijaba «el riel 4 muestra el valor con FGA» se reemplaza por cuatro: tres del riel 4 (valor mostrado, `amount`
   guardado aunque la categoría traiga FGA, costos administrativos) y uno de CreditopX, que sigue sumando el FGA.
@@ -42,6 +55,7 @@ propio de la entidad: en ese riel la fianza es del plan.
 - `calculate-loan-financials.uc.test.ts`: 16 de 16.
 - La suite del módulo: 472 de 475. Las 3 que fallan son de `lender-response.mapper.action-text.test.ts` (el texto del
   botón de Nequi), que no importa ni toca este archivo.
+- `LoanConfirmation.test.tsx` (la corre la configuración de vitest del wizard): 5 de 5.
 - `pnpm turbo run build --filter=loan-request-wizard...`: compila.
 - Falta verlo en qa con una solicitud nueva de Banco Finandina: `amount` igual al pedido y la fianza del plan sobre ese
   monto.

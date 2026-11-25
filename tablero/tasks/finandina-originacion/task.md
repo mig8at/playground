@@ -123,13 +123,10 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
   `CredifamiliaLenders::engineLenderIdFor`, 500 sin perfil, y firma Netco sin SigningV1. Termina con cada uno
   corregido o descartado.
 
-- [ ] Que la tarjeta del listado no muestre el FGA (reunión del 2026-11-23). Hoy el «valor a financiar» del riel 4
-  lo incluye: 5.000.000 pedidos salen como 5.450.000, con el FGA al 9 % sin IVA, porque `lenders_by_allieds.iva` de
-  la 149 está en 0 en qa. Termina con la tarjeta mostrando el monto pedido. El arreglo (el riel 4 no suma FGA en el
-  card, `CalculateLoanFinancialsUc::cardGuaranteeRate`, así que muestra y persiste el monto pedido) está en la rama
-  `fix/CORE-845-delegated-origination-no-fga-on-card-qa`, sobre `qa`: el #1515 se cerró sin mergear porque apuntaba a
-  `main` y el flujo es qa → main; ahora es el [#1562](https://github.com/Creditop-SAS/frontend-monorepo/pull/1562), contra `qa`. Falta: la revisión, el merge y verlo en qa con una
-  solicitud nueva (`amount` igual al pedido).
+- [ ] Ver en qa que la tarjeta del listado ya no suma el FGA: una solicitud nueva de Banco Finandina con `amount` igual
+  al pedido. El arreglo (`CalculateLoanFinancialsUc::cardGuaranteeRate`, 0 en el riel 4) entró a `qa` con el
+  [#1562](https://github.com/Creditop-SAS/frontend-monorepo/pull/1562) (mergeado el 2026-11-25); falta desplegarlo y
+  medirlo.
 - [ ] Que la fianza se cobre una sola vez y como la calcula Finandina. El plan del riel 4 la vuelve a calcular sobre
   `user_requests.amount`, que ya trae el FGA de la tarjeta: con 5.000.000 cobró 583.695 (9 % + IVA sobre 5.450.000)
   y financió 6.033.695. Según el simulador de Finandina («Simulacion Aval Libre Inversion FGA», Drive, 2026-11-23):
@@ -147,15 +144,17 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
   `artifacts/qa-149-4x1000.ts`); falta en producción, donde la 149 todavía no tiene perfil. Las solicitudes ya
   creadas conservan el `amount` con FGA. Con 5.000.000 y el 9 %, lo esperado en qa es fianza 535.500 + 4x1000
   2.142 = 5.537.642 financiados.
-- [ ] Revisar el cálculo de la primera cuota (reunión del 2026-11-23). En el resumen de qa la primera cuota fue
-  370.343 y las demás 322.914: la primera suma el interés diario de los días que pasan de 30 hasta la primera fecha
-  (unos 13 días). Es la calculadora del riel 4, que es la de Credifamilia: el motor está en código
-  (`AmortizationEngine`, `formula_version` `CREDIFAMILIA_V3_FRENCH_PREAPPROVAL_MV_CALENDAR` en `origin/qa`), no en
-  `lenders.calculator` (la 149 la tiene en `NULL`), y el primer período usa la regla de los 30 días en días
-  calendario que confirmó Credifamilia (`CalendarDaysCalculator`). Finandina recibe sus insumos (tasa de la línea,
-  fianza, seguro, 4x1000, días de pago) pero no su forma de liquidar. Confirmar con Finandina cómo liquida el primer
-  período, comparándolo con su simulador, y volver a medirla con la fianza corregida. Depende de: Finandina — cómo
-  liquida el primer período.
+- [ ] Que la primera cuota de Finandina valga lo mismo que las demás. Sus T&C (numeral 5) dicen que todas las cuotas
+  valen lo mismo y que la última recoge los días reales cobrados; el motor del riel cobraba los días que pasan de 30 en
+  la primera (la regla de Credifamilia). Arreglo en
+  [#2100](https://github.com/Creditop-SAS/legacy-backend/pull/2100) (`delegated_origination_profiles.extra_days_interest`,
+  `last_installment` para `banco-finandina`) y el detalle de la pantalla en
+  [#1563](https://github.com/Creditop-SAS/frontend-monorepo/pull/1563). Termina con los dos mergeados, la migración
+  `2026_11_25_160000_add_extra_days_interest_to_delegated_origination_profiles` aplicada en qa (`--path`) y una
+  solicitud nueva de Finandina con la primera cuota igual a la segunda.
+- [ ] Cargar el perfil del riel 4 de la 149 en producción con `extra_days_interest = last_installment` (y el 4x1000).
+  Hoy no tiene perfil y la migración no toca nada ahí; sin ese valor calcularía con la regla de Credifamilia. Depende de:
+  Oscar o Laura — la migración y el perfil en producción, a mano.
 
 ### Fase 2 · Cerrar el QA de CRED-519 (corrida del 9-nov: 6 pasan, 4 fallan, 5 abiertos)
 
