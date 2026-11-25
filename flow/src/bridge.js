@@ -45,9 +45,13 @@ const HANDLERS = {
   delegated(c) { const l = findLenderDef(c.name); if (!l) throw new Error('no existe ' + c.name); if (l.rt !== 4) throw new Error(c.name + ' no es delegada'); applyDelegated(l, c.fields); return { delegated: delegatedOf(l) } },
 }
 
+// Cada ventana se identifica: el servidor guarda lo que cuenta cada una y lo olvida cuando se cierra.
+const APP_ID = Math.random().toString(36).slice(2)
+
 function report() {
   const listing = Object.fromEntries(lenders.value.map(r => [r.name, { ok: r.ok, reason: r.reason || null, prob: r.prob || null, cupo: r.cupo, category: r.category || null, dues: r.dues }]))
   const body = {
+    app: APP_ID,
     merchant: { name: merchant.nombre, branch: merchant.sucursal },
     selected: ui.selected,
     entities: customLenders.map(l => ({ name: l.name, rt: l.rt, product: l.producto, enabled: !!merchant.enabled[l.name],
@@ -59,7 +63,7 @@ function report() {
 
 export function startBridge() {
   if (typeof EventSource === 'undefined') return
-  const source = new EventSource('/api/events')
+  const source = new EventSource('/api/events?app=' + APP_ID)
   source.onopen = () => report()
   source.onmessage = async (ev) => {
     let msg; try { msg = JSON.parse(ev.data) } catch { return }

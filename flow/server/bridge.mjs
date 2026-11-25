@@ -13,7 +13,7 @@ import { randomUUID } from 'node:crypto'
 export function flowBridge() {
   const clients = new Set()          // respuestas SSE abiertas
   const pending = new Map()          // id → { resolve, results: [] , expected }
-  let report = null                  // lo último que contó una app
+  const reports = new Map()          // app (id de su conexión) → lo último que contó; se borra al cerrarse
 
   const json = (res, code, body) => { res.statusCode = code; res.setHeader('content-type', 'application/json'); res.end(JSON.stringify(body)) }
   const readBody = (req) => new Promise((resolve) => {
@@ -30,11 +30,12 @@ export function flowBridge() {
         if (!url.startsWith('/api/')) return next()
 
         if (url === '/api/events' && req.method === 'GET') {
+          const appId = new URL(req.url, 'http://x').searchParams.get('app') || randomUUID()
           res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' })
           res.write(': flow\n\n')
           clients.add(res)
           const ping = setInterval(() => res.write(': ping\n\n'), 20000)
-          req.on('close', () => { clearInterval(ping); clients.delete(res) })
+          req.on('close', () => { clearInterval(ping); clients.delete(res); reports.delete(appId) })
           return
         }
 
@@ -63,8 +64,10 @@ export function flowBridge() {
         }
 
         if (url === '/api/report') {
-          if (req.method === 'POST') { const body = await readBody(req); if (body) report = { ...body, at: new Date().toISOString() }; return json(res, 200, { ok: true }) }
-          return json(res, 200, { apps: clients.size, report })
+          if (req.method === 'POST') { const body = await readBody(req); if (body && body.app) reports.set(body.app, { ...body, at: new Date().toISOString() }); return json(res, 200, { ok: true }) }
+          // Sólo lo de las apps CONECTADAS, la más reciente primero: una ventana cerrada no cuenta.
+          const live = [...reports.values()].sort((a, b) => b.at.localeCompare(a.at))
+          return json(res, 200, { apps: clients.size, report: live[0] || null, reports: live })
         }
 
         return json(res, 404, { error: 'no existe ' + url })

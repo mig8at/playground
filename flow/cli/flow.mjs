@@ -128,6 +128,7 @@ async function main() {
       if (!r) throw new Error('Flow no está arriba (bin/cockpit ensure flow)')
       if (o.json) { console.log(JSON.stringify(r.data, null, 2)); return }
       const rep = r.data.report
+      if ((r.data.reports || []).length > 1) console.log(`  ⚠ ${r.data.reports.length} apps abiertas con escenarios propios: muestro la última que contó`)
       console.log(`Flow · ${r.data.apps} app(s) abierta(s)` + (rep ? ` · ${rep.merchant?.name || ''} / ${rep.merchant?.branch || ''}` : ''))
       if (!rep) return
       for (const e of rep.entities) {
