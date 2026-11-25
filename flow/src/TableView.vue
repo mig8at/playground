@@ -5,7 +5,7 @@ import {
   customLenders, merchant, lenders, state, bureau, clientProfile as profile, setNull, editTick, money, RT_LABEL,
   branchGateDiag, branchCreditBureauRules, categoryDiag, usesQuotaEngine, usesPreApproval, preApprovalResponseOf,
   setPreApprovalField, installmentBreakdown, bondOf, calcValue, selectionCheck,
-  identityOutcome, setIdentityResult, IDENTITY_PROVIDERS,
+  identityOutcome, setIdentityResult, IDENTITY_PROVIDERS, paymentDateOptions, paymentSchedule, delegatedOf, CREDITOPX_PAYMENT_DAYS,
 } from './store'
 
 // La TABLA del flujo (2026-11-25): el mismo cliente contra todas las entidades, paso por paso. Cada fila es un paso de
@@ -99,19 +99,42 @@ function identityCell(c, previous) {
   return { status: 'fail', title: 'No validó', line: names + ': ninguno validó' }
 }
 
+// ── Fila 5 · PLAN DE PAGOS: el cliente elige la primera fecha y ve sus cuotas. CreditopX ofrece el 5, 16 o 28; la
+// delegada, los días de su ficha. En la delegada el interés de los días de más va en la primera o en la última cuota.
+// La fecha y el plazo elegidos acá son de la tabla (no se guardan en el escenario).
+const planChoice = ref({}) // { [nombre]: { date: label, n } }
+function planFor(c) {
+  const r = c.row, opts = paymentDateOptions(c.def)
+  const pick = planChoice.value[c.def.name] || {}
+  const first = opts.find(o => o.label === pick.date) || opts[0]
+  const dues = (r?.dues || []).slice().sort((a, b) => a - b)
+  const n = dues.includes(pick.n) ? pick.n : dues[dues.length - 1]
+  return { opts, first, dues, n, plan: r && n && first ? paymentSchedule(r, n, first) : null }
+}
+function planCell(c, previous) {
+  if (previous.status !== 'pass') return { status: 'off', title: 'No llega', line: 'se cortó antes' }
+  if (c.def.rt === 0 || c.def.rt === 1) return { status: 'na', title: 'No aplica', line: 'el plan lo arma la entidad' }
+  const p = planFor(c)
+  if (!p.plan) return { status: 'warn', title: 'Sin plan', line: 'no hay plazos o fechas para armarlo' }
+  const extra = p.plan.extraInterest && p.plan.extraOn ? ` · +${money(p.plan.extraInterest)} en la ${p.plan.extraOn === 1 ? 'primera' : 'última'}` : ''
+  return { status: 'pass', title: `${money(p.plan.breakdown.cuota)} × ${p.n} cuotas`, line: `1.ª fecha ${p.first.label}${extra}` }
+}
+
 const ROWS = [
   { key: 'listing', n: 1, label: 'Listado', ask: '¿Aparece la tarjeta?' },
   { key: 'preapproval', n: 2, label: 'Preaprobación', ask: '¿Cuánto le prestan?' },
   { key: 'selection', n: 3, label: 'Elegir la entidad', ask: '¿Qué se guarda al tocar «Continuar»?' },
   { key: 'identity', n: 4, label: 'Validación de identidad', ask: '¿Es el dueño de la cédula?' },
+  { key: 'plan', n: 5, label: 'Plan de pagos', ask: '¿Cuándo paga y cuánto?' },
 ]
-const NEXT_ROWS = ['Plan de pagos', 'Firma y cierre']
+const NEXT_ROWS = ['Firma y cierre']
 
 const grid = computed(() => columns.value.map(c => {
   const listing = listingCell(c)
   const preapproval = preApprovalCell(c, listing)
   const selection = selectionCell(c, preapproval)
-  return { c, cells: { listing, preapproval, selection, identity: identityCell(c, selection) } }
+  const identity = identityCell(c, selection)
+  return { c, cells: { listing, preapproval, selection, identity, plan: planCell(c, identity) } }
 }))
 
 // ── La celda abierta: la «calculadora» del paso, en el panel de la derecha.
@@ -172,6 +195,16 @@ const idDetail = computed(() => {
   return { l, outcome: identityOutcome(l), inHouse: l.rt === 2 || l.rt === 4 }
 })
 const ID_RESULTS = [['valida', 'valida'], ['no_valida', 'no valida']]
+const planDetail = computed(() => {
+  if (!openCol.value || open.value.row !== 'plan') return null
+  const c = openCol.value.c
+  return { c, l: c.def, ...planFor(c) }
+})
+function setPlan(name, key, v) { planChoice.value = { ...planChoice.value, [name]: { ...(planChoice.value[name] || {}), [key]: v } } }
+const shownRows = computed(() => {
+  const rows = planDetail.value?.plan?.rows || []
+  return rows.length <= 6 ? rows : [...rows.slice(0, 3), null, ...rows.slice(-2)]
+})
 const STATUS = [['aprueba', 'aprueba'], ['rechaza', 'rechaza'], ['timeout', 'no contesta']]
 const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
 </script>
@@ -288,7 +321,7 @@ const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
             <div class="tv-sec">Categorías: gana la primera que cumple todo</div>
             <div v-for="row in preDetail.cats.rows" :key="row.cat.id" class="tv-catrow" :class="{ won: row.won, ok: row.ok && !row.won, no: !row.ok }">
               <span class="tv-catrow__n">{{ row.cat.label }}</span>
-              <span v-if="row.won" class="tv-catrow__s">gana · cupo {{ money(row.cupo) }} · {{ row.cat.maxFeeNumber }} cuotas<template v-if="row.cat.fga != null"> · FGA {{ row.cat.fga }} %</template></span>
+              <span v-if="row.won" class="tv-catrow__s">gana · cupo {{ money(row.cupo) }} · {{ row.cat.maxFeeNumber ? 'hasta ' + row.cat.maxFeeNumber + ' cuotas' : 'sin tope de cuotas' }}<template v-if="row.cat.fga != null"> · FGA {{ row.cat.fga }} %</template></span>
               <span v-else-if="row.ok" class="tv-catrow__s">también cumple</span>
               <span v-else class="tv-catrow__s">falla: {{ Object.entries(row.checks).filter(([, v]) => !v).map(([k]) => CHECK[k] || k).join(', ') }}</span>
             </div>
@@ -399,6 +432,46 @@ const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
             salta; y si el país del comercio no tiene centrales habilitadas, no se pide (los proveedores sólo conocen
             personas colombianas).</p>
         </div>
+
+        <div v-else-if="planDetail" class="region-body tv-calc__b">
+          <h3>¿Cuándo paga y cuánto?</h3>
+          <p class="tv-p">El cliente elige el <b>día del mes</b> en que va a pagar y ve sus cuotas. <template v-if="planDetail.l.rt === 4">
+            {{ planDetail.l.name }} ofrece los días de su ficha ({{ delegatedOf(planDetail.l).paymentDays.join(', ') }}): la primera
+            fecha es ese día del mes que viene si faltan 30 días o más; si no, del siguiente.</template><template v-else>
+            CreditopX ofrece el {{ CREDITOPX_PAYMENT_DAYS.join(', ') }}: sólo las fechas que caen entre 26 y 60 días después de mañana.</template></p>
+          <template v-if="planDetail.plan">
+            <div class="tv-sec">Primera fecha de pago</div>
+            <div class="tv-chips">
+              <button v-for="o in planDetail.opts" :key="o.label" type="button" class="chip-toggle" :class="{ on: o.label === planDetail.first.label }"
+                @click="setPlan(planDetail.l.name, 'date', o.label)">{{ o.label }}</button>
+            </div>
+            <label class="tv-f tv-f--row"><span>Plazo</span>
+              <select :value="planDetail.n" @change="e => setPlan(planDetail.l.name, 'n', Number(e.target.value))">
+                <option v-for="n in planDetail.dues" :key="n" :value="n">{{ n }} cuotas</option></select></label>
+
+            <div class="tv-sec">La cuota</div>
+            <div class="tv-kv"><span>Capital del crédito</span><b>{{ money(planDetail.plan.breakdown.capital) }}</b></div>
+            <div class="tv-kv"><span>Tasa mensual</span><b>{{ planDetail.c.row.rate ?? '—' }} %</b></div>
+            <div class="tv-kv"><span>Cuota (capital + intereses + seguro)</span><b>{{ money(planDetail.plan.breakdown.cuota) }}</b></div>
+            <template v-if="planDetail.l.rt === 4">
+              <div class="tv-kv"><span>Días de más hasta la 1.ª fecha</span><b>{{ planDetail.plan.extraDays }} días</b></div>
+              <div class="tv-kv"><span>Su interés</span><b>{{ money(planDetail.plan.extraInterest) }}</b></div>
+              <p class="tv-p tv-p--m">Entre el desembolso (hoy) y la primera fecha pasan más de 30 días: esos días de más se cobran
+                en la <b>{{ planDetail.plan.extraOn === 1 ? 'primera' : 'última' }}</b> cuota
+                ({{ delegatedOf(planDetail.l).extraDaysInterest === 'last_installment' ? 'su ficha dice last_installment, como sus T&C' : 'la regla de Credifamilia' }}).</p>
+            </template>
+
+            <div class="tv-sec">Las cuotas</div>
+            <template v-for="(r, i) in shownRows" :key="i">
+              <div v-if="r" class="tv-kv" :class="{ 'tv-kv--hi': r.n === planDetail.plan.extraOn && planDetail.plan.extraInterest }">
+                <span>#{{ r.n }} · {{ r.label }}</span><b>{{ money(r.amount) }}</b></div>
+              <div v-else class="tv-p tv-p--m">…</div>
+            </template>
+            <div class="tv-total"><span>Total a pagar</span><b>{{ money(planDetail.plan.total) }}</b></div>
+            <p class="tv-p tv-p--m">Aproximado: el plan real lo calcula el backend (con el 4×1000 y sus redondeos).</p>
+          </template>
+          <p v-else class="tv-p tv-p--m">{{ planDetail.l.rt === 0 || planDetail.l.rt === 1 ? 'El plan lo arma la entidad en su flujo.' : 'No hay plazos o fechas para armar el plan.' }}</p>
+        </div>
       </aside>
     </div>
   </div>
@@ -474,6 +547,7 @@ const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
 .tv-chips { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-bottom: 6px; }
 .tv-verdict { margin-top: 12px; padding: 8px 10px; border-radius: 5px; font-size: 12px; }
 .tv-verdict.ok { background: var(--tint-green); } .tv-verdict.no { background: var(--tint-red); }
+.tv-kv--hi { background: var(--tint-amber); border-radius: 3px; padding: 2px 4px; margin: 0 -4px; }
 .tv-total { display: flex; justify-content: space-between; margin-top: 8px; padding: 8px 10px; border-radius: 5px; background: var(--card2); font-size: 12.5px; }
 .tv-total b { font-size: 14px; }
 </style>

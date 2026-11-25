@@ -6,7 +6,7 @@ import { settings } from './settings'
 import { customLenders, addCustomLender, removeCustomLender, selectOffer, findLenderDef, setDelegated, delegatedOf, markDelegatedBaseline, bondOf,
   applyProductionImport, merchant, ui, persistPing, lenders, bureau, state, setNull } from './store'
 
-const KEYS = { usesQuotaEngine: 'usesQuotaEngine', formalization: 'formalization', paymentDays: 'paymentDays', bondPct: 'bondPct', bondType: 'bondType', bondSource: 'bondSource' }
+const KEYS = { usesQuotaEngine: 'usesQuotaEngine', formalization: 'formalization', paymentDays: 'paymentDays', bondPct: 'bondPct', bondType: 'bondType', bondSource: 'bondSource', extraDaysInterest: 'extraDaysInterest' }
 function applyDelegated(l, d) {
   if (!l || l.rt !== 4 || !d) return
   for (const [k, v] of Object.entries(d)) if (KEYS[k] && v != null) setDelegated(l, k, v)

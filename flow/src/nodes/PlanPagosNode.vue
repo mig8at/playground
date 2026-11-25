@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
-import { ui, findLenderDef, lenders, duesOf, setDues, state, cuotaBreakdown, money, openFieldInfo, delegatedOf } from '../store'
+import { ui, findLenderDef, lenders, duesOf, setDues, state, cuotaBreakdown, money, openFieldInfo, delegatedOf, paymentDateOptions, paymentSchedule } from '../store'
 import { CalendarClock } from 'lucide-vue-next'
 
 // Nodo posterior a "Validación de identidad" para TODO CreditopX (crédito · renting · Credifamilia).
@@ -16,29 +16,9 @@ const row = computed(() => lenders.value.find(x => x.name === name.value) || nul
 //   en el código, 5 · 16 · 28, de este mes y los dos siguientes, y sólo los que caen entre 26 y 60 días después de
 //   mañana. (Renting y rto tienen corte semanal: una sola fecha; Flow no lo modela todavía.)
 //   Originación delegada (rt=4): los días de su ficha (`payment_days`), la próxima ocurrencia de cada uno.
-const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
-const CX_DAYS = [5, 16, 28]
-const payDays = computed(() => (lender.value?.rt === 4 ? delegatedOf(lender.value).paymentDays : CX_DAYS))
-const label = (dt) => `${dt.getDate()} ${MESES[dt.getMonth()]}`
-const payOptions = computed(() => {
-  const now = new Date(), y = now.getFullYear(), m = now.getMonth(), d = now.getDate()
-  if (lender.value?.rt !== 4) {
-    const tomorrow = new Date(y, m, d + 1)
-    const min = new Date(y, m, d + 1 + 26), max = new Date(y, m, d + 1 + 60)
-    const out = []
-    for (const k of [0, 1, 2]) for (const day of CX_DAYS) {
-      const dt = new Date(tomorrow.getFullYear(), tomorrow.getMonth() + k, day)
-      if (dt >= min && dt <= max) out.push({ day, date: dt, label: label(dt) })
-    }
-    return out.sort((a, b) => a.date - b.date)
-  }
-  return payDays.value
-    .map(day => {
-      const dt = day <= d ? new Date(y, m + 1, day) : new Date(y, m, day) // pasó este mes → el próximo
-      return { day, date: dt, label: label(dt) }
-    })
-    .sort((a, b) => a.date - b.date)
-})
+// Las mismas opciones que la tabla (`paymentDateOptions` en store.js): CreditopX el 5, 16 o 28 en su ventana; la
+// delegada, cada día de su ficha en el mes siguiente si faltan 30 días o más, y si no en el subsiguiente.
+const payOptions = computed(() => paymentDateOptions(lender.value))
 // La elegida se guarda por su etiqueta («5 ene»): en la ventana de CreditopX un mismo día puede salir en dos meses.
 const selDay = computed(() => (payOptions.value.some(o => o.label === state.firstPaymentDay) ? state.firstPaymentDay : payOptions.value[0]?.label))
 const pickDay = (lbl) => { state.firstPaymentDay = lbl }
@@ -48,21 +28,16 @@ const dues = computed(() => row.value?.dues || [])
 const numCuotas = computed(() => (row.value ? duesOf(row.value) : 0))
 const pickCuotas = (v) => { if (name.value) setDues(name.value, v) }
 
-// Plan de cuotas: cuota mensual (misma para todas, sistema francés) + la fecha de cada pago (mes a mes
-// desde la 1ª fecha elegida, manteniendo su día). Tabla #, fecha, monto.
-const monthly = computed(() => (row.value && numCuotas.value ? cuotaBreakdown(row.value, numCuotas.value).cuota : 0))
-const totalPagar = computed(() => monthly.value * (numCuotas.value || 0))
-const schedule = computed(() => {
+// Plan de cuotas: el mismo de la tabla (`paymentSchedule`): la cuota francesa con seguros y, en la delegada, el interés
+// de los días de más en la primera o en la última cuota según su ficha.
+const plan = computed(() => {
   const opt = payOptions.value.find(o => o.label === selDay.value) || payOptions.value[0]
-  const n = numCuotas.value || 0
-  if (!opt || !n) return []
-  const rows = []
-  for (let i = 0; i < n; i++) {
-    const dt = new Date(opt.date.getFullYear(), opt.date.getMonth() + i, opt.day)
-    rows.push({ n: i + 1, fecha: `${opt.day} ${MESES[dt.getMonth()]} ${dt.getFullYear()}`, monto: monthly.value })
-  }
-  return rows
+  return row.value && numCuotas.value && opt ? paymentSchedule(row.value, numCuotas.value, opt) : null
 })
+const monthly = computed(() => plan.value?.breakdown.cuota || 0)
+const totalPagar = computed(() => plan.value?.total || 0)
+const schedule = computed(() => (plan.value?.rows || []).map(r => ({ n: r.n, fecha: r.label, monto: r.amount })))
+const payDays = computed(() => [...new Set(payOptions.value.map(o => o.day))])
 </script>
 
 <template>

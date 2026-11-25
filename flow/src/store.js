@@ -92,6 +92,7 @@ export function delegatedOf(lender) {
     bondType: ['mensual', 'pre_approval'].includes(d.bondType) ? d.bondType : 'anticipada',
     formalization: d.formalization == null ? base.formalization : !!d.formalization,
     usesQuotaEngine: d.usesQuotaEngine == null ? base.usesQuotaEngine : !!d.usesQuotaEngine,
+    extraDaysInterest: d.extraDaysInterest === 'last_installment' ? 'last_installment' : 'first_installment',
   }
 }
 export function setDelegated(lender, key, value) {
@@ -576,7 +577,7 @@ export function applyProductionImport({ comercio, sucursal, item, profiles = [],
   // simulador evalúe la primera coincidencia igual que el motor.
   {
     const cats = profiles.map((c, i) => ({
-      id: String(c.id), label: c.name || ('Perfil ' + (i + 1)), minInitialFee: flowNum(c.min_initial_fee), maxAmount: flowNum(c.max_amount), maxFeeNumber: flowNum(c.max_fee_number), fga: c.fga == null ? null : flowNum(c.fga), loanLimit: flowNum(c.loan_limit), usedLoan: flowNum(c.already_used_loan), capacityCheck: false, capacityPct: 30, priority: flowNum(c.priority, i + 1),
+      id: String(c.id), label: c.name || ('Perfil ' + (i + 1)), minInitialFee: flowNum(c.min_initial_fee), maxAmount: flowNum(c.max_amount), maxFeeNumber: c.max_fee_number == null ? null : flowNum(c.max_fee_number), fga: c.fga == null ? null : flowNum(c.fga), loanLimit: flowNum(c.loan_limit), usedLoan: flowNum(c.already_used_loan), capacityCheck: false, capacityPct: 30, priority: flowNum(c.priority, i + 1),
       occupation: String(c.occupation || '').split('|').map(x => x.trim().toLowerCase()).filter(Boolean), minAge: flowNum(c.min_age, 18), maxAge: flowNum(c.max_age, 100), minIncome: flowNum(c.monthly_income), verifiedIncome: false, minContinuity: flowNum(c.employment_continuity), gender: String(c.gender || 'M|F').split('|').map(x => x.trim()).filter(Boolean), minScore: flowNum(c.min_score), maxNegatives: c.negative_reports_last_12_months == null ? 20 : flowNum(c.negative_reports_last_12_months), maxDelinq: c.current_delinquencies == null ? 10 : flowNum(c.current_delinquencies), minHistory: flowNum(c.financial_history_length), maxInquiries: c.consulted_last_6_months == null ? 20 : flowNum(c.consulted_last_6_months),
     }))
   perfilOf(l.name).splice(0, perfilOf(l.name).length, ...cats)
@@ -1159,6 +1160,9 @@ export function activeTramoIndex(name) {
 }
 
 const PROB_RANK = { alta: 0, media: 1, baja: 2 }
+// El techo de plazos de la categoría: sin `max_fee_number` (NULL en la base) no recorta, como el listado y el plan de
+// main (LenderRetrievalService, RegularPaymentScheduleService: `=== null` / `isset`).
+function capByCategory(dues, cat) { return cat && cat.maxFeeNumber != null && cat.maxFeeNumber > 0 ? dues.filter(n => n <= cat.maxFeeNumber) : dues }
 // Política del simulador: una entidad sólo puede ofrecerse si declara el mismo país del
 // comercio/sucursal. Producción hoy no siempre la hace cumplir (country_id suele ser 1),
 // por eso las entidades pendientes quedan visibles en el aviso del nodo, no se silencian.
@@ -1186,7 +1190,7 @@ export const lenders = computed(() => {
         pct = cat ? cat.minInitialFee : 0
         let catC = cat ? Math.min(catCupo(l, cat, s), montoMaxCom) : 0 // cupo real (fondo + enganche + capacidad)
         if (cat) {
-          dues = dues.filter(n => n <= cat.maxFeeNumber)               // techo de plazos de la categoría
+          dues = capByCategory(dues, cat)               // techo de plazos de la categoría
           if (tramoIsOn(l.name) && tramosOf(l.name).length) {          // TRAMO por monto: recorta plazos + topea cupo (NO toca enganche)
             const tr = selectTramo(l.name, s.amount)                   // (sin franjas definidas = sin restricción)
             if (!tr) { ok = false; reason = 'monto por debajo del mínimo (tramo)' }
@@ -1207,7 +1211,7 @@ export const lenders = computed(() => {
       let cupoC
       if (delegatedOf(l).usesQuotaEngine) {
         cat = ok ? resolveCategory(l.name) : null
-        if (cat) { cupoC = Math.min(catCupo(l, cat, s), montoMaxCom); dues = dues.filter(n => n <= cat.maxFeeNumber) }
+        if (cat) { cupoC = Math.min(catCupo(l, cat, s), montoMaxCom); dues = capByCategory(dues, cat) }
         else { cupoC = 0; if (ok) { ok = false; reason = isBlacklisted(l.name) ? 'documento en lista negra' : 'motor de cupo: sin categoría (sin cupo disponible)' } }
       } else {
         const pa = preApprovalResponseOf(l.name)
@@ -1534,4 +1538,57 @@ export function identityOutcome(lender) {
     if (r === 'valida') return { status: 'pass', by: p, providers, steps }
   }
   return { status: 'fail', providers, steps }
+}
+
+// ── Plan de pagos: la primera fecha y las cuotas ──────────────────────────────────────────────────────────────────
+// Las opciones de primera fecha (verificado en main el 2026-11-25):
+//   CreditopX: días FIJOS 5 · 16 · 28 de este mes y los dos siguientes, sólo los que caen entre 26 y 60 días después de
+//     mañana (CreditopXRequestHistoryService::calculateFirstBillingDate). Renting y rto tienen corte semanal: no se modela.
+//   Delegada: los días de su ficha; para cada uno, ese día del mes siguiente si faltan 30 días calendario o más y, si
+//     no, del subsiguiente (DateCalculator::firstPaymentDate, PaymentPlanDatesService::nextPaymentDates).
+const MONTHS_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+export const CREDITOPX_PAYMENT_DAYS = [5, 16, 28]
+const dayOnly = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate())
+const daysBetween = (a, b) => Math.round((dayOnly(b) - dayOnly(a)) / 86400000)
+const clampDay = (y, m, day) => new Date(y, m, Math.min(day, new Date(y, m + 1, 0).getDate()))
+export const shortDate = (d) => `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`
+export function paymentDateOptions(lender, today = new Date()) {
+  const t = dayOnly(today), y = t.getFullYear(), m = t.getMonth()
+  if (lender?.rt === 4) {
+    return delegatedOf(lender).paymentDays.map(day => {
+      let date = clampDay(y, m + 1, day)
+      if (daysBetween(t, date) < 30) date = clampDay(y, m + 2, day)
+      return { day, date, label: shortDate(date) }
+    }).sort((a, b) => a.date - b.date)
+  }
+  const nextDay = new Date(y, m, t.getDate() + 1)
+  const out = []
+  for (const k of [0, 1, 2]) for (const day of CREDITOPX_PAYMENT_DAYS) {
+    const date = new Date(nextDay.getFullYear(), nextDay.getMonth() + k, day)
+    const away = daysBetween(nextDay, date)
+    if (away >= 26 && away <= 60) out.push({ day, date, label: shortDate(date) })
+  }
+  return out.sort((a, b) => a.date - b.date)
+}
+// Las cuotas mes a mes desde la primera fecha. La cuota base es la de `cuotaBreakdown` (francesa sobre el capital, más
+// seguros). En la delegada, además, el interés de los días que pasan de 30 entre hoy (el desembolso) y la primera fecha,
+// con la tasa diaria (1 + M.V.)^(1/30) − 1 sobre el capital, va en la primera o en la última cuota según su ficha
+// (`extra_days_interest`, ScheduleGenerator). CreditopX no lo modela. Aproximado: sin 4×1000 ni redondeos del motor.
+export function paymentSchedule(row, n, first, today = new Date()) {
+  if (!row || !n || !first) return null
+  const b = cuotaBreakdown(row, n)
+  const l = findLenderDef(row.name)
+  let extraDays = 0, extraInterest = 0, extraOn = null
+  if (l?.rt === 4) {
+    extraDays = Math.max(0, daysBetween(today, first.date) - 30)
+    const daily = Math.pow(1 + (row.rate || 0) / 100, 1 / 30) - 1
+    extraInterest = Math.round(b.capital * daily * extraDays)
+    extraOn = delegatedOf(l).extraDaysInterest === 'last_installment' ? n : 1
+  }
+  const rows = []
+  for (let i = 1; i <= n; i++) {
+    const date = clampDay(first.date.getFullYear(), first.date.getMonth() + i - 1, first.day)
+    rows.push({ n: i, date, label: shortDate(date), amount: b.cuota + (i === extraOn ? extraInterest : 0) })
+  }
+  return { breakdown: b, rows, extraDays, extraInterest, extraOn, total: rows.reduce((a, r) => a + r.amount, 0) }
 }
