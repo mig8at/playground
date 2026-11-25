@@ -106,7 +106,7 @@ const nodes = ref([
   // la entidad elegida. (Los burós se corrieron a la izquierda, sobre canal y solicitud, para dejarle el lugar.)
   { id: 'preapproval', type: 'preapproval', position: { x: 1640, y: 110 } },
   // El motor de cupo de legacy-backend, arriba de la preaprobación: se le pregunta, no lo ve el cliente.
-  { id: 'engine', type: 'engine', position: { x: 1640, y: -230 } },
+  { id: 'engine', type: 'engine', position: { x: 2209, y: 100 } },   // lo reubica placeDecisionColumn
 ])
 
 // Colores de los conectores por tema [oscuro, claro]: en claro se oscurecen para no perder contraste.
@@ -131,10 +131,10 @@ function baseEdges() {
     { id: 'e0b', source: 'canal', sourceHandle: 'out', target: 'sol', animated: false, style: { stroke: ec('flow'), strokeWidth: 2 } },
     { id: 'e1', source: 'sol', target: 'buro', targetHandle: 'in', animated: false, style: { stroke: ec('purp'), strokeWidth: 2 } },
     { id: 'e2', source: 'buro', sourceHandle: 'out', target: 'out', animated: false, style: { stroke: ec('green'), strokeWidth: 2 } },
-    // Motor → preaprobación SÓLO si la entidad elegida usa el motor (CreditopX, Finandina): con Credifamilia o un
+    // Preaprobación → motor (le pregunta, de izquierda a derecha) SÓLO si la entidad elegida usa el motor (CreditopX, Finandina): con Credifamilia o un
     // agregador, el servicio le pregunta a la API de la entidad y esta línea mentiría. Sin entidad elegida, tenue.
     ...(!ui.selected || usesQuotaEngine(findLenderDef(ui.selected))
-      ? [{ id: 'e-engine-pa', source: 'engine', sourceHandle: 'down', target: 'preapproval', targetHandle: 'fromengine', animated: false, style: { stroke: ec('purp'), strokeWidth: 1.4, strokeDasharray: '5 4', opacity: ui.selected ? 1 : 0.35 } }]
+      ? [{ id: 'e-pa-engine', source: 'preapproval', sourceHandle: 'toengine', target: 'engine', targetHandle: 'fromleft', animated: false, style: { stroke: ec('purp'), strokeWidth: 1.4, strokeDasharray: '5 4', opacity: ui.selected ? 1 : 0.35 } }]
       : []),
     { id: 'e-preapproval', source: 'preapproval', sourceHandle: 'down', target: 'out', targetHandle: 'top', animated: false, style: { stroke: ec('base'), strokeWidth: 1.4, strokeDasharray: '5 4' } },
     { id: 'pe1', source: 'exp', target: 'buro', targetHandle: 'top', animated: false, style: { stroke: ec('exp'), strokeWidth: 1.5 } },
@@ -160,8 +160,8 @@ const DYN = ['default', 'comercio', 'relacion', 'perfil']
 // Grilla del inspector de la entidad seleccionada. Con los nodos de perfil limitados y con
 // scroll, estas bandas dejan aire fijo entre tarjetas y evitan los grandes saltos verticales.
 const SELECTED_LAYOUT = {
-  // Lo que DECIDE el cupo va en una columna sobre el motor de cupo (1640, -230), que es quien lo aplica:
-  // categorías + tramos (fila de arriba) → perfilamiento → motor → preaprobación → listado. (2026-11-25)
+  // Lo que DECIDE el cupo va en una columna sobre el motor de cupo, que es quien lo aplica. Estas posiciones son las de
+  // partida: placeDecisionColumn la corre para dejar el motor justo arriba de «Validación de identidad». (2026-11-25)
   profileInputs: { x: 1460, y: -1080 }, // categoría (268×467) + tramo (348×236), misma fila
   tramoX: 1760,
   profileHub: { x: 1664, y: -540 },     // centrado sobre el motor; ≤ 240 de alto, termina 70 px arriba
@@ -187,7 +187,18 @@ function offFor(def) {
   if (def.rt === 0) off.add('preapproval')                            // el redirect no pasa por la preaprobación
   return off
 }
+// El motor de cupo va justo ARRIBA de «Validación de identidad» (lo que se le pregunta después de la identidad baja
+// derecho) y la columna que decide (categorías y tramos → perfilamiento) encima de él. La identidad cambia de lugar
+// según la entidad (en renting va después de Ábaco), así que la columna se ubica a partir de ella.
+const ENGINE_W = 316, IDENTITY_W = 165
+function placeDecisionColumn(ns) {
+  const idn = ns.find(n => n.id === 'identity')
+  const ex = idn ? idn.position.x + IDENTITY_W / 2 - ENGINE_W / 2 : 2209
+  const at = { engine: { x: ex, y: 100 }, perfil: { x: ex + 24, y: -230 }, 'cat-carousel': { x: ex - 158, y: -770 }, tramo: { x: ex + 142, y: -770 } }
+  return ns.map(n => (at[n.id] ? { ...n, position: at[n.id] } : n))
+}
 function paint(def, ns, es) {
+  ns = placeDecisionColumn(ns)
   if (!def) {
     nodes.value = ns.map(n => ({ ...n, class: undefined }))
     edges.value = es
@@ -285,7 +296,7 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
     // «titular extendida» (`available-quota/extended`, que decide el paso siguiente). Lo llama el servidor del wizard,
     // no la preaprobación, y para cualquier entidad que siga en casa (rt 2 y 4): si no tiene esa política, aprueba sin
     // evaluar y va a la fecha de pago. Verificado en main el 2026-11-25 (post-validation-step.server.ts).
-    const engineToIdentity = () => { if (isInHouse(def.rt)) addE.push({ id: 'e-engine-identity', source: 'engine', sourceHandle: 'right', target: 'identity', targetHandle: 'fromengine', animated: false, style: { stroke: ec('purp'), strokeWidth: 1.4, strokeDasharray: '5 4' } }) }
+    const engineToIdentity = () => { if (isInHouse(def.rt)) addE.push({ id: 'e-engine-identity', source: 'engine', sourceHandle: 'down', target: 'identity', targetHandle: 'fromengine', animated: false, style: { stroke: ec('purp'), strokeWidth: 1.4, strokeDasharray: '5 4' } }) }
     const adv = (key) => (WIDTH[key] || 280) + GAP
     let x = 1920, prevSrc = 'out', prevH = 'psel-' + sel   // arranca en la fila del lender del listado
     // Flujo de CRÉDITO (producto crédito + Credifamilia rt=4): lo estamos rearmando PASO A PASO.

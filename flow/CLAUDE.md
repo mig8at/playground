@@ -42,8 +42,9 @@ sola «delegada»: no se distingue Finandina de Credifamilia. Dos nodos lo expli
   2. después de validar la identidad (o del formulario de la entidad si no hay validación pendiente), directo y para
      CUALQUIER entidad en casa (`available-quota/extended`): decide codeudor, fecha de pago o cancelada; sin política
      «titular extendida», aprueba sin evaluar.
-- **La columna que decide el cupo** (2026-11-25): categorías y tramos → perfilamiento → motor de cupo → preaprobación
-  → «Entidades disponibles», de arriba abajo sobre el listado. La ficha delegada quedó al lado de «Configurar entidad».
+- **La columna que decide el cupo** (2026-11-25): categorías y tramos → perfilamiento → motor de cupo, de arriba abajo,
+  con el motor justo encima de «Validación de identidad» (`placeDecisionColumn` la ubica según dónde cae la identidad).
+  La preaprobación llega al motor de izquierda a derecha, sólo si la entidad lo usa. La ficha delegada quedó al lado de «Configurar entidad».
   En qa (medido el 2026-11-25) la política «titular extendida» (tipo 2) la tienen sólo Banco Finandina (149), Motai
   Renting (158), Rent to Own (205) y AltaX (211); CrediPullman y Credifamilia no: `extended` les aprueba sin evaluar.
 - **Halo = contesta un tercero** (2026-11-25; antes fue borde punteado): las centrales, Ábaco y el servicio de preaprobación cuando

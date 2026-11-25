@@ -39,17 +39,17 @@ const who = computed(() => {
         <div v-if="row && row.category" class="eng-row"><span>Cupo</span><b>{{ money(row.cupo) }}</b></div>
         <div v-if="row && row.category" class="eng-row"><span>Plazos</span><b>{{ (row.dues || []).join(' · ') || '—' }}</b></div>
         <div v-else class="tr-active tr-active--no">sin categoría: no aprueba</div>
-        <div class="tr-hint eng-who">↓ preaprobación de la tarjeta: <code>available-quota</code> · → después de validar identidad: <code>available-quota/extended</code></div>
+        <div class="tr-hint eng-who">← le pregunta la preaprobación de cada tarjeta: <code>available-quota</code> · ↓ después de validar identidad: <code>available-quota/extended</code></div>
         <div v-if="lender.rt === 4" class="tr-hint eng-who">⚠ El alias que la manda acá está en develop, todavía no en main.</div>
       </template>
       <template v-else-if="onlyExtended">
         <div class="tr-hint">En el listado, {{ lender.name }} no lo consulta: contesta su API.</div>
-        <div class="tr-hint eng-who">→ después de validar identidad, sí: <code>available-quota/extended</code>. Si la entidad no tiene política «titular extendida», aprueba sin evaluar y sigue a la fecha de pago.</div>
+        <div class="tr-hint eng-who">↓ después de validar identidad, sí: <code>available-quota/extended</code>. Si la entidad no tiene política «titular extendida», aprueba sin evaluar y sigue a la fecha de pago.</div>
       </template>
       <div v-else class="tr-hint">{{ lender.name }} no lo consulta: {{ who }}.</div>
     </div>
+    <Handle id="fromleft" type="target" :position="Position.Left" />
     <Handle id="down" type="source" :position="Position.Bottom" />
-    <Handle id="right" type="source" :position="Position.Right" />
   </div>
 </template>
 

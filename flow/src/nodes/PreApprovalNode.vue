@@ -26,7 +26,6 @@ const outcome = computed(() => {
 
 <template>
   <div class="node node--tramo prov-node node--preapproval" :class="{ 'node--external': editable }">
-    <Handle id="fromengine" type="target" :position="Position.Top" />
     <div class="node__hd node__hd--teal nhd-doc" title="clic: dónde vive y por qué" @click="openFieldInfo('psel.preapproval')">
       <div class="node__title"><ShieldCheck :size="13" /> Servicio de preaprobación</div>
       <div class="node__kind">{{ lender ? lender.name : 'pre-approvals-service' }}</div>
@@ -49,11 +48,12 @@ const outcome = computed(() => {
         <div class="tr-active" :class="{ 'tr-active--no': row && !row.ok }">→ {{ outcome }}</div>
       </template>
       <template v-else-if="usesQuotaEngine(lender)">
-        <div class="tr-hint">{{ lender.rt === 2 ? 'CreditopX' : lender.name + ' (por alias, como CreditopX)' }}: el servicio no decide, le pregunta al motor de cupo ↑ y devuelve lo que contesta. Se cambia en las categorías, arriba del motor.</div>
+        <div class="tr-hint">{{ lender.rt === 2 ? 'CreditopX' : lender.name + ' (por alias, como CreditopX)' }}: el servicio no decide, le pregunta al motor de cupo → y devuelve lo que contesta. Se cambia en las categorías, arriba del motor.</div>
         <div class="tr-active" :class="{ 'tr-active--no': row && !row.ok }">→ {{ outcome }}</div>
       </template>
       <div v-else class="tr-hint">Redirect: no pasa por la preaprobación. La entidad decide en su sitio.</div>
     </div>
+    <Handle id="toengine" type="source" :position="Position.Right" />
     <Handle id="down" type="source" :position="Position.Bottom" />
   </div>
 </template>
