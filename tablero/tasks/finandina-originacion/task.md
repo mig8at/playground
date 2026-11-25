@@ -128,7 +128,7 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
   la 149 está en 0 en qa. Termina con la tarjeta mostrando el monto pedido. El arreglo (el riel 4 no suma FGA en el
   card, `CalculateLoanFinancialsUc::cardGuaranteeRate`, así que muestra y persiste el monto pedido) está en la rama
   `fix/CORE-845-delegated-origination-no-fga-on-card-qa`, sobre `qa`: el #1515 se cerró sin mergear porque apuntaba a
-  `main` y el flujo es qa → main. Falta: publicar el PR contra `qa`, la revisión, el merge y verlo en qa con una
+  `main` y el flujo es qa → main; ahora es el [#1562](https://github.com/Creditop-SAS/frontend-monorepo/pull/1562), contra `qa`. Falta: la revisión, el merge y verlo en qa con una
   solicitud nueva (`amount` igual al pedido).
 - [ ] Que la fianza se cobre una sola vez y como la calcula Finandina. El plan del riel 4 la vuelve a calcular sobre
   `user_requests.amount`, que ya trae el FGA de la tarjeta: con 5.000.000 cobró 583.695 (9 % + IVA sobre 5.450.000)
