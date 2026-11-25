@@ -421,6 +421,17 @@
       "cwd": "minutes",
       "port": 5248,
       "autoPort": false
+    },
+    {
+      "name": "flow",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "cwd": "flow",
+      "port": 5252,
+      "autoPort": false
     }
   ]
 }

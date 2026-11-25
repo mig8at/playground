@@ -446,6 +446,9 @@ news: ## @dia abre News (:5240 · API :5241): lo que pasó en Hugging Face cada 
 vault: ## @dia abre el Llavero (:5236 · API :5237): tus llaves en llaveros, cifradas con tu llave personal, con tarjetas, ver, copiar, exportar e importar. Por consola, sin servidor: bin/pg vault
 	@cd vault && npm run dev
 
+flow: ## @dia abre Flow (:5252): el simulador de cómo camina una solicitud —comercio, burós, reglas, perfilamiento, listado y lo que pasa después de elegir—, con el riel 4 (originación delegada) aparte. Para entender, no para medir
+	@cd flow && npm run dev
+
 sabueso: ## @dia abre Sabueso (:5244 · API :5245): encontrar comercios (y entidades) que no trabajan con CreditOp en el registro mercantil abierto, su encaje medido en prod, y llevar la relación con cada uno (etapa, próximo paso, bitácora, a quién se le pasa). Sólo de Miguel
 	@cd sabueso && npm run dev
 

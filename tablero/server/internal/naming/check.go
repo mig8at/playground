@@ -237,6 +237,7 @@ func Apps(root string) []Board {
 		app("correo", []string{"correo/server"}, vue("correo"), []string{"correo/server/", "correo/src/"}),
 		app("vault", []string{"vault/server"}, vue("vault"), []string{"vault/server/", "vault/src/"}),
 		app("news", []string{"news/server"}, vue("news"), []string{"news/server/", "news/src/"}),
+		app("flow", nil, vue("flow"), []string{"flow/src/", "flow/tools/"}),
 		app("sabueso", []string{"sabueso/server"}, vue("sabueso"), []string{"sabueso/server/", "sabueso/src/"}),
 		app("point", []string{"point"}, nil, []string{"point/"}),
 		app("goldfish", []string{"goldfish/server", "goldfish/review"}, vue("goldfish"), []string{"goldfish/server/", "goldfish/review/", "goldfish/src/", "goldfish/bin/"}),

@@ -152,6 +152,14 @@ const APPS: &[AppDef] = &[
         start: Start::Make("news"),
     },
     AppDef {
+        // Flow (flow/): el simulador de cómo camina una solicitud, para entender los rieles. Sin backend.
+        id: "flow",
+        name: "Flow",
+        url: "http://localhost:5252/",
+        ready: &["localhost:5252"],
+        start: Start::Make("flow"),
+    },
+    AppDef {
         // Sabueso (sabueso/): encontrar comercios y entidades que no trabajan con CreditOp y llevar la relación.
         id: "sabueso",
         name: "Sabueso",
