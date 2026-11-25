@@ -106,14 +106,45 @@ consulta la última evaluación en `users_category_log` (`FinandinaEvaluationLog
 Según el runbook y las decisiones de configuración del ADR (`docs/finandina-policy-adr.md:66`):
 - **Cada año:** el SMMLV en `settings.smmlv_by_year`.
 - **Cada mes:** `rate` y `capacity_rate` de la línea, y el texto de la tasa de la tarjeta.
-- **Por comercio:** el seguro de vida en `lenders_by_allieds` (`life_insurance_percentage`, que es el que entra en la
-  cuota, e `insurance_percentage_per_million`, que sólo se muestra en documentos).
+- **Por comercio:** el seguro de vida en `lenders_by_allieds`. En el plan del riel 4 manda
+  `insurance_percentage_per_million` si está cargado, y si no `life_insurance_percentage` (ver la sección de la fianza y
+  el seguro).
 - **Una vez por ambiente:** por SQL, el alta en el riel (`response_type = 4`, `validation_type = 2`, la fila de
   `delegated_origination_profiles` con `inputs_source = creditop_x_pre_approval`, sin formalización, `forced_bond_type =
   Anticipada`, sin 4x1000 y días de pago `[5, 10, 15, 20]`, manteniendo `promissory_type_id = 1` hasta cargar la
   credencial de Deceval), el tipo de validación de identidad, la ubicación del formulario de residencia y los textos de
   la tarjeta; las zonas con `finandina:sync-zones`.
 - **Una letra nueva o una tabla de riesgo nueva:** `min_score` y las bandas desde el editor de reglas.
+
+## La fianza, el seguro y la cuota: los documentos de Finandina contra el plan
+
+**Lo que dicen los documentos.** Son documentos de negocio de la carpeta «Finandina» del Drive (revisados el
+2026-11-25), sin comprobación en código:
+
+- **T&C del crédito de libre inversión.** Numeral 5: todas las cuotas valen lo mismo, y la última recoge el saldo por
+  «días reales cobrados». Numeral 6: la comisión de aval, «IVA incluido, calculado sobre el valor aprobado», se
+  incorpora al monto a financiar y se paga con las cuotas, cuando la política de riesgo exige el aval. Numeral 8: no
+  se devuelve en prepago ni en retracto. Numeral 12: los cobros (estudio, ACH, GMF y el aval) se cargan al capital.
+  Numeral 14: se paga el 5, 10, 15 o 20.
+- **«Politicas Creditop.pdf», página 2.** FGA del 5 % con Advance 1.1 de 856 o más, y del 9 % para los demás perfiles
+  elegibles; seguro de vida de $1.660 por millón desembolsado.
+- **«Simulacion Aval Libre Inversion FGA».** Aval = valor solicitado más cobros administrativos × el % del perfil; IVA
+  del 19 % aparte; 4x1000 sobre aval más IVA; todo se financia, y al cliente le llega el valor solicitado. Con 5.000.000
+  al 5 %: 5.298.690 financiados.
+
+**Lo que hace el plan del riel 4 en main.**
+
+- **La fianza cuadra con el simulador.** El % es el FGA de la categoría ganadora (`CreditopXPreApprovalInputs`), con
+  tipo anticipada. `BondBreakdown` calcula base × %, le suma el IVA del 19 % (`PaymentPlanPayloadBuilder::DEFAULT_IVA_RATE`)
+  y el 4x1000 sobre base más IVA si el perfil lo aplica, y la anticipada se suma a lo que se financia.
+- **El seguro va sobre todo lo financiado.** `CreditopXPreApprovalInputs` pasa el valor por millón del convenio a
+  porcentaje, y el motor lo multiplica por el total financiado, aval incluido (`CalculationContext`). La política dice
+  «por millón desembolsado». Si eso significa lo que recibe el cliente, la base sería otra; está sin confirmar con
+  Finandina.
+- **Los días de más van a la primera cuota.** El motor cobra el interés de los días que pasan de 30 hasta la primera
+  fecha en la cuota 1 (`ScheduleGenerator`), que es la regla de Credifamilia. Los T&C de Finandina los ponen en la
+  última.
+- **Queda abierto «IVA incluido».** El numeral 6 dice que el IVA va dentro, pero el simulador y el plan lo suman aparte.
 
 ## Lo que el ADR deja fuera o da por supuesto
 

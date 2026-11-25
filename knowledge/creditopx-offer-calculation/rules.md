@@ -153,6 +153,11 @@ capacidad de pago de esa evaluación, y fija `fee_number` en el mayor. Es la mis
 orden que el plan de pagos (`RegularPaymentScheduleService::getPossibleFeeNumbers`); si ningún
 plazo cabe, conserva la lista.
 
+El tope de la categoría es opcional: con `max_fee_number` en NULL no recorta nada, ni en el listado
+(`aplicarTopeDePlazoDeLaCategoria` sale antes) ni en el plan (`getPossibleFeeNumbers` filtra sólo si
+está puesto, `isset`). Con 0 o menos, en cambio, los dos no coinciden: el listado lo ignora
+(`$tope <= 0`) y el plan filtra los plazos menores o iguales a 0, o sea todos.
+
 En la tarjeta, si la entidad no trae tarifario propio, `useInstallmentOptions` vuelve a filtrar las
 opciones con el tramo que corresponde al capital (monto − cuota inicial efectiva): deja las que no
 superan su `max_fee_number` y, con `mandatory_fee_number = 1`, sólo esa. Si el filtro deja la lista

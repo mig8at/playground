@@ -134,7 +134,7 @@ en el código de `main` (los dos monolitos) y se suma a knowledge.
 | entidad | dónde |
 |---|---|
 | Credifamilia (riel 4) | [credifamilia-origination](knowledge/credifamilia-origination/rules.md) (preaprobación, identidad, radicación SOAP) · [credifamilia-financing](knowledge/credifamilia-financing/rules.md) (fianza y plan) · [origination-paths#el-riel-4-paso-a-paso-que-es-del-riel-y-que-es-de-credifamilia](knowledge/origination-paths/rules.md) |
-| Finandina | [finandina-policy](knowledge/finandina-policy/rules.md) (la política en el motor) · [lender-profile-rules#de-la-capacidad-mensual-al-cupo](knowledge/lender-profile-rules/rules.md) (capacidad) |
+| Finandina | [finandina-policy](knowledge/finandina-policy/rules.md) (la política en el motor) · [finandina-policy#la-fianza-el-seguro-y-la-cuota-los-documentos-de-finandina-contra-el-plan](knowledge/finandina-policy/rules.md) (aval, seguro y días de más: sus T&C contra el plan) · [lender-profile-rules#de-la-capacidad-mensual-al-cupo](knowledge/lender-profile-rules/rules.md) (capacidad) |
 | SmartPay (República Dominicana, IMEI) | [smartpay](knowledge/smartpay/rules.md) · [device-imei-validation](knowledge/device-imei-validation/rules.md) · [device-locking](knowledge/device-locking/rules.md) |
 | Motai (renting y RTO) | [motai-renting](knowledge/motai-renting/rules.md) · [renting-plans](knowledge/renting-plans/rules.md) |
 | Pullman | [kyc-path-and-experian-trigger#pullman-y-dfs-un-override-en-el-servicio](knowledge/kyc-path-and-experian-trigger/rules.md) · [creditopx-payment-application#pago-en-caja-de-pullman](knowledge/creditopx-payment-application/rules.md) |

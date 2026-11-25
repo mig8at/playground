@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Oferta de CreditopX en la tarjeta: cupo, cuota inicial y cuota",
   "summary": "Cómo calcula el asistente la oferta de una entidad CreditopX o rotativa (CalculateLoanFinancialsUc): de dónde llegan cupo, FGA, tasa y porcentaje, la cuota inicial como el mayor entre excedente y política, qué pasa con la cuota escrita o sin campo al elegir y liquidar, el valor a financiar sin FGA, los plazos por categoría y tramo, y en qué difiere el plan de pagos del backend.",
-  "reviewedAt": "2026-11-25T14:24:33+00:00",
+  "reviewedAt": "2026-11-25T22:10:02+00:00",
   "sources": [
     {
       "repo": "frontend-monorepo",
@@ -293,6 +293,15 @@
       "blob": "231932d761ee0e1b5835f049c71ba4a1f80cd0bb",
       "sections": [
         "fga-seguro-de-garantia-y-fianza-tres-garantias-que-no-son-lo-mismo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/PaymentSchedule/RegularPaymentScheduleService.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "5dac6518c5145703118d71896ba83b391bbe4925",
+      "sections": [
+        "plazos-que-ofrece-la-tarjeta"
       ]
     }
   ]
