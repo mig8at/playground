@@ -1,19 +1,21 @@
 <script setup>
 import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
-import { ui, findLenderDef, lenders, preApprovalResponseOf, setPreApprovalField, money, openFieldInfo } from '../store'
+import { ui, findLenderDef, lenders, preApprovalResponseOf, setPreApprovalField, usesPreApproval, money, openFieldInfo } from '../store'
 import { ShieldCheck } from 'lucide-vue-next'
 import MoneyInput from '../MoneyInput.vue'
 import AffixField from '../AffixField.vue'
 
-// El servicio de preaprobación (pre-approvals-service), por tarjeta del listado. Para el agregador (rt=1) le pregunta
-// a la API de la entidad; para la delegada (rt=4), al motor de la entidad. No guarda la respuesta: cada consulta vuelve
-// a evaluar. Acá se dicta lo que contesta, para ver qué hace el resto del flujo con eso.
+// El servicio de preaprobación (pre-approvals-service). Cuelga ARRIBA de «Entidades disponibles» porque es ahí, tarjeta
+// por tarjeta, donde se le consulta. Siempre está y muestra la entidad ELEGIDA: para el agregador (rt=1) le pregunta a
+// la API de la entidad y para la delegada (rt=4) al motor de la entidad, y ahí se dicta lo que contesta; CreditopX y el
+// redirect lo dicen sin campos. No guarda la respuesta: cada consulta vuelve a evaluar.
 const name = computed(() => ui.selected)
 const lender = computed(() => findLenderDef(name.value))
 const r = computed(() => preApprovalResponseOf(name.value))
 const row = computed(() => lenders.value.find(x => x.name === name.value) || null)
 const set = (k, v) => setPreApprovalField(name.value, k, v)
+const editable = computed(() => usesPreApproval(lender.value))
 const STATUS = [['aprueba', 'aprueba'], ['rechaza', 'rechaza'], ['timeout', 'no contesta']]
 const outcome = computed(() => {
   if (!row.value) return ''
@@ -23,30 +25,35 @@ const outcome = computed(() => {
 </script>
 
 <template>
-  <div v-if="lender" class="node node--tramo prov-node">
+  <div class="node node--tramo prov-node node--preapproval">
     <div class="node__hd node__hd--teal nhd-doc" title="clic: dónde vive y por qué" @click="openFieldInfo('psel.preapproval')">
       <div class="node__title"><ShieldCheck :size="13" /> Servicio de preaprobación</div>
-      <div class="node__kind">pre-approvals-service</div>
+      <div class="node__kind">{{ lender ? lender.name : 'pre-approvals-service' }}</div>
     </div>
     <div class="node__body">
-      <div class="tr-hint">Lo que contesta {{ lender.rt === 4 ? 'el motor de la entidad' : 'la API de ' + lender.name }} para esta tarjeta. Editalo:</div>
-      <div class="cat__chips">
-        <button v-for="[k, label] in STATUS" :key="k" class="chip-toggle nodrag" :class="{ on: r.status === k }" @click.stop="set('status', k)">{{ label }}</button>
-      </div>
-      <template v-if="r.status === 'aprueba'">
-        <label class="field"><span>Monto máximo aprobado <i class="pa-hint">vacío = el tope de la entidad</i></span>
-          <AffixField currency class="afld--mny"><MoneyInput class="afld__in" :model-value="r.maxAmount" @update:model-value="v => set('maxAmount', v)" /></AffixField>
-        </label>
-        <label class="field"><span>Tasa (% N.M.) <i class="pa-hint">vacío = la de la entidad</i></span>
-          <input class="nodrag" type="number" min="0" step="0.01" :value="r.rate ?? ''" @input="e => set('rate', e.target.value)" />
-        </label>
+      <div v-if="!lender" class="tr-hint">Se consulta por cada tarjeta del listado. Elegí una entidad en «Entidades disponibles» para ver o dictar lo que contesta.</div>
+      <template v-else-if="editable">
+        <div class="tr-hint">Lo que contesta {{ lender.rt === 4 ? 'el motor de la entidad' : 'la API de ' + lender.name }} para esta tarjeta. Editalo:</div>
+        <div class="cat__chips">
+          <button v-for="[k, label] in STATUS" :key="k" class="chip-toggle nodrag" :class="{ on: r.status === k }" @click.stop="set('status', k)">{{ label }}</button>
+        </div>
+        <template v-if="r.status === 'aprueba'">
+          <label class="field"><span>Monto máximo</span>
+            <AffixField currency class="afld--mny"><MoneyInput class="afld__in" placeholder="el tope de la entidad" :model-value="r.maxAmount" @update:model-value="v => set('maxAmount', v)" /></AffixField>
+          </label>
+          <label class="field"><span>Tasa % N.M.</span>
+            <input class="nodrag" type="number" min="0" step="0.01" placeholder="la de la entidad" :value="r.rate ?? ''" @input="e => set('rate', e.target.value)" />
+          </label>
+        </template>
+        <div class="tr-active" :class="{ 'tr-active--no': row && !row.ok }">→ {{ outcome }}</div>
       </template>
-      <div class="tr-active" :class="{ 'tr-active--no': row && !row.ok }">→ {{ outcome }}</div>
+      <div v-else-if="lender.rt === 2" class="tr-hint">CreditopX: lo decide el motor de cupo de CreditOp con las categorías de perfilamiento (en el servicio, el adaptador de CreditopX). Se edita en las categorías, a la izquierda.</div>
+      <div v-else class="tr-hint">Redirect: no pasa por la preaprobación. La entidad decide en su sitio.</div>
     </div>
     <Handle id="down" type="source" :position="Position.Bottom" />
   </div>
 </template>
 
 <style scoped>
-.pa-hint { font-style: normal; opacity: .6; font-size: 10px; margin-left: 4px; }
+.node--preapproval { width: 300px; }
 </style>

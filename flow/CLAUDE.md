@@ -26,8 +26,9 @@ de vez en cuando y **no tiene que seguir al código al pie de la letra**. Lo que
 El rt=3 (rotativo) se dobla a rt=2. **El riel 4 se separó el 2026-11-25** (antes se doblaba a CreditopX) y es UNA
 sola «delegada»: no se distingue Finandina de Credifamilia. Dos nodos lo explican:
 
-- **Servicio de preaprobación** (`PreApprovalNode.vue`, `preApprovalResponseOf` en `src/store.js`), también para el
-  rt=1: dictás lo que contesta pre-approvals-service —aprueba, rechaza o no contesta, el monto máximo y la tasa— y el
+- **Servicio de preaprobación** (`PreApprovalNode.vue`, `preApprovalResponseOf` en `src/store.js`): cuelga arriba de
+  «Entidades disponibles» —es ahí, tarjeta por tarjeta, donde se le consulta— y muestra la entidad elegida. Para rt=4 y
+  rt=1 dictás lo que contesta pre-approvals-service —aprueba, rechaza o no contesta, el monto máximo y la tasa— y el
   listado y el resto del flujo reaccionan.
 - **Ficha de originación delegada** (`DelegatedProfileNode.vue`, `delegatedOf`): `delegated_origination_profiles`
   —días de pago, fianza (% y anticipada o mensual) y si radica al autorizar—.

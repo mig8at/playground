@@ -40,7 +40,7 @@ import InfoAdicionalNode from './nodes/InfoAdicionalNode.vue'
 import CreditStatusNode from './nodes/CreditStatusNode.vue'
 import FieldInfoPanel from './nodes/FieldInfoPanel.vue'
 import ProdImportPanel from './nodes/ProdImportPanel.vue'
-import { ui, findLenderDef, entidadCfg, perfilOf, perfil, bureau, fieldNull, providerDown, lenders, postSelSteps, recheckStatus, usesCategories, usesPreApproval, isInHouse, delegatedOf, closeFieldInfo, focusWinningProfile, persistPing } from './store'
+import { ui, findLenderDef, entidadCfg, perfilOf, perfil, bureau, fieldNull, providerDown, lenders, postSelSteps, recheckStatus, usesCategories, isInHouse, delegatedOf, closeFieldInfo, focusWinningProfile, persistPing } from './store'
 import { Check } from 'lucide-vue-next'
 
 // El tema lo pone workbench.js (el de Cockpit) como clase `dark` en el <html>; acá sólo se sigue, para los colores
@@ -95,13 +95,16 @@ const nodes = ref([
   // +340 a la derecha para hacerle lugar sin apretar el layout.
   { id: 'canal', type: 'canal', position: { x: 320, y: 380 } },
   { id: 'sol', type: 'solicitud', position: { x: 680, y: 380 } },
-  { id: 'exp', type: 'experian', position: { x: 800, y: 20 } },
-  { id: 'quanto', type: 'quanto', position: { x: 1080, y: 20 } },
-  { id: 'agil', type: 'agildata', position: { x: 1360, y: 20 } },
-  { id: 'tus', type: 'tusdatos', position: { x: 1640, y: 20 } },
-  { id: 'mareigua', type: 'mareigua', position: { x: 1920, y: 20 } },
+  { id: 'exp', type: 'experian', position: { x: 340, y: 20 } },
+  { id: 'quanto', type: 'quanto', position: { x: 600, y: 20 } },
+  { id: 'agil', type: 'agildata', position: { x: 860, y: 20 } },
+  { id: 'tus', type: 'tusdatos', position: { x: 1120, y: 20 } },
+  { id: 'mareigua', type: 'mareigua', position: { x: 1380, y: 20 } },
   { id: 'buro', type: 'buro', position: { x: 1170, y: 380 } },
   { id: 'out', type: 'lenders', position: { x: 1540, y: 380 } },
+  // El servicio de preaprobación cuelga ARRIBA del listado: es ahí, tarjeta por tarjeta, donde se le consulta. Muestra
+  // la entidad elegida. (Los burós se corrieron a la izquierda, sobre canal y solicitud, para dejarle el lugar.)
+  { id: 'preapproval', type: 'preapproval', position: { x: 1640, y: 110 } },
 ])
 
 // Colores de los conectores por tema [oscuro, claro]: en claro se oscurecen para no perder contraste.
@@ -126,6 +129,7 @@ function baseEdges() {
     { id: 'e0b', source: 'canal', sourceHandle: 'out', target: 'sol', animated: false, style: { stroke: ec('flow'), strokeWidth: 2 } },
     { id: 'e1', source: 'sol', target: 'buro', targetHandle: 'in', animated: false, style: { stroke: ec('purp'), strokeWidth: 2 } },
     { id: 'e2', source: 'buro', sourceHandle: 'out', target: 'out', animated: false, style: { stroke: ec('green'), strokeWidth: 2 } },
+    { id: 'e-preapproval', source: 'preapproval', sourceHandle: 'down', target: 'out', targetHandle: 'top', animated: false, style: { stroke: ec('base'), strokeWidth: 1.4, strokeDasharray: '5 4' } },
     { id: 'pe1', source: 'exp', target: 'buro', targetHandle: 'top', animated: false, style: { stroke: ec('exp'), strokeWidth: 1.5 } },
     { id: 'pe1b', source: 'quanto', target: 'buro', targetHandle: 'top', animated: false, style: { stroke: ec('quanto'), strokeWidth: 1.5 } },
     { id: 'pe2', source: 'agil', target: 'buro', targetHandle: 'top', animated: false, style: { stroke: ec('agil'), strokeWidth: 1.5 } },
@@ -150,7 +154,7 @@ const DYN = ['default', 'comercio', 'relacion', 'perfil']
 // scroll, estas bandas dejan aire fijo entre tarjetas y evitan los grandes saltos verticales.
 const SELECTED_LAYOUT = {
   profileInputs: { x: -1060, y: -470 }, // categoría + tramo, misma fila (las categorías son altas)
-  preApprovalRow: { y: -250 },          // preaprobación + ficha delegada: más bajas, pegadas al hub
+  preApprovalRow: { y: -250 },          // la ficha delegada: más baja que las categorías, pegada al hub
   profileHub: { x: -680, y: 90 },
   lender: { x: -320, y: 90 },
   commerce: { x: -320, y: 570 },
@@ -165,7 +169,7 @@ const SELECTED_LAYOUT = {
 // La ficha del riel 4 cambia la cadena (categorías o su API, radicación): también la mira.
 const selDelegated = computed(() => JSON.stringify(findLenderDef(ui.selected)?.entidad?.delegated || null))
 watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, selIncome, selCanContinue, selDelegated], ([sel]) => {
-  const base = nodes.value.filter(n => !DYN.includes(n.id) && !n.id.startsWith('cat-') && n.id !== 'tramo' && n.id !== 'grouprules' && n.id !== 'branchstatus' && n.id !== 'extra' && n.id !== 'recheck' && n.id !== 'identity' && n.id !== 'planpagos' && n.id !== 'firma' && n.id !== 'estado' && n.id !== 'codeudor' && n.id !== 'infoadicional' && n.id !== 'delegated' && n.id !== 'preapproval' && !n.id.startsWith('stage-') && n.id !== 'return' && n.id !== 'cstatus')
+  const base = nodes.value.filter(n => !DYN.includes(n.id) && !n.id.startsWith('cat-') && n.id !== 'tramo' && n.id !== 'grouprules' && n.id !== 'branchstatus' && n.id !== 'extra' && n.id !== 'recheck' && n.id !== 'identity' && n.id !== 'planpagos' && n.id !== 'firma' && n.id !== 'estado' && n.id !== 'codeudor' && n.id !== 'infoadicional' && n.id !== 'delegated' && !n.id.startsWith('stage-') && n.id !== 'return' && n.id !== 'cstatus')
   const def = sel ? findLenderDef(sel) : null
   if (!def) { nodes.value = base; edges.value = baseEdges(); return } // cerrar: quita la plantilla, sin mover la cámara
   // Cadena config-de-lender → comercio → sucursal, para CUALQUIER lender (CreditopX o externo).
@@ -209,12 +213,7 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
       addE.push({ id: 'e-tramo', source: 'tramo', sourceHandle: 'down', target: 'perfil', targetHandle: 'fromcats', animated: false, style: { stroke: ec('base'), strokeWidth: 1.4, strokeDasharray: '5 4' } })
     }
   }
-  // rt=1 y rt=4: el SERVICIO DE PREAPROBACIÓN, con su respuesta editable, donde CreditopX tiene las categorías. Y en
-  // rt=4, a su lado, la ficha de originación delegada.
-  if (usesPreApproval(def)) {
-    add.push({ id: 'preapproval', type: 'preapproval', position: { x: SELECTED_LAYOUT.profileInputs.x, y: SELECTED_LAYOUT.preApprovalRow.y } })
-    addE.push({ id: 'e-preapproval', source: 'preapproval', sourceHandle: 'down', target: 'perfil', targetHandle: 'fromcats', animated: false, style: { stroke: ec('base'), strokeWidth: 1.4, strokeDasharray: '5 4' } })
-  }
+  // rt=4: la ficha de originación delegada, justo arriba del hub de perfilamiento (es config de la entidad).
   if (def.rt === 4) {
     // justo arriba del hub de perfilamiento
     add.push({ id: 'delegated', type: 'delegated', position: { x: SELECTED_LAYOUT.profileHub.x, y: SELECTED_LAYOUT.preApprovalRow.y } })

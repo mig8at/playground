@@ -51,7 +51,7 @@ const winner = computed(() => diag.value?.winner ? perfilOf(ui.selected).find(c 
       <!-- Agregador (rt=1): pre-aprobación EXTERNA — la API de la entidad decide -->
       <template v-else-if="isRt1">
         <div class="pl-sec">Preaprobación <span class="pl-hint">· pre-approvals-service</span></div>
-        <div class="dn-hint">CreditOp no perfila {{ lender.name }} con categorías: le pregunta al servicio de preaprobación y respeta lo que contesta. ↑ Su respuesta se edita en el nodo de arriba.</div>
+        <div class="dn-hint">CreditOp no perfila {{ lender.name }} con categorías: le pregunta al servicio de preaprobación y respeta lo que contesta. Su respuesta se edita en «Servicio de preaprobación», arriba de «Entidades disponibles».</div>
       </template>
 
       <div v-else-if="lender" class="dn-hint">{{ lender.name }} es rt{{ lender.rt }} (redirect): sin pre-aprobación, se redirige al sitio de la entidad y decide allá.</div>
