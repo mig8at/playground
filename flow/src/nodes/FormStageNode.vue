@@ -48,6 +48,7 @@ const bulletTitle = computed(() =>
 <template>
   <div v-if="lender" class="node node--formstage prov-node" :class="'lc--' + state">
     <Handle id="in" type="target" :position="Position.Left" />
+    <Handle id="fromprofile" type="target" :position="Position.Top" />
     <div class="node__hd node__hd--green nhd-doc" title="clic: dónde vive y por qué" @click="openFieldInfo('psel.' + stepKey)">
       <div class="node__title">{{ meta.title }}</div>
     </div>

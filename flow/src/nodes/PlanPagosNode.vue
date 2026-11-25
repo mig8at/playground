@@ -52,6 +52,7 @@ const schedule = computed(() => {
 <template>
   <div v-if="lender" class="node node--planpagos prov-node">
     <Handle id="in" type="target" :position="Position.Left" />
+    <Handle id="fromprofile" type="target" :position="Position.Top" />
     <div class="node__hd node__hd--green nhd-doc" title="clic: detalle del nodo" @click="openFieldInfo('psel.planpagos')">
       <div class="node__title"><CalendarClock :size="13" /> Plan de pagos</div>
     </div>

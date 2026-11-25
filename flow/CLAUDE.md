@@ -68,7 +68,10 @@ sola «delegada»: no se distingue Finandina de Credifamilia. Dos nodos lo expli
 - **Elegir la entidad** (`LenderSelectionNode.vue`, `selectionCheck`): `update-user-request` NO vuelve a consultar el
   cupo; rechaza el monto distinto del pedido de la tienda, la cuota inicial que alcanza el monto y la originación apagada,
   y pasa a 3. Reemplazó a la «Re-evaluación en POS», que dibujaba una consulta que no existe.
-- **Ficha de originación delegada** (`DelegatedProfileNode.vue`, `delegatedOf`): `delegated_origination_profiles`
+- **Ficha de originación delegada** (`DelegatedProfileNode.vue`, `delegatedOf`), sobre «Plan de pagos» y con líneas a lo que
+  la lee en main (2026-11-25): el plan (`PaymentDateService`, controladores de PaymentPlan) y la formalización al autorizar
+  (`LoanAuthorizationService`), hacia la radicación o el estado final. La tabla `delegated_origination_profiles` es de
+  CORE-918 (merge del 2026-11-03); la fila de Finandina, del 2026-11-17 (CORE-845). Modela
   —días de pago, fianza (% y anticipada o mensual) y si radica al autorizar—.
 
 La cuota del riel 4 es aproximada (sin 4×1000 ni intereses de los días hasta la primera cuota).

@@ -44,11 +44,15 @@ const setDays = (txt) => {
       <div class="tr-hint">
         {{ d.formalization ? 'Después de la firma, la radicación; el 11 llega cuando la entidad la acepta.' : 'Termina en el 11 al firmar.' }}
       </div>
+      <div class="tr-hint">La lee el backend en dos momentos: ↓ al armar el plan de pagos (días, fianza, de dónde salen los números) y → al autorizar (formalización). Tabla <code>delegated_origination_profiles</code>.</div>
     </div>
-    <Handle id="in" type="target" :position="Position.Right" />
+    <Handle id="down" type="source" :position="Position.Bottom" />
+    <Handle id="right" type="source" :position="Position.Right" />
   </div>
 </template>
 
 <style scoped>
-.dl-check { display: flex; align-items: center; gap: 6px; flex-direction: row; }
+.dl-check { display: flex; align-items: flex-start; gap: 8px; flex-direction: row; margin: 6px 0; }
+.dl-check input { flex: none; width: auto; margin-top: 2px; }
+.dl-check span { flex: 1; min-width: 0; text-align: left; white-space: normal; width: auto; line-height: 1.35; }
 </style>

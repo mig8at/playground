@@ -163,7 +163,7 @@ const SELECTED_LAYOUT = {
   profileInputs: { x: 1460, y: -1080 }, // categoría (268×467) + tramo (348×236), misma fila
   tramoX: 1760,
   profileHub: { x: 1664, y: -540 },     // centrado sobre el motor; ≤ 240 de alto, termina 70 px arriba
-  delegated: { x: -720, y: 90 },        // la ficha delegada es config de la entidad: al lado de «Configurar entidad»
+  delegated: { x: 2835, y: -60 },       // la ficha delegada: placeDecisionColumn la pone sobre «Plan de pagos», que la lee
   lender: { x: -320, y: 90 },
   commerce: { x: -320, y: 570 },
   groupRules: { x: -1060, y: 720 },
@@ -177,7 +177,7 @@ const SELECTED_LAYOUT = {
 // EL CAMINO DE LA ENTIDAD ELEGIDA (2026-11-25): lo que recorre queda pleno; la configuración que lo alimenta, a media
 // luz («contexto»); y lo que esa entidad NO usa, apagado (al pasar el mouse vuelve, para poder leerlo). Las líneas
 // siguen a sus nodos, y las del camino se engrosan. Sin entidad elegida, todo igual.
-const CONTEXT = new Set(['lenders-cfg', 'merch', 'default', 'comercio', 'relacion', 'branchstatus', 'grouprules', 'delegated'])
+const CONTEXT = new Set(['lenders-cfg', 'merch', 'default', 'comercio', 'relacion', 'branchstatus', 'grouprules'])
 function offFor(def) {
   const off = new Set()
   if (!usesQuotaEngine(def) && !isInHouse(def.rt)) off.add('engine')   // agregador y redirect: nunca le preguntan
@@ -193,10 +193,27 @@ function placeDecisionColumn(ns) {
   const idn = ns.find(n => n.id === 'identity')
   const ex = idn ? idn.position.x + IDENTITY_W / 2 - ENGINE_W / 2 : 2209
   const at = { engine: { x: ex, y: 100 }, perfil: { x: ex + 24, y: -230 }, 'cat-carousel': { x: ex - 158, y: -770 }, tramo: { x: ex + 142, y: -770 } }
+  // La ficha de originación delegada, sobre «Plan de pagos», que es quien la lee (días, fianza, de dónde salen los
+  // números); de ahí baja también a la radicación o al estado final (formalización). Sin plan a la vista, a su lado.
+  const pp = ns.find(n => n.id === 'planpagos')
+  at.delegated = pp ? { x: pp.position.x + 115 - 174, y: -110 } : { x: ex + 380, y: -110 }
   return ns.map(n => (at[n.id] ? { ...n, position: at[n.id] } : n))
+}
+// Lo que lee la ficha delegada en main (2026-11-25): el plan de pagos (PaymentDateService y los controladores de
+// PaymentPlan) y, al autorizar, la formalización (LoanAuthorizationService). Se dibuja sólo con esos pasos a la vista.
+function delegatedEdges(ns) {
+  if (!ns.some(n => n.id === 'delegated')) return []
+  const has = (id) => ns.some(n => n.id === id)
+  const st = { stroke: ec('base'), strokeWidth: 1.4, strokeDasharray: '6 5' }
+  const out = []
+  if (has('planpagos')) out.push({ id: 'e-deleg-plan', source: 'delegated', sourceHandle: 'down', target: 'planpagos', targetHandle: 'fromprofile', animated: false, style: st })
+  if (has('stage-radica')) out.push({ id: 'e-deleg-radica', source: 'delegated', sourceHandle: 'right', target: 'stage-radica', targetHandle: 'fromprofile', animated: false, style: st })
+  else if (has('estado')) out.push({ id: 'e-deleg-estado', source: 'delegated', sourceHandle: 'right', target: 'estado', targetHandle: 'fromprofile', animated: false, style: st })
+  return out
 }
 function paint(def, ns, edgeList) {
   ns = placeDecisionColumn(ns)
+  edgeList = [...edgeList, ...delegatedEdges(ns)]
   if (!def) {
     nodes.value = ns.map(n => ({ ...n, class: undefined }))
     edges.value = edgeList
@@ -267,7 +284,6 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
   // rt=4: la ficha de originación delegada cuelga de «Configurar entidad» (es su config; la usa el plan de pagos).
   if (def.rt === 4) {
     add.push({ id: 'delegated', type: 'delegated', position: SELECTED_LAYOUT.delegated })
-    addE.push({ id: 'e-delegated', source: 'default', sourceHandle: 'toperf', target: 'delegated', targetHandle: 'in', animated: false, style: { stroke: ec('base'), strokeWidth: 1.4, strokeDasharray: '6 5' } })
   }
   // Estado en sucursal (lenders_by_allied_branches.status): membresía solo-BD (default true; NO filtra el getLenders vivo, solo la lee el simulador viejo). Nodo propio
   // a la IZQUIERDA del hub "Configurar sucursal" (relacion en x=-300, y=900), conectado lado-con-lado:

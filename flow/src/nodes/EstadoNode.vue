@@ -13,6 +13,7 @@ const ok = computed(() => (state.otp || '').length === 6)
 <template>
   <div v-if="lender" class="node node--cstatus prov-node" :class="ok ? 'psel--ok' : 'psel--bad'">
     <Handle id="in" type="target" :position="Position.Left" />
+    <Handle id="fromprofile" type="target" :position="Position.Top" />
     <div class="node__hd nhd-doc psel-hd" title="clic: qué significa el estado" @click="openFieldInfo('psel.estado')">
       <div class="node__title">Estado</div>
     </div>
