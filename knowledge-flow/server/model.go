@@ -12,6 +12,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -168,30 +169,39 @@ func clip(s string, n int) string {
 	return s[:n] + fmt.Sprintf("\n… (recortado: %d caracteres más)", len(s)-n)
 }
 
+// askRetry: una pregunta al modelo con reintentos ante una falla pasajera. Un 502 o un corte de Bedrock suele pasar
+// (la corrida #23, 2026-11-24, cayó en un grupo que la #22 había pasado; el puente se cortaba y volvía en minutos):
+// hasta 5 intentos más, con espera creciente, antes de tirar la corrida. Tras un corte de Google por AI Studio, la
+// espera es la de su pausa.
+func (f *flow) askRetry(ctx context.Context, req background.Request) (background.Answer, error) {
+	for failures := 0; ; {
+		ans, err := background.Ask(ctx, f.root, req)
+		if err == nil {
+			return ans, nil
+		}
+		if failures++; failures > 5 || ctx.Err() != nil || strings.Contains(err.Error(), "cupo DIARIO") || strings.Contains(err.Error(), "daily limit") {
+			return ans, err
+		}
+		wait := time.Duration(failures) * 30 * time.Second
+		if strings.Contains(err.Error(), "Google está cortando") {
+			wait = time.Duration(failures) * 150 * time.Second
+		}
+		select {
+		case <-ctx.Done():
+			return ans, ctx.Err()
+		case <-time.After(wait):
+		}
+	}
+}
+
 // askList: una pregunta al modelo y su lista JSON. Si la respuesta no trae una lista que parsee, pregunta otra vez
 // (una sola) y, si tampoco, deja la respuesta cruda en rawPath para ver qué escribió.
 func (f *flow) askList(ctx context.Context, r *Run, system, prompt, rawPath string) ([]map[string]any, error) {
 	var last error
-	for try, failures := 0, 0; try < 2; try++ {
-		ans, err := background.Ask(ctx, f.root, background.Request{Prompt: prompt, System: system})
+	for try := 0; try < 2; try++ {
+		ans, err := f.askRetry(ctx, background.Request{Prompt: prompt, System: system})
 		if err != nil {
-			/* Un 502 o un corte de Bedrock suele ser pasajero (la corrida #23, 2026-11-24, cayó en un grupo que la #22
-			 * había pasado): hasta 3 intentos más, con espera, antes de tirar la corrida entera. */
-			if failures++; failures > 3 || ctx.Err() != nil {
-				return nil, err
-			}
-			last = err
-			try--
-			wait := time.Duration(failures) * 20 * time.Second
-			if strings.Contains(err.Error(), "Google está cortando") {
-				wait = time.Duration(failures) * 150 * time.Second // bin/aistudio se pone en pausa 2 min tras un corte
-			}
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case <-time.After(wait):
-			}
-			continue
+			return nil, err
 		}
 		r.Model = ans.Model
 		out, err := parseList(ans.Text)
@@ -526,18 +536,33 @@ func (f *flow) stepVerify(ctx context.Context, r *Run, st *Step) error {
 		if extra := f.citedFiles(ctx, r, it.Files, v.Evidence, filesList, shown); extra != "" {
 			b.WriteString("\n## ARCHIVOS EN MAIN QUE CITA LA DECISIÓN (los que reemplazaron a los borrados y la evidencia)\n" + extra)
 		}
-		ans, err := background.Ask(ctx, f.root, background.Request{Prompt: b.String(), System: verifyPrompt})
-		if err != nil {
-			return err
-		}
-		text := strings.TrimSpace(ans.Text)
-		a, z := strings.Index(text, "{"), strings.LastIndex(text, "}")
 		var res struct {
 			OK       bool     `json:"ok"`
 			Problems []string `json:"problemas"`
 		}
-		if a < 0 || z < a || json.Unmarshal([]byte(text[a:z+1]), &res) != nil {
-			return fmt.Errorf("%s: el verificador no devolvió el JSON pedido: %.200s", id, text)
+		/* Cada veredicto queda guardado con la huella del texto verificado: al retomar no se vuelve a preguntar. */
+		cache := filepath.Join(r.driftDir(), "verificacion", strings.NewReplacer("#", "__", "/", "_").Replace(id)+".json")
+		sum := fmt.Sprintf("%x", sha256.Sum256([]byte(b.String())))
+		var saved struct {
+			Sum string          `json:"sum"`
+			Res json.RawMessage `json:"res"`
+		}
+		if raw, err := os.ReadFile(cache); err == nil && json.Unmarshal(raw, &saved) == nil && saved.Sum == sum && json.Unmarshal(saved.Res, &res) == nil {
+			// ya verificado con este mismo texto
+		} else {
+			ans, err := f.askRetry(ctx, background.Request{Prompt: b.String(), System: verifyPrompt})
+			if err != nil {
+				return err
+			}
+			text := strings.TrimSpace(ans.Text)
+			a, z := strings.Index(text, "{"), strings.LastIndex(text, "}")
+			if a < 0 || z < a || json.Unmarshal([]byte(text[a:z+1]), &res) != nil {
+				return fmt.Errorf("%s: el verificador no devolvió el JSON pedido: %.200s", id, text)
+			}
+			resRaw, _ := json.Marshal(res)
+			out, _ := json.Marshal(map[string]any{"sum": sum, "res": json.RawMessage(resRaw)})
+			_ = os.MkdirAll(filepath.Dir(cache), 0o755)
+			_ = os.WriteFile(cache, out, 0o644)
 		}
 		if !res.OK {
 			for _, p := range res.Problems {
