@@ -39,7 +39,7 @@ define listar
 endef
 
 # ── DÍA A DÍA ────────────────────────────────────────────────────────────────────────────────────
-.PHONY: keyring keyring-ui ui-shot sentinel ecommerce chat cockpit status tablero tasks task-guard cuadrilla-publish sprint worklog task-block task-context-add task-context tablero-db panel
+.PHONY: flow keyring keyring-ui ui-shot sentinel ecommerce chat cockpit status tablero tasks task-guard cuadrilla-publish sprint worklog task-block task-context-add task-context tablero-db panel
 status: ## @dia ¿está el contexto al día? (resumen, no escribe nada)
 	@$(MAKE) --no-print-directory traps
 	@echo ""
