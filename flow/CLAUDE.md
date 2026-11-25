@@ -9,7 +9,9 @@ de vez en cuando y **no tiene que seguir al código al pie de la letra**. Lo que
 - **Armar un escenario sin clics:** `bin/cockpit open flow '#/lender?name=Finandina&rt=4'` crea la entidad si no
   existe y la elige en el listado, con la oferta guardada (`src/route.js`). Para una delegada, su ficha: `engine=1|0`,
   `radica=1|0`, `days=2,16`; `select=0` la crea sin elegirla. Las tres de ejemplo (2026-11-25):
-  `name=Credifamilia&rt=4&engine=0&radica=1&days=2,16` · `name=CrediPullman&rt=2` · `name=Finandina&rt=4&engine=1&radica=0`. Cada navegador guarda sus propias
+  `name=Credifamilia&rt=4&engine=0&radica=1&days=2,16` · `name=CrediPullman&rt=2` · `name=Finandina&rt=4&engine=1&radica=0`.
+  Y con renting y política de codeudor: `name=Motai%20Renting&rt=2&product=renting` · `name=Rent%20to%20Own&rt=2&product=rto`.
+  `remove=1` borra una. ⚠ Dentro de Cockpit los espacios del nombre se pierden: van como `%20`. Cada navegador guarda sus propias
   entidades: lo de Cockpit no está en el navegador de la sesión, ni al revés.
 - **Por consola, para un modelo:** `python3 flow/tools/flow_context.py map --text` · `route "<pregunta>" --text` ·
   `brief <tema> --text`. Mapa → una ficha → la fuente que cita. No le pases cédulas, solicitudes ni datos de un caso.

@@ -4,9 +4,11 @@
 //   para una delegada (rt=4), además, su ficha: engine=1|0 (la evalúa el motor de cupo, o su API) · radica=1|0 ·
 //   days=2,16 (días de pago). Se aplican aunque la entidad ya exista.
 //   select=0                                         la crea sin elegirla (para armar varias de una vez)
+//   remove=1                                         la BORRA (sólo las creadas en Flow; no toca nada afuera)
+// ⚠ Dentro de Cockpit los espacios del nombre se pierden: escribilos como %20 (`name=Motai%20Renting`).
 // La ruta se consume: después de aplicarla, el hash se limpia para que recargar no la repita.
 import { nextTick } from 'vue'
-import { customLenders, addCustomLender, selectOffer, findLenderDef, setDelegated } from './store'
+import { customLenders, addCustomLender, removeCustomLender, selectOffer, findLenderDef, setDelegated } from './store'
 
 function applyRoute() {
   const m = location.hash.match(/^#\/lender\?(.*)$/)
@@ -14,6 +16,11 @@ function applyRoute() {
   const q = new URLSearchParams(m[1])
   const name = (q.get('name') || '').trim()
   if (!name) return
+  if (q.get('remove') === '1') {
+    removeCustomLender(name)
+    history.replaceState(null, '', location.pathname + location.search)
+    return
+  }
   if (!customLenders.some(l => l.name === name)) addCustomLender(name, Number(q.get('rt') ?? 2), q.get('product') || 'credito')
   const l = findLenderDef(name)
   if (l && l.rt === 4) {
