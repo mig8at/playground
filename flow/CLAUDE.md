@@ -6,6 +6,9 @@ perfilamiento → listado → lo que pasa después de elegir. Es de Miguel, para
 de vez en cuando y **no tiene que seguir al código al pie de la letra**. Lo que muestra Flow nunca es evidencia.
 
 - **Abrir:** la app Flow de Cockpit, o `make flow` (:5252, Vite). Sin servidor propio.
+- **Armar un escenario sin clics:** `bin/cockpit open flow '#/lender?name=Finandina&rt=4'` crea la entidad si no
+  existe y la elige en el listado, con la oferta guardada (`src/route.js`). Cada navegador guarda sus propias
+  entidades: lo de Cockpit no está en el navegador de la sesión, ni al revés.
 - **Por consola, para un modelo:** `python3 flow/tools/flow_context.py map --text` · `route "<pregunta>" --text` ·
   `brief <tema> --text`. Mapa → una ficha → la fuente que cita. No le pases cédulas, solicitudes ni datos de un caso.
 - **Un caso o un estado real** no se contesta acá: el harness (correr), `bin/pg` (la base, Loki) y, en prod, el
