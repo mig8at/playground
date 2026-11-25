@@ -44,12 +44,17 @@ llave del puente no se copia: `CANON_PROXY_KEY` del proceso o la del `tools/cano
 ```sh
 bin/pg model info              # el modelo de segundo plano elegido en Cockpit y si contesta (sin preguntarle nada)
 bin/pg model ask --prompt '…'  # una pregunta; --file f.md|- , --system, --max-tokens, --json
-bin/pg model set claude|gemini # lo mismo que elegirlo en Cockpit (engranaje → Modelo)
+bin/pg model set aistudio|claude|gemini # lo mismo que elegirlo en Cockpit (engranaje → Modelo)
 ```
 
-`model` usa la preferencia de Cockpit (`lib/cockpit/settings.go`, `~/.config/creditop-cockpit/settings.json`): Claude
-por defecto, o Gemini por su API con la llave de `connectors/.env` (`gemini/`). Gemini por la web de AI Studio no sirve
-para lo agendado: pide Chrome abierto. ⚠ Sonnet 5.5 piensa antes de escribir: con `--max-tokens 60` lo gastó entero
+`model` usa la preferencia de Cockpit (`lib/cockpit/settings.go`, `~/.config/creditop-cockpit/settings.json`). **Por
+defecto, desde el 2026-11-24, Gemini (`gemini-4-hydrogen`) por la web de AI Studio** (`aistudio`, `bin/aistudio` en tu
+Chrome con Jarvis): sin costo, ventana de ~1 millón de tokens y cupo DIARIO por modelo (el 24/11 aguantó ~5 millones de
+tokens en 34 preguntas). Si está en pausa (cupo o corte de Google), `model info` dice «NO está listo · en pausa hasta
+HH:MM» y lo agendado espera: el dictamen de Sentinel reintenta cada 30 min y Knowledge retoma solo su corrida. Pide
+Chrome abierto con la extensión. **Claude por este puente queda como opción manual** (`model set claude`): el 24/11 se
+cortó y volvió varias veces con 502, y comparte cuenta con el canon de producción del equipo. Gemini por su API
+(`gemini/`) necesita una llave válida en `connectors/.env` (el 24/11 daba 401). ⚠ Sonnet 5.5 piensa antes de escribir: con `--max-tokens 60` lo gastó entero
 pensando y no devolvió texto; el de siempre es el tope del puente (16.384).
 
 ## Google Drive: con la cuenta de quien entra, sólo lectura

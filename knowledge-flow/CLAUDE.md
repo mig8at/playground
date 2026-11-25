@@ -59,14 +59,16 @@ git no tiene, en lote y con caché. Una mirada no puede tardar 10 minutos consul
 tardaba cada paso antes y después: [`tools/knowledge-drift/CLAUDE.md`](../tools/knowledge-drift/CLAUDE.md) §«Local
 primero».
 
-**El modelo** es el de segundo plano: Claude por el puente de canon, Gemini por API o, desde el 2026-11-24 (con el puente
-dando 502), **Gemini `gemini-4-hydrogen` por la web de AI Studio** en el Chrome de Miguel con Jarvis (`aistudio`,
-`bin/pg model set aistudio`): ~1,5 min por pregunta, de a una. Los paquetes se arman según su tamaño y el modelo: con Claude, el
+**El modelo: SIEMPRE Gemini `gemini-4-hydrogen` por la web de AI Studio** en el Chrome de Miguel con Jarvis
+(`knowledgeModel` en `server/model.go`), elija lo que elija Cockpit para lo demás (Miguel, 2026-11-24): sin costo, ~1,5
+min por pregunta, de a una. **Lo que queda sin decidir lo decide Claude en una sesión** (`bin/knowledge decide`). Si AI
+Studio está en pausa (cupo diario, corte de Google) o el modelo no contesta, la corrida queda «esperando al modelo» y el
+vigía la retoma sola desde el paso donde cayó apenas vuelve, aunque haya cambiado el conjunto de fuentes viejas. Los paquetes se arman según su tamaño y el modelo: con Claude, el
 triaje hasta 80 mil caracteres y 60 ítems y el código hasta 15 mil de prosa y 360 mil expandido; **con AI Studio van
 grandes** para aprovechar su ventana de ~1 millón de tokens (el triaje de 53 temas en 3 preguntas de ~190 mil tokens,
 el código hasta 60 mil de prosa y 1,6 millones expandido): menos preguntas son también menos cortes de Google, que
-limita por cantidad. `drift.py` lo decide solo leyendo el modelo elegido en Cockpit (`--big` lo fuerza) y una falla pasajera del modelo se
-reintenta; tras un corte de Google, el reintento espera su pausa.
+limita por cantidad. Knowledge le pasa `--big` a `drift.py`; cada pregunta reintenta hasta 5 veces una falla pasajera, y tras un corte de
+Google espera su pausa. Cada veredicto de la verificación queda guardado: retomar no repite lo verificado.
 
 | # | paso | quién | qué |
 |---|---|---|---|
