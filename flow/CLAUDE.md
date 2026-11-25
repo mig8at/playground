@@ -35,7 +35,7 @@ la solicitud y una columna por entidad, y cada celda dice si pasa (verde), si se
 baja (ámbar) o si no le aplica. Al abrir una celda sale, a la derecha, la «calculadora» del paso; arriba se edita el
 cliente (monto, ocupación, edad, score, negativos, continuidad) y toda la tabla se recalcula.
 
-- Hoy tiene cinco filas: **1 · Listado** (las reglas duras de la sucursal: tipo de documento, centrales y grupos; CreditopX
+- Tiene las seis filas: **1 · Listado** (las reglas duras de la sucursal: tipo de documento, centrales y grupos; CreditopX
   que no las cumple no sale, las demás salen con probabilidad baja) y **2 · Preaprobación** (quién contesta, las
   categorías si decide el motor, lo que se dicta si decide la API, el cupo y la cuota con su fianza) y **3 · Elegir la
   entidad** (`selectionCheck`: lo que revisa `update-user-request`, lo que guarda —el `amount` de CreditopX lleva el FGA,
@@ -44,7 +44,11 @@ cliente (monto, ocupación, edad, score, negativos, continuidad) y toda la tabla
   dicta en la celda y, si el primario no valida, pasa al siguiente) y **5 · Plan de pagos** (`paymentDateOptions` y
   `paymentSchedule`, que usa también el nodo del grafo: CreditopX el 5, 16 o 28 entre 26 y 60 días después de mañana; la
   delegada, cada día de su ficha en el mes siguiente si faltan 30 días o más, y el interés de los días de más en la
-  primera o en la última cuota según `extra_days_interest`, que trae `bin/flow import`). Falta la de firma y cierre.
+  primera o en la última cuota según `extra_days_interest`, que trae `bin/flow import`) y **6 · Firma y cierre**
+  (`signingOf`/`closingOutcome`: el juego de documentos en el orden de `PromissoryNoteController` —firma configurable,
+  juego fijo de Credifamilia, catálogo con o sin codeudor, estándar—, si el pagaré va a Deceval, la firma con OTP que se
+  dicta en la celda, el 11, la formalización del riel 4 y quién cobra; `bin/flow import` trae `lender_signing_documents`,
+  `netco_lender_settings`, `promissory_type_id` y `externally_serviced`).
 - Una categoría sin `max_fee_number` (NULL en la base) no recorta los plazos, como en main; hasta el 2026-11-25 Flow lo
   leía como 0 y dejaba a CreditopX sin plazos.
 - **No tiene lógica propia**: usa la de `store.js` (el listado, `sucursalGate`, `perfilDiag`, `bondOf`,

@@ -556,7 +556,7 @@ function flowDocumentTypes(v, countryId) {
 }
 // lenders.product → el producto de Flow (el codeudor y Ábaco dependen de renting / renting con compra).
 const FLOW_PRODUCT = { credit: 'credito', renting: 'renting', rto: 'rto' }
-export function applyProductionImport({ comercio, sucursal, item, profiles = [], tramos = [], groupRules = [], identity = [], importedAt = new Date().toISOString() }) {
+export function applyProductionImport({ comercio, sucursal, item, profiles = [], tramos = [], groupRules = [], identity = [], signing = null, importedAt = new Date().toISOString() }) {
   const lenderId = flowNum(item.id); let l = customLenders.find(x => x.production?.lenderId === lenderId && x.production?.branchId === flowNum(sucursal.id))
   if (!l) { let name = String(item.name || 'Entidad de producción'), n = 2; while (customLenders.some(x => x.name === name)) name = String(item.name || 'Entidad') + ' (prod ' + n++ + ')'; const norm = normalizeType(item.response_type, FLOW_PRODUCT[item.product] || 'credito'); l = L({ name, rt: norm.rt, custom: true, producto: norm.producto, terms: {}, overrides: {}, entidad: {} }); customLenders.push(l) }
   const amountMin = flowNum(item.min_amount), amountMax = flowNum(item.max_amount), dues = flowDues(item.fee_numbers, flowNum(item.max_fee_number)), rate = item.rate == null ? null : flowNum(item.rate)
@@ -609,7 +609,7 @@ export function applyProductionImport({ comercio, sucursal, item, profiles = [],
   const importedGroups = [...byGroup.values()]
   sucursalGroupsOf(l.name).splice(0, sucursalGroupsOf(l.name).length, ...importedGroups)
   // Los proveedores de identidad de la entidad (lender_identity_validation_types), en orden: el primero es el primario.
-  l.entidad = { ...l.entidad, identity: identity.map(x => ({ slug: String(x.slug), label: String(x.label) })) }
+  l.entidad = { ...l.entidad, identity: identity.map(x => ({ slug: String(x.slug), label: String(x.label) })), signing: signing || null }
   l.production = { lenderId, commerceId: flowNum(comercio.id), branchId: flowNum(sucursal.id), importedAt, baseline: { amountMin, amountMax, dues, rate, paisId: l.entidad.paisId, documentTypes: clone(documentTypes), profiles: clone(perfilOf(l.name)), tramos: clone(importedTramos), groupRules: clone(importedGroups), 'datacredito.minScore': dc.minScore, 'datacredito.maxNegatives': dc.maxNegatives, 'datacredito.maxInquiries': dc.maxInquiries, 'datacredito.minMaturation': dc.minMaturation, 'datacredito.allowZeroScore': dc.allowZeroScore } }
   ui.selected = l.name; focusWinningProfile(l.name); editTick.n++; return l
 }
@@ -1591,4 +1591,33 @@ export function paymentSchedule(row, n, first, today = new Date()) {
     rows.push({ n: i, date, label: shortDate(date), amount: b.cuota + (i === extraOn ? extraInterest : 0) })
   }
   return { breakdown: b, rows, extraDays, extraInterest, extraOn, total: rows.reduce((a, r) => a + r.amount, 0) }
+}
+
+// ── Firma y cierre ─────────────────────────────────────────────────────────────────────────────────────────────────
+// Qué documentos se firman (PromissoryNoteController, el primero que aplica; knowledge/origination-paths
+// #la-firma-en-casa…): 1) la firma configurable de la entidad (netco_lender_settings.enabled); 2) el juego fijo de
+// Credifamilia; 3) el catálogo de la entidad (lender_signing_documents) para la rama con o sin codeudor; 4) el juego
+// estándar. La firma se confirma con un OTP y ahí se autoriza: estado 11. En el riel 4, después, la formalización de su
+// ficha (Credifamilia radica por SOAP). `externally_serviced` dice quién cobra el crédito después.
+const STANDARD_DOCS = ['Consentimiento', 'Pagaré', 'Garantía']
+const signatureOk = reactive({}) // { [nombre]: false } si en la tabla se dicta que no firma; por defecto firma
+export function setSignatureOk(name, ok) { signatureOk[name] = !!ok; editTick.n++ }
+export function signingOf(lender, withCosigner = false) {
+  const s = lender?.entidad?.signing || null
+  if (!s) return { known: false, source: 'de un juego que no se sabe: falta importarla con bin/flow import', docs: STANDARD_DOCS, deceval: false, externallyServiced: false }
+  let source, docs
+  if (s.configurable) { source = 'de la firma configurable de la entidad'; docs = ['los documentos que configuró la entidad'] }
+  else if (s.credifamilia) { source = 'del juego fijo de Credifamilia (pdf-mapper)'; docs = ['vinculación', 'fondo de garantías', 'plan de pagos', 'reglamento', 'términos', 'autorización de desembolso'] }
+  else {
+    const branch = s.docs.filter(d => d.withCosigner === withCosigner)
+    if (branch.length) { source = 'de su catálogo de documentos' + (withCosigner ? ', rama con codeudor' : ''); docs = branch.map(d => d.title) }
+    else { source = 'del juego estándar (no tiene catálogo propio)'; docs = STANDARD_DOCS }
+  }
+  return { known: true, source, docs, deceval: s.deceval, externallyServiced: s.externallyServiced }
+}
+export function closingOutcome(lender, withCosigner = false) {
+  const sign = signingOf(lender, withCosigner)
+  const signs = signatureOk[lender.name] !== false
+  const formalization = lender.rt === 4 ? (delegatedOf(lender).formalization ? 'radica la operación ante la entidad (SOAP de Credifamilia)' : 'no radica nada: termina en el 11') : null
+  return { sign, signs, formalization }
 }

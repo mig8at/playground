@@ -6,6 +6,7 @@ import {
   branchGateDiag, branchCreditBureauRules, categoryDiag, usesQuotaEngine, usesPreApproval, preApprovalResponseOf,
   setPreApprovalField, installmentBreakdown, bondOf, calcValue, selectionCheck,
   identityOutcome, setIdentityResult, IDENTITY_PROVIDERS, paymentDateOptions, paymentSchedule, delegatedOf, CREDITOPX_PAYMENT_DAYS,
+  closingOutcome, setSignatureOk,
 } from './store'
 
 // La TABLA del flujo (2026-11-25): el mismo cliente contra todas las entidades, paso por paso. Cada fila es un paso de
@@ -120,21 +121,35 @@ function planCell(c, previous) {
   return { status: 'pass', title: `${money(p.plan.breakdown.cuota)} × ${p.n} cuotas`, line: `1.ª fecha ${p.first.label}${extra}` }
 }
 
+// ── Fila 6 · FIRMA Y CIERRE: firma los documentos con un OTP, se autoriza (estado 11) y, en la delegada, se formaliza
+// según su ficha. Si la categoría que ganó lleva codeudor, firma la rama con codeudor del catálogo.
+const withCosigner = (c) => /codeudor/i.test(String(c.row?.category || ''))
+function closingCell(c, previous) {
+  if (previous.status !== 'pass') return { status: 'off', title: 'No llega', line: 'se cortó antes' }
+  if (c.def.rt === 0 || c.def.rt === 1) return { status: 'na', title: 'No aplica', line: c.def.rt === 0 ? 'cierra en el sitio de la entidad' : 'la entidad informa el resultado' }
+  const o = closingOutcome(c.def, withCosigner(c))
+  if (!o.signs) return { status: 'fail', title: 'No firmó', line: 'sin OTP no se autoriza: no llega a 11' }
+  const after = o.formalization ? (/radica la/.test(o.formalization) ? ' · radica' : '') : ''
+  return { status: 'pass', title: '11 · Autorizada' + after, line: `${o.sign.docs.length} documentos · cobra ${o.sign.externallyServiced ? 'la entidad' : 'Creditop'}` }
+}
+
 const ROWS = [
   { key: 'listing', n: 1, label: 'Listado', ask: '¿Aparece la tarjeta?' },
   { key: 'preapproval', n: 2, label: 'Preaprobación', ask: '¿Cuánto le prestan?' },
   { key: 'selection', n: 3, label: 'Elegir la entidad', ask: '¿Qué se guarda al tocar «Continuar»?' },
   { key: 'identity', n: 4, label: 'Validación de identidad', ask: '¿Es el dueño de la cédula?' },
   { key: 'plan', n: 5, label: 'Plan de pagos', ask: '¿Cuándo paga y cuánto?' },
+  { key: 'closing', n: 6, label: 'Firma y cierre', ask: '¿Qué firma y cómo termina?' },
 ]
-const NEXT_ROWS = ['Firma y cierre']
+const NEXT_ROWS = []
 
 const grid = computed(() => columns.value.map(c => {
   const listing = listingCell(c)
   const preapproval = preApprovalCell(c, listing)
   const selection = selectionCell(c, preapproval)
   const identity = identityCell(c, selection)
-  return { c, cells: { listing, preapproval, selection, identity, plan: planCell(c, identity) } }
+  const plan = planCell(c, identity)
+  return { c, cells: { listing, preapproval, selection, identity, plan, closing: closingCell(c, plan) } }
 }))
 
 // ── La celda abierta: la «calculadora» del paso, en el panel de la derecha.
@@ -199,6 +214,11 @@ const planDetail = computed(() => {
   if (!openCol.value || open.value.row !== 'plan') return null
   const c = openCol.value.c
   return { c, l: c.def, ...planFor(c) }
+})
+const closeDetail = computed(() => {
+  if (!openCol.value || open.value.row !== 'closing') return null
+  const c = openCol.value.c
+  return { c, l: c.def, cosigner: withCosigner(c), ...closingOutcome(c.def, withCosigner(c)) }
 })
 function setPlan(name, key, v) { planChoice.value = { ...planChoice.value, [name]: { ...(planChoice.value[name] || {}), [key]: v } } }
 const shownRows = computed(() => {
@@ -471,6 +491,36 @@ const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
             <p class="tv-p tv-p--m">Aproximado: el plan real lo calcula el backend (con el 4×1000 y sus redondeos).</p>
           </template>
           <p v-else class="tv-p tv-p--m">{{ planDetail.l.rt === 0 || planDetail.l.rt === 1 ? 'El plan lo arma la entidad en su flujo.' : 'No hay plazos o fechas para armar el plan.' }}</p>
+        </div>
+
+        <div v-else-if="closeDetail" class="region-body tv-calc__b">
+          <h3>¿Qué firma y cómo termina?</h3>
+          <template v-if="closeDetail.l.rt === 0 || closeDetail.l.rt === 1">
+            <p class="tv-p">{{ closeDetail.l.rt === 0 ? 'El redirect cierra en el sitio de la entidad: CreditOp no sella el resultado.' : 'El agregador: la entidad firma y decide en su flujo, y le informa el resultado a CreditOp.' }}</p>
+          </template>
+          <template v-else>
+            <p class="tv-p">El cliente ve los documentos llenos con sus datos, los firma con un <b>código OTP</b> que le llega al celular, y
+              con eso se <b>autoriza</b> el crédito: la solicitud pasa al estado <b>11</b> (terminal), toma número y se crea el crédito.</p>
+
+            <div class="tv-sec">Qué firma</div>
+            <p class="tv-p tv-p--m">Sale {{ closeDetail.sign.source }}<template v-if="closeDetail.cosigner"> (la categoría que ganó lleva
+              codeudor: él también firma)</template>.</p>
+            <div v-for="d in closeDetail.sign.docs" :key="d" class="tv-cond ok"><Check :size="11" /> {{ d }}</div>
+            <div class="tv-kv"><span>Pagaré</span><b>{{ closeDetail.sign.deceval ? 'desmaterializado en Deceval' : 'firmado con los documentos' }}</b></div>
+
+            <div class="tv-sec">La firma</div>
+            <div class="tv-chips">
+              <button type="button" class="chip-toggle" :class="{ on: closeDetail.signs }" @click="setSignatureOk(closeDetail.l.name, true)">firma con el OTP</button>
+              <button type="button" class="chip-toggle" :class="{ on: !closeDetail.signs }" @click="setSignatureOk(closeDetail.l.name, false)">no firma</button>
+            </div>
+
+            <div class="tv-sec">Después de firmar</div>
+            <div class="tv-kv"><span>Estado</span><b>{{ closeDetail.signs ? '11 · Autorizada' : 'no llega a 11' }}</b></div>
+            <div v-if="closeDetail.formalization" class="tv-kv"><span>Formalización (riel 4)</span><b>{{ closeDetail.formalization }}</b></div>
+            <div class="tv-kv"><span>Quién cobra el crédito</span><b>{{ closeDetail.sign.externallyServiced ? 'la entidad, en su sistema' : 'Creditop' }}</b></div>
+            <p class="tv-p tv-p--m">Si la formalización falla, la autorización ya quedó: la solicitud está en 11, pero sin notificaciones ni
+              comprobante, y repetir el OTP no lo arregla.</p>
+          </template>
         </div>
       </aside>
     </div>
