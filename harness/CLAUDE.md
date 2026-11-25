@@ -165,7 +165,7 @@ Lo profundo vive en skills, y se carga cuando hace falta:
 | `harness-desenlaces` | un caso tenga que cerrar: `LAMBDA=1`, la cuota inicial con Wompi, los webhooks de rt=1 y rt=0, qué mirar antes de concluir |
 | `harness-canal-qr` | trabajes el canal QR / Corbeta / Bancolombia |
 | `harness-canal-ecommerce` | trabajes la entrada por tienda (URL base64) |
-| `harness-panel` | toques el panel: el mapa del recorrido, `CAPS`, el selector de comercio, el switch de front/Cognito |
+| `harness-panel` | toques el panel: los pasos del recorrido (`steps.json`), `CAPS`, el selector de comercio, el switch de front/Cognito |
 
 Propuestas para el panel salidas de las corridas: `panel/IMPROVEMENTS-FROM-THE-RUNS.md`. Respetan la
 regla: el panel corre, no valida.

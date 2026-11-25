@@ -23,7 +23,7 @@
        Todo lo que la base ya da —regiones, bandas de 40, filas, pestañas, controles, menús, avisos,
        el pie— sale de `workbench.css`, y acá NO se repite ni se anula: una regla que duplica la base
        se borra. Lo que queda es sólo del panel: sus colores semánticos, el grid propio de la cáscara,
-       el panel de propiedades, la fila de entidad y el mapa del recorrido.
+       el panel de propiedades y la fila de entidad.
 
        Hasta el 2026-09-24 esta hoja tenía ~1.300 líneas: un puente de nombres viejos (`--bg`,
        `--mut`, `--acc`…), tres generaciones de estilos apiladas y reglas que se anulaban entre sí.
@@ -37,8 +37,7 @@
        verde azulado, y «roto» tiene que leerse rojo.
 
        Los del DOMINIO van al lado por lo mismo que los carriles del trazador: `response_type` dice
-       cómo decide la entidad y `product` qué se financia. El mapa los usa para sus carriles, así la
-       leyenda es una sola para la fila de entidad y para el dibujo. */
+       cómo decide la entidad y `product` qué se financia; los usan las insignias de la fila de entidad. */
     /* Cada color, en los DOS temas: el claro en `:root` y el oscuro en `.dark` (la clase que pone el
        botón del pie). Un color pensado para fondo oscuro sobre blanco no se lee —el ámbar #f59e0b da
        2,1:1 sobre blanco—, así que el claro es otro color, no el mismo. Los dos juegos se miden con
@@ -58,7 +57,6 @@
       --prod-credit: var(--ok);
       --prod-renting: #854d0e;
       --prod-rto: #c2410c;
-      --lane-trunk: #64748b;   /* el tronco del mapa: neutro, para que los carriles resalten */
 
       /* Medidas propias, con nombre para que no queden números sueltos en las reglas. */
       --prop-label-w: 104px;   /* la columna de rótulos del panel de propiedades */
@@ -73,7 +71,6 @@
       --rt4: #c084fc;
       --prod-renting: #eab308;
       --prod-rto: #fb923c;
-      --lane-trunk: #9aa4b2;
     }
 
     /* ⚠ LOS TINTES SE MEZCLAN `in oklab`, NUNCA `in oklch`. Los neutros del tema son `oklch(L 0 0)`:
@@ -180,10 +177,10 @@
     /* Contra el borde de la ventana, la zona de agarre no puede salirse o la cáscara scrollea 4 px. */
     .rsz-r.folded::after { right: 0 }
 
-    /* ── EL CENTRO: la cabecera del recorrido y el mapa ─────────────────────────────────────────── */
+    /* ── EL CENTRO: la cabecera del recorrido y los celulares ─────────────────────────────────────────── */
     .editorbox { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--background) }
     /* ⚠ `flex: 1 1 0` + `min-height: 0`: sin eso el editor no se achica por debajo de su contenido y
-       el mapa empuja la cabecera fuera de la pantalla. */
+       los celulares empujan la cabecera fuera de la pantalla. */
     .editorbox > .editor { flex: 1 1 0; min-height: 0; overflow: auto; padding: var(--space-3); gap: var(--space-3) }
     /* CON «PANELES» EL PANEL DEL CENTRO ES LA CAJA ENTERA —las pestañas de las corridas y el editor—, como una ventana
        con pestañas. La regla compartida enmarca sólo `.editor` (es la región), y la caja quedaba como un rectángulo
@@ -252,29 +249,13 @@
        los dos temas), visible sólo con una corrida andando. */
     .stop { display: none }
     .stop.on { display: inline-flex }
-    /* El aviso de ambiente compartido: pertenece a la corrida, dentro del editor y sobre el mapa. Es el
+    /* El aviso de ambiente compartido: pertenece a la corrida, dentro del editor. Es el
        `.alert.alert-warn` de la base; acá sólo que no se encoja. */
     .alert-warn { flex: none }
 
     /* Los valores a TIPEAR durante la corrida (el OTP, el documento). Nace de un fallo real: se tipeó
        un teléfono que no era el del bypass y el OTP no llegaba nunca. Cada valor es un OBJETO que se
        copia, así que lleva su contorno; el grupo no. */
-
-    /* ═══ EL MAPA ═════════════════════════════════════════════════════════════════════════════════
-       Es el centro: ocupa lo que sobre, sin marco ni cabecera. ⚠ PERO LA CABECERA GUARDA EL AVISO:
-       `#routeMapWarn` es donde el mapa dice lo que NO pudo dibujar, y se muestra SÓLO cuando hay algo
-       que avisar — un mapa incompleto no puede verse igual que uno completo. */
-    .route-map { flex: 1 1 auto; min-height: 220px; display: flex; flex-direction: column; margin: 0 }
-    .route-map > summary { display: none }
-    .route-map > summary:has(#routeMapWarn:not(:empty)) {
-      display: flex; align-items: center; flex: none; padding-bottom: var(--space-2);
-      font-size: var(--text-sm); font-weight: 600; color: var(--warn); list-style: none;
-    }
-    /* ⚠ Chrome envuelve el contenido de un `<details>` en `::details-content`: sin esta regla el lienzo
-       se queda en su alto de contenido (152 px) y el `flex: 1` no tiene a quién pedirle espacio. */
-    .route-map::details-content { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column }
-    .map-view { display: flex; flex-direction: column; padding: var(--space-2) var(--space-3) }
-    .map-view > .empty { flex: 1 1 auto; display: flex; align-items: center; justify-content: center }
 
     /* ═══ LOS DOS CELULARES ═══════════════════════════════════════════════════════════════════════
        Asesor a la izquierda, cliente a la derecha. El tamaño lo pone el ALTO del editor y, con los dos a la vista, también
@@ -478,24 +459,6 @@
     .shop-total strong { font-size: var(--text-title) }
     .shop-pay { width: 100% }
     .device-empty { margin: 0; padding: var(--space-3); font-size: var(--text-sm); color: var(--fg-2); text-align: center }
-    #routeMapCanvas { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden }
-    #routeMapSvg { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none }
-    #routeMapSvg.drag { cursor: grabbing }
-    #routeMapSvg text { user-select: none }
-    /* Los rótulos del mapa son parte del DIBUJO, no texto de la interfaz: sus tamaños se eligieron para
-       el grafo a escala 0,55–1 y no siguen la escala de la base. */
-    .node-label { font-size: var(--text-sm); fill: var(--foreground) }
-    .node-count { font-size: 10px; fill: var(--fg-3) }
-    .lane-label { font-size: var(--text-xs); font-weight: 600 }
-    .lane-sub { font-size: 10px; fill: var(--fg-3) }
-    .node:hover .node-label { font-weight: 600 }
-    /* El paso donde está parada la corrida: un anillo que late. No cambia el color del nodo —ése dice
-       el PRODUCTO— sino que le suma un borde, para que las dos cosas se lean juntas. */
-    .node.current > circle { stroke: var(--foreground); stroke-width: 3; animation: pulse 1.6s ease-in-out infinite }
-    .node.current .node-label { font-weight: 600 }
-    .lane-off circle { opacity: .35 }
-    .lane-off .node-label, .lane-off .lane-label { fill: var(--fg-3) }
-
     /* La última evidencia y los indicadores del estado de los servicios: dato + contexto, SIN caja
        —la caja envolvía contenido, que es justo lo que ya no se hace—. El color va en el valor y dice
        el estado. Todo sale de algo medido: si un dato no se puede medir, el indicador lo dice. */
@@ -553,7 +516,7 @@
     /* Apagada = tachada, como un archivo ignorado: si desapareciera, «no está» y «está apagada» se
        verían igual, y son cosas distintas. */
     .lender-row.off .lender-name { color: var(--fg-3); text-decoration: line-through }
-    /* La inicial del producto y el `rt`, con el color que cada uno tiene en el mapa: una sola leyenda
+    /* La inicial del producto y el `rt`, con el color de su producto o su riel: una sola leyenda
        para las dos vistas. Son TEXTO, no píldoras — no son objetos que se toquen. */
     .product-tag { min-width: var(--control-xs) }   /* «C» y «RO» ocupan lo mismo: los nombres quedan en columna */
     .pr-credit { color: var(--prod-credit) }
@@ -770,7 +733,7 @@
            herramientas (2026-11-19): la consola es del editor, no de la ventana. -->
       <div class="center">
       <section class="editorbox">
-        <!-- ⛔ SIN BANDA (2026-10-06): el centro es de los CELULARES y el mapa vive en su pestaña de la consola, así
+        <!-- ⛔ SIN BANDA (2026-10-06): el centro es de los CELULARES (el mapa del recorrido se quitó el 2026-11-25), así
              que «Recorrido» ya no rotulaba nada. Lo que llevaba se repartió por lo que es: el AMBIENTE y la
              corrida automática (lanzar · detener · su tiempo) al pie, que es global y siempre está a la vista;
              el CANAL al grupo «Caso» de la configuración, porque es un dato del caso.
@@ -806,8 +769,8 @@
           </div>
         </nav>
         <main class="editor" id="stage">
-          <!-- LOS DOS CELULARES: el del asesor y el del cliente, lado a lado. Por ahora son el marco; el mapa
-               del recorrido se mudó a la pestaña «Mapa» de la consola para dejarles el centro. -->
+          <!-- LOS DOS CELULARES: el del asesor y el del cliente, lado a lado. El mapa del recorrido, que
+               antes ocupaba el centro y después una pestaña de la consola, se quitó el 2026-11-25: no se usaba. -->
           <!-- DOS VISTAS DEL CENTRO: «Originación» son los celulares (asesor y cliente) y «Admin» es una PC con el admin de
                `legacy-application` del ambiente elegido, ya logueada (`/api/device/admin/open`). Es el mismo mecanismo de
                los celulares —un navegador del servidor que se ve y se toca acá—, con pantalla de escritorio. -->
@@ -908,7 +871,7 @@
                 </div>
               </div>
               <!-- Al costado del celular, con algo abierto: «Recargar», «Capturar» y «Abrir en pestaña». «Siguiente» y «Al final»
-                   se sacaron (2026-10-13): el celular ya se toca y se escribe directo. Avanzar hasta una pantalla sigue en el mapa.
+                   se sacaron (2026-10-13): el celular ya se toca y se escribe directo. Avanzar hasta el final sigue en el botón «Al final».
                    «Abrir en pestaña» es un enlace y no un botón: lo abre el navegador, sin script (`/api/device/<id>/tab`). -->
               <div class="device-actions" id="advisorActions">
                 <button type="button" class="device-reload device-play" data-device="advisor" hidden><span class="ui-icon" data-icon="play" aria-hidden="true"></span><span>Iniciar</span></button>
@@ -948,7 +911,7 @@
                 </div>
               </div>
               <!-- Al costado del celular, con algo abierto: «Recargar», «Capturar» y «Abrir en pestaña». «Siguiente» y «Al final»
-                   se sacaron (2026-10-13): el celular ya se toca y se escribe directo. Avanzar hasta una pantalla sigue en el mapa.
+                   se sacaron (2026-10-13): el celular ya se toca y se escribe directo. Avanzar hasta el final sigue en el botón «Al final».
                    «Abrir en pestaña» es un enlace y no un botón: lo abre el navegador, sin script (`/api/device/<id>/tab`). -->
               <div class="device-actions" id="clientActions">
                 <button type="button" class="device-reload device-play" data-device="client" hidden><span class="ui-icon" data-icon="play" aria-hidden="true"></span><span>Iniciar</span></button>
@@ -1021,7 +984,6 @@
           <button type="button" class="tab" id="tabSsr" role="tab" aria-selected="false" title="El stdout del wizard (SSR): sus llamadas salientes y sus errores">SSR</button>
           <button type="button" class="tab" id="tabMocks" role="tab" aria-selected="false" title="Los mocks locales que vigila el panel: si responden, quién los levantó y su salida">Mocks</button>
           <button type="button" class="tab" id="tabRecipes" role="tab" aria-selected="false" title="Las recetas de código: qué pregunta contesta cada una, contra qué repo corre y la última vez que corrió">Recetas</button>
-          <button type="button" class="tab" id="tabMap" role="tab" aria-selected="false" title="El mapa del recorrido del comercio: sus carriles y dónde va la corrida">Mapa</button>
           <div class="region-actions" role="group" aria-label="Acciones de consola">
             <span id="consoleTabNote" class="count" hidden></span>
             <span id="consoleFilterState" class="count filtered" hidden>Filtrada</span>
@@ -1056,22 +1018,6 @@
               <thead><tr><th>Receta</th><th>Qué contesta</th><th>Corre en</th><th>Pide</th><th>La última vez</th></tr></thead>
               <tbody id="recipeRows"></tbody>
             </table>
-          </div>
-          <!-- El mapa del recorrido (antes ocupaba el centro). Se encuadra solo al mostrarse. -->
-          <div id="mapScroll" class="region-body map-view" style="display:none">
-              <details class="route-map" id="routeMap" open hidden>
-                <summary><span id="routeMapWarn"></span></summary>
-                <div id="routeMapCanvas">
-                  <svg id="routeMapSvg" aria-label="Mapa del recorrido"><g id="routeMapCamera"></g></svg>
-                </div>
-              </details>
-              <div class="empty" id="stageEmpty">
-                <div class="empty-head">
-                  <div class="empty-media"><span class="ui-icon" data-icon="channel" aria-hidden="true"></span></div>
-                  <div class="empty-title">El recorrido aparece acá</div>
-                  <div class="empty-desc">Elegí un comercio en la columna de la izquierda y el mapa dibuja sus carriles.</div>
-                </div>
-              </div>
           </div>
         </div>
       </section>
@@ -1522,7 +1468,7 @@
     let paDelay = 0;             // ms de espera del mock de pre-aprobados (para ver el loader)
     let paStatus = {};           // status por lender que devolverá el mock: { lenderId: 'approved'|'rejected'|'pending' }
     let poll = null;
-    let merchantLenders = [];  // lenders de la sucursal actual: su `rt` decide qué ramales dibuja el mapa
+    let merchantLenders = [];  // lenders de la sucursal actual
     let logOpen = false;         // drawer de la consola en el dock
 
     const fmt = (n) => (n || 0).toLocaleString('es-CO');
@@ -1825,8 +1771,8 @@
       for (const e of groups.get(country)) {
         const chosenOne = !!sel && (sel.slug === e.slug || (e.hash && sel.slug === e.hash));
         // La elegida es la `.row` elegida de la base (`aria-selected`: fondo y barra de 2), no una tilde.
-        // Sin chevron: la fila ya no se despliega, ABRE el comercio (su mapa al centro y su pestaña
-        // «Comercio» a la derecha). El icono es el de comercio (`store`): cada fila es una sucursal.
+        // Sin chevron: la fila ya no se despliega, ABRE el comercio (sus celulares al centro y su
+        // pestaña «Comercio» a la derecha). El icono es el de comercio (`store`): cada fila es una sucursal.
         const absent = !!e.missing;
         const rowEl = treeRow([absent ? 'missing copy-cmd' : '', e.unreachable ? 'unreachable' : ''].filter(Boolean).join(' '), 0, 'merchant',
           // Sin hash a la vista (va en el tooltip): ruido para elegir. El meta sólo dice «midiendo» o, más abajo, ⚠.
@@ -2155,7 +2101,7 @@
       };
     }
     // «Hasta el final» (`/api/device/<id>/advance-all`): el ciclo corre en el servidor y escribe en la consola. Mientras
-    // corre, el botón es «Detener». Un clic en un nodo del mapa hace lo mismo hasta esa pantalla (`advanceDeviceTo`).
+    // corre, el botón es «Detener». `advanceDeviceTo` hace lo mismo hasta una pantalla.
     const advanceAllBtn = (dev) => document.querySelector(`.device-advance-all[data-device="${dev}"]`);
     function paintAdvanceAll(dev, running) {
       const b = advanceAllBtn(dev); if (!b) return;
@@ -2745,10 +2691,8 @@
         }
         mockPA = r.mockPA !== false;   // lo decide E2E_REAL_PREAPPROVALS por target, no el panel
         applyMockPAGate();             // con MS real "Espera pre-aprobados" no aplica → se oculta (como los estados por lender)
-        merchantLenders = ls;   // el mapa de tren dibuja los ramales según el rt de estos
-        renderTrain();
+        merchantLenders = ls;
         loadStatus();
-      setTimeout(followRunOnMap, 0);   // el mapa se redibujó: volver a marcar dónde va
         if (!ls.length) { box.innerHTML = '<p class="list-note">Sin lenders (¿sucursal en harness.json?).</p>'; return; }
         box.innerHTML = '';
         for (const l of ls) {
@@ -2786,8 +2730,7 @@
           // ⚠ TODO LO LARGO PASA A TOOLTIP. Un sidebar de 300 px no aguanta «#170 · rto» + «rt2
           // in-platform» al lado de un nombre: la fila se salía y el chip quedaba cortado contra el
           // borde, que es peor que no mostrarlo —se ve que hay un dato y no se puede leer—. El producto
-          // queda en una INICIAL con el color que ese mismo producto tiene en el mapa (`COLOR`), así la
-          // leyenda es una sola para las dos vistas; el `rt` queda en el número pelado. El texto entero
+          // queda en una INICIAL con el color de su producto (la clase `pr-<producto>`); el `rt` queda en el número pelado. El texto entero
           // vive en el `title` de cada uno.
           const esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
           const [ini, prodTxt] = PRODUCT[l.product] || ['\u00b7', l.product ? String(l.product) : 'sin product en este ambiente'];
@@ -2800,7 +2743,7 @@
           //     corrida. En `local` da igual; en dev/staging/qa lo ve todo el equipo, así que ahí PIDE
           //     CONFIRMACIÓN. Un control que cuesta lo mismo en los dos casos es el que produce el
           //     accidente — la asimetría del riesgo tiene que verse en el gesto.
-          // La inicial del producto y el `rt` son `.badge-ghost`: texto con el color del mapa, sin caja —
+          // La inicial del producto y el `rt` son `.badge-ghost`: texto con el color del producto, sin caja —
           // no son objetos que se toquen—, y la clase de la base los deja fuera del `flex: 1` del nombre.
           row.title = `${l.name} · arrastrá para reordenar el listado · click derecho para más opciones`;
           row.innerHTML = `<span class="ui-icon grip" data-icon="grip" aria-hidden="true"></span>`
@@ -2868,7 +2811,7 @@
     //
     // ⚠ NO REIMPLEMENTA NADA: llama a `savePaStatuses()` y a `toggleLender()`, que son los mismos que
     // usaban el `<select>` y el botón. Tener dos caminos que escriben lo mismo es como empiezan a
-    // divergir — y uno de los dos siempre se olvida de redibujar el mapa.
+    // divergir — y uno de los dos siempre se olvida de algo.
     const PA_LABEL = { approved: 'aprobado', rejected: 'rechazado', pending: 'pendiente' };
     const PA_CYCLE = ['approved', 'pending', 'rejected'];
     const PA_LETTER = { approved: 'A', pending: 'P', rejected: 'R' };
@@ -2901,8 +2844,7 @@
      * al servidor y reconstruye el DOM entero: se ve como una recarga, parpadea y te mueve el
      * scroll — con siete filas ya molesta, y en una sucursal con diez es insufrible. Nada de lo que
      * `loadLenders()` trae cambia al tocar un control: el estado ya está en `lendersDelComercio` y
-     * en `paStatus`. Lo único que además hay que refrescar es el mapa (lo hace `toggleLender`) y el
-     * resumen de la sección (`resumenEntidades`).
+     * en `paStatus`. Lo único que además hay que refrescar es el resumen de la sección (`resumenEntidades`).
      */
     function paintEntity(id) {
       const l = (merchantLenders || []).find((x) => Number(x.id) === Number(id));
@@ -3143,9 +3085,8 @@
         const r = await (await fetch('/api/lender-toggle', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ slug: sel.slug, target, lenderId: id, status }) })).json();
         if (r && r.ok) {
           forgetLenders(sel.slug);   // lo precargado de este comercio ya no vale
-          // el mapa de arriba dibuja solo los carriles con entidades prendidas → hay que redibujarlo
           const l = merchantLenders.find(x => Number(x.id) === Number(id));
-          if (l) { l.lender_status = status ? 1 : 0; renderTrain(); }
+          if (l) l.lender_status = status ? 1 : 0;
           paintEntity(id);
         }
         else notify((r && r.msg) || `No se pudo ${status ? 'prender' : 'apagar'} la entidad ${id} en ${target} y el panel no dijo por qué. El detalle queda en la terminal donde corre el panel (npm run dev en harness).`);
@@ -3202,7 +3143,7 @@
       try { myLane = laneOfTab(currentTab()) || ''; } catch { /* todavía no hay pestañas */ }
       try { e = await (await fetch('/api/estado?lane=' + myLane)).json(); } catch { /* el panel sigue sin esto */ }
       if (requestedTarget !== target || requestedSlug !== sel?.slug) return;
-      $('healthSummary').textContent = e ? 'Ver servicios, entidades y mapa' : 'No se pudo consultar el estado';
+      $('healthSummary').textContent = e ? 'Ver servicios y entidades' : 'No se pudo consultar el estado';
       $('missingServices').replaceChildren();
       $('healthDetails').classList.remove('needs-attention');
       const box = $('stats'); if (!box) return;
@@ -3343,7 +3284,7 @@
         }
       }
 
-      // 5 · el mapa de pasos: si una ruta dejó de existir, el conteo del recorrido miente
+      // 5 · los pasos del recorrido (`steps.json`): si una ruta dejó de existir, el conteo del recorrido miente
       if (e?.mapa) {
         // Qué genera los documentos: la perilla vive en el `.env` de OTRO repo, así que sin esto es
         // invisible — y cambia QUÉ prueba la corrida, no sólo cuánto tarda.
@@ -3351,7 +3292,7 @@
           out.push(card(e.docGen.modo === 'microservice' ? 'stat-warn' : '', 'Documentos',
             e.docGen.modo === 'microservice' ? 'mock' : e.docGen.modo, e.docGen.detalle));
         }
-        out.push(card(e.mapa.ok ? 'stat-ok' : 'stat-bad', 'Mapa del flujo',
+        out.push(card(e.mapa.ok ? 'stat-ok' : 'stat-bad', 'Pasos del recorrido',
           `${e.mapa.pasos}`,
           e.mapa.ok ? `pasos · <b>${e.mapa.archivos}</b> rutas verifican` : `⚠ ${e.mapa.rotas.length} rutas NO existen`,
           'node bin/steps-check.ts'));
@@ -3366,285 +3307,6 @@
     // (Se quitó la "actividad de BD" en vivo: la comprobación de qué persistió la corrida ahora se hace
     // UNA vez al cerrar —server.ts child.on('close')— y aparece en la consola de la corrida, no como puntos
     // que se refrescaban cada 2s cargando la BD compartida.)
-
-    // ── MAPA DE TREN ────────────────────────────────────────────────────────────────────────────
-    // Tronco común hasta /lenders y de ahí un ramal por response_type. Solo se dibujan los ramales que
-    // el comercio TIENE (mirando el rt de sus lenders), así el mapa habla de ESTE comercio y no del
-    // universo. El hover muestra los archivos que el paso toca de verdad — la definición está en
-    // panel/steps.json y bin/steps-check.ts verifica que cada ruta exista.
-    //
-    // INVARIANTE: el mapa depende del COMERCIO, no del ambiente. El mismo comercio dibuja el mismo
-    // recorrido en local, dev y staging, porque describe la lógica de CreditOp y no el estado de una
-    // base. Lo que sí varía entre ambientes —qué entidades están prendidas— se anota (nombre
-    // "(apagado)" y carril atenuado) sin alterar la forma. Si al tocar esto el diagrama vuelve a
-    // cambiar de forma según el target, es un bug: revisá que nada filtre por `lender_status` ni use
-    // la identidad del lender como clave de carril.
-    let STEPS = null;
-
-    async function loadSteps() {
-      try { STEPS = await (await fetch('/api/steps')).json(); } catch { STEPS = null; }
-      renderTrain();
-    }
-
-    // ── Recorrido del wizard · grafo de git HORIZONTAL ───────────────────────────────────────────
-    // El TRONCO es el camino feliz completo (monto → … → crédito aprobado). Lo que se abre son:
-    //   · DESVÍOS  que salen y REINGRESAN (Ábaco en renting: confirmation → first-payment-date)
-    //   · RAMALES terminales que salen y NO vuelven (rt1 y rt0 resuelven fuera del wizard)
-    // Esa distinción es el corazón del dibujo: una rama que vuelve y una que termina son cosas
-    // distintas, y el diagrama anterior las mostraba igual.
-    const G = { col: 132, fila: 96, x0: 40, y0: 150 };
-    // Color por TIPO DE PRODUCTO, no por lender: dos lenders del mismo producto recorren lo mismo, y
-    // dos productos distintos son caminos distintos aunque compartan pantallas. El tronco va neutro
-    // para que los carriles resalten.
-    // ⚠ Son TOKENS de la hoja, no colores escritos acá: un color pensado para fondo oscuro sobre blanco
-    // no se lee, y los atributos del SVG aceptan `var()`, así que el dibujo sigue al tema solo. Las
-    // claves son las del dato (`product`, el id del ramal en `steps.json`), no nombres de la UI.
-    const COLOR = {
-      tronco: 'var(--lane-trunk)',
-      credit: 'var(--prod-credit)',     // CreditopX clásico
-      renting: 'var(--prod-renting)',   // renting (pasa por Ábaco)
-      rto: 'var(--prod-rto)',           // renting con opción de compra (Ábaco + a futuro codeudor)
-      rt4: 'var(--rt4)',                // Credifamilia: origina in-platform, radica por SOAP
-      agregador: 'var(--rt1)',          // rt1: decide la entidad por API
-      redirect: 'var(--rt0)',           // rt0: sale a la entidad
-      creditopx: 'var(--prod-credit)', abaco: 'var(--prod-renting)',
-    };
-    const svgNS = 'http://www.w3.org/2000/svg';
-    const el = (t, at, txt) => {
-      const n = document.createElementNS(svgNS, t);
-      for (const k in at) n.setAttribute(k, at[k]);
-      if (txt != null) n.textContent = txt;
-      return n;
-    };
-    const short = (t, n) => (t && t.length > n ? t.slice(0, n - 1) + '…' : t || '');
-
-    // curva en S horizontal: sale y entra HORIZONTAL en cada extremo (tiradores en x), que es lo que
-    // le da el trazo limpio del grafo de git en vez del efecto "resorte" de una bezier libre.
-    const curve = (x1, y1, x2, y2) => { const k = Math.max(26, (x2 - x1) * 0.45); return `M ${x1} ${y1} C ${x1 + k} ${y1}, ${x2 - k} ${y2}, ${x2} ${y2}`; };
-    const rail = (d, color) => el('path', { d, stroke: color, 'stroke-width': 6, 'stroke-linecap': 'round', fill: 'none' });
-
-    function nodeSVG(p, x, y, color) {
-      const g = el('g', { class: 'node', 'data-paso': p.id || '', transform: `translate(${x},${y})` });
-      // Con un celular abierto, un clic en el nodo lo avanza hasta esa pantalla (el del cliente si están los dos).
-      g.addEventListener('node-pick', () => {
-        if (!p.id || !openDevicesNow.length) return;
-        advanceDeviceTo(openDevicesNow.includes('client') ? 'client' : 'advisor', p.id);
-      });
-      const nf = (p.front || []).length, nb = (p.back || []).length;
-      const files = [...(p.front || []).map(f => 'front  ' + f), ...(p.back || []).map(f => 'back   ' + f)];
-      // el label del nodo es CORTO a propósito (legibilidad del grafo); el nombre descriptivo y el
-      // detalle técnico viven acá, en el tooltip.
-      g.appendChild(el('title', {}, `${p.detalle || p.label}${p.ruta ? '\n' + p.ruta : ''}\n\n${p.nota || ''}\n\n── ${nf} archivo(s) front · ${nb} back ──\n${files.join('\n')}`));
-      // hueco = paso CONDICIONAL (se puede saltear) · sólido = siempre ocurre. La diferencia importa:
-      // dibujar todo sólido mostraba el peor caso como si fuera el único.
-      g.appendChild(p.condicional
-        ? el('circle', { r: 8, fill: 'var(--background)', stroke: color, 'stroke-width': 4 })
-        : el('circle', { r: 9, fill: color }));
-      g.appendChild(el('text', { class: 'node-label', x: 0, y: 26, 'text-anchor': 'middle' }, p.label));
-      g.appendChild(el('text', { class: 'node-count', x: 0, y: 39, 'text-anchor': 'middle' }, `${nf} · ${nb}`));
-      return g;
-    }
-
-    function renderTrain() {
-      const box = $('routeMap'), camValue = $('routeMapCamera');
-      // ⚠ `hidden`, NO `style.display`: el centro necesita que el CSS decida el display (flex, para que
-      // el lienzo llene la zona) y una declaración inline le gana a la hoja de estilos siempre.
-      if (!STEPS || !sel || !STEPS.tronco?.length || !camValue) { if (box) box.hidden = true; return; }
-      box.hidden = false;
-      const ch = STEPS.chequeo || {};
-
-      // El recorrido describe la LÓGICA de CreditOp para este comercio, así que NO se filtra por
-      // `lender_status`: prender o apagar una entidad en dev no cambia POR DÓNDE pasa el flujo, solo
-      // si esa entidad hoy lista. Ese estado se muestra como anotación (y el carril atenuado), no como
-      // una diferencia estructural — antes el mismo comercio dibujaba mapas distintos según el
-      // ambiente y parecía que la lógica cambiaba.
-      const todos = merchantLenders;
-      const disabled = (l) => Number(l.lender_status) !== 1;
-      const names = (l) => l.name + (disabled(l) ? ' (apagado)' : '');
-      const meetsL = (l, req) => !req || Object.entries(req).every(([k, v]) =>
-        Array.isArray(v) ? v.map(String).includes(String(l[k])) : String(l[k]) === String(v));
-
-      // En pantalla se avisa SOLO lo que está roto: rutas del mapa que ya no existen. Lo que es NORMAL
-      // en este ambiente NO se muestra —sería ruido que se lee como error—, pero conviene tenerlo claro
-      // al leer el diagrama:
-      //   · sin entidades para esa sucursal en este target → el mapa queda en el tronco, sin carriles.
-      //   · sin la columna `lenders.product` (hoy no está en dev) → los CreditopX no se pueden separar
-      //     por producto y caen todos en un carril `rt2`. Ver F-64 y CLAUDE.md.
-      $('routeMapWarn').textContent = ch.ok === false ? `· ⚠ ${(ch.rotas || []).length} ruta(s) del mapa ya no existen` : '';
-
-      camValue.innerHTML = '';
-      const rails = el('g', {}), nodes = el('g', {});
-      camValue.appendChild(rails); camValue.appendChild(nodes);
-
-      // ── TRONCO: común a todos, hasta la oferta ──
-      const T = STEPS.tronco, X = (i) => G.x0 + i * G.col, Y0 = G.y0;
-      const idxT = {}; T.forEach((p, i) => (idxT[p.id] = i));
-      rails.appendChild(rail(`M ${X(0)} ${Y0} L ${X(T.length - 1)} ${Y0}`, COLOR.tronco));
-      T.forEach((p, i) => nodes.appendChild(nodeSVG(p, X(i), Y0, COLOR.tronco)));
-
-      // bypass de los pasos condicionales del tronco
-      for (const b of STEPS.bypass || []) {
-        const a = idxT[b.desde], z = idxT[b.hasta];
-        if (a == null || z == null) continue;
-        const yb = Y0 + 46;
-        const arc = el('path', { d: `M ${X(a)} ${Y0} C ${X(a) + 40} ${yb}, ${X(z) - 40} ${yb}, ${X(z)} ${Y0}`,
-          stroke: COLOR.tronco, 'stroke-width': 3, 'stroke-dasharray': '6 6', 'stroke-linecap': 'round', fill: 'none', opacity: .7 });
-        arc.appendChild(el('title', {}, `${b.label}\n\n${b.cuando || ''}`));
-        rails.appendChild(arc);
-        nodes.appendChild(el('text', { class: 'lane-sub', x: (X(a) + X(z)) / 2, y: yb + 16, 'text-anchor': 'middle' }, b.label));
-      }
-
-      // ── LA ENTRADA DEL CANAL (`steps.json` → entradas): reemplaza el principio del tronco y se une a él en `hasta`. Va
-      // ARRIBA del tronco y sólo la del canal elegido: el auto-onboarding entra por checkout → inicio → validando y llega
-      // al listado sin pasar por monto, teléfono, OTP ni identidad. Sin esto el mapa no tenía dónde marcar ese tramo.
-      const entry = Object.entries(STEPS.entradas || {}).find(([k, e]) => !k.startsWith('_') && e && (e.canal === channel || k === channel))?.[1];
-      let topY = Y0 - 40;   // el borde de arriba del encuadre: sube si hay entrada
-      if (entry && idxT[entry.hasta] != null && entry.pasos?.length) {
-        const YE = Y0 - 90, last = entry.pasos.length - 1;
-        topY = YE - 40;
-        rails.appendChild(rail(`M ${X(0)} ${YE} L ${X(last)} ${YE}`, COLOR.tronco));
-        rails.appendChild(rail(curve(X(last), YE, X(idxT[entry.hasta]), Y0), COLOR.tronco));
-        entry.pasos.forEach((p, i) => nodes.appendChild(nodeSVG(p, X(i), YE, COLOR.tronco)));
-        const tag = el('text', { class: 'lane-sub', x: X(0) - 10, y: YE - 22 }, entry.label);
-        tag.appendChild(el('title', {}, entry.cuando || ''));
-        nodes.appendChild(tag);
-      }
-
-      // ── UN CARRIL POR CAMINO REAL ────────────────────────────────────────────────────────────────
-      // UN CARRIL POR RECORRIDO, no por entidad. Dos entidades del mismo producto recorren exactamente
-      // las mismas pantallas — es la misma razón por la que el COLOR va por producto y no por lender.
-      // Dibujar uno por entidad ataba el diagrama al padrón de cada ambiente (en dev hay entidades que
-      // en local no existen), así que el mapa cambiaba de forma sin que la lógica cambiara.
-      //
-      // La clave del grupo es el recorrido COMPLETO: rt + producto + qué desvíos y extensiones toma.
-      // Si dos entidades difieren en un desvío, recorren distinto y les toca carril propio — que es lo
-      // que la versión por-entidad quería preservar, pero sin arrastrar la identidad del lender.
-      const lanes = [];
-      const groups = new Map();
-      for (const l of todos.filter((l) => [2, 3, 4].includes(Number(l.rt)))) {
-        // `abaco` y `formalization` los mide el clasificador (pkg/journeys.ts) en `dbops lenders-for`. Si no
-        // vinieron (la medición falló), se cae a lo que el mapa suponía antes: Ábaco por producto y radicación para
-        // todo riel 4. Así un fallo de la medición dibuja lo de siempre, no un recorrido sin desvíos.
-        if (l.abaco === undefined) l.abaco = ['renting', 'rto'].includes(l.product) ? 1 : 0;
-        if (l.formalization === undefined) l.formalization = Number(l.rt) === 4 ? 'radicacion' : null;
-        const deviations = Object.entries(STEPS.desvios || {}).filter(([, d]) => meetsL(l, d.requiere));
-        const exts = Object.entries(STEPS.extensiones || {}).filter(([, e]) => meetsL(l, e.requiere));
-        const key = [l.rt, l.product, ...deviations.map(([k]) => 'd:' + k), ...exts.map(([k]) => 'e:' + k)].join('|');
-        if (!groups.has(key)) groups.set(key, { rt: Number(l.rt), product: l.product, desvios: deviations, exts, miembros: [] });
-        groups.get(key).miembros.push(l);
-      }
-      // orden estable (rt, producto): sin esto los carriles se reordenan según el orden que devuelva la
-      // base de cada ambiente, que es otra forma de que el mismo comercio se vea distinto.
-      for (const g of [...groups.values()].sort((a, b) => a.rt - b.rt || String(a.product).localeCompare(String(b.product)))) {
-        const steps = [...(STEPS.ramales.creditopx?.pasos || [])];
-        for (const [, d] of g.desvios) {                       // desvíos: salen y REINGRESAN al tronco
-          const at = steps.findIndex((p) => p.id === d.desde);
-          if (at >= 0) steps.splice(at + 1, 0, ...d.pasos.map((p) => ({ ...p, _desvio: d.label })));
-        }
-        for (const [, e] of g.exts) steps.push(...e.pasos.map((p) => ({ ...p, _ext: e.label })));
-        lanes.push({
-          label: g.product || `rt${g.rt}`,
-          sub: `rt${g.rt} · ${g.miembros.map(names).join(' · ')}`,
-          color: COLOR[g.product] || COLOR['rt' + g.rt] || COLOR.creditopx,
-          off: g.miembros.every(disabled),
-          pasos: steps,
-        });
-      }
-      for (const [rid, rt] of [['agregador', 1], ['redirect', 0]]) {
-        const g = todos.filter((l) => Number(l.rt) === rt);
-        if (!g.length || !STEPS.ramales?.[rid]) continue;
-        lanes.push({ label: STEPS.ramales[rid].label, sub: g.map(names).join(' · '),
-          color: COLOR[rid], off: g.every(disabled), pasos: STEPS.ramales[rid].pasos });
-      }
-
-      const toOffer = idxT['lenders'] ?? (T.length - 1);
-      let maxX = X(T.length - 1), maxY = Y0;
-      lanes.forEach((c, i) => {
-        const y = Y0 + (i + 1) * G.fila, xs = c.pasos.map((_, j) => X(toOffer + 1 + j));
-        // Un grupo por carril: si en ESTE ambiente todas sus entidades están apagadas, el carril se
-        // atenúa. El recorrido sigue dibujado —la lógica no cambió— pero se ve que hoy no lista.
-        // ⚠ La opacidad va en los RIELES y en los círculos, no en el texto: un rótulo apilado a .35 no se
-        // lee; los rótulos del carril apagado pasan a la tinta tenue (`.lane-off`, en la hoja).
-        const gR = el('g', c.off ? { opacity: .35 } : {}), gN = el('g', c.off ? { class: 'lane-off' } : {});
-        rails.appendChild(gR); nodes.appendChild(gN);
-        gR.appendChild(rail(curve(X(toOffer), Y0, xs[0], y), c.color));
-        if (xs.length > 1) gR.appendChild(rail(`M ${xs[0]} ${y} L ${xs[xs.length - 1]} ${y}`, c.color));
-        c.pasos.forEach((p, j) => gN.appendChild(nodeSVG(p, xs[j], y, p._ext ? 'var(--rt4)' : c.color)));
-        const t = el('text', { class: 'lane-label', x: xs[0], y: y - 26, fill: c.color }, short(c.label, 22));
-        t.appendChild(el('title', {}, `${c.label}\n${c.sub}${c.off ? '\n\n(todas apagadas en este ambiente: no va a listar)' : ''}`));
-        gN.appendChild(t);
-        const s = el('text', { class: 'lane-sub', x: xs[0], y: y - 13 }, short(c.sub, 46));
-        s.appendChild(el('title', {}, c.sub));   // el sub se trunca: el nombre completo va en el hover
-        gN.appendChild(s);
-        maxX = Math.max(maxX, xs[xs.length - 1]); maxY = Math.max(maxY, y + 46);
-      });
-
-      frame(maxX + 110, topY, maxY);
-    }
-
-    // ── cámara: arrastrar · rueda = zoom · doble clic = encuadrar ────────────────────────────────
-    // Canvas propio y no una librería de grafos: son ~20 nodos en carriles paralelos, o sea posiciones
-    // que ya conocemos. Un motor de layout no tendría nada que resolver.
-    const camValue = { x: 0, y: 0, k: 1, w: 0, y1: 0, y2: 0 };
-    function applyCam() { const g = $('routeMapCamera'); if (g) g.setAttribute('transform', `translate(${camValue.x},${camValue.y}) scale(${camValue.k})`); }
-    /** Zoom dejando fijo el punto (mx,my) del viewport. Sin punto → el centro, que es lo que quieren
-     *  los botones: con la rueda el ancla natural es el puntero, con un botón no hay puntero. */
-    function zoomIn(f, mx, my) {
-      const svg = $('routeMapSvg'); if (!svg) return;
-      const r = svg.getBoundingClientRect();
-      if (mx == null) { mx = r.width / 2; my = r.height / 2; }
-      const k2 = Math.min(2.2, Math.max(0.35, camValue.k * f));
-      camValue.x = mx - (mx - camValue.x) * (k2 / camValue.k);
-      camValue.y = my - (my - camValue.y) * (k2 / camValue.k);
-      camValue.k = k2; applyCam();
-    }
-    function frame(w, y1, y2) {
-      if (w) { camValue.w = w; camValue.y1 = y1; camValue.y2 = y2; }
-      // ⚠ SIN DIBUJO NO HAY ENCUADRE. `cam.w` lo fija `renderTren` al terminar de dibujar; pedir un
-      // encuadre antes divide por `undefined` y escribe `transform="translate(10,NaN) scale(NaN)"` en
-      // el SVG — el mapa desaparece y la consola tira ocho errores seguidos. Antes no pasaba porque los
-      // dos únicos llamadores (el botón ⤢ y la apertura del <details>) siempre venían después de un
-      // dibujo; con el observador de tamaño de la cáscara nueva, el primer disparo llega antes.
-      if (!camValue.w) return;
-      const svg = $('routeMapSvg'); if (!svg) return;
-      const r = svg.getBoundingClientRect();
-      const height = (camValue.y2 - camValue.y1) + 60;
-      camValue.k = Math.max(.55, Math.min(1, Math.min(r.width / camValue.w, r.height / height)));
-      camValue.x = 10;
-      camValue.y = (r.height - height * camValue.k) / 2 - camValue.y1 * camValue.k + 30 * camValue.k;
-      applyCam();
-    }
-    (function cameraInit() {
-      const svg = $('routeMapSvg'); if (!svg) return;
-      let dragging = false, px = 0, py = 0, sx = 0, sy = 0;
-      svg.addEventListener('pointerdown', (e) => { dragging = true; px = sx = e.clientX; py = sy = e.clientY; svg.classList.add('drag'); svg.setPointerCapture(e.pointerId); });
-      svg.addEventListener('pointermove', (e) => { if (!dragging) return; camValue.x += e.clientX - px; camValue.y += e.clientY - py; px = e.clientX; py = e.clientY; applyCam(); });
-      const release = (e) => { dragging = false; svg.classList.remove('drag'); try { svg.releasePointerCapture(e.pointerId); } catch {} };
-      svg.addEventListener('pointerup', (e) => {
-        release(e);
-        // Un CLIC sobre un nodo: la captura del arrastre se lo traga (el `click` cae en el SVG), así que si el puntero casi
-        // no se movió se le avisa al nodo de abajo con `node-pick`.
-        if (Math.hypot(e.clientX - sx, e.clientY - sy) > 4) return;
-        document.elementFromPoint(e.clientX, e.clientY)?.closest('#routeMapCamera .node')?.dispatchEvent(new CustomEvent('node-pick'));
-      });
-      svg.addEventListener('pointercancel', release);
-      // Zoom con rueda SOLO con ⌘/ctrl. La rueda pelada era del canvas, así que pasar el mouse por
-      // encima mientras scrolleabas la página secuestraba el gesto y te dejaba clavado ahí. Convención
-      // de Figma / Maps embebido: la rueda sola es de la PÁGINA; el zoom es explícito (modificador o
-      // los botones de abajo a la derecha).
-      svg.addEventListener('wheel', (e) => {
-        if (!e.ctrlKey && !e.metaKey) return;   // sin preventDefault → la página scrollea normal
-        e.preventDefault();
-        const r = svg.getBoundingClientRect();
-        zoomIn(e.deltaY < 0 ? 1.12 : 1 / 1.12, e.clientX - r.left, e.clientY - r.top);
-      }, { passive: false });
-      svg.addEventListener('dblclick', () => frame());
-      // ⚠ SIN BOTONES DE ZOOM, y el mapa NO queda sin forma de acercar: la rueda con ⌘/ctrl hace zoom
-      // y el doble clic encuadra (los dos, arriba). Los botones eran de cuando la rueda pelada estaba
-      // secuestrada por el canvas; desde que el zoom pide modificador, sobran. Y con el mapa ocupando
-      // todo el centro y reencuadrándose al cambiar de tamaño, el caso normal ya no necesita tocarlos.
-      $('routeMap').addEventListener('toggle', () => { if ($('routeMap').open) requestAnimationFrame(() => frame()); });
-    })();
 
     // La card muestra el hash de la sucursal que REALMENTE se lanza (harness.json), no el de una búsqueda
     // por slug: eran distintos y la card mostraba una sucursal mientras el flujo corría contra otra, con
@@ -5272,7 +4934,6 @@
       // no puede quedar en el pie (se veía al abrir Finandina por autogestión en qa, que no tiene asesor de prueba).
       if (channel !== 'asesor' && permState !== 'na') { permState = 'na'; permDetail = ''; permSeq++; queueMicrotask(updateGo); }
       queueMicrotask(renderMerchants);   // lo que falta para probar depende del canal
-      queueMicrotask(() => { renderTrain(); followRunOnMap(); });   // y la entrada del mapa también
       // El celular de la tienda sólo existe en los canales que entran por ella.
       // Y el del asesor, sólo donde hay asesor: por la tienda y en la autogestión el cliente va solo.
       const viaStore = channel === 'ecommerce' || channel === 'auto';
@@ -5353,94 +5014,8 @@
     }
 
 
-    // ══ DÓNDE VA LA CORRIDA, EN EL MAPA ═══════════════════════════════════════════════════════════
-    // El mapa describía el recorrido POSIBLE y no sabía nada de la corrida en curso: para saber dónde
-    // ibas había que leer la consola. Ahora se marca el paso actual, que es lo que la tarjeta de
-    // «Actividad» intentaba decir con palabras.
-    //
-    // ⚠ EL DATO YA ESTABA, sólo que en texto. Cada navegación que imprime `pkg/trace.ts` empieza con
-    // el número de paso y la RUTA: `03 A /merchant/f0548728/466851/personal-info   │ BD 1 «Creada»`.
-    // Acá se toma la ÚLTIMA de esas líneas y se cruza contra las rutas de `steps.json`.
-    //
-    // ⚠ Y las rutas del mapa son PLANTILLAS (`/{flow}/{hash}/solicitar`): se comparan convirtiéndolas a
-    // expresión regular, donde cada `{...}` es un segmento cualquiera. Comparar por igualdad no
-    // matchearía nunca — el hash y el id de la solicitud son de cada corrida.
-    const pathToRegex = (r) => new RegExp('^' + String(r || '')
-      .replace(/[.*+?^${}()|[\]\\]/g, (c) => (c === '{' || c === '}' ? c : '\\' + c))
-      .replace(/\{[^}]*\}/g, '[^/]+') + '/?$');
-
-    let FLAT_STEPS = null;
-    function flatSteps() {
-      if (FLAT_STEPS || !STEPS) return FLAT_STEPS;
-      const out = [];
-      const join = (arr) => { for (const p of arr || []) if (p && p.id && p.ruta) out.push({ id: p.id, re: pathToRegex(p.ruta) }); };
-      // ⚠ Sólo `tronco` y `bypass` son LISTAS de pasos. `ramales`, `desvios` y `extensiones` son
-      // diccionarios de OBJETOS —`{label, cuando, pasos}`— y los pasos están en `.pasos`. Asumir que
-      // eran listas reventaba con «(arr || []) is not iterable».
-      join(STEPS.tronco);
-      join(STEPS.bypass);
-      for (const group of ['ramales', 'desvios', 'extensiones']) {
-        for (const r of Object.values(STEPS[group] || {})) join(r && r.pasos);
-      }
-      // ⚠ `terminales` NO se dibuja en el mapa —son pantallas a las que se llega desde varios puntos—
-      // pero sí entra al índice: sirve para RECONOCER dónde está la corrida aunque no haya nodo que
-      // marcar. Sin esto, `request-canceled` volvía a leerse como «ruta desconocida».
-      join(STEPS.terminales && STEPS.terminales.pasos);
-      for (const [k, e] of Object.entries(STEPS.entradas || {})) if (!k.startsWith('_')) join(e && e.pasos);
-      FLAT_STEPS = out;
-      return out;
-    }
-
-    /** El id del paso que corresponde a una ruta navegada, o null. */
-    function routeStep(path) {
-      const clean = String(path || '').split('?')[0].replace(/\.data$/, '');
-      if (!clean.startsWith('/')) return null;
-      return (flatSteps() || []).find((p) => p.re.test(clean))?.id ?? null;
-    }
-
-    /** Pinta la marca en el nodo (y la saca de los demás). `null` limpia. */
-    function markStepOnMap(id) {
-      for (const g of document.querySelectorAll('#routeMapCamera .node')) g.classList.toggle('current', !!id && g.dataset.paso === id);
-    }
-
-    /** Lee las líneas de la corrida y marca el último paso reconocido. */
-    // ⚠ SÓLO SE LEEN LAS LÍNEAS NUEVAS. Esto corre en cada tick de la consola (2 s), y si la cola no traía una navegación
-    // reconocible recorría el arreglo ENTERO con dos regex por línea. Las líneas ya vistas no cambian (el arreglo sólo
-    // crece o se REEMPLAZA por otro al cambiar de corrida o de carril), así que se recuerda hasta dónde se leyó y qué
-    // paso salió; si cambian el arreglo o el índice de pasos (`steps.json` recién cargado), se vuelve a leer todo.
-    let followSeen = { lines: null, steps: null, upTo: 0, id: null };
-    function followRunOnMap() {
-      const steps = flatSteps();
-      if (followSeen.lines !== logLines || followSeen.steps !== steps || followSeen.upTo > logLines.length) followSeen = { lines: logLines, steps, upTo: 0, id: null };
-      // De atrás para adelante: la última navegación reconocida es dónde está parada la corrida.
-      for (let i = logLines.length - 1; i >= followSeen.upTo; i--) {
-        // ⚠ EL PANEL DECORA CADA LÍNEA DEL RUNNER CON «▸ », así que la línea real es
-        //   `  ▸ 03 A /merchant/<hash>/<ureq>/personal-info   │ BD 1 «Creada»`
-        // y no `03 A /…`. Anclar el número al principio no matcheaba NUNCA — lo destapó la primera
-        // corrida de verdad, con el mapa sin marcar mientras la consola mostraba seis navegaciones.
-        // ⚠ Y el decorador se enumera explícito para NO tragarse las subpeticiones, que empiezan con
-        // `↪` y llevan un código HTTP donde iría el número de paso (`↪ 200 /merchant/…`).
-        // ⚠ `[^\s│]+` Y NO `\S+`: cuando la ruta es larga, el relleno hasta la columna de BD desaparece
-        // y el separador queda PEGADO —`…/abaco/platform-otp-validation│`—, así que `\S+` se lo tragaba y
-        // esa ruta no matcheaba ninguna plantilla. Lo destapó la primera corrida real: las rutas cortas
-        // andaban y las largas no, que es el peor modo de falla porque parece funcionar.
-        // Y las de los CELULARES, que escriben otro formato: `  15:00:55 [cliente] → /auto/<hash>/<ureq>/validando`. Sin
-        // esto el mapa no se movía en ningún recorrido de la tienda ni del asesor por el panel (2026-10-09).
-        const m = /^[\s▸]*(\d{2})\s+(?:[AB]\s+)?([^\s│]+)/.exec(logLines[i])
-          || /^\s*\d{1,2}:\d{2}:\d{2} \[(?:cliente|asesor )\] (→) (\/\S+)/.exec(logLines[i]);
-        if (!m) continue;
-        const id = routeStep(m[2]);
-        if (id) { followSeen.id = id; break; }
-      }
-      followSeen.upTo = logLines.length;
-      // Se vuelve a marcar aunque no haya nada nuevo: el mapa se redibuja (otro comercio, una entidad) y pierde la marca.
-      if (followSeen.id) markStepOnMap(followSeen.id);
-      return followSeen.id;
-    }
-
     // La tarjeta «Actividad de la corrida» se quitó: repetía lo que ya dicen la consola (el mensaje
-    // del runner, completo), la barra de estado (el contexto) y el header (el cronómetro). Lo que sí
-    // faltaba —dónde va la corrida— ahora lo muestra el MAPA, marcando el paso actual.
+    // del runner, completo), la barra de estado (el contexto) y el header (el cronómetro).
     function renderActivity(status) {
       if (!status.slug) return;
       $('stopBtn').disabled = !!(status.running && status.finishedAt);
@@ -5766,13 +5341,11 @@
         return;
       }
       $('activityTime').textContent = '';
-      markStepOnMap(null);   // el mapa arranca sin marca: todavía no navegó a ningún lado
       $('webhookZone').style.display = 'none';
       // ⚠ ABRIR, no cerrar: `showLog(false)` venía de cuando la consola era una tarjeta plegable y
       // «false» la dejaba plegada con su cabecera. Al quitarse el plegado (2026-09-18) pasó a ESCONDER
       // la salida, y cada Lanzar dejaba la consola oscura hasta recargar la página.
       showLog(true); $('stopBtn').classList.add('on');
-      $('routeMap').open = true;
       startPoll();
     }
 
@@ -5791,7 +5364,6 @@
       $('logScroll').style.display = on && LOG_VIEWS.includes(tab) ? '' : 'none';
       $('logSsrScroll').style.display = on && tab === 'ssr' ? '' : 'none';
       $('mocksScroll').style.display = on && tab === 'mocks' ? '' : 'none';
-      $('mapScroll').style.display = on && tab === 'mapa' ? '' : 'none';
       $('recipesScroll').style.display = on && tab === 'recetas' ? '' : 'none';
       // (el botón de plegar se quitó: la consola es una ZONA fija del layout, no una tarjeta que
       //  compita por alto con lo de arriba. `showLog` se queda: lo llaman el arranque y las corridas.)
@@ -5871,7 +5443,7 @@
 
     /* EL TOPE ES DEL DOM, NO DE LA CONSOLA. Una sesión larga con celulares abiertos deja decenas de miles de líneas y
      * cada una era un nodo (más su miniatura): el scroll y cada repintado se arrastraban. Se DIBUJAN las últimas
-     * `LOG_DOM_MAX`; `logLines` sigue entero (de ahí leen el mapa y el filtro) y «copiar» pide el log completo al
+     * `LOG_DOM_MAX`; `logLines` sigue entero (de ahí lee el filtro) y «copiar» pide el log completo al
      * servidor (`/api/log`), así que no se pierde nada: sólo deja de estar en pantalla, y un renglón arriba lo dice. */
     function logTrimNotice() {
       const n = logLine(`… sólo se dibujan las últimas ${LOG_DOM_MAX} líneas; «copiar» lleva la consola completa`, 'log-trimmed');
@@ -5956,7 +5528,7 @@
       } catch { /* el panel sigue andando sin esto */ }
     }
 
-    const CONSOLE_TABS = [['tabRun', 'corrida'], ['tabConsoleAdvisor', 'asesor'], ['tabConsoleClient', 'cliente'], ['tabSsr', 'ssr'], ['tabMocks', 'mocks'], ['tabRecipes', 'recetas'], ['tabMap', 'mapa']];
+    const CONSOLE_TABS = [['tabRun', 'corrida'], ['tabConsoleAdvisor', 'asesor'], ['tabConsoleClient', 'cliente'], ['tabSsr', 'ssr'], ['tabMocks', 'mocks'], ['tabRecipes', 'recetas']];
     function consoleTab() {
       return (CONSOLE_TABS.find(([id]) => $(id).classList.contains('on')) || CONSOLE_TABS[0])[1];
     }
@@ -5976,8 +5548,6 @@
       if (mocksPoll) { clearInterval(mocksPoll); mocksPoll = null; }
       if (tab === 'mocks') { tickMocks(); mocksPoll = setInterval(tickMocks, 3000); }
       if (tab === 'recetas') tickRecipes();
-      // Oculto, el mapa no tiene caja: se encuadra recién cuando se lo mira.
-      if (tab === 'mapa') requestAnimationFrame(() => { try { frame(); } catch { } });
       routeChanged();
     }
 
@@ -5986,7 +5556,6 @@
     $('tabConsoleClient').onclick = () => showTab('cliente');
     $('tabSsr').onclick = () => showTab('ssr');
     $('tabMocks').onclick = () => showTab('mocks');
-    $('tabMap').onclick = () => showTab('mapa');
     $('tabRecipes').onclick = () => showTab('recetas');
 
     // ── Recetas: la lista de `recipes/` y la última corrida de cada una (`/api/recipes`). Sólo para ver. ──
@@ -6165,7 +5734,7 @@
         if (typeof j.total === 'number' && j.total < logCursor) { logLines = []; logCursor = 0; repaintLog(); }
         else if (j.lines && j.lines.length) { appendLog(j.lines); logCursor = j.total; }
         if (j.running) {
-          if (!runRunning) { setRunningUI(true); $('routeMap').open = true; }
+          if (!runRunning) setRunningUI(true);
           $('stopBtn').classList.add('on');
           setGoLabel('Corriendo…'); $('go').disabled = true;          $('runDot').className = 'run-dot running';
           if (!logOpen) showLog(true);
@@ -6183,7 +5752,6 @@
         }
         openDevicesNow = Array.isArray(j.devices) ? j.devices : [];
         renderActivity(j);
-        followRunOnMap();
         // La categoría que registró el motor en la solicitud de un celular: llega sola, sin corrida.
         const dc = j.deviceCategories;
         if (dc && dc.target === target && `${dc.ureq}|${dc.at}` !== deviceCategoriesKey) {
@@ -6737,8 +6305,7 @@
 
     renderMerchants();   // cards de prueba (slug ya visible)
     enrichMerchants();   // completa hash desde el backend
-    loadSteps();         // mapa de tren (panel/steps.json + verificación de rutas)
-    loadStatus();        // tarjetas de estado (mocks · última corrida · mapa)
+    loadStatus();        // tarjetas de estado (mocks · última corrida · pasos del recorrido)
     loadLenders();       // lenders de la sucursal del comercio seleccionado (toggle ON/OFF)
     updateInjModeForTarget();   // estado inicial (en local, Real deshabilitado → Sintético)
     loadFront();                // qué front tiene el target inicial (local → solo :5174)
@@ -6769,22 +6336,9 @@
     };
 
     // ══ CÁSCARA TIPO EDITOR ═══════════════════════════════════════════════════════════════════════
-    // Tres cosas que el layout nuevo necesita y el viejo no: manijas de ajuste, re-encuadre del mapa
-    // cuando cambia su caja, y un estado vacío en el centro. Va al final del script a propósito —
-    // `encuadrar()` está declarada más arriba en este mismo alcance.
+    // Lo que el layout de editor necesita al arrancar: las manijas (módulo compartido) y la consola abierta.
     (function shell() {
       // Las manijas y controles de disposición usan el módulo compartido al final del documento.
-
-      // ── el mapa se re-encuadra cuando cambia su caja ───────────────────────────────────────────
-      // ⚠ SIN ESTO EL MAPA "SE ROMPE" AL MOVER UNA MANIJA, y no se rompe: `encuadrar()` calcula la
-      // escala contra el `getBoundingClientRect()` del SVG, así que un contenedor que cambia de tamaño
-      // deja el dibujo fuera de vista. En la columna vieja el ancho era fijo y el caso no existía.
-      const vias = $('routeMapCanvas');
-      if (vias && 'ResizeObserver' in window) {
-        let t = 0;
-        new ResizeObserver(() => { clearTimeout(t); t = setTimeout(() => { try { frame(); } catch { } }, 80); })
-          .observe(vias);
-      }
 
       // ── la consola arranca ABIERTA ─────────────────────────────────────────────────────────────
       // En la columna vieja la consola era una tarjeta más y plegarla ganaba scroll; acá es una ZONA de
@@ -6793,13 +6347,6 @@
       // discrepancia poniendo el estado del lado del marcado, que es el que el usuario ve.
       showLog(true);
 
-      // ── estado vacío del centro ────────────────────────────────────────────────────────────────
-      // `renderTren()` decide si hay mapa poniendo `display` en el nodo; se lo observa en vez de
-      // tocar esa función, para no tener dos lugares que decidan lo mismo.
-      const train = $('routeMap'), empty = $('stageEmpty');
-      const sync = () => { if (empty && train) empty.style.display = train.hidden ? 'flex' : 'none'; };
-      if (train) { new MutationObserver(sync).observe(train, { attributes: true, attributeFilter: ['hidden'] }); }
-      sync();
     })();
 
 
@@ -7636,7 +7183,6 @@ window.toast = toast; window.confirmDialog = confirmDialog;
     // maximizada dejaría la ventana vacía.
     const maximize = bindPanelMaximize(document.getElementById('maximizeConsole'), { root: document.querySelector('.center') });
     // El tema lo elige la persona: la primera vez sigue al sistema y lo elegido se guarda (`ui.theme`).
-    // El mapa no necesita escuchar el cambio: sus colores son tokens de la hoja.
     bindThemeToggle(document.getElementById('themeToggle'));
     const shown = new Map();
     const limitOf = (a) => a.axis === 'y' ? Math.min(a.limit, innerHeight - 250) : a.limit;
@@ -7746,7 +7292,7 @@ window.toast = toast; window.confirmDialog = confirmDialog;
       document.getElementById('consoleMenu').classList.toggle('has-options', filtered);
       consoleOptions.refresh();
     }
-    for (const id of ['tabRun', 'tabConsoleAdvisor', 'tabConsoleClient', 'tabSsr', 'tabMocks', 'tabRecipes', 'tabMap']) document.getElementById(id).addEventListener('click', reflectConsoleFilter);
+    for (const id of ['tabRun', 'tabConsoleAdvisor', 'tabConsoleClient', 'tabSsr', 'tabMocks', 'tabRecipes']) document.getElementById(id).addEventListener('click', reflectConsoleFilter);
     reflectConsoleFilter();
 
     // ══ RUTA Y PREFERENCIAS ═══════════════════════════════════════════════════════════════════════
@@ -7887,8 +7433,8 @@ window.toast = toast; window.confirmDialog = confirmDialog;
           if (currentView() !== wantedView) showAuxView(wantedView);
 
           // La consola por su pestaña real: el rótulo «Filtrada» escucha ese click.
-          const wantedConsole = ['asesor', 'cliente', 'ssr', 'mocks', 'recetas', 'mapa'].includes(params.get('consola')) ? params.get('consola') : 'corrida';
-          if (currentConsole() !== wantedConsole) byId({ asesor: 'tabConsoleAdvisor', cliente: 'tabConsoleClient', ssr: 'tabSsr', mocks: 'tabMocks', recetas: 'tabRecipes', mapa: 'tabMap' }[wantedConsole] || 'tabRun').click();
+          const wantedConsole = ['asesor', 'cliente', 'ssr', 'mocks', 'recetas'].includes(params.get('consola')) ? params.get('consola') : 'corrida';
+          if (currentConsole() !== wantedConsole) byId({ asesor: 'tabConsoleAdvisor', cliente: 'tabConsoleClient', ssr: 'tabSsr', mocks: 'tabMocks', recetas: 'tabRecipes' }[wantedConsole] || 'tabRun').click();
         } finally {
           if (seq === routeSeq) { restoring = false; syncRoute({ replace: true }); }
         }

@@ -1,6 +1,6 @@
 ---
 name: harness-panel
-description: Tocar el panel del harness harness (:5195, panel/index.html + panel/server.ts). Usala cuando la tarea toque el mapa del recorrido del wizard (panel/steps.json), el gate de perillas por target (CAPS), el selector de comercio y sucursal, el switch de Frontend local vs desplegado y su pool de Cognito, la comprobación de BD al cerrar la corrida (dbops activity), o los internals de bin/advisor.
+description: Tocar el panel del harness harness (:5195, panel/index.html + panel/server.ts). Usala cuando la tarea toque los pasos del recorrido del wizard (panel/steps.json), el gate de perillas por target (CAPS), el selector de comercio y sucursal, el switch de Frontend local vs desplegado y su pool de Cognito, la comprobación de BD al cerrar la corrida (dbops activity), o los internals de bin/advisor.
 ---
 
 # El panel del harness
@@ -20,7 +20,7 @@ lo levantás vos, bajalo al terminar: una instancia tuya colgada deja a Miguel s
 ## La cáscara: cinco zonas fijas, y el contrato es el `id`
 
 Desde el 2026-09-18 el panel tiene forma de editor y no de página: **barra de título** (ambiente · front ·
-Lanzar) · **sidebar izq = comercios** · **centro = el mapa** · **sidebar der = configuración** ·
+Lanzar) · **sidebar izq = comercios** · **centro = los celulares** · **sidebar der = configuración** ·
 **panel inferior = las consolas** · **barra de estado**. Ninguna zona scrollea a las otras. Antes era una
 columna de 2.772 px donde el mapa vivía dentro de un `<details>` plegado **y** en `display:none`, y la
 consola no existía hasta que había corrida: las dos cosas que más se miran, escondidas.
@@ -48,47 +48,20 @@ Si agregás algo, engancharlo por `id`.
 quedó reservado para `--ok` — corre · sesión ok · servicio arriba · entidad ON —, y ámbar y rojo para lo
 suyo. Si pintás cromo con `--ok`, la única señal del panel deja de leerse.
 
-**Lo que NO está hecho:** el mapa **no se mueve durante la corrida**. `renderTren()` se llama al elegir
-comercio y al prender/apagar una entidad, nada más — o sea que es una vista de planeamiento previo. Un
-minimapa encima de eso sería decoración; lo que le daría sentido es encender el nodo actual cruzando las
-rutas que el log ya trae contra las de `steps.json`.
 
-## El mapa del recorrido (`panel/steps.json`)
+## Los pasos del recorrido (`panel/steps.json`) — la vista del mapa se quitó (2026-11-25)
 
-Canvas SVG **vertical** y arrastrable (drag · rueda = zoom · doble clic = encuadrar), estilo grafo de
-git: tronco común hasta `/lenders` y de ahí un carril por `response_type`. Dibuja **solo los carriles
-que ese comercio tiene** (mira el `rt` y el `product` de sus entidades). El hover de cada nodo lista los
-archivos del paso.
+`panel/steps.json` describe las pantallas del wizard: el tronco, los ramales por `response_type`, los desvíos y las
+entradas. **Sigue en uso**, aunque ya no se dibuja:
 
-**INVARIANTE: el mapa depende del COMERCIO, no del ambiente.** Describe la lógica de CreditOp, así que el
-mismo comercio dibuja el mismo recorrido en local, dev y staging. Dos reglas lo sostienen, y si las rompés
-el diagrama vuelve a cambiar de forma según el target (F-64):
+- `/api/device/<id>/advance-all` lo lee para «avanzar hasta» una pantalla (`until` es un id de paso);
+- `bin/steps-check.ts` verifica que cada ruta exista, y su resultado es la tarjeta «Pasos del recorrido» del estado
+  (`/api/estado`, campo `mapa`) y `/api/steps`.
 
-- **No filtres por `lender_status`.** Prender o apagar una entidad no cambia POR DÓNDE pasa el flujo, solo
-  si hoy lista. Eso se anota (`(apagado)` + carril atenuado), no se borra.
-- **Un carril por RECORRIDO, no por entidad.** La clave es `rt + product + desvíos + extensiones`: dos
-  entidades del mismo producto recorren lo mismo (es la misma razón por la que el color va por producto).
-  Usar la identidad del lender ata el dibujo al padrón de cada base.
-
-Y lo que el mapa **no puede** dibujar hay que decirlo en `#trenwarn`: sin entidades, o sin la columna
-`lenders.product` (dev todavía no la tiene), un recorrido vacío o achatado se lee como "este comercio no
-tiene esos flujos" cuando en realidad faltó el dato.
-
-**Por qué vertical y no horizontal** (ya se probó y se revirtió): en horizontal la bifurcación cae al final
-del tronco y los carriles arrancan al principio, así que la curva de unión vuelve cruzando todo el
-diagrama. Medido: bifurcación en x=456, carril de 8 nodos ≈900px, contenedor 1238 → no entra. Girando el
-eje, el largo se gasta en alto (que se recorre arrastrando) y la curva queda corta.
-
-**Por qué sin librería de grafos** (D3 / vis-network se evaluaron): son ~20 nodos en carriles paralelos, o
-sea posiciones que ya conocemos — un motor de layout no tiene nada que resolver. El criterio: *¿puedo
-ubicar los nodos a mano sin que se crucen las aristas?* Si sí, CSS/SVG.
-
-- **Qué cuenta como archivo del paso** (respetalo si lo editás): la ruta del front + los servicios que su
-  loader/action invoca, y el controlador del endpoint + los servicios de dominio que llama. **No** utils,
-  ni tipos, ni cierre transitivo de imports. Si el número no significa "lo que este paso toca de verdad",
-  es decoración con cara de dato.
-- **Validá siempre después de tocarlo:** `node bin/steps-check.ts` (sale ≠0 si alguna ruta no existe). El
-  panel además muestra un aviso si el chequeo falla — un conteo que ya no resuelve es peor que nada.
+La vista que lo dibujaba (primero en el centro, después en la pestaña «Mapa» de la consola) **se quitó el 2026-11-25**:
+Miguel no la usaba, porque el recorrido se sigue por la consola. Con ella se fueron el seguimiento de «dónde va la
+corrida» sobre los nodos, el encuadre y el zoom. Si vuelve a hacer falta ver el recorrido, que sea una vista alimentada
+por una corrida real, no un dibujo aparte. La versión anterior del panel está en git antes de ese día.
 
 ## El panel no ofrece lo mismo en todos los targets (`CAPS`)
 
@@ -112,7 +85,6 @@ Dos mecanismos, y **no son intercambiables**:
 "acá esto no aplica" es ruido y se lee como error. Lo que hay que saber para interpretar la vista:
 
 - **sin selector de estado por entidad** → esa corrida usa el MS real; el desenlace lo decide el proveedor.
-- **el mapa sin carriles** → esa sucursal no tiene entidades en ese target.
 - **los CreditopX en un solo carril `rt2`** → ese ambiente no tiene la columna `lenders.product` (hoy dev)
   y no se pueden separar por producto. Ver **F-64**.
 
@@ -131,89 +103,6 @@ es pegar la mitad: las llamadas salientes del servidor (`[outbound]`, con códig
 en el log de la corrida y son justo lo que explica un 500 o un timeout. Van con un encabezado cada una
 (`── CONSOLA DE LA CORRIDA ──` / `── SSR DEL WIZARD ──`) para que se sepa de dónde salió cada bloque.
 Medido: 19.370 caracteres con las dos.
-
-## El mapa marca DÓNDE VA la corrida
-
-`seguirCorridaEnMapa()` lee la última navegación del log y le pone un halo al nodo correspondiente. Eso
-reemplazó a la tarjeta «Actividad de la corrida», que se quitó: repetía lo que ya dicen la consola (el
-mensaje del runner, completo), la barra de estado (el contexto) y el header (el cronómetro) — lo único
-que le faltaba al panel era **dónde va**, y eso se ve mejor en el mapa que descrito con palabras.
-
-⚠ **El dato ya estaba, sólo que en texto.** Cada navegación que imprime `pkg/trace.ts` arranca con el
-número de paso y la RUTA (`03 A /merchant/<hash>/<ureq>/personal-info  │ BD 1 «Creada»`), y `steps.json`
-tiene la ruta de cada nodo. El cruce son 21 pasos indexados.
-
-⚠ **Las rutas del mapa son PLANTILLAS** (`/{flow}/{hash}/solicitar`): se comparan convirtiéndolas a
-expresión regular con `{...}` → `[^/]+`. Por igualdad no matchearían nunca, porque el hash y el id de la
-solicitud cambian en cada corrida.
-
-⚠⚠ **DOS DEFECTOS DEL PARSEO QUE SÓLO UNA CORRIDA REAL MOSTRÓ** (2026-09-18, Motai/local, 17
-navegaciones):
-
-1. **El panel DECORA cada línea del runner con `▸ `**, así que la línea es `  ▸ 03 A /merchant/…`, no
-   `03 A /…`. Anclar el número al principio no matcheaba **nunca**: la consola mostraba seis navegaciones
-   y el mapa seguía sin marcar.
-2. **Cuando la ruta es larga, el separador `│` de la columna de BD queda PEGADO** —
-   `…/abaco/platform-otp-validation│`— así que capturar con `\S+` se lo tragaba y esa ruta no matcheaba
-   ninguna plantilla. Va `[^\s│]+`. Peor modo de falla: las rutas cortas andaban y las largas no, o sea
-   parecía funcionar.
-
-**Resultado con la corrida real:** 12 de 17 navegaciones reconocidas, y el recorrido reconstruido es
-`monto → otp → personal-info → lenders → confirmation → abaco-init → abaco-otp`. Las 5 que no son huecos
-de `steps.json` —`/continue`, `/abaco`, `/identity-validation-instructions`, `/request-canceled`—, no
-fallas del cruce: son pantallas reales que el mapa no tiene como nodo. ⚠ Y `identity-validation` **no
-está vieja**: los dos caminos existen en `main`, el mapa tiene uno y la corrida pasó por el otro.
-
-**Los cuatro nodos que faltaban se agregaron** (2026-09-18, a partir de esa corrida): `continue` (el
-handoff al celular del cliente, al final del tronco), `abaco-entrada` (el índice del desvío, el que puede
-SALTEARLO), `identity-validation-instructions` (en el ramal `creditopx`, justo antes de
-`identity-validation` — son DOS pantallas y las dos existen en `main`) y `request-canceled`. Con eso,
-**11 de 11** rutas distintas de una corrida real se ubican.
-
-⚠ **`request-canceled` NO va en el tronco ni en un ramal: va en `terminales`, una sección nueva.** Se
-llega desde varios puntos, así que dibujarla en una secuencia diría que todo el mundo pasa por ahí. El
-mapa no la dibuja; el índice del panel sí la usa (para reconocer dónde está la corrida aunque no haya
-nodo que marcar) y **`steps-check` valida sus archivos igual que los demás** — una sección que no se
-valida se pudre en silencio. Su nota registra lo importante: **su loader CANCELA** (`CancelLoanRequestUc`),
-no informa una cancelación ya ocurrida; es el mecanismo de F-50.
-
-⚠ **Un paso dibujado en VARIOS carriles se marca en todos.** `confirmation` y compañía aparecen 3 veces
-(una por carril) y los de Ábaco 2. Marcar uno solo sería inventar en cuál carril va la corrida —dato que
-el log no da—; marcarlos todos dice «estás en este paso» sin mentir sobre la rama.
-
-⚠ **`tronco` y `bypass` son listas de pasos; `ramales`, `desvios` y `extensiones` NO** — son
-diccionarios de `{label, cuando, pasos}` y los pasos están en `.pasos`. Asumir que eran listas revienta
-con «(arr || []) is not iterable».
-
-⚠ **`#tipear` NO era parte de esa tarjeta aunque viviera adentro**: son los valores que el runner te pasa
-para tipear (el OTP, el documento). Se rescató como franja flotante sobre el mapa. Borrarlo con la
-tarjeta habría sacado lo único de ahí que hacía falta.
-
-## El centro es el MAPA, y plegar un sidebar es su zoom-out
-
-**Sin tarjeta**: ni marco, ni fondo, ni la cabecera «Mapa del recorrido · Referencia del flujo». Un
-título que rotula la única cosa de su zona es ancho gastado. ⚠ **Pero esa cabecera guardaba
-`#trenwarn`** —donde el mapa dice lo que NO pudo dibujar—, y esconderla lo escondía con ella: un mapa
-incompleto se vería igual que uno completo, que es justo el modo de falla que ese aviso evita. Así que
-no se borró: se muestra **sólo cuando hay algo que avisar** (`summary:has(#trenwarn:not(:empty))`).
-Verificado en los dos sentidos.
-
-El mapa ocupa el centro entero y se reencuadra solo al cambiar de tamaño (`ResizeObserver` → `encuadrar()`).
-**Sin botones de zoom**: la rueda con **⌘/ctrl** acerca y el **doble clic** encuadra —los dos ya estaban—,
-así que los botones eran de cuando la rueda pelada la secuestraba el canvas.
-
-⚠ **La escala se clava en 0,55 y NO es un bug: es el piso.** Medido con Motai: el mapa mide **2.026 px**
-de ancho natural y el centro flanqueado por los dos sidebars son **724** — para que entrara entero haría
-falta **0,36**, y a esa escala las etiquetas quedan en ~4 px. Lo que sí resuelve el problema es **plegar
-un sidebar**, que ahora se puede:
-
-| | lienzo | escala | ¿entra entero? |
-|---|---|---|---|
-| con los dos paneles | 724 px | 0,55 (piso) | no |
-| sin el izquierdo | 1.024 px | 0,55 | no |
-| **sin ninguno** | **1.364 px** | **0,64** | **sí** |
-
-O sea que el colapso a 0 no es sólo para ganar lugar: es la forma de ver el recorrido completo.
 
 ## Lo que se sacó del panel, y por qué
 
@@ -325,8 +214,8 @@ cuatro pastillas de ambiente + admin + dos botones de front + su pista recortada
 estado vivía plegado en un `<details>` del sidebar — o sea que **la respuesta a «¿puedo correr?» estaba
 escondida** detrás de un click, cuando es lo primero que hay que saber.
 
-**El CASO (monto · cupo · arranque) vive en el CENTRO, arriba del mapa** — no en el sidebar. Es lo que
-define la corrida y el mapa de abajo dibuja ese mismo recorrido: leerlos juntos es la mitad del sentido.
+**El CASO (monto · cupo · arranque) vivía en el CENTRO** — no en el sidebar —, al lado del recorrido (el mapa, que se
+quitó el 2026-11-25).
 ⚠ Va envuelto en **su propio `fieldset.cfg`**: al salir del sidebar tuvo que llevarse consigo la
 propiedad de deshabilitarse mientras la corrida anda, o se podría cambiar el monto con el wizard abierto.
 
@@ -381,7 +270,7 @@ adentro, desaparecen del documento y `loadEstado()` sigue escribiendo en la nada
 ## El árbol: una ENTRADA por fila, con su sucursal fija
 
 Una entrada del espacio = **un par (comercio, sucursal) con tu nombre** = una fila. **Un nivel**: desde
-el 2026-09-25 la fila no se despliega, ABRE el comercio (el mapa al centro y la pestaña «Comercio» a la
+el 2026-09-25 la fila no se despliega, ABRE el comercio (sus celulares al centro y la pestaña «Comercio» a la
 derecha), y sus entidades viven en esa pestaña, no colgadas del árbol. Hasta entonces `renderMerchants()`
 movía el bloque de entidades debajo de la fila elegida y tenía que rescatarlo antes de limpiar el árbol.
 
