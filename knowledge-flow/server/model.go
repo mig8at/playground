@@ -478,6 +478,19 @@ Matices de redacción no cuentan; sí cuenta una afirmación falsa o un detalle 
 Contestá SÓLO con un objeto JSON, sin texto antes ni después y sin bloque de código:
 {"ok": true|false, "problemas": ["<qué está mal, con repo:ruta:línea si aplica>"]}`
 
+// verifyBatchNote: lo que cambia del verificador cuando le llegan varias secciones juntas (con AI Studio).
+const verifyBatchNote = `
+
+TE LLEGAN VARIAS SECCIONES, cada una con su «# SECCIÓN <id>». Juzgá cada una por separado, con sus propios archivos.
+Contestá SÓLO con una lista JSON, un objeto por sección y sin omitir ninguna:
+[{"id": "<id tal cual>", "ok": true|false, "problemas": ["…"]}]`
+
+// verifyBatchChars / verifyBatchItems: cuánto entra en una pregunta de verificación con AI Studio.
+const (
+	verifyBatchChars = 900000
+	verifyBatchItems = 25
+)
+
 func (f *flow) stepVerify(ctx context.Context, r *Run, st *Step) error {
 	fin, err := r.finals()
 	if err != nil {
@@ -512,9 +525,24 @@ func (f *flow) stepVerify(ctx context.Context, r *Run, st *Step) error {
 	if raw, err := os.ReadFile(filepath.Join(r.driftDir(), "files.json")); err == nil {
 		_ = json.Unmarshal(raw, &filesList)
 	}
-	var problems []string
+	type result struct {
+		OK       bool     `json:"ok"`
+		Problems []string `json:"problemas"`
+	}
+	cacheOf := func(id string) string {
+		return filepath.Join(r.driftDir(), "verificacion", strings.NewReplacer("#", "__", "/", "_").Replace(id)+".json")
+	}
+	save := func(id, sum string, res result) {
+		resRaw, _ := json.Marshal(res)
+		out, _ := json.Marshal(map[string]any{"sum": sum, "res": json.RawMessage(resRaw)})
+		_ = os.MkdirAll(filepath.Dir(cacheOf(id)), 0o755)
+		_ = os.WriteFile(cacheOf(id), out, 0o644)
+	}
+	results := map[string]result{}
+	blocks, sums := map[string]string{}, map[string]string{}
+	var pending []string
 	for i, id := range ids {
-		st.Now = fmt.Sprintf("%d de %d · %s", i+1, len(ids), id)
+		st.Now = fmt.Sprintf("armando %d de %d · %s", i+1, len(ids), id)
 		f.runs.save(r)
 		it, v := items[id], fin[id]
 		var b strings.Builder
@@ -542,35 +570,86 @@ func (f *flow) stepVerify(ctx context.Context, r *Run, st *Step) error {
 		if extra := f.citedFiles(ctx, r, it.Files, v.Evidence, filesList, shown); extra != "" {
 			b.WriteString("\n## ARCHIVOS EN MAIN QUE CITA LA DECISIÓN (los que reemplazaron a los borrados y la evidencia)\n" + extra)
 		}
-		var res struct {
-			OK       bool     `json:"ok"`
-			Problems []string `json:"problemas"`
-		}
+		blocks[id] = b.String()
+		sums[id] = fmt.Sprintf("%x", sha256.Sum256([]byte(blocks[id])))
 		/* Cada veredicto queda guardado con la huella del texto verificado: al retomar no se vuelve a preguntar. */
-		cache := filepath.Join(r.driftDir(), "verificacion", strings.NewReplacer("#", "__", "/", "_").Replace(id)+".json")
-		sum := fmt.Sprintf("%x", sha256.Sum256([]byte(b.String())))
 		var saved struct {
 			Sum string          `json:"sum"`
 			Res json.RawMessage `json:"res"`
 		}
-		if raw, err := os.ReadFile(cache); err == nil && json.Unmarshal(raw, &saved) == nil && saved.Sum == sum && json.Unmarshal(saved.Res, &res) == nil {
-			// ya verificado con este mismo texto
-		} else {
-			ans, err := f.askRetry(ctx, background.Request{Prompt: b.String(), System: verifyPrompt})
+		var res result
+		if raw, err := os.ReadFile(cacheOf(id)); err == nil && json.Unmarshal(raw, &saved) == nil && saved.Sum == sums[id] && json.Unmarshal(saved.Res, &res) == nil {
+			results[id] = res
+			continue
+		}
+		pending = append(pending, id)
+	}
+	/* Con AI Studio se verifican varias secciones por pregunta (la ventana de ~1 millón de tokens): una por pregunta eran
+	 * ~90 preguntas de 1–2 minutos, y Google limita por cantidad. Cada sección sigue siendo un veredicto aparte. */
+	batchCap := 0
+	if knowledgeModel == "aistudio" {
+		batchCap = verifyBatchChars
+	}
+	for len(pending) > 0 {
+		var batch []string
+		size := 0
+		for _, id := range pending {
+			if len(batch) > 0 && (batchCap == 0 || size+len(blocks[id]) > batchCap || len(batch) >= verifyBatchItems) {
+				break
+			}
+			batch, size = append(batch, id), size+len(blocks[id])
+		}
+		pending = pending[len(batch):]
+		st.Now = fmt.Sprintf("%d de %d verificadas · ahora %d", len(results), len(ids), len(batch))
+		f.runs.save(r)
+		if len(batch) == 1 {
+			id := batch[0]
+			ans, err := f.askRetry(ctx, background.Request{Prompt: blocks[id], System: verifyPrompt})
 			if err != nil {
 				return err
 			}
+			var res result
 			text := strings.TrimSpace(ans.Text)
 			a, z := strings.Index(text, "{"), strings.LastIndex(text, "}")
 			if a < 0 || z < a || json.Unmarshal([]byte(text[a:z+1]), &res) != nil {
 				return fmt.Errorf("%s: el verificador no devolvió el JSON pedido: %.200s", id, text)
 			}
-			resRaw, _ := json.Marshal(res)
-			out, _ := json.Marshal(map[string]any{"sum": sum, "res": json.RawMessage(resRaw)})
-			_ = os.MkdirAll(filepath.Dir(cache), 0o755)
-			_ = os.WriteFile(cache, out, 0o644)
+			results[id] = res
+			save(id, sums[id], res)
+			continue
 		}
-		if !res.OK {
+		var prompt strings.Builder
+		for _, id := range batch {
+			prompt.WriteString(blocks[id] + "\n\n")
+		}
+		list, err := f.askList(ctx, r, verifyPrompt+verifyBatchNote, prompt.String(), filepath.Join(r.driftDir(), "verificacion", "respuesta-lote.txt"))
+		if err != nil {
+			return err
+		}
+		got := map[string]bool{}
+		for _, x := range list {
+			id, _ := x["id"].(string)
+			if blocks[id] == "" {
+				continue
+			}
+			raw, _ := json.Marshal(x)
+			var res result
+			if json.Unmarshal(raw, &res) == nil {
+				results[id], got[id] = res, true
+				save(id, sums[id], res)
+			}
+		}
+		/* Lo que no volvió se pregunta de a una: un veredicto no se inventa. */
+		for _, id := range batch {
+			if !got[id] {
+				pending = append(pending, id)
+				batchCap = 0
+			}
+		}
+	}
+	var problems []string
+	for _, id := range ids {
+		if res := results[id]; !res.OK {
 			for _, p := range res.Problems {
 				problems = append(problems, id+": "+p)
 			}
