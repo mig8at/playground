@@ -15,7 +15,7 @@ jira_title: ""
 - [x] ~~Separar el riel 4 (originación delegada) de CreditopX: una sola «delegada», con su ficha~~ — 2026-11-25.
 - [x] ~~El servicio de preaprobación como nodo, con su respuesta editable (rt=1 y rt=4)~~ — 2026-11-25.
 - [x] ~~Registrarlo en Cockpit (app, ícono, documentación) y en el chequeo de nombres~~ — 2026-11-25.
-- [ ] Pasarlo al tema compartido (`tools/ui-sync.py`) cuando valga la pena.
+- [x] ~~Pasarlo al tema compartido y a la base «Paneles», con el tema heredado de Cockpit~~ — 2026-11-25.
 - [ ] Poner al día `docs/` (citan el playground y el trazador) o borrarlos.
 
 ## Objetivo

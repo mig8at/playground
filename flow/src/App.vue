@@ -16,7 +16,7 @@ import MareiguaNode from './nodes/MareiguaNode.vue'
 import IngresosExtrasNode from './nodes/IngresosExtrasNode.vue'
 import BuroNode from './nodes/BuroNode.vue'
 import LendersNode from './nodes/LendersNode.vue'
-import SettingsBar from './nodes/SettingsBar.vue'
+import EditorActions from './nodes/EditorActions.vue'
 import LendersConfigNode from './nodes/LendersConfigNode.vue'
 import DefaultNode from './nodes/DefaultNode.vue'
 import ComercioNode from './nodes/ComercioNode.vue'
@@ -40,12 +40,17 @@ import InfoAdicionalNode from './nodes/InfoAdicionalNode.vue'
 import CreditStatusNode from './nodes/CreditStatusNode.vue'
 import FieldInfoPanel from './nodes/FieldInfoPanel.vue'
 import ProdImportPanel from './nodes/ProdImportPanel.vue'
-import { ui, findLenderDef, entidadCfg, perfilOf, perfil, bureau, fieldNull, providerDown, lenders, postSelSteps, recheckStatus, usesCategories, usesPreApproval, isInHouse, delegatedOf, closeFieldInfo, focusWinningProfile } from './store'
-import { settings } from './settings'
+import { ui, findLenderDef, entidadCfg, perfilOf, perfil, bureau, fieldNull, providerDown, lenders, postSelSteps, recheckStatus, usesCategories, usesPreApproval, isInHouse, delegatedOf, closeFieldInfo, focusWinningProfile, persistPing } from './store'
+import { Check } from 'lucide-vue-next'
 
-// El tema/visibilidad los maneja la barra "Configuraciones" (settings.js). Acá solo derivamos isDark
-// para pintar el canvas (clase dark de Vue Flow + color del patrón de fondo).
-const isDark = computed(() => settings.theme === 'dark')
+// El tema lo pone workbench.js (el de Cockpit) como clase `dark` en el <html>; acá sólo se sigue, para los colores
+// que se pintan por código (los edges y el patrón de fondo). `ui-theme` avisa cada cambio.
+const isDark = ref(document.documentElement.classList.contains('dark'))
+const onTheme = () => { isDark.value = document.documentElement.classList.contains('dark') }
+// «guardado» en el pie: aparece cada vez que se persiste el escenario y se va solo.
+const justSaved = ref(false)
+let savedTimer
+watch(() => persistPing.n, () => { justSaved.value = true; clearTimeout(savedTimer); savedTimer = setTimeout(() => { justSaved.value = false }, 1600) })
 const showProdImport = ref(false)
 // ¿La entidad seleccionada realmente se OFRECE (pasó el listado)? Si no pasa, no tiene sentido mostrar
 // la formalización post-selección. Es dependencia del watch para que aparezca/desaparezca al cambiar el escenario.
@@ -79,8 +84,8 @@ function onKey(e) {
   if (ui.fieldInfo) closeFieldInfo()
   else if (ui.selected) ui.selected = null
 }
-onMounted(() => window.addEventListener('keydown', onKey))
-onUnmounted(() => window.removeEventListener('keydown', onKey))
+onMounted(() => { window.addEventListener('keydown', onKey); window.addEventListener('ui-theme', onTheme) })
+onUnmounted(() => { window.removeEventListener('keydown', onKey); window.removeEventListener('ui-theme', onTheme); clearTimeout(savedTimer) })
 
 const nodes = ref([
   // Config del comercio: "Entidades del comercio" (incluye los productos CreditopX) entra al merchant desde arriba.
@@ -333,10 +338,15 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
 </script>
 
 <template>
-  <div class="app">
-    <div class="main">
-      <div class="canvas">
-        <VueFlow :class="{ dark: isDark }" :nodes="nodes" :edges="edges" :min-zoom="0.2" :max-zoom="2" :nodes-draggable="true" :fit-view-on-init="true" :fit-view-options="{ padding: 0.14 }" @pane-click="closeFieldInfo">
+  <div class="workbench">
+    <main class="editor">
+      <div class="region-head">
+        <span class="flow-title">Flujo de una solicitud</span>
+        <span class="flow-crumbs">comercio → solicitud → burós → perfil → entidades → después de elegir</span>
+        <EditorActions @import-prod="showProdImport = true" />
+      </div>
+      <div class="region-body canvas">
+        <VueFlow :nodes="nodes" :edges="edges" :min-zoom="0.2" :max-zoom="2" :nodes-draggable="true" :fit-view-on-init="true" :fit-view-options="{ padding: 0.14 }" @pane-click="closeFieldInfo">
           <template #node-merchant="props"><MerchantNode v-bind="props" /></template>
           <template #node-canal="props"><CanalNode v-bind="props" /></template>
           <template #node-lenderscfg="props"><LendersConfigNode v-bind="props" /></template>
@@ -370,11 +380,7 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
           <template #node-infoadicional="props"><InfoAdicionalNode v-bind="props" /></template>
           <template #node-cstatus="props"><CreditStatusNode v-bind="props" /></template>
           <Background :pattern-color="isDark ? '#2f2e27' : '#cfcabd'" :gap="22" />
-          <Panel position="top-left" class="hud">
-            <div class="hud__app">CreditOp · simulador de onboarding</div>
-            <div class="hud__sub">comercio → solicitud → burós → perfil → entidades</div>
-          </Panel>
-          <Panel position="top-right" class="hud hud--legend">
+          <Panel position="bottom-right" class="hud hud--legend">
             <div class="lg"><span class="lg__chip rt2">rt2</span> CreditopX · decide CreditOp</div>
             <div class="lg"><span class="lg__chip rt4">rt4</span> delegada · su política, cierra acá</div>
             <div class="lg"><span class="lg__chip rt1">rt1</span> agregador · decide su API</div>
@@ -386,9 +392,12 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
           </Panel>
           <Panel v-if="showProdImport" position="bottom-left"><ProdImportPanel @close="showProdImport = false" /></Panel>
         </VueFlow>
-        <FieldInfoPanel />
       </div>
-    </div>
-    <SettingsBar @import-prod="showProdImport = true" />
+    </main>
+    <FieldInfoPanel />
+    <footer class="statusbar">
+      <span>{{ ui.selected ? 'Entidad elegida: ' + ui.selected : 'Elegí una entidad en «Entidades disponibles» para ver lo que sigue' }}</span>
+      <span v-if="justSaved" class="flow-saved"><Check :size="12" /> escenario guardado</span>
+    </footer>
   </div>
 </template>

@@ -4,7 +4,7 @@ import { ui, closeFieldInfo } from '../store'
 import { FIELD_DOCS, FIELD_STATUS, LAYER_LABELS, NODE_STAGE } from '../fieldDocs'
 import { X, Database, Layers3, FileCode2 } from 'lucide-vue-next'
 
-// Sidebar derecho: detalle de un CAMPO o de un NODO (kind:'node' → vista más rica con role + bullets).
+// El sidebar secundario (`auxiliarybar` de la base): detalle de un CAMPO o de un NODO (kind:'node' → vista más rica con role + bullets).
 // Muestra: dónde se guarda (tablas), en qué capa vive la lógica, estado/etapa y el detalle.
 // Contenido = fieldDocs.js (censo del código real). Reemplaza al tooltip como fuente de la verdad.
 const doc = computed(() => ui.fieldInfo ? FIELD_DOCS[ui.fieldInfo] : null)
@@ -16,12 +16,12 @@ const layerLabel = (l) => LAYER_LABELS[l] || l
 </script>
 
 <template>
-  <transition name="fi">
-    <aside v-if="doc" class="fieldinfo nodrag nowheel" @click.stop @wheel.stop>
-      <div class="fieldinfo__hd">
-        <span class="fi-badge" :class="badgeClass">{{ badgeLabel }}</span>
-        <button class="fieldinfo__x" @click="closeFieldInfo" title="cerrar"><X :size="15" /></button>
-      </div>
+  <aside v-if="doc" class="auxiliarybar" aria-label="Detalle del campo o del nodo">
+    <div class="region-head">
+      <span class="fi-badge" :class="badgeClass">{{ badgeLabel }}</span>
+      <div class="region-actions"><button type="button" class="region-action" @click="closeFieldInfo" title="Cerrar el detalle" aria-label="Cerrar el detalle"><X :size="15" /></button></div>
+    </div>
+    <div class="region-body fieldinfo">
       <h3 class="fieldinfo__title">{{ doc.label }}</h3>
 
       <!-- role (nodo) o hint del estado (campo) como intro -->
@@ -47,6 +47,6 @@ const layerLabel = (l) => LAYER_LABELS[l] || l
       <p v-if="doc.detail" class="fieldinfo__detail">{{ doc.detail }}</p>
       <div v-if="doc.evidencia" class="fieldinfo__ev"><FileCode2 :size="11" /> <code>{{ doc.evidencia }}</code></div>
       <div class="fieldinfo__foot">Censo del código real · docs/codigo/CENSO-CAMPOS-CONFIG.md</div>
-    </aside>
-  </transition>
+    </div>
+  </aside>
 </template>

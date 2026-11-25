@@ -39,6 +39,10 @@ La cuota del riel 4 es aproximada (sin 4×1000 ni intereses de los días hasta l
 - **`npm run build` es la vara**: no hay pruebas de la UI. Mirá cómo se ve con `make ui-shot URL=http://localhost:5252/` (con `make flow` arriba) o en la app.
 - Los nombres en español que traía al entrar a my-tools son deuda congelada de `make tablero-naming`; lo nuevo, en
   inglés.
-- Tiene su propio `styles.css` (el lienzo de Vue Flow): no usa todavía el tema compartido de `tools/ui-sync.py`.
+- **El tema y la base son los compartidos** (`theme.css`, `workbench.css` y `workbench.js`, copiados por `make style-sync`;
+  `make style-check` lo vigila): el lienzo es el `editor`, el detalle de un campo el `auxiliarybar`, y hay un pie.
+  **El tema no se elige en Flow**: lo hereda de Cockpit (claro/oscuro y paleta). `styles.css` arranca con el puente:
+  lo neutro apunta a los tokens del tema y lo propio (el color de cada riel y sus tintes, mezclados con la tarjeta)
+  queda acá. ⚠ La base también define `.field` (en columna): el de Flow va en fila a propósito.
 - `docs/` es histórico, de cuando vivía en `temp/` (cita `playground`, el trazador y `make flow-context`, que ya
   no existen acá).
