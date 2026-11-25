@@ -101,14 +101,40 @@ expresarse en la preaprobación. En `legacy-backend` la pertenencia al riel se d
 
 Lo que cambia entre las entidades del riel vive en `delegated_origination_profiles`, una fila por entidad leída por
 `DelegatedOriginationLenderProfile::forLender`, que tira si la entidad no tiene fila o si la fila no trae días de
-pago (nunca toma el perfil de otra): `bond_percentage_source` (`pre_approval`, el % de la preaprobación, o
-`fng_table`, el % por plazo de `lender_term_fng_percentages`), `forced_bond_type` (pisa el tipo de fianza de la
-preaprobación), `applies_four_per_thousand`, `payment_days` (JSON; el primero es el que se usa cuando el cliente
-todavía no eligió), `inputs_source` (clave de `DelegatedOriginationInputsSources`, hoy sólo
-`credifamilia_pre_approval` → `CredifamiliaPreApprovalInputs`) y `formalization`. La migración que siembra los
-perfiles deja a Salud con fianza de la preaprobación y 4x1000, y a Materiales con fianza de la tabla FNG, anticipada y
-con 4x1000; los dos pagan el 2 o el 16, toman los insumos de la preaprobación de Credifamilia y radican por su SOAP.
-Sólo siembra las entidades que existen en esa base.
+pago (nunca toma el perfil de otra). Sus columnas son de dos clases:
+
+- **Las que eligen qué código corre.** `inputs_source` y `formalization` son una clave que un registro traduce a una
+  clase con un `match`: `DelegatedOriginationInputsSources::for` devuelve una `DelegatedOriginationInputs` y
+  `DelegatedOriginationFormalizations::for`, una `DelegatedOriginationFormalization`. Una clave desconocida tira
+  `InvalidArgumentException`; `formalization` en null significa «no formalizar» (el crédito termina en el 11 al
+  firmar). `bond_percentage_source` no elige una clase sino de dónde leer un número: es el enum `BondPercentageSource`
+  y lo resuelve un `if` en `PaymentPlanPayloadBuilder::resolveBond` (`pre_approval`, el `guarantee_percentage` que
+  trajo la fuente de insumos, o `fng_table`, el % por plazo de `lender_term_fng_percentages`).
+- **Las que se usan tal cual.** `payment_days` (JSON; el primero es el que se usa cuando el cliente todavía no eligió),
+  `forced_bond_type` (pisa el tipo de fianza de la preaprobación; null lo deja en el de la preaprobación) y
+  `applies_four_per_thousand`.
+
+Así, sumar una entidad que se comporta como otra ya registrada es agregar una fila; una que trae sus números o entrega
+la operación de otra forma pide escribir su clase y sumar su clave al registro.
+
+Hay dos fuentes de insumos (`fetch()` devuelve la tasa, el seguro, el monto máximo y, si los da, el % y el tipo de
+fianza, o null con el motivo en `failureReason()`):
+
+- `credifamilia_pre_approval` → `CredifamiliaPreApprovalInputs` (en `App\Services\PaymentPlan\Credifamilia`): la
+  preaprobación de Credifamilia en pre-approvals-service, para Salud y Materiales.
+- `creditop_x_pre_approval` → `CreditopXPreApprovalInputs`: para una entidad sin servicio de preaprobación propio
+  cuya política vive en el motor de CreditopX (Banco Finandina). El monto máximo es el cupo que aprobó la preaprobación
+  `creditop_x` (pre-approvals-service, que llama a `available-quota`); la tasa, la de la línea de crédito activa
+  (`credit_line_by_lenders`, guardada N.M. y pasada a E.A.); el seguro, el del convenio con el comercio
+  (`lenders_by_allieds`, por millón o, si no hay, su % mensual); el % de fianza, el FGA de la categoría que eligió el
+  motor (`category.fga`) o, si no viene, el `guarantee_fund_percentage` del convenio; el tipo, siempre anticipada salvo
+  que el perfil fuerce otro. Sin línea activa, sin convenio o sin preaprobación aprobada devuelve null.
+
+La migración que siembra los perfiles deja a Salud con fianza de la preaprobación y 4x1000, y a Materiales con fianza
+de la tabla FNG, anticipada y con 4x1000; los dos pagan el 2 o el 16, toman los insumos de la preaprobación de
+Credifamilia y radican por su SOAP. Sólo siembra las entidades que existen en esa base. La fila de Banco Finandina no
+la siembra ninguna migración de main: se carga por datos. El código la da como ejemplo en comentarios: paga el 5, 10, 15
+o 20 (`PaymentPlanDatesService::nextPaymentDates`) y toma los insumos de `creditop_x_pre_approval`.
 
 Los plazos que ofrece el riel salen de `AmountBandTerms::allowed`: los que declara la entidad en
 `credit_line_by_lenders.fee_numbers`, recortados por su banda de monto (`creditop_x_conditions_by_amount_by_lender`,
@@ -198,6 +224,23 @@ sobre los insumos de la fuente que nombra el perfil:
 Confirmar el plazo no recalcula: guarda `fee_number` después de validar que la simulación lo ofrece (ver la sección
 anterior) y que la cuota del plazo elegido cabe en la capacidad de pago (`CapacityFittingTerms::fits`),
 rechazando con 422 si la supera.
+
+La carpeta `app/Services/PaymentPlan/DelegatedOrigination` se ordena en tres capas:
+
+- **Una carpeta por pantalla** (`LoanOptions`, `PaymentDates`, `InstallmentPlan`, `PaymentPlanSummary`,
+  `ContinueRequest`, `Voucher`): el servicio que contesta cada ruta de la tabla; los llaman los controladores de
+  `Modules/Onboarding/App/Http/Controllers/PaymentPlan` y, desde Loans, `PaymentDateService`,
+  `ExternallyManagedPaymentScheduleService`, `ContinueUserFlowController` y el armado de documentos.
+- **En la raíz, lo que distingue a las entidades del riel**: quién es del riel (`DelegatedOriginationLenders`), su
+  perfil (`DelegatedOriginationLenderProfile`), los registros y contratos de las claves del perfil (los `…Sources`,
+  `…Formalizations`, sus interfaces y `BondPercentageSource`), la fuente de CreditopX, los plazos (`AmountBandTerms`,
+  `CapacityFittingTerms`) y `PaymentPlanPayloadBuilder`, que junta insumos, perfil y fianza en el payload del motor.
+- **El motor, sin nada de entidades**: `PaymentPlanCalculatorService` (la fachada: recibe el payload en array y
+  devuelve array o error), `DTO` (entrada validada y resultado), `Engine` (`CalculationContext` deriva todo lo que se
+  puede antes del ciclo, `ScheduleGenerator` arma las cuotas, `AmortizationEngine` orquesta y valida que el saldo
+  cierre en cero), `Math` (PMT, tasas, fechas; `Days360Calculator` quedó sin uso a propósito), `ValueObjects`
+  (`BondBreakdown` es la única fórmula de la fianza, y la usan el motor, el comprobante y la radicación) y
+  `Constants`/`Exceptions` (los códigos de error del riel y el 422 de plazo no permitido).
 
 ## La cobranza es otro eje
 

@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Rieles de una entidad: response_type",
   "summary": "Qué separa a los tipos 0 a 4 de una entidad (de quién es la política y por qué riel se origina), qué dispara cada uno en el código y por qué la cobranza externa es otro eje.",
-  "reviewedAt": "2026-11-25T14:12:19+00:00",
+  "reviewedAt": "2026-11-25T19:00:41+00:00",
   "sources": [
     {
       "repo": "frontend-monorepo",
@@ -134,7 +134,8 @@
       "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
       "blob": "3d1a1e05a3244979fb707cce749a2f772048bb13",
       "sections": [
-        "tipo-4-politica-de-la-entidad-rieles-de-creditop"
+        "tipo-4-politica-de-la-entidad-rieles-de-creditop",
+        "el-plan-del-riel-4-una-ruta-por-pantalla-y-un-solo-calculo"
       ]
     },
     {
@@ -230,10 +231,11 @@
     {
       "repo": "legacy-backend",
       "path": "app/Services/PaymentPlan/DelegatedOrigination/DelegatedOriginationLenderProfile.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
       "blob": "0dd1d7f24af3787387731e656ef44d2d896b8e2a",
       "sections": [
-        "tipo-4-politica-de-la-entidad-rieles-de-creditop"
+        "tipo-4-politica-de-la-entidad-rieles-de-creditop",
+        "el-plan-del-riel-4-una-ruta-por-pantalla-y-un-solo-calculo"
       ]
     },
     {
@@ -288,7 +290,8 @@
       "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
       "blob": "4faf332874c951d29e1a9ea2096153d77e0ef015",
       "sections": [
-        "tipo-4-politica-de-la-entidad-rieles-de-creditop"
+        "tipo-4-politica-de-la-entidad-rieles-de-creditop",
+        "el-plan-del-riel-4-una-ruta-por-pantalla-y-un-solo-calculo"
       ]
     },
     {
@@ -360,6 +363,96 @@
       "path": "app/Services/PaymentPlan/DelegatedOrigination/Engine/CalculationContext.php",
       "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
       "blob": "c343c3af6982957f2593f5ac85341e629bbf6b97",
+      "sections": [
+        "el-plan-del-riel-4-una-ruta-por-pantalla-y-un-solo-calculo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/PaymentPlan/DelegatedOrigination/CreditopXPreApprovalInputs.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "08f3265146056ae5d9d9670ee86434ff7aea5a0e",
+      "sections": [
+        "tipo-4-politica-de-la-entidad-rieles-de-creditop"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/PaymentPlan/DelegatedOrigination/DelegatedOriginationInputsSources.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "0df3973a04613eafd1984ed3066141d9591e1f2a",
+      "sections": [
+        "tipo-4-politica-de-la-entidad-rieles-de-creditop"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/PaymentPlan/DelegatedOrigination/DelegatedOriginationFormalizations.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "44f65120489ca5371cb66e1da84cd4404ed57744",
+      "sections": [
+        "tipo-4-politica-de-la-entidad-rieles-de-creditop"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/PaymentPlan/DelegatedOrigination/BondPercentageSource.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "c3ea582a156922bb93a44f6c57ff7e22bb6af429",
+      "sections": [
+        "tipo-4-politica-de-la-entidad-rieles-de-creditop"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/PaymentPlan/Credifamilia/CredifamiliaPreApprovalInputs.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "e4a61bf3ecab0f3cd1c5e3b54407238e2318bf42",
+      "sections": [
+        "tipo-4-politica-de-la-entidad-rieles-de-creditop"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/PaymentPlan/DelegatedOrigination/PaymentPlanCalculatorService.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "e036863119ea6b2e59556f22b2f7acd44d71f1f0",
+      "sections": [
+        "el-plan-del-riel-4-una-ruta-por-pantalla-y-un-solo-calculo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/PaymentPlan/DelegatedOrigination/Engine/ScheduleGenerator.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "f6f8b5c00093b54ddb83dd974613ffe20e726a40",
+      "sections": [
+        "el-plan-del-riel-4-una-ruta-por-pantalla-y-un-solo-calculo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/PaymentPlan/DelegatedOrigination/ValueObjects/BondBreakdown.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "9f245442387773718687f3434dd6afe48e15c785",
+      "sections": [
+        "el-plan-del-riel-4-una-ruta-por-pantalla-y-un-solo-calculo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/PaymentPlan/DelegatedOrigination/Math/Days360Calculator.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "86649ea241a453ac3a1331113bc43c9ce2aff3c2",
+      "sections": [
+        "el-plan-del-riel-4-una-ruta-por-pantalla-y-un-solo-calculo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/PaymentPlan/DelegatedOrigination/DelegatedOriginationLenders.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "f4c50cd48678691b991e2953cf24c588fc2e2254",
       "sections": [
         "el-plan-del-riel-4-una-ruta-por-pantalla-y-un-solo-calculo"
       ]
