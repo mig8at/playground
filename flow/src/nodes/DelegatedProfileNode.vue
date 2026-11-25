@@ -32,7 +32,7 @@ const setDays = (txt) => {
       <label class="field"><span>Cobro de la fianza</span>
         <select class="nodrag" :value="d.bondType" @change="e => set('bondType', e.target.value)">
           <option value="anticipada">anticipada (se financia con el crédito)</option>
-          <option value="mensual">mensual (en cada cuota)</option>
+          <option value="mensual">vencida (se cobra en cada cuota)</option>
         </select>
       </label>
       <label class="field dl-check"><input class="nodrag" type="checkbox" :checked="d.usesQuotaEngine" @change="e => set('usesQuotaEngine', e.target.checked)" />
