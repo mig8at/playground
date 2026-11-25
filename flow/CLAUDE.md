@@ -40,6 +40,10 @@ sola «delegada»: no se distingue Finandina de Credifamilia. Dos nodos lo expli
   2. después de validar la identidad (o del formulario de la entidad si no hay validación pendiente), directo y para
      CUALQUIER entidad en casa (`available-quota/extended`): decide codeudor, fecha de pago o cancelada; sin política
      «titular extendida», aprueba sin evaluar.
+- **La columna que decide el cupo** (2026-11-25): categorías y tramos → perfilamiento → motor de cupo → preaprobación
+  → «Entidades disponibles», de arriba abajo sobre el listado. La ficha delegada quedó al lado de «Configurar entidad».
+  En qa (medido el 2026-11-25) la política «titular extendida» (tipo 2) la tienen sólo Banco Finandina (149), Motai
+  Renting (158), Rent to Own (205) y AltaX (211); CrediPullman y Credifamilia no: `extended` les aprueba sin evaluar.
 - **Elegir la entidad** (`LenderSelectionNode.vue`, `selectionCheck`): `update-user-request` NO vuelve a consultar el
   cupo; rechaza el monto distinto del pedido de la tienda, la cuota inicial que alcanza el monto y la originación apagada,
   y pasa a 3. Reemplazó a la «Re-evaluación en POS», que dibujaba una consulta que no existe.

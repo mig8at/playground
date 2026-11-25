@@ -45,7 +45,7 @@ const setDays = (txt) => {
         {{ d.formalization ? 'Después de la firma, la radicación; el 11 llega cuando la entidad la acepta.' : 'Termina en el 11 al firmar.' }}
       </div>
     </div>
-    <Handle id="down" type="source" :position="Position.Bottom" />
+    <Handle id="in" type="target" :position="Position.Right" />
   </div>
 </template>
 

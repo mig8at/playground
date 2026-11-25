@@ -21,8 +21,8 @@ const winner = computed(() => diag.value?.winner ? perfilOf(ui.selected).find(c 
 
 <template>
   <div class="node node--perfil prov-node">
-    <Handle id="in" type="target" :position="Position.Right" />
     <Handle id="fromcats" type="target" :position="Position.Top" />
+    <Handle id="out" type="source" :position="Position.Bottom" />
     <div class="node__hd node__hd--teal nhd-doc" title="clic: detalle del nodo" @click="openFieldInfo('node.perfil')">
       <div class="node__title"><Layers :size="13" /> Perfilamiento</div>
       <span class="pl-cat">config de entidad</span>
@@ -45,7 +45,7 @@ const winner = computed(() => diag.value?.winner ? perfilOf(ui.selected).find(c 
           <span>{{ winner ? lender.name + ' → preaprobado: ' + winner.label : (blacklisted ? lender.name + ' → documento en lista negra' : lender.name + ' → sin categoría (no ofrecido)') }}</span>
         </div>
         <label class="chk--sim perfil-bl"><input type="checkbox" :checked="isBlacklisted(ui.selected)" @change="e => setBlacklist(ui.selected, e.target.checked)" /> documento en lista negra (rechazo directo)</label>
-        <div class="pl-updo">↑ Las categorías y los tramos están arriba. La que <b>gana</b> define enganche / cupo / plazo.</div>
+        <div class="pl-updo">↑ Las categorías y los tramos están arriba. La que <b>gana</b> define enganche / cupo / plazo, y la aplica el motor de cupo ↓.</div>
       </template>
 
       <!-- Agregador (rt=1): pre-aprobación EXTERNA — la API de la entidad decide -->

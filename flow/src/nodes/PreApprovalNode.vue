@@ -49,7 +49,7 @@ const outcome = computed(() => {
         <div class="tr-active" :class="{ 'tr-active--no': row && !row.ok }">→ {{ outcome }}</div>
       </template>
       <template v-else-if="usesQuotaEngine(lender)">
-        <div class="tr-hint">{{ lender.rt === 2 ? 'CreditopX' : lender.name + ' (por alias, como CreditopX)' }}: el servicio no decide, le pregunta al motor de cupo ↑ y devuelve lo que contesta. Se cambia en las categorías, a la izquierda.</div>
+        <div class="tr-hint">{{ lender.rt === 2 ? 'CreditopX' : lender.name + ' (por alias, como CreditopX)' }}: el servicio no decide, le pregunta al motor de cupo ↑ y devuelve lo que contesta. Se cambia en las categorías, arriba del motor.</div>
         <div class="tr-active" :class="{ 'tr-active--no': row && !row.ok }">→ {{ outcome }}</div>
       </template>
       <div v-else class="tr-hint">Redirect: no pasa por la preaprobación. La entidad decide en su sitio.</div>

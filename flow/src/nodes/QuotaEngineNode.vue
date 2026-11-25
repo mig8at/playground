@@ -26,7 +26,7 @@ const who = computed(() => {
 
 <template>
   <div class="node node--tramo prov-node node--engine" :class="{ 'node--idle': lender && !consulted && !onlyExtended }">
-    <Handle id="in" type="target" :position="Position.Left" />
+    <Handle id="top" type="target" :position="Position.Top" />
     <div class="node__hd node__hd--purple nhd-doc" title="clic: dónde vive y por qué" @click="openFieldInfo('node.engine')">
       <div class="node__title"><Cpu :size="13" /> Motor de cupo</div>
       <div class="node__kind">legacy-backend</div>

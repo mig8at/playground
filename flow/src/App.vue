@@ -156,9 +156,12 @@ const DYN = ['default', 'comercio', 'relacion', 'perfil']
 // Grilla del inspector de la entidad seleccionada. Con los nodos de perfil limitados y con
 // scroll, estas bandas dejan aire fijo entre tarjetas y evitan los grandes saltos verticales.
 const SELECTED_LAYOUT = {
-  profileInputs: { x: -1060, y: -470 }, // categoría + tramo, misma fila (las categorías son altas)
-  preApprovalRow: { y: -310 },          // la ficha delegada (~345 de alto): termina 50 px arriba del hub
-  profileHub: { x: -680, y: 90 },
+  // Lo que DECIDE el cupo va en una columna sobre el motor de cupo (1640, -230), que es quien lo aplica:
+  // categorías + tramos (fila de arriba) → perfilamiento → motor → preaprobación → listado. (2026-11-25)
+  profileInputs: { x: 1460, y: -1080 }, // categoría (268×467) + tramo (348×236), misma fila
+  tramoX: 1760,
+  profileHub: { x: 1664, y: -540 },     // centrado sobre el motor; ≤ 240 de alto, termina 70 px arriba
+  delegated: { x: -720, y: 90 },        // la ficha delegada es config de la entidad: al lado de «Configurar entidad»
   lender: { x: -320, y: 90 },
   commerce: { x: -320, y: 570 },
   groupRules: { x: -1060, y: 720 },
@@ -196,7 +199,8 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
     { id: 'e-cfg-suc', source: 'merch', sourceHandle: 'tosuc', target: 'relacion', targetHandle: 'in', animated: false, style: { stroke: ec('cfg'), strokeWidth: 1.4, strokeDasharray: '6 5' } },
     // Perfilamiento = config de la entidad: sale del costado IZQUIERDO de "Configurar entidad" y entra
     // por el costado DERECHO del nodo (categorías viven por lender_id, como su economía).
-    { id: 'e-perf', source: 'default', sourceHandle: 'toperf', target: 'perfil', targetHandle: 'in', animated: false, style: { stroke: ec('base'), strokeWidth: 1.4, strokeDasharray: '6 5' } },
+    // Perfilamiento → motor de cupo: el motor aplica la categoría que gana.
+    { id: 'e-perf-engine', source: 'perfil', sourceHandle: 'out', target: 'engine', targetHandle: 'top', animated: false, style: { stroke: ec('purp'), strokeWidth: 1.4, strokeDasharray: '5 4' } },
   ]
   // rt=2: las CATEGORÍAS y los TRAMOS son nodos propios, en FILA ARRIBA del hub Perfilamiento
   // (conectados hacia abajo). Se comparan lado a lado; la que gana se resalta. Solo CreditopX.
@@ -212,15 +216,14 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
       addE.push({ id: 'e-cat-carousel', source: 'cat-carousel', sourceHandle: 'down', target: 'perfil', targetHandle: 'fromcats', animated: false, style: { stroke: ec('base'), strokeWidth: 1.4, strokeDasharray: '5 4' } })
     }
     if (def.rt === 2) {   // los tramos por monto son de CreditopX
-      add.push({ id: 'tramo', type: 'tramo', position: { x: SELECTED_LAYOUT.profileHub.x, y: rowY } })
+      add.push({ id: 'tramo', type: 'tramo', position: { x: SELECTED_LAYOUT.tramoX, y: rowY } })
       addE.push({ id: 'e-tramo', source: 'tramo', sourceHandle: 'down', target: 'perfil', targetHandle: 'fromcats', animated: false, style: { stroke: ec('base'), strokeWidth: 1.4, strokeDasharray: '5 4' } })
     }
   }
-  // rt=4: la ficha de originación delegada, justo arriba del hub de perfilamiento (es config de la entidad).
+  // rt=4: la ficha de originación delegada cuelga de «Configurar entidad» (es su config; la usa el plan de pagos).
   if (def.rt === 4) {
-    // justo arriba del hub de perfilamiento
-    add.push({ id: 'delegated', type: 'delegated', position: { x: SELECTED_LAYOUT.profileHub.x, y: SELECTED_LAYOUT.preApprovalRow.y } })
-    addE.push({ id: 'e-delegated', source: 'delegated', sourceHandle: 'down', target: 'perfil', targetHandle: 'fromcats', animated: false, style: { stroke: ec('base'), strokeWidth: 1.4, strokeDasharray: '5 4' } })
+    add.push({ id: 'delegated', type: 'delegated', position: SELECTED_LAYOUT.delegated })
+    addE.push({ id: 'e-delegated', source: 'default', sourceHandle: 'toperf', target: 'delegated', targetHandle: 'in', animated: false, style: { stroke: ec('base'), strokeWidth: 1.4, strokeDasharray: '6 5' } })
   }
   // Estado en sucursal (lenders_by_allied_branches.status): membresía solo-BD (default true; NO filtra el getLenders vivo, solo la lee el simulador viejo). Nodo propio
   // a la IZQUIERDA del hub "Configurar sucursal" (relacion en x=-300, y=900), conectado lado-con-lado:
