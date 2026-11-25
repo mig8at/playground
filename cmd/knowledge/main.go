@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"creditop/my-tools/connectors/repos"
 	"creditop/my-tools/knowledge"
@@ -108,7 +110,18 @@ func run(args []string) int {
 				continue
 			}
 			var viaGH []string
-			out, err := exec.Command("git", "-C", dir, "fetch", "-q", "origin").CombinedOutput()
+			/* Con tope: el 2026-11-25 un fetch de form-service quedó 3,5 h colgado en una conexión HTTPS muerta (la Mac
+			 * durmió) y el vigía de Knowledge no volvió a mirar main en toda la noche. 3 minutos por repo como máximo, y
+			 * git corta si la conexión baja de 1 KB/s durante 60 s. */
+			git := func(args ...string) *exec.Cmd {
+				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+				_ = cancel // se libera al terminar el proceso; el tope es lo que importa
+				full := append([]string{"-c", "http.lowSpeedLimit=1000", "-c", "http.lowSpeedTime=60"}, args...)
+				cmd := exec.CommandContext(ctx, "git", full...)
+				cmd.WaitDelay = 5 * time.Second
+				return cmd
+			}
+			out, err := git("-C", dir, "fetch", "-q", "origin").CombinedOutput()
 			if err != nil {
 				/* Por SSH puede entrar una llave de otra cuenta de GitHub sin acceso a la org (2026-11-24: la personal,
 				 * con «Repository not found»): reintenta por HTTPS con la sesión de `gh`, sólo para este comando. */
@@ -117,7 +130,7 @@ func run(args []string) int {
 					"-c", "credential.https://github.com.helper=",
 					"-c", "credential.https://github.com.helper=!gh auth git-credential",
 				}
-				out, err = exec.Command("git", append(viaGH, "-C", dir, "fetch", "-q", "origin")...).CombinedOutput()
+				out, err = git(append(viaGH, "-C", dir, "fetch", "-q", "origin")...).CombinedOutput()
 			}
 			if err != nil {
 				bad++
@@ -128,7 +141,7 @@ func run(args []string) int {
 			 * archivos de a uno y tardaba ~24 s por búsqueda en Wally. Se baja acá, una vez, con una búsqueda que no
 			 * encuentra nada; después cada búsqueda tarda centésimas. Va por el mismo camino que el fetch: si el
 			 * contenido no baja, `check` da por perdidas fuentes que siguen en main (343 el 2026-11-24). */
-			_ = exec.Command("git", append(viaGH, "-C", dir, "grep", "-q", "-F", "-e", "knowledge fetch: texto que no existe en ningún repo", "FETCH_HEAD")...).Run()
+			_ = git(append(viaGH, "-C", dir, "grep", "-q", "-F", "-e", "knowledge fetch: texto que no existe en ningún repo", "FETCH_HEAD")...).Run()
 			head, _ := exec.Command("git", "-C", dir, "log", "-1", "--format=%h · %cr", "FETCH_HEAD").Output()
 			fmt.Printf("  ✓ %s · %s\n", alias, strings.TrimSpace(string(head)))
 		}
