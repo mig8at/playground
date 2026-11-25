@@ -49,6 +49,13 @@ cliente (monto, ocupación, edad, score, negativos, continuidad) y toda la tabla
   juego fijo de Credifamilia, catálogo con o sin codeudor, estándar—, si el pagaré va a Deceval, la firma con OTP que se
   dicta en la celda, el 11, la formalización del riel 4 y quién cobra; `bin/flow import` trae `lender_signing_documents`,
   `netco_lender_settings`, `promissory_type_id` y `externally_serviced`).
+- **La política de Finandina** (`finandinaAmount` en `src/store.js`, como `FinandinaAmountCalculator` de main; 2026-11-25):
+  un perfil con `capacity_method = finandina_v1` sólo aplica si el ingreso viene de Ágil Data o Mareigua y cae en una
+  de sus bandas (`income_bands`, en SMMLV); su cupo es el menor entre la capacidad (ingreso − % ley − % gastos − cuotas
+  que ya paga, llevada a monto con `capacity_rate` y el plazo), las veces el ingreso de la banda, el tope sin
+  experiencia y los máximos. `bin/flow import` trae las bandas, el tope sin experiencia, `capacity_rate` y el SMMLV
+  (`settings.smmlv_by_year`). En la tabla se editan el ingreso (se escribe como el de Ágil Data), las cuotas que ya paga,
+  la experiencia crediticia y el tipo de documento. No modela el tope del mes de la entidad ni sus créditos recientes.
 - Una categoría sin `max_fee_number` (NULL en la base) no recorta los plazos, como en main; hasta el 2026-11-25 Flow lo
   leía como 0 y dejaba a CreditopX sin plazos.
 - **No tiene lógica propia**: usa la de `store.js` (el listado, `sucursalGate`, `perfilDiag`, `bondOf`,

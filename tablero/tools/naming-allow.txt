@@ -56,6 +56,8 @@ milestone propose cite uncovered offenders tenant ingestion
 backtest sustain sustained episode episodes
 launchagent
 followable spark refetch backoffice monorepo chevron
+# el salario mínimo colombiano, como lo nombra el código de legacy-backend (`Smmlv`, `smmlv_by_year`)
+smmlv
 # los agentes del chat del equipo se llaman así (Luigi y Wario son de Miguel, Rambo de Duncan): sus personajes de la
 # videollamada son archivos con su nombre (chat/src/characters/<agente>.json)
 luigi wario rambo leo

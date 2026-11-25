@@ -556,7 +556,7 @@ function flowDocumentTypes(v, countryId) {
 }
 // lenders.product → el producto de Flow (el codeudor y Ábaco dependen de renting / renting con compra).
 const FLOW_PRODUCT = { credit: 'credito', renting: 'renting', rto: 'rto' }
-export function applyProductionImport({ comercio, sucursal, item, profiles = [], tramos = [], groupRules = [], identity = [], signing = null, importedAt = new Date().toISOString() }) {
+export function applyProductionImport({ comercio, sucursal, item, profiles = [], tramos = [], groupRules = [], identity = [], signing = null, smmlv = null, importedAt = new Date().toISOString() }) {
   const lenderId = flowNum(item.id); let l = customLenders.find(x => x.production?.lenderId === lenderId && x.production?.branchId === flowNum(sucursal.id))
   if (!l) { let name = String(item.name || 'Entidad de producción'), n = 2; while (customLenders.some(x => x.name === name)) name = String(item.name || 'Entidad') + ' (prod ' + n++ + ')'; const norm = normalizeType(item.response_type, FLOW_PRODUCT[item.product] || 'credito'); l = L({ name, rt: norm.rt, custom: true, producto: norm.producto, terms: {}, overrides: {}, entidad: {} }); customLenders.push(l) }
   const amountMin = flowNum(item.min_amount), amountMax = flowNum(item.max_amount), dues = flowDues(item.fee_numbers, flowNum(item.max_fee_number)), rate = item.rate == null ? null : flowNum(item.rate)
@@ -577,7 +577,9 @@ export function applyProductionImport({ comercio, sucursal, item, profiles = [],
   // simulador evalúe la primera coincidencia igual que el motor.
   {
     const cats = profiles.map((c, i) => ({
-      id: String(c.id), label: c.name || ('Perfil ' + (i + 1)), minInitialFee: flowNum(c.min_initial_fee), maxAmount: flowNum(c.max_amount), maxFeeNumber: c.max_fee_number == null ? null : flowNum(c.max_fee_number), fga: c.fga == null ? null : flowNum(c.fga), loanLimit: flowNum(c.loan_limit), usedLoan: flowNum(c.already_used_loan), capacityCheck: false, capacityPct: 30, priority: flowNum(c.priority, i + 1),
+      id: String(c.id), label: c.name || ('Perfil ' + (i + 1)), minInitialFee: flowNum(c.min_initial_fee), maxAmount: flowNum(c.max_amount), maxFeeNumber: c.max_fee_number == null ? null : flowNum(c.max_fee_number), fga: c.fga == null ? null : flowNum(c.fga),
+      capacityMethod: c.capacity_method || null, withoutExperienceMaxAmount: c.without_experience_max_amount == null ? null : flowNum(c.without_experience_max_amount),
+      incomeBands: (() => { try { return typeof c.income_bands === 'string' ? JSON.parse(c.income_bands) : (c.income_bands || null) } catch { return null } })(), loanLimit: flowNum(c.loan_limit), usedLoan: flowNum(c.already_used_loan), capacityCheck: false, capacityPct: 30, priority: flowNum(c.priority, i + 1),
       occupation: String(c.occupation || '').split('|').map(x => x.trim().toLowerCase()).filter(Boolean), minAge: flowNum(c.min_age, 18), maxAge: flowNum(c.max_age, 100), minIncome: flowNum(c.monthly_income), verifiedIncome: false, minContinuity: flowNum(c.employment_continuity), gender: String(c.gender || 'M|F').split('|').map(x => x.trim()).filter(Boolean), minScore: flowNum(c.min_score), maxNegatives: c.negative_reports_last_12_months == null ? 20 : flowNum(c.negative_reports_last_12_months), maxDelinq: c.current_delinquencies == null ? 10 : flowNum(c.current_delinquencies), minHistory: flowNum(c.financial_history_length), maxInquiries: c.consulted_last_6_months == null ? 20 : flowNum(c.consulted_last_6_months),
     }))
   perfilOf(l.name).splice(0, perfilOf(l.name).length, ...cats)
@@ -609,7 +611,7 @@ export function applyProductionImport({ comercio, sucursal, item, profiles = [],
   const importedGroups = [...byGroup.values()]
   sucursalGroupsOf(l.name).splice(0, sucursalGroupsOf(l.name).length, ...importedGroups)
   // Los proveedores de identidad de la entidad (lender_identity_validation_types), en orden: el primero es el primario.
-  l.entidad = { ...l.entidad, identity: identity.map(x => ({ slug: String(x.slug), label: String(x.label) })), signing: signing || null }
+  l.entidad = { ...l.entidad, identity: identity.map(x => ({ slug: String(x.slug), label: String(x.label) })), signing: signing || null, smmlv: smmlv == null ? null : flowNum(smmlv), capacityRate: item.capacity_rate == null ? null : flowNum(item.capacity_rate) }
   l.production = { lenderId, commerceId: flowNum(comercio.id), branchId: flowNum(sucursal.id), importedAt, baseline: { amountMin, amountMax, dues, rate, paisId: l.entidad.paisId, documentTypes: clone(documentTypes), profiles: clone(perfilOf(l.name)), tramos: clone(importedTramos), groupRules: clone(importedGroups), 'datacredito.minScore': dc.minScore, 'datacredito.maxNegatives': dc.maxNegatives, 'datacredito.maxInquiries': dc.maxInquiries, 'datacredito.minMaturation': dc.minMaturation, 'datacredito.allowZeroScore': dc.allowZeroScore } }
   ui.selected = l.name; focusWinningProfile(l.name); editTick.n++; return l
 }
@@ -806,6 +808,9 @@ const subject = computed(() => {
     amlClean: p.listas == null ? null : p.listas === 'limpio',
     identityVerified: p.identidad,
     incomeVerified: !['declarado', '—'].includes(p.salarioFuente), // ingreso de buró (Ágil/Mareigua/Quanto) vs declarado
+    incomeSource: p.salarioFuente,
+    monthlyDebtPayment: fieldNull('monthlyDebtPayment') ? 0 : (Number(bureau.monthlyDebtPayment) || 0),
+    creditExperience: bureau.creditExperience !== false,
     continuityMonths: contB == null ? null : (CONT_M[contB] ?? null), // continuidad laboral (Ágil→Mareigua)
   }
 })
@@ -889,8 +894,12 @@ export function setPreApprovalField(lenderName, key, v) {
   preApproval[lenderName] = { ...preApprovalResponseOf(lenderName), [key]: v }
   editTick.n++
 }
-function catChecks(c, s) {
+function catChecks(c, s, lender = null) {
+  const policyAmount = c.capacityMethod === 'finandina_v1' ? finandinaAmount(lender, c, s) : null
   return {
+    // Política de Finandina (`finandina_v1`): el perfil aplica sólo si hay monto (ingreso de Ágil Data o Mareigua,
+    // dentro de las bandas, con SMMLV del año). Ver `finandinaAmount`.
+    ...(policyAmount ? { capacity: policyAmount.applies } : {}),
     // Perfil (regla de categoría, parte demográfica)
     occupation: s.employment != null && c.occupation.includes(s.employment),
     age: s.age != null && s.age >= c.minAge && s.age <= c.maxAge,
@@ -909,6 +918,7 @@ function catChecks(c, s) {
 // Cupo de una categoría (espejo de LenderUserCategoryService): min(max_amount, fondo del lender)
 // INFLADO por el enganche `/(1−fee)`, y topeado por capacidad de pago (anualidad inversa sobre el ingreso).
 function catCupo(lender, c, s) {
+  if (c.capacityMethod === 'finandina_v1') { const f = finandinaAmount(lender, c, s); return f.applies ? f.amount : 0 }
   const loanAvailable = Math.max(0, (c.loanLimit || 0) - (c.usedLoan || 0))
   const byLender = c.loanLimit ? Math.min(c.maxAmount, loanAvailable) : c.maxAmount
   let cupo = byLender / (1 - (c.minInitialFee || 0) / 100)              // el enganche INFLA lo financiable
@@ -920,12 +930,46 @@ function catCupo(lender, c, s) {
   }
   return Math.round(cupo)
 }
+// ── La política de Finandina (`capacity_method = finandina_v1`), como FinandinaAmountCalculator de main ──────────
+//   capacidad = ingreso − ingreso × % ley − ingreso × % gastos (de la banda del ingreso en SMMLV) − cuotas que ya paga
+//   monto     = mín(capacidad llevada a monto con la tasa de modelar y el plazo, ingreso × veces de la banda,
+//               tope sin experiencia, max_amount del perfil, cupo del perfil, máximo de la línea)
+// El ingreso tiene que venir de Ágil Data o Mareigua (`income_sources`); sin SMMLV, sin bandas o con un ingreso bajo la
+// primera banda, el perfil no aplica. La cuota se compara sin costos (FinandinaPolicy::INSTALLMENT_INCLUDES_COSTS false).
+// Flow no modela el tope del mes de la entidad ni los créditos recientes con ella.
+export function finandinaAmount(lender, c, s) {
+  const no = (reason) => ({ applies: false, reason })
+  if (!['Ágil Data', 'Mareigua'].includes(s.incomeSource)) return no('el ingreso no viene de Ágil Data ni de Mareigua')
+  const income = Number(s.monthlyIncome) || 0
+  const smmlv = Number(lender?.entidad?.smmlv) || 0
+  const bands = Array.isArray(c.incomeBands) ? c.incomeBands : []
+  if (!smmlv) return no('sin SMMLV del año')
+  if (!bands.length) return no('el perfil no tiene bandas de ingreso')
+  const inSmmlv = income / smmlv
+  const band = bands.find(b => inSmmlv >= Number(b.from) && (b.to == null || inSmmlv < Number(b.to)))
+  if (!band || income <= 0) return no(`ingreso de ${inSmmlv.toFixed(2)} SMMLV: por debajo de la primera banda`)
+  const legal = income * Number(band.legal_deductions_pct) / 100
+  const expenses = income * Number(band.personal_expenses_pct) / 100
+  const capacity = income - legal - expenses - (s.monthlyDebtPayment || 0)
+  const rate = (Number(lender?.entidad?.capacityRate) || Number(lender?.terms?.rate) || 0) / 100
+  const n = Number(c.maxFeeNumber) || Number(lender?.terms?.maxFee) || 0
+  const byCapacity = capacity <= 0 || n <= 0 ? 0 : (rate > 0 ? capacity * (1 - Math.pow(1 + rate, -n)) / rate : capacity * n)
+  const caps = { capacidad: byCapacity, 'veces el ingreso': income * Number(band.income_multiple) }
+  if (!s.creditExperience && c.withoutExperienceMaxAmount) caps['sin experiencia crediticia'] = c.withoutExperienceMaxAmount
+  if (c.maxAmount) caps['máximo del perfil'] = c.maxAmount
+  if (c.loanLimit) caps['cupo del perfil'] = Math.max(0, c.loanLimit - (c.usedLoan || 0))
+  if (lender?.terms?.amountMax) caps['máximo de la línea'] = lender.terms.amountMax
+  const [binding, lowest] = Object.entries(caps).reduce((a, b) => (b[1] < a[1] ? b : a))
+  return { applies: true, amount: Math.max(0, Math.floor(lowest)), binding, caps, band, inSmmlv, legal, expenses,
+    debt: s.monthlyDebtPayment || 0, capacity, rate: rate * 100, n, smmlv }
+}
 // Resuelve la categoría del usuario para un lender: lista negra → null; si no, la 1ra (por prioridad) que cumple.
 export function resolveCategory(lenderName) {
   if (perfilBlacklist[lenderName]) return null
   const s = subjectOf()
   const cats = [...perfilOf(lenderName)].sort((a, b) => a.priority - b.priority)
-  for (const c of cats) if (Object.values(catChecks(c, s)).every(Boolean)) return c
+  const l = findLenderDef(lenderName)
+  for (const c of cats) if (Object.values(catChecks(c, s, l)).every(Boolean)) return c
   return null
 }
 export function categoryCupo(lenderName) {
@@ -939,7 +983,7 @@ export function perfilDiag(lenderName) {
   const cats = [...perfilOf(lenderName)].sort((a, b) => a.priority - b.priority)
   let winner = null
   const rows = cats.map(c => {
-    const checks = catChecks(c, s); const ok = !blacklisted && Object.values(checks).every(Boolean)
+    const checks = catChecks(c, s, l); const ok = !blacklisted && Object.values(checks).every(Boolean)
     const won = ok && winner == null; if (won) winner = c.id
     return { cat: c, checks, ok, won, cupo: l ? catCupo(l, c, s) : 0 }
   })
@@ -1507,7 +1551,7 @@ export function resetGraph() {
 
 // Nombres en inglés para lo nuevo (2026-11-25): la tabla del flujo (TableView.vue) usa estos. Los originales en
 // español son deuda congelada de `make tablero-naming` y se renombran aparte.
-export { documentTypesForSolicitud as requestDocumentTypes, perfil as clientProfile, sucursalDiag as branchGateDiag, sucursalDatacreditoOf as branchCreditBureauRules,
+export { subjectOf as clientSubject, documentTypesForSolicitud as requestDocumentTypes, perfil as clientProfile, sucursalDiag as branchGateDiag, sucursalDatacreditoOf as branchCreditBureauRules,
   perfilDiag as categoryDiag, cuotaBreakdown as installmentBreakdown }
 
 // ── Validación de identidad (después de elegir una entidad que origina en casa) ─────────────────────────────────

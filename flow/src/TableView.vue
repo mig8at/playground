@@ -6,7 +6,7 @@ import {
   branchGateDiag, branchCreditBureauRules, categoryDiag, usesQuotaEngine, usesPreApproval, preApprovalResponseOf,
   setPreApprovalField, installmentBreakdown, bondOf, calcValue, selectionCheck,
   identityOutcome, setIdentityResult, IDENTITY_PROVIDERS, paymentDateOptions, paymentSchedule, delegatedOf, CREDITOPX_PAYMENT_DAYS,
-  closingOutcome, setSignatureOk, requestDocumentTypes,
+  closingOutcome, setSignatureOk, requestDocumentTypes, finandinaAmount, clientSubject,
 } from './store'
 
 // La TABLA del flujo (2026-11-25): el mismo cliente contra todas las entidades, paso por paso. Cada fila es un paso de
@@ -182,12 +182,14 @@ const condText = (x) => {
 }
 
 // Detalle de la preaprobación: las categorías (si decide el motor), lo que dicta la API, y la calculadora de cuota.
-const CHECK = { occupation: 'ocupación', age: 'edad', income: 'ingreso verificado', continuity: 'continuidad', gender: 'género', score: 'score', negatives: 'negativos', delinq: 'mora', history: 'historia', inquiries: 'consultas' }
+const CHECK = { capacity: 'capacidad (Finandina)', occupation: 'ocupación', age: 'edad', income: 'ingreso verificado', continuity: 'continuidad', gender: 'género', score: 'score', negatives: 'negativos', delinq: 'mora', history: 'historia', inquiries: 'consultas' }
 const preDetail = computed(() => {
   if (!openCol.value || open.value.row !== 'preapproval') return null
   const { def: l, row: r } = openCol.value.c
   const cats = usesQuotaEngine(l) ? categoryDiag(l.name) : null
-  return { l, r, cats, who: whoDecides(l), pa: usesPreApproval(l) ? preApprovalResponseOf(l.name) : null }
+  const won = cats?.rows.find(x => x.won)?.cat || null
+  const policyAmount = won && won.capacityMethod === 'finandina_v1' ? finandinaAmount(l, won, clientSubject()) : null
+  return { l, r, cats, who: whoDecides(l), pa: usesPreApproval(l) ? preApprovalResponseOf(l.name) : null, policyAmount, won }
 })
 const term = ref(null)
 const terms = computed(() => (preDetail.value?.r?.dues || []).slice().sort((a, b) => a - b))
@@ -257,6 +259,11 @@ const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
         </select></label>
       <label class="tv-f" :title="'Sale de ' + profile.salarioFuente + '. Al editarlo se escribe como el de Ágil Data, que es el primero de la cascada.'"><span>Ingreso</span>
         <input inputmode="numeric" :value="money(profile.salario)" @change="e => setIncome(e.target.value)" /></label>
+      <label class="tv-f" title="Lo que paga por mes en cuotas de las deudas que ya tiene (Experian). La capacidad de Finandina lo descuenta."><span>Cuotas que ya paga</span>
+        <input inputmode="numeric" :value="money(bureau.monthlyDebtPayment ?? 0)" @change="e => setBureau('monthlyDebtPayment', String(e.target.value).replace(/\D/g, '') || 0)" /></label>
+      <label class="tv-f" title="Si tuvo un crédito de al menos el mínimo de la entidad. Sin experiencia, Finandina topa el monto."><span>Experiencia crediticia</span>
+        <select :value="bureau.creditExperience === false ? 'no' : 'si'" @change="e => setBureau('creditExperience', e.target.value === 'si', false)">
+          <option value="si">Sí</option><option value="no">No</option></select></label>
       <label class="tv-f tv-f--s"><span>Documento</span>
         <select :value="state.tipoDoc" @change="e => setDocumentType(e.target.value)">
           <option v-for="d in documentTypes" :key="d" :value="d">{{ d }}</option>
@@ -358,6 +365,22 @@ const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
               <span v-else-if="row.ok" class="tv-catrow__s">también cumple</span>
               <span v-else class="tv-catrow__s">falla: {{ Object.entries(row.checks).filter(([, v]) => !v).map(([k]) => CHECK[k] || k).join(', ') }}</span>
             </div>
+          </template>
+
+          <!-- Finandina: el monto de su política -->
+          <template v-if="preDetail.policyAmount">
+            <div class="tv-sec">El monto de la política de Finandina ({{ preDetail.won.label }})</div>
+            <template v-if="preDetail.policyAmount.applies">
+              <div class="tv-kv"><span>Ingreso ({{ profile.salarioFuente }})</span><b>{{ money(profile.salario) }} <em>· {{ preDetail.policyAmount.inSmmlv.toFixed(2) }} SMMLV</em></b></div>
+              <div class="tv-kv"><span>− Descuentos de ley ({{ preDetail.policyAmount.band.legal_deductions_pct }} %)</span><b>{{ money(Math.round(preDetail.policyAmount.legal)) }}</b></div>
+              <div class="tv-kv"><span>− Gastos personales ({{ preDetail.policyAmount.band.personal_expenses_pct }} %)</span><b>{{ money(Math.round(preDetail.policyAmount.expenses)) }}</b></div>
+              <div class="tv-kv"><span>− Cuotas que ya paga</span><b>{{ money(preDetail.policyAmount.debt) }}</b></div>
+              <div class="tv-kv"><span>= Capacidad de pago al mes</span><b>{{ money(Math.round(preDetail.policyAmount.capacity)) }}</b></div>
+              <p class="tv-p tv-p--m">Llevada a monto con la tasa de modelar ({{ preDetail.policyAmount.rate }} % mensual) a {{ preDetail.policyAmount.n }} cuotas. El cupo es el menor de:</p>
+              <div v-for="(v, k) in preDetail.policyAmount.caps" :key="k" class="tv-kv" :class="{ 'tv-kv--hi': k === preDetail.policyAmount.binding }"><span>{{ k }}</span><b>{{ money(Math.floor(v)) }}</b></div>
+              <p class="tv-p tv-p--m">Manda «{{ preDetail.policyAmount.binding }}». Flow no modela el tope del mes de la entidad ni los créditos recientes del cliente con ella.</p>
+            </template>
+            <div v-else class="tv-verdict no">El perfil no aplica: {{ preDetail.policyAmount.reason }}.</div>
           </template>
 
           <!-- Decide la API: se dicta lo que contesta -->

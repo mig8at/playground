@@ -98,10 +98,10 @@ async function branchOf(target, ref) {
 // Lo mismo que leía el importador del trazador (retirado el 2026-10-13), más el producto y la ficha delegada. Las
 // categorías: sólo ACTIVAS y con regla de política titular inicial (tipo 1), que es lo que evalúa el motor.
 async function lenderPhoto(target, branch, lender) {
-  const [item] = await sql(target, `SELECT l.id, l.name, l.response_type, l.product, l.country_id, l.status, lbab.document_types, clbl.min_amount, clbl.max_amount, NULL AS max_fee_number, clbl.fee_numbers, clbl.rate, d.score AS min_score, d.negative_historical_last_12_months AS max_negatives, d.consulted_last_6_months AS max_inquiries, d.time_finance_sector AS min_maturation, d.allow_0_score FROM lenders l JOIN lenders_by_allied_branches lbab ON lbab.lender_id = l.id AND lbab.allied_branch_id = ${branch.id} LEFT JOIN credit_line_by_lenders clbl ON clbl.lender_id = l.id AND clbl.status = 1 LEFT JOIN lender_datacredito_rules d ON d.lender_id = l.id AND d.allied_branch_id = ${branch.id} WHERE l.id = ${lender} ORDER BY clbl.sort, clbl.id LIMIT 1`)
+  const [item] = await sql(target, `SELECT l.id, l.name, l.response_type, l.product, l.country_id, l.status, lbab.document_types, clbl.min_amount, clbl.max_amount, NULL AS max_fee_number, clbl.fee_numbers, clbl.rate, clbl.capacity_rate, d.score AS min_score, d.negative_historical_last_12_months AS max_negatives, d.consulted_last_6_months AS max_inquiries, d.time_finance_sector AS min_maturation, d.allow_0_score FROM lenders l JOIN lenders_by_allied_branches lbab ON lbab.lender_id = l.id AND lbab.allied_branch_id = ${branch.id} LEFT JOIN credit_line_by_lenders clbl ON clbl.lender_id = l.id AND clbl.status = 1 LEFT JOIN lender_datacredito_rules d ON d.lender_id = l.id AND d.allied_branch_id = ${branch.id} WHERE l.id = ${lender} ORDER BY clbl.sort, clbl.id LIMIT 1`)
   if (!item) throw new Error(`la entidad ${lender} no está en la sucursal ${branch.id} (${target})`)
-  const [profiles, tramos, groupRules, delegatedRows, identity, signingDocs, netco, lenderRow] = await Promise.all([
-    sql(target, `SELECT c.id, c.name, c.fga, c.loan_limit, c.already_used_loan, c.min_initial_fee, c.max_fee_number, c.max_amount, c.\`order\` AS priority, r.occupation, r.min_age, r.max_age, r.monthly_income, r.gender, r.negative_reports_last_12_months, r.current_delinquencies, r.financial_history_length, r.min_score, r.employment_continuity, r.consulted_last_6_months FROM lender_users_categories c JOIN lender_users_category_rules r ON r.lender_users_category_id = c.id AND r.lender_id = c.lender_id AND r.lender_users_category_type_id = 1 WHERE c.lender_id = ${lender} AND c.active = 1 ORDER BY c.\`order\`, c.id`),
+  const [profiles, tramos, groupRules, delegatedRows, identity, signingDocs, netco, lenderRow, smmlvRows] = await Promise.all([
+    sql(target, `SELECT c.id, c.name, c.fga, c.income_bands, c.without_experience_max_amount, r.capacity_method, r.experience_min_amount, c.loan_limit, c.already_used_loan, c.min_initial_fee, c.max_fee_number, c.max_amount, c.\`order\` AS priority, r.occupation, r.min_age, r.max_age, r.monthly_income, r.gender, r.negative_reports_last_12_months, r.current_delinquencies, r.financial_history_length, r.min_score, r.employment_continuity, r.consulted_last_6_months FROM lender_users_categories c JOIN lender_users_category_rules r ON r.lender_users_category_id = c.id AND r.lender_id = c.lender_id AND r.lender_users_category_type_id = 1 WHERE c.lender_id = ${lender} AND c.active = 1 ORDER BY c.\`order\`, c.id`),
     sql(target, `SELECT min_amount, max_amount, max_fee_number, mandatory_fee_number FROM creditop_x_conditions_by_amount_by_lender WHERE lender_id = ${lender} ORDER BY min_amount, max_amount, id`),
     sql(target, `SELECT gr.id AS group_id, gr.rule_name, lr.name, lr.specific_table, lr.\`column\`, lr.operator, lr.value FROM group_rules gr JOIN lender_rules lr ON lr.group_rule_id = gr.id WHERE gr.allied_branch_id = ${branch.id} AND lr.status = 1 ORDER BY gr.id, lr.id`),
     Number(item.response_type) === 4 ? sql(target, `SELECT * FROM delegated_origination_profiles WHERE lender_id = ${lender} LIMIT 1`) : Promise.resolve([]),
@@ -111,7 +111,11 @@ async function lenderPhoto(target, branch, lender) {
     sql(target, `SELECT title, document_type, requires_cosigner, generator FROM lender_signing_documents WHERE lender_id = ${lender} AND status = 1 ORDER BY requires_cosigner, sort, id`),
     sql(target, `SELECT enabled FROM netco_lender_settings WHERE lender_id = ${lender} LIMIT 1`),
     sql(target, `SELECT slug, promissory_type_id, externally_serviced FROM lenders WHERE id = ${lender}`),
+    // El SMMLV del año (la política de Finandina mide el ingreso en SMMLV).
+    sql(target, "SELECT value FROM settings WHERE `key` = 'smmlv_by_year' LIMIT 1"),
   ])
+  let smmlv = null
+  try { smmlv = JSON.parse(smmlvRows[0]?.value || '{}')[String(new Date().getFullYear())] ?? null } catch { smmlv = null }
   const signing = {
     configurable: !!(netco[0] && Number(netco[0].enabled) === 1),
     credifamilia: /^credifamilia/.test(String(lenderRow[0]?.slug || '')),
@@ -131,7 +135,7 @@ async function lenderPhoto(target, branch, lender) {
       // NULL = no se fuerza: el tipo lo trae la preaprobación (Credifamilia Salud).
       bondType: d.forced_bond_type ? (['vencida', 'mensual'].includes(String(d.forced_bond_type).toLowerCase()) ? 'mensual' : 'anticipada') : 'pre_approval' }
   }
-  const payload = { comercio: { id: branch.allied_id, name: branch.allied_name, country_id: branch.country_id }, sucursal: { id: branch.id, name: branch.name }, item, profiles, tramos, groupRules, identity, signing }
+  const payload = { comercio: { id: branch.allied_id, name: branch.allied_name, country_id: branch.country_id }, sucursal: { id: branch.id, name: branch.name }, item, profiles, tramos, groupRules, identity, signing, smmlv }
   return { payload, delegated, summary: `${item.name} (#${item.id}, rt${item.response_type}, ${item.product}) · ${profiles.length} categorías · ${tramos.length} tramos${delegated ? ` · ficha: ${delegated.usesQuotaEngine ? 'motor' : 'su API'}${delegated.formalization ? ', radica' : ''}` : ''}` }
 }
 
