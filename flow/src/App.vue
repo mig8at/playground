@@ -131,7 +131,11 @@ function baseEdges() {
     { id: 'e0b', source: 'canal', sourceHandle: 'out', target: 'sol', animated: false, style: { stroke: ec('flow'), strokeWidth: 2 } },
     { id: 'e1', source: 'sol', target: 'buro', targetHandle: 'in', animated: false, style: { stroke: ec('purp'), strokeWidth: 2 } },
     { id: 'e2', source: 'buro', sourceHandle: 'out', target: 'out', animated: false, style: { stroke: ec('green'), strokeWidth: 2 } },
-    { id: 'e-engine-pa', source: 'engine', sourceHandle: 'down', target: 'preapproval', targetHandle: 'fromengine', animated: false, style: { stroke: ec('purp'), strokeWidth: 1.4, strokeDasharray: '5 4', opacity: usesQuotaEngine(findLenderDef(ui.selected)) ? 1 : 0.25 } },
+    // Motor → preaprobación SÓLO si la entidad elegida usa el motor (CreditopX, Finandina): con Credifamilia o un
+    // agregador, el servicio le pregunta a la API de la entidad y esta línea mentiría. Sin entidad elegida, tenue.
+    ...(!ui.selected || usesQuotaEngine(findLenderDef(ui.selected))
+      ? [{ id: 'e-engine-pa', source: 'engine', sourceHandle: 'down', target: 'preapproval', targetHandle: 'fromengine', animated: false, style: { stroke: ec('purp'), strokeWidth: 1.4, strokeDasharray: '5 4', opacity: ui.selected ? 1 : 0.35 } }]
+      : []),
     { id: 'e-preapproval', source: 'preapproval', sourceHandle: 'down', target: 'out', targetHandle: 'top', animated: false, style: { stroke: ec('base'), strokeWidth: 1.4, strokeDasharray: '5 4' } },
     { id: 'pe1', source: 'exp', target: 'buro', targetHandle: 'top', animated: false, style: { stroke: ec('exp'), strokeWidth: 1.5 } },
     { id: 'pe1b', source: 'quanto', target: 'buro', targetHandle: 'top', animated: false, style: { stroke: ec('quanto'), strokeWidth: 1.5 } },

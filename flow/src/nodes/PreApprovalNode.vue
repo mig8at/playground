@@ -34,7 +34,7 @@ const outcome = computed(() => {
     <div class="node__body">
       <div v-if="!lender" class="tr-hint">Se consulta por cada tarjeta del listado. Elegí una entidad en «Entidades disponibles» para ver o dictar lo que contesta.</div>
       <template v-else-if="editable">
-        <div class="tr-hint">Lo que contesta la API de {{ lender.name }} para esta tarjeta. Editalo:</div>
+        <div class="tr-hint">El servicio le pregunta a la API de {{ lender.name }} (no al motor de cupo): ella decide. Dictá lo que contesta:</div>
         <div class="cat__chips">
           <button v-for="[k, label] in STATUS" :key="k" class="chip-toggle nodrag" :class="{ on: r.status === k }" @click.stop="set('status', k)">{{ label }}</button>
         </div>
