@@ -91,12 +91,12 @@ const nodes = ref([
   { id: 'canal', type: 'canal', position: { x: 320, y: 380 } },
   { id: 'sol', type: 'solicitud', position: { x: 680, y: 380 } },
   { id: 'exp', type: 'experian', position: { x: 800, y: 20 } },
-  { id: 'quanto', type: 'quanto', position: { x: 1050, y: 20 } },
-  { id: 'agil', type: 'agildata', position: { x: 1300, y: 20 } },
-  { id: 'tus', type: 'tusdatos', position: { x: 1550, y: 20 } },
-  { id: 'mareigua', type: 'mareigua', position: { x: 1800, y: 20 } },
-  { id: 'buro', type: 'buro', position: { x: 1100, y: 380 } },
-  { id: 'out', type: 'lenders', position: { x: 1430, y: 380 } },
+  { id: 'quanto', type: 'quanto', position: { x: 1080, y: 20 } },
+  { id: 'agil', type: 'agildata', position: { x: 1360, y: 20 } },
+  { id: 'tus', type: 'tusdatos', position: { x: 1640, y: 20 } },
+  { id: 'mareigua', type: 'mareigua', position: { x: 1920, y: 20 } },
+  { id: 'buro', type: 'buro', position: { x: 1170, y: 380 } },
+  { id: 'out', type: 'lenders', position: { x: 1540, y: 380 } },
 ])
 
 // Colores de los conectores por tema [oscuro, claro]: en claro se oscurecen para no perder contraste.
@@ -144,13 +144,14 @@ const DYN = ['default', 'comercio', 'relacion', 'perfil']
 // Grilla del inspector de la entidad seleccionada. Con los nodos de perfil limitados y con
 // scroll, estas bandas dejan aire fijo entre tarjetas y evitan los grandes saltos verticales.
 const SELECTED_LAYOUT = {
-  profileInputs: { x: -980, y: -470 }, // categoría + tramo, misma fila
-  profileHub: { x: -620, y: 90 },
-  lender: { x: -280, y: 90 },
-  commerce: { x: -280, y: 570 },
-  groupRules: { x: -980, y: 720 },
-  branchStatus: { x: -620, y: 1120 },
-  branch: { x: -280, y: 1120 },
+  profileInputs: { x: -1060, y: -470 }, // categoría + tramo, misma fila (las categorías son altas)
+  preApprovalRow: { y: -250 },          // preaprobación + ficha delegada: más bajas, pegadas al hub
+  profileHub: { x: -680, y: 90 },
+  lender: { x: -320, y: 90 },
+  commerce: { x: -320, y: 570 },
+  groupRules: { x: -1060, y: 720 },
+  branchStatus: { x: -680, y: 1120 },
+  branch: { x: -320, y: 1120 },
 }
 // Al MONTAR: fit-view-on-init encuadra todos los nodos presentes (el grafo base) → se arranca viendo
 // todo, no un zoom en la esquina. Al SELECCIONAR: NO se re-encuadra solo (la cámara la maneja el
@@ -199,20 +200,19 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
       addE.push({ id: 'e-cat-carousel', source: 'cat-carousel', sourceHandle: 'down', target: 'perfil', targetHandle: 'fromcats', animated: false, style: { stroke: ec('base'), strokeWidth: 1.4, strokeDasharray: '5 4' } })
     }
     if (def.rt === 2) {   // los tramos por monto son de CreditopX
-      add.push({ id: 'tramo', type: 'tramo', position: { x: x0 + 300, y: rowY } })
+      add.push({ id: 'tramo', type: 'tramo', position: { x: SELECTED_LAYOUT.profileHub.x, y: rowY } })
       addE.push({ id: 'e-tramo', source: 'tramo', sourceHandle: 'down', target: 'perfil', targetHandle: 'fromcats', animated: false, style: { stroke: ec('base'), strokeWidth: 1.4, strokeDasharray: '5 4' } })
     }
   }
   // rt=1 y rt=4: el SERVICIO DE PREAPROBACIÓN, con su respuesta editable, donde CreditopX tiene las categorías. Y en
   // rt=4, a su lado, la ficha de originación delegada.
   if (usesPreApproval(def)) {
-    const { x: x0, y: rowY } = SELECTED_LAYOUT.profileInputs
-    add.push({ id: 'preapproval', type: 'preapproval', position: { x: x0, y: rowY } })
+    add.push({ id: 'preapproval', type: 'preapproval', position: { x: SELECTED_LAYOUT.profileInputs.x, y: SELECTED_LAYOUT.preApprovalRow.y } })
     addE.push({ id: 'e-preapproval', source: 'preapproval', sourceHandle: 'down', target: 'perfil', targetHandle: 'fromcats', animated: false, style: { stroke: ec('base'), strokeWidth: 1.4, strokeDasharray: '5 4' } })
   }
   if (def.rt === 4) {
-    const { x: x0, y: rowY } = SELECTED_LAYOUT.profileInputs
-    add.push({ id: 'delegated', type: 'delegated', position: { x: x0 + 320, y: rowY } })
+    // justo arriba del hub de perfilamiento
+    add.push({ id: 'delegated', type: 'delegated', position: { x: SELECTED_LAYOUT.profileHub.x, y: SELECTED_LAYOUT.preApprovalRow.y } })
     addE.push({ id: 'e-delegated', source: 'delegated', sourceHandle: 'down', target: 'perfil', targetHandle: 'fromcats', animated: false, style: { stroke: ec('base'), strokeWidth: 1.4, strokeDasharray: '5 4' } })
   }
   // Estado en sucursal (lenders_by_allied_branches.status): membresía solo-BD (default true; NO filtra el getLenders vivo, solo la lee el simulador viejo). Nodo propio
@@ -233,7 +233,11 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
   if (selPasses.value) {
     const LIFE_Y = 380
     const GS = { stroke: ec('green'), strokeWidth: 1.6 }
-    let x = 1860, prevSrc = 'out', prevH = 'psel-' + sel   // arranca en la fila del lender del listado
+    // Cada paso avanza lo que mide el nodo anterior más un hueco fijo, así la cadena queda pareja.
+    const WIDTH = { recheck: 295, extra: 300, identity: 165, codeudor: 260, planpagos: 230, infoadicional: 305, firma: 195, return: 250, formstage: 210 }
+    const GAP = 70
+    const adv = (key) => (WIDTH[key] || 280) + GAP
+    let x = 1920, prevSrc = 'out', prevH = 'psel-' + sel   // arranca en la fila del lender del listado
     // Flujo de CRÉDITO (producto crédito + Credifamilia rt=4): lo estamos rearmando PASO A PASO.
     // Por ahora, el 1er (y único) nodo tras elegir el lender es la validación de identidad; el resto
     // de la cadena se irá agregando después.
@@ -244,25 +248,25 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
       // ── Riel 4 · originación delegada: recheck → identidad → formulario de la entidad → plan (con la ficha) →
       // firma → [radicación si la ficha la pide] → estado 11. El orden es el del wizard: el formulario de la
       // entidad (form 25 en Finandina) va ANTES de elegir la primera fecha de pago.
-      const step = (id, type, w = 300, data) => {
+      const step = (id, type, data) => {
         add.push({ id, type, data, position: { x, y: LIFE_Y } })
         addE.push({ id: 'e-' + id, source: prevSrc, sourceHandle: prevH, target: id, targetHandle: 'in', animated: false, style: GS })
-        prevSrc = id; prevH = 'out'; x += w
+        prevSrc = id; prevH = 'out'; x += adv(type)
       }
-      step('recheck', 'recheck', 330)
+      step('recheck', 'recheck')
       if (!selCanContinue.value) { nodes.value = [...base, ...add]; edges.value = [...baseEdges(), ...addE]; return }
       step('identity', 'identity')
       step('infoadicional', 'infoadicional')
       step('planpagos', 'planpagos')
       step('firma', 'firma')
-      if (delegatedOf(def).formalization) step('stage-radica', 'formstage', 250, { stepKey: 'radica' })
+      if (delegatedOf(def).formalization) step('stage-radica', 'formstage', { stepKey: 'radica' })
       step('estado', 'estado')
     } else if (isCredit || isRenting) {
       // El listado es solo una oferta. Antes de cualquier formulario in-platform aparece el segundo
       // motor; si bloquea, el gráfico termina aquí y deja visible la causa.
       add.push({ id: 'recheck', type: 'recheck', position: { x, y: LIFE_Y } })
       addE.push({ id: 'e-recheck', source: prevSrc, sourceHandle: prevH, target: 'recheck', targetHandle: 'in', animated: false, style: GS })
-      prevSrc = 'recheck'; prevH = 'out'; x += 330
+      prevSrc = 'recheck'; prevH = 'out'; x += adv('recheck')
       if (!selCanContinue.value) {
         nodes.value = [...base, ...add]
         edges.value = [...baseEdges(), ...addE]
@@ -273,32 +277,32 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
       if (isRenting) {
         add.push({ id: 'extra', type: 'ingresosextras', position: { x, y: LIFE_Y } })
         addE.push({ id: 'e-extra', source: prevSrc, sourceHandle: prevH, target: 'extra', targetHandle: 'in', animated: false, style: GS })
-        prevSrc = 'extra'; prevH = 'out'; x += 350
+        prevSrc = 'extra'; prevH = 'out'; x += adv('extra')
       }
       add.push({ id: 'identity', type: 'identity', position: { x, y: LIFE_Y } })
       addE.push({ id: 'e-identity', source: prevSrc, sourceHandle: prevH, target: 'identity', targetHandle: 'in', animated: false, style: GS })
-      prevSrc = 'identity'; prevH = 'out'; x += 300
+      prevSrc = 'identity'; prevH = 'out'; x += adv('identity')
       // Renting: bifurcación por ingreso. Si el ingreso del solicitante ≤ 3.000.000 se exige CODEUDOR
       // (mismos datos que Solicitud) antes del plan de pagos; si es mayor, el flujo sigue directo.
       if (isRenting && selIncome.value <= 3000000) {
         add.push({ id: 'codeudor', type: 'codeudor', position: { x, y: LIFE_Y } })
         addE.push({ id: 'e-codeudor', source: prevSrc, sourceHandle: prevH, target: 'codeudor', targetHandle: 'in', animated: false, style: GS })
-        prevSrc = 'codeudor'; prevH = 'out'; x += 300
+        prevSrc = 'codeudor'; prevH = 'out'; x += adv('codeudor')
       }
       // Plan de pagos (todo CreditopX): primera fecha de pago (6/15/28) + número de cuotas del listado.
       add.push({ id: 'planpagos', type: 'planpagos', position: { x, y: LIFE_Y } })
       addE.push({ id: 'e-planpagos', source: prevSrc, sourceHandle: prevH, target: 'planpagos', targetHandle: 'in', animated: false, style: GS })
-      prevSrc = 'planpagos'; prevH = 'out'; x += 300
+      prevSrc = 'planpagos'; prevH = 'out'; x += adv('planpagos')
       // Consumo (Credifamilia): "Información adicional" (form_type 6) entre plan de pagos y firma.
       if (def.producto === 'consumo') {
         add.push({ id: 'infoadicional', type: 'infoadicional', position: { x, y: LIFE_Y } })
         addE.push({ id: 'e-infoadicional', source: prevSrc, sourceHandle: prevH, target: 'infoadicional', targetHandle: 'in', animated: false, style: GS })
-        prevSrc = 'infoadicional'; prevH = 'out'; x += 300
+        prevSrc = 'infoadicional'; prevH = 'out'; x += adv('infoadicional')
       }
       // Firma del pagaré (OTP de 6) → Estado (success/false).
       add.push({ id: 'firma', type: 'firma', position: { x, y: LIFE_Y } })
       addE.push({ id: 'e-firma', source: prevSrc, sourceHandle: prevH, target: 'firma', targetHandle: 'in', animated: false, style: GS })
-      prevSrc = 'firma'; prevH = 'out'; x += 300
+      prevSrc = 'firma'; prevH = 'out'; x += adv('firma')
       add.push({ id: 'estado', type: 'estado', position: { x, y: LIFE_Y } })
       addE.push({ id: 'e-estado', source: prevSrc, sourceHandle: prevH, target: 'estado', targetHandle: 'in', animated: false, style: GS })
     } else {
@@ -306,18 +310,18 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
       if (selAbaco.value) {
         add.push({ id: 'extra', type: 'ingresosextras', position: { x, y: LIFE_Y } })
         addE.push({ id: 'e-extra', source: prevSrc, sourceHandle: prevH, target: 'extra', targetHandle: 'in', animated: false, style: GS })
-        prevSrc = 'extra'; prevH = 'out'; x += 350
+        prevSrc = 'extra'; prevH = 'out'; x += adv('extra')
       }
       // Etapas del rt (POSTSEL_STEPS: rt1 radica→decision · rt0 redirect) → Estado del crédito.
       for (const key of postSelSteps(def.rt, sel).map(s => s.key)) {
         const id = 'stage-' + key
         add.push({ id, type: 'formstage', data: { stepKey: key }, position: { x, y: LIFE_Y } })
         addE.push({ id: 'e-' + id, source: prevSrc, sourceHandle: prevH, target: id, targetHandle: 'in', animated: false, style: GS })
-        prevSrc = id; prevH = 'out'; x += 250
+        prevSrc = id; prevH = 'out'; x += adv('formstage')
       }
       add.push({ id: 'return', type: 'return', position: { x, y: LIFE_Y } })
       addE.push({ id: 'e-return', source: prevSrc, sourceHandle: prevH, target: 'return', targetHandle: 'in', animated: false, style: GS })
-      prevSrc = 'return'; prevH = 'out'; x += 290
+      prevSrc = 'return'; prevH = 'out'; x += adv('return')
       add.push({ id: 'cstatus', type: 'cstatus', position: { x, y: LIFE_Y } })
       addE.push({ id: 'e-cstatus', source: prevSrc, sourceHandle: prevH, target: 'cstatus', targetHandle: 'in', animated: false, style: GS })
     }
