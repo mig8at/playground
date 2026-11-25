@@ -35,10 +35,12 @@ la solicitud y una columna por entidad, y cada celda dice si pasa (verde), si se
 baja (ámbar) o si no le aplica. Al abrir una celda sale, a la derecha, la «calculadora» del paso; arriba se edita el
 cliente (monto, ocupación, edad, score, negativos, continuidad) y toda la tabla se recalcula.
 
-- Hoy tiene dos filas: **1 · Listado** (las reglas duras de la sucursal: tipo de documento, centrales y grupos; CreditopX
+- Hoy tiene tres filas: **1 · Listado** (las reglas duras de la sucursal: tipo de documento, centrales y grupos; CreditopX
   que no las cumple no sale, las demás salen con probabilidad baja) y **2 · Preaprobación** (quién contesta, las
-  categorías si decide el motor, lo que se dicta si decide la API, el cupo y la cuota con su fianza). Las de abajo
-  (elegir, identidad, plan, firma) están dibujadas vacías y se suman paso a paso.
+  categorías si decide el motor, lo que se dicta si decide la API, el cupo y la cuota con su fianza) y **3 · Elegir la
+  entidad** (`selectionCheck`: lo que revisa `update-user-request`, lo que guarda —el `amount` de CreditopX lleva el FGA,
+  el de la delegada no— y por dónde sigue cada riel). Las de abajo (identidad, plan, firma) están dibujadas vacías y se
+  suman paso a paso.
 - **No tiene lógica propia**: usa la de `store.js` (el listado, `sucursalGate`, `perfilDiag`, `bondOf`,
   `cuotaBreakdown`), con alias en inglés al final de ese archivo. Lo que se cambia en una vista se ve en la otra.
 

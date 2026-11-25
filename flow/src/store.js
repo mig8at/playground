@@ -1314,7 +1314,7 @@ export function selectionCheck(name) {
     { key: 'offer', ok: !!row?.ok, label: row?.ok ? 'la tarjeta se ofreció en el listado' : 'la tarjeta no se ofrece: ' + (row?.reason || 'no está en el listado') },
     { key: 'fee', ok: fee < amount, label: fee < amount ? 'cuota inicial menor que el monto' : 'cuota inicial igual o mayor que el monto: «La cuota inicial debe ser menor que el monto solicitado»' },
     { key: 'order', ok: true, info: true, label: canal.tipo === 'ecommerce' ? 'el monto tiene que ser el total del pedido de la tienda' : 'no viene de una tienda: no hay pedido que comparar' },
-    { key: 'origination', ok: true, info: true, label: 'la originación tiene que estar habilitada en la sucursal y el comercio' },
+    { key: 'origination', ok: true, info: true, label: 'sólo si crea otra solicitud (ya tenía otra entidad): la originación tiene que estar habilitada en la sucursal y el comercio' },
   ]
   return { allowed: checks.every(c => c.ok), checks }
 }

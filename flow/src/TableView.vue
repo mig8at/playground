@@ -4,7 +4,7 @@ import { X, Check, Minus, CircleAlert, ChevronRight } from 'lucide-vue-next'
 import {
   customLenders, merchant, lenders, state, bureau, clientProfile as profile, setNull, editTick, money, RT_LABEL,
   branchGateDiag, branchCreditBureauRules, categoryDiag, usesQuotaEngine, usesPreApproval, preApprovalResponseOf,
-  setPreApprovalField, installmentBreakdown, bondOf, calcValue,
+  setPreApprovalField, installmentBreakdown, bondOf, calcValue, selectionCheck,
 } from './store'
 
 // La TABLA del flujo (2026-11-25): el mismo cliente contra todas las entidades, paso por paso. Cada fila es un paso de
@@ -68,15 +68,34 @@ function preApprovalCell(c, first) {
   return { status: 'fail', title: 'Rechazada', line: r.reason }
 }
 
+// ── Fila 3 · ELEGIR la entidad: el cliente toca «Continuar» en la tarjeta y el backend guarda la elección
+// (`update-user-request`, UserRequestService::updateUserRequest, verificado en main el 2026-11-25). NO vuelve a preguntar
+// el cupo: valida el monto contra el pedido de la tienda y la cuota inicial contra el monto, guarda entidad, montos,
+// plazo, tasa y cuota inicial, y pasa la solicitud a 3. Lo que sigue depende del riel.
+const NEXT_BY_RT = {
+  0: 'redirige al sitio de la entidad',
+  1: 'se radica en la API de la entidad',
+  2: 'sigue en CreditOp: validación de identidad',
+  4: 'sigue en CreditOp: validación de identidad',
+}
+function selectionCell(c, previous) {
+  if (previous.status === 'fail' || previous.status === 'off') return { status: 'off', title: 'No llega', line: 'se cortó antes' }
+  const check = selectionCheck(c.def.name)
+  if (!check.allowed) return { status: 'fail', title: 'No la deja elegir', line: check.checks.find(x => !x.ok)?.label }
+  return { status: 'pass', title: 'Pasa a 3 · Selección', line: NEXT_BY_RT[c.def.rt] || '' }
+}
+
 const ROWS = [
   { key: 'listing', n: 1, label: 'Listado', ask: '¿Aparece la tarjeta?' },
   { key: 'preapproval', n: 2, label: 'Preaprobación', ask: '¿Cuánto le prestan?' },
+  { key: 'selection', n: 3, label: 'Elegir la entidad', ask: '¿Qué se guarda al tocar «Continuar»?' },
 ]
-const NEXT_ROWS = ['Elegir la entidad', 'Validación de identidad', 'Plan de pagos', 'Firma y cierre']
+const NEXT_ROWS = ['Validación de identidad', 'Plan de pagos', 'Firma y cierre']
 
 const grid = computed(() => columns.value.map(c => {
   const listing = listingCell(c)
-  return { c, cells: { listing, preapproval: preApprovalCell(c, listing) } }
+  const preapproval = preApprovalCell(c, listing)
+  return { c, cells: { listing, preapproval, selection: selectionCell(c, preapproval) } }
 }))
 
 // ── La celda abierta: la «calculadora» del paso, en el panel de la derecha.
@@ -115,6 +134,21 @@ const quote = computed(() => {
   if (!d || !d.r || !d.r.ok || !chosenTerm.value || d.l.rt === 0) return null
   const b = installmentBreakdown(d.r, chosenTerm.value)
   return { ...b, bond: d.l.rt === 4 ? bondOf(d.l) : null, n: chosenTerm.value }
+})
+// Detalle de la elección: las validaciones y lo que queda guardado en la solicitud.
+const selDetail = computed(() => {
+  if (!openCol.value || open.value.row !== 'selection') return null
+  const { def: l, row: r } = openCol.value.c
+  const check = selectionCheck(l.name)
+  const n = (r?.dues || []).slice().sort((a, b) => a - b).pop() || 0
+  const b = r && n && l.rt !== 0 ? installmentBreakdown(r, n) : null
+  const fee = r?.initialFeeAmount || 0
+  // `amount`: CreditopX guarda el valor a financiar CON el FGA (la base de sus cuotas); la delegada, sin él (la fianza
+  // la pone su plan); el resto, el monto menos la cuota inicial más los costos del comercio.
+  let saved = amount.value - fee, savedWhy = 'monto − cuota inicial'
+  if (b && l.rt === 2) { saved = b.capital; savedWhy = 'monto − cuota inicial + costos del comercio + FGA con IVA' }
+  else if (b && l.rt !== 4) { saved = b.financiado + b.admin; savedWhy = 'monto − cuota inicial + costos del comercio' }
+  return { l, r, check, n, fee, saved, savedWhy, next: NEXT_BY_RT[l.rt] }
 })
 const STATUS = [['aprueba', 'aprueba'], ['rechaza', 'rechaza'], ['timeout', 'no contesta']]
 const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
@@ -182,7 +216,7 @@ const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
       <!-- La calculadora del paso -->
       <aside v-if="openCol" class="tv-calc auxiliarybar" aria-label="El detalle del paso">
         <div class="region-head">
-          <span class="tv-calc__h"><span class="tv-n">{{ open.row === 'listing' ? 1 : 2 }}</span> {{ openCol.c.def.name }}</span>
+          <span class="tv-calc__h"><span class="tv-n">{{ ROWS.find(x => x.key === open.row)?.n }}</span> {{ openCol.c.def.name }}</span>
           <div class="region-actions"><button type="button" class="region-action" title="Cerrar" aria-label="Cerrar" @click="open = null"><X :size="15" /></button></div>
         </div>
 
@@ -276,6 +310,34 @@ const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
               (suma el 4×1000 y el interés de los días hasta la primera cuota): esto es una aproximación.</p>
           </template>
           <p v-else-if="preDetail.l.rt === 0" class="tv-p tv-p--m">El redirect no muestra cuota: el cliente la ve en el sitio de la entidad.</p>
+        </div>
+
+        <div v-else-if="selDetail" class="region-body tv-calc__b">
+          <h3>¿Qué pasa al elegirla?</h3>
+          <p class="tv-p">El cliente toca «Continuar» en la tarjeta. El backend <b>no vuelve a preguntar el cupo</b>: confía en lo que
+            mostró la tarjeta. Revisa dos cosas, guarda la elección en la solicitud y la pasa al estado <b>3 · Selección de entidad</b>.</p>
+
+          <div class="tv-sec">Lo que revisa</div>
+          <div v-for="c in selDetail.check.checks" :key="c.key" class="tv-cond" :class="c.info ? '' : (c.ok ? 'ok' : 'no')">
+            <Check v-if="c.ok && !c.info" :size="11" /><X v-else-if="!c.ok" :size="11" /><Minus v-else :size="11" /> {{ c.label }}
+          </div>
+
+          <div class="tv-sec">Lo que queda guardado en la solicitud</div>
+          <div class="tv-kv"><span>Entidad</span><b>{{ selDetail.l.name }}</b></div>
+          <div class="tv-kv"><span>Monto pedido <em>original_amount</em></span><b>{{ money(amount) }}</b></div>
+          <div class="tv-kv"><span>Monto a financiar <em>amount</em></span><b>{{ money(selDetail.saved) }}</b></div>
+          <p class="tv-p tv-p--m">{{ selDetail.savedWhy }}</p>
+          <div class="tv-kv"><span>Cuota inicial</span><b>{{ money(selDetail.fee) }}</b></div>
+          <div v-if="selDetail.n" class="tv-kv"><span>Plazo <em>fee_number</em></span><b>{{ selDetail.n }} cuotas</b></div>
+          <div class="tv-kv"><span>Tasa</span><b>{{ selDetail.r?.rate ?? '—' }} %</b></div>
+          <div class="tv-kv"><span>Estado</span><b>3 · Selección de entidad</b></div>
+
+          <div class="tv-verdict" :class="selDetail.check.allowed ? 'ok' : 'no'">
+            <template v-if="selDetail.check.allowed">Sigue: {{ selDetail.next }}.</template>
+            <template v-else>No la deja elegir: {{ selDetail.check.checks.find(x => !x.ok)?.label }}</template>
+          </div>
+          <p class="tv-p tv-p--m">Si la solicitud ya tenía OTRA entidad elegida (o ya está en 11), elegir una distinta no la cambia:
+            crea una solicitud nueva para esa entidad, y ahí sí revisa que la originación esté habilitada en la sucursal.</p>
         </div>
       </aside>
     </div>
