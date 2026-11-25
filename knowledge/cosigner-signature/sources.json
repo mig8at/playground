@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Firma y cierre del codeudor",
   "summary": "Firma del codeudor, autorización y documentos; política de entrada, saga, confirmación persistida y límites de recuperación.",
-  "reviewedAt": "2026-11-17T12:52:59+00:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -63,8 +63,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/cosigner/signature/otp.tsx",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "23bbeb389439bfd2757b34627c92431ea4c483ae",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "4d3c8eb96d011228c4abac454abbcbf4be4508a8",
       "sections": [
         "recorrido-propio-de-firma",
         "firma-registrada-y-autorizacion-de-la-solicitud"
@@ -82,8 +82,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "8b00482bbb3b9e3ab5bde121a130bf173d195ee9",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "b62b9fcf1b245684a680f01025f52bc52cfdc139",
       "sections": [
         "firma-del-titular-y-espera",
         "estado-del-saga-y-sincronizacion-de-la-espera",
@@ -95,8 +95,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/otp-validation.tsx",
-      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
-      "blob": "e475974e6a7fc4b6a7429e7434c02216386e837c",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "6849cd34f58cca602ee69fa04108812194df3b89",
       "sections": [
         "firma-del-titular-y-espera"
       ]
@@ -113,8 +113,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/UserRequestV1/App/Services/VerifyCosignerSignatureOtpService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "b8de15b9b998e55b55861ecec511188ebe546119",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "3c58df9c023fedfe90c539f29453f5e7d2b6b605",
       "sections": [
         "firma-registrada-y-autorizacion-de-la-solicitud",
         "catalogo-y-evidencia-de-documentos",
@@ -189,8 +189,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/AuthV1/App/Services/ValidateOtpService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "67569b1d1eb1f9ce4ec5c26f5aa543004f1c9567",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "ea9e8cbfbb010531ec535fe6823434110d4db48a",
       "sections": [
         "respuesta-del-proveedor-de-otp"
       ]
@@ -198,8 +198,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "c8f7e40de6997dee49af73ebd44378e248a15be7",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "5bf5a5f6de47c160da48a2ab02238dddb102f58d",
       "sections": [
         "entrada-del-titular-y-politica-de-codeudor",
         "estado-del-saga-y-sincronizacion-de-la-espera"
@@ -218,8 +218,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/loan-confirmation.tsx",
-      "commit": "3f35ac9f768f66bb05a79361188c2b85344cda22",
-      "blob": "084efde54570ad612f39c92cd5aefacc2732b73e",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "84c831caffa31115e8411e965378a0cb2fce82f3",
       "sections": [
         "entrada-del-titular-y-politica-de-codeudor"
       ]
@@ -344,8 +344,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/loan-approved.tsx",
-      "commit": "3f35ac9f768f66bb05a79361188c2b85344cda22",
-      "blob": "7a57389c2a30d32b98ea102931403612ca0fc255",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "3ab2fa275953692c97b5709d302f86258db22fb7",
       "sections": [
         "confirmacion-del-titular-y-estado-persistido"
       ]
@@ -353,8 +353,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/loan-origination/src/lib/domain/promissory-note.entity.ts",
-      "commit": "3f35ac9f768f66bb05a79361188c2b85344cda22",
-      "blob": "a58f751af17ef6aa4dfd67c6401cd1c4a2b81868",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "67ae82a09499d2ffbabf265e081125fd30b59958",
       "sections": [
         "confirmacion-del-titular-y-estado-persistido"
       ]
@@ -373,8 +373,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/CreditopXRequestHistoryService.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "babbf121a58be7990a224fc971003f231363bb64",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "a8c4274eaf9fd0bc3167818d6782c18cb9c308cb",
       "sections": [
         "reanudar-autorizacion-y-efectos-posteriores"
       ]
@@ -445,8 +445,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/CreditopXRequestHistoryController.php",
-      "commit": "39def3d0c487ee459997b8fa502dc3554b953092",
-      "blob": "e4756df9b113cfd1cda1c6a1c051a42e4aa50ac3",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "641f83cae3763eea5ac80dfa2ec9145b18873166",
       "sections": [
         "reanudar-autorizacion-y-efectos-posteriores"
       ]

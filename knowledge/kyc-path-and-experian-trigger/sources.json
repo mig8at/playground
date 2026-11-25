@@ -2,7 +2,7 @@
   "version": 1,
   "title": "KYC nuevo: qué camino toma una solicitud y cuándo se consulta Experian",
   "summary": "Cómo el pipeline de KYC elige grafo (STANDARD, CREDITOP_X, PULLMAN, DFS) por sucursal, cuándo salta una central por dato vigente y en qué orden decide el disparador de Experian, con su bypass, su frecuencia y la variante que compra.",
-  "reviewedAt": "2026-11-17T12:52:59+00:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -176,8 +176,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/RiskV2/App/Services/CheckExperianTriggerService.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
-      "blob": "f714ca17224a426d93afca58f485663741cf7f7b",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "9335f8b8cefbacfafded063750d29159cf0ae0a5",
       "sections": [
         "el-disparador-etapa-por-etapa",
         "frecuencia-uno-de-cada-n"
@@ -240,8 +240,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/DatacreditoQueryByAlliedController.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "c616a8f73fd3ead8641e9d37bea6f0636ea38369",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "c59b632db668a1e20fcdc2f29118c05c7c684811",
       "sections": [
         "el-disparador-viejo-en-los-dos-monolitos"
       ]
@@ -249,8 +249,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Risk/App/Http/Controllers/DatacreditoQueryByAlliedController.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "8c643a7682b54e20a6eaa50d042680d99e535b1a",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "5736c3060860e91faa472e16308ec60e03dfcabb",
       "sections": [
         "el-disparador-viejo-en-los-dos-monolitos"
       ]
@@ -258,8 +258,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Http/Controllers/OnboardingController.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "977c4713996a0a7d0f394eee22f7ba8cf10f7e1a",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "3547e299a2860e50cfecd850ae98f4f473ccb3e0",
       "sections": [
         "el-disparador-viejo-en-los-dos-monolitos"
       ]

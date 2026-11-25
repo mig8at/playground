@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Requisitos y consulta vigente de Ábaco",
   "summary": "Flag por entidad, vigencia configurable y alcance del salto de buró en el motor modular.",
-  "reviewedAt": "2026-11-21T16:16:33+00:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -64,8 +64,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/routes/api.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "9fe1053db4e661eadc0e6478d19d239ea7e311a1",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "a0a88314475f99d50a446dafd6c80863367c40ad",
       "sections": [
         "requisito-por-entidad",
         "salto-del-paso"
@@ -160,8 +160,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/LenderUserCategoryService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "2306b8f662645228d3973594e5edfb45e679a49f",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "b9c16e84973164e62057e9c997b6c31a7b83a8a1",
       "sections": [
         "cupo-sin-reporte-de-buro",
         "salto-del-paso"
@@ -170,8 +170,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/lenders/LenderRetrievalService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "3616a6d33fe56508e63b9ff85c93f508975c2648",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "ccc2d69b69d6126ec8146e997d49b533e043a711",
       "sections": [
         "cupo-sin-reporte-de-buro"
       ]
@@ -179,8 +179,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Services/lenders/LenderUserCategoryService.php",
-      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
-      "blob": "ba861e1778f9739607631d2b6b6aa60ea795c4f0",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "31d75fcebfb8be541d8c69db5e5089af4f679fbf",
       "sections": [
         "cupo-sin-reporte-de-buro"
       ]

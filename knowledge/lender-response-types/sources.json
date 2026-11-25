@@ -2,13 +2,13 @@
   "version": 1,
   "title": "Rieles de una entidad: response_type",
   "summary": "Qué separa a los tipos 0 a 4 de una entidad (de quién es la política y por qué riel se origina), qué dispara cada uno en el código y por qué la cobranza externa es otro eje.",
-  "reviewedAt": "2026-11-23T12:00:00-05:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/adapters/fetch-lender-preapproval.ts",
-      "commit": "3f35ac9f768f66bb05a79361188c2b85344cda22",
-      "blob": "38d061aaf6a93e5f0915739d9eeec9e05180cf31",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "8780e6a507936f5e78df9154e7e67c81fe93d22c",
       "sections": [
         "la-politica-es-lo-que-separa-a-los-rieles",
         "tipos-0-y-1-la-entidad-origina-en-su-flujo",
@@ -28,8 +28,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/modules/request-management/types/loan-request.ts",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "3a1ae106ae9691b76e92557beecc3f17e234bbcb",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "b22ac07de272798a673bdfde96ae842d7484b367",
       "sections": [
         "la-politica-es-lo-que-separa-a-los-rieles"
       ]
@@ -37,8 +37,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
-      "commit": "3f35ac9f768f66bb05a79361188c2b85344cda22",
-      "blob": "ce5b8d5c02c8199d40f01fb005af97f21841854f",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "00ccde2e4bbacb91b980447b49bed7e37edd5e57",
       "sections": [
         "tipos-0-y-1-la-entidad-origina-en-su-flujo"
       ]
@@ -46,8 +46,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/backoffice/lender-rules/src/components/LendersList.tsx",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "1a62c0f71d0582cd33022cdf7c1891b7af4cb23b",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "3d516438ba1153562f69aca5d058c3de41bc1823",
       "sections": [
         "tipos-2-y-3-creditop-define-la-politica"
       ]
@@ -55,8 +55,8 @@
     {
       "repo": "pre-approvals-service",
       "path": "internal/infra/lending_products/creditop_x/adapter.go",
-      "commit": "8bfbee92f31a2520c94e371971d469cb399dc7a2",
-      "blob": "d86101577ee69cf776345775a54f045a7ab9bb7d",
+      "commit": "b2684a2e697f67063d04ffa714a30b4d5fc367d4",
+      "blob": "b3e62db44cf65b324c808d1d216db6fdb044f3ee",
       "sections": [
         "la-politica-es-lo-que-separa-a-los-rieles"
       ]
@@ -64,8 +64,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "c8f7e40de6997dee49af73ebd44378e248a15be7",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "5bf5a5f6de47c160da48a2ab02238dddb102f58d",
       "sections": [
         "la-politica-es-lo-que-separa-a-los-rieles",
         "tipos-2-y-3-creditop-define-la-politica"
@@ -74,8 +74,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/App/Support/LenderIntegrationRules.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "dddf35c3a2e5dd852bc8deb9d1773b65af551575",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "403cd4bef1382af4003c52b441cb469f4a27e4ef",
       "sections": [
         "tipos-0-y-1-la-entidad-origina-en-su-flujo"
       ]
@@ -83,8 +83,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/UserRequestService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "b4e7c44655a2eeace45dd4fc56eff134da23ebdd",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "7c4fe204d7d1ec89717a25979bc271c5235c45c2",
       "sections": [
         "tipos-0-y-1-la-entidad-origina-en-su-flujo"
       ]
@@ -92,8 +92,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/lenders/LenderValidationService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "bb21da995f7ad0e80118c38bb001d5dbcaa97906",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "0aae46a137d212723c3575edb08a04d1722e2846",
       "sections": [
         "tipos-2-y-3-creditop-define-la-politica",
         "tipo-4-politica-de-la-entidad-rieles-de-creditop"
@@ -121,8 +121,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/PaymentSchedule/ExternallyManagedPaymentScheduleService.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "5b253d8b80249892d59ff2946924cb52cc53598c",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "922089a5cf16cb27db193b687f20e60ef2b822db",
       "sections": [
         "tipo-4-politica-de-la-entidad-rieles-de-creditop",
         "el-plan-del-riel-4-una-ruta-por-pantalla-y-un-solo-calculo"
@@ -131,8 +131,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Services/PaymentPlan/DelegatedOrigination/PaymentDates/PaymentPlanDatesService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "590b2c11edf551948712926d652b024c6f345836",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "3d1a1e05a3244979fb707cce749a2f772048bb13",
       "sections": [
         "tipo-4-politica-de-la-entidad-rieles-de-creditop"
       ]
@@ -140,8 +140,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Services/PaymentPlan/DelegatedOrigination/InstallmentPlan/InstallmentPlanService.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "c6cabc4348f3c6bd0e2de14420294084a3c5c232",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "2cc28344dad1e253c967d8fd8dedf49faac8a995",
       "sections": [
         "tipo-4-politica-de-la-entidad-rieles-de-creditop"
       ]
@@ -149,8 +149,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Services/PaymentPlan/Credifamilia/Constants/CredifamiliaLenders.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "994b0d2bd79381a09fe1922ef76d7d2c94a325e2",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "34ee395740556ada058deb91fc40b8f8a698eaf0",
       "sections": [
         "tipo-4-politica-de-la-entidad-rieles-de-creditop"
       ]
@@ -185,8 +185,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/App/Services/LenderReadinessService.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "0cc74b87d58c88bb8402d58de43806d8dd0495e0",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "141af5e880c936cc4806781e749762acf4c638eb",
       "sections": [
         "la-cobranza-es-otro-eje"
       ]
@@ -212,8 +212,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/UserController.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "ae8f8c479d630ca8119267649fe7bcd696b90ecf",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "b490bfd8c53b6af50d82fbc2649c39270f6b011e",
       "sections": [
         "tipo-4-politica-de-la-entidad-rieles-de-creditop"
       ]
@@ -221,8 +221,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Services/PaymentPlan/DelegatedOrigination/LoanOptions/PaymentPlanLoanOptionsService.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "3c17cb496da6ad1900cf66d86fbf67713d7a5977",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "fdbc1075d1c79cf7e256350fed339bb24be23158",
       "sections": [
         "tipo-4-politica-de-la-entidad-rieles-de-creditop"
       ]
@@ -257,8 +257,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/routes/api.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "9fe1053db4e661eadc0e6478d19d239ea7e311a1",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "a0a88314475f99d50a446dafd6c80863367c40ad",
       "sections": [
         "tipo-4-politica-de-la-entidad-rieles-de-creditop",
         "el-plan-del-riel-4-una-ruta-por-pantalla-y-un-solo-calculo"
@@ -285,8 +285,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Services/PaymentPlan/DelegatedOrigination/PaymentPlanPayloadBuilder.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "d4e0cfa984cbbbfed948a837464e6549520ce1e3",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "4faf332874c951d29e1a9ea2096153d77e0ef015",
       "sections": [
         "tipo-4-politica-de-la-entidad-rieles-de-creditop"
       ]
@@ -330,8 +330,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Services/lenders/LenderRetrievalService.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "b7a567c9c07f8f4a4552d623baf8a4856589187c",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "522fbf432ad6e9f65bb0f6a0736dc00ac7b7e784",
       "sections": [
         "tipo-4-politica-de-la-entidad-rieles-de-creditop"
       ]
@@ -339,8 +339,8 @@
     {
       "repo": "pre-approvals-service",
       "path": "internal/core/domain/lending_product.go",
-      "commit": "c70a470b2b07c4c10cb3dafdb1a62ea7c44f79c5",
-      "blob": "b7883719acab9c216325bc30eea46ae597d00db3",
+      "commit": "b2684a2e697f67063d04ffa714a30b4d5fc367d4",
+      "blob": "eff70af97469c0452167d652669633097c7b45ef",
       "sections": [
         "tipos-0-y-1-la-entidad-origina-en-su-flujo",
         "tipo-4-politica-de-la-entidad-rieles-de-creditop"
@@ -349,8 +349,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Services/PaymentPlan/DelegatedOrigination/Engine/AmortizationEngine.php",
-      "commit": "e76dc44419cfe137d0de17bfdf547e06dce03cbe",
-      "blob": "76a2d61012378b1de5c2d95c52091ae9f68e71c5",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "231932d761ee0e1b5835f049c71ba4a1f80cd0bb",
       "sections": [
         "el-plan-del-riel-4-una-ruta-por-pantalla-y-un-solo-calculo"
       ]
@@ -358,8 +358,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Services/PaymentPlan/DelegatedOrigination/Engine/CalculationContext.php",
-      "commit": "e76dc44419cfe137d0de17bfdf547e06dce03cbe",
-      "blob": "81da92c4adc5d4bb567444a68c84c1c5308a780f",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "c343c3af6982957f2593f5ac85341e629bbf6b97",
       "sections": [
         "el-plan-del-riel-4-una-ruta-por-pantalla-y-un-solo-calculo"
       ]

@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Pipeline de KYC por comercio",
   "summary": "Cómo kyc_pipeline_allieds elige por comercio entre la cascada dentro de legacy-backend y el pipeline de customer-profiling-service sobre Temporal, y qué cambia en OTP, datos personales y kyc-processing.",
-  "reviewedAt": "2026-11-17T12:52:59+00:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -55,8 +55,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/OnboardingV2/App/Services/ValidateOtpAuthService.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "8a1e9c05e2c5463de44e83c77e170225930b3eb2",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "58a327db3997e2ef86bbfb347c8db686b00b4537",
       "sections": [
         "que-cambia-en-el-wizard-segun-el-camino"
       ]
@@ -73,8 +73,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/OnboardingService.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "b18993b078403415d7135bb2a8d70c5298ad5456",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "9eb30ef824b901dbb2aa4ea5997c4cf222709c35",
       "sections": [
         "que-cambia-en-el-wizard-segun-el-camino",
         "antes-de-validar-algo-de-identidad-o-centrales"
@@ -83,8 +83,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/loan-application-form/otp-verification.tsx",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "3959e6ddbb85d5a5ed54e674827baffa41a6a2ae",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "e5a11be5b05d76ce309fad70ade9de97e36f68cc",
       "sections": [
         "que-cambia-en-el-wizard-segun-el-camino"
       ]
@@ -92,8 +92,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/loan-application-form/loan-request-form.tsx",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "7035b7d8eaaf8832f14632739e98d73ecd52a15e",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "888aed4cfd81dd1cbe994ec4767503702412a843",
       "sections": [
         "que-cambia-en-el-wizard-segun-el-camino"
       ]
@@ -242,8 +242,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Http/Controllers/ListLenderController.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "e97199d3b3809e44dc34fdd4a1f6b82d693e219e",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "922c9ffd4b2f355b42f90a06e5ef4e4005d98565",
       "sections": [
         "como-termina-la-corrida-y-que-ve-el-wizard"
       ]
@@ -251,8 +251,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/routes/api.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "9fe1053db4e661eadc0e6478d19d239ea7e311a1",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "a0a88314475f99d50a446dafd6c80863367c40ad",
       "sections": [
         "como-termina-la-corrida-y-que-ve-el-wizard"
       ]
@@ -278,8 +278,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/auto-onboarding/otp.tsx",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "0012fe1359e7899e66ade6c36af12565ca43e1d8",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "5a5af7fb42b09d904ba4b7f9d8743c934786d9b4",
       "sections": [
         "que-cambia-en-el-wizard-segun-el-camino"
       ]

@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Corte semanal y recordatorios de cobranza",
   "summary": "Cortes 3 (viernes) y 4 (martes): primera cuota y tasa semanal en los dos monolitos; quién agenda cada comando de recordatorios, qué excluyen los generales, qué tiene que ser cierto para que salga una plantilla semanal y sus variables.",
-  "reviewedAt": "2026-11-21T16:16:33+00:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -103,8 +103,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Console/Kernel.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "a1df17f166609b5a6b6f0ba935b8160eb2bfced5",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "a64e8a5b0d159132ee604e1492e480f1d6842cd1",
       "sections": [
         "quien-envia-cada-recordatorio"
       ]

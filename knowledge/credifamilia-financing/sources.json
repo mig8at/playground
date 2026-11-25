@@ -2,13 +2,13 @@
   "version": 1,
   "title": "Credifamilia: fianza y monto de radicación",
   "summary": "Origen de la fianza, fórmula compartida y diferencias de entradas, formatos y respaldo entre SOAP, cuotas y comprobante; Salud y Materiales calculan la fianza distinto. También el plan de pagos: tasas, fechas (días 2 y 16), interés diario, seguro y cuota representativa.",
-  "reviewedAt": "2026-11-17T12:52:59+00:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
       "path": "app/Services/PaymentPlan/DelegatedOrigination/PaymentPlanPayloadBuilder.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "d4e0cfa984cbbbfed948a837464e6549520ce1e3",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "4faf332874c951d29e1a9ea2096153d77e0ef015",
       "sections": [
         "la-fianza-la-decide-el-perfil-de-la-entidad",
         "compartir-formula-no-garantiza-montos-ni-formatos-identicos",
@@ -29,8 +29,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Actions/Lenders/CredifamiliaConsumo/TransactionRequest.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "9db1ffdee59a04ff27cc5d8833985499c0fb68dd",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "feebf702e597e05329150eabaa4f4d73ed49bde5",
       "sections": [
         "la-fianza-la-decide-el-perfil-de-la-entidad",
         "una-formula-compartida-con-dos-tratamientos-de-fianza",
@@ -51,8 +51,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Services/PaymentPlan/DelegatedOrigination/Engine/CalculationContext.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "81da92c4adc5d4bb567444a68c84c1c5308a780f",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "c343c3af6982957f2593f5ac85341e629bbf6b97",
       "sections": [
         "la-fianza-la-decide-el-perfil-de-la-entidad",
         "una-formula-compartida-con-dos-tratamientos-de-fianza",
@@ -92,8 +92,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Services/PaymentPlan/Credifamilia/Constants/CredifamiliaLenders.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "994b0d2bd79381a09fe1922ef76d7d2c94a325e2",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "34ee395740556ada058deb91fc40b8f8a698eaf0",
       "sections": [
         "la-fianza-la-decide-el-perfil-de-la-entidad"
       ]
@@ -131,8 +131,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Services/PaymentPlan/DelegatedOrigination/DTO/PaymentPlanInput.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "eb42473396ea6cabe8d13337f277ca273026c10e",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "890756ebd2496c150e9ad09fa6a8be891931d92e",
       "sections": [
         "una-formula-compartida-con-dos-tratamientos-de-fianza"
       ]
@@ -140,8 +140,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Services/PaymentPlan/DelegatedOrigination/Math/FinancialMath.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "c40d80cc02f77d96608740daba9180c6678ba832",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "4ffc31a0ad5526b146a2ce024f0bfb70d518b944",
       "sections": [
         "el-plan-de-pagos-tasas-fechas-y-cuotas"
       ]
@@ -149,8 +149,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Services/PaymentPlan/DelegatedOrigination/Math/DateCalculator.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "21192d5a2b80f7c19e67966dd3b8e9be4b9d7bd4",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "abc8afb187415c02900d24ef87b586c392a2c332",
       "sections": [
         "el-plan-de-pagos-tasas-fechas-y-cuotas"
       ]
@@ -158,8 +158,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Services/PaymentPlan/DelegatedOrigination/Math/Days360Calculator.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "33d2209c3a8c8d6e78f76c8cb8a3dec97ff049a5",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "86649ea241a453ac3a1331113bc43c9ce2aff3c2",
       "sections": [
         "el-plan-de-pagos-tasas-fechas-y-cuotas"
       ]
@@ -167,8 +167,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Services/PaymentPlan/DelegatedOrigination/Engine/ScheduleGenerator.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "973b6295911c9e94e633105a90b0493586f4c1fc",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "f6f8b5c00093b54ddb83dd974613ffe20e726a40",
       "sections": [
         "el-plan-de-pagos-tasas-fechas-y-cuotas"
       ]
@@ -176,8 +176,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Services/PaymentPlan/DelegatedOrigination/InstallmentPlan/InstallmentPlanService.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "c6cabc4348f3c6bd0e2de14420294084a3c5c232",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "2cc28344dad1e253c967d8fd8dedf49faac8a995",
       "sections": [
         "el-plan-de-pagos-tasas-fechas-y-cuotas"
       ]
@@ -185,8 +185,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Services/PaymentPlan/DelegatedOrigination/PaymentDates/PaymentPlanDatesService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "590b2c11edf551948712926d652b024c6f345836",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "3d1a1e05a3244979fb707cce749a2f772048bb13",
       "sections": [
         "el-plan-de-pagos-tasas-fechas-y-cuotas"
       ]
@@ -194,8 +194,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Services/PaymentPlan/DelegatedOrigination/LoanOptions/PaymentPlanLoanOptionsService.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "3c17cb496da6ad1900cf66d86fbf67713d7a5977",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "fdbc1075d1c79cf7e256350fed339bb24be23158",
       "sections": [
         "el-plan-de-pagos-tasas-fechas-y-cuotas"
       ]

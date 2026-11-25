@@ -8,76 +8,79 @@ no sustituyen el mecanismo de las refs de `main` indicadas en las fuentes.
 ## El monolito anterior decide si envía al wizard
 
 `legacy-application` conserva una entrada en `WoocommerceController::show`: hay una salida anterior
-para los ids de comercio `[24, 209, 210, 211, 311]`. Para los demás, `NewFrontendUrlService`
-consulta `settings`: habilita el hash incluido en `new_frontend_allied_branches.hashes` o
-el comercio cuyo valor en `new_frontend_allieds` sea el booleano `true`.
+para los ids de comercio `[24, 209, 210, 211, 311]`. Para los demás decide
+`App\Support\NewFrontend::cubre($alliedBranch)`, la misma regla que usa originaciones, que ya no lee
+`settings` sino las columnas booleanas `allied_branches.new_screens` y `allieds.new_screens`.
 
-Una configuración ausente o con otra forma no habilita el wizard. La URL stateless necesita
-una base de frontend no vacía; si no puede construirse, continúa el checkout anterior.
-Se reenvía el query original del contrato, sin decodificar y recomponer su base64.
+Sin sucursal no se habilita. El `new_screens` propio de la sucursal habilita siempre; si la sucursal
+no lo tiene, decide el `new_screens` de su comercio, que arrastra a todas sus sucursales (también las
+de ecommerce: `cubre` no distingue el tipo de sucursal). Las constantes `new_frontend_allied_branches`
+y `new_frontend_allieds` siguen declaradas en `NewFrontendUrlService` (y el comentario del controlador
+todavía las nombra), pero esta entrada no las consulta.
+
+La URL stateless la arma `NewFrontendUrlService::ecommerceStatelessCheckout` y necesita una base de
+frontend no vacía (`services.new_frontend.base_url`, de `NEW_FRONTEND_BASE_URL`); si no puede
+construirse, continúa el checkout anterior. Se reenvía el query original del contrato
+(`getQueryString()`), sin decodificar y recomponer su base64.
 El código permite leer el mecanismo; qué comercios están habilitados se mide en la base.
 
 ## El contrato se deserializa antes de validar la credencial
 
 En legacy-backend, `POST api/onboarding/ecommerce-request/create/{partner_id}`
-(`Modules/Onboarding/routes/api.php:235`) no lleva middleware propio: el grupo del módulo sólo
-agrega `otel` y `auth.cognito` (`RouteServiceProvider.php:41-44`), y `ResolveCognitoUser` resuelve
-el actor sin rechazar la petición. `CreateEcommerceRequest::validate` sólo exige cadenas. El
-orquestador empieza por `unserializeCreateEcommerceRequest` (`EcommerceRequestService.php:439`,
-`:620-643`): decodifica de base64 `order`, `returnUrl`, `processUrl`, `config` y, si viene, `backUrl`,
-y los reconstruye con `unserialize()` sin la opción `allowed_classes` (`:661`, `:672`, `:681`, `:691`;
-`processUrl` sólo si contiene `"`). `products` pasa por `json_decode` y `token` sólo se decodifica. Dentro de la deserialización,
-`validateOrderData` ya exige `billing`, `total` y `order_key`.
-Recién después valida el total (`:441`), la sucursal (`:449`) y la credencial con
-`findValidCredential` (`:458`). La entrada del wizard (`checkout.tsx:164-179`) reenvía esos
-parámetros sin tocarlos a este endpoint.
+(`Modules/Onboarding/routes/api.php:247`) no lleva middleware propio: el grupo del módulo sólo agrega `otel` y
+`auth.cognito` (`RouteServiceProvider.php:72-78`). `ResolveCognitoUser` deja pasar las peticiones sin usuario resuelto,
+pero cuando resuelve un usuario consulta `UserAvailability::reasonFor($user)` y responde HTTP 403 si encuentra un motivo
+(`ResolveCognitoUser.php:57-71`). `CreateEcommerceRequest::validate` sólo exige cadenas. El orquestador empieza por
+`unserializeCreateEcommerceRequest` (`EcommerceRequestService.php:505`): decodifica de base64 `order`, `returnUrl`,
+`processUrl`, `config` y, si viene, `backUrl`, y los reconstruye con `unserialize()` sin la opción `allowed_classes`
+(`processUrl` sólo si contiene `"`). `products` pasa por `json_decode` y `token` sólo se decodifica. Dentro de la
+deserialización, `validateOrderData` ya exige `billing`, `total` y `order_key`. Recién después valida el total, la
+sucursal y la credencial con `findValidCredential`. La entrada del wizard (`checkout.tsx:165-179`) reenvía esos
+parámetros sin tocarlos (junto con `appToken` si está presente) a este endpoint.
 
-legacy-application repite el patrón en `WoocommerceController::show` (`GET /checkout/{allied_branch_hash}`,
-fuera del grupo `auth` de `routes/customer.php:244`). Corbeta y las sucursales habilitadas para el
-wizard salen antes (`:153-180`) sin decodificar; el resto decodifica y deserializa (`:207-213`, con
-`unserialize()` sin `allowed_classes` en `:732`, `:744`, `:755`, `:767`) antes de comparar la
-credencial (`:249`). En cambio, el checkout de Corbeta en legacy-backend deserializa con
-`['allowed_classes' => false]` y cae a JSON si falla (`CorbetaCheckoutController.php:950`).
+legacy-application repite el patrón en `WoocommerceController::show` (`GET /checkout/{allied_branch_hash}`, fuera del
+grupo `auth` de `routes/customer.php`). Corbeta y las sucursales habilitadas para el wizard según
+`NewFrontend::cubre($alliedBranch)` (`WoocommerceController.php:175`) salen antes sin decodificar; el resto decodifica
+y deserializa (con `unserialize()` sin `allowed_classes`) antes de comparar la credencial. En cambio, el checkout de
+Corbeta en legacy-backend deserializa con `['allowed_classes' => false]` y cae a JSON si falla
+(`CorbetaCheckoutController.php`).
 
 ## El pedido se relee por id antes y después del OTP
 
-El loader `/ecommerce/:partner_hash/checkout` tiene dos entradas. Con el contrato en la URL
-reenvía `o`, `p`, `t`, `u`, `ps` y `config` al backend (`create/<hash>`) como `order`, `products`,
-`token`, `returnUrl`, `processUrl` y `config`, y `b` como `backUrl` si viene; necesita hash
-válido, orden y token. El backend valida el total positivo, la sucursal y su credencial, y
-devuelve `ecommerceRequestId`. Con `?ref=` (pedido creado por la tienda con `payment-link`) sólo
-envía esa referencia a `by-reference/<hash>`; el backend exige que sea de esa sucursal y abre el
-pedido ya guardado, sin crearlo (`EcommerceRequestService.php:294-345`). Las dos entradas siguen
-igual (`continueCheckout`, `checkout.tsx:184`): el redirect lleva `?erId=`; sólo usa `?amount=`
-como respaldo cuando la respuesta no contiene ese id.
+El loader `/ecommerce/:partner_hash/checkout` tiene dos entradas. Con el contrato en la URL reenvía `o`, `p`, `t`, `u`,
+`ps` y `config` al backend (`create/<hash>`) como `order`, `products`, `token`, `returnUrl`, `processUrl` y `config`,
+y `b` como `backUrl` si viene; necesita hash válido, orden y token. El backend valida el total positivo, la sucursal y
+su credencial, y devuelve `ecommerceRequestId`. Con `?ref=` (pedido creado por la tienda con `payment-link`) envía esa
+referencia a `by-reference/<hash>`; el backend exige que sea de esa sucursal y abre el pedido ya guardado, sin crearlo
+(`EcommerceRequestService::openByCheckoutReferenceOrchestrator`). En ambas entradas el loader reenvía además el
+`appToken` (`appTokenOf(request)`, `checkout.tsx:158,174`), que `EcommerceRequestService::markAppOrigin` usa con
+`EcommerceRequestRepository::markOriginChannel` para fijar una sola vez (`whereNull('origin_channel')`)
+`origin_channel` (`'mobile_app'` si el token de la app es válido, si no `'no_token'`) y `app_user_id`, sin lanzar error
+si falla. Las dos entradas siguen igual (`continueCheckout`, `checkout.tsx:186`): el redirect lleva `?erId=`; sólo usa
+`?amount=` como respaldo cuando la respuesta no contiene ese id.
 
-En la entrada por contrato el loader también reenvía `sig` y `ts` como `signature` y
-`signatureTimestamp` cuando vienen los dos (`checkout.tsx:52`). El backend verifica esa firma del
-comercio sobre el `o` recibido (`EcommerceRequestService.php:473`, `MerchantOrderSignatureService`)
-y, si vale, marca el pedido y devuelve `merchantVerified` con un `verificationToken` de un solo
-uso. En la entrada por referencia el token sale sólo si el pedido no está cancelado, la sucursal
-tiene auto-onboarding, el pedido trae teléfono y aceptaciones (`termAccepted`, `policyAccepted`) y
-la referencia está vigente y sin usar, que se gasta en ese momento; si falta algo el pedido se abre
-igual y el comprador sigue por OTP. Un pedido que la tienda canceló no gasta la referencia ni da
-token. Las dos devuelven `autoOnboarding` según el setting `auto_onboarding_allied_branches`
-(`{"hashes": [...]}`; ausente o con otra forma no habilita).
-Con id de pedido y `autoOnboarding` verdadero, el redirect va a `/auto/<hash>/inicio?erId=` en vez
-de `solicitar` (`checkout.tsx:188-189`); sólo en ese camino el token se guarda en la cookie de
-sesión para entrar sin OTP. Un pedido verificado en una sucursal sin auto-onboarding sigue por
-`solicitar` y el token no se usa. Esa cookie lleva la verificación, no el contexto del pedido,
-que se sigue releyendo por `erId`.
+En la entrada por contrato el loader también reenvía `sig` y `ts` como `signature` y `signatureTimestamp` cuando vienen
+los dos (`checkout.tsx:53`). El backend verifica esa firma del comercio sobre el `o` recibido
+(`EcommerceRequestService`, `MerchantOrderSignatureService`) y, si vale, marca el pedido y devuelve `merchantVerified`
+con un `verificationToken` de un solo uso. En la entrada por referencia el token sale sólo si el pedido no está
+cancelado, la sucursal tiene auto-onboarding, el pedido trae teléfono y aceptaciones (`termAccepted`, `policyAccepted`)
+y la referencia está vigente y sin usar, que se gasta en ese momento; si falta algo el pedido se abre igual y el
+comprador sigue por OTP. Un pedido que la tienda canceló no gasta la referencia ni da token. Las dos devuelven
+`autoOnboarding` según el setting `auto_onboarding_allied_branches` (`{"hashes": [...]}`; ausente o con otra forma no
+habilita). Con id de pedido y `autoOnboarding` verdadero, el redirect va a `/auto/<hash>/inicio?erId=` en vez de
+`solicitar` (`checkout.tsx:190-191`); sólo en ese camino el token se guarda en la cookie de sesión para entrar sin OTP.
+Un pedido verificado en una sucursal sin auto-onboarding sigue por `solicitar` y el token no se usa. Esa cookie lleva la
+verificación, no el contexto del pedido, que se sigue releyendo por `erId`.
 
-`ecommerce-context.server.ts` consulta `detail/<erId>` antes del OTP y
-`by-user-request/<loan_request_id>` después. Valida ids de uno a diecinueve dígitos antes del
-fetch. Los POST pueden recuperar `erId` desde el Referer si no viene en su URL.
-Ante error HTTP, red o respuesta sin id devuelve `null`. Ese resultado no demuestra que la
-solicitud no tenga pedido: al depurar, contrastar el vínculo en backend.
+`ecommerce-context.server.ts` consulta `detail/<erId>` antes del OTP y `by-user-request/<loan_request_id>` después.
+Valida ids de uno a diecinueve dígitos antes del fetch. Los POST pueden recuperar `erId` desde el Referer si no viene en
+su URL. Ante error HTTP, red o respuesta sin id devuelve `null`. Ese resultado no demuestra que la solicitud no tenga
+pedido: al depurar, contrastar el vínculo en backend.
 
-`detail`, `by-user-request` y `by-reference` devuelven además `cancellation` (`cancelledAt`,
-`reasonCode`, `reasonMessage`; `null` mientras el pedido siga vivo), que la tienda fija con
-`POST /api/ecommerce/orders/{orderKey}/cancel` (`cancelled_at`, `cancellation_reason` en
-`ecommerce_requests`). El wizard la relee en cada pantalla por `/api/ecommerce/order-state` (por
-solicitud si existe, si no por `erId`) y también la escucha en vivo por el canal
+`detail`, `by-user-request` y `by-reference` devuelven además `cancellation` (`cancelledAt`, `reasonCode`, `reasonMessage`;
+`null` mientras el pedido siga vivo), que la tienda fija con `POST /api/ecommerce/orders/{orderKey}/cancel`
+(`cancelled_at`, `cancellation_reason` en `ecommerce_requests`). El wizard la relee en cada pantalla por
+`/api/ecommerce/order-state` (por solicitud si existe, si no por `erId`) y también la escucha en vivo por el canal
 `EcommerceRequest.{id}`; con ella tapa el flujo con «La tienda canceló tu compra».
 
 ## El vínculo con la solicitud vive en tres lugares

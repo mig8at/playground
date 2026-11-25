@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Transacciones de caja del comercio",
   "summary": "API servidor a servidor de la caja del comercio (MerchantTransactionsV1): token del aliado, códigos de caja del servicio de códigos, consulta y confirmación, cancelaciones, entidad sin llamar y simulación con su perilla.",
-  "reviewedAt": "2026-11-17T12:52:59+00:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -54,8 +54,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Models/Allied.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "887ae38f1bea247f0d78128bd3d91385c189a2f4",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "a79df93e07e3c6b2397ab0094af5e3044ff0fe56",
       "sections": [
         "el-token-es-del-comercio-y-lleva-una-sola-habilidad"
       ]
@@ -107,8 +107,8 @@
     {
       "repo": "legacy-backend",
       "path": "config/services.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "5acc4abb5acfc31b64fe3185df35ae6550e28c8e",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "f6472f408e6eaa48f116aff0238abb9af32de1ab",
       "sections": [
         "los-codigos-de-caja-los-emite-el-servicio-de-codigos-y-su-recurso-no-esta-en-main"
       ]
@@ -198,8 +198,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/VoucherService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "f6eb052d48da2238aea73b25fee30eac92ca1592",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "65dcd6d98bc98a3be5b324b6ec8bf7da1c1f8294",
       "sections": [
         "que-escribe-confirmar-en-cada-resultado"
       ]
@@ -207,8 +207,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/RequestCompletionService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "4a104f9702bbff91e91cb89746fe71b3364f64cd",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "c0dfae723f7775a948fb6d74517fbe6af47a4b43",
       "sections": [
         "que-escribe-confirmar-en-cada-resultado"
       ]

@@ -116,16 +116,17 @@ Detalle: `creditopx-payment-application`, `creditopx-portfolio-servicing`, `devi
 
 ## Qué sistema hace qué
 
-- **legacy-backend** (Laravel modular): el backend del asistente nuevo, de la app móvil y del
+- **legacy-backend** (Laravel modular): el backend del asistente nuevo, de la app móvil y de parte del
   backoffice; KYC, listado, cupo, firma, pagos por la API nueva.
 - **legacy-application** (Laravel + Inertia): el monolito anterior: admin de staff,
   portal de aliados, y los comandos de la cartera CreditopX que corre de noche loan-servicing.
 - **frontend-monorepo**: asistente de solicitud, backoffice, portal de pagos, landing.
-- **Servicios en Go**: pre-approvals-service (preaprobación multi-entidad), merchant-api (comercios
-  y sedes para la app), self-manager-api (códigos QR, de barras y numéricos de autogestión),
-  customer-profiling-service (pipeline de KYC), financial-health-service (salud financiera de la app),
-  loan-servicing (la noche de cartera), identity-service (verificación de identidad con ADO) y
-  entitlement-service (beneficios de la app móvil).
+- **Servicios en Go**: pre-approvals-service (preaprobación multi-entidad y su trazabilidad de corrida),
+  merchant-api (comercios y sedes para la app, además de gestión del backoffice de comercios, sedes,
+  tiendas ecommerce, reglas, activaciones y credenciales), self-manager-api (códigos QR, de barras y
+  numéricos de autogestión), customer-profiling-service (pipeline de KYC), financial-health-service
+  (salud financiera de la app), loan-servicing (la noche de cartera), identity-service (verificación de
+  identidad con ADO) y entitlement-service (beneficios de la app móvil).
 - **creditop_mobile**: la app Flutter del cliente final.
 
 Muchas reglas existen en **los dos monolitos** con diferencias; antes de afirmar una, se revisan

@@ -2,13 +2,13 @@
   "version": 1,
   "title": "Recorrido de una solicitud: canal, riel y variaciones",
   "summary": "El vocabulario para describir el camino de una solicitud —canal, tramo común, riel, producto, variaciones, campos, ajustes y desenlace—, qué activa cada variación y qué decide cada campo del formulario.",
-  "reviewedAt": "2026-11-23T12:00:00-05:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes.ts",
-      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
-      "blob": "2de7f5db8a5173c280ec46460432f0228206dd7e",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "a39d56f49669a56fca05ad23d48d9413b43ce3aa",
       "sections": [
         "canal-por-donde-entra-la-solicitud",
         "tramo-comun-hasta-el-listado"
@@ -26,8 +26,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/utils/route-helpers.ts",
-      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
-      "blob": "34d11b0f5a8f15618aa6eb8e71a2e4270f3a4c8d",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "e05c7b957ee12dc7f66ef514dfd7df99fb4df016",
       "sections": [
         "canal-por-donde-entra-la-solicitud"
       ]
@@ -54,8 +54,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/modules/request-management/types/loan-request.ts",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "3a1ae106ae9691b76e92557beecc3f17e234bbcb",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "b22ac07de272798a673bdfde96ae842d7484b367",
       "sections": [
         "riel-que-hace-la-solicitud-despues-del-listado"
       ]
@@ -90,8 +90,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/App/Services/LenderConfigService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "cb45ea1a6b0ced1d8a7c2034ac7b4ec4b13629e6",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "40e2bc187f608fb7e2c0965d360e17095c0d8b1e",
       "sections": [
         "variaciones-y-ajustes"
       ]
@@ -108,8 +108,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/otp-validation.tsx",
-      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
-      "blob": "e475974e6a7fc4b6a7429e7434c02216386e837c",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "6849cd34f58cca602ee69fa04108812194df3b89",
       "sections": [
         "variaciones-y-ajustes"
       ]
@@ -135,8 +135,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/first-payment-date.tsx",
-      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
-      "blob": "ff65045d947173366b82943782e99f23eb52b7fd",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "3a6f5ce7a527f1e6c7eb798c5f615183c068881a",
       "sections": [
         "variaciones-y-ajustes"
       ]
@@ -156,8 +156,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/App/Services/LenderReadinessService.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "0cc74b87d58c88bb8402d58de43806d8dd0495e0",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "141af5e880c936cc4806781e749762acf4c638eb",
       "sections": [
         "desenlace-como-termina"
       ]
@@ -174,8 +174,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
-      "commit": "3f35ac9f768f66bb05a79361188c2b85344cda22",
-      "blob": "ce5b8d5c02c8199d40f01fb005af97f21841854f",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "00ccde2e4bbacb91b980447b49bed7e37edd5e57",
       "sections": [
         "variaciones-y-ajustes"
       ]
@@ -183,8 +183,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/OnboardingService.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "b18993b078403415d7135bb2a8d70c5298ad5456",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "9eb30ef824b901dbb2aa4ea5997c4cf222709c35",
       "sections": [
         "campos-que-pide-el-formulario-en-cada-comercio",
         "quien-decide-en-el-tramo-comun-datos-listado-y-preaprobacion"
@@ -211,8 +211,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Services/Onboarding/OnboardingFieldsGate.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "a915814e9bafe2b10b7316421de8d639b4af64a6",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "1a5cf97205d0847cb176bd1d91a35dac99aaba25",
       "sections": [
         "campos-que-pide-el-formulario-en-cada-comercio"
       ]
@@ -229,8 +229,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/LenderUserCategoryService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "2306b8f662645228d3973594e5edfb45e679a49f",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "b9c16e84973164e62057e9c997b6c31a7b83a8a1",
       "sections": [
         "campos-que-pide-el-formulario-en-cada-comercio",
         "variaciones-y-ajustes"
@@ -330,8 +330,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Services/PaymentPlan/Credifamilia/Constants/CredifamiliaLenders.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "994b0d2bd79381a09fe1922ef76d7d2c94a325e2",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "34ee395740556ada058deb91fc40b8f8a698eaf0",
       "sections": [
         "el-riel-4-paso-a-paso-que-es-del-riel-y-que-es-de-credifamilia"
       ]
@@ -339,8 +339,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Identity/App/Services/AgildataService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "91c759bda20dc696cb4bd7f9dc1177e9530218a6",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "42160e7f6daf136c5e15e115a701b6ddc8c75e13",
       "sections": [
         "campos-que-pide-el-formulario-en-cada-comercio"
       ]
@@ -348,8 +348,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/lenders/LenderValidationService.php",
-      "commit": "e76dc44419cfe137d0de17bfdf547e06dce03cbe",
-      "blob": "bb21da995f7ad0e80118c38bb001d5dbcaa97906",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "0aae46a137d212723c3575edb08a04d1722e2846",
       "sections": [
         "quien-decide-en-el-tramo-comun-datos-listado-y-preaprobacion"
       ]
@@ -357,8 +357,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php",
-      "commit": "e76dc44419cfe137d0de17bfdf547e06dce03cbe",
-      "blob": "c8f7e40de6997dee49af73ebd44378e248a15be7",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "5bf5a5f6de47c160da48a2ab02238dddb102f58d",
       "sections": [
         "quien-decide-en-el-tramo-comun-datos-listado-y-preaprobacion"
       ]
@@ -366,8 +366,8 @@
     {
       "repo": "pre-approvals-service",
       "path": "internal/core/usecases/preapproval/check_preapproval.go",
-      "commit": "c70a470b2b07c4c10cb3dafdb1a62ea7c44f79c5",
-      "blob": "eb0772b17fb3e26652460e3499047729191b71ef",
+      "commit": "b2684a2e697f67063d04ffa714a30b4d5fc367d4",
+      "blob": "25fb7f0388cdac07c8ee785f7ab689aa91289c7d",
       "sections": [
         "quien-decide-en-el-tramo-comun-datos-listado-y-preaprobacion"
       ]
@@ -393,8 +393,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Console/Kernel.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "a1df17f166609b5a6b6f0ba935b8160eb2bfced5",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "a64e8a5b0d159132ee604e1492e480f1d6842cd1",
       "sections": [
         "despues-del-11-quien-administra-el-credito"
       ]

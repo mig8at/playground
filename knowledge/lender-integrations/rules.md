@@ -7,33 +7,33 @@ viven. El porqué viene de Jira (se cita la clave) y el mecanismo, del código d
 
 ## Prami: sólo se consulta si pasa sus reglas de buró
 
-Prami (consulta Experian por medio de Quanto) cobra la consulta y rechaza a quien no pasa su corte de
-score (CORE-300, CORE-459). Por eso las entidades marcadas con `lenders.requires_preapproval_gate`
-—hoy Prami— nacen en el listado v2 de legacy-backend con `can_check_preapproval = false`, y sólo
-`RiskCentralValidationService` lo sube a true, si el cliente pasa **las tres** partes de la regla de
-datacrédito de la sucursal: score, cuentas negativas y antigüedad en el sector. Una parte que no se
-pudo evaluar por falta del dato no cuenta como pasada. Si ese servicio no corre (comercio sin fila en
-`datacredito_frequencies`, cliente sin score), si la sucursal no tiene regla de datacrédito para la
-entidad o si las reglas duras ya la dejaron en «Probabilidad muy baja» o «0% de probabilidad», el flag
-queda en false. Las entidades sin la marca nacen en true y ningún camino las baja.
+Prami (consulta Experian por medio de Quanto) cobra la consulta y rechaza a quien no pasa su corte de score (CORE-300,
+CORE-459). Por eso las entidades marcadas con `lenders.requires_preapproval_gate` —hoy Prami— nacen en el listado v2 de
+legacy-backend con `can_check_preapproval = false`, y `RiskCentralValidationService` lo sube a `true` en dos casos: si
+la sucursal tiene la regla de datacrédito apagada (`status === 0`), o si tiene regla activa y el cliente pasa **las
+tres** partes (`score`, cuentas negativas y antigüedad en el sector) sin estar ya en «Probabilidad muy baja» o «0% de
+probabilidad». Una parte que no se pudo evaluar por falta del dato no cuenta como pasada. Si `RiskCentralValidationService`
+no corre (comercio sin fila con `status = 1` en `datacredito_frequencies`, cliente sin score) o si la sucursal no tiene
+regla de datacrédito para la entidad, el flag queda en `false`. El motivo `preapproval_gate_reason = 'missing_configuration'`
+(`ProfilingRulesService::REASON_MISSING_CONFIGURATION`) sólo se marca en dos de esos casos: comercio sin fila activa en
+`datacredito_frequencies` (lo pone `ProfilingRulesService`) y sucursal sin regla para la entidad (lo pone
+`RiskCentralValidationService`); con el comercio configurado y el cliente sin score, el flag queda en `false` sin motivo. Las entidades sin la marca nacen en `true` y ningún camino las baja.
 
-En el asistente nuevo, una entidad con `can_check_preapproval === false` no se consulta a
-pre-approvals-service: queda en el estado terminal `policy_blocked`, con la tarjeta «No disponible
-para tu perfil», sin selección ni reintento. Un campo ausente se consulta como antes, y las variantes
-de Welli están exentas de esta compuerta en el front.
+En el asistente nuevo, una entidad con `can_check_preapproval === false` no se consulta a pre-approvals-service: queda en
+el estado terminal `policy_blocked`, con la tarjeta «No disponible para tu perfil», sin selección ni reintento. Un campo
+ausente se consulta como antes, y las variantes de Welli están exentas de esta compuerta en el front.
 
-No pasar la regla **no saca a Prami del listado**: como cualquier regla de datacrédito en ese
-servicio, la entidad vuelve a la lista con la probabilidad de su nivel (ver `lender-listing`), y lo
-que cambia es que la consulta queda cerrada.
+No pasar la regla **no saca a Prami del listado**: como cualquier regla de datacrédito en ese servicio, la entidad
+vuelve a la lista con la probabilidad de su nivel (ver `lender-listing`), y lo que cambia es que la consulta queda
+cerrada.
 
-El webhook de Prami vive en legacy-application: si la solicitud ya está en 11 (Autorizada), registra
-el evento, responde 200 con `IGNORED` y no la toca (ver `user-request-lifecycle`). Prami emite un
-`order_id` nuevo en cada cotización; al registrar, los dos monolitos lo copian a la transacción
-existente si ningún otro registro de la entidad lo tiene, para que el webhook la encuentre (CORE-738).
-Meddipay usa el mismo mecanismo.
+El webhook de Prami vive en legacy-application: si la solicitud ya está en 11 (Autorizada), registra el evento, responde
+200 con `IGNORED` y no la toca (ver `user-request-lifecycle`). Prami emite un `order_id` nuevo en cada cotización; al
+registrar, los dos monolitos lo copian a la transacción existente si ningún otro registro de la entidad lo tiene, para
+que el webhook la encuentre (CORE-738). Meddipay usa el mismo mecanismo.
 
-Se comprueba corriendo con `make harness-suite TARGET=local SUITE=harness/suites/compuerta-prami.json`:
-un cliente que pasa, y uno por cada parte de la regla que falla.
+Se comprueba corriendo con `make harness-suite TARGET=local SUITE=harness/suites/compuerta-prami.json`: un cliente que
+pasa, y uno por cada parte de la regla que falla.
 
 ## Welli: cuatro variantes, Sonría aparte y dos mapas de estado
 

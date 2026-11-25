@@ -14,58 +14,52 @@ ellas vive en su perfil del riel (`delegated_origination_profiles`, leído por
 
 ## La fianza la decide el perfil de la entidad
 
-`PaymentPlanPayloadBuilder` (`App\Services\PaymentPlan\DelegatedOrigination`) toma los insumos
-de la fuente que nombra el perfil de la entidad (`delegated_origination_profiles.inputs_source`,
-resuelta por `DelegatedOriginationInputsSources`). Para Salud y Materiales es
-`credifamilia_pre_approval`: `CredifamiliaPreApprovalInputs` consulta `/v1/preapprovals/check` con
-la key `credifamilia` y el id de la entidad como `lending_product_id`. El builder conserva el
-resultado por solicitud dentro de la instancia (por solicitud y entidad cuando quien llama pasa la
-entidad explícita). Sólo acepta la respuesta si es 2xx, trae `status === 'approved'` y su
-`lending_product_id` es idéntico, como texto, al id de la entidad que envió (un id numérico no
-coincide); un fallo de conexión, otro estado o un id distinto se tratan igual que no haber
-preaprobación. Del `transaction_data` toma la TEA y el porcentaje de seguro de vida, y el builder
-divide los dos por 100 antes del motor. El IVA predeterminado del builder (`DEFAULT_IVA_RATE`) es
-`0.19`. El `max_amount` se guarda en `partner_limits` bajo el nombre del comercio de la solicitud,
-o `Gaes` si no tiene comercio; es sólo la clave con la que el motor lo vuelve a leer, no cambia el
-valor.
+`PaymentPlanPayloadBuilder` (`App\Services\PaymentPlan\DelegatedOrigination`) toma los insumos de la fuente que nombra
+el perfil de la entidad (`delegated_origination_profiles.inputs_source`, resuelta por
+`DelegatedOriginationInputsSources`). Para Salud y Materiales es `credifamilia_pre_approval`:
+`CredifamiliaPreApprovalInputs` consulta `/v1/preapprovals/check` con la key `credifamilia` y el id de la entidad como
+`lending_product_id`. El builder conserva el resultado por solicitud dentro de la instancia (por solicitud y entidad
+cuando quien llama pasa la entidad explícita). Sólo acepta la respuesta si es 2xx, trae `status === 'approved'` y su
+`lending_product_id` es idéntico, como texto, al id de la entidad que envió (un id numérico no coincide); un fallo de
+conexión, otro estado o un id distinto se tratan igual que no haber preaprobación. Del `transaction_data` toma la TEA
+y el porcentaje de seguro de vida (el builder divide los dos por 100 antes del motor), y `monthly_rate` cuando viene
+numérica entre 0 y 1 (si falta o es inválida deja warning y la omite para derivarla de la TEA; si difiere de la derivada
+de la TEA en más de `0.0001` también avisa pero la usa igual). El IVA predeterminado del builder (`DEFAULT_IVA_RATE`) es
+`0.19`. El `max_amount` se guarda en `partner_limits` bajo el nombre del comercio de la solicitud, o `Gaes` si no tiene
+comercio; es sólo la clave con la que el motor lo vuelve a leer, no cambia el valor.
 
-La entidad con la que se calcula es la que pasa quien llama o, sin ella, la de la solicitud si es
-de Credifamilia (`CredifamiliaLenders::engineLenderIdFor`), y Salud en cualquier otro caso. Su perfil
-es su fila en `delegated_origination_profiles`, leída por `DelegatedOriginationLenderProfile::forLender`:
-una entidad sin fila, o con `payment_days` vacío, lanza `InvalidArgumentException` y nunca toma el
-perfil de otra.
+La entidad con la que se calcula es la que pasa quien llama o, sin ella, la de la solicitud resuelta con
+`DelegatedOriginationLenders::engineLenderIdFor` (la de la solicitud si pertenece al riel, y Salud en cualquier otro
+caso). Su perfil es su fila en `delegated_origination_profiles`, leída por
+`DelegatedOriginationLenderProfile::forLender`: una entidad sin fila, o con `payment_days` vacío, lanza
+`InvalidArgumentException` y nunca toma el perfil de otra.
 
-`resolveBond` es la única fuente de la fianza para el plan y para la radicación, y la decide el
-perfil:
+`resolveBond` es la única fuente de la fianza para el plan y para la radicación, y la decide el perfil:
 
-- `bond_percentage_source = pre_approval` (Salud) toma `guarantee_percentage` (ya decimal: no
-  dividirlo por 100) de la preaprobación, y `guarantee_type` porque su `forced_bond_type` es null.
-- `bond_percentage_source = fng_table` (Materiales) toma el porcentaje de
-  `lender_term_fng_percentages` según el plazo, y su `forced_bond_type = 'Anticipada'` fija el tipo
-  sin mirar la preaprobación. Un plazo sin fila en esa tabla falla explícito (`INVALID_TERM`, con
-  los plazos configurados en el mensaje, o «ninguno»), nunca calcula con cero. El plan resuelve el
-  porcentaje con el plazo de cada opción que recorre; la radicación, con `fee_number` de la
-  solicitud.
-- `applies_four_per_thousand` decide el 4x1000. La siembra lo deja en verdadero para las dos
-  entidades: Materiales también lo cobra. El builder sólo agrega `apply_four_per_thousand=false`
-  al payload cuando el perfil lo apaga.
+- `bond_percentage_source = pre_approval` (Salud) toma `guarantee_percentage` (ya decimal: no dividirlo por 100) de la
+  preaprobación, y `guarantee_type` porque su `forced_bond_type` es null.
+- `bond_percentage_source = fng_table` (Materiales) toma el porcentaje de `lender_term_fng_percentages` según el plazo, y
+  su `forced_bond_type = 'Anticipada'` fija el tipo sin mirar la preaprobación. Un plazo sin fila en esa tabla falla
+  explícito (`INVALID_TERM`, con los plazos configurados en el mensaje, o «ninguno»), nunca calcula con cero. El plan
+  resuelve el porcentaje con el plazo de cada opción que recorre; la radicación, con `fee_number` de la solicitud.
+- `applies_four_per_thousand` decide el 4x1000. La siembra lo deja en verdadero para las dos entidades: Materiales también
+  lo cobra. El builder sólo agrega `apply_four_per_thousand=false` al payload cuando el perfil lo apaga.
 
-Los perfiles y las filas FNG de Materiales los siembran migraciones con el id de Materiales del
-ambiente según `APP_ENV` (`CredifamiliaLenders::materialesLenderId()`); la tabla FNG recibe los
-plazos 12, 18, 24, 36, 48 y 60. Si la entidad no existe en la base cuando corren, no insertan nada
-y no fallan; no vuelven a correr cuando la entidad aparece después, y no pisan una fila ya cargada.
-Sin perfil la entidad no calcula. Sin filas FNG para la entidad, todo plazo falla, en el plan y en
-la radicación; con la siembra, 6 y 9 siguen sin fila.
+Los perfiles y las filas FNG de Materiales los siembran migraciones con el id de Materiales del ambiente según `APP_ENV`
+(`CredifamiliaLenders::materialesLenderId()`); la tabla FNG recibe los plazos 12, 18, 24, 36, 48 y 60. Si la entidad no
+existe en la base cuando corren, no insertan nada y no fallan; no vuelven a correr cuando la entidad aparece después, y
+no pisan una fila ya cargada. Sin perfil la entidad no calcula. Sin filas FNG para la entidad, todo plazo falla, en el
+plan y en la radicación; con la siembra, 6 y 9 siguen sin fila.
 
 `CredifamiliaConsumoService::buildRequest` transporta tipo y porcentaje de fianza al SOAP, y marca
-`apply_four_per_thousand=false` cuando el perfil no lo cobra. Con fianza Anticipada la fianza
-participa también en el monto radicado; con Vencida, `montoTotalCredito` es el monto solicitado
-(`BondBreakdown`, `TransactionRequest`). La tasa mensual SOAP usa `monthly_rate × 100`, redondeada a dos decimales,
-con `user_requests.rate` como respaldo. El tipo interno `Vencida` se traduce a `Mensual`;
-`Anticipada` conserva su nombre. `verticalComercio` no sale del perfil del riel: lo da
-`CredifamiliaLenders::soapVerticalFor` por id (`Salud` o `Materiales`), y lanza con un id que no
-es de Credifamilia; pero la radicación lo llama con `engineLenderIdFor(lender_id)`, que resuelve
-antes un id ajeno a Salud, así que ahí no lanza.
+`apply_four_per_thousand=false` cuando el perfil no lo cobra. Con fianza Anticipada la fianza participa también en el
+monto radicado; con Vencida, `montoTotalCredito` es el monto solicitado (`BondBreakdown`, `TransactionRequest`). La tasa
+mensual SOAP usa `monthly_rate × 100`, redondeada a dos decimales, con `user_requests.rate` como respaldo; `nitConvenio`
+envía el NIT fijo de Creditop (`CredifamiliaLenders::NIT_CONVENIO`, `'901329011'`) y `nitComercio` toma los dígitos de
+`allieds.nit` (`TaxId::digits`). El tipo interno `Vencida` se traduce a `Mensual`; `Anticipada` conserva su nombre.
+`verticalComercio` no sale del perfil del riel: lo da `CredifamiliaLenders::soapVerticalFor` por id (`Salud` o
+`Materiales`), y lanza con un id que no es de Credifamilia; pero la radicación lo llama con `engineLenderIdFor(lender_id)`,
+que resuelve antes un id ajeno a Salud, así que ahí no lanza.
 
 ## Una fórmula compartida con dos tratamientos de fianza
 
@@ -137,48 +131,48 @@ encontrar un total en cualquiera de esas salidas.
 ## El plan de pagos: tasas, fechas y cuotas
 
 El motor del plan (`CalculationContext` y `ScheduleGenerator`, en
-`App\Services\PaymentPlan\DelegatedOrigination\Engine`) convierte la TEA de los insumos a tasa
-mensual `(1+TEA)^(1/12) − 1` y a tasa diaria `(1+TEA)^(1/360) − 1`, sin redondear. La primera
-cuota cae el día de pago del mes siguiente al desembolso; si entre las dos fechas hay menos de 30
-días contados con Days360, se corre un mes más. Un día de pago mayor al último del mes se recorta a
-ese último día.
+`App\Services\PaymentPlan\DelegatedOrigination\Engine`) toma la `monthly_rate` del preaprobado cuando llega en el
+payload (`PaymentPlanPayloadBuilder::resolveMonthlyRate` la acepta si es numérica y está entre 0 y 1; si difiere de la
+derivada de la TEA en más de `0.0001` deja warning y la usa igual) y deriva la tasa diaria como `(1+MV)^(1/30) − 1`
+(`FinancialMath::dailyRateFromMonthly`). Si `monthly_rate` falta o es inválida (aviso por log), convierte la TEA de los
+insumos a tasa mensual `(1+TEA)^(1/12) − 1` y a tasa diaria `(1+TEA)^(1/360) − 1`, sin redondear. La primera cuota cae
+el día de pago del mes siguiente al desembolso; si entre las dos fechas hay menos de 30 días calendario
+(`CalendarDaysCalculator`), se corre un mes más (`DateCalculator::firstPaymentDate`). Un día de pago mayor al último
+del mes se recorta a ese último día.
 
-- Los días de interés diario son `Days360(desembolso, primera cuota) − 30`, y ese interés (total a
-  desembolsar × tasa diaria × días) se cobra sólo en la cuota 1.
-- La cuota base es `PMT(tasa mensual, plazo, total a desembolsar)`; el abono a capital es la cuota
-  base menos el interés del saldo, y la última cuota toma el saldo que quede para cerrar en cero.
-- Cada cuota suma, fijos, el seguro de vida (total a desembolsar × `life_insurance_percentage`/100
-  de los insumos) y, si la fianza es Vencida, total de fianza / plazo. Con Anticipada la fianza
-  ya está en el capital y no se cobra por cuota.
+- Los días de interés diario son `CalendarDaysCalculator(desembolso, primera cuota) − 30` (días calendario), y ese
+  interés (total a desembolsar × tasa diaria × días) se cobra sólo en la cuota 1.
+- La cuota base es `PMT(tasa mensual, plazo, total a desembolsar)`; el abono a capital es la cuota base menos el interés
+  del saldo, y la última cuota toma el saldo que quede para cerrar en cero.
+- Cada cuota suma, fijos, el seguro de vida (total a desembolsar × `life_insurance_percentage`/100 de los insumos) y,
+  si la fianza es Vencida, total de fianza / plazo. Con Anticipada la fianza ya está en el capital y no se cobra por
+  cuota.
 
 Tasa, seguro y máximo salen de la fuente que nombra el perfil de la entidad
-(`delegated_origination_profiles.inputs_source`); para Salud y Materiales es la preaprobación de
-Credifamilia (`credifamilia_pre_approval`). Los días de pago también son del perfil
-(`payment_days`): la siembra de Credifamilia les pone 2 y 16. El plan de cuotas
-(`InstallmentPlanService`) sólo acepta los días del perfil de la entidad de la solicitud
-(`INVALID_PAYMENT_DAY` si no), y el servicio de fechas (`PaymentPlanDatesService`) ofrece las dos
-próximas, entre esos días, que cumplen la regla de 30 días. Una entidad sin perfil no calcula. El
-resumen no valida el día: lo toma de `selected_payment_date`, con desembolso hoy. Cuando el cliente
-todavía no eligió, el builder usa el primer día del perfil (`defaultPaymentDay`).
+(`delegated_origination_profiles.inputs_source`); para Salud y Materiales es la preaprobación de Credifamilia
+(`credifamilia_pre_approval`). Los días de pago también son del perfil (`payment_days`): la siembra de Credifamilia les
+pone 2 y 16. El plan de cuotas (`InstallmentPlanService`) sólo acepta los días del perfil de la entidad de la
+solicitud (`INVALID_PAYMENT_DAY` si no), y el servicio de fechas (`PaymentPlanDatesService::nextPaymentDates`) ofrece
+las próximas fechas en orden de calendario, una por cada día de pago del perfil, respetando la regla de 30 días. Una
+entidad sin perfil no calcula. El resumen no valida el día: lo toma de `selected_payment_date`, con desembolso hoy.
+Cuando el cliente todavía no eligió, el builder usa el primer día del perfil (`defaultPaymentDay`).
 
-Los plazos que se ofrecen son los de `credit_line_by_lenders.fee_numbers` de la entidad, recortados
-por su banda de monto (`creditop_x_conditions_by_amount_by_lender`) con `AmountBandTerms`, que
-delega la elección de la banda en `AmountConditionTermPolicy` (la misma del plan de pagos regular y
-del listado). El resultado es siempre un subconjunto de lo declarado: un `mandatory_fee_number` cuyo
-techo no está en `fee_numbers` se descarta en vez de ofrecerse. Una entidad sin bandas (Salud) recibe
-exactamente lo declarado. El monto con que se elige la banda depende del paso: el plan de cuotas usa
-`user_requests.amount` y el listado de plazos (`PaymentPlanLoanOptionsService`) el monto que manda
-el front. Si no queda ningún plazo, `INVALID_TERM`. El listado recorre esos plazos de la línea de
-crédito de la entidad con la que calcula (la de la ruta, o la de la solicitud si es Credifamilia, o
-Salud), con ese día por omisión y desembolso hoy, y muestra la cuota 2 como representativa porque
-la 1 lleva el interés diario. Al confirmar el plan (`ExternallyManagedPaymentScheduleService`),
-si la entidad tiene alguna banda, el plazo debe estar entre los permitidos para
-`user_requests.amount`; si no, `FeeNumberNotAllowedException` (422). Sin bandas no se valida el
-plazo.
+Los plazos que se ofrecen son los de `credit_line_by_lenders.fee_numbers` de la entidad, recortados por su banda de
+monto (`creditop_x_conditions_by_amount_by_lender`) con `AmountBandTerms`, que delega la elección de la banda en
+`AmountConditionTermPolicy` (la misma del plan de pagos regular y del listado), y luego filtrados por capacidad con
+`CapacityFittingTerms` tanto en `PaymentPlanLoanOptionsService` como en `InstallmentPlanService`. El resultado es
+siempre un subconjunto de lo declarado: un `mandatory_fee_number` cuyo techo no está en `fee_numbers` se descarta en
+vez de ofrecerse. Una entidad sin bandas (Salud) recibe lo declarado tras ese filtro. El monto con que se elige la
+banda depende del paso: el plan de cuotas usa `user_requests.amount` y el listado de plazos
+(`PaymentPlanLoanOptionsService`) el monto que manda el front. Si no queda ningún plazo, `INVALID_TERM`. El listado
+recorre esos plazos de la línea de crédito de la entidad con la que calcula (la de la ruta o
+`DelegatedOriginationLenders::engineLenderIdFor`), con ese día por omisión y desembolso hoy, y muestra la cuota 2 como
+representativa porque la 1 lleva el interés diario. Al confirmar el plan (`ExternallyManagedPaymentScheduleService`),
+si la entidad tiene alguna banda, el plazo debe estar entre los permitidos para `user_requests.amount`; si no,
+`FeeNumberNotAllowedException` (422). Sin bandas no se valida el plazo.
 
-Límites: el Days360 del código sólo ajusta el día 31, no el fin de febrero como DAYS360 de Excel, y
-la calculadora del proveedor cuenta los 30 días en días calendario: en los bordes de mes la primera
-fecha puede diferir. El seguro se calcula sobre el total a desembolsar, no sobre el monto
-solicitado. `max_amount` de los insumos debe ser mayor que cero, pero no topa el monto: el
-motor sólo deriva `available_amount` (total − máximo). El listado de plazos, en cambio, expone
-como `available_amount` el propio `max_amount`, y como `interest_rate` la tasa mensual.
+Límites: `Days360Calculator` permanece en el código sin uso porque el motor y `DateCalculator` ahora cuentan días
+calendario (`CalendarDaysCalculator`), igual que la calculadora del proveedor. El seguro se calcula sobre el total a
+desembolsar, no sobre el monto solicitado. `max_amount` de los insumos debe ser mayor que cero, pero no topa el monto:
+el motor sólo deriva `available_amount` (total − máximo). El listado de plazos, en cambio, expone como
+`available_amount` el propio `max_amount`, y como `interest_rate` la tasa mensual.

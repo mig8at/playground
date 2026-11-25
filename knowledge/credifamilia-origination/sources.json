@@ -2,13 +2,13 @@
   "version": 1,
   "title": "Credifamilia: preaprobación, identidad y radicación",
   "summary": "Cuándo aprueba la preaprobación de Credifamilia, cómo cae la identidad de CrossCore o ADO a un respaldo, cómo y cuándo se radica por SOAP (después del estado 11, con el 422 por documentos faltantes) y que autorizar no exige identidad terminada: estados, idempotencia, los nueve documentos del PDF y los datos derivados de la ocupación.",
-  "reviewedAt": "2026-11-23T12:00:00-05:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "pre-approvals-service",
       "path": "internal/infra/lending_products/credifamilia/adapter.go",
-      "commit": "8bfbee92f31a2520c94e371971d469cb399dc7a2",
-      "blob": "c7ba974318655936117692cbf12001632a715da7",
+      "commit": "b2684a2e697f67063d04ffa714a30b4d5fc367d4",
+      "blob": "ab6ee8a990836904ab19a6c996348791b7579b59",
       "sections": [
         "la-preaprobacion-solo-aprueba-con-estado-3-y-aprobado",
         "como-se-consulta-radicar-una-vez-y-despues-preguntar-el-estado"
@@ -17,8 +17,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Services/PaymentPlan/DelegatedOrigination/PaymentPlanPayloadBuilder.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "d4e0cfa984cbbbfed948a837464e6549520ce1e3",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "4faf332874c951d29e1a9ea2096153d77e0ef015",
       "sections": [
         "la-preaprobacion-solo-aprueba-con-estado-3-y-aprobado"
       ]
@@ -54,8 +54,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/identity-validation-status.tsx",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "b77ace6fe23217c390afd70cceef2802a98b6e0c",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "d80d2f5fb9ce12b320e56be314264952f16ad9b5",
       "sections": [
         "identidad-proveedor-primario-y-respaldos"
       ]
@@ -128,8 +128,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "8b00482bbb3b9e3ab5bde121a130bf173d195ee9",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "b62b9fcf1b245684a680f01025f52bc52cfdc139",
       "sections": [
         "la-radicacion-tiene-dos-pasos-soap",
         "autorizar-no-exige-que-la-identidad-haya-terminado"
@@ -185,8 +185,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/UserRequestService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "b4e7c44655a2eeace45dd4fc56eff134da23ebdd",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "7c4fe204d7d1ec89717a25979bc271c5235c45c2",
       "sections": [
         "autorizar-no-exige-que-la-identidad-haya-terminado"
       ]
@@ -194,8 +194,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Actions/Lenders/CredifamiliaConsumo/TransactionRequest.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "9db1ffdee59a04ff27cc5d8833985499c0fb68dd",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "feebf702e597e05329150eabaa4f4d73ed49bde5",
       "sections": [
         "la-radicacion-tiene-dos-pasos-soap",
         "que-datos-manda-la-radicacion"
@@ -204,8 +204,8 @@
     {
       "repo": "pre-approvals-service",
       "path": "internal/infra/lending_products/credifamilia/client.go",
-      "commit": "c70a470b2b07c4c10cb3dafdb1a62ea7c44f79c5",
-      "blob": "3dc911aa0165c29bbb70ec98169d0512154cc6c9",
+      "commit": "b2684a2e697f67063d04ffa714a30b4d5fc367d4",
+      "blob": "245f6a1bfcb1bfd39e66e55567d6fe838ab9d7bc",
       "sections": [
         "como-se-consulta-radicar-una-vez-y-despues-preguntar-el-estado"
       ]
@@ -222,8 +222,8 @@
     {
       "repo": "pre-approvals-service",
       "path": "internal/core/usecases/preapproval/check_preapproval.go",
-      "commit": "c70a470b2b07c4c10cb3dafdb1a62ea7c44f79c5",
-      "blob": "eb0772b17fb3e26652460e3499047729191b71ef",
+      "commit": "b2684a2e697f67063d04ffa714a30b4d5fc367d4",
+      "blob": "25fb7f0388cdac07c8ee785f7ab689aa91289c7d",
       "sections": [
         "como-se-consulta-radicar-una-vez-y-despues-preguntar-el-estado"
       ]
@@ -231,8 +231,8 @@
     {
       "repo": "pre-approvals-service",
       "path": "internal/core/domain/lending_product.go",
-      "commit": "c70a470b2b07c4c10cb3dafdb1a62ea7c44f79c5",
-      "blob": "b7883719acab9c216325bc30eea46ae597d00db3",
+      "commit": "b2684a2e697f67063d04ffa714a30b4d5fc367d4",
+      "blob": "eff70af97469c0452167d652669633097c7b45ef",
       "sections": [
         "como-se-consulta-radicar-una-vez-y-despues-preguntar-el-estado"
       ]
@@ -240,8 +240,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/adapters/fetch-lender-preapproval.ts",
-      "commit": "b6a9a75f6372a932e21df8a73918314915150e9d",
-      "blob": "38d061aaf6a93e5f0915739d9eeec9e05180cf31",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "8780e6a507936f5e78df9154e7e67c81fe93d22c",
       "sections": [
         "como-se-consulta-radicar-una-vez-y-despues-preguntar-el-estado"
       ]

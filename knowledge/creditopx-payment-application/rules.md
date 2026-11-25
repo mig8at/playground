@@ -84,22 +84,23 @@ el cupo exige utilizaciones vigentes y un monto que no pase su saldo. Una cuota 
 TTL sólo con igual monto y tipo de abono; la cuota inicial reutiliza cualquier PENDING suyo. El pago de
 cupo bloquea la fila del cupo, revalida el tope contra su saldo y recién ahí busca el PENDING más
 reciente con concepto `revolving_installment`, igual monto y tipo de abono, para que dos intenciones
-simultáneas no creen dos. La firma usa la credencial de la sucursal y, si no tiene, la del comercio (en
-un cupo, la sucursal de su utilización más reciente); sin llaves pública, privada y de integridad no se
-cobra.
+simultáneas no creen dos. La firma usa la credencial activa (`status = 1`, alcance global
+`credencialVigente` de `LenderAlliedCredential`) de la sucursal y, si no tiene, la del comercio (en un
+cupo, la sucursal de su utilización más reciente); una credencial apagada (`status` distinto de 1) se
+ignora, y sin llaves pública, privada y de integridad no se cobra.
 
 El crédito se identifica con `credit_token` o con el id crudo (`loan_request_id` o
 `revolving_credit_id`, cada uno prohibido en el concepto del otro); con
 `services.wompi.payments.require_credit_token` encendido el token es obligatorio. El mismo interruptor
 gobierna la vista previa (sección siguiente).
 
-El webhook valida el checksum con `wompi_events` de esa credencial, bloquea la transacción y no repite
-un estado terminal: un replay o una transacción sin `concept` (creada por legacy-application) no hace nada.
-Una misma referencia puede tener varios intentos en Wompi (el cliente reintenta con otro medio): una vez
-APPROVED, sólo el evento del intento que aprobó puede moverla; los de otro intento, o todos si no se
-conoce el id aprobado, se ignoran y se registran como `wompi.webhook.foreign_transaction_ignored`. En
-APPROVED rutea dentro de la misma transacción de base (si el post-proceso lanza, todo vuelve atrás): por
-la columna del cupo si la tiene y, si no, por concepto. Una cuota sin cartera activa, un cupo sin
+El webhook valida el checksum con `wompi_events` de esa credencial activa, bloquea la transacción y no
+repite un estado terminal: un replay o una transacción sin `concept` (creada por legacy-application) no
+hace nada. Una misma referencia puede tener varios intentos en Wompi (el cliente reintenta con otro medio):
+una vez APPROVED, sólo el evento del intento que aprobó puede moverla; los de otro intento, o todos si
+no se conoce el id aprobado, se ignoran y se registran como `wompi.webhook.foreign_transaction_ignored`.
+En APPROVED rutea dentro de la misma transacción de base (si el post-proceso lanza, todo vuelve atrás):
+por la columna del cupo si la tiene y, si no, por concepto. Una cuota sin cartera activa, un cupo sin
 utilizaciones vigentes o un concepto desconocido se registra en el log y se corta, para reconciliar a
 mano.
 

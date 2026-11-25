@@ -2,13 +2,13 @@
   "version": 1,
   "title": "Cliente temporal y consolidado al validar el OTP y guardar datos personales",
   "summary": "Qué decide legacy-backend al validar el OTP y al guardar datos personales según el usuario sea temporal o consolidado: desenlaces del OTP v2 y v1, guardas del formulario v2, el documento inmutable, qué columnas puede corregir un consolidado y por qué su reenvío por v1 choca con su propio correo y documento.",
-  "reviewedAt": "2026-11-17T12:52:59+00:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/UserService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "800233eb8f163caca142cd682f81f0076f0f37f2",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "d55c56008f7143948dd5cb2e5235ae717b0a5537",
       "sections": [
         "temporal-y-consolidado",
         "quien-cambia-de-celular"
@@ -17,8 +17,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/RegisterCellPhoneService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "577217af200266a640f9bfe8d8b0b0fa695ce05c",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "c0c4594332b8e944247e70b25fc9506c7542d1e4",
       "sections": [
         "temporal-y-consolidado",
         "quien-cambia-de-celular"
@@ -27,8 +27,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/OnboardingService.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "b18993b078403415d7135bb2a8d70c5298ad5456",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "9eb30ef824b901dbb2aa4ea5997c4cf222709c35",
       "sections": [
         "temporal-y-consolidado",
         "las-guardas-del-formulario-en-orden"
@@ -83,8 +83,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/OnboardingV2/App/Services/ValidateOtpAuthService.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "8a1e9c05e2c5463de44e83c77e170225930b3eb2",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "58a327db3997e2ef86bbfb347c8db686b00b4537",
       "sections": [
         "los-desenlaces-al-validar-el-otp-v2"
       ]
@@ -111,8 +111,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/routes/api.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "9fe1053db4e661eadc0e6478d19d239ea7e311a1",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "a0a88314475f99d50a446dafd6c80863367c40ad",
       "sections": [
         "los-desenlaces-al-validar-el-otp-v2",
         "el-consolidado-que-reenvia-por-v1"
@@ -121,8 +121,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Http/Controllers/OnboardingController.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "977c4713996a0a7d0f394eee22f7ba8cf10f7e1a",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "3547e299a2860e50cfecd850ae98f4f473ccb3e0",
       "sections": [
         "los-desenlaces-al-validar-el-otp-v2",
         "el-consolidado-que-reenvia-por-v1",
@@ -167,8 +167,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/loan-application-form/loan-request-form.tsx",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "7035b7d8eaaf8832f14632739e98d73ecd52a15e",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "888aed4cfd81dd1cbe994ec4767503702412a843",
       "sections": [
         "las-guardas-del-formulario-en-orden"
       ]

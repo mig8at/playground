@@ -2,13 +2,13 @@
   "version": 1,
   "title": "Servicio de preaprobaciones: una puerta para todas las entidades",
   "summary": "Qué hace pre-approvals-service y qué hace el asistente con su respuesta: el servicio no decide ni guarda la preaprobación (cada consulta vuelve a la entidad), guarda historia en DynamoDB y credenciales en memoria; el asistente veta, resuelve, oculta y ordena cada tarjeta según la respuesta.",
-  "reviewedAt": "2026-11-23T12:00:00-05:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "pre-approvals-service",
       "path": "internal/core/usecases/preapproval/check_preapproval.go",
-      "commit": "c70a470b2b07c4c10cb3dafdb1a62ea7c44f79c5",
-      "blob": "eb0772b17fb3e26652460e3499047729191b71ef",
+      "commit": "b2684a2e697f67063d04ffa714a30b4d5fc367d4",
+      "blob": "25fb7f0388cdac07c8ee785f7ab689aa91289c7d",
       "sections": [
         "cada-consulta-vuelve-a-la-entidad-no-hay-cache-de-preaprobaciones",
         "el-flujo-de-cada-entidad-credenciales-autenticacion-llamada-y-adaptacion"
@@ -17,8 +17,8 @@
     {
       "repo": "pre-approvals-service",
       "path": "internal/infra/lending_products/creditop_x/adapter.go",
-      "commit": "c70a470b2b07c4c10cb3dafdb1a62ea7c44f79c5",
-      "blob": "d86101577ee69cf776345775a54f045a7ab9bb7d",
+      "commit": "b2684a2e697f67063d04ffa714a30b4d5fc367d4",
+      "blob": "b3e62db44cf65b324c808d1d216db6fdb044f3ee",
       "sections": [
         "cada-consulta-vuelve-a-la-entidad-no-hay-cache-de-preaprobaciones",
         "el-flujo-de-cada-entidad-credenciales-autenticacion-llamada-y-adaptacion"
@@ -27,8 +27,8 @@
     {
       "repo": "pre-approvals-service",
       "path": "internal/infra/lending_products/workflow.go",
-      "commit": "c70a470b2b07c4c10cb3dafdb1a62ea7c44f79c5",
-      "blob": "77f949cb5ff28a6259740a29b6dee90df2cc915b",
+      "commit": "b2684a2e697f67063d04ffa714a30b4d5fc367d4",
+      "blob": "897d46cb71cf58e9da7c3651093da1b8d479e2c0",
       "sections": [
         "el-flujo-de-cada-entidad-credenciales-autenticacion-llamada-y-adaptacion"
       ]
@@ -36,8 +36,8 @@
     {
       "repo": "pre-approvals-service",
       "path": "internal/infra/lending_products/factory/factory.go",
-      "commit": "c70a470b2b07c4c10cb3dafdb1a62ea7c44f79c5",
-      "blob": "f198fe1927f8263a38a2a3c3544a5353df2b484d",
+      "commit": "b2684a2e697f67063d04ffa714a30b4d5fc367d4",
+      "blob": "216655047626f4e8e763399a862a4f5c71690603",
       "sections": [
         "el-flujo-de-cada-entidad-credenciales-autenticacion-llamada-y-adaptacion"
       ]
@@ -45,8 +45,8 @@
     {
       "repo": "pre-approvals-service",
       "path": "internal/core/domain/lending_product.go",
-      "commit": "c70a470b2b07c4c10cb3dafdb1a62ea7c44f79c5",
-      "blob": "b7883719acab9c216325bc30eea46ae597d00db3",
+      "commit": "b2684a2e697f67063d04ffa714a30b4d5fc367d4",
+      "blob": "eff70af97469c0452167d652669633097c7b45ef",
       "sections": [
         "el-flujo-de-cada-entidad-credenciales-autenticacion-llamada-y-adaptacion"
       ]
@@ -63,8 +63,8 @@
     {
       "repo": "pre-approvals-service",
       "path": "internal/infra/services/credentials_service.go",
-      "commit": "c70a470b2b07c4c10cb3dafdb1a62ea7c44f79c5",
-      "blob": "c9aa879d7a72908ff33e151ce9938da70cf53c12",
+      "commit": "b2684a2e697f67063d04ffa714a30b4d5fc367d4",
+      "blob": "ce96b70308d5a4b28868b57e457711c82b47b684",
       "sections": [
         "lo-que-guarda-historia-en-dynamodb-y-credenciales-en-memoria"
       ]
@@ -72,8 +72,8 @@
     {
       "repo": "pre-approvals-service",
       "path": "internal/infra/storage/dynamodb/preapproval_repository.go",
-      "commit": "c70a470b2b07c4c10cb3dafdb1a62ea7c44f79c5",
-      "blob": "336c1b4a5d9a360f303e589b77bb4c79a228eaae",
+      "commit": "b2684a2e697f67063d04ffa714a30b4d5fc367d4",
+      "blob": "ee46fb9f82e6162c768d496ca0c495407b01b4be",
       "sections": [
         "lo-que-guarda-historia-en-dynamodb-y-credenciales-en-memoria"
       ]
@@ -81,8 +81,8 @@
     {
       "repo": "pre-approvals-service",
       "path": "internal/infra/storage/dynamodb/lender_attempt_repository.go",
-      "commit": "c70a470b2b07c4c10cb3dafdb1a62ea7c44f79c5",
-      "blob": "7dd5b1c82680236cc8c56675fcfff0b2345b77da",
+      "commit": "b2684a2e697f67063d04ffa714a30b4d5fc367d4",
+      "blob": "5e852ab5b1a889613334c005845d2cd6f079b044",
       "sections": [
         "lo-que-guarda-historia-en-dynamodb-y-credenciales-en-memoria"
       ]
@@ -90,8 +90,8 @@
     {
       "repo": "pre-approvals-service",
       "path": "config/config.example.yaml",
-      "commit": "c70a470b2b07c4c10cb3dafdb1a62ea7c44f79c5",
-      "blob": "db65df021370482d33184bfc302f702f62837a60",
+      "commit": "b2684a2e697f67063d04ffa714a30b4d5fc367d4",
+      "blob": "c55b35fe514bd36cc687565160e077651ca0c597",
       "sections": [
         "el-flujo-de-cada-entidad-credenciales-autenticacion-llamada-y-adaptacion",
         "lo-que-guarda-historia-en-dynamodb-y-credenciales-en-memoria"
@@ -100,8 +100,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/adapters/fetch-lender-preapproval.ts",
-      "commit": "b6a9a75f6372a932e21df8a73918314915150e9d",
-      "blob": "38d061aaf6a93e5f0915739d9eeec9e05180cf31",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "8780e6a507936f5e78df9154e7e67c81fe93d22c",
       "sections": [
         "lo-que-hace-el-asistente-con-cada-respuesta-el-estado-de-la-tarjeta"
       ]
@@ -109,8 +109,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/lenders-marketplace/src/lib/domain/entities/lender-resolution.entity.ts",
-      "commit": "b6a9a75f6372a932e21df8a73918314915150e9d",
-      "blob": "95aafe1cd48391b8025569717b6d239958e4f8eb",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "14b4a95ffb84f4f00154eba609092b785c52a8f4",
       "sections": [
         "lo-que-hace-el-asistente-con-cada-respuesta-el-estado-de-la-tarjeta"
       ]
@@ -118,8 +118,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/lender-resolution.service.ts",
-      "commit": "b6a9a75f6372a932e21df8a73918314915150e9d",
-      "blob": "18cbf01a36d30982784bed97967205d51e2f5d36",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "7e95e7d880208eb340f1ccfbf29fa0ab833e95a3",
       "sections": [
         "lo-que-hace-el-asistente-con-cada-respuesta-el-estado-de-la-tarjeta"
       ]
@@ -127,8 +127,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/marketplace-view.service.ts",
-      "commit": "b6a9a75f6372a932e21df8a73918314915150e9d",
-      "blob": "658578af539c270c914fb35cae83027d82a01af6",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "ef58613473bb9f492ba1cc7ebf2e58703e2eb211",
       "sections": [
         "lo-que-hace-el-asistente-con-cada-respuesta-el-estado-de-la-tarjeta"
       ]
@@ -154,8 +154,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
-      "commit": "b6a9a75f6372a932e21df8a73918314915150e9d",
-      "blob": "ce5b8d5c02c8199d40f01fb005af97f21841854f",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "00ccde2e4bbacb91b980447b49bed7e37edd5e57",
       "sections": [
         "lo-que-hace-el-asistente-con-cada-respuesta-el-estado-de-la-tarjeta"
       ]
@@ -163,8 +163,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/lenders/RiskCentralValidationService.php",
-      "commit": "e76dc44419cfe137d0de17bfdf547e06dce03cbe",
-      "blob": "81f9e92a11c0e8b6de6f9843e873b4d619e2b134",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "f8d7bc6382e7a9e6c56e4eb07b60b627fdf37a7e",
       "sections": [
         "lo-que-hace-el-asistente-con-cada-respuesta-el-estado-de-la-tarjeta"
       ]
@@ -172,8 +172,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/lenders/LenderListingService.php",
-      "commit": "e76dc44419cfe137d0de17bfdf547e06dce03cbe",
-      "blob": "b5c813f1c70bc407b080d15a05c44ce3fdb0e681",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "8a2522eaa4a2fe2a441cfdb44fe2f93ce746fda0",
       "sections": [
         "lo-que-hace-el-asistente-con-cada-respuesta-el-estado-de-la-tarjeta"
       ]

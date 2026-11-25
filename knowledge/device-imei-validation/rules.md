@@ -32,11 +32,30 @@ Lo mismo pasa cuando `enroll` falló después de inscribir (sin nombre ni modelo
 
 ## Ruta de desembolso del dispositivo
 
-`device/{id}/disburse` vive dentro del grupo `requests` de `Modules/Loans/routes/api.php`, pero el subgrupo `device` le quita los tres middlewares del grupo: `onlyMobileValidation` (que responde 403 con el QR cuando el user-agent es de escritorio y manda el enlace para seguir en el celular, salvo a un usuario temporal o en punto de venta guiado por asesor; no autentica), `validate.authorized.status` (que corta las solicitudes en 11 y en 8) y `origination.flow` (que sólo agrega metadata a la respuesta). El proveedor de rutas del módulo pone `otel` y `api`, y el grupo `api` del Kernel sólo trae bindings, tracing y la misma metadata de originación. Ninguna de esas capas autentica a quien llama, igual que en `register`, `advisor-status` y `client-status`.
+`device/{id}/disburse` vive dentro del grupo `requests` de `Modules/Loans/routes/api.php`, pero el subgrupo `device` le
+quita los tres middlewares del grupo: `onlyMobileValidation` (que responde 403 con el QR cuando el user-agent es de
+escritorio y manda el enlace para seguir en el celular, salvo a un usuario temporal o en punto de venta guiado por
+asesor; no autentica), `validate.authorized.status` (que corta las solicitudes en 11 y en 8) y `origination.flow` (que
+sólo agrega metadata a la respuesta). El proveedor de rutas del módulo pone `otel` y `api`, y el grupo `api` del Kernel
+trae bindings, tracing, la misma metadata de originación y `SetAuditDbContext` (`:APP`). Ninguna de esas capas
+autentica a quien llama, igual que en `register`, `advisor-status` y `client-status`.
 
-El controlador sólo exige que la solicitud exista y que tenga un producto con IMEI. En la rama SmartPay, `disburseImeiRequest` no mira el estado previo ni corre la compuerta de la oferta: regenera el acuerdo de bloqueo firmado y el plan de pagos, calcula montos, exige capital positivo, llama a `createFirstRegister`, deja la solicitud en 11 con `final_amount` y número de solicitud, crea un registro de estado 11, cancela las otras solicitudes del cliente en el mismo comercio con entidad tipo 2 que no están en 11 ni tienen fila `CREACIÓN` y, fuera de la transacción, manda el correo del contrato, genera el voucher y cierra la solicitud. Así, una solicitud con IMEI pasa a 11 aunque no haya llegado al estado intermedio, y una ya en 11 vuelve a recorrer todo eso. `createFirstRegister` tiene su propia guarda: si la solicitud ya tiene una cadena viva en el histórico, devuelve la raíz existente en vez de crear otra.
+El controlador sólo exige que la solicitud exista y que tenga un producto con IMEI. En la rama SmartPay,
+`disburseImeiRequest` no mira el estado previo ni corre la compuerta de la oferta: regenera el acuerdo de bloqueo
+firmado y el plan de pagos, calcula montos, exige capital positivo, llama a `createFirstRegister`, deja la solicitud en
+11 con `final_amount` y número de solicitud, crea un registro de estado 11, cancela las otras solicitudes del cliente
+en el mismo comercio con entidad tipo 2 que no están en 11 ni tienen fila `CREACIÓN` y, fuera de la transacción, manda
+el correo del contrato, genera el voucher y cierra la solicitud. Así, una solicitud con IMEI pasa a 11 aunque no haya
+llegado al estado intermedio, y una ya en 11 vuelve a recorrer todo eso. `createFirstRegister` tiene su propia guarda:
+si la solicitud ya tiene una cadena viva en el histórico, devuelve la raíz existente en vez de crear otra.
 
-Para las demás entidades la ruta llama a `authorize()` sin `otp_id`. Ese método tampoco consulta el estado previo: toma el último OTP validado del usuario (no necesariamente de esta solicitud), corre `OfferStillStandsGuard` (tope de créditos del mes y cupo que bajó desde la oferta), aplica las compuertas de codeudor y, en rotativos, de fecha de pago y de plazo, renumera y deja la solicitud en 11. Si la oferta ya no está en pie, `DeviceController::disburse` atrapa `OfferChangedException` y responde 409 `OFFER_CHANGED` sin desembolsar. En la ruta estándar de firma (`promissory-note/validate/authorize`) el 11 lo frenan el controlador y el middleware; por `device/{id}/disburse` ese freno no existe.
+Para las demás entidades la ruta llama a `authorize()` sin `otp_id`. Ese método tampoco consulta el estado previo: toma
+el último OTP validado del usuario (no necesariamente de esta solicitud), corre `OfferStillStandsGuard` (tope de
+créditos del mes y cupo que bajó desde la oferta), aplica las compuertas de codeudor y, en rotativos, de fecha de pago
+y de plazo, renumera y deja la solicitud en 11. Si la oferta ya no está en pie, `DeviceController::disburse` atrapa
+`OfferChangedException` y responde 409 `OFFER_CHANGED` sin desembolsar. En la ruta estándar de firma
+(`promissory-note/validate/authorize`) el 11 lo frenan el controlador y el middleware; por `device/{id}/disburse` ese
+freno no existe.
 
 ## Espera del titular y señal de finalización
 

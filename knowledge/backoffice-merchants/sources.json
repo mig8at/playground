@@ -2,13 +2,13 @@
   "version": 1,
   "title": "Comercios en el backoffice nuevo",
   "summary": "Qué hace el backoffice nuevo (apps/backoffice) con un comercio en main: el BFF y sus dos proxies, las rutas de legacy-backend con el token de staff, las ubicaciones en merchant-api y el gateway con su authorizer. El alta y la edición completa de CORE-562 todavía no están en main.",
-  "reviewedAt": "2026-11-23T17:38:00+00:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "frontend-monorepo",
       "path": "apps/backoffice/app/routes.ts",
-      "commit": "33a5289bbe71b830a3ecf7cebdc69bf3e560588e",
-      "blob": "77568a6d4b5b269568d5628090589c8b3dc8cded",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "fa204b0c15ec17b6334c5f3e25d1bac331b51495",
       "sections": [
         "quien-atiende-cada-pantalla"
       ]
@@ -35,8 +35,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/backoffice/app/providers/merchants/merchant-api-url.ts",
-      "commit": "33a5289bbe71b830a3ecf7cebdc69bf3e560588e",
-      "blob": "a94d89f21269af67e3ff0845724eaebdfcc2fa10",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "0c352a40ad4cba3268c1d9a84df8e7e1d9aedabb",
       "sections": [
         "quien-atiende-cada-pantalla"
       ]
@@ -44,8 +44,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/backoffice/app/utils/upstream.server.ts",
-      "commit": "33a5289bbe71b830a3ecf7cebdc69bf3e560588e",
-      "blob": "d040c8664770d876a3f53da5d475487c139d7513",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "edbf8d27755b3b47a50e095e2c7a4a4a366d2955",
       "sections": [
         "quien-atiende-cada-pantalla"
       ]
@@ -53,8 +53,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/routes/backoffice.php",
-      "commit": "bf0ddcc79bbbc430005e07e7e64956575f6de939",
-      "blob": "0b184a75eac03d3d0dbbc41c84b96c67499da053",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "f8f3434f805d719995bcd0f5e0b00d1b128bbaa2",
       "sections": [
         "lo-que-hace-legacy-backend-con-un-comercio",
         "la-ubicacion-de-las-sedes-es-de-merchant-api",
@@ -64,8 +64,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Http/Kernel.php",
-      "commit": "bf0ddcc79bbbc430005e07e7e64956575f6de939",
-      "blob": "e59fdd5fa47411673a3e06ad8bd6edd63a1fbd3a",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "a6e4450877cfc2034d61d58176c8f1e8b470b085",
       "sections": [
         "lo-que-hace-legacy-backend-con-un-comercio"
       ]
@@ -73,8 +73,8 @@
     {
       "repo": "merchant-api",
       "path": "internal/modules/merchant/module.go",
-      "commit": "d8f3a34315906b890fef84c89803fb76b4200a9a",
-      "blob": "a9f2421a1592aec18cb29a56debf819cfdbfe0e7",
+      "commit": "22bc51bfdbd10c4949d008f919abe0aed0610630",
+      "blob": "e123a2870ce541119fc67798497e2e3bec2aafdd",
       "sections": [
         "la-ubicacion-de-las-sedes-es-de-merchant-api"
       ]
@@ -82,8 +82,8 @@
     {
       "repo": "infrastructure",
       "path": "environments/development/api-gateway-backoffice/terragrunt.hcl",
-      "commit": "762b6293cacfff828b36cc00ef14b268b7be4e17",
-      "blob": "743db98f794b00fcbbb5a05381cf2565b7ec6d69",
+      "commit": "56e08e45a08e9f32754e85b81a9fbdede89190d3",
+      "blob": "41881a5659e9c3865436d8c8665473b2ffb6966e",
       "sections": [
         "el-gateway-del-backoffice",
         "para-automatizarlo"
@@ -92,8 +92,8 @@
     {
       "repo": "infrastructure",
       "path": "environments/prod/api-gateway-backoffice/terragrunt.hcl",
-      "commit": "efd3679696724daa789eb03a95a06b5d8c1eaf5d",
-      "blob": "f2fcb4376c79b777d2ba5a34580670b383a2d708",
+      "commit": "56e08e45a08e9f32754e85b81a9fbdede89190d3",
+      "blob": "062bc0064bb25412b2c3a02cc57647d0236808b9",
       "sections": [
         "el-gateway-del-backoffice"
       ]
@@ -101,8 +101,8 @@
     {
       "repo": "infrastructure",
       "path": "environments/prod/ecs-application/terragrunt.hcl",
-      "commit": "a1ece0730e0916f8198f57ce27bcfb2c87cb8be3",
-      "blob": "60c7e9fd7f6efbff36e315c5feb56096c9cce547",
+      "commit": "56e08e45a08e9f32754e85b81a9fbdede89190d3",
+      "blob": "48de55aab25b320a3296a9c18a21377b8c2253e0",
       "sections": [
         "el-gateway-del-backoffice"
       ]
@@ -110,8 +110,8 @@
     {
       "repo": "infrastructure",
       "path": "environments/development/ecs-application/terragrunt.hcl",
-      "commit": "a1ece0730e0916f8198f57ce27bcfb2c87cb8be3",
-      "blob": "60f301cef8afdcdaea6ba072a71a40824d609339",
+      "commit": "56e08e45a08e9f32754e85b81a9fbdede89190d3",
+      "blob": "3da5f43674f4ebf77bbc03348d9c9ae8c5db6802",
       "sections": [
         "el-gateway-del-backoffice"
       ]

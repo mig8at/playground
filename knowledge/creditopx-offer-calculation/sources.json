@@ -2,13 +2,13 @@
   "version": 1,
   "title": "Oferta de CreditopX en la tarjeta: cupo, cuota inicial y cuota",
   "summary": "Cómo calcula el asistente la oferta de una entidad CreditopX o rotativa (CalculateLoanFinancialsUc): de dónde llegan cupo, FGA, tasa y porcentaje, la cuota inicial como el mayor entre excedente y política, qué pasa con la cuota escrita o sin campo al elegir y liquidar, el valor a financiar sin FGA, los plazos por categoría y tramo, y en qué difiere el plan de pagos del backend.",
-  "reviewedAt": "2026-11-23T12:00:00-05:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/lenders-marketplace/src/lib/application/calculate-loan-financials.uc.ts",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "66dd5daad3abe2a5749dfc1df8226ecfb931abed",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "4de00222c74cc4f32041e5fbd4e86583098e52c7",
       "sections": [
         "de-donde-salen-los-numeros-de-la-tarjeta",
         "la-cuota-inicial-minima-es-el-mayor-de-dos-pisos",
@@ -31,8 +31,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/lender-resolution.service.ts",
-      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
-      "blob": "18cbf01a36d30982784bed97967205d51e2f5d36",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "7e95e7d880208eb340f1ccfbf29fa0ab833e95a3",
       "sections": [
         "de-donde-salen-los-numeros-de-la-tarjeta"
       ]
@@ -40,8 +40,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/lenders-marketplace/src/lib/domain/services/lender-transaction-data.service.ts",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "11ba7614a3c4452d97274074d9a18a63913e514c",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "0fa030a7bfc1edaa07163e04de74d05a99abdf88",
       "sections": [
         "de-donde-salen-los-numeros-de-la-tarjeta"
       ]
@@ -49,17 +49,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/repositories/loan-options.repository.ts",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "112c2e0444bce4136fbbc78d1f9315bf5060ead8",
-      "sections": [
-        "de-donde-salen-los-numeros-de-la-tarjeta"
-      ]
-    },
-    {
-      "repo": "frontend-monorepo",
-      "path": "apps/backoffice/app/components/profiling/Paso4Calculo.tsx",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "dfc43a5b907247f385ed436ab0dc1d062c5f9adf",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "e2eff59dae431df447f202c3e91a2f42594aa2cd",
       "sections": [
         "de-donde-salen-los-numeros-de-la-tarjeta"
       ]
@@ -96,8 +87,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/AvailableLenders.tsx",
-      "commit": "3f35ac9f768f66bb05a79361188c2b85344cda22",
-      "blob": "a9e55feaeeaa6e01a7b70aa15587ea67f435877e",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "8acb54b39fe114f3fb0e55a975877520f42599df",
       "sections": [
         "la-cuota-inicial-escrita-y-la-que-no-se-escribe"
       ]
@@ -105,8 +96,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
-      "commit": "3f35ac9f768f66bb05a79361188c2b85344cda22",
-      "blob": "ce5b8d5c02c8199d40f01fb005af97f21841854f",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "00ccde2e4bbacb91b980447b49bed7e37edd5e57",
       "sections": [
         "la-cuota-inicial-escrita-y-la-que-no-se-escribe"
       ]
@@ -114,8 +105,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/hooks/useInstallmentOptions.ts",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "60bbe2da3d8f21a5a644aa71c0530c2cad758780",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "c1ed439c2186c1207885343a5ca7317c5480bc60",
       "sections": [
         "plazos-que-ofrece-la-tarjeta"
       ]
@@ -123,8 +114,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/lenders/LenderListingService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "b5c813f1c70bc407b080d15a05c44ce3fdb0e681",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "8a2522eaa4a2fe2a441cfdb44fe2f93ce746fda0",
       "sections": [
         "de-donde-salen-los-numeros-de-la-tarjeta"
       ]
@@ -132,8 +123,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/lenders/LenderRetrievalService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "3616a6d33fe56508e63b9ff85c93f508975c2648",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "ccc2d69b69d6126ec8146e997d49b533e043a711",
       "sections": [
         "de-donde-salen-los-numeros-de-la-tarjeta",
         "plazos-que-ofrece-la-tarjeta"
@@ -151,8 +142,8 @@
     {
       "repo": "pre-approvals-service",
       "path": "internal/infra/lending_products/creditop_x/adapter.go",
-      "commit": "8bfbee92f31a2520c94e371971d469cb399dc7a2",
-      "blob": "d86101577ee69cf776345775a54f045a7ab9bb7d",
+      "commit": "b2684a2e697f67063d04ffa714a30b4d5fc367d4",
+      "blob": "b3e62db44cf65b324c808d1d216db6fdb044f3ee",
       "sections": [
         "el-cupo-que-llega-como-available"
       ]
@@ -169,8 +160,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "c8f7e40de6997dee49af73ebd44378e248a15be7",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "5bf5a5f6de47c160da48a2ab02238dddb102f58d",
       "sections": [
         "de-donde-salen-los-numeros-de-la-tarjeta",
         "el-cupo-que-llega-como-available"
@@ -179,8 +170,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/UserRequestService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "b4e7c44655a2eeace45dd4fc56eff134da23ebdd",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "7c4fe204d7d1ec89717a25979bc271c5235c45c2",
       "sections": [
         "la-cuota-inicial-escrita-y-la-que-no-se-escribe"
       ]
@@ -207,8 +198,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/PromissoryNoteService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "fdaa3e1a1ebcdd538dcef688a18261ad6d35da8b",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "a4610e74b26fadcbe5e5d4ad63f5db62ef0daaaa",
       "sections": [
         "la-cuota-inicial-escrita-y-la-que-no-se-escribe"
       ]
@@ -234,8 +225,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/PaymentSchedule/PaymentCalculationService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "4198a1dd14935eb6e3db507f8b52b7ab61ccc7e0",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "ba6f36dbb4af6792bfb57de4916c64a166701803",
       "sections": [
         "la-cuota-inicial-escrita-y-la-que-no-se-escribe",
         "el-backend-repite-la-regla-con-iva-fijo"
@@ -289,8 +280,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/GuaranteeService.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "c1d12da446b69c15b1734c3c7d8e6e904f8e3b53",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "f6246f8ffeb31299e354e8bd2c1bbe95fa265920",
       "sections": [
         "fga-seguro-de-garantia-y-fianza-tres-garantias-que-no-son-lo-mismo"
       ]
@@ -298,8 +289,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Services/PaymentPlan/DelegatedOrigination/Engine/AmortizationEngine.php",
-      "commit": "e76dc44419cfe137d0de17bfdf547e06dce03cbe",
-      "blob": "76a2d61012378b1de5c2d95c52091ae9f68e71c5",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "231932d761ee0e1b5835f049c71ba4a1f80cd0bb",
       "sections": [
         "fga-seguro-de-garantia-y-fianza-tres-garantias-que-no-son-lo-mismo"
       ]

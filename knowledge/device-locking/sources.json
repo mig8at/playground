@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Bloqueo y desbloqueo de equipos IMEI por mora",
   "summary": "Los dos motores de bloqueo IMEI de legacy-backend (legacy y DeviceLockingV1), el umbral de mora de cada uno, las capas contra el doble bloqueo, cómo se lee la respuesta del gateway, los caminos de desbloqueo y liberación con sus interruptores en ambos monolitos, y qué protege (y qué no) a los endpoints del bloqueo manual.",
-  "reviewedAt": "2026-11-18T00:07:49+00:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -206,8 +206,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Partner/routes/api.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "29bc9b60adf04a7182ef2774c151522c121b029a",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "8dcce4d7785ea0e25b2bcd549c831d3e3f74f955",
       "sections": [
         "bloqueo-y-desbloqueo-manual"
       ]
@@ -224,8 +224,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Http/Kernel.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "e59fdd5fa47411673a3e06ad8bd6edd63a1fbd3a",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "a6e4450877cfc2034d61d58176c8f1e8b470b085",
       "sections": [
         "bloqueo-y-desbloqueo-manual"
       ]
@@ -251,8 +251,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/CreditopXRequestHistoryController.php",
-      "commit": "39def3d0c487ee459997b8fa502dc3554b953092",
-      "blob": "e4756df9b113cfd1cda1c6a1c051a42e4aa50ac3",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "641f83cae3763eea5ac80dfa2ec9145b18873166",
       "sections": [
         "bloqueo-y-desbloqueo-manual"
       ]
@@ -260,8 +260,8 @@
     {
       "repo": "legacy-application",
       "path": "routes/admin.php",
-      "commit": "2798bb7aa41fe406ed4335845c7e814dfbc5f4dc",
-      "blob": "ed9787f30df38ad0b913720c3d4ccd590db922c3",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "a1ad36026b0fe68b8e1e0d2c1bcda49784e276e1",
       "sections": [
         "bloqueo-y-desbloqueo-manual"
       ]
@@ -269,8 +269,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Providers/RouteServiceProvider.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "410b71bf5e2b9e53a1a9000b0f2be2584c6069cc",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "81015f3338c6caf8c51c7cd0a4e24f95f94ae2b1",
       "sections": [
         "bloqueo-y-desbloqueo-manual"
       ]
@@ -278,8 +278,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Kernel.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "071d6571bc023f91113c75c579d4993c571f95d9",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "7dcd3ff7666bbd60d2e46ff4751f9f4e28b99eae",
       "sections": [
         "bloqueo-y-desbloqueo-manual"
       ]
@@ -315,8 +315,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Console/Kernel.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "a1df17f166609b5a6b6f0ba935b8160eb2bfced5",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "a64e8a5b0d159132ee604e1492e480f1d6842cd1",
       "sections": [
         "desbloqueo-y-liberacion"
       ]

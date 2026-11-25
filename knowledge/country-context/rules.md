@@ -4,11 +4,26 @@ Contrato observado en las refs locales de `main`. No certifica catálogos cargad
 
 ## País del comercio
 
-`AlliedInfoController` resuelve la sucursal por hash y carga `allied.country`: el país que publica viene de `allieds.country_id`. No lo infiere de la ciudad de la sucursal ni de un snapshot de la solicitud. La solicitud opcional cambia la entidad y la línea de crédito usada para formularios. El payload incluye `country`, `allowed_document_types` y `document_type_rules`; `country` puede ser null. La clave pública `iso_code` sale de `iso_code_2` sin conversión, y esa columna guarda el código ISO de TRES letras (`COL`, `DOM`, `PER`): las columnas ISO de `countries` están corridas un número, `iso_code_1` guarda el de dos letras y `iso_code_2` el de tres. El módulo `CountryV1` compensa el corrimiento al proyectar `iso2`/`iso3`, y quien necesita el código de dos letras (notificaciones, enrutamiento del teléfono, KYC de OnboardingV2) lee `iso_code_1`. `cell_phone_length` sale de la columna histórica `cell_phone_lenght`, convirtiéndola a entero sólo si es numérica.
+`AlliedInfoController` resuelve la sucursal por hash y carga `allied.country`: el país que publica viene de
+`allieds.country_id`. No lo infiere de la ciudad de la sucursal ni de un snapshot de la solicitud. La solicitud opcional
+cambia la entidad y la línea de crédito usada para formularios. El payload incluye `country`, `allowed_document_types` y
+`document_type_rules`; `country` puede ser null. La clave pública `iso_code` sale de `iso_code_2` sin conversión, y esa
+columna guarda el código ISO de TRES letras (`COL`, `DOM`, `PER`): las columnas ISO de `countries` están corridas un
+número, `iso_code_1` guarda el de dos letras y `iso_code_2` el de tres. El módulo `CountryV1` compensa el corrimiento
+al proyectar `iso2`/`iso3`, y quien necesita el código de dos letras (notificaciones, enrutamiento del teléfono, KYC de
+OnboardingV2) lee `iso_code_1`. `cell_phone_length` sale de `countries.cell_phone_length`, convirtiéndola a entero sólo
+si es numérica.
 
 ## Largo del celular
 
-En `legacy-backend`, la regla `CellPhoneLengthForCountry` del módulo Onboarding valida que el celular tenga exactamente los dígitos de su país, contando sólo dígitos. El país se busca por `dial_code` (sólo los dígitos del prefijo) restringido a `is_operating=true`, y toma el primero que encuentre; el largo es `cell_phone_lenght` si es numérico y mayor que cero. Si no hay prefijo, ningún país operativo tiene ese `dial_code` o la columna no es numérica, vuelve a 10. El prefijo llega de dos maneras: `paraSucursal` lo resuelve en el servidor por sucursal → comercio → `country.dial_code` (envío, validación y reenvío del OTP, y la validación de OTP de OnboardingV2), mientras que `CreateAndAuthUser` usa el `country_code` que manda el cliente. El dato que publica `AlliedInfoController` sirve al front para limitar el campo; esta regla es la que rechaza en el backend.
+En `legacy-backend`, la regla `CellPhoneLengthForCountry` del módulo Onboarding valida que el celular tenga exactamente
+los dígitos de su país, contando sólo dígitos. El país se busca por `dial_code` (sólo los dígitos del prefijo)
+restringido a `is_operating=true`, y toma el primero que encuentre; el largo es `cell_phone_length` si es numérico y
+mayor que cero. Si no hay prefijo, ningún país operativo tiene ese `dial_code` o la columna no es numérica, vuelve a
+10. El prefijo llega de dos maneras: `paraSucursal` lo resuelve en el servidor por sucursal → comercio →
+`country.dial_code` (envío, validación y reenvío del OTP, y la validación de OTP de OnboardingV2), mientras que
+`CreateAndAuthUser` usa el `country_code` que manda el cliente. El dato que publica `AlliedInfoController` sirve al
+front para limitar el campo; esta regla es la que rechaza en el backend.
 
 ## Documentos del backend modular
 

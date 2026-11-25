@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Roles de usuario: quién es quién y qué alcance tiene",
   "summary": "Los trece perfiles agrupados en cliente, comercio (asesor, admin y superadmin), entidad y Creditop; las tres formas en que el código decide qué puede hacer cada uno (permisos por rol, por usuario y comparaciones con el número de perfil) y el alcance que recorta cada controlador.",
-  "reviewedAt": "2026-11-17T12:52:59+00:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "legacy-application",
@@ -62,8 +62,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/lenders/LenderRetrievalService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "3616a6d33fe56508e63b9ff85c93f508975c2648",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "ccc2d69b69d6126ec8146e997d49b533e043a711",
       "sections": [
         "tres-formas-de-decidir-que-puede-hacer-cada-uno",
         "el-alcance-de-cada-perfil-del-comercio"

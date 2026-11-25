@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Cupo mensual y mandato de CreditopX",
   "summary": "Cupo mensual por perfil CreditopX: cálculo, carga, reinicio y backoffice; el cupo del log, el creditCard nulo del buró y el mandato de la entidad.",
-  "reviewedAt": "2026-11-17T12:52:59+00:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -56,8 +56,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/CreditopXRequestHistoryService.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "babbf121a58be7990a224fc971003f231363bb64",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "a8c4274eaf9fd0bc3167818d6782c18cb9c308cb",
       "sections": [
         "se-carga-al-autorizar-con-la-fila-bloqueada"
       ]
@@ -65,8 +65,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/CreditopXRequestHistoryController.php",
-      "commit": "39def3d0c487ee459997b8fa502dc3554b953092",
-      "blob": "e4756df9b113cfd1cda1c6a1c051a42e4aa50ac3",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "641f83cae3763eea5ac80dfa2ec9145b18873166",
       "sections": [
         "se-carga-al-autorizar-con-la-fila-bloqueada",
         "el-mandato-no-frena-ninguna-originacion"
@@ -102,8 +102,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/routes/backoffice.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "0b184a75eac03d3d0dbbc41c84b96c67499da053",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "f8f3434f805d719995bcd0f5e0b00d1b128bbaa2",
       "sections": [
         "el-dia-1-se-reinicia-y-el-backoffice-puede-reiniciar-o-cambiar-el-tope"
       ]
@@ -111,8 +111,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/LenderUserCategoryService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "2306b8f662645228d3973594e5edfb45e679a49f",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "b9c16e84973164e62057e9c997b6c31a7b83a8a1",
       "sections": [
         "el-cupo-del-log-es-lo-que-le-queda-al-perfil",
         "un-creditcard-nulo-en-el-reporte-de-experian-rompe-la-evaluacion-del-monolito-viejo"
@@ -121,8 +121,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Services/lenders/LenderUserCategoryService.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "ba861e1778f9739607631d2b6b6aa60ea795c4f0",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "31d75fcebfb8be541d8c69db5e5089af4f679fbf",
       "sections": [
         "el-cupo-del-log-es-lo-que-le-queda-al-perfil",
         "un-creditcard-nulo-en-el-reporte-de-experian-rompe-la-evaluacion-del-monolito-viejo"
@@ -149,8 +149,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/App/Services/ApplicationsService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "7c7a42ab564ceae1b9bec83d231f15c0b40cfaad",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "adefb34dd0fefeacb722cfe47a1903aaa2e42895",
       "sections": [
         "el-cupo-del-log-es-lo-que-le-queda-al-perfil"
       ]
@@ -185,8 +185,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/backoffice/lender-rules/src/components/LenderRulesView.tsx",
-      "commit": "3f35ac9f768f66bb05a79361188c2b85344cda22",
-      "blob": "4b9e691e01cff02e29aa06f0ffa77bb73ffd92c0",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "5b320aa7fb0d552c4ed49302a9d3f7bb7bf3c53a",
       "sections": [
         "el-mandato-no-frena-ninguna-originacion"
       ]
@@ -194,8 +194,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/lenders-marketplace/src/lib/mappers/lender-response.mapper.ts",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "e4f0b23c1ff2e90737fa8a8ca99eca80da495770",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "1ee243a39b1a23c248cc1f6d52ff2489f5dabd0d",
       "sections": [
         "el-mandato-no-frena-ninguna-originacion"
       ]

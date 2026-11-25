@@ -26,13 +26,12 @@ El id de SmartPay no vive en un solo lugar:
 | `config/lenders.php` `smartpay_lender_id` (`Lender::isSmartpayChannel`) | 160 | 153 |
 | `ReminderCreditopXRequestsCommand::SMARTPAY_LENDER_ID` | 160 | 160 |
 | legacy-application, `CreditopXPrincipalPaymentType::SMARTPAY_LENDER_ID` | 160 | 160 |
-| legacy-application, validación manual (`UserController`, lista `[46, 94, 160]`) | 160 | 160 |
 
-En producción todo dice 160. Fuera de producción, el recorrido se reconoce con 152, el canal de correo con 153 y los
-recordatorios, los permisos y la validación manual siguen con 160: una prueba de SmartPay fuera de producción no
-ejercita todo junto con la misma entidad. El comentario de `isSmartPay()` lo reconoce como deuda: el id debería salir de
-configuración. Los recordatorios apagados por entidad sí se leen de un setting (`reminders_disabled_lender_ids`)
-justamente porque el id cambia entre ambientes.
+En producción todo dice 160. Fuera de producción, el recorrido se reconoce con 152, el canal de correo
+con 153 y los recordatorios y los permisos siguen con 160: una prueba de SmartPay fuera de producción no
+ejercita todo junto con la misma entidad. El comentario de `isSmartPay()` lo reconoce como deuda: el id
+debería salir de configuración. Los recordatorios apagados por entidad sí se leen de un setting
+(`reminders_disabled_lender_ids`) justamente porque el id cambia entre ambientes.
 
 ## Qué cambia en el recorrido
 
@@ -73,9 +72,10 @@ recuperar y anular no mandan esos mensajes y no se frenan por el país. Mira el 
 ## Usuarios de comercio, permisos y validación manual
 
 - **Asesores comerciales.** `BackDoorService` y `BackDoorUserService` reconocen al asesor comercial de SmartPay por
-  su comercio en `lenders_by_allieds` con el id de SmartPay: [cuentas de asesor](knowledge:advisor-accounts).
-- **Permisos.** `CreditopXPrincipalPaymentType::isSmartPayUser` (el comercio del usuario, por `allied_id` o
+  su comercio activo en `lenders_by_allieds` con el id de SmartPay: [cuentas de asesor](knowledge:advisor-accounts).
+- **Permisos.** `CreditopXPrincipalPaymentType::isSmartPayUser` (el comercio activo del usuario, por `allied_id` o
   `multiple_allieds`, trabaja con SmartPay) deja al usuario sin `register creditop x payments` ni
   `reduce creditop x installments`: [roles](knowledge:user-roles).
-- **Validación manual.** Para las entidades 46, 94 y 160, la decisión la procesa el microservicio de préstamos en lugar
-  del WhatsApp de Twilio: [validación manual](knowledge:identity-validation#la-validacion-manual-quien-la-escribe-y-que-la-frena).
+- **Validación manual.** Toda validación manual —incluida SmartPay— se delega desde `UserController` al
+  microservicio de préstamos en `legacy-backend`, sin respaldo local de WhatsApp por Twilio:
+  [validación manual](knowledge:identity-validation#la-validacion-manual-quien-la-escribe-y-que-la-frena).

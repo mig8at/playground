@@ -2,13 +2,13 @@
   "version": 1,
   "title": "Negocio: cómo funciona CreditOp",
   "summary": "El mapa del negocio: quién es quién (cliente, comercio y sucursal, asesor, entidad, solicitud), los rieles por response_type, los cuatro canales de entrada, las etapas de una originación hasta Autorizada, qué pasa después según la entidad, qué sistema hace qué, y qué tema de esta biblioteca contesta cada pregunta.",
-  "reviewedAt": "2026-11-17T12:52:59+00:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
       "path": "app/Models/UserRequest.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "7f20bdcc26b03bc553307da35247d0632ca7143e",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "27b316cbae7a59618702c71a754bba40482ed442",
       "sections": [
         "quien-es-quien"
       ]
@@ -16,8 +16,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Models/AlliedBranch.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "9738d4fb07b3995cc447f777d5f945dcd91df9e5",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "4b8ed79af1a093c39223ed41d8caaa7ba62c4206",
       "sections": [
         "quien-es-quien"
       ]
@@ -25,8 +25,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Models/Lender.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "01aa3f99100fe17ed904b0911f86ffc2b5da5549",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "f48f93276ab82508ca53e85d196eebfbf4841c98",
       "sections": [
         "quien-es-quien",
         "quien-presta-y-con-que-politica-los-rieles"
@@ -53,8 +53,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/MobileOnboardingService.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "ddb1e99b4bbf1c7245f929deafad7a13941353fe",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "50edec37dde513ff4162c23e39001d7c05164dee",
       "sections": [
         "por-donde-entra-un-cliente"
       ]
@@ -72,8 +72,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Models/UserRequestStatus.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "8f4e22887e1fc446d4bf768ee63fdf83c41cdf91",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "8995e473a8a2164a6211f1ef8b25a52bfbc6949f",
       "sections": [
         "el-recorrido-de-una-solicitud"
       ]
@@ -118,8 +118,8 @@
     {
       "repo": "pre-approvals-service",
       "path": "internal/infra/handlers/preapprovals/handler.go",
-      "commit": "c70a470b2b07c4c10cb3dafdb1a62ea7c44f79c5",
-      "blob": "34eb1a32811de51747958fee88e2e7f231e20955",
+      "commit": "b2684a2e697f67063d04ffa714a30b4d5fc367d4",
+      "blob": "620e9c2a523de5b033b4afcf254663144180d0cd",
       "sections": [
         "que-sistema-hace-que"
       ]
@@ -127,8 +127,8 @@
     {
       "repo": "merchant-api",
       "path": "internal/modules/merchant/module.go",
-      "commit": "d8f3a34315906b890fef84c89803fb76b4200a9a",
-      "blob": "a9f2421a1592aec18cb29a56debf819cfdbfe0e7",
+      "commit": "22bc51bfdbd10c4949d008f919abe0aed0610630",
+      "blob": "e123a2870ce541119fc67798497e2e3bec2aafdd",
       "sections": [
         "que-sistema-hace-que"
       ]

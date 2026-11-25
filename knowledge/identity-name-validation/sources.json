@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Identidad: coincidencia y adopción de nombres",
   "summary": "Códigos de TusDatos, adopción de Ágil Data y Mareigua, la cascada web y la móvil, kyc_name_checks, la reparación por lotes y los límites de la comparación de nombres.",
-  "reviewedAt": "2026-11-17T12:52:59+00:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -18,8 +18,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Identity/App/Services/AgildataService.php",
-      "commit": "47dd8bcb41c1130a1bfdf011844ae93b39336356",
-      "blob": "91c759bda20dc696cb4bd7f9dc1177e9530218a6",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "42160e7f6daf136c5e15e115a701b6ddc8c75e13",
       "sections": [
         "agil-data-y-mareigua-pueden-devolver-una-version-adoptada",
         "el-motivo-registrado-no-dice-si-el-nombre-cambio"
@@ -49,8 +49,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/PersonalInfoController.php",
-      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
-      "blob": "459a5b8efa12c208b69ee501a320378e5e55870c",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "2497b1dc96011cb24da0ae795bb45b3d3bb9f35c",
       "sections": [
         "la-aplicacion-anterior-tiene-otro-camino-de-escritura"
       ]
@@ -67,8 +67,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/OnboardingService.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "b18993b078403415d7135bb2a8d70c5298ad5456",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "9eb30ef824b901dbb2aa4ea5997c4cf222709c35",
       "sections": [
         "un-no-match-de-nombres-no-rechaza-solo-la-cascada-sigue-a-tusdatos",
         "el-registro-movil-corta-en-el-primer-veredicto"

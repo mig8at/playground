@@ -11,25 +11,43 @@ del perfil está en `creditopx-quota`; renting y RTO, en `renting-plans`.
 ## De dónde salen los números de la tarjeta
 
 Los calcula el navegador con `CalculateLoanFinancialsUc` (paquete `lenders-marketplace`). El
-backoffice reconstruye la simulación de un perfilamiento con el mismo caso de uso, pero con la
-configuración vigente de la entidad y sin cuota inicial escrita: reproduce la tarjeta sólo si esos
-insumos no cambiaron. Los parámetros llegan en dos tiempos:
+backoffice (`Step2Visual` y `Step3Simulation` en `apps/backoffice/app/components/profiling`)
+reconstruye la simulación de un perfilamiento con el mismo caso de uso, sobre la configuración
+vigente de la entidad (`hydrateLoanOption`) y sin cuota inicial escrita (arranca en la mínima).
+Encima pone lo aprobado en la corrida de cupo de la categoría, si la hay, pero no igual en las dos
+vistas: `Step2Visual` (sólo entidades CreditopX) arma cada opción con `toRunLoanOption`, que aplica
+`applyCategoryRun` (pisa el FGA y el plazo con `fga` y `maxFeeNumber` de la corrida);
+`Step3Simulation` parte de `toLoanOption`, pisa el FGA a mano con `categoryRun.fga`, toma
+`maxFeeNumber` sólo como plazo por defecto y pasa el porcentaje de inicial como
+`categoryCredipullman` (`toCategoryPolicy`) cuando `profiling.calc.variant` es `category` (o como
+respaldo en `motai`). La tasa y el resto siguen siendo los vigentes, así que reproduce la tarjeta
+sólo si esos insumos no cambiaron. Los parámetros llegan en dos tiempos:
 
-- `lenders-v2` hidrata cada entidad con su fila de `lenders_by_allieds` (costos administrativos %
-  y fijo, FGA, IVA, `initial_fee_percentage`, seguros) y su línea de crédito; el `max_amount` de esa
-  fila, si existe, reemplaza al de la línea. Cuando la entidad tiene perfiles, el FGA y el plazo ya
-  vienen recortados por la categoría del cliente (y el plazo, con una regla `finandina_v1`, también
-  por la capacidad de pago: `applyCapacityTermCap`); en la rotativa, el FGA del cupo activo pisa al
-  resto.
+- `lenders-v2` (`LenderListingService`) hidrata cada entidad (`processLendersWithAdditionalInfo`)
+  con su fila de `lenders_by_allieds` (costos administrativos % y fijo, FGA, IVA, seguros) y su
+  línea de crédito; el `max_amount` de esa fila, si existe, reemplaza al de la línea. Esa
+  hidratación no copia ningún porcentaje de cuota inicial de la fila: ese porcentaje no se
+  configura por comercio. Cuando la entidad tiene perfiles, el FGA y el plazo ya vienen recortados
+  por la categoría del cliente; el plazo, además, por el tramo de monto
+  (`applyAmountConditionTermCap`, con o sin categoría) y, con una regla `finandina_v1`, por la
+  capacidad de pago (`applyCapacityTermCap`); en la rotativa, el FGA del cupo activo pisa al resto.
 - Al resolverse la preaprobación, `mergeLenderWithResolution` pisa `available` con el `available`
   numérico del resultado y `initial_fee_percentage` con `quota_details.initial_fee_percentage` si
   viene (en `creditop_x`, el `min_initial_fee` de la categoría; en la rotativa, el del cupo). Sólo
   si el producto es `creditop_x` pisa además la tasa (`category.rate`) y el FGA (`category.fga`).
 
-`lenders-v2` no devuelve `amountConditions` ni `categoryCredipullman` en la raíz de la respuesta:
-en este camino esas dos entradas del cálculo llegan nulas, y el porcentaje y el FGA salen de lo que
-trae la entidad. Los tramos de monto viajan por entidad (`amount_conditions`) y sólo los usa el
-filtro de plazos.
+El porcentaje de política lo resuelve `getInitialFeePercentage` en este orden: el tramo de
+`amountConditions` que contiene el monto, el `min_initial_fee` de `categoryCredipullman` y, por
+último, el `initial_fee_percentage` que trae la entidad (que en este camino sólo llega desde la
+preaprobación). Sin ninguno es 0, y la cuota inicial mínima la decide sólo el excedente sobre el
+cupo (el menor entre la línea, el producto y `available`). Pero `execute` le pasa a
+`calculateMinimumInitialFee` sólo `amountConditions`: el `min_initial_fee` de
+`categoryCredipullman` cuenta únicamente si se llama a `calculateMinimumInitialFee` directamente
+con ese argumento, y dentro de `execute` de `categoryCredipullman` sólo se usa el `FGA`. `lenders-v2`
+no devuelve `amountConditions` ni `categoryCredipullman` en la raíz de la respuesta: en este camino
+esas dos entradas del cálculo llegan nulas, y el porcentaje y el FGA salen de lo que trae la
+entidad. Los tramos de monto viajan por entidad (`amount_conditions`) y en el navegador sólo los
+usa el filtro de plazos.
 
 ## El cupo que llega como `available`
 
@@ -53,12 +71,17 @@ alcanza el mínimo. Con cupo 0 la razón es `profile_quota_exhausted` si se agot
 
 ## La cuota inicial mínima es el mayor de dos pisos
 
-`calculateMinimumInitialFee` parte de v1 = monto × (1 + admin%/100) + admin fijo. El tope es el
-menor entre `credit_lines.max_amount`, el `max_amount` del producto (si hay) y `available` (si es
-positivo). La mínima es `ceil(max(v1 − tope, porcentaje × v1 / 100))`: cubre a la vez el excedente
-sobre el cupo y el porcentaje de política. El porcentaje es el del tramo de monto si llegan
-`amountConditions` con `initial_fee_percentage` para esa entidad, y si no el `initial_fee_percentage`
-de la entidad.
+`calculateMinimumInitialFee` parte de v1 = monto × (1 + admin%/100) + admin fijo. El tope es el menor entre
+`credit_lines.max_amount`, el `max_amount` del producto (si hay) y `available` (si es positivo). La mínima es
+`ceil(max(v1 − tope, porcentaje × v1 / 100))`: cubre a la vez el excedente sobre el cupo y el porcentaje de política.
+
+`getInitialFeePercentage` resuelve ese porcentaje en tres fuentes, en orden, sin valor por comercio (se eliminó
+`lenders_by_allieds.initial_fee_percentage`): la condición por monto de la entidad (`amountConditions` con
+`amount >= min_amount && amount < max_amount` y `lender_id === lender.id`) si trae `initial_fee_percentage`, la
+categoría del usuario (`categoryCredipullman?.min_initial_fee`), o el porcentaje del crédito rotativo que llega en
+`lender.initial_fee_percentage`. Sin ninguna de las tres devuelve `0` y el mínimo lo decide sólo el excedente sobre el
+cupo; cuando `execute` invoca `calculateMinimumInitialFee` sin pasar `categoryCredipullman`, la categoría sólo entra si
+se fusionó antes en `lender.initial_fee_percentage`.
 
 ## Cuándo se resta la cuota inicial
 
@@ -119,20 +142,23 @@ lo decide `lender_guarantee_criteria` ([el convenio](knowledge:merchant-lender-a
 
 ## Plazos que ofrece la tarjeta
 
-El plazo inicial es `fee_number` del listado: el `max_fee_number` de la línea, recortado por el
-`max_fee_number` de la categoría. Después el tramo de monto (`applyAmountConditionTermCap`, sobre
-`user_requests.amount`) deja los plazos que no superan su tope y fija `fee_number` en el mayor; con
-`mandatory_fee_number`, el plazo único es el tope del tramo aunque no esté en la lista de la entidad.
-Por último, si la evaluación de la categoría fue de una regla `finandina_v1`,
-`applyCapacityTermCap` deja sólo los plazos cuya cuota, sobre lo financiado sin FGA
-(`CapacityTermPolicy::financedAmount`), cabe en la capacidad de pago de esa evaluación, y fija
-`fee_number` en el mayor. Es la misma regla y el mismo orden que el plan de pagos
-(`RegularPaymentScheduleService::getPossibleFeeNumbers`); si ningún plazo cabe, conserva la lista.
+El plazo inicial en `LenderRetrievalService` es `fee_number` del listado: el máximo de la lista
+`credit_lines.fee_numbers` (`PlazosOfrecidos::maximo`), recortado por el `max_fee_number` de la
+categoría. Después el tramo de monto (`applyAmountConditionTermCap`, sobre `user_requests.amount`)
+deja los plazos que no superan su tope y fija `fee_number` en el mayor; con `mandatory_fee_number`,
+el plazo único es el tope del tramo aunque no esté en la lista de la entidad. Por último, si la
+evaluación de la categoría fue de una regla `finandina_v1`, `applyCapacityTermCap` deja sólo los
+plazos cuya cuota, sobre lo financiado sin FGA (`CapacityTermPolicy::financedAmount`), cabe en la
+capacidad de pago de esa evaluación, y fija `fee_number` en el mayor. Es la misma regla y el mismo
+orden que el plan de pagos (`RegularPaymentScheduleService::getPossibleFeeNumbers`); si ningún
+plazo cabe, conserva la lista.
 
 En la tarjeta, si la entidad no trae tarifario propio, `useInstallmentOptions` vuelve a filtrar las
 opciones con el tramo que corresponde al capital (monto − cuota inicial efectiva): deja las que no
 superan su `max_fee_number` y, con `mandatory_fee_number = 1`, sólo esa. Si el filtro deja la lista
-vacía, conserva la original.
+vacía, conserva la original. Para entidades con oferta de calculadora (`usesCalculatorOffer`) o plan
+de pagos dinámico de originación delegada (`supportsDynamicPaymentPlan`, `response_type` 4),
+`resolveSelectedFeeNumber` no coerciona `selectedFeeNumber` contra `installmentOptions`.
 
 ## El backend repite la regla con IVA fijo
 

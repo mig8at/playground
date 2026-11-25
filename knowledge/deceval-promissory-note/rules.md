@@ -39,14 +39,9 @@ ni `deceval_response_data` ni `deceval_logs` tienen una referencia a ella. Por e
 califica en el nivel que se usa, la firma puede salir con una credencial distinta de la que creó el
 pagaré. Con una sola fila en ese nivel, la elección es siempre la misma.
 
-⚠ En legacy-backend la búsqueda puede traer una credencial de **otra central**. Los que llaman a
-`findForUserRequest` le pasan la fila de la central, no su id: `DecevalSoap` (`RiskCentral::where('name',
-'Deceval')->first()`), `Experian` y `Ado` (`RiskCentral::firstWhere`); Mareigua hace lo mismo con
-`forBranchLenders`. Los dos métodos hacen `RiskCentral::find($riskCentral)`, y un modelo es `Arrayable`, así que `find`
-lo trata como una lista de ids: devuelve todas las centrales cuyo id coincide con algún valor de esa fila (por
-ejemplo, un `enabled = 1` trae a la central 1, Experian), y `whereBelongsTo` acepta credenciales de cualquiera de
-ellas. Con una entidad que tiene credenciales de dos centrales, la búsqueda de una puede tomar al azar la de la otra:
-el pagaré falla por un campo de Deceval que no está (`deceval_depositante`).
+En legacy-backend, `findForUserRequest` y `forBranchLenders` resuelven la central con `centralOf` (si
+reciben un modelo `RiskCentral` lo usan directo y sólo llaman `RiskCentral::find` si reciben un id), así que
+pasar el modelo ya no mezcla credenciales de otras centrales.
 
 No hay respaldo en configuración: sin fila, la creación falla con un error de tipo antes de hablar con
 Deceval. Los campos que se leen son `deceval_username` y `deceval_password` (UsernameToken de
@@ -65,11 +60,13 @@ PDF. Firmar es consultar en estado 6 para obtener el `idPagareDeceval`, firmar c
 consultar, con el estado 9 por omisión, para traer el PDF firmado. En legacy-backend el encabezado lleva
 fecha y hora de Bogotá; en legacy-application usa `now()` con la zona de la aplicación (`TZ`, UTC por omisión).
 Del cliente se mandan correo, fechas de expedición y nacimiento si existen, tipo de documento (sólo CC→1 o
-CE→2), documento, celular como teléfono y como celular, nombres, y primer y segundo apellido partidos por
-el primer espacio de `surname`; el país de expedición va fijo en `CO`. Campos extra sólo entran por
-`options['girador']`. En legacy-backend los arma `DecevalGiradorFields`,
-pero sólo para los lenders listados en el setting `deceval_girador_address`
-(`{"enabled_lender_ids": [...]}`, leído por `DecevalGiradorAddressSwitch`; sin la fila, o si no se
+CE→2), documento, celular como teléfono y como celular y nombres; en legacy-backend primer y segundo
+apellido se parten con `DecevalSoap::splitSurname` (`FirstSurname::extract`, que conserva partículas como
+`DE LA TORRE` en el primero y deja el resto —o vacío si no hay— en el segundo), mientras que en
+legacy-application se siguen partiendo por el primer espacio de `surname`. El país de expedición va fijo
+en `CO`. Campos extra sólo entran por `options['girador']`. En legacy-backend los arma
+`DecevalGiradorFields`, pero sólo para los lenders listados en el setting `deceval_girador_address`
+(`{"enabled_lender_ids": [...]}` leído por `DecevalGiradorAddressSwitch`; sin la fila, o si no se
 puede leer, no van para nadie). `numPagareEntidad` no es del girador: viaja en `options['pagare']`.
 
 `DecevalGiradorFields` sólo manda lo que puede afirmar: la dirección de residencia (los mismos

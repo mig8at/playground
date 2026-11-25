@@ -121,9 +121,11 @@ perfiles:
   El listado no los usa (tiene su propio `match` en `LenderValidationService`), salvo el rotativo,
   vía `RevolvingHardPolicyGate`.
 
-Si después ninguna categoría sale y es la etapa extendida de una entidad **sin reglas de esa etapa**,
-no se rechaza: se aprueba sin política (`no_type_policy_approved`) y el cupo vigente es el de la etapa
-inicial.
+Si después ninguna categoría sale y la entidad no tiene reglas configuradas para esa etapa
+(`!hasPolicyForType`), no se rechaza sino que se aprueba sin política (`no_type_policy_approved`)
+cuando es la etapa extendida (`TITULAR_EXTENDED`, donde el cupo vigente queda el de la etapa inicial)
+o cuando es la variante de codeudor (`COSIGNER`) de una entidad que no exige codeudor
+(`!LenderUserCategoryService::exigeCodeudor`).
 
 Con categoría, el monto todavía puede negarse por la entidad y no por el cliente: bajo el `min_amount`
 de la línea es `below_min_amount`, o `lender_quota_exhausted` si lo que le queda a la entidad de su

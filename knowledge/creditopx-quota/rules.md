@@ -20,10 +20,14 @@ evento `credit_booked` en `creditop_x_quota_events`; si con ese crédito el perf
 disponible a no tenerlo, también un `limit_reached`.
 
 En el monolito nuevo lo hace `MonthlyQuotaBookingService::book`, llamado desde
-`CreditopXRequestHistoryService::createFirstRegister` dentro de la transacción de la autorización y
-sólo para entidades `response_type = 2`. Antes de cargar, reevalúa el perfil del cliente: si no hay
-perfil vigente, la autorización falla con un 422 y no se crea el crédito. `book` toma la fila con
-`lockForUpdate`; si esa fila ya no existe, sólo deja un aviso en el log y el crédito queda sin cargar.
+`CreditopXRequestHistoryService::createFirstRegister` dentro de la transacción de la autorización
+para entidades `response_type = 2` y para entidades de originación delegada (`response_type = 4`)
+con perfiles en el motor (`hasCategories`). Antes de cargar, reevalúa el perfil del cliente: en
+`response_type = 2`, si no hay perfil vigente la autorización falla con un 422 y no se crea el
+crédito; en `response_type = 4` (donde la decisión ya la tomó la preaprobación), si no hay
+categoría vigente deja un aviso en el log y continúa sin cargar cupo mensual. `book` toma la fila
+con `lockForUpdate`; si esa fila ya no existe, sólo deja un aviso en el log y el crédito queda sin
+cargar.
 
 En el viejo, `createFirstRegister` del controlador de historial carga sólo si la entidad tiene algún
 perfil: reevalúa el del cliente, bloquea la fila y llama a `MonthlyQuota::charge`, que devuelve los
@@ -53,29 +57,31 @@ LenderRulesMap::PREMIUM_PLUS_TEMPLATE_KEY`) un tope menor o igual a 0 se rechaza
 
 ## El «cupo» del log es lo que le queda al perfil
 
-En `users_category_log`, `current_available_amount` guarda `MonthlyQuota::available` del perfil que
-eligió el motor: la bolsa, no el cupo de la persona. Los dos `LenderUserCategoryService` lo escriben
-así cuando un perfil coincide; si ninguno coincide, la fila va con perfil 0 y monto 0. En el monolito nuevo, el caso
-Magnocell con cédula de extranjería escribe `lender_users_category_id = 2` con monto 0 aunque asigna
-perfil.
+En `users_category_log`, `current_available_amount` guarda `MonthlyQuota::available` del perfil que eligió el motor:
+la bolsa, no el cupo de la persona. Los dos `LenderUserCategoryService` lo escriben así cuando un perfil coincide
+(en el monolito nuevo también por el camino de scoring); si ninguno coincide, la fila va con perfil 0 y monto 0. En el
+monolito nuevo, si una entidad de cupo propio (`response_type` 2 o 3) no tiene política configurada para un tipo en
+que se esperaba (`hasPolicyForType` falso y `politicaEsperadaParaTipo` verdadero), escribe fila con perfil 0, monto 0 y
+`sin_politica_configurada` en `true`. El caso Magnocell con cédula de extranjería escribe
+`lender_users_category_id = 2` con monto 0 en el monolito viejo aunque asigna perfil; en el nuevo esa escritura está
+comentada (`handleVenezuelanCase`).
 
-El monto que se le ofrece al cliente se topa además con el máximo por cliente (`max_amount`) y la
-cuota inicial. En el monolito nuevo también con el máximo de la línea de la entidad
-(`credit_line_by_lenders.max_amount`) y, si la entidad tiene tope mensual de desembolsos
-(`lender_requirements.monthly_disbursement_limit`), con lo que le queda de él en el mes; sin tope
-configurado no cuenta. Un perfil con `capacity_method = finandina_v1` no usa esa fórmula: el monto sale
-de `FinandinaAmountCalculator` (que también recibe lo que le queda a la entidad), sin cambiar lo que va
-a `current_available_amount`.
+El monto que se le ofrece al cliente se topa además con el máximo por cliente (`max_amount`) y la cuota inicial. En el
+monolito nuevo también con el máximo de la línea de la entidad (`credit_line_by_lenders.max_amount`) y, si la entidad
+tiene tope mensual de desembolsos (`lender_requirements.monthly_disbursement_limit`), con lo que le queda de él en el
+mes; sin tope configurado no cuenta. Un perfil con `capacity_method = finandina_v1` no usa esa fórmula: el monto sale
+de `FinandinaAmountCalculator` (que también recibe lo que le queda a la entidad), sin cambiar lo que va a
+`current_available_amount`.
 
-El monolito nuevo agrega a `category_rules_acceptance` el monto como `available_amount` y, para un
-perfil Finandina, escalares `finandina_*` (SMMLV, versión de las reglas, tope que ató, capacidad,
-ingreso, tasa, plazo, reporte usado…); el viejo guarda ahí `available_from_lender`,
-`available_from_profile` y `max_amount`.
+El monolito nuevo agrega a `category_rules_acceptance` el monto como `available_amount` acotado con `max(0, …)` —y, si
+fue negativo, conserva el valor original en `available_amount_raw`— y, para un perfil Finandina, escalares
+`finandina_*` (SMMLV, versión de las reglas, tope que ató, capacidad, ingreso, tasa, plazo, reporte usado…); el viejo
+guarda ahí `available_from_lender`, `available_from_profile` y `max_amount`.
 
-El backoffice nuevo expone `current_available_amount` como `cupo` en cada corrida del perfilamiento y
-lo usa de respaldo para el cupo de la simulación cuando la tarjeta no trae monto
-(`ApplicationsService`). Un perfil recién reiniciado puede hacer parecer que una persona tiene un cupo
-del tamaño de la bolsa entera.
+El backoffice nuevo expone `current_available_amount` como `cupo` en cada corrida del perfilamiento y lo usa de
+respaldo para el cupo de la simulación cuando la tarjeta no trae monto (`ApplicationsService`); además extrae
+`available_amount_raw ?? available_amount` como `rootAvailableAmount`. Un perfil recién reiniciado puede hacer parecer
+que una persona tiene un cupo del tamaño de la bolsa entera.
 
 ## Un creditCard nulo en el reporte de Experian rompe la evaluación del monolito viejo
 

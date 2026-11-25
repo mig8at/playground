@@ -42,19 +42,25 @@ Hasta que el cliente elige una tarjeta pasan cuatro cosas, y sólo la última ap
 1. **Las centrales, al enviar los datos personales** (y el formulario laboral, si lo hay). Se consultan una vez por
    solicitud y se guardan: Ágil Data, y Mareigua si Ágil Data no trae datos, TusDatos y Experian si toca. Experian
    lo decide la **sucursal**, no la tarjeta: se compra siempre si el comercio o una entidad de la sucursal está en
-   `experian_trigger_bypass_rules` o si la sucursal tiene una entidad tipo 2 (`OnboardingService::resolveForcedExperianProduct`);
-   si no, según la frecuencia del comercio y las reglas de disparo de la sucursal
-   ([el disparador](knowledge:kyc-path-and-experian-trigger)). Un dato de menos de 30 días se reusa.
+   `experian_trigger_bypass_rules` o si la sucursal tiene una entidad tipo 2
+   (`OnboardingService::resolveForcedExperianProduct`); si no, según la frecuencia del comercio y las reglas de
+   disparo de la sucursal ([el disparador](knowledge:kyc-path-and-experian-trigger)). Un dato de menos de un mes
+   (`IDENTITY_BUREAU_FRESHNESS_MONTHS = 1`) se reusa.
 2. **El listado** trae las entidades de la sucursal, corre sus reglas duras (`lender_rules`: respuestas del formulario
-   y edad, género y documento del usuario, no las centrales) y las ordena por el perfilamiento. Las reglas duras sólo
-   **sacan** a los tipos 2 y 3 (`LenderValidationService::dropsWhenRulesFail`): su política es de Creditop y el motor
-   de cupo las rechazaría igual. A los demás los deja con probabilidad baja, porque decide la entidad
+   y edad, género y tipo de documento del usuario, no las centrales) y las ordena por el perfilamiento. Si la sucursal
+   tiene reglas duras activas y ninguna es de una entidad, esa entidad queda descartada
+   (`no_rules_for_lender_in_branch`). Las reglas duras sólo **sacan** al tipo 2 y al tipo 3 cuando el cliente no tiene
+   ya un cupo rotativo aprobado con esa entidad (`LenderValidationService::dropsWhenRulesFail`): su política es de
+   Creditop y el motor de cupo las rechazaría igual; también salen las tipo 2 si el cliente alcanzó
+   `max_credits_per_client_month`. A los demás los deja con probabilidad baja, porque decide la entidad
    ([el listado](knowledge:lender-listing)).
 3. **La preaprobación, tarjeta por tarjeta.** El asistente le pide a `pre-approvals-service` la de cada tarjeta que no
-   es tipo 0, con `creditop_x` para los tipos 2 y 3 y con el slug para el resto. El servicio le pregunta a la API de
-   la entidad o, para CreditopX, al motor de cupo de legacy-backend (`/available-quota`, que acepta los tipos 2 y 4 y
-   rechaza 0 y 1), y no guarda la respuesta para reusarla ([el servicio](knowledge:pre-approvals-service)). El motor
-   evalúa con lo guardado en el paso 1: aquí se aprueba o se rechaza.
+   es tipo 0 ni quedó bloqueada por política de buró (`can_check_preapproval === false`), con `creditop_x` para los
+   tipos 2 y 3 y con el slug para el resto. El servicio le pregunta a la API de la entidad o, para CreditopX, al motor de
+   cupo de legacy-backend (`/available-quota`, que rechaza los tipos 0 y 1 y acepta el resto, entre ellos 2, 3 y 4), y
+   no guarda la respuesta para reusarla, salvo en las entidades manuales (`bcp_consumo`, `bcp_vehicular`): si llega sin
+   `lender_decision` y ya hay una fila previa sin error, devuelve esa ([el servicio](knowledge:pre-approvals-service)).
+   El motor evalúa con lo guardado en el paso 1: aquí se aprueba o se rechaza.
 4. **El riel**, cuando el cliente elige: lo de las secciones siguientes.
 
 ## Riel: qué hace la solicitud después del listado
@@ -183,7 +189,13 @@ edad que devuelve Ágil Data; si fue Mareigua o TusDatos, se calcula desde la fe
 entonces es la estimada, más baja cuanto más tarde se expidió el documento. Si el comercio no recauda
 la expedición, el criterio de edad se salta. Las listas usan ids fijos, y el mismo id puede ser otro comercio en otra base.
 
-La información laboral sale primero de las centrales, pero sólo de un informe reciente. Ágil Data o Mareigua cuentan si tienen una fila en `risk_central_user_data` de los últimos 30 días (`IDENTITY_BUREAU_FRESHNESS_DAYS`) y su resumen reporta empleo, independiente o pensión (`OnboardingService::identityBureausHaveFreshIncome`). Con eso, el backend completa ocupación, ingreso y continuidad con el resumen de la que contestó (primero Ágil Data) y la pantalla de empleo no se muestra. Que haya sesión de Ágil Data o Mareigua ya no basta: si ninguna tiene un informe reciente con empleo, no se escribe nada de ahí.
+La información laboral sale primero de las centrales, pero sólo de un informe reciente. Ágil Data o
+Mareigua cuentan si tienen una fila en `risk_central_user_data` cuya fecha (`DATE(COALESCE(updated_at,
+created_at))`) es posterior a hace 1 mes (`IDENTITY_BUREAU_FRESHNESS_MONTHS`) y su resumen reporta empleo,
+independiente o pensión (`OnboardingService::identityBureausHaveFreshIncome`). Con eso, el backend
+completa ocupación, ingreso y continuidad con el resumen de la que contestó (primero Ágil Data) y la
+pantalla de empleo no se muestra. Que haya sesión de Ágil Data o Mareigua ya no basta: si ninguna tiene
+un informe reciente con empleo, no se escribe nada de ahí.
 
 Si las centrales de identidad no trajeron ingreso, lo puede traer Quanto, pero sólo si la compra forzada de Experian resuelve a `aciertaQuanto`: el comercio o un lender de la sucursal está en el setting `experian_trigger_bypass_rules` y las centrales de identidad no tienen datos recientes (`resolveForcedExperianProduct`; si sí los tienen, o si la sucursal sólo tiene un lender CreditopX, se compra `creditScore` y no hay ingreso de Quanto). Con ese informe, el ingreso es el promedio mensual de Quanto (producto 62, en pesos), con ocupación `Empleado` y continuidad 3 (`storeQuantoLaborInformation`); si Quanto no trae ingreso, no se escribe nada. Si tampoco hay laboral por ninguna vía, la pide el formulario (`ONB004`), salvo que el comercio no la recaude (`allieds.collect_employment_info`). Los comercios de Corbeta (setting `corbeta_allieds`) y el flujo Pash reciben valores por defecto (1.500.000, empleado, continuidad 3) en vez de la pantalla, igual que el bypass de documentos de extranjería (PEP).
 

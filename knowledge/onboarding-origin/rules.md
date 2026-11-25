@@ -12,9 +12,16 @@ La migración `2026_07_02_120000_add_onboarding_origin_to_users` de `legacy-back
 columnas, ambas `nullable`. `legacy-application` no tiene migración propia: escribe sobre la misma base.
 
 - `onboarding_channel`: `ecommerce`, `merchant`, `self_service` o `mobile`. Los tres primeros los
-  declara el front; `mobile` sólo lo escribe el backend.
-- `onboarding_backend`: `legacy`, `legacy-application` o `refactor`. Nunca viene del front. El comentario
-  de la migración dice `legacy | legacy-application`, pero el código también escribe `refactor` (abajo).
+  declara el front (los dos monolitos validan `in:ecommerce,merchant,self_service`); `mobile` sólo lo
+  escribe el backend de `legacy-backend` (`MobileOnboardingService`): `legacy-application` no tiene
+  flujo mobile.
+- `onboarding_backend`: `refactor` (lo escribe `legacy-backend`) o `application` (lo escribe
+  `legacy-application`). Nunca viene del front. Los valores salen de `App\Support\OnboardingBackend`,
+  una clase gemela en cada monolito con `REFACTOR = 'refactor'` y `APPLICATION = 'application'`; cada
+  repo estampa su propio `OnboardingBackend::SELF`. No hay paquete compartido: si un valor cambia en un
+  repo y no en el otro, los datos quedan partidos en dos vocabularios. El comentario de la migración
+  dice `legacy | application`, pero `legacy` no lo escribe ningún código vigente: las filas con ese valor
+  son históricas.
 
 El backoffice las devuelve como `onboardingChannel` y `onboardingBackend` en el detalle del usuario
 (`UsersService`). El único lector con lógica es `UserRequestService::warnIfCounterRequestHasNoAdvisor`
@@ -48,20 +55,19 @@ aproximación (el del primer registro, no el de esta solicitud).
 
 El canal entra al crear el usuario temporal y no después:
 
-- `UserService::createTemporalUser` y `RegisterCellPhoneService::createTemporalUser` escriben el
-  canal recibido y `onboarding_backend = 'legacy'`. `getOrCreateUser` sólo llama a la creación
-  cuando no encuentra usuario por celular: un usuario existente conserva lo que tenía.
+- `UserService::createTemporalUser` y `RegisterCellPhoneService::createTemporalUser` escriben el canal recibido y
+  `onboarding_backend = OnboardingBackend::SELF` (`'refactor'`). `getOrCreateUser` sólo llama a la creación cuando no
+  encuentra usuario por celular: un usuario existente conserva lo que tenía.
 - Los que llaman pasan su canal: `OtpService::sendOtpCode` y `sendOtpCodeViaEmail` el del request,
-  `RegisterCellPhoneService` el del request, `BackDoorUserService` (el `create-temporary-user` del
-  flujo dinámico) el de `BackDoorPhoneNumberRequest`, `MobileOnboardingService` el literal
-  `mobile` y `OnboardingController::startMerchantVerifiedSession` (pedido firmado, sin OTP) el literal
-  `ecommerce`. `BackDoorService` y `CreditStudyService` pasan `null`, y
-  `DynamicFormsService::createUserForAdvisorDrivenIntake` no lo pasa (queda `null`).
-- `MobileOnboardingService::markMobileCreated`, al final del registro móvil, escribe
-  `onboarding_channel = 'mobile'` y `onboarding_backend = 'refactor'`, cada uno sólo si estaba en
-  `null`.
-- El registro móvil de la nueva arquitectura (`UsersV1 UserRepository::createTemporalMobileUser`)
-  escribe `mobile` y `refactor` al crear la fila, no al final.
+  `RegisterCellPhoneService` el del request, `BackDoorUserService` (el `create-temporary-user` del flujo dinámico) el de
+  `BackDoorPhoneNumberRequest`, `MobileOnboardingService` el literal `mobile` y
+  `OnboardingController::startMerchantVerifiedSession` (pedido firmado, sin OTP) el literal `ecommerce`. `BackDoorService`
+  y `CreditStudyService` pasan `null`, y `DynamicFormsService::createUserForAdvisorDrivenIntake` no lo pasa (queda
+  `null`).
+- `MobileOnboardingService::markMobileCreated`, al final del registro móvil, escribe `onboarding_channel = 'mobile'` y
+  `onboarding_backend = OnboardingBackend::SELF` (`'refactor'`), cada uno sólo si estaba en `null`.
+- El registro móvil de la nueva arquitectura (`UsersV1 UserRepository::createTemporalMobileUser`) escribe `mobile` y
+  `refactor` al crear la fila, no al final.
 
 ## El canal se escribe una sola vez; el backend no
 
@@ -72,10 +78,11 @@ modelo, no de base: no protege un `update` por Query Builder ni una escritura a 
 
 `onboarding_backend` no tiene candado. En `legacy-application`, `RegisterCellPhoneController` reenvía el
 canal a `phone/register` de legacy, hidrata el usuario que devuelve y, si su backend no es
-`legacy-application`, lo pone en `legacy-application` y guarda. Como `phone/register` devuelve también usuarios
-que ya existían, un usuario creado por legacy que vuelve a registrarse por `legacy-application` pasa a
-figurar con backend `legacy-application`: la columna dice el último backend de `legacy-application` que lo
-tocó, no siempre el que lo creó. Si ese guardado falla, sólo deja un warning.
+`OnboardingBackend::SELF` (el valor `application`, de `App\Support\OnboardingBackend` de
+`legacy-application`; no `legacy-application`), lo pone en ese valor y guarda. Como `phone/register`
+devuelve también usuarios que ya existían, un usuario creado por legacy que vuelve a registrarse por
+`legacy-application` pasa a figurar con backend `application`: la columna dice el último backend de
+`legacy-application` que lo tocó, no siempre el que lo creó. Si ese guardado falla, sólo deja un warning.
 
 ## Límites
 

@@ -2,13 +2,13 @@
   "version": 1,
   "title": "Cartera CreditopX: noche, cobranza, colilla y beneficios",
   "summary": "Qué le pasa a un crédito CreditopX sin que el cliente pague: la cadena nocturna que corre loan-servicing sobre los comandos de legacy-application, el gasto de cobranza por tramo de mora y qué caminos lo incluyen en el saldo total (y por qué la vista previa de la refinanciación lo cuenta dos veces), la colilla que se condona en el corte, cuándo se puede cambiar la fecha de pago, recuperación, condonación libre, refinanciación y paz y salvo desde el admin, y el subsidio de intereses Creditop.",
-  "reviewedAt": "2026-11-23T14:35:07+00:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "legacy-application",
       "path": "app/Console/Kernel.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "a1df17f166609b5a6b6f0ba935b8160eb2bfced5",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "a64e8a5b0d159132ee604e1492e480f1d6842cd1",
       "sections": [
         "la-noche-de-cartera-la-corre-loan-servicing"
       ]
@@ -70,8 +70,8 @@
     {
       "repo": "infrastructure",
       "path": "environments/prod/ecs-application/terragrunt.hcl",
-      "commit": "a1ece0730e0916f8198f57ce27bcfb2c87cb8be3",
-      "blob": "60c7e9fd7f6efbff36e315c5feb56096c9cce547",
+      "commit": "56e08e45a08e9f32754e85b81a9fbdede89190d3",
+      "blob": "48de55aab25b320a3296a9c18a21377b8c2253e0",
       "sections": [
         "la-noche-de-cartera-la-corre-loan-servicing"
       ]
@@ -176,8 +176,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Models/Lender.php",
-      "commit": "7aaadd1bd56afffb54179c798d3886974f8e2672",
-      "blob": "eb2352b9117b24f88f8d5931a4c130168042127d",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "3ec71102726843b45e19b65f572cc8e5090b934a",
       "sections": [
         "colilla-el-residuo-se-condona-en-el-corte"
       ]
@@ -185,8 +185,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/CreditopXRequestHistoryController.php",
-      "commit": "39def3d0c487ee459997b8fa502dc3554b953092",
-      "blob": "e4756df9b113cfd1cda1c6a1c051a42e4aa50ac3",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "641f83cae3763eea5ac80dfa2ec9145b18873166",
       "sections": [
         "cambio-de-fecha-de-pago",
         "acciones-del-admin-sobre-la-cartera",

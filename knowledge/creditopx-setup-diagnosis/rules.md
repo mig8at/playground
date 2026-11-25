@@ -11,58 +11,75 @@ identidad en `credifamilia-origination` y cuándo se consulta Experian en
 
 ## Dos puertas evalúan la misma política
 
-El listado y el cupo leen filas distintas de las mismas tablas:
+El listado y el cupo leen filas y tablas distintas:
 
-- El listado `lenders-v2` (`LenderValidationService`) evalúa las `lender_rules` de los `group_rules`
-  de la sucursal de la solicitud, y sólo si la sucursal tiene algún `group_rule`; una entidad sin ningún `group_rule` en la sucursal
-  desaparece del listado (no queda ni aprobada ni rechazada). Una regla con
-  `status = 0` no se evalúa; un grupo con todas sus reglas apagadas deja pasar a la entidad, y basta
-  un grupo que pase. Las reglas por `specific_table` sólo leen `age`, `gender` y `document_type`;
-  otra columna se compara contra vacío. Este listado no evalúa `lender_datacredito_rules` para excluir: lee la copia por sucursal en
-  `RiskCentralValidationService` para la probabilidad y `can_check_preapproval`.
-- `available-quota` (`LenderRuleEvaluator`) evalúa la plantilla: las `lender_rules` con
-  `group_rule_id` nulo y `status = 1`. Lee cualquier columna de `specific_table` y compara con
-  `LenderRuleEvaluator::matches` (los mismos operadores que el listado). Si al cliente le falta el
-  valor de un campo de la regla, rechaza (`missing_field_value_<id>`, o
-  `missing_specific_table_value`). `DatacreditoRuleEvaluator` lee una fila de
-  `lender_datacredito_rules` con `allied_branch_id` nulo (la primera que devuelva la base, sin
-  orden); sin esa fila el filtro no aplica. Sin datos de buró rechaza con `no_datacredito_data`, y
-  con un registro sin puntaje o sin `principals`, con `datacredito_data_incomplete`. En
-  `no_datacredito_data` el log dice además si alguna consulta de DataCrédito (Acierta o
-  Acierta+Quanto) de esa persona falló en las últimas 24 horas (`datacredito_consult_failed`, un
-  marcador en caché que no se borra al consultar bien), para separar un timeout o un 503 de alguien
-  sin historial. La razón y el resultado no cambian.
+- El listado `lenders-v2` (`LenderValidationService`) evalúa las `lender_rules` activas (`status = 1`) de los
+  `group_rules` activos (`status = 1`) de la sucursal de la solicitud, y sólo si la sucursal tiene algún `group_rule`
+  activo (`LenderListingService`); una entidad sin ningún `group_rule` activo con reglas activas en la sucursal
+  desaparece del listado (`no_rules_for_lender_in_branch`, no queda ni aprobada ni rechazada). Como la consulta ya
+  filtra `lenderRules` por `status = 1`, una regla con `status = 0` no se carga y un grupo con todas sus reglas apagadas
+  no cuenta como grupo de la entidad; basta un grupo con reglas activas que pase. Las reglas por `specific_table` sólo
+  leen `age`, `gender` y `document_type`; otra columna se compara contra vacío. Este listado no evalúa reglas de buró
+  para excluir: lee `lender_datacredito_rules` por sucursal en `RiskCentralValidationService` para la probabilidad y
+  `can_check_preapproval`, ignorando la regla si tiene `status = 0` (en ese caso deja `can_check_preapproval = true`).
+- `available-quota` (`LenderRuleEvaluator`, vía `LenderRuleRepository::findGenericByLender`) evalúa la base de la
+  entidad: las filas de `lender_base_rules` con `status = 1`. Lee cualquier columna de `specific_table` y compara con
+  `LenderRuleEvaluator::matches` (los mismos operadores que el listado). Si al cliente le falta el valor de un campo de
+  la regla, rechaza (`missing_field_value_<id>`, o `missing_specific_table_value`). `DatacreditoRuleEvaluator` (vía
+  `LenderDatacreditoRulesRepository::findGenericByLender`) lee una fila de `lender_base_datacredito_rules` con
+  `status = 1` (la primera que devuelva la base, sin orden); sin esa fila el filtro no aplica. Sin datos de buró rechaza
+  con `no_datacredito_data`, y con un registro sin puntaje o sin `principals`, con `datacredito_data_incomplete`. En
+  `no_datacredito_data` el log dice además si alguna consulta de DataCrédito (Acierta o Acierta+Quanto) de esa persona
+  falló en las últimas 24 horas (`datacredito_consult_failed`, un marcador en caché que no se borra al consultar bien),
+  para separar un timeout o un 503 de alguien sin historial. La razón y el resultado no cambian.
 
-Las dos puertas aplican el tope de créditos del cliente en el mes
-(`lender_requirements.max_credits_per_client_month`, `ClientMonthlyCreditRuleEvaluator`) a las
-entidades 2: el listado saca a la entidad de las que pasaron y `available-quota` rechaza con
-`client_monthly_credits_exhausted` antes de evaluar la plantilla.
+Las dos puertas aplican el tope de créditos del cliente en el mes (`lender_requirements.max_credits_per_client_month`,
+`ClientMonthlyCreditRuleEvaluator`) a las entidades 2: el listado saca a la entidad de las que pasaron y
+`available-quota` rechaza con `client_monthly_credits_exhausted` antes de evaluar la base.
 
-Por eso una entidad puede salir en el listado y fallar al pedir cupo, o al revés, cuando la
-plantilla y las copias de la sucursal no coinciden.
+Por eso una entidad puede salir en el listado y fallar al pedir cupo, o al revés, cuando las tablas base
+(`lender_base_rules`, `lender_base_datacredito_rules`) y las copias de la sucursal (`lender_rules`,
+`lender_datacredito_rules`) no coinciden.
 
 ## Alta: plantilla, copias y perfiles
 
-El admin de `legacy-application` (`addNewLenderRule`, al asociar entidades a una sucursal o crear la
-sucursal de un ecommerce) copia la plantilla (`group_rule_id` nulo) a un `group_rule` nuevo de la
-sucursal, salvo que la sucursal ya tenga un grupo con reglas de esa entidad. La copia no lleva
-`status`: queda activa por defecto aunque la regla de la plantilla esté apagada. Si no había
-plantilla, crea el grupo vacío y la sucursal queda sin filtro para esa entidad en el listado.
+El admin de `legacy-application` (`LenderRulesController::addNewLenderRule`, al asociar entidades a una
+sucursal o crear la sucursal de un ecommerce) ya no copia localmente la plantilla: tras confirmar
+la transacción (`DB::afterCommit`) delega en `/api/internal/hard-rules` (`HardRulesApiClient::seedBranch`)
+y `legacy-backend` (`InternalHardRulesController::seedBranch`) siembra la sucursal: si ya tiene grupo con
+reglas de esa entidad no hace nada; si no, copia la regla del comercio y, si el comercio no tiene,
+la plantilla de la entidad; si no hay ninguna de las dos, la sucursal queda sin filtro para esa
+entidad. Si la llamada falla, `legacy-application` registra un `Log::warning` (o notifica la
+excepción) sin revertir la sucursal. Sus acciones `store`, `update` y `destroy` también delegan en
+`/api/internal/hard-rules` sobre el comercio entero (ignorando `apply_all`). En `legacy-backend`,
+`Partner\LenderRulesController::addNewLenderRule` sigue copiando la plantilla (`lender_rules` con
+`group_rule_id` nulo) a un `group_rule` nuevo, con el `status` de cada regla, salvo que la sucursal ya
+tenga un grupo con reglas de esa entidad.
 
-El backoffice nuevo (`PUT lenders/{lender}/rules`, `LenderRulesWriterService`) escribe todo en una
-transacción: la plantilla y sus copias por sucursal; si la entidad no tenía reglas, crea la
-plantilla y un `group_rule` por cada sucursal activa en `lenders_by_allied_branches`. Sólo toca las
-reglas de su catálogo; las demás se listan como no gestionadas. Rechaza las entidades con política
-de otorgación especial, y a una rotativa sólo le edita la política, sin perfiles. La regla de
-datacrédito se escribe en la fila sin sucursal (la crea si falta) y se copia a las filas por
-sucursal. Los perfiles (`lender_users_categories` y sus `lender_users_category_rules`) se
-sincronizan con el orden de la pantalla en `priority`, que es lo que ordena la evaluación; `order`
-es sólo un espejo. `already_used_loan` nunca se escribe desde ahí. Sobre una categoría que otra
-entidad también usa, el guardado sólo lee y escribe las filas de criterios con el `lender_id` de la
-entidad que guarda (`LenderRulesService::ownRuleOf` / `ownRulesQuery`): si la entidad no tiene fila
-propia en el tipo, la crea aunque la categoría tenga una ajena, y nunca reescribe la de otra
-entidad. `template_key` (la marca del estándar, p. ej. `premium_plus`) se escribe sólo al crear el
-perfil; en uno existente manda la marca guardada.
+El backoffice nuevo (`PUT lenders/{lender}/rules`, `LenderRulesWriterService::save`) ejecuta la
+escritura en una transacción (`saveInTransaction`) y, al confirmar, recalcula los disparadores de
+cada comercio fuera de ella (`MerchantTriggerService::recalculateEveryMerchantOf`). Rechaza
+entidades con política de otorgación especial (`isSpecialPolicy`), y a las entidades sin perfiles
+(`isPolicyOnly`: toda entidad con `response_type` distinto de 2, rotativas incluidas) sólo les edita
+la política, sin perfiles y exigiendo al menos una regla activa (`hasRuleOn`). Sólo toca las reglas de su catálogo (`LenderRulesMap::USER_RULES`);
+las demás se listan como `unmanagedRules`. Sin `alliedId`, `writeUserPolicy` escribe la base de la
+entidad en `lender_base_rules` dentro del `lender_base_rule_group_id` indicado (o crea un
+`LenderBaseRuleGroup` si falta; rechaza si hay varios sin indicar cuál) y propaga a las filas
+por sucursal (`group_rule_id` no nulo) excluyendo los comercios con `scope = 'merchant'` en
+`lender_rule_scopes`. Con `alliedId`, actualiza sólo los `group_rules` activos de ese comercio. Si
+la entidad no tenía filas por sucursal, `bootstrapBranchGroups` crea un `group_rule` por cada
+sucursal activa en `lenders_by_allied_branches` (acotada a `alliedId` si viene). La regla de
+datacrédito (`writeBureauPolicy`) se escribe en `lender_base_datacredito_rules` cuando no viene
+`alliedId` (la crea si falta) y actualiza `lender_datacredito_rules` por sucursal (sólo las del
+comercio si viene `alliedId`, o excluyendo comercios con `scope = 'merchant'`). Los perfiles
+(`lender_users_categories` y sus `lender_users_category_rules`) se sincronizan con el orden de la
+pantalla en `priority`, que es lo que ordena la evaluación; `order` es sólo un espejo.
+`already_used_loan` nunca se escribe desde ahí. Sobre una categoría que otra entidad también usa,
+el guardado sólo lee y escribe las filas de criterios con el `lender_id` de la entidad que guarda
+(`LenderRulesService::ownRuleOf` / `ownRulesQuery`): si la entidad no tiene fila propia en el tipo,
+la crea aunque la categoría tenga una ajena, y nunca reescribe la de otra entidad. `template_key`
+(la marca del estándar, p. ej. `premium_plus`) se escribe sólo al crear el perfil; en uno existente
+manda la marca guardada.
 
 Un perfil se puede desactivar (`lender_users_categories.active`): conserva sus filas para el
 historial, el motor de categorías de `legacy-backend` sólo carga reglas de categorías activas y el
@@ -92,7 +109,7 @@ cambió a los perfiles marcados: el que tenía el valor anterior del estándar t
 tenía otro lo conserva (`LenderRulesWriterService::followProfileTemplate`). Escribe sólo las columnas
 de esos criterios en la fila tipo 1 propia del perfil, versiona cada entidad tocada en su historial
 con el actor, y no pasa por la regla de Premium Plus: guardar el estándar funciona aunque una
-entidad tenga el suyo apagado o en $0. El readiness (`LenderReadinessService`) avisa
+entidad tenga su Premium Plus apagado o en $0. El readiness (`LenderReadinessService`) avisa
 `premiumPlusProfileMissing` (ningún perfil Premium Plus) y `premiumPlusProfileInactive` (todos
 apagados) en las entidades de consumo de política genérica.
 
@@ -111,32 +128,42 @@ entidad (`PUT lenders/{lender}/config/payment-method`, `payment_methods_by_lende
 
 ## Identidad y NIT
 
-`CreditopXFlowService` toma el proveedor de identidad de la fila con `order = 1` de
-`lender_identity_validation_types`, sin mirar su estado. Sin esa fila devuelve el paso `error` con
-tipo `no_validation_configured`, salvo que el cliente tenga una validación manual de menos de 24
-horas. El estado de la validación (`ValidationStatusService`) usa la misma fila: sin ella el tipo
-queda en desconocido (0) y sólo exige TusDatos; la columna heredada `lenders.validation_type`
-(2 AWS, 4 ADO, 5 CrossCore, entre otros) sólo se usa si la fila trae un tipo fuera del catálogo, y
-si las dos difieren se registra la deriva. El backoffice de configuración avisa
-`no_primary_provider`, `primary_inactive` o `no_active_provider`. El NIT del pagaré y los
-consentimientos es `lenders.originator_nit`, que el backoffice guarda con puntos y dígito de
-verificación.
+`CreditopXFlowService` toma el proveedor de identidad de la fila con `order = 1` de `lender_identity_validation_types`,
+sin mirar su estado. Sin esa fila devuelve el paso `error` con tipo `no_validation_configured`, salvo que el cliente
+tenga una validación manual de menos de 24 horas. El estado de la validación (`ValidationStatusService`) usa la misma
+fila: sin ella el tipo queda en desconocido (0) y sólo exige TusDatos; la columna heredada `lenders.validation_type`
+(2 AWS, 4 ADO, 5 CrossCore, entre otros) sólo se usa si la fila trae un tipo fuera del catálogo, y si las dos difieren
+se registra la deriva. El backoffice de configuración avisa `no_primary_provider`, `primary_inactive` o
+`no_active_provider`.
+
+El backoffice (`LenderConfigService::saveIdentity`) recibe `originatorTaxId` y persiste sólo los dígitos en
+`lenders.originator_nit` y el dígito de verificación aparte en `lenders.originator_tax_id_check_digit` (conservando el
+ya guardado si los dígitos no cambiaron, o calculándolo con `TaxId::verificationDigit` según el país). Para imprimir
+pagarés y consentimientos con puntos y dígito de verificación (`901.243.092-9`), el modelo expone el accessor
+`originator_nit_printed` (`Lender::getOriginatorNitPrintedAttribute`).
 
 ## Diagnóstico: no salió en el listado
 
 Con `response_type` 2, una entidad que no cumple las reglas de la sucursal sale del listado; con 3,
-también, salvo que el cliente ya tenga un cupo rotativo aprobado con ella. El detalle queda en
-`profiling_reviews.hard_rules` de la solicitud: por entidad y por `group_rule`, una entrada por
-regla con `rule_id`, `field_id` o `specific_table`/`column`, `operator`, `value`,
-`data_to_validate` y `response`. Una entidad pasa si cualquiera de sus `group_rule` sale entero en verdadero, así que una `response`
-en falso explica la salida sólo si ningún grupo de esa entidad pasó; una entrada con
-`rule_id` nulo y `all_rules_disabled` es un grupo con todo apagado. El reemplazo de la revisión al
-guardar los resultados de preaprobación conserva el mismo `hard_rules`.
+también, salvo que el cliente ya tenga un cupo rotativo aprobado con ella. `LenderValidationService`
+sólo carga grupos activos (`group_rules.status = 1`) con reglas activas (`lender_rules.status = 1`);
+si una entidad no tiene ningún grupo con al menos una regla activa suya (incluido el caso de tener
+todas sus reglas en `status = 0`), sale del listado con `no_rules_for_lender_in_branch`. El detalle
+queda en `profiling_reviews.hard_rules` de la solicitud: por entidad y por `group_rule`, una
+entrada por regla con `rule_id`, `field_id` o `specific_table`/`column`, `operator`, `value`,
+`data_to_validate` y `response`. Una entidad pasa si cualquiera de sus `group_rule` sale entero en
+verdadero, así que una `response` en falso explica la salida sólo si ningún grupo de esa entidad
+pasó; una entrada con `rule_id` nulo y `all_rules_disabled` sólo ocurre si una regla activa del
+grupo carece de `field_id` y de `specific_table`. El reemplazo de la revisión al guardar los
+resultados de preaprobación conserva el mismo `hard_rules`.
 
-Una entidad 2 también sale si el cliente ya llegó al tope de créditos del mes con ella
-(`lender_requirements.max_credits_per_client_month`, `ClientMonthlyCreditRuleEvaluator`), y esa
-salida no deja rastro en `hard_rules`: sus reglas pueden figurar todas en verdadero. Se confirma
-pidiendo cupo, que rechaza con `client_monthly_credits_exhausted`.
+En `lenders-v2` (`LenderListingService`), una entidad también sale si no tiene configuración activa
+en el comercio (`lenders_by_allieds.status = 1`, `dropLendersWithoutAlliedConfig`), si el `flow_id`
+de la solicitud acota el universo (en `flow_id` 2 sólo quedan `response_type` 0), o si el cliente
+ya llegó al tope de créditos del mes con ella (`lender_requirements.max_credits_per_client_month`,
+`ClientMonthlyCreditRuleEvaluator`), salida que no deja rastro en `hard_rules`: sus reglas pueden
+figurar todas en verdadero y se confirma pidiendo cupo, que rechaza con
+`client_monthly_credits_exhausted`.
 
 La falta de categoría no saca a una entidad CreditopX de `lenders-v2`: el listado evalúa la categoría
 (`stampCreditopXApproval`) sólo para sellar el estado 11 cuando alguna entidad 2 aprueba con cupo.
@@ -188,27 +215,35 @@ y nada aprueba, registra una advertencia y crea el crédito sin descontarlo de n
 
 ## Leer `users_category_log`
 
-El motor de categorías escribe una fila por evaluación; el listado (`stampCreditopXApproval`),
-`available-quota` y la autorización evalúan cada uno, así que una solicitud deja varias. No toda
-evaluación escribe: con `logResult` en falso `getLenderUserCategory` no deja fila, y así evalúan, a
-través de `InitialFeePolicyResolver`, la foto de la oferta al elegir la entidad
-(`OfferSnapshotRecorder`) y la compuerta que la compara en el plan de pagos, los documentos, el OTP y
-la autorización (`OfferStillStandsGuard`). La tabla no tiene `user_request_id`: se busca por
-`user_id` y `lender_id`, tomando la más reciente anterior al momento que se diagnostica.
+El motor de categorías escribe una fila por evaluación; el listado (`stampCreditopXApproval`), `available-quota` y la
+autorización evalúan cada uno, así que una solicitud deja varias. No toda evaluación escribe: con `logResult` en falso
+`getLenderUserCategory` no deja fila, y así evalúan, a través de `InitialFeePolicyResolver`, la foto de la oferta al
+elegir la entidad (`OfferSnapshotRecorder`) y la compuerta que la compara en el plan de pagos, los documentos, el OTP y
+la autorización (`OfferStillStandsGuard`). La tabla no tiene `user_request_id`: se busca por `user_id` y `lender_id`,
+tomando la más reciente anterior al momento que se diagnostica. Cada fila escrita deja además, en los dos monolitos, una
+fila en `profiling_category_runs` (`ProfilingCategoryRun::record`) con su `users_category_log_id`, el `source` del flujo
+que evaluó (`unknown` si no llegó) y el `engine`; cuando llega un `runId` (el del listado), hereda el
+`profiling_review_id` y el `user_request_id` de otra fila de la misma corrida o de la `ProfilingReview` con ese `run_id`,
+y si la review se crea después, `ProfilingCategoryRun::attachReview` los estampa por `run_id`. Ese es el cruce con la
+solicitud.
 
-`category_rules_acceptance` es un JSON con una clave por id de `lender_users_category_rules`
-evaluada, en orden de `priority` y luego id de categoría, y por cada una sus criterios en verdadero
-o falso (`occupation`, `age`, `min_income`, `score`, `debt_capacity`, `datacredito`…). Un perfil
-con `income_sources` suma `verified_income` (si alguna de esas centrales dio ingreso); una regla de
-etapa extendida con `residence_city_field_id`, `residence_city`; y sólo los perfiles con la política
-de Finandina (`capacity_method = finandina_v1`), `finandina_report_fresh` y `finandina_capacity`. Gana la primera que
-cumple todo: las anteriores muestran por qué no. Con aprobación por regla la fila trae la categoría y
-`available_amount`; en la raíz del JSON van, como escalares junto a `available_amount`, las consultas
-evaluadas y, si aprobó un perfil de Finandina, las claves `finandina_*` (SMMLV, versión de reglas,
-capacidad, ingreso, tasa, plazo, reporte usado…): un lector que tome cada arreglo de la raíz como una
-regla las ignora. Si aprobó por puntaje, el JSON lleva `scoring_path`, `final_score` y sus
-componentes en vez de los criterios; si nada aprobó, `lender_users_category_id` es 0. Las reglas de
-un perfil desactivado no aparecen en las filas de `legacy-backend`: no se evalúan. Un `datacredito`
-en falso es un cliente sin consulta de buró, que corta la evaluación de esa regla.
-`legacy-application` tiene su propio servicio que escribe la misma tabla con otras claves (por
-ejemplo `ocupations` en vez de `occupation`).
+`category_rules_acceptance` es un JSON con una clave por id de `lender_users_category_rules` evaluada, en orden de
+`priority` y luego id de categoría, y por cada una sus criterios en verdadero o falso (`occupation`, `age`,
+`min_income`, `score`, `debt_capacity`, `datacredito`…). Un perfil con `income_sources` suma `verified_income` (si
+alguna de esas centrales dio ingreso); una regla de etapa extendida con `residence_city_field_id`, `residence_city`; y
+sólo los perfiles con la política de Finandina (`capacity_method = finandina_v1`), `finandina_report_fresh` y
+`finandina_capacity`. Gana la primera que cumple todo: las anteriores muestran por qué no. Con aprobación por regla la
+fila trae la categoría y, en el JSON, `available_amount` recortado a 0 como mínimo (si el cálculo dio negativo, el valor
+sin recortar va en `available_amount_raw`); en la raíz del JSON van, como escalares junto a `available_amount`, las
+consultas evaluadas y, si aprobó un perfil de Finandina, las claves `finandina_*` (SMMLV, versión de reglas, capacidad,
+ingreso, tasa, plazo, reporte usado…): un lector que tome cada arreglo de la raíz como una regla las ignora. Si aprobó
+por puntaje, el JSON lleva `scoring_path`, `final_score` y sus componentes en vez de los criterios (con el mismo
+`available_amount` recortado y `available_amount_raw` si fue negativo); si nada aprobó, `lender_users_category_id` es
+0. Si la entidad no tiene reglas ni política de puntaje para el tipo evaluado (`hasPolicyForType` en falso), no evalúa y
+sólo deja fila cuando es de cupo propio (`response_type` 2 o 3) y se esperaba política para ese tipo (titular inicial,
+o codeudor si alguna categoría lo exige): `lender_users_category_id = 0` con `sin_politica_configurada: true` y
+`policy_type_id`. Las reglas de un perfil desactivado no aparecen en las filas de `legacy-backend`: no se evalúan. Un
+`datacredito` en falso es un cliente sin consulta de buró, que corta la evaluación de esa regla. `legacy-application`
+tiene su propio servicio que escribe la misma tabla con su propio juego de criterios (por ejemplo `gender`,
+`credit_cards`, `employment_continuity`, `overdue_vector_validation`), y también registra `ProfilingCategoryRun` con su
+`source` y su `runId`.

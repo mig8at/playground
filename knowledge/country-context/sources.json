@@ -2,13 +2,13 @@
   "version": 1,
   "title": "País y documentos del flujo",
   "summary": "Origen del país, documentos permitidos y diferencias entre API modular, monolito y selector; largo del celular, tipo de documento en el alta y validación de datos personales; país activo frente a país con operación.",
-  "reviewedAt": "2026-11-03T14:50:32Z",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/AlliedInfoController.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "abde65949fd147db25712b52345fb7e901d0dc2c",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "2ac7a56be304c45433e49067366da185dfbedcc4",
       "sections": [
         "pais-del-comercio",
         "largo-del-celular"
@@ -26,8 +26,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Rules/CellPhoneLengthForCountry.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "858988349e466a6edbafb58cdd9bc1819a259671",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "e9712ac47c4ec4d7267e56d9f2daa74efc66a89a",
       "sections": [
         "largo-del-celular"
       ]
@@ -55,8 +55,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/RegisterCellPhoneService.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "577217af200266a640f9bfe8d8b0b0fa695ce05c",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "c0c4594332b8e944247e70b25fc9506c7542d1e4",
       "sections": [
         "tipo-de-documento-en-el-alta"
       ]
@@ -64,8 +64,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/UserService.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "800233eb8f163caca142cd682f81f0076f0f37f2",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "d55c56008f7143948dd5cb2e5235ae717b0a5537",
       "sections": [
         "tipo-de-documento-en-el-alta"
       ]
@@ -100,8 +100,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Requests/Customer/Onboarding/PersonalInfoRequest.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "05b9ab92688b872c9a22386820af98143cd706bc",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "9ce2df40f1e5b86984de505c1c184b7b4d49e381",
       "sections": [
         "validacion-del-documento-en-datos-personales"
       ]
@@ -137,8 +137,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Http/Requests/Admin/Allied/StoreRequest.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "c90d562529a3449f6e35bad1f84e4ddf213adf82",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "29f5ea0dc6db380ae9e80ed5ec0445ab3348faca",
       "sections": [
         "pais-activo-y-pais-con-operacion"
       ]
@@ -146,8 +146,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Requests/Admin/Allied/StoreRequest.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "c4ee10d77adf19aea7efc7167e6f9888b70c12f3",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "feb6c0b82976dfaf416a0dd768e3fd619a44f0e4",
       "sections": [
         "pais-activo-y-pais-con-operacion"
       ]
@@ -155,8 +155,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Requests/Admin/Allied/UpdateRequest.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "4257eb2d2036c701fbbf2d67ab9207b9228408e0",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "a371ddf9bc6ebc00318a09e6347d4a3f106ec54a",
       "sections": [
         "pais-activo-y-pais-con-operacion"
       ]
@@ -191,8 +191,8 @@
     {
       "repo": "form-service",
       "path": "internal/infra/storage/mysql/queries/country_queries.sql",
-      "commit": "cfd0f02ede473649498f47b87218fb9ab075bdb3",
-      "blob": "c314b61e8d1f257d4edf76e6474b607d7a884534",
+      "commit": "84117888e3c655b93b5f93e7f11772d03c625a3a",
+      "blob": "1980bb2ea09b7b80cc12b97056f2125d85eb99b1",
       "sections": [
         "pais-activo-y-pais-con-operacion"
       ]

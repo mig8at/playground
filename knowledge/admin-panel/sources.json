@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Admin de legacy-application: secciones, roles y escrituras",
   "summary": "Qué hace cada sección del admin por el negocio, quién entra con qué perfil, qué escribe, las bajas lógicas con -t<n>; las escrituras sin permiso, las lecturas por id sin alcance de comercio, los listados sin recorte por rol y las rutas de desarrollo publicadas; historial, facturación y recaudo, y lo que ve el comercio de un crédito CreditopX.",
-  "reviewedAt": "2026-11-18T00:07:49+00:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "legacy-application",
@@ -43,8 +43,8 @@
     {
       "repo": "legacy-application",
       "path": "resources/js/navigation/vertical/management.js",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "47957e8b0ced81b2eaa64468691ceeb7744f74b3",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "eaace8c6c8945205d48622c7244c6b5fe8b72467",
       "sections": [
         "el-menu-y-el-backend-piden-permisos-distintos",
         "gestion-usuarios-solicitudes-y-autorizaciones"
@@ -63,8 +63,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Kernel.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "071d6571bc023f91113c75c579d4993c571f95d9",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "7dcd3ff7666bbd60d2e46ff4751f9f4e28b99eae",
       "sections": [
         "el-menu-y-el-backend-piden-permisos-distintos"
       ]
@@ -72,8 +72,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/UserController.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "ae8f8c479d630ca8119267649fe7bcd696b90ecf",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "b490bfd8c53b6af50d82fbc2649c39270f6b011e",
       "sections": [
         "escrituras-que-no-piden-permiso",
         "gestion-usuarios-solicitudes-y-autorizaciones",
@@ -95,8 +95,8 @@
     {
       "repo": "legacy-application",
       "path": "routes/admin.php",
-      "commit": "2798bb7aa41fe406ed4335845c7e814dfbc5f4dc",
-      "blob": "ed9787f30df38ad0b913720c3d4ccd590db922c3",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "a1ad36026b0fe68b8e1e0d2c1bcda49784e276e1",
       "sections": [
         "centrales-de-riesgo-y-validacion-de-usuarios",
         "configuracion-comercios-entidades-y-reglas",
@@ -113,8 +113,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/CreditopXRequestHistoryController.php",
-      "commit": "39def3d0c487ee459997b8fa502dc3554b953092",
-      "blob": "e4756df9b113cfd1cda1c6a1c051a42e4aa50ac3",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "641f83cae3763eea5ac80dfa2ec9145b18873166",
       "sections": [
         "creditos-creditopx",
         "el-historial-de-un-credito-creditopx-lleva-dos-estados",
@@ -133,8 +133,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/AlliedController.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "ce2c8b8031cae3c33bee6606d20a627623e21e1d",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "3a96fde4c3abf867cf3760e6b9dfb3c7d6ad2609",
       "sections": [
         "configuracion-comercios-entidades-y-reglas"
       ]
@@ -142,8 +142,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/AlliedAlliedBranchController.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "be1146122a40887c03a1ddeba278f7c44c6308f7",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "b9fa3d3cdce4edd1e9f68d816d9d3d7ef568b5fb",
       "sections": [
         "configuracion-comercios-entidades-y-reglas",
         "escrituras-que-no-piden-permiso"
@@ -211,8 +211,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/CredentialsController.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "ae32751332a2a75f6a9568f9c677020f72e9d89c",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "392e1742e63e8d3964ba87ceb56ace72ba7a70bd",
       "sections": [
         "escrituras-que-no-piden-permiso"
       ]
@@ -284,8 +284,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/UserRequestController.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "b5e3f9ac409434e391a721b3cc453d93662f8573",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "c7ccac58446aa89556a2abdc40511cdd653c09da",
       "sections": [
         "el-comercio-ve-un-credito-por-cedula-y-sus-solicitudes-por-asesor"
       ]
@@ -293,8 +293,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/CreditopXRequestHistoryService.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "babbf121a58be7990a224fc971003f231363bb64",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "a8c4274eaf9fd0bc3167818d6782c18cb9c308cb",
       "sections": [
         "el-historial-de-un-credito-creditopx-lleva-dos-estados"
       ]
@@ -321,8 +321,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Providers/RouteServiceProvider.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "410b71bf5e2b9e53a1a9000b0f2be2584c6069cc",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "81015f3338c6caf8c51c7cd0a4e24f95f94ae2b1",
       "sections": [
         "el-menu-y-el-backend-piden-permisos-distintos"
       ]
@@ -487,8 +487,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Models/LenderAlliedCredential.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "871fcbc88f0f48c0fedb8f768e831ee2e5cf1bc9",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "01dd88aa500f95e5d6e16ac4bd1bb52f4e6a3f25",
       "sections": [
         "escrituras-que-no-piden-permiso"
       ]
@@ -505,8 +505,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/ProfilingController.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "7802065602c7042ecc2929736c9012868601a655",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "0c0548b753ba9fd4b00d7cde95b23f7667cb0466",
       "sections": [
         "rutas-de-desarrollo-en-la-version-publicada"
       ]

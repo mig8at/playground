@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Validación de identidad: proveedores y cuándo corre",
   "summary": "Qué proveedor valida a la persona después de elegir una entidad que origina en casa (ADO, AWS, CrossCore, Evidente o ninguno), cómo se elige por entidad y en orden, los estados de ADO y su re-validación sólo con selfie, y en qué se diferencia de la validación de datos del tramo común.",
-  "reviewedAt": "2026-11-23T12:00:00-05:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -55,8 +55,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Identity/App/Services/AdoService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "886a0ce596c113d5260b94751a5453d9eb274ce1",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "3239e307732e91cbb677b98705456ee88437e0ff",
       "sections": [
         "ado-documento-y-selfie-y-la-re-validacion-solo-con-selfie",
         "ado-paso-a-paso-enroll-callback-y-estado"
@@ -65,8 +65,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Identity/App/Services/AdoValidationModeResolver.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "97c4be52638ab6878b24b1153e12c06802534907",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "c6cad99804b607a3961ce275801b3baac2b569c2",
       "sections": [
         "ado-documento-y-selfie-y-la-re-validacion-solo-con-selfie"
       ]
@@ -101,8 +101,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/loan-confirmation.tsx",
-      "commit": "3f35ac9f768f66bb05a79361188c2b85344cda22",
-      "blob": "084efde54570ad612f39c92cd5aefacc2732b73e",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "84c831caffa31115e8411e965378a0cb2fce82f3",
       "sections": [
         "cada-entidad-elige-sus-proveedores-en-orden"
       ]
@@ -110,8 +110,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/UserController.php",
-      "commit": "2798bb7aa41fe406ed4335845c7e814dfbc5f4dc",
-      "blob": "ae8f8c479d630ca8119267649fe7bcd696b90ecf",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "b490bfd8c53b6af50d82fbc2649c39270f6b011e",
       "sections": [
         "la-validacion-manual-quien-la-escribe-y-que-la-frena"
       ]
@@ -119,8 +119,8 @@
     {
       "repo": "legacy-application",
       "path": "routes/admin.php",
-      "commit": "2798bb7aa41fe406ed4335845c7e814dfbc5f4dc",
-      "blob": "ed9787f30df38ad0b913720c3d4ccd590db922c3",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "a1ad36026b0fe68b8e1e0d2c1bcda49784e276e1",
       "sections": [
         "la-validacion-manual-quien-la-escribe-y-que-la-frena"
       ]
@@ -164,8 +164,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Identity/App/Http/Controllers/Customer/AdoController.php",
-      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
-      "blob": "2fa37c53cfc2e8df3ac370db84997872d24545cd",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "666ca09c368782a9b15c7dfc7076517d4a4f0bd2",
       "sections": [
         "ado-paso-a-paso-enroll-callback-y-estado"
       ]

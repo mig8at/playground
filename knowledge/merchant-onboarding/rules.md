@@ -7,33 +7,29 @@ No dar por creado un acceso al wizard sólo porque exista el comercio.
 
 ## El admin anterior tiene su propia alta
 
-En `legacy-application`, `Admin/AlliedController::store` (`AlliedController.php:100`) abre una transacción,
-genera slug y hash, sube la imagen a S3 y crea el comercio con los campos validados, incluidos `nit`,
-`price` y `country_id`, y confirma la transacción. Después, ya fuera de ella, llama a
-`TestAdvisorProvisioner::provision` (`AlliedController.php:133`): crea una sucursal física
-`p<hash>-fake` con la ciudad comodín del país (si existe) y un asesor de perfil Comercial (4) con
-correo `c<hash>-fake@<dominio>`, marcados como de prueba si la base ya tiene `users.is_test` y
-`allied_branches.is_test`; luego intenta su cuenta en el pool de Cognito de comercios
-(`TestAdvisorProvisioner.php:379` y `:442`). Los comercios dados de alta antes conservan la sucursal
-con el nombre `b<hash>-fake`; al asesor se lo encuentra por el correo, no por ese nombre. El hash de
-esa sucursal de prueba no es el del alta: el provisionador mezcla el id del comercio, el reloj y un
-azar, y descarta cualquiera que ya exista (`uniqueBranchHash`).
+En `legacy-application`, `Admin/AlliedController::store` (`AlliedController.php:101`) abre una transacción, genera slug y
+hash, sube la imagen a S3 y crea el comercio con los campos validados, incluidos `nit` y `country_id` (ya sin `price`),
+y confirma la transacción. Después, ya fuera de ella, llama a `TestAdvisorProvisioner::provision`
+(`AlliedController.php:133`): crea una sucursal física `p<hash>-fake` con la ciudad comodín del país (si existe) y un
+asesor de perfil Comercial (4) con correo `c<hash>-fake@<dominio>`, marcados como de prueba si la base ya tiene
+`users.is_test` y `allied_branches.is_test`; luego intenta su cuenta en el pool de Cognito de comercios. Los comercios
+dados de alta antes conservan la sucursal con el nombre `b<hash>-fake`; al asesor se lo encuentra por el correo, no por
+ese nombre. El hash de esa sucursal de prueba no es el del alta: el provisionador mezcla el id del comercio, el reloj y
+un azar, y descarta cualquiera que ya exista (`uniqueBranchHash`).
 
-Del mismo hash base sale también una sucursal ecommerce de prueba `e<hash>-fake`, con hash `e<hash>`,
-plataforma «Desarrollo propio» y un token de payment-link que se muestra una sola vez. Va separada de la
-física porque en legacy-backend una solicitud es ecommerce cuando su sucursal tiene credencial de
-ecommerce: compartirla cambiaría el canal asesor. El hash distinto evita que una compra por la tienda
-caiga en la física, porque legacy-backend resuelve la sucursal por hash con `->first()` (ver la sección
-de los hashes). Para comercios que no la tienen, `provisionEcommerce` la crea sin tocar al asesor y no
-crea otra si ya existe.
+Del mismo hash base sale también una sucursal ecommerce de prueba `e<hash>-fake`, con hash `e<hash>`, plataforma
+«Desarrollo propio» y un token de payment-link que se muestra una sola vez. Va separada de la física porque en
+legacy-backend una solicitud es ecommerce cuando su sucursal tiene credencial de ecommerce: compartirla cambiaría el
+canal asesor. El hash distinto evita que una compra por la tienda caiga en la física, porque legacy-backend resuelve la
+sucursal por hash con `->first()` (ver la sección de los hashes). Para comercios que no la tienen, `provisionEcommerce`
+la crea sin tocar al asesor y no crea otra si ya existe.
 
-Ese paso nunca rompe el alta: atrapa toda excepción y devuelve qué quedó. Si el ambiente no tiene el
-pool configurado o Cognito falla, el asesor queda en la base sin poder entrar al wizard; si el correo
-ya existía en el pool se deja con su clave anterior. Es idempotente por comercio: si ya hay un
-Comercial `c%-fake@` no crea otro. El resultado viaja en el flash sólo a quien tenga rol
-«Administrador» y permiso `create allied` (`AlliedController.php:140`); para los demás perfiles el
-asesor se crea igual sin mostrarse. Comprobar en la sucursal y en el pool qué quedó; no inferir un
-acceso funcionando sólo porque el alta respondió.
+Ese paso nunca rompe el alta: atrapa toda excepción y devuelve qué quedó. Si el ambiente no tiene el pool configurado o
+Cognito falla, el asesor queda en la base sin poder entrar al wizard; si el correo ya existía en el pool se deja con su
+clave anterior. Es idempotente por comercio: si ya hay un Comercial `c%-fake@` no crea otro. El resultado viaja en el
+flash sólo a quien tenga rol «Administrador» y permiso `create allied` (`AlliedController.php:140`); para los demás
+perfiles el asesor se crea igual sin mostrarse. Comprobar en la sucursal y en el pool qué quedó; no inferir un acceso
+funcionando sólo porque el alta respondió.
 
 ## La clave del asesor de prueba puede ser compartida por el ambiente
 
@@ -75,27 +71,25 @@ que devuelva primero la base; la otra no es alcanzable por su URL.
 
 ## La API modular es otra entrada
 
-El módulo `Partner` monta sus rutas en `/api/partners`. Con `auth.cognito`,
-`POST /merchants` pasa por `AlliedController::store` y `AlliedManagementService::storeAllied`.
-El servicio crea el comercio dentro de una transacción, procesa la imagen si llegó e incluye
-el país recibido. Puede guardar `theme_key` y `token_overrides` cuando esas claves están presentes.
-Devuelve el comercio; sucursales y usuarios tienen rutas de creación separadas.
+El módulo `Partner` monta sus rutas en `/api/partners`. Con `auth.cognito`, `POST /merchants` pasa por
+`AlliedController::store` y `AlliedManagementService::storeAllied`. El servicio crea el comercio dentro de una
+transacción, procesa la imagen si llegó e incluye el país recibido. Puede guardar `theme_key` y `token_overrides` cuando
+esas claves están presentes. Devuelve el comercio; sucursales y usuarios tienen rutas de creación separadas.
 
-A diferencia del admin anterior, no guarda `nit` ni `price`: el controlador no los pasa al servicio y
-el servicio no los incluye en los datos del comercio.
+No guarda `nit`, que el admin de legacy-application sí pide y guarda, ni `price`, que tampoco guarda el admin: el
+controlador no los pasa al servicio y el servicio no los incluye en los datos del comercio.
 
-Antes de crear el comercio, `storeAllied` lee el setting `front_url` (o `front_url_local` si
-`local_env` vale 1) con `SettingRepository::getValue`, sobre el modelo `Setting`, que castea `value`
-como JSON, y lo concatena con `'aliados/onboarding…'`. Esa URL no se usa después. Si el valor guardado
-es un objeto JSON, que es la forma que lee `legacy-application` (`->value['url']` en
-`AlliedAlliedBranchController` y en el provisionador), `getValue` devuelve un arreglo, la
-concatenación produce el aviso «Array to string conversion», Laravel lo convierte en excepción, la
-transacción se revierte y el endpoint responde 422 con ese mensaje sin crear el comercio.
-`storeAlliedBranch` concatena el mismo setting de la misma forma para armar el QR de la sucursal.
-Qué forma tiene el setting depende de los datos de cada ambiente, no del código.
+Antes de crear el comercio, `storeAllied` lee el setting `front_url` (o `front_url_local` si `local_env` vale 1) con
+`SettingRepository::getValue`, sobre el modelo `Setting`, que castea `value` como JSON, y lo concatena con
+`'aliados/onboarding…'`. Esa URL no se usa después. Si el valor guardado es un objeto JSON, que es la forma que lee
+`legacy-application` (`->value['url']` en `AlliedAlliedBranchController` y en el provisionador), `getValue` devuelve un
+arreglo, la concatenación produce el aviso «Array to string conversion», Laravel lo convierte en excepción, la
+transacción se revierte y el endpoint responde 422 con ese mensaje sin crear el comercio. `storeAlliedBranch` concatena el
+mismo setting de la misma forma para armar el QR de la sucursal. Qué forma tiene el setting depende de los datos de cada
+ambiente, no del código.
 
-Revisar ambas entradas cuando cambie el alta. Cambiar el controlador del admin no cambia
-esta API. El código no identifica por sí solo qué integraciones la usan hoy.
+Revisar ambas entradas cuando cambie el alta. Cambiar el controlador del admin no cambia esta API. El código no identifica
+por sí solo qué integraciones la usan hoy.
 
 ## La baja modifica usuarios en la base bajo condiciones concretas
 

@@ -2,13 +2,13 @@
   "version": 1,
   "title": "Alta y baja de comercios",
   "summary": "Las dos entradas de alta, sus efectos y diferencias, los hashes que se repiten, la clave del asesor de prueba y la baja y reactivación en la base.",
-  "reviewedAt": "2026-11-10T18:07:59+00:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/AlliedController.php",
-      "commit": "0c86754d79f825dc55556a5af7bbbd304e23d3c9",
-      "blob": "ce2c8b8031cae3c33bee6606d20a627623e21e1d",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "3a96fde4c3abf867cf3760e6b9dfb3c7d6ad2609",
       "sections": [
         "el-admin-anterior-tiene-su-propia-alta",
         "los-hashes-de-alta-se-repiten-dentro-del-mismo-segundo",
@@ -40,8 +40,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Partner/routes/api.php",
-      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
-      "blob": "29bc9b60adf04a7182ef2774c151522c121b029a",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "8dcce4d7785ea0e25b2bcd549c831d3e3f74f955",
       "sections": [
         "la-api-modular-es-otra-entrada"
       ]
@@ -49,8 +49,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Partner/App/Http/Controllers/AlliedController.php",
-      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
-      "blob": "c0b92e90ac417386651b2b03d1ec1eb7ce331c60",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "92a6feb86f0dc119341caa5e057f25cd55853707",
       "sections": [
         "la-api-modular-es-otra-entrada"
       ]
@@ -58,8 +58,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Partner/App/Services/AlliedManagementService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "7da20a81759a1e037e675374290522303476b7e9",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "d99efdf1707a2be56856d6d7f30c8efe02a91ed4",
       "sections": [
         "los-hashes-de-alta-se-repiten-dentro-del-mismo-segundo",
         "la-api-modular-es-otra-entrada",
@@ -70,8 +70,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/AlliedAlliedBranchController.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "be1146122a40887c03a1ddeba278f7c44c6308f7",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "b9fa3d3cdce4edd1e9f68d816d9d3d7ef568b5fb",
       "sections": [
         "los-hashes-de-alta-se-repiten-dentro-del-mismo-segundo",
         "la-api-modular-es-otra-entrada"
@@ -89,8 +89,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Services/Allied/EcommerceBranchCreator.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "5a4d3c45042b2cb22dc45f6f5f6db7b0e4fca8be",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "d47b773d549185438490c61f1031ae4c5ce596fa",
       "sections": [
         "los-hashes-de-alta-se-repiten-dentro-del-mismo-segundo"
       ]
@@ -98,8 +98,8 @@
     {
       "repo": "legacy-application",
       "path": "config/services.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "5a0207b2f506e17cd61d3b32ff759121b697f923",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "8f5302921d5bdaa9083b2699211c67d169b9b4c8",
       "sections": [
         "la-clave-del-asesor-de-prueba-puede-ser-compartida-por-el-ambiente"
       ]

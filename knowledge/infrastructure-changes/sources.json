@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Infraestructura: cómo se propone y se aplica un cambio",
   "summary": "Repo infrastructure: PR por rama, un ambiente por PR (development y luego prod), sin plan ni apply local, apply manual desde main, reglas del PR, cómo se publica una ruta en el API Gateway y qué backend elige cada ruta en development.",
-  "reviewedAt": "2026-11-23T22:44:40+00:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "infrastructure",
@@ -50,8 +50,8 @@
     {
       "repo": "infrastructure",
       "path": "environments/prod/api-gateway/terragrunt.hcl",
-      "commit": "1fcd9c0604cca8eeab7eeecf3cdf9e580c2e702f",
-      "blob": "5b9df87cf9736b7991a403d67f9f8295759919cf",
+      "commit": "56e08e45a08e9f32754e85b81a9fbdede89190d3",
+      "blob": "b6f7da1147a28526b2b123e082b27f368f256e9b",
       "sections": [
         "publicar-una-ruta-en-el-api-gateway",
         "en-development-cada-ruta-elige-su-backend"
@@ -60,8 +60,8 @@
     {
       "repo": "infrastructure",
       "path": ".github/workflows/production-apply.yml",
-      "commit": "fe94df2045ff2f62f3e73cfd55cdb9d0046e2e1c",
-      "blob": "1083427c2fa41a174d3a321b5cff680199ca3790",
+      "commit": "56e08e45a08e9f32754e85b81a9fbdede89190d3",
+      "blob": "24ae28d464ad0152a716ea7a24fda292d6bf8e33",
       "sections": [
         "un-cambio-entra-por-pr-development-e-internal-se-aplican-al-mergear-prod-a-mano"
       ]

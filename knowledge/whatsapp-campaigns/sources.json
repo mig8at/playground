@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Campañas de WhatsApp del backoffice",
   "summary": "Cómo se crea una campaña (la pantalla limpia el CSV, el servidor no; crear y lanzar son dos pasos, crear no es atómico), cómo la envía messaging-service con Temporal de a un destinatario, por qué relanzar sólo manda pendientes y dónde puede repetirse un envío, cómo se deduce el estado, qué frena el lanzamiento y qué datos personales quedan en logs.",
-  "reviewedAt": "2026-11-17T12:52:59+00:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -353,8 +353,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/backoffice/communications/src/lib/application/campaigns.use-cases.ts",
-      "commit": "3f35ac9f768f66bb05a79361188c2b85344cda22",
-      "blob": "d90ec31bf915172a47535e4c75c72e4b47fd3137",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "b94a3949e1869994ea5668dabafdefbc2711c72e",
       "sections": [
         "crear-y-lanzar-son-dos-pasos-y-crear-no-es-atomico-ni-idempotente",
         "el-estado-de-la-campana-es-una-deduccion-sobre-la-cola"
@@ -412,8 +412,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/routes/backoffice.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "0b184a75eac03d3d0dbbc41c84b96c67499da053",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "f8f3434f805d719995bcd0f5e0b00d1b128bbaa2",
       "sections": [
         "la-pantalla-limpia-el-archivo-y-el-servidor-lo-toma-como-viene"
       ]

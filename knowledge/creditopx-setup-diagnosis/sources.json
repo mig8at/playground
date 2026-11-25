@@ -2,13 +2,13 @@
   "version": 1,
   "title": "CreditopX: alta de una entidad y por qué no aparece",
   "summary": "Qué filas necesita una entidad CreditopX (plantilla de reglas y copias por sucursal, regla de datacrédito sin sucursal, perfiles por priority, proveedor de identidad order 1) y cómo leer hard_rules, la razón de available-quota, el rechazo de la autorización sin categoría y users_category_log para saber por qué un cliente no la vio, la vio sin cupo o no pudo autorizar.",
-  "reviewedAt": "2026-11-17T12:52:59+00:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/lenders/LenderValidationService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "bb21da995f7ad0e80118c38bb001d5dbcaa97906",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "0aae46a137d212723c3575edb08a04d1722e2846",
       "sections": [
         "dos-puertas-evaluan-la-misma-politica",
         "diagnostico-no-salio-en-el-listado"
@@ -27,8 +27,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Repositories/LenderRuleRepository.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "b1b208379410a0ece52d70b9f5f34600b08c2360",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "c898c5b956084e13a07660bd2c4eaeb4d9f075ef",
       "sections": [
         "dos-puertas-evaluan-la-misma-politica"
       ]
@@ -46,8 +46,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Repositories/LenderDatacreditoRulesRepository.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "cd30196f52d797d613e5a47ae85cec95e7ac7f14",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "f94db42bbf9ff6a5c088a3b4ee9386e0b3d3a34c",
       "sections": [
         "dos-puertas-evaluan-la-misma-politica"
       ]
@@ -64,8 +64,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/LenderRulesController.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "41e5d352f40a443eceb74d56f74826b4d229524f",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "3b316452b7040b545a7f362fe07e2127e814a254",
       "sections": [
         "alta-plantilla-copias-y-perfiles"
       ]
@@ -73,8 +73,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/AlliedAlliedBranchController.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "be1146122a40887c03a1ddeba278f7c44c6308f7",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "b9fa3d3cdce4edd1e9f68d816d9d3d7ef568b5fb",
       "sections": [
         "alta-plantilla-copias-y-perfiles"
       ]
@@ -82,8 +82,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Services/Allied/EcommerceBranchCreator.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "5a4d3c45042b2cb22dc45f6f5f6db7b0e4fca8be",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "d47b773d549185438490c61f1031ae4c5ce596fa",
       "sections": [
         "alta-plantilla-copias-y-perfiles"
       ]
@@ -100,8 +100,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/App/Services/LenderRulesWriterService.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "40ab7798d87823299ffa3f2860651fb7a1c7bb15",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "817ef56e54ff1b5da914cdb73015275dec317de4",
       "sections": [
         "alta-plantilla-copias-y-perfiles"
       ]
@@ -109,8 +109,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/routes/backoffice.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "0b184a75eac03d3d0dbbc41c84b96c67499da053",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "f8f3434f805d719995bcd0f5e0b00d1b128bbaa2",
       "sections": [
         "alta-plantilla-copias-y-perfiles"
       ]
@@ -118,8 +118,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/App/Http/Controllers/LenderConfigController.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "a2cce08bf0cf028d479990cffe32d53ae5911c30",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "9e36a9e151e067a5b30a9a77545fe4396941b5fc",
       "sections": [
         "alta-plantilla-copias-y-perfiles"
       ]
@@ -136,8 +136,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/App/Services/LenderReadinessService.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "0cc74b87d58c88bb8402d58de43806d8dd0495e0",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "141af5e880c936cc4806781e749762acf4c638eb",
       "sections": [
         "alta-plantilla-copias-y-perfiles"
       ]
@@ -155,8 +155,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Services/lenders/LenderUserCategoryService.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "ba861e1778f9739607631d2b6b6aa60ea795c4f0",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "31d75fcebfb8be541d8c69db5e5089af4f679fbf",
       "sections": [
         "alta-plantilla-copias-y-perfiles",
         "leer-users-category-log"
@@ -174,8 +174,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Models/Lender.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "01aa3f99100fe17ed904b0911f86ffc2b5da5549",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "f48f93276ab82508ca53e85d196eebfbf4841c98",
       "sections": [
         "identidad-y-nit"
       ]
@@ -201,8 +201,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/App/Services/LenderConfigService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "cb45ea1a6b0ced1d8a7c2034ac7b4ec4b13629e6",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "40e2bc187f608fb7e2c0965d360e17095c0d8b1e",
       "sections": [
         "identidad-y-nit"
       ]
@@ -210,8 +210,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Risk/App/Http/Controllers/Customer/ProfilingReviewController.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "a445e7c74d448dd10246584a4ec063eb641b546f",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "fb734c866b41cfa2393ba77f99921f2d12007669",
       "sections": [
         "diagnostico-no-salio-en-el-listado"
       ]
@@ -219,8 +219,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/lenders/LenderListingService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "b5c813f1c70bc407b080d15a05c44ce3fdb0e681",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "8a2522eaa4a2fe2a441cfdb44fe2f93ce746fda0",
       "sections": [
         "dos-puertas-evaluan-la-misma-politica",
         "diagnostico-no-salio-en-el-listado",
@@ -231,8 +231,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/routes/api.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "9fe1053db4e661eadc0e6478d19d239ea7e311a1",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "a0a88314475f99d50a446dafd6c80863367c40ad",
       "sections": [
         "dos-puertas-evaluan-la-misma-politica"
       ]
@@ -240,8 +240,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "c8f7e40de6997dee49af73ebd44378e248a15be7",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "5bf5a5f6de47c160da48a2ab02238dddb102f58d",
       "sections": [
         "diagnostico-salio-sin-cupo",
         "sin-buro-sin-categoria-y-la-autorizacion-rechaza"
@@ -259,8 +259,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/LenderUserCategoryService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "2306b8f662645228d3973594e5edfb45e679a49f",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "b9c16e84973164e62057e9c997b6c31a7b83a8a1",
       "sections": [
         "diagnostico-salio-sin-cupo",
         "sin-buro-sin-categoria-y-la-autorizacion-rechaza",
@@ -279,8 +279,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/CreditopXRequestHistoryService.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "babbf121a58be7990a224fc971003f231363bb64",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "a8c4274eaf9fd0bc3167818d6782c18cb9c308cb",
       "sections": [
         "sin-buro-sin-categoria-y-la-autorizacion-rechaza",
         "leer-users-category-log"
@@ -298,8 +298,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Repositories/PromotionsByLenderRepository.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "b33683ad1fed384579366297fb8ea37a9551ae64",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "3e11f5764cf0abc37dc4423345574f70531bd511",
       "sections": [
         "sin-buro-sin-categoria-y-la-autorizacion-rechaza"
       ]
@@ -307,8 +307,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/CreditopXRequestHistoryController.php",
-      "commit": "39def3d0c487ee459997b8fa502dc3554b953092",
-      "blob": "e4756df9b113cfd1cda1c6a1c051a42e4aa50ac3",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "641f83cae3763eea5ac80dfa2ec9145b18873166",
       "sections": [
         "sin-buro-sin-categoria-y-la-autorizacion-rechaza"
       ]

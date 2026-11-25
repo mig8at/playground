@@ -92,7 +92,7 @@ registrado que reenvía su propio formulario choca dos veces con su propia fila:
    antes de entrar al controlador.
 2. **Con otro correo**: el pre-chequeo de documento (`findByDocumentAndType`) encuentra su propia
    fila. Sólo exime al codeudor (cuando el middleware `cosigner.token` dejó contexto de codeudor y la
-   fila es la suya); para el solicitante no hay exención, así que responde `ONB005` con
+   fila es la suya); para el solicitante no hay exención, así que responde `ONB007` con
    `error_subcode` `DOCUMENT_DUPLICATE`, HTTP 200, y el mensaje «El número de documento ya se
    encuentra registrado con el celular *******<últimos 3>.» con el celular de la fila encontrada, que
    es el del propio dueño.
@@ -108,5 +108,5 @@ El reconocimiento de un usuario existente es por celular (`UserService::getOrCre
 `RegisterCellPhoneService` buscan con `findByCellPhone`). Con un número nuevo se crea otro temporal.
 Si el registro del celular ya trae la cédula y ésta pertenece a otro usuario, el alta misma responde
 «El número de documento ya se encuentra registrado con el celular *******<últimos 3>.». Si no la
-trae, al escribirla en el formulario la guarda de documento de otra persona (`OBV21004`, o `ONB005`
+trae, al escribirla en el formulario la guarda de documento de otra persona (`OBV21004`, o `ONB007`
 en v1) la rechaza. El código no ofrece salida desde el formulario.

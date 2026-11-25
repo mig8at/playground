@@ -12,11 +12,12 @@ este código.
 ## La preaprobación sólo aprueba con estado 3 y «APROBADO»
 
 `pre-approvals-service` traduce la consulta de estado de Credifamilia. Con estado 3 y detalle
-«APROBADO» (sin distinguir mayúsculas) la preaprobación queda aprobada; con estado 3 y otro detalle,
-rechazada. Los estados 0, 1 y 2 quedan pendientes, y el 4 o cualquier otro, rechazados. El monto
-aprobado es `MontoMaximo` cuando es mayor que cero, y la preaprobación vence a los 30 días.
-`legacy-backend` descarta la respuesta si su estado no es `approved` o si el producto no coincide
-con el de la solicitud.
+«APROBADO» (sin distinguir mayúsculas) la preaprobación queda aprobada, siempre que `MontoMaximo` o
+`ValorDisponibleParaComprar` sea mayor que cero (si ninguno es positivo falla con desajuste de
+contrato y no aprueba); con estado 3 y otro detalle, queda rechazada. Los estados 0, 1 y 2 quedan
+pendientes, y el 4 o cualquier otro, rechazados. El monto aprobado toma el primero positivo entre
+`MontoMaximo` y `ValorDisponibleParaComprar`, y la preaprobación vence a los 30 días. `legacy-backend`
+descarta la respuesta si su estado no es `approved` o si el producto no coincide con el de la solicitud.
 
 ## Cómo se consulta: radicar una vez y después preguntar el estado
 
@@ -32,9 +33,10 @@ La consulta es en dos tiempos (`CredifamiliaClient::CallAPI`):
   tipo de ocupación; un tipo de documento u ocupación que no reconoce falla) y valores fijos: país «Colombia», día de
   pago 16, tipo de tasa 1, autorización de datos, y una fecha de ingreso laboral de hoy menos 760 días, igual para
   todos. Credifamilia devuelve un id de transacción y la preaprobación queda **pendiente**.
-- **Con una consulta anterior** de ese cliente, comercio, entidad y sucursal que no sea un error, toma de su
-  respuesta el id de transacción y sólo pregunta el estado (`POST …/radicacion/estado`): no vuelve a radicar. Así
-  también la vuelve a pedir el backend al armar el plan (`CredifamiliaPreApprovalInputs`).
+- **Con una consulta anterior** de ese cliente, comercio, entidad y sucursal, toma el id de transacción
+  (`PreviousTransactionID` o, como respaldo para filas históricas, el de `PreviousRawResponse`) y sólo pregunta el
+  estado (`POST …/radicacion/estado`): no vuelve a radicar. Así también la vuelve a pedir el backend al armar el plan
+  (`CredifamiliaPreApprovalInputs`).
 
 Mientras sigue pendiente, la misma fila se reemplaza (conserva id y fecha de creación) y se suma la latencia hasta el
 veredicto (`CheckPreApprovalUseCase`). Cómo se traduce cada estado está en la sección anterior.

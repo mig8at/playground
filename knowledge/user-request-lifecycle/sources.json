@@ -2,13 +2,13 @@
   "version": 1,
   "title": "Solicitud: estados, cierre y guardas contra el retroceso",
   "summary": "El catálogo de estados de user_requests con sus ids anotados y por qué se lee por nombre, qué estados cierran una solicitud en cada monolito, la cancelación en cascada de solicitudes CreditopX hermanas al autorizar y safeCancel, la guarda de 11 y 8 que vive en el grupo de rutas (y el desembolso IMEI que la saltea), el 11 confirmado antes de radicar en originación delegada, el webhook tardío contra Autorizada, la gestión manual del comercio, una solicitud por pedido en ecommerce, Nequi y los links que vencen.",
-  "reviewedAt": "2026-11-21T16:16:33+00:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
       "path": "app/Models/UserRequestStatus.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "8f4e22887e1fc446d4bf768ee63fdf83c41cdf91",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "8995e473a8a2164a6211f1ef8b25a52bfbc6949f",
       "sections": [
         "el-catalogo-no-esta-versionado-y-se-lee-por-nombre"
       ]
@@ -154,8 +154,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "8b00482bbb3b9e3ab5bde121a130bf173d195ee9",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "b62b9fcf1b245684a680f01025f52bc52cfdc139",
       "sections": [
         "la-guarda-de-11-y-8-vive-en-el-grupo-de-rutas-no-en-la-transicion",
         "con-originacion-delegada-11-se-confirma-antes-de-radicar"
@@ -173,8 +173,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/UserRequestService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "b4e7c44655a2eeace45dd4fc56eff134da23ebdd",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "7c4fe204d7d1ec89717a25979bc271c5235c45c2",
       "sections": [
         "en-ecommerce-hay-una-solicitud-por-pedido"
       ]
@@ -200,8 +200,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Services/Lenders/Nequi/NequiPaymentService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "73d6bcce3a0663b6d2112716791a515ab318a88b",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "8978751a5e16a6400fad536d2d2dcba734facb61",
       "sections": [
         "nequi-un-pago-de-contado-que-puede-salir-de-autorizada"
       ]
@@ -218,8 +218,8 @@
     {
       "repo": "legacy-backend",
       "path": "docs/lenders/nequi/README.md",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "2b17fb492d01a0d57fb7ce2f9ee9c864f3d61df0",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "aa2754ff15a80ba2a6c5529c2502a48af205f4a1",
       "sections": [
         "nequi-un-pago-de-contado-que-puede-salir-de-autorizada"
       ]

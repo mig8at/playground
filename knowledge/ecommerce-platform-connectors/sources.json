@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Conectores de plataforma: VTEX y Shopify",
   "summary": "Conector de VTEX: credenciales por afiliación, ambiente por configuración, enlace por payment-link, desenlace por consulta de estado, y settle/cancel/refund; el de Shopify no está en main.",
-  "reviewedAt": "2026-11-17T12:52:59+00:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "vtex",
@@ -102,8 +102,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/routes/webhooks.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "a66362d542eaf7daf42d9fd3ad95c7caa94ba7aa",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "b79bedef1653aca5dda60304888692dcb9e25cc4",
       "sections": [
         "en-vtex-la-afiliacion-trae-el-hash-y-el-token-de-la-sucursal-en-cada-llamada",
         "settle-cancel-y-refund-en-vtex-deciden-por-el-estado-y-por-el-codigo-http-de-creditop"
@@ -130,8 +130,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/EcommerceRequestService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "bd5d3871f73e567e5d4d4edcd21656b5ea1af897",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "ffa15322a4d098f8d5d43dedfc635622d44b5c3d",
       "sections": [
         "en-vtex-el-desenlace-se-toma-del-estado-del-pedido-no-del-cuerpo-del-aviso"
       ]

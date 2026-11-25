@@ -2,13 +2,13 @@
   "version": 1,
   "title": "Código de compra y conciliación",
   "summary": "Emisión y reuso del PIN, disponibilidad y reloj del wizard; factura local, confirmación bancaria y límites de conciliación.",
-  "reviewedAt": "2026-11-10T18:07:59+00:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/routes/api.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "9fe1053db4e661eadc0e6478d19d239ea7e311a1",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "a0a88314475f99d50a446dafd6c80863367c40ad",
       "sections": [
         "entrada-y-emisor"
       ]
@@ -16,8 +16,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/merchants/PurchaseCodeService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "5db40bc4beac9d1d1d4267368fd5908e0665a66a",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "a18c630d228db00fde7543c101f2281f70d257ba",
       "sections": [
         "entrada-y-emisor",
         "reuso-y-persistencia",
@@ -28,8 +28,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/merchants/CodeGenerationService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "77ccd4fcf65a3126a134a4febaa201a16e61d3d4",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "f24b01e08f1172ad3e1ead6fbf238f93dafb17ba",
       "sections": [
         "entrada-y-emisor",
         "reuso-y-persistencia"
@@ -90,8 +90,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Console/Commands/InvoiceProcessCorbeta.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "0aac534de0c125a9c94b09325c3a9d78ec0a5d88",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "4369299641c951fb5d690e58137431f58dde245e",
       "sections": [
         "confirmacion-bancaria-de-la-compra",
         "calendario-y-limites-de-verificacion"
@@ -100,8 +100,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Console/Commands/InvoiceProcessCorbetaBnpl.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "5202adbbad050ed708e840295e6a20c39d731efe",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "567d5cfcb0393b994ec22dff38cc5b29d3ee6ad6",
       "sections": [
         "confirmacion-bancaria-de-la-compra",
         "calendario-y-limites-de-verificacion"
@@ -120,8 +120,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/PurchaseCodeController.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "f070fea59a321e70b341bf4a12862fc20ca2383f",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "92fe2ddf35f0d5d41561eec73ebf09c395d4683b",
       "sections": [
         "factura-y-estado-26"
       ]
@@ -129,8 +129,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Console/Kernel.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "a1df17f166609b5a6b6f0ba935b8160eb2bfced5",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "a64e8a5b0d159132ee604e1492e480f1d6842cd1",
       "sections": [
         "calendario-y-limites-de-verificacion"
       ]
@@ -246,8 +246,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Http/Controllers/PurchaseCodeController.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "51f55d5758a3bb5e10bb1c0cfc27967e15ed06f8",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "aa9c008920dd384a8ad4c9d3948beadff9b4adc6",
       "sections": [
         "entrada-y-emisor"
       ]
@@ -255,8 +255,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes.ts",
-      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
-      "blob": "2de7f5db8a5173c280ec46460432f0228206dd7e",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "a39d56f49669a56fca05ad23d48d9413b43ce3aa",
       "sections": [
         "entrada-y-emisor"
       ]

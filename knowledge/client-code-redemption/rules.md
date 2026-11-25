@@ -7,7 +7,7 @@ disponibilidad de una entidad para un cliente concreto.
 
 ## El receptor admite dos formatos y consulta por comercio
 
-`POST /api/onboarding/client-code/redeem` (detrás de `auth.cognito`, `RouteServiceProvider.php:41-42`)
+`POST /api/onboarding/client-code/redeem` (detrás de `auth.cognito`, `RouteServiceProvider.php:75-76`)
 acepta cuatro dígitos históricos o dos letras y cuatro dígitos; convierte las letras a mayúsculas
 después de validar. Sin sucursal para el hash responde `CCO002` (404).
 `ClientCodeRedemptionService` resuelve el comercio desde `partner_branch_hash` y, antes de

@@ -8,8 +8,8 @@ pantallas lo muestran y cómo funciona la aprobación manual. Describe `legacy-a
 
 ## La probabilidad de cada entidad se calcula al listar
 
-Al armar el listado (`LenderRetrievalService`, igual en los dos monolitos) cada entidad recibe un
-puntaje y el listado se ordena por él. Hay tres fuentes:
+Al armar el listado (`LenderRetrievalService`) cada entidad recibe un puntaje y el listado se ordena
+por él. Hay tres fuentes:
 
 - **Demográfica**: compara al cliente (edad, ingreso, monto, central de riesgo, ocupación) con las
   estadísticas de desembolsos de cada entidad, guardadas en la última fila activa de `profilings`. El
@@ -19,9 +19,20 @@ puntaje y el listado se ordena por él. Hay tres fuentes:
 - **Matriz**: `matrixModelV2`, una tabla de reglas.
 - **Modelo de ML**: el servicio de H2O. Si contesta, manda; si no, se usa la matriz.
 
-El resultado queda en `profiling_reviews` por solicitud: las entidades mostradas, las reglas duras,
-las tres predicciones y la entidad recomendada. Se reescribe sólo si la lista cambió. Cómo se ordena y
-qué excluye el listado está en [el listado de entidades](knowledge:lender-listing).
+En `legacy-application`, el perfilamiento sólo corre en `production`; en `legacy-backend` corre en
+todos los entornos, `applyProfiling` usa pesos por banda (`alta` 100, `media` 50, `baja` 0) cuando
+el perfilador ML nuevo no envía `prediction` numérico y, salvo cuando `$applyProfilingBias` es
+`false` (estudio express), ejecuta después `applyProfilingBias` (`ProfilingBiasService`) antes de
+ordenar por `weighted_score`.
+
+El resultado queda en `profiling_reviews` por solicitud (`ProfilingReviewController::store`): en
+`legacy-application` (sólo en `production`) guarda las entidades mostradas, las reglas duras, las
+tres predicciones y la entidad recomendada, y se reescribe sólo si la lista cambió; en
+`legacy-backend` guarda `displayed_lenders`, `hard_rules`, `ML_predictions` y `recommended_lender`
+(sin `demog_predictions` ni `matrix_predictions`), indexado por `run_id` y `profiling_type = 'profiler'`
+(crea fila nueva para un `run_id` nuevo o si sin `run_id` la revisión previa ya tiene desenlace de
+entidades, y enlaza las corridas de categoría en `profiling_category_runs`). Cómo se ordena y qué
+excluye el listado está en [el listado de entidades](knowledge:lender-listing).
 
 La fila de `profilings` la arma `create-profiling` del admin recorriendo solicitudes históricas: el
 modelo demográfico no se actualiza solo.

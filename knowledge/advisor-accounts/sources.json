@@ -2,13 +2,13 @@
   "version": 1,
   "title": "Asesor: alta, baja y celular con token",
   "summary": "El usuario del asesor: a qué comercios y sucursales lo ata el alta, qué le cambia la baja (sufijo -t<n> en el documento, contacto y cognito_id en NULL) y por qué después no aparece al buscarlo, y el token -comadv- de su celular: dónde se pega, dónde se quita y por qué el bypass usa el número marcable.",
-  "reviewedAt": "2026-11-18T00:56:56+00:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
       "path": "Modules/Partner/App/Services/AlliedManagementService.php",
-      "commit": "bf0ddcc79bbbc430005e07e7e64956575f6de939",
-      "blob": "7da20a81759a1e037e675374290522303476b7e9",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "d99efdf1707a2be56856d6d7f30c8efe02a91ed4",
       "sections": [
         "el-alta-lo-ata-a-comercios-y-sucursales"
       ]
@@ -121,8 +121,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/BackDoorUserService.php",
-      "commit": "bf0ddcc79bbbc430005e07e7e64956575f6de939",
-      "blob": "a0c27454418d6150e061ac5256215c59ba9802e1",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "736424081b0644eaa7af9a8ff6693e034b6daa4e",
       "sections": [
         "el-celular-del-asesor-lleva-el-token-comadv"
       ]
@@ -130,8 +130,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/UserController.php",
-      "commit": "2798bb7aa41fe406ed4335845c7e814dfbc5f4dc",
-      "blob": "ae8f8c479d630ca8119267649fe7bcd696b90ecf",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "b490bfd8c53b6af50d82fbc2649c39270f6b011e",
       "sections": [
         "el-celular-del-asesor-lleva-el-token-comadv"
       ]
@@ -139,8 +139,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Http/Controllers/Admin/UserController.php",
-      "commit": "bf0ddcc79bbbc430005e07e7e64956575f6de939",
-      "blob": "3668bb89218c73c0a045c58f08069e27c46ee1b9",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "94553da89c0369f944333ced59a89bc23d4590a0",
       "sections": [
         "el-celular-del-asesor-lleva-el-token-comadv"
       ]
@@ -148,8 +148,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/TwilioMessagingService.php",
-      "commit": "bf0ddcc79bbbc430005e07e7e64956575f6de939",
-      "blob": "b16f61e4e38a639b36bd6ce28a556ec71977847f",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "83f5365ceb417df78d76963f7e2a41011851e3e5",
       "sections": [
         "el-token-se-quita-en-lo-que-sale-y-se-conserva-en-lo-guardado"
       ]
@@ -166,8 +166,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/OtpService.php",
-      "commit": "bf0ddcc79bbbc430005e07e7e64956575f6de939",
-      "blob": "691163e6ac4f5ceaaf56a5a36a2d2415ccc1f806",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "b6160741053aaa97e19272f6e19f657930de9dba",
       "sections": [
         "el-token-se-quita-en-lo-que-sale-y-se-conserva-en-lo-guardado"
       ]
@@ -175,8 +175,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/OtpService.php",
-      "commit": "bf0ddcc79bbbc430005e07e7e64956575f6de939",
-      "blob": "24139219ab32e0dd068baad39125ffd397de5a3b",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "c9c009320f3aae1bbf5d99f8abf65539c00af271",
       "sections": [
         "el-token-se-quita-en-lo-que-sale-y-se-conserva-en-lo-guardado"
       ]
@@ -203,8 +203,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php",
-      "commit": "bf0ddcc79bbbc430005e07e7e64956575f6de939",
-      "blob": "8b00482bbb3b9e3ab5bde121a130bf173d195ee9",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "b62b9fcf1b245684a680f01025f52bc52cfdc139",
       "sections": [
         "el-token-se-quita-en-lo-que-sale-y-se-conserva-en-lo-guardado",
         "el-bypass-se-decide-con-el-numero-marcable"

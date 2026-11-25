@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Cómo entra y se aplica un pago CreditopX",
   "summary": "La cascada del pago mínimo, qué se hace con el sobrante (pago total, abono o retenido), la idempotencia por transacción y cómo llega el pago por Wompi (intención, webhook, vista previa pública y su token, consulta de estado), la cuota inicial y la caja de Pullman, en los dos monolitos.",
-  "reviewedAt": "2026-11-21T16:16:33+00:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -89,8 +89,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Support/WompiSupport.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "450986fa78f6462924ad8548241c026592c8b753",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "897417c6187f7955b46db6c1281dafcc22e7ed6e",
       "sections": [
         "wompi-intencion-y-webhook",
         "wompi-vista-previa-publica"
@@ -99,8 +99,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Models/LenderAlliedCredential.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "871fcbc88f0f48c0fedb8f768e831ee2e5cf1bc9",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "9d8580b53bfd8676d1866b75428bafc08e3e2f2f",
       "sections": [
         "wompi-intencion-y-webhook"
       ]
@@ -212,8 +212,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Console/Kernel.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "a1df17f166609b5a6b6f0ba935b8160eb2bfced5",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "a64e8a5b0d159132ee604e1492e480f1d6842cd1",
       "sections": [
         "limites"
       ]
@@ -278,8 +278,8 @@
     {
       "repo": "legacy-backend",
       "path": "config/services.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "5acc4abb5acfc31b64fe3185df35ae6550e28c8e",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "f6472f408e6eaa48f116aff0238abb9af32de1ab",
       "sections": [
         "wompi-intencion-y-webhook",
         "wompi-vista-previa-publica"
@@ -334,8 +334,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/InitialFeePaymentService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "a45bc873763b385660f354e3dc45eda47555583e",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "88d2974ada40c45960f2e0825a28e903023c58bc",
       "sections": [
         "wompi-consulta-de-estado-y-reconciliacion"
       ]
@@ -388,8 +388,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Models/Lender.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "01aa3f99100fe17ed904b0911f86ffc2b5da5549",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "f48f93276ab82508ca53e85d196eebfbf4841c98",
       "sections": [
         "que-pasa-con-el-sobrante"
       ]
@@ -397,8 +397,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Models/Lender.php",
-      "commit": "7aaadd1bd56afffb54179c798d3886974f8e2672",
-      "blob": "eb2352b9117b24f88f8d5931a4c130168042127d",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "3ec71102726843b45e19b65f572cc8e5090b934a",
       "sections": [
         "que-pasa-con-el-sobrante"
       ]
@@ -406,8 +406,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/CreditopXRequestHistoryService.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "babbf121a58be7990a224fc971003f231363bb64",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "a8c4274eaf9fd0bc3167818d6782c18cb9c308cb",
       "sections": [
         "dos-motores-con-la-misma-cascada"
       ]

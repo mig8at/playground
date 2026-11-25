@@ -61,24 +61,28 @@ El endpoint `check/{central}/{userId}` sigue existiendo en `RiskV2` del monolito
 3. bypass: las mismas tres condiciones de `CREDITOP_X` → consultar (`RKV24020`, `RKV24021`,
    `RKV24030`) con la variante forzada a Acierta+Quanto, sin tocar el contador;
 4. frecuencia del comercio (siguiente sección);
-5. si la sucursal no tiene reglas `datacredito_trigger` → consultar (`RKV24007`). Si las tiene, exige
-   y rechaza en este orden: usuario existente y habilitado (`RKV24004`, `RKV24005`), perfil cliente
-   (`RKV24026`), documento `CC` o `CE` (`RKV24028`: cualquier otro tipo no se consulta), algún valor de
-   campo (`RKV24006`) y los campos 160 reportes, 29 situación laboral y 87 ingreso (`RKV24013`,
-   `RKV24014`, `RKV24015`);
+5. si la sucursal tiene el disparador apagado (`dataCreditoTriggerStatus === false`) → `RKV24031`, no
+   consultar; si no tiene reglas `datacredito_trigger` → `RKV24032`, no consultar (`RKV24007` fue
+   retirado). Si las tiene, exige y rechaza en este orden: usuario existente y habilitado
+   (`RKV24004`, `RKV24005`), perfil cliente (`RKV24026`), documento `CC` o `CE` (`RKV24028`: cualquier
+   otro tipo no se consulta), algún valor de campo (`RKV24006`) y los campos 160 reportes, 29
+   situación laboral y 87 ingreso (`RKV24013`, `RKV24014`, `RKV24015`);
 6. regla del comercio (hoy sólo Pullman: monto ≤ 600.000 → `RKV24019`) y regla de cada entidad activa
    en comercio y sucursal (hoy sólo Credifamilia → `RKV24025`);
-7. reglas de la sucursal: situación laboral, género, reportes, ingreso mínimo y edad → `RKV24000`.
+7. reglas de la sucursal, cada una con su rechazo: situación laboral (`RKV24008`), género
+   (`RKV24009`), reportes (`RKV24010`), ingreso mínimo (`RKV24011`) y edad fuera de
+   `min_age`–`max_age` (`RKV24012`); si pasa todas → consultar (`RKV24000`).
 
-Como la etapa 5 responde antes, en una sucursal sin reglas no corren ni la regla de Pullman ni la de
-Credifamilia. Una sucursal de Pullman que cumple el bypass también se las salta.
+Como la etapa 5 corta antes, en una sucursal con el disparador apagado o sin reglas no corren ni
+la regla de Pullman ni la de Credifamilia (y no se consulta Experian). Una sucursal de Pullman que
+cumple el bypass también se las salta.
 
 ## Frecuencia: uno de cada N
 
 Sin regla de frecuencia para el comercio → `RKV24023`, no consultar. Con regla, se lee el contador
 compartido del comercio y se exige `contador % every == 0`. Si no toca, responde `RKV24024` y avanza el
-contador. Si toca, el contador avanza sólo justo antes de un «consultar» ordinario (`RKV24000` o
-`RKV24007`). Un rechazo en las etapas 5 a 7 no lo mueve, y la siguiente evaluación vuelve a tener turno.
+contador. Si toca, el contador avanza sólo justo antes del «consultar» ordinario (`RKV24000`). Un
+rechazo o corte en las etapas 5 a 7 no lo mueve, y la siguiente evaluación vuelve a tener turno.
 
 `frequency` nulo significa «siempre»: se usa el contador como `every`. Con el contador en 0 la primera
 evaluación da `RKV24024` y lo deja en 1.
@@ -99,55 +103,55 @@ Aparte, `SKIPPED` también lo escribe el servicio cuando `kyc-requirements` salt
 
 ## El disparador viejo, en los dos monolitos
 
-Fuera del pipeline decide `DatacreditoQueryByAlliedController::userViability`, con dos copias de la
-misma lógica que ya no coinciden en todo (ver más abajo: la regla de edad, la excepción de Prami y el producto que compran):
+Fuera del pipeline decide `DatacreditoQueryByAlliedController::userViability`, con dos copias de la misma lógica que no
+coinciden en todo (la excepción de entidad que fuerza consulta y el producto que compran):
 
-- en `legacy-backend`, `Modules/Risk` (no `RiskV2`), que llaman `OnboardingController`,
-  `OnboardingService` y `CreditStudyService`;
+- en `legacy-backend`, `Modules/Risk` (no `RiskV2`), que llaman `OnboardingController`, `OnboardingService` y
+  `CreditStudyService`;
 - en `legacy-application`, que llaman el listado de entidades, la información personal y la validación del OTP.
 
-La copia de `legacy-backend` agrega una puerta antes de todo: si el país del comercio no tiene
-centrales de riesgo habilitadas, no consulta (`no_active_risk_centrals_for_country`). Las dos dejan cada
-decisión en la tabla `logs` (`controller = 'DatacreditoQueryByAlliedController'`, `name`
-`EXPERIAN_TRIGGERED` o `EXPERIAN_NOT_TRIGGERED`, el motivo en `request.reason`), con el mismo formato:
-la fila no dice qué monolito la escribió. En Loki sí: lo dice `service_name`.
+La copia de `legacy-backend` agrega una puerta antes de todo: si el país del comercio no tiene centrales de riesgo
+habilitadas, no consulta (`no_active_risk_centrals_for_country`). Las dos dejan cada decisión en la tabla `logs`
+(`controller = 'DatacreditoQueryByAlliedController'`, `name` `EXPERIAN_TRIGGERED` o `EXPERIAN_NOT_TRIGGERED`, el motivo
+en `request.reason`), con el mismo formato: la fila no dice qué monolito la escribió. En Loki sí: lo dice
+`service_name`.
 
 No usan los códigos `RKV` y en dos puntos deciden al revés que el disparador de `RiskV2`:
 
-- **Sin reglas `datacredito_trigger` en la sucursal, no consultan nunca**
-  (`no_datacredito_trigger_configured`). `RiskV2` consulta en ese caso (`RKV24007`).
-- **No tienen bypass dentro de `userViability`:** comercio en la lista, entidad de la lista o
-  `response_type = 2` no fuerzan nada ahí. Lo que fuerza la compra está antes, en quien lo llama: en
-  `legacy-backend`, `OnboardingService::resolveForcedExperianProduct` (lee `experian_trigger_bypass_rules`:
-  comercio o entidad de la sucursal en la lista compra `creditScore` si AgilData o Mareigua ya devolvieron
-  ingreso vigente y `aciertaQuanto` si no; una sucursal con entidad CreditopX compra `creditScore`) y, si
-  compró, `userViability` no se llama (`experian_already_triggered`); en `legacy-application`, el
-  `alliedsLendersValidator` de `PersonalInfoController`, que compra `aciertaQuanto`.
+- **Sin reglas `datacredito_trigger` en la sucursal, no consultan nunca** (`no_datacredito_trigger_configured`). `RiskV2`
+  consulta en ese caso (`RKV24007`).
+- **No tienen bypass dentro de `userViability`:** comercio en la lista, entidad de la lista o `response_type = 2` no
+  fuerzan nada ahí. Lo que fuerza la compra está antes, en quien lo llama: en `legacy-backend`,
+  `OnboardingService::resolveForcedExperianProduct` (lee `experian_trigger_bypass_rules`: comercio o entidad de la
+  sucursal en la lista compra `creditScore` si AgilData o Mareigua ya devolvieron ingreso vigente y `aciertaQuanto` si
+  no; una sucursal con entidad CreditopX compra `creditScore`) y, si compró, `userViability` no se llama
+  (`experian_already_triggered`); en `legacy-application`, el `alliedsLendersValidator` de `PersonalInfoController`, que
+  compra `aciertaQuanto`.
 
-Qué entidad hace evaluar la consulta aunque las reglas fallen, y qué se compra, es lo que distingue a las
-dos copias:
+Qué entidad hace evaluar la consulta aunque las reglas fallen, y qué se compra, distingue a las dos copias:
 
 - **`legacy-backend`:** cualquier entidad con `lenders.requires_preapproval_gate = true` que esté activa
-  (`lenders.status = 1`) en la sucursal (`lenders_by_allied_branches`) y en el comercio
-  (`lenders_by_allieds`) y tenga integración completa (`HasActiveIntegratedEntitiesService` de `LenderV1`
-  con `justFullyIntegratedLenders = true`: credencial de integración de la sucursal o del comercio en
-  `lender_allied_credentials`; `LNV11000` cuenta, `LNV11001` pasa a la siguiente entidad y cualquier otro
-  código lanza excepción) hace evaluar la consulta
-  (`datacredito_evaluated_by_preapproval_gated_lender_despite_failed_rules`). `validateDatacreditoQuery`
-  compra siempre `creditScore` (Acierta): la entidad cambia si se evalúa, no qué se compra.
-- **`legacy-application`:** sigue fijo **Prami (12)** (`hasActiveIntegratedPrami`): si está activa como
-  entidad, en la sucursal y en el comercio, y tiene credencial de integración de la sucursal o del
-  comercio, evalúa aunque las reglas fallen (`datacredito_evaluated_by_prami_despite_failed_rules`). Con esa
-  Prami compra Acierta+Quanto (también cuando las reglas pasan); sin Prami, `creditScore`.
+  (`lenders.status = 1`) en la sucursal (`lenders_by_allied_branches`) y en el comercio (`lenders_by_allieds`) y tenga
+  integración completa (`HasActiveIntegratedEntitiesService` de `LenderV1` con `justFullyIntegratedLenders = true`:
+  credencial de integración de la sucursal o del comercio en `lender_allied_credentials`; `LNV11000` cuenta, `LNV11001`
+  pasa a la siguiente entidad y cualquier otro código lanza excepción) hace evaluar la consulta
+  (`datacredito_evaluated_by_preapproval_gated_lender_despite_failed_rules`). Cada vez que `validateDatacreditoQuery`
+  consulta (con `frequency` nulo o cuando el contador coincide), compra `Experian::aciertaQuanto($userRequest, 12)` si
+  hay entidad con ese gate y `Experian::creditScore` si no; el `experian_method` que deja en `logs` dice siempre
+  `creditScore`.
+- **`legacy-application`:** sigue fijo **Prami (12)** (`hasActiveIntegratedPrami`): si está activa como entidad, en la
+  sucursal y en el comercio, y tiene credencial de integración de la sucursal o del comercio, evalúa aunque las reglas
+  fallen (`datacredito_evaluated_by_prami_despite_failed_rules`). Con esa Prami compra Acierta+Quanto (también cuando las
+  reglas pasan); sin Prami, `creditScore`.
 
-Con reglas, falla si no se cumple alguna: Pullman (94) con monto ≤ 600.000, situación laboral (29),
-género, reportes (160), ingreso mínimo (87) o edad. La regla de edad difiere entre las copias: en
-`legacy-application` la edad debe quedar estrictamente entre el mínimo y el máximo (falla si
-`edad <= mínimo` o `edad >= máximo`); en `legacy-backend` la condición es `edad <= mínimo && edad >= máximo`,
-así que con un rango normal (mínimo < máximo) nunca falla y sólo descalifica un rango invertido. La vía
-«por entidad» (`validateViabilityByLender`) está apagada en las dos: la lista de entidades con credencial
-de Datacrédito está vacía en el código, así que nunca suma.
+Con reglas, si `allied_branches.datacredito_trigger_status` es `0`, los dos monolitos marcan `trigger_off` y omiten las
+condiciones del disparador sin anular las salidas especiales ni las de entidad (Prami o gate de preaprobado). Si está
+encendido, falla si no se cumple alguna: Pullman (94) con monto ≤ 600.000, situación laboral (29), género, reportes (160),
+ingreso mínimo (87) o edad fuera de la banda inclusiva (`edad < min_age || edad > max_age` en ambos monolitos). La vía
+«por entidad» (`validateViabilityByLender`) está apagada en las dos: la lista de entidades con credencial de Datacrédito
+está vacía en el código, así que nunca suma.
 
-Frecuencia: sin fila de frecuencia del comercio, no consulta (`no_datacredito_frequency_for_allied`).
-Con `frequency` nulo, consulta siempre. Si no, avanza el contador **antes** de comparar y consulta
-cuando `contador % every == 0`. Un `every` menor que 1 se toma como «no consultar».
+Frecuencia: sin fila de frecuencia del comercio, no consulta (`no_datacredito_frequency_for_allied`). En
+`legacy-application`, si `datacredito_frequencies.status` es falso, omite con `frequency_switched_off`. Con `frequency`
+nulo, consulta siempre. Si no, avanza el contador **antes** de comparar y consulta cuando `contador % every == 0`. Un
+`every` menor que 1 se toma como «no consultar».

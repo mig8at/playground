@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Registro de IMEI y espera del titular",
   "summary": "Paso del asesor a IMEI, registro y reintento, ruta de desembolso sin autenticación ni chequeo de estado, y polling del titular.",
-  "reviewedAt": "2026-11-21T16:16:33+00:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "frontend-monorepo",
@@ -84,8 +84,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/otp-validation.tsx",
-      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
-      "blob": "e475974e6a7fc4b6a7429e7434c02216386e837c",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "6849cd34f58cca602ee69fa04108812194df3b89",
       "sections": [
         "espera-del-titular-y-senal-de-finalizacion"
       ]
@@ -141,8 +141,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "8b00482bbb3b9e3ab5bde121a130bf173d195ee9",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "b62b9fcf1b245684a680f01025f52bc52cfdc139",
       "sections": [
         "paso-del-asesor-al-formulario-de-imei",
         "ruta-de-desembolso-del-dispositivo"
@@ -180,8 +180,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Http/Kernel.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "e59fdd5fa47411673a3e06ad8bd6edd63a1fbd3a",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "a6e4450877cfc2034d61d58176c8f1e8b470b085",
       "sections": [
         "ruta-de-desembolso-del-dispositivo"
       ]
@@ -207,8 +207,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/CreditopXRequestHistoryService.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "babbf121a58be7990a224fc971003f231363bb64",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "a8c4274eaf9fd0bc3167818d6782c18cb9c308cb",
       "sections": [
         "ruta-de-desembolso-del-dispositivo"
       ]

@@ -2,13 +2,13 @@
   "version": 1,
   "title": "Política de Finandina en el motor de CreditopX",
   "summary": "Perfiles con capacity_method finandina_v1: compuertas de la entidad, letra por Advance 1.1, ingreso sólo de Ágil Data o Mareigua, reporte de 60 días, experiencia, zonas en la etapa extendida, plazos que caben, oferta sostenida hasta firmar, topes del mes atados al tipo 2, y lo que se carga a mano.",
-  "reviewedAt": "2026-11-23T15:00:00-05:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
       "path": "docs/finandina-policy-adr.md",
-      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
-      "blob": "e5734caab43819e410cc73e0b975488c6cfb0d44",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "eb7c5b10a478cc2463e3961e8eac2da88899faad",
       "sections": [
         "que-la-activa-configuracion-del-motor-no-un-codigo-aparte",
         "lo-que-se-carga-a-mano",
@@ -77,8 +77,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/LenderUserCategoryService.php",
-      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
-      "blob": "2306b8f662645228d3973594e5edfb45e679a49f",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "b9c16e84973164e62057e9c997b6c31a7b83a8a1",
       "sections": [
         "que-la-activa-configuracion-del-motor-no-un-codigo-aparte",
         "el-orden-en-que-decide",
@@ -127,8 +127,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php",
-      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
-      "blob": "c8f7e40de6997dee49af73ebd44378e248a15be7",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "5bf5a5f6de47c160da48a2ab02238dddb102f58d",
       "sections": [
         "el-orden-en-que-decide",
         "experiencia-crediticia-y-zonas",
@@ -157,8 +157,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/lenders/LenderValidationService.php",
-      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
-      "blob": "bb21da995f7ad0e80118c38bb001d5dbcaa97906",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "0aae46a137d212723c3575edb08a04d1722e2846",
       "sections": [
         "los-topes-del-mes-de-la-entidad-y-por-cliente"
       ]
@@ -166,8 +166,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/CreditopXRequestHistoryService.php",
-      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
-      "blob": "babbf121a58be7990a224fc971003f231363bb64",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "a8c4274eaf9fd0bc3167818d6782c18cb9c308cb",
       "sections": [
         "los-topes-del-mes-de-la-entidad-y-por-cliente"
       ]
@@ -212,8 +212,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/identity-validation-status.tsx",
-      "commit": "b6a9a75f6372a932e21df8a73918314915150e9d",
-      "blob": "b77ace6fe23217c390afd70cceef2802a98b6e0c",
+      "commit": "f8c10f715ed3feec165b2fc51cbcafe066833f15",
+      "blob": "d80d2f5fb9ce12b320e56be314264952f16ad9b5",
       "sections": [
         "experiencia-crediticia-y-zonas"
       ]
@@ -221,8 +221,8 @@
     {
       "repo": "pre-approvals-service",
       "path": "internal/infra/lending_products/creditop_x/adapter.go",
-      "commit": "c70a470b2b07c4c10cb3dafdb1a62ea7c44f79c5",
-      "blob": "d86101577ee69cf776345775a54f045a7ab9bb7d",
+      "commit": "b2684a2e697f67063d04ffa714a30b4d5fc367d4",
+      "blob": "b3e62db44cf65b324c808d1d216db6fdb044f3ee",
       "sections": [
         "lo-que-el-adr-deja-fuera-o-da-por-supuesto"
       ]

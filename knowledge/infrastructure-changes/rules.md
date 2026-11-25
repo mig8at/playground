@@ -41,18 +41,21 @@ Un cambio en `modules/**` dispara el plan de los tres ambientes (development, pr
 
 ## Publicar una ruta en el API Gateway
 
-Las rutas públicas viven en `environments/<ambiente>/api-gateway/terragrunt.hcl`, repartidas en cuatro
-listas de `inputs`: `routes`, `routes_customers`, `routes_backoffice_legacy` y `routes_backoffice`. El módulo
-`modules/api-gateway` las junta con `concat` y las indexa por `route_key`; se separan para que cada input quede
-bajo el límite de 128 KB de una variable de entorno. Las de legacy-backend para ecommerce, mobile-onboarding y
-`debt-summary` están en `routes`. Cada ruta es un objeto con `route_key` (método y ruta pública, por ejemplo
-`POST /legacy-api/ecommerce/payment-link`), `method`, `authorizer_name` (`null` cuando la autenticación
-la hace el backend, como el token de sucursal de las rutas server-to-server de ecommerce; `customer-authorizer` o
-`backoffice-authorizer` cuando la hace Cognito) y `request_parameters` con dos sobrescrituras:
-`overwrite:header.host` (el servicio interno que contesta, por el ALB interno) y `overwrite:path` (la
-ruta en ese servicio, para legacy-backend con `/api/…`). Un parámetro de ruta seguido de más segmentos
-se escribe con el `local` del archivo (por ejemplo `${local.order_key_var}`, `${local.placement_var}` o
-`${local.user_request_id_var}`), porque API Gateway ignora la forma sin llaves.
+Las rutas públicas viven en `environments/<ambiente>/api-gateway/terragrunt.hcl` y
+`environments/<ambiente>/api-gateway-backoffice/terragrunt.hcl`, dos unidades del mismo módulo `modules/api-gateway`,
+repartidas en cuatro listas de `inputs`: `routes`, `routes_customers`, `routes_backoffice_legacy` y `routes_backoffice`.
+En `prod`, `api-gateway` lleva sólo `routes` y `routes_customers`, y las dos de backoffice (con las
+`/legacy-api/auth/…`) están en `api-gateway-backoffice`; en `development`, `api-gateway` todavía lleva las cuatro. El
+módulo las junta con `concat` y las indexa por `route_key`; se separan para que cada input quede bajo el límite de
+128 KB de una variable de entorno. Las de legacy-backend para ecommerce, mobile-onboarding y `debt-summary` están en
+`routes`. Cada ruta es un objeto con `route_key` (método y ruta pública, por ejemplo
+`POST /legacy-api/ecommerce/payment-link`), `method`, `authorizer_name` (`null` cuando la autenticación la hace el
+backend, como el token de sucursal de las rutas server-to-server de ecommerce; `customer-authorizer` o
+`backoffice-authorizer` cuando la hace Cognito) y `request_parameters` con dos sobrescrituras: `overwrite:header.host`
+(el servicio interno que contesta, por el ALB interno) y `overwrite:path` (la ruta en ese servicio, para legacy-backend
+con `/api/…`). Un parámetro de ruta seguido de más segmentos se escribe con el `local` del archivo (por ejemplo
+`${local.order_key_var}`, `${local.placement_var}` o `${local.user_request_id_var}`), porque API Gateway ignora la
+forma sin llaves.
 
 Las rutas con `customer-authorizer` cuyo backend confía en la identidad que le llega (por ejemplo las de
 `/legacy-api/v1/mobile-onboarding/…` y `POST /legacy-api/v1/mobile/ecommerce/store-link`) agregan dos
@@ -64,24 +67,27 @@ Así un valor mandado por quien llama no llega al backend. No todas las rutas de
 
 La identidad que se pasa depende del servicio. Las rutas de form-service con `customer-authorizer`
 (`/customers/form-service/v1/app-forms/{placement}` y `…/responses`, en prod) pasan sólo
-`overwrite:header.X-User-Id`, sin `x-cognito-identity-id`. Las rutas de backoffice de merchant-api del `api-gateway` de development (`/backoffice/merchant-api-service/v1/merchants/{merchant_id}/branches/…`, la ubicación de sucursales) usan `backoffice-authorizer` y sobrescriben
-`x-cognito-identity-id` (`$context.authorizer.cognito_sub`) y `x-principal-id`
-(`$context.authorizer.principal_id`), no `x-user-id`. Las de merchant onboarding (`…/v1/onboarding-catalog` y
-`…/v1/admin/merchant-onboardings/…`) ya no están ahí: viven en la unidad `api-gateway-backoffice`, donde además
-sobrescriben `x-user-profile-id` (`$context.authorizer.user_profile_id`).
+`overwrite:header.X-User-Id`, sin `x-cognito-identity-id`. Las rutas de backoffice de merchant-api del `api-gateway`
+de development (`/backoffice/merchant-api-service/v1/merchants/{merchant_id}/branches/…`, la ubicación de
+sucursales) usan `backoffice-authorizer` y sobrescriben `x-cognito-identity-id` (`$context.authorizer.cognito_sub`) y
+`x-principal-id` (`$context.authorizer.principal_id`), no `x-user-id`. Las de merchant onboarding
+(`…/v1/onboarding-catalog` y `…/v1/admin/merchant-onboardings/…`) no están en `api-gateway`: viven en la unidad
+`api-gateway-backoffice`, donde además sobrescriben `x-user-profile-id` (`$context.authorizer.user_profile_id`).
 
 En `environments/prod`, las rutas de cliente bajo `/legacy-api/loans/customer/…` (consumer, revolving —incluida
-`GET …/revolving/credits/{revolving_credit_id}/payment-info`— y `customer/payments/{reference}` con su
-`/receipt`) pasan esas mismas dos cabeceras con `append:header.x-user-id` y `append:header.x-cognito-identity-id`
-en lugar de `overwrite:`. `append` agrega el valor del contexto al de la cabecera que ya venga, no lo reemplaza,
-así que no da la garantía de las rutas con `overwrite:`. Las de `v1/mobile-onboarding` y `v1/mobile/ecommerce/store-link`
-en prod sí usan `overwrite:`.
+`GET …/revolving/credits/{revolving_credit_id}/payment-info`— y `customer/payments/{reference}` con su `/receipt`)
+pasan esas mismas dos cabeceras con `overwrite:header.x-user-id` y `overwrite:header.x-cognito-identity-id`, igual que
+`v1/mobile-onboarding` y `v1/mobile/ecommerce/store-link`. Las demás rutas de cliente de `routes` y `routes_customers`
+que pasan identidad (`onboarding/mobile/user-data`, `delete-user`, financial-health, `merchant-api-service/…/creditop-x`,
+preapprovals, self-manager-api) usan `overwrite:header.X-User-Id`. En `api-gateway` de prod no queda ninguna con
+`append:`, que agrega el valor del contexto al de la cabecera que ya venga en vez de reemplazarlo y por eso no da la
+garantía de `overwrite:`.
 
-Un servicio sólo sale por el gateway si su ruta está declarada: que el backend tenga el endpoint
-desplegado no basta. Una ruta que falta en el gateway responde 404 aunque el backend la tenga, y la
-ruta publicada sin token responde lo que diga el backend (401 en las de ecommerce con token de sucursal;
-las de ecommerce con `customer-authorizer` las rechaza el authorizer antes de llegar al backend).
-Publicar en prod es el segundo PR del apartado anterior, con host `*.production.internal.creditop.com`.
+Un servicio sólo sale por el gateway si su ruta está declarada: que el backend tenga el endpoint desplegado no basta.
+Una ruta que falta en el gateway responde 404 aunque el backend la tenga, y la ruta publicada sin token responde lo que
+diga el backend (401 en las de ecommerce con token de sucursal; las de ecommerce con `customer-authorizer` las rechaza
+el authorizer antes de llegar al backend). Publicar en prod es el segundo PR del apartado anterior, con host
+`*.production.internal.creditop.com`.
 
 ## En development cada ruta elige su backend
 

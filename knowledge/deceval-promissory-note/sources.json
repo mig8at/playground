@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Pagaré en Deceval: ruteo, credencial y depuración",
   "summary": "Qué manda el pagaré de un lender a Deceval (promissory_types y catálogo de firma), cómo cada monolito elige al azar la credencial del depositante en crear y en firmar por separado, qué datos del girador se envían, cómo se reutiliza el título y dónde depurarlo (deceval_logs, logs, promissory_notes).",
-  "reviewedAt": "2026-11-23T12:00:00-05:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -25,8 +25,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/PromissoryNoteController.php",
-      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
-      "blob": "081ff5c5d1cbd781382628aa6a1300c6046c8334",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "d182e20aa4c075b958dcbf4aed451536d173de3d",
       "sections": [
         "que-manda-un-pagare-a-deceval"
       ]
@@ -52,8 +52,8 @@
     {
       "repo": "legacy-backend",
       "path": "database/migrations/2026_10_01_120000_add_deceval_promissory_note_to_altax_signing_documents.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "4bf9361e2753419a0de9cb2110e1236166452e4c",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "2f44b9681d9b350afe8d213d73e68e17f520bc2d",
       "sections": [
         "que-manda-un-pagare-a-deceval"
       ]
@@ -61,8 +61,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Models/RiskCentralCredential.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "d885ec28dd001a165af8478ed663cf434c0ce00a",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "5632a3253d260927b7028810759e006155800259",
       "sections": [
         "la-credencial-del-depositante"
       ]
@@ -79,8 +79,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Actions/DecevalSoap.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "44eeaedee0cc38af4c7e3cb988fe1cfce9b6ac1e",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "b8590ac450dc7de53cd9b4fc57eb61742b3b3576",
       "sections": [
         "la-credencial-del-depositante",
         "las-cuatro-operaciones-y-los-datos-del-girador",
@@ -114,8 +114,8 @@
     {
       "repo": "legacy-backend",
       "path": "config/services.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "5acc4abb5acfc31b64fe3185df35ae6550e28c8e",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "f6472f408e6eaa48f116aff0238abb9af32de1ab",
       "sections": [
         "la-credencial-del-depositante"
       ]
@@ -212,8 +212,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Actions/RiskCentrals/Experian.php",
-      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
-      "blob": "dc39ec3cfb5b50c9dacc95f28f364227cf00122d",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "1649ca1876331315b68133329056e9653c5c7e59",
       "sections": [
         "la-credencial-del-depositante"
       ]

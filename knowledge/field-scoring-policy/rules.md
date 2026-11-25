@@ -8,14 +8,20 @@ lo menciona como la categorización de SmartPay.
 
 ## Cuándo se usa el puntaje
 
-`LenderUserCategoryService` prueba primero las reglas de categoría de la entidad. Si una aprueba,
-la categoría sale marcada `matched_by_rule = true`. Si ninguna aprueba, suma puntos:
+`LenderUserCategoryService` comprueba primero `hasPolicyForType` para la entidad y el tipo (titular inicial,
+extendido o codeudor). Si no hay ni reglas de categoría ni política de puntaje para ese tipo, no evalúa
+puntaje y devuelve `null`; sólo registra rechazo con categoría 0 (`sin_politica_configurada`) si es una
+entidad de cupo propio (`response_type` 2 o 3) y se esperaba política para ese tipo (titular inicial, o
+codeudor cuando alguna categoría exige codeudor).
 
-- Por cada fila de `lender_user_fields_scoring_policy` de la entidad y el tipo, suma su puntaje
-  cuando el último valor del campo del usuario es igual (`==`) al valor configurado.
+Si existe política, prueba primero las reglas de categoría de la entidad. Si una aprueba, la categoría sale
+marcada `matched_by_rule = true`. Si ninguna aprueba, suma puntos:
+
+- Por cada fila de `lender_user_fields_scoring_policy` de la entidad y el tipo, suma su puntaje cuando el
+  último valor del campo del usuario es igual (`==`) al valor configurado.
 - Suma el puntaje de capacidad de pago (sección siguiente).
-- Con el total, `lender_user_category_scoring_policy_rules` elige la categoría por rango de puntaje.
-  El plazo máximo y la inicial mínima son los de esa categoría.
+- Con el total, `lender_user_category_scoring_policy_rules` elige la categoría por rango de puntaje. El
+  plazo máximo y la inicial mínima son los de esa categoría.
 
 Si ningún rango coincide, se registra un rechazo con categoría 0 y la entidad no tiene categoría.
 

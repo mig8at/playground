@@ -2,13 +2,13 @@
   "version": 1,
   "title": "Perfilamiento del cliente: probabilidades, pantallas y aprobación manual",
   "summary": "Qué es el perfilamiento (el perfil de riesgo de un cliente, no su rol): cómo se calcula la probabilidad de cada entidad al listar (demográfica, matriz y ML), las pantallas que lo muestran y quién las ve, y cómo funciona la aprobación manual entre los dos monolitos.",
-  "reviewedAt": "2026-11-18T00:07:49+00:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "legacy-application",
       "path": "app/Services/lenders/LenderRetrievalService.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "b7a567c9c07f8f4a4552d623baf8a4856589187c",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "522fbf432ad6e9f65bb0f6a0736dc00ac7b7e784",
       "sections": [
         "la-probabilidad-de-cada-entidad-se-calcula-al-listar"
       ]
@@ -16,8 +16,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/lenders/LenderRetrievalService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "3616a6d33fe56508e63b9ff85c93f508975c2648",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "ccc2d69b69d6126ec8146e997d49b533e043a711",
       "sections": [
         "la-probabilidad-de-cada-entidad-se-calcula-al-listar"
       ]
@@ -25,8 +25,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/ProfilingController.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "7802065602c7042ecc2929736c9012868601a655",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "0c0548b753ba9fd4b00d7cde95b23f7667cb0466",
       "sections": [
         "la-probabilidad-de-cada-entidad-se-calcula-al-listar",
         "las-pantallas-del-perfilamiento"
@@ -35,8 +35,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/ProfilingReviewController.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "383a1d1368f800d4a32d1a255fb1f7ee8f82ff81",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "f0968cd0148e37e36e02503c3803712a3900c63d",
       "sections": [
         "la-probabilidad-de-cada-entidad-se-calcula-al-listar"
       ]
@@ -44,8 +44,8 @@
     {
       "repo": "legacy-application",
       "path": "routes/admin.php",
-      "commit": "2798bb7aa41fe406ed4335845c7e814dfbc5f4dc",
-      "blob": "ed9787f30df38ad0b913720c3d4ccd590db922c3",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "a1ad36026b0fe68b8e1e0d2c1bcda49784e276e1",
       "sections": [
         "las-pantallas-del-perfilamiento"
       ]
@@ -53,8 +53,8 @@
     {
       "repo": "legacy-application",
       "path": "routes/customer.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "b6eb566da0824d4fa671f9dd4ea1c09412b35e2b",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "b75c919728c90d018de8e5d0631b7ef8d3d9fcb8",
       "sections": [
         "las-pantallas-del-perfilamiento"
       ]
@@ -99,8 +99,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/GenericFormController.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "56f91c6a247f06bf6f68411f877063b2d00b9b5e",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "55b0a834b60da88a28cf9fa588c10fc5b0f3bf0a",
       "sections": [
         "las-pantallas-del-perfilamiento"
       ]

@@ -73,41 +73,56 @@ Finandina a personas fuera de las zonas.
 `LenderMonthlyLimits` lee dos columnas de `lender_requirements` (`NULL` = sin tope), con el mes calendario en hora de
 Bogotá y contando al autorizar, no al desembolsar:
 
-- **`monthly_disbursement_limit`**, el de la entidad: el tope menos la suma de `already_used_loan` de sus perfiles. Entra
-  como uno de los topes del monto y, agotado, rechaza con `lender_quota_exhausted`; no frena la autorización. El bloqueo
-  es por fila de perfil, así que dos autorizaciones en perfiles distintos pueden pasarse por un crédito.
+- **`monthly_disbursement_limit`**, el de la entidad: el tope menos la suma de `already_used_loan` de sus perfiles.
+  Entra como uno de los topes del monto y, agotado, rechaza con `lender_quota_exhausted`; no frena la autorización. El
+  bloqueo es por fila de perfil, así que dos autorizaciones en perfiles distintos pueden pasarse por un crédito.
 - **`max_credits_per_client_month`**, por cliente: cuenta las solicitudes con `disbursed_at` en el mes, sin los estados
   6, 8 y 12. Frena en el motor antes de los perfiles, en la cuota inicial y la firma (`OfferStillStandsGuard`) y en el
   listado.
 
-Las dos se escribieron para el tipo 2:
-- El filtro del listado (`LenderValidationService`) sólo saca al cliente cuando la entidad es `response_type === 2`; con
-  el riel 4 la tarjeta sale y la rechaza la preaprobación.
-- `CreditopXRequestHistoryService::createFirstRegister` sólo carga el cupo del perfil con `response_type == 2`. Con el
-  riel 4, `already_used_loan` no sube y el tope de la entidad no se consume.
+El filtro del listado sigue atado al tipo 2, mientras que la reserva del cupo mensual ya cubre al riel 4:
+- El filtro del listado (`LenderValidationService::validateRulesByLender`, con `ClientMonthlyCreditRuleEvaluator`)
+  sólo saca al cliente cuando la entidad es `response_type === 2`; con el riel 4 la tarjeta sale y la rechaza la
+  preaprobación. No pasa por `dropsWhenRulesFail`, que sólo decide la salida por reglas duras (tipo 2, o 3 sin cupo
+  rotativo aprobado).
+- `CreditopXRequestHistoryService::createFirstRegister` reserva el cupo del perfil tanto en `response_type == 2` como en
+  el riel 4 (`DelegatedOriginationLenders::RESPONSE_TYPE`) cuando la entidad tiene categorías configuradas
+  (`hasCategories`). Así, en Finandina `already_used_loan` sí sube y el tope de la entidad se consume (a diferencia del
+  tipo 2, si falta categoría vigente en riel 4 no lanza 422 y sólo registra un warning).
 
 ## Qué queda guardado
 
-`users_category_log` guarda, para una evaluación con `finandina_v1`, el reporte usado y su fecha, el SMMLV, la versión
-de las reglas del editor, el tope que ató y la capacidad con sus componentes (`finandina_*` en `category_rules_acceptance`).
-La tarjeta y el plan leen de ahí los datos del plazo (`FinandinaEvaluationLog`).
+`users_category_log` guarda, para una evaluación con `finandina_v1` que registre log (`logResult: true`, como
+`CreditopXQuotaController::resolveQuota`), el reporte usado y su fecha, el SMMLV, la versión de las reglas del editor,
+el tope que ató y la capacidad con sus componentes (`finandina_*` en `category_rules_acceptance`).
+
+`LenderRetrievalService::resolveCategory` llama al motor con `logResult: false`, por lo que los listados v1 y v2 no
+escriben en `users_category_log`; la tarjeta de `LenderRetrievalService` lee los datos del plazo desde
+`$user_category?->finandina_evaluation` vía `FinandinaEvaluationLog::fromEvaluation`, mientras que el plan de pagos
+consulta la última evaluación en `users_category_log` (`FinandinaEvaluationLog`).
 
 ## Lo que se carga a mano
 
-Según el runbook del ADR:
+Según el runbook y las decisiones de configuración del ADR (`docs/finandina-policy-adr.md:66`):
 - **Cada año:** el SMMLV en `settings.smmlv_by_year`.
 - **Cada mes:** `rate` y `capacity_rate` de la línea, y el texto de la tasa de la tarjeta.
 - **Por comercio:** el seguro de vida en `lenders_by_allieds` (`life_insurance_percentage`, que es el que entra en la
   cuota, e `insurance_percentage_per_million`, que sólo se muestra en documentos).
-- **Una vez por ambiente:** el tipo de validación de identidad, la ubicación del formulario de residencia y los textos
-  de la tarjeta, por SQL; las zonas con `finandina:sync-zones`.
+- **Una vez por ambiente:** por SQL, el alta en el riel (`response_type = 4`, `validation_type = 2`, la fila de
+  `delegated_origination_profiles` con `inputs_source = creditop_x_pre_approval`, sin formalización, `forced_bond_type =
+  Anticipada`, sin 4x1000 y días de pago `[5, 10, 15, 20]`, manteniendo `promissory_type_id = 1` hasta cargar la
+  credencial de Deceval), el tipo de validación de identidad, la ubicación del formulario de residencia y los textos de
+  la tarjeta; las zonas con `finandina:sync-zones`.
 - **Una letra nueva o una tabla de riesgo nueva:** `min_score` y las bandas desde el editor de reglas.
 
 ## Lo que el ADR deja fuera o da por supuesto
 
-- El ADR se escribió con Finandina en el tipo 2. En el riel 4 la decisión llega por la preaprobación: el adaptador
-  `creditop_x` de pre-approvals-service llama al mismo motor por `/available-quota`. Algunas piezas siguen atadas al
-  tipo 2 (ver la sección de los topes).
+- El ADR pone a Finandina en el riel de originación delegada (`response_type = 4`, con `externally_serviced = 1`): en el
+  riel 4 la decisión llega por la preaprobación, y el adaptador `creditop_x` de pre-approvals-service llama al mismo
+  motor por `/available-quota` (en un rechazo de negocio guarda `RejectionReason` desde `data.reason` o, si no, desde
+  el `reason` del sobre). Algunas piezas siguen atadas al tipo 2 (ver la sección de los topes).
+- Fuera del alcance del ADR quedan la formalización: el pagaré Deceval (pendiente de la credencial de Finandina), la
+  entrega del crédito a Finandina, los documentos y la fianza FGA.
 - No hay reglas negativas (compra de cartera, retanqueo, mora, castigos): no están configuradas.
 - El riesgo del empleador que trae Mareigua no lo lee ningún criterio.
 - Los dos plazos de 60 días (reporte y cuotas recientes) están marcados en el código como «por confirmar» con Finandina.

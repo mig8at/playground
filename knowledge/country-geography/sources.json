@@ -2,13 +2,13 @@
   "version": 1,
   "title": "Catálogo geográfico y árbol de opciones",
   "summary": "Relaciones geográficas, selectores y validación de la ciudad de una sucursal, comodines, auditoría, árbol de form-service y límites de la migración de RD y Perú.",
-  "reviewedAt": "2026-11-10T18:07:59+00:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/AlliedAlliedBranchController.php",
-      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
-      "blob": "be1146122a40887c03a1ddeba278f7c44c6308f7",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "b9fa3d3cdce4edd1e9f68d816d9d3d7ef568b5fb",
       "sections": [
         "relacion-entre-pais-zona-y-ciudad",
         "selectores-y-validacion-al-guardar"
@@ -17,8 +17,8 @@
     {
       "repo": "form-service",
       "path": "internal/infra/storage/mysql/queries/country_queries.sql",
-      "commit": "cfd0f02ede473649498f47b87218fb9ab075bdb3",
-      "blob": "c314b61e8d1f257d4edf76e6474b607d7a884534",
+      "commit": "84117888e3c655b93b5f93e7f11772d03c625a3a",
+      "blob": "1980bb2ea09b7b80cc12b97056f2125d85eb99b1",
       "sections": [
         "arbol-de-opciones"
       ]
@@ -100,8 +100,8 @@
     {
       "repo": "legacy-backend",
       "path": "database/migrations/2026_09_03_120000_ciudades_de_rd_y_peru_y_sucursales_en_pais_equivocado.php",
-      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
-      "blob": "28f6b08bbc36f5ab44cb8215e1763b92bf491b83",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "a61f7e888eaf1ba323abfb42e81a51a8db86f7fb",
       "sections": [
         "migracion-de-rd-y-peru",
         "el-comodin-todas-las-ciudades"
@@ -110,8 +110,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Services/Allied/EcommerceBranchCreator.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "5a4d3c45042b2cb22dc45f6f5f6db7b0e4fca8be",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "d47b773d549185438490c61f1031ae4c5ce596fa",
       "sections": [
         "quien-escribe-la-ciudad-de-una-sucursal",
         "auditoria-de-sucursales"
@@ -157,8 +157,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/PromissoryNoteController.php",
-      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
-      "blob": "081ff5c5d1cbd781382628aa6a1300c6046c8334",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "d182e20aa4c075b958dcbf4aed451536d173de3d",
       "sections": [
         "el-comodin-todas-las-ciudades"
       ]
@@ -166,8 +166,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/GuaranteeController.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "d7843f422b5f446781b68ac504e81a98cee6346d",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "cfc6cb17040c80d9e3cc2550ee0e3efb5ae49fa5",
       "sections": [
         "el-comodin-todas-las-ciudades"
       ]
@@ -184,8 +184,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Partner/App/Services/AlliedManagementService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "7da20a81759a1e037e675374290522303476b7e9",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "d99efdf1707a2be56856d6d7f30c8efe02a91ed4",
       "sections": [
         "selectores-y-validacion-al-guardar",
         "quien-escribe-la-ciudad-de-una-sucursal",
@@ -240,8 +240,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/PromissoryNoteService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "fdaa3e1a1ebcdd538dcef688a18261ad6d35da8b",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "a4610e74b26fadcbe5e5d4ad63f5db62ef0daaaa",
       "sections": [
         "el-comodin-todas-las-ciudades"
       ]
@@ -249,8 +249,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/ConsentService.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "1c1fcbd92f2f6fb77939e3a3baedee5f79d7f40d",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "179c36a5af455735b268b579fe26322b927cbb8a",
       "sections": [
         "el-comodin-todas-las-ciudades"
       ]

@@ -2,13 +2,13 @@
   "version": 1,
   "title": "SmartPay: qué lo identifica en el código y qué cambia",
   "summary": "isSmartPay (ruta IMEI + id fijo) frente a isSmartpayChannel (id de config), el id que fuera de producción vale 152, 153 o 160 según el sitio, y sus tratos: sin TusDatos, acuerdo de bloqueo, desembolso IMEI, correo propio, recordatorios, República Dominicana en Gestionar, permisos y validación manual.",
-  "reviewedAt": "2026-11-23T12:00:00-05:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
       "path": "app/Models/UserRequest.php",
-      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
-      "blob": "7f20bdcc26b03bc553307da35247d0632ca7143e",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "27b316cbae7a59618702c71a754bba40482ed442",
       "sections": [
         "dos-preguntas-distintas-es-smartpay-y-es-su-canal",
         "el-id-fijo-y-por-que-no-coincide-fuera-de-produccion"
@@ -17,8 +17,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Models/Lender.php",
-      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
-      "blob": "01aa3f99100fe17ed904b0911f86ffc2b5da5549",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "f48f93276ab82508ca53e85d196eebfbf4841c98",
       "sections": [
         "dos-preguntas-distintas-es-smartpay-y-es-su-canal",
         "el-correo-con-la-marca-smartpay"
@@ -46,8 +46,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/BackDoorService.php",
-      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
-      "blob": "9d2de122f104f9b44f0094ffd3529c3df97bfb15",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "1b00bf648e547b346eafc1607a0bc44bfae07b93",
       "sections": [
         "el-id-fijo-y-por-que-no-coincide-fuera-de-produccion",
         "usuarios-de-comercio-permisos-y-validacion-manual"
@@ -56,8 +56,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/BackDoorUserService.php",
-      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
-      "blob": "a0c27454418d6150e061ac5256215c59ba9802e1",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "736424081b0644eaa7af9a8ff6693e034b6daa4e",
       "sections": [
         "el-id-fijo-y-por-que-no-coincide-fuera-de-produccion",
         "usuarios-de-comercio-permisos-y-validacion-manual"
@@ -129,8 +129,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/VoucherService.php",
-      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
-      "blob": "f6eb052d48da2238aea73b25fee30eac92ca1592",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "65dcd6d98bc98a3be5b324b6ec8bf7da1c1f8294",
       "sections": [
         "el-correo-con-la-marca-smartpay"
       ]
@@ -158,8 +158,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Models/CreditopXPrincipalPaymentType.php",
-      "commit": "c992e657db1dc16d7e2aadc7c6a7821d0b533d4e",
-      "blob": "220460cac6a2c46eb852e90cca5385779040f5e7",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "923e4d1ff78f64cfcdb85d4e786912b1dd7d7a71",
       "sections": [
         "el-id-fijo-y-por-que-no-coincide-fuera-de-produccion",
         "usuarios-de-comercio-permisos-y-validacion-manual"
@@ -168,8 +168,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/UserController.php",
-      "commit": "c992e657db1dc16d7e2aadc7c6a7821d0b533d4e",
-      "blob": "ae8f8c479d630ca8119267649fe7bcd696b90ecf",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "b490bfd8c53b6af50d82fbc2649c39270f6b011e",
       "sections": [
         "el-id-fijo-y-por-que-no-coincide-fuera-de-produccion",
         "usuarios-de-comercio-permisos-y-validacion-manual"
@@ -178,8 +178,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/CreditopXRequestHistoryController.php",
-      "commit": "c992e657db1dc16d7e2aadc7c6a7821d0b533d4e",
-      "blob": "e4756df9b113cfd1cda1c6a1c051a42e4aa50ac3",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "641f83cae3763eea5ac80dfa2ec9145b18873166",
       "sections": [
         "lo-que-el-admin-no-deja-hacer-con-republica-dominicana"
       ]

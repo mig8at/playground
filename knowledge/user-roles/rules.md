@@ -45,8 +45,9 @@ del orden en que se crearon los roles.
    dos usuarios del mismo perfil pueden ver cosas distintas.
 3. **Comparaciones con el número de perfil en el código** (`user_profile_id == 4`, `== 7`…). Deciden
    comportamiento sin pasar por permisos, están repartidas entre varios perfiles (1, 2, 4, 6 y 7) en
-   controladores, requests y vistas Vue de `legacy-application`, y no hay una en `legacy-backend`. Un perfil
-   nuevo o renumerado no hereda estas ramas.
+   controladores, requests y vistas Vue de `legacy-application`, y también existen en `legacy-backend`
+   (`user_profile_id == 4` en `LenderRetrievalService::getAlliedBranch` y `UserProfile::CLIENT` en
+   `CreditopXQuotaController::getExtendedQuota`). Un perfil nuevo o renumerado no hereda estas ramas.
 
 ## El alcance de cada perfil del comercio
 

@@ -30,29 +30,31 @@ El menú lateral se arma en `resources/js/navigation/vertical/` en este orden: D
 Gestión, Créditos de consumo (CreditopX), Configuración y Tecnología. Cada ítem pide un permiso para
 MOSTRARSE, pero la acción del backend suele pedir otro, o ninguno: por ejemplo, «Usuarios» se muestra con
 `view list of users` y su listado exige `view users`. El grupo de rutas `admin` (`RouteServiceProvider`
-y el grupo `admin` del `Kernel`) sólo exige estar autenticado: no hay `can:` de grupo, ni chequeo en el
-controlador base, ni `Gate::before`. Lo que limita es el login, el `can:` que lleve cada ruta (los
-vouchers, los pagos, recuperación, subsidio, refinanciación y condonación de CreditopX, bloqueo de
-dispositivos y «Validar usuario»), el `authorize()` de cada FormRequest y el alcance que arma cada
-controlador (por rol, `allied_id`, `multiple_allieds` o `lender_id`). Que un ítem no aparezca no prueba
-que su URL esté cerrada.
+y el grupo `admin` del `Kernel`) exige estar autenticado y pasa por `moved.to.backoffice`
+(`MovedToBackoffice`), que bloquea las pantallas declaradas en `MovedScreen` como migradas al nuevo
+backoffice: no hay `can:` de grupo, ni chequeo en el controlador base, ni `Gate::before`. Lo que limita
+es el login, ese bloqueo por pantalla migrada, el `can:` que lleve cada ruta (los vouchers, los pagos,
+recuperación, subsidio, refinanciación y condonación de CreditopX, bloqueo de dispositivos y «Validar
+usuario»), el `authorize()` de cada FormRequest y el alcance que arma cada controlador (por rol,
+`allied_id`, `multiple_allieds` o `lender_id`). Que un ítem no aparezca no prueba que su URL esté
+cerrada.
 
 ## Gestión: usuarios, solicitudes y autorizaciones
 
 - **Usuarios** (`/usuarios`) busca a CUALQUIER usuario —clientes y cuentas internas— por nombre, id,
   cédula, correo o celular, con una expresión regular. Desde ahí se ven sus solicitudes, su formulario y
   sus documentos de identidad, se edita (`update user`; una ficha temporal no se edita), se valida o
-  rechaza su identidad a mano (`validate identity manually`) y se da de baja, salvo que la guarda de
-  baja lo impida (ver «Las bajas son lógicas»).
+  rechaza su identidad a mano (`validate identity manually`, delegada al microservicio de `legacy-backend`)
+  y se da de baja, salvo que la guarda de baja lo impida (ver «Las bajas son lógicas»).
 - **Solicitudes** (`/solicitudes`) es la bandeja operativa: cada perfil gestiona su etapa (documentación,
   autorización, facturación, logística) y cambia el estado. Al «gestionar», el estado nuevo NO lo elige
   quien gestiona: sale de la fila de `status_per_profiles` del comercio (`allied_id`) y del perfil del
   usuario QUE GESTIONA —no del comercio de la solicitud—, salvo que se pida 6, 7 o 20, que se aplican
   tal cual. Cambiar los módulos de un comercio (su pestaña «Módulos») cambia el flujo operativo de sus
   usuarios.
-- **Comercio**, **Autorizaciones**, **Pagos**, **Perfilamiento usuarios** y **Mensajes marketing**
-  completan la sección; los mensajes se mandan por Twilio a una lista de teléfonos. Autorizaciones y
-  Pagos se ocultan del menú para usuarios de comercios de República Dominicana.
+- **Comercio**, **Autorizaciones**, **Perfilamiento usuarios** y **Mensajes marketing** completan la
+  sección; los mensajes se mandan por Twilio a una lista de teléfonos. Autorizaciones se oculta del menú
+  para usuarios de comercios de República Dominicana.
 
 ## Créditos CreditopX
 
@@ -133,8 +135,9 @@ fue no las ve nadie más del comercio.
   llaves de una sucursal ecommerce, y se emiten (el token se muestra una sola vez) o revocan los tokens de
   payment-link de la sucursal; revocarlos deja a la tienda sin poder generar enlaces de pago. El alta del
   usuario de prueba crea además una sucursal ecommerce de prueba aparte (ver `merchant-onboarding`), y
-  hay una acción para crearla en comercios que no la tienen. Guardar un punto de venta BORRA y recrea
-  sus entidades, conservando los `document_types` que cada una ya tenía ahí; una entidad recién sumada
+  hay una acción para crearla en comercios que no la tienen. Guardar un punto de venta apaga sus
+  entidades (`LendersByAlliedBranch::switchOffBranch`) y vuelve a encender (`switchOn`) las
+  seleccionadas, conservando los `document_types` que cada una ya tenía ahí; una entidad recién sumada
   toma los de la propia entidad. Pasar un comercio a inactivo por «Churn» o «No implementado» apaga a
   todos sus usuarios activos.
 - **Entidades** (`/entidades`): el catálogo de entidades financieras, sus líneas de crédito y tasas, sus
@@ -213,8 +216,20 @@ controlador recibe un `Request` plano o un FormRequest cuyo `authorize()` devuel
 - Los envíos de mensajes de marketing, de prueba y masivo: sus FormRequests autorizan siempre; sólo la
   pantalla exige `send marketing messages`.
 
-Cualquier rol que entre al admin puede ejecutarlas llamando a la URL. Antes de automatizar una acción
-del admin, comprobá en el controlador qué chequea, en vez de suponer que el menú la protege.
+Cualquier rol que entre al admin puede ejecutarlas llamando a la URL. La única compuerta que se agregó
+no mira permisos sino el perfil: el grupo de `routes/admin.php` lleva el middleware `moved.to.backoffice`
+(`MovedToBackoffice`, en `RouteServiceProvider`), que **sólo para el perfil Administrador**
+(`user_profile_id = 2`) cierra las rutas cuyo nombre está en `MovedScreen::MOVED`: un GET muestra la
+pantalla que dice a dónde se mudó en el backoffice y cualquier otro verbo contesta 403 sin ejecutar. De
+esta lista quedan cerradas así, sólo para Administrador, la baja de usuarios comerciales
+(`allieds.users.disable`), desactivar una entidad (`lenders.destroy`), borrar credenciales
+(`credentials.destroy`), las reglas de Datacrédito (`allied-datacredito-rules.update`), el disparador
+(`allied-branch.trigger`) y los tokens de ecommerce (`allieds.ecommerce.token.issue`/`.revoke`). La baja
+de Usuarios (`users.disable`), la frecuencia de Datacrédito, gestionar una solicitud, la validación
+manual, desactivar un link de pago y los mensajes de marketing no están en el mapa y siguen abiertas
+también para Administrador; para los demás perfiles toda la lista sigue abierta. Antes de automatizar
+una acción del admin, comprobá en el controlador qué chequea y si su ruta está en `MovedScreen`, en vez
+de suponer que el menú la protege.
 
 ## Lecturas por id sin alcance de comercio
 

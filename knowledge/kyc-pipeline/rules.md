@@ -27,12 +27,15 @@ enciende en los tres. Para saber qué comercios van por el pipeline en un ambien
 
 **Flujo viejo.** El OTP v1 y el guardado v1 de datos personales
 (`POST /api/onboarding/loan-application/personal-info/{hash}/{ur}`) corren la cascada dentro de la
-misma llamada: AgilData → Mareigua → TusDatos, y Experian según el flujo del comercio y sus reglas:
+misma llamada: AgilData → Mareigua → TusDatos (donde errores de AgilData o Mareigua marcan consulta
+a TusDatos y `shouldValidateTusDatos` se verifica antes de consultarlo, devolviendo `ONB005` si se
+agotaron los intentos), y Experian según el flujo del comercio y sus reglas:
 `OnboardingService::resolveForcedExperianProduct` lo fuerza cuando el aliado o un lender de la sucursal están
 en el setting `experian_trigger_bypass_rules`: Acierta + Quanto, o sólo Acierta si AgilData o Mareigua ya
-devolvieron ingreso vigente de menos de 30 días (`identityBureausHaveFreshIncome`). Si el comercio no está en
-el setting pero tiene un lender CreditopX, lo fuerza siempre con sólo Acierta. Llenar el formulario compra
-consultas. Al terminar, el wizard va al destino del comercio (casi siempre `lenders`).
+tuvieron consulta dentro de `IDENTITY_BUREAU_FRESHNESS_MONTHS` (1 mes, por fecha de `COALESCE(updated_at, created_at)`)
+con ingreso en su resumen (`identityBureausHaveFreshIncome`). Si el comercio no está en el setting pero tiene
+un lender CreditopX, lo fuerza siempre con sólo Acierta. Llenar el formulario compra consultas. Al terminar,
+el wizard va al destino del comercio (casi siempre `lenders`).
 
 **Pipeline.** El guardado de datos personales no consulta centrales, y el OTP sólo las toca en un caso
 (abajo):
@@ -40,8 +43,8 @@ consultas. Al terminar, el wizard va al destino del comercio (casi siempre `lend
   solicitud, guarda el empleo por defecto y firma términos; «usuario temporal» (`OBV22005`) y «sin datos
   laborales» (`OBV22006`) son éxitos. Si la sucursal o su comercio están deshabilitados responde
   `OBV22012` (HTTP 403, subcódigo `ALLIED_DISABLED`) antes de crear o retomar la solicitud
-  (`ValidateOtpAuthService.php:343`), y el wizard lo muestra como rechazo conocido. Esa guarda corre
-  con el OTP ya consumido (`:305`) y no alcanza al OTP del codeudor, que retorna antes (`:322-324`).
+  (`ValidateOtpAuthService`), y el wizard lo muestra como rechazo conocido. Esa guarda corre
+  con el OTP ya consumido y no alcanza al OTP del codeudor, que retorna antes.
   Tras la guarda y antes de crear o retomar la solicitud, refresca las centrales de identidad
   (`RefreshIdentityBurosService`, `GET /api/v2/risk/risk-central-data/refresh-all/{userId}`): AgilData,
   Mareigua y TusDatos se compran de nuevo sólo si ninguna tiene una fila de menos de 30 días, y sólo para

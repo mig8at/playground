@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Cupo rotativo CreditopX: otorgar, comprar, pagar y liberar",
   "summary": "El ciclo del cupo rotativo (riel 3): la cabecera y sus utilizaciones, cómo se calcula el cupo (capacidad × multiplicador de riesgo, la traducción del SP), la fecha y el plazo que impone el cupo a cada compra, el bloqueo al autorizar, el reparto de un pago entre compras, la consolidación nocturna y la gestión del cupo entero.",
-  "reviewedAt": "2026-11-23T12:00:00-05:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -25,8 +25,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/RevolvingCreditsService.php",
-      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
-      "blob": "32edc486efc6f18e20c92eaa94aa4e147fb3e149",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "2a1602666f40b8ead9dbd8b96c6c2ba8e6b6bffc",
       "sections": [
         "el-otorgamiento-se-calcula-una-vez"
       ]
@@ -52,8 +52,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php",
-      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
-      "blob": "c8f7e40de6997dee49af73ebd44378e248a15be7",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "5bf5a5f6de47c160da48a2ab02238dddb102f58d",
       "sections": [
         "el-otorgamiento-se-calcula-una-vez"
       ]
@@ -61,8 +61,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/lenders/LenderValidationService.php",
-      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
-      "blob": "bb21da995f7ad0e80118c38bb001d5dbcaa97906",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "0aae46a137d212723c3575edb08a04d1722e2846",
       "sections": [
         "el-otorgamiento-se-calcula-una-vez"
       ]
@@ -88,8 +88,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/CreditopXRequestHistoryService.php",
-      "commit": "64e42360aa9081a752c22c56a0b2a42fd3b3c185",
-      "blob": "babbf121a58be7990a224fc971003f231363bb64",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "a8c4274eaf9fd0bc3167818d6782c18cb9c308cb",
       "sections": [
         "cada-compra-la-fecha-y-el-plazo-los-pone-el-cupo"
       ]

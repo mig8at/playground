@@ -2,13 +2,13 @@
   "version": 1,
   "title": "De dónde sale cada credencial de una entidad",
   "summary": "Las dos tablas de credenciales (lender_allied_credentials y risk_central_credentials), el orden en que cada monolito busca la fila, qué integraciones leen certificados y cómo (y el desajuste de llaves y el log de contraseña de Credifamilia Consumo), la ausencia de control de vencimiento, la elección POS/PAY de Sistecrédito y cómo se genera el token de una tienda ecommerce.",
-  "reviewedAt": "2026-11-19T19:34:31+00:00",
+  "reviewedAt": "2026-11-25T14:12:19+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
       "path": "app/Models/LenderAlliedCredential.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "871fcbc88f0f48c0fedb8f768e831ee2e5cf1bc9",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "9d8580b53bfd8676d1866b75428bafc08e3e2f2f",
       "sections": [
         "dos-tablas-y-dos-formas-de-buscar",
         "credencial-de-entidad-sucursal-primero-comercio-despues"
@@ -17,8 +17,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Models/RiskCentralCredential.php",
-      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
-      "blob": "d885ec28dd001a165af8478ed663cf434c0ce00a",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "5632a3253d260927b7028810759e006155800259",
       "sections": [
         "dos-tablas-y-dos-formas-de-buscar",
         "credencial-de-central-la-entidad-primero-solo-en-legacy-backend"
@@ -59,14 +59,14 @@
       "sections": [
         "dos-tablas-y-dos-formas-de-buscar",
         "credencial-de-central-la-entidad-primero-solo-en-legacy-backend",
-        "ningun-codigo-mira-el-vencimiento"
+        "ninguna-integracion-mira-el-vencimiento"
       ]
     },
     {
       "repo": "legacy-application",
       "path": "app/Models/LenderAlliedCredential.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "871fcbc88f0f48c0fedb8f768e831ee2e5cf1bc9",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "01dd88aa500f95e5d6e16ac4bd1bb52f4e6a3f25",
       "sections": [
         "dos-tablas-y-dos-formas-de-buscar"
       ]
@@ -92,8 +92,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Actions/RiskCentrals/Experian.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "dc39ec3cfb5b50c9dacc95f28f364227cf00122d",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "1649ca1876331315b68133329056e9653c5c7e59",
       "sections": [
         "credencial-de-central-la-entidad-primero-solo-en-legacy-backend"
       ]
@@ -111,8 +111,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Actions/Lenders/Bancolombia.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "4063150a4a6b4a3d569958125aefc5e74ef63134",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "bc44307831bd01d3407f6c493ea19b105a44451b",
       "sections": [
         "quien-usa-certificado-y-como-lo-lee"
       ]
@@ -129,8 +129,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Actions/Lenders/BancoDeBogotaCeroPay.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "f6a15f8894a4090db678206a5fa12f909cba7536",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "126b3a1bb5bd83b17352c5373b4be151f9b34ce6",
       "sections": [
         "quien-usa-certificado-y-como-lo-lee"
       ]
@@ -156,8 +156,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Console/Commands/SeedCredifamiliaConsumoCredentialCommand.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "b599db30e58887bcaf1d2f3adb7d8e2c73bd2004",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "29dd1188996806f621a0c40f86b785b16f9c65dd",
       "sections": [
         "quien-usa-certificado-y-como-lo-lee"
       ]
@@ -165,8 +165,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Actions/DecevalSoap.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "44eeaedee0cc38af4c7e3cb988fe1cfce9b6ac1e",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "b8590ac450dc7de53cd9b4fc57eb61742b3b3576",
       "sections": [
         "quien-usa-certificado-y-como-lo-lee",
         "credencial-de-central-la-entidad-primero-solo-en-legacy-backend"
@@ -183,11 +183,11 @@
     },
     {
       "repo": "legacy-backend",
-      "path": "Modules/Risk/App/Repositories/RiskCentralCredentialRepository.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "bebfa014e8bb44b8666289d0f80dde7ffb24a008",
+      "path": "Modules/Credentials/App/Repositories/RiskCentralCredentialRepository.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "2cc302c4a2f8693e72cf7ab3b0bef003c21e3f2e",
       "sections": [
-        "ningun-codigo-mira-el-vencimiento"
+        "ninguna-integracion-mira-el-vencimiento"
       ]
     },
     {
@@ -196,7 +196,7 @@
       "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "5b06671cc1ff5bd8a3e0a5ded8a54f92fa2ef0e1",
       "sections": [
-        "ningun-codigo-mira-el-vencimiento"
+        "ninguna-integracion-mira-el-vencimiento"
       ]
     },
     {
@@ -229,8 +229,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/UserRequestService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "b4e7c44655a2eeace45dd4fc56eff134da23ebdd",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "7c4fe204d7d1ec89717a25979bc271c5235c45c2",
       "sections": [
         "sistecredito-tres-llaves-y-la-marca-pos",
         "credencial-de-entidad-sucursal-primero-comercio-despues"
@@ -275,8 +275,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Identity/App/Http/Controllers/Customer/AdoController.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "2fa37c53cfc2e8df3ac370db84997872d24545cd",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "666ca09c368782a9b15c7dfc7076517d4a4f0bd2",
       "sections": [
         "credencial-de-central-la-entidad-primero-solo-en-legacy-backend"
       ]
@@ -284,8 +284,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Partner/App/Services/AlliedManagementService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "7da20a81759a1e037e675374290522303476b7e9",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "d99efdf1707a2be56856d6d7f30c8efe02a91ed4",
       "sections": [
         "el-token-de-una-tienda-ecommerce"
       ]
@@ -311,8 +311,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/EcommerceRequestService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "bd5d3871f73e567e5d4d4edcd21656b5ea1af897",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "ffa15322a4d098f8d5d43dedfc635622d44b5c3d",
       "sections": [
         "el-token-de-una-tienda-ecommerce"
       ]
@@ -320,8 +320,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/routes/api.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "9fe1053db4e661eadc0e6478d19d239ea7e311a1",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "a0a88314475f99d50a446dafd6c80863367c40ad",
       "sections": [
         "el-token-de-una-tienda-ecommerce"
       ]
@@ -329,8 +329,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Services/Allied/EcommerceBranchCreator.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "5a4d3c45042b2cb22dc45f6f5f6db7b0e4fca8be",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "d47b773d549185438490c61f1031ae4c5ce596fa",
       "sections": [
         "el-token-de-una-tienda-ecommerce"
       ]
@@ -356,8 +356,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/WoocommerceController.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "0a1f21899f1935b99c7dc24241703b124d4f2a17",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "6352c14ae82012e8fef09f089e708604c8eb4e05",
       "sections": [
         "el-token-de-una-tienda-ecommerce"
       ]
@@ -365,8 +365,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/UserRequestController.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "b5e3f9ac409434e391a721b3cc453d93662f8573",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "c7ccac58446aa89556a2abdc40511cdd653c09da",
       "sections": [
         "credencial-de-entidad-sucursal-primero-comercio-despues"
       ]
@@ -401,8 +401,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/lenders/LenderTabBehaviorResolver.php",
-      "commit": "bf0ddcc79bbbc430005e07e7e64956575f6de939",
-      "blob": "ad1c0555af9345604f4afff49a8fca62632d822c",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "1fbe91c33af9d91699dad49a611a8f7631a43f49",
       "sections": [
         "credencial-de-entidad-sucursal-primero-comercio-despues"
       ]
