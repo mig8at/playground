@@ -1,0 +1,609 @@
+{
+  "version": 1,
+  "title": "Estados de un crédito CreditopX: vivos, Insolvencia y estados especiales",
+  "summary": "Catálogo de estados de un crédito CreditopX de consumo (vivos, suspendidos, Insolvencia, recuperaciones, cancelado y producto recuperado): quién los escribe y con qué permiso, qué bloquean y qué efecto tienen en pagos, causación, cobranza, bloqueo de equipos, cupo y lo que ven cliente y admin en legacy-application y legacy-backend.",
+  "reviewedAt": "2026-11-25T14:38:05+00:00",
+  "sources": [
+    {
+      "repo": "legacy-application",
+      "path": "app/Models/CreditopXUserRequestStatus.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "568344b674bced9f3b650a85cf4e7212f9ed8283",
+      "sections": [
+        "el-catalogo-y-sus-grupos",
+        "la-guardia-que-conserva-insolvencia"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Models/CreditopXUserRequestStatus.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "5839002a373ebbc5463597a024946c434670dc21",
+      "sections": [
+        "el-catalogo-y-sus-grupos",
+        "lo-que-ve-el-cliente"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "database/migrations/2026_11_19_121000_add_creditop_x_special_credit_states.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "c37ac9e54227a2adfa263c9543f7a690e579cff5",
+      "sections": [
+        "el-catalogo-y-sus-grupos",
+        "marcar-un-estado-especial"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Console/Commands/UpdateCreditopXRemoveOutstandingBalances.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "d9ff18d54201089e7be8933b012c02d3b58cfc2c",
+      "sections": [
+        "el-catalogo-y-sus-grupos",
+        "causacion-mora-y-colilla"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Actions/CreditopX/States/SpecialStateGate.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "292e63f26dcf292b8312118887d0a095aabbda32",
+      "sections": [
+        "el-estado-del-credito-y-el-de-la-fila",
+        "pagos-segun-el-estado",
+        "limites"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Actions/CreditopX/States/CreditStateWriter.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "bf9b72004a767b5cfc9f8d630fc2bb75bbb79021",
+      "sections": [
+        "el-estado-del-credito-y-el-de-la-fila",
+        "quien-escribe-un-cambio-de-estado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Repositories/CreditopXRequestHistoryRepository.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "aaa8673a8d94f4eda0214ec20e4d5b7683fc3fc9",
+      "sections": [
+        "el-estado-del-credito-y-el-de-la-fila",
+        "pagos-segun-el-estado",
+        "lo-que-ve-el-cliente"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Models/CreditopXCreditStateChange.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "5fb31a61280244d9c0aae8e7afbfc0813ca1381b",
+      "sections": [
+        "quien-escribe-un-cambio-de-estado",
+        "cancelar-y-producto-recuperado"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "database/migrations/2026_11_19_120000_create_creditop_x_credit_state_changes_table.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "751e4c7a700e702366cde9fb615bb12a372572ca",
+      "sections": [
+        "quien-escribe-un-cambio-de-estado"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Actions/CreditopX/States/ZeroBalances.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "098777dbfe2bddb13847e26d310a347e052b2781",
+      "sections": [
+        "quien-escribe-un-cambio-de-estado"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Actions/CreditopX/States/MoneyInTransit.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "7d6b9b7a871359252955a39b279c05aeab05bab3",
+      "sections": [
+        "plata-en-camino-frena-el-cambio"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Actions/CreditopX/States/CancelCredit.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "f2222b3211fadae47ffcdff1e8b48c9f07d81601",
+      "sections": [
+        "cancelar-y-producto-recuperado"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Http/Requests/Admin/CreditopX/CancelRequest.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "115362c893ce4edd67001f53bf5121086495ae67",
+      "sections": [
+        "cancelar-y-producto-recuperado"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Actions/CreditopX/States/MarkProductRecovered.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "1ed624d472c7dbde0422c593e7d1db223ece19ab",
+      "sections": [
+        "cancelar-y-producto-recuperado"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Console/Commands/ZeroClosedCreditBalancesCommand.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "90ef23af16996e02c0be27732bd84db24c4c8301",
+      "sections": [
+        "cancelar-y-producto-recuperado"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Http/Controllers/Admin/CreditopXRequestHistoryController.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "641f83cae3763eea5ac80dfa2ec9145b18873166",
+      "sections": [
+        "cancelar-y-producto-recuperado",
+        "lo-que-ve-el-admin",
+        "limites"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "routes/admin.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "a1ad36026b0fe68b8e1e0d2c1bcda49784e276e1",
+      "sections": [
+        "cancelar-y-producto-recuperado",
+        "marcar-un-estado-especial",
+        "salir-de-un-suspendido-reclamacion-perdida-o-quitar-el-estado"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Actions/CreditopX/States/MarkSpecialState.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "c0b50e74f63a0135a2c21655182c3b877d5c38fe",
+      "sections": [
+        "marcar-un-estado-especial"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Actions/CreditopX/States/GenerateSuspendedCreditStatement.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "fb135230841a7d04150b86aae108e1dfb83f772f",
+      "sections": [
+        "marcar-un-estado-especial"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Http/Controllers/Admin/CreditopXCreditStateController.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "391d2fe83eb178c064bb9d18f38ec1dec69a9acd",
+      "sections": [
+        "marcar-un-estado-especial",
+        "salir-de-un-suspendido-reclamacion-perdida-o-quitar-el-estado",
+        "lo-que-ve-el-admin"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Actions/CreditopX/States/SettleClaim.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "0d778985f4e25a7afb30de62568f6d06ad57cbf8",
+      "sections": [
+        "salir-de-un-suspendido-reclamacion-perdida-o-quitar-el-estado"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Actions/CreditopX/States/WaiveSuspendedLoss.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "73e34356e9edbd7a5968662d91f9a7565fd3e14a",
+      "sections": [
+        "salir-de-un-suspendido-reclamacion-perdida-o-quitar-el-estado"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Actions/CreditopX/States/ReleaseSpecialState.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "38ddb926fc059b446b4a74a55d2fbc4d4d30cf73",
+      "sections": [
+        "salir-de-un-suspendido-reclamacion-perdida-o-quitar-el-estado"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Actions/CreditopX/States/RegenerateScheduleAfterRelease.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "334f6aca1a4bdce80977cfc641fa35df7ff6db8a",
+      "sections": [
+        "salir-de-un-suspendido-reclamacion-perdida-o-quitar-el-estado"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Console/Commands/InsolvencyRollbackCommand.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "ef0beafd2240570226b809fc53e32d205fc46e93",
+      "sections": [
+        "salir-de-un-suspendido-reclamacion-perdida-o-quitar-el-estado"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Models/CreditopXRequestHistory.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "c2331363405fa17324c654f1f58ef78bf1aecc08",
+      "sections": [
+        "la-guardia-que-conserva-insolvencia"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Models/CreditopXRequestHistory.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "38dbef7e53d0db5caccdca9165b8cdce46b98b58",
+      "sections": [
+        "la-guardia-que-conserva-insolvencia",
+        "el-estado-del-credito-y-el-de-la-fila",
+        "lo-que-ve-el-cliente"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Console/Commands/CorrectBackdatedPaymentDate.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "9fb4a4b122aa61b8f55d463810901816a54c3106",
+      "sections": [
+        "la-guardia-que-conserva-insolvencia"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Http/Controllers/Admin/CreditopXPaymentController.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "a97b15050b85c026c3a2d5da2545aa0be1624139",
+      "sections": [
+        "pagos-segun-el-estado"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Http/Controllers/Customer/CreditopXRequestHistoryController.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "b6361bd5c14b4cfd26c5411ebefc1df3aecd9398",
+      "sections": [
+        "pagos-segun-el-estado"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Actions/CreditopX/States/ApplyPaymentToSuspendedCredit.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "23489d161e7f86c7d8903fbadfbe3195f20499c8",
+      "sections": [
+        "pagos-segun-el-estado",
+        "limites"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Services/PullmanService.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "66a0e7404c97c3c7147c8e27c4917fb00954c949",
+      "sections": [
+        "pagos-segun-el-estado"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Console/Commands/UpdateCreditopXNotAppliedWompiPaymentCommand.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "2115f30f95cf6f65665caa3446f7685a409a28bb",
+      "sections": [
+        "pagos-segun-el-estado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/CreditopXPaymentService.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "bd2f27b8f92fb5928bffd35805e4d49154010b6b",
+      "sections": [
+        "pagos-segun-el-estado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/PaymentIntentService.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "3431bf4ec44b52025e09a23b0627897ddb176c64",
+      "sections": [
+        "pagos-segun-el-estado",
+        "lo-que-ve-el-cliente"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/WompiWebhookService.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "acf5f0fa4c3074ccf60f732cb332130946de2dd1",
+      "sections": [
+        "pagos-segun-el-estado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Support/SpecialStateUnappliedPayment.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "2d66c6b08dd971789836f39fbe0e7a9129bd0b96",
+      "sections": [
+        "pagos-segun-el-estado",
+        "limites"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Console/Commands/ReapplyUnappliedWompiPaymentsCommand.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "18841601deb1b0fc691a595461287727960d8905",
+      "sections": [
+        "pagos-segun-el-estado"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Console/Commands/UpdateCreditopXRequestsCommand.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "f1cd517702b20adef772ead526454892a04916b2",
+      "sections": [
+        "causacion-mora-y-colilla"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Repositories/HistoryChainAuditRepository.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "4b6c0f73c065596d578e073d812ef922e50a7b8b",
+      "sections": [
+        "causacion-mora-y-colilla"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Audit/Checks/ClosedAndLiveHistoryCoexistCheck.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "4abe623495766453fad8770750cb87ff795ad59a",
+      "sections": [
+        "causacion-mora-y-colilla"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Console/Commands/ReminderCreditopXRequestsCommand.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "0a7a85c1009b89c4156d2946a313cb0fe5ce6429",
+      "sections": [
+        "cobranza-recordatorios-y-bloqueo-de-equipos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Console/Commands/ReminderCreditopXRequestsCommand.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "8556e05cfc89c370962fb69b4bcb37039737a948",
+      "sections": [
+        "cobranza-recordatorios-y-bloqueo-de-equipos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/Reminders/WeeklyReminderQuery.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "4ab115a85c80e1c13471f27806899ae7d9bee4ad",
+      "sections": [
+        "cobranza-recordatorios-y-bloqueo-de-equipos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Console/Commands/LockDevicesPastDueCommand.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "271317b217536ebd744f3ba7590f3192682665b3",
+      "sections": [
+        "cobranza-recordatorios-y-bloqueo-de-equipos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/DeviceLockingV1/App/Repositories/LockCandidateRepository.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "0523393daa19b4356f81d6b10651772b3648b4f9",
+      "sections": [
+        "cobranza-recordatorios-y-bloqueo-de-equipos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Console/Commands/UnlockDevicesPaidCommand.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "7a7927df7c50d110c0d081d61a06787e6c413c9d",
+      "sections": [
+        "cobranza-recordatorios-y-bloqueo-de-equipos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/DeviceLockingV1/App/Constants/UnlockDeviceOnPaymentServiceConstants.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "d4a63d5847b94a4e0e5950549ec01b5a67ba83eb",
+      "sections": [
+        "cobranza-recordatorios-y-bloqueo-de-equipos"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Actions/CreditopX/PredictStandingAfterCore.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "95bfad97e6b38a7a4ed7abee720941c0ba2f35b8",
+      "sections": [
+        "cobranza-recordatorios-y-bloqueo-de-equipos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/ActiveCreditRuleEvaluator.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "cc12b304cab9392c65de47918328831af4639f36",
+      "sections": [
+        "cupo-y-capacidad-de-pago"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Repositories/ActiveCreditRepository.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "ad89fceb1c449ea1c2e063040bd50bc6545927c1",
+      "sections": [
+        "cupo-y-capacidad-de-pago",
+        "limites"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/RevolvingCredit/RevolvingHardPolicyGate.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "d069965481f81422b64bcc9f276198a748f7e31f",
+      "sections": [
+        "cupo-y-capacidad-de-pago",
+        "limites"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "5bf5a5f6de47c160da48a2ab02238dddb102f58d",
+      "sections": [
+        "cupo-y-capacidad-de-pago"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Support/QuotaRejectionReason.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "ee4be4dd7b24c55d15ae23840dba27725931a47e",
+      "sections": [
+        "cupo-y-capacidad-de-pago"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/datacredito/CreditopXDatacreditoAdjustmentService.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "ee29a9e76efaf7bf6b90bc39bb8449ea99de8fab",
+      "sections": [
+        "cupo-y-capacidad-de-pago"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/DebtSummaryService.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "84444b527197b161aeca0c33710a67b04e0fda37",
+      "sections": [
+        "lo-que-ve-el-cliente"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/Consumer/ConsumerPaymentInfoService.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "ca55d3e388c7ee1664654d938bd4a98b8b3ec10e",
+      "sections": [
+        "lo-que-ve-el-cliente"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/CreditopXRequestHistoryService.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "a8c4274eaf9fd0bc3167818d6782c18cb9c308cb",
+      "sections": [
+        "lo-que-ve-el-cliente",
+        "el-catalogo-y-sus-grupos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "config/creditop_x_states.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "fe623305a931023404def1bc9b725210ee052772",
+      "sections": [
+        "lo-que-ve-el-cliente",
+        "limites"
+      ]
+    },
+    {
+      "repo": "creditop-mobile",
+      "path": "packages/feature_credits/lib/domain/entities/payment_info.dart",
+      "commit": "fad16096636b6af6a5123a92acadf5f1bcb48be1",
+      "blob": "52ec95bfeab726c6a04c0aac47e5da5f6035da2c",
+      "sections": [
+        "lo-que-ve-el-cliente"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Actions/CreditopX/States/CreditStateSummary.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "4ca10899337f2fa7bf4da764634c0541b97e1691",
+      "sections": [
+        "lo-que-ve-el-admin"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "resources/js/pages/admin/requestsCreditopX/request-detail/RequestDetail.vue",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "a3569029eb92224b0746b8389db09aec7fb50edb",
+      "sections": [
+        "lo-que-ve-el-admin"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Http/Controllers/Admin/CreditopXRiskController.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "8f369ea97f580f2eb8225ac48867366994ac6822",
+      "sections": [
+        "lo-que-ve-el-admin"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Exports/CreditopXRequestsReportExport.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "7dae53cbd60fc95857501a0a920abcb3361382d8",
+      "sections": [
+        "lo-que-ve-el-admin"
+      ]
+    }
+  ]
+}

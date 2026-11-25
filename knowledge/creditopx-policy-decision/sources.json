@@ -1,0 +1,336 @@
+{
+  "version": 1,
+  "title": "La decisión de política guardada: qué se evaluó para el cupo y dónde se lee",
+  "summary": "Foto por solicitud y momento (listado, selección, etapa extendida, autorización) de lo que evaluó la política finandina_v1 en legacy-backend —compuertas con sus PolicyCheck, perfil, capacidad, topes y monto— en user_request_policy_decisions, que no cambia el cupo y que legacy-application muestra en «Cómo se calculó el cupo» de la pestaña Perfilamiento junto al recálculo de hoy, recortada por entidad.",
+  "reviewedAt": "2026-11-25T14:35:22+00:00",
+  "sources": [
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2026_11_23_120000_create_user_request_policy_decisions_table.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "6012e665238230df71d5c1d37e331b4fcdd20012",
+      "sections": [
+        "que-guarda-una-fila-por-solicitud-y-momento",
+        "limites-y-diferencias-entre-monolitos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Models/UserRequestPolicyDecision.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "5fd82942b4fb91977acb12ccbf1553cc37902378",
+      "sections": [
+        "que-guarda-una-fila-por-solicitud-y-momento"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Repositories/PolicyDecisionRepository.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "1fd4dee9110fd4eb229283419f2c23999d42d500",
+      "sections": [
+        "que-guarda-una-fila-por-solicitud-y-momento",
+        "limites-y-diferencias-entre-monolitos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/Contracts/Repositories/PolicyDecisionRepositoryInterface.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "a017990dbf1d5245c1af8988b68129879175e690",
+      "sections": [
+        "que-guarda-una-fila-por-solicitud-y-momento"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/RiskPolicy/Finandina/FinandinaDecisionSnapshot.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "6b8982f7014618198b7ffedc5fdb700950dfe121",
+      "sections": [
+        "el-json-de-la-decision"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/RiskPolicy/PolicyDecision/PolicyCheck.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "63816ffb35834ed33052fc7dab06dd4c2c94e256",
+      "sections": [
+        "un-policycheck-cada-filtro-evaluado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/datacredito/DTOs/RuleValidationResult.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "a66e5e6cccf7249bdddea6bdc31bd43ed605f8c5",
+      "sections": [
+        "un-policycheck-cada-filtro-evaluado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/ActiveCreditRuleEvaluator.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "cc12b304cab9392c65de47918328831af4639f36",
+      "sections": [
+        "un-policycheck-cada-filtro-evaluado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/ClientMonthlyCreditRuleEvaluator.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "3d0a26bc72428cff37aeb412b6ed5f4da1e05428",
+      "sections": [
+        "un-policycheck-cada-filtro-evaluado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/LenderRuleEvaluator.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "0d40b956e41423273c657e711c6e1d4d779e22bf",
+      "sections": [
+        "un-policycheck-cada-filtro-evaluado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/DatacreditoRuleEvaluator.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "c546f30215d86a0182f96858612e164795a33b76",
+      "sections": [
+        "un-policycheck-cada-filtro-evaluado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/LenderUserCategoryService.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "b9c16e84973164e62057e9c997b6c31a7b83a8a1",
+      "sections": [
+        "el-json-de-la-decision",
+        "un-policycheck-cada-filtro-evaluado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/RiskPolicy/PolicyDecision/PolicyDecisionRecorder.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "0b3352448495de8548640526f2a3b80e842534c3",
+      "sections": [
+        "un-policycheck-cada-filtro-evaluado",
+        "cuando-se-escribe-cada-momento",
+        "solo-registro-nunca-cambia-el-cupo",
+        "limites-y-diferencias-entre-monolitos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/RiskPolicy/PolicyDecision/PolicyDecisionTrail.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "5500db8c8b0d3f04bd7891d494b954011c64c1fd",
+      "sections": [
+        "cuando-se-escribe-cada-momento",
+        "solo-registro-nunca-cambia-el-cupo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "5bf5a5f6de47c160da48a2ab02238dddb102f58d",
+      "sections": [
+        "cuando-se-escribe-cada-momento",
+        "solo-registro-nunca-cambia-el-cupo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/InitialFee/OfferSnapshotRecorder.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "cbe528fec65b20980983135530bf091dd20b6f77",
+      "sections": [
+        "cuando-se-escribe-cada-momento",
+        "solo-registro-nunca-cambia-el-cupo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/InitialFee/InitialFeePolicyResolver.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "9a94560a72d2f8f2cdf318040e230f2ebca47f57",
+      "sections": [
+        "cuando-se-escribe-cada-momento"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/UserRequestService.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "7c4fe204d7d1ec89717a25979bc271c5235c45c2",
+      "sections": [
+        "cuando-se-escribe-cada-momento"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/routes/api.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "a0a88314475f99d50a446dafd6c80863367c40ad",
+      "sections": [
+        "cuando-se-escribe-cada-momento"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/CreditopXRequestHistoryService.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "a8c4274eaf9fd0bc3167818d6782c18cb9c308cb",
+      "sections": [
+        "cuando-se-escribe-cada-momento"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Http/Controllers/Admin/PolicyDecisionController.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "ff411bb2ae6263ca130b7aaf704963cd1079ee16",
+      "sections": [
+        "la-lectura-get-policy-decision"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/routes/admin.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "f24ed68da7f5b4d122c1844fe1f3c783cbc28869",
+      "sections": [
+        "la-lectura-get-policy-decision",
+        "el-recalculo-de-hoy-y-la-capacidad-informativa"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Providers/RouteServiceProvider.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "7155d23d617a2653ecf8d7b6813858c3e4b0f6ee",
+      "sections": [
+        "la-lectura-get-policy-decision"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Http/Kernel.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "a6e4450877cfc2034d61d58176c8f1e8b470b085",
+      "sections": [
+        "la-lectura-get-policy-decision"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/RiskPolicy/PolicyDecision/PolicyDecisionReviewService.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "4ea8b1fcafae6c1a966586228b175ca0b2385779",
+      "sections": [
+        "la-lectura-get-policy-decision",
+        "el-recalculo-de-hoy-y-la-capacidad-informativa"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/DebtCapacity/DebtCapacityReviewService.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "babc2c146d7c362b98117d720dfe1bb5fcd8498a",
+      "sections": [
+        "el-recalculo-de-hoy-y-la-capacidad-informativa"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Support/LenderMonthlyLimits.php",
+      "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
+      "blob": "29fb27108695ba493b57963c11a7d716b1ec2df7",
+      "sections": [
+        "un-policycheck-cada-filtro-evaluado",
+        "el-recalculo-de-hoy-y-la-capacidad-informativa"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Http/Controllers/Admin/UserRequestProfilingController.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "997f70e443f311e9d27591ffcc8c18a551017827",
+      "sections": [
+        "la-pestana-perfilamiento-de-legacy-application"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Policies/UserRequestPolicy.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "33df499dde5de9d62abaf75c55524e2e6e969cbf",
+      "sections": [
+        "la-pestana-perfilamiento-de-legacy-application"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Models/UserRequestPolicyDecision.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "56ebeabdd7be55b09806e6b1acbebcad3ceb47df",
+      "sections": [
+        "la-pestana-perfilamiento-de-legacy-application",
+        "limites-y-diferencias-entre-monolitos"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Services/Api/LoansApiClient.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "0b63354015fcefdb963d5b07cefe44a97b62f378",
+      "sections": [
+        "la-pestana-perfilamiento-de-legacy-application"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Providers/RouteServiceProvider.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "81015f3338c6caf8c51c7cd0a4e24f95f94ae2b1",
+      "sections": [
+        "la-pestana-perfilamiento-de-legacy-application"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "routes/admin.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "a1ad36026b0fe68b8e1e0d2c1bcda49784e276e1",
+      "sections": [
+        "la-pestana-perfilamiento-de-legacy-application"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "resources/js/components/requests/PolicyDecisionReview.vue",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "5538dc2477051328c3798f8f1fbde6f91873b1a2",
+      "sections": [
+        "la-pestana-perfilamiento-de-legacy-application"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Exports/FinandinaCreditsReportExport.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "6c21dad9f5927bdc0f3d36b265bdec89abc29406",
+      "sections": [
+        "limites-y-diferencias-entre-monolitos"
+      ]
+    }
+  ]
+}

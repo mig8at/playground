@@ -75,6 +75,7 @@ en el código de `main` (los dos monolitos) y se suma a knowledge.
   - [field-scoring-policy](knowledge/field-scoring-policy/rules.md): la categoría por puntaje cuando ninguna regla aprueba.
   - [creditopx-setup-diagnosis](knowledge/creditopx-setup-diagnosis/rules.md): **por qué una entidad CreditopX no salió, salió sin cupo o no deja autorizar**.
   - [creditopx-revolving-credit](knowledge/creditopx-revolving-credit/rules.md): el riel 3.
+  - [creditopx-policy-decision](knowledge/creditopx-policy-decision/rules.md): **qué evaluó la política para el cupo**, en cada momento, y la pestaña Perfilamiento que lo muestra.
 - **Riel 1 y entidades integradas:** [lender-integrations](knowledge/lender-integrations/rules.md): Prami, Welli, Meddipay, Sistecrédito, Bancolombia BNPL, Crédito 365, UMA.
 - **Riel 4:** [lender-response-types#tipo-4-politica-de-la-entidad-rieles-de-creditop](knowledge/lender-response-types/rules.md).
 
@@ -124,6 +125,7 @@ en el código de `main` (los dos monolitos) y se suma a knowledge.
   - [creditopx-portfolio-servicing](knowledge/creditopx-portfolio-servicing/rules.md): la noche, la causación, la mora y la cobranza, las acciones del admin.
   - [creditopx-payment-application](knowledge/creditopx-payment-application/rules.md): la cascada del pago y Wompi.
   - [creditopx-revolving-credit#pagar-y-liberar](knowledge/creditopx-revolving-credit/rules.md).
+  - [creditopx-credit-states](knowledge/creditopx-credit-states/rules.md): **los estados del crédito** (al día, mora, Insolvencia, Fallecido, Fraude, Incapacidad y sus recuperaciones, cancelado): quién los cambia y qué cambian en pagos, cobranza, cupo y pantallas.
 - **Cobranza y avisos:** [weekly-collection-reminders](knowledge/weekly-collection-reminders/rules.md) y [whatsapp-campaigns](knowledge/whatsapp-campaigns/rules.md).
 - **Equipos IMEI en mora:** [device-locking](knowledge/device-locking/rules.md).
 
