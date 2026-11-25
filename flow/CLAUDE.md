@@ -36,7 +36,7 @@ de vez en cuando y **no tiene que seguir al código al pie de la letra**. Lo que
 
 | rt | riel | quién decide | después de elegir |
 |---|---|---|---|
-| 2 | CreditopX | CreditOp, con categorías y tramos | recheck → identidad → [Ábaco, codeudor] → plan (6/15/28) → firma → 11 |
+| 2 | CreditopX | CreditOp, con categorías y tramos | elegir → identidad → [Ábaco, codeudor] → plan (5/16/28, entre 26 y 60 días) → firma → 11 |
 | 4 | originación delegada | la entidad, por el servicio de preaprobación | recheck → identidad → formulario de la entidad → plan con su ficha → firma → [radicación] → 11 |
 | 1 | agregador | la API de la entidad | radica → la entidad contesta después |
 | 0 | redirect | la entidad, en su sitio | se redirige |

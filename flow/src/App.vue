@@ -365,7 +365,7 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
         addE.push({ id: 'e-codeudor', source: prevSrc, sourceHandle: prevH, target: 'codeudor', targetHandle: 'in', animated: false, style: GS })
         prevSrc = 'codeudor'; prevH = 'out'; x += adv('codeudor')
       }
-      // Plan de pagos (todo CreditopX): primera fecha de pago (6/15/28) + número de cuotas del listado.
+      // Plan de pagos (todo CreditopX): primera fecha de pago (5/16/28) + número de cuotas del listado.
       add.push({ id: 'planpagos', type: 'planpagos', position: { x, y: LIFE_Y } })
       addE.push({ id: 'e-planpagos', source: prevSrc, sourceHandle: prevH, target: 'planpagos', targetHandle: 'in', animated: false, style: GS })
       prevSrc = 'planpagos'; prevH = 'out'; x += adv('planpagos')

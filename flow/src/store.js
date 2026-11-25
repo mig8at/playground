@@ -585,7 +585,7 @@ export const state = reactive({
   numDoc: '1032456789',
   fechaExp: '2015-06-20',
   egresos: '3200000',
-  // Plan de pagos (CreditopX): día elegido de primera fecha de pago (6/15/28); null = la más próxima.
+  // Plan de pagos (CreditopX): día elegido de primera fecha de pago (5/16/28); null = la más próxima.
   firstPaymentDay: null,
   // Firma: OTP de 6 caracteres. Completo (6/6) → firma válida → Estado "success"; si no, "false".
   otp: '',
