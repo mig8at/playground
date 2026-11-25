@@ -153,6 +153,9 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
   (`2026_11_25_160000_add_extra_days_interest_to_delegated_origination_profiles`) corrió en la base de qa el 2026-11-25
   (batch 367): la 149 quedó en `last_installment` y la 24 y la 216 en `first_installment`. Termina con el #1563
   mergeado, los dos desplegados en qa y una solicitud nueva de Finandina con la primera cuota igual a la segunda.
+- [ ] Ver en qa la dirección del deudor en el pie del pagaré, con una solicitud de Banco Finandina y una de una entidad
+  sin catálogo. Arreglo en [#2101](https://github.com/Creditop-SAS/legacy-backend/pull/2101), contra `qa`. Termina con
+  el #2101 mergeado y desplegado y la dirección de residencia impresa en los dos pagarés.
 - [ ] Cargar el perfil del riel 4 de la 149 en producción con `extra_days_interest = last_installment` (y el 4x1000).
   Hoy no tiene perfil y la migración no toca nada ahí; sin ese valor calcularía con la regla de Credifamilia. Depende de:
   Oscar o Laura — la migración y el perfil en producción, a mano.
