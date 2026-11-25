@@ -17,6 +17,36 @@ desde el 2026-11-12, pensada para el tipo 2). Desde el 2026-11-17 Miguel sigue C
 decidió que Finandina va por el riel 4 y dejó a Miguel cómo se hace. Las fases 1 y 2 se pueden hacer sin esperar
 a producto; de la 3 en adelante dependen de las respuestas de la fase 0.
 
+### Lo que cierra la tarea en qa (lo nuestro, para el 2026-11-26)
+
+**Decisión.** Miguel, 2026-11-25: la tarea se da por terminada cuando lo nuestro quede listo en qa. El pagaré en
+Deceval (Hans, CRED-463) y el paso a producción van al final y no son parte de este cierre.
+
+- [ ] Ver en qa los dos arreglos de documentos en una firma nueva de Banco Finandina desde la sucursal de autogestión:
+  la ciudad de firma de los T&C dice «BOGOTÁ» ([#2102](https://github.com/Creditop-SAS/legacy-backend/pull/2102), en
+  merge) y el pie del pagaré trae la dirección del deudor
+  ([#2101](https://github.com/Creditop-SAS/legacy-backend/pull/2101), ya se vio bien en la 505325), también en el pagaré
+  de una entidad sin catálogo. Termina con los documentos firmados en qa con la ciudad y la dirección correctas.
+- [ ] Que el riel 4 responda 409 `OFFER_CHANGED` cuando la oferta cambia antes de firmar, como el tipo 2 (D15 del ADR),
+  y no 500 «error durante el cálculo del plan de pagos»: si la preaprobación `creditop_x` ya no está aprobada, el plan,
+  los documentos y la autorización del riel tienen que devolver el error que el wizard sabe mostrar. Termina con el
+  caso 11 de la guía en qa mostrando el aviso de volver al listado.
+- [ ] Encontrar por qué el listado ofrece 15 MM (casos 9 y 10). El motor de qa decide bien: por el backend
+  directo, 1,5 MM queda sin perfil y con 0, con los criterios `finandina_*` en `users_category_log`. Lo que
+  falla es otro camino del front; en la corrida, el listado recibió 400 y 401 de `POST /v1/preapprovals/check`.
+  Hipótesis de Abel, sin verificar: pre-approvals-service o el API Gateway llaman al backend de develop, que no
+  tiene CRED-519. Termina con la llamada ubicada y apuntada a qa (o qa llevado a develop), y el listado
+  mostrando el monto de la fórmula (decisión de Abel).
+- [ ] Correr las 10 revisiones del backoffice de la guía: el simulador tiene que dar el mismo perfil y monto que
+  `/available-quota`.
+- [ ] Ubicar la suite `tests/test_finandina.py` (sin commitear en ningún repo), subirla y dejar los resultados por
+  caso en CRED-519. Depende de: quien corrió el QA.
+- [ ] Revisar con la 149 los huecos de CORE-918 fuera del plan: pagaré y documentos de Credifamilia por
+  `CredifamiliaLenders::engineLenderIdFor`, 500 sin perfil, y firma Netco sin SigningV1. Termina con cada uno
+  corregido o descartado.
+- [ ] Que el recuadro de la huella de los T&C diga «Huella» entero: hoy sale «Huell» porque el texto no cabe (visto en
+  la 505325, última página). Termina con el documento firmado en qa mostrando «Huella» completo.
+
 ### Hecho
 
 - [x] ~~Ligar la tarea a un issue de Jira~~ — CORE-845 (CORE Sprint 21).
@@ -102,10 +132,6 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
   está en la pila.
 - [x] ~~Casos 11 y 13 de la guía~~ — 2026-11-17: el tope de la entidad rechaza (`lender_quota_exhausted`); la oferta que
   cambia frena el plan del riel 4 (505130), pero con 500.
-- [ ] Que el riel 4 responda 409 `OFFER_CHANGED` cuando la oferta cambia antes de firmar, como el tipo 2 (D15 del ADR),
-  y no 500 «error durante el cálculo del plan de pagos»: si la preaprobación `creditop_x` ya no está aprobada, el plan,
-  los documentos y la autorización del riel tienen que devolver el error que el wizard sabe mostrar. Termina con el
-  caso 11 de la guía en qa mostrando el aviso de volver al listado.
 - [ ] Cerrar los casos de la guía que el arnés no deja correr:
   - el 8, sin experiencia: hace falta dictarle al lambda un buró sin obligaciones de 3 MM;
   - el 12, tercer crédito: hace falta un cliente que vuelve con el mismo celular;
@@ -119,10 +145,6 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
   su pendiente de código. Depende de: producto / Finandina — si el promedio es aceptable o se lee el Advance 1.1.
 - [x] ~~Llevar a qa las cuatro fechas de pago de Finandina y el ADR al riel 4~~ —
   [#1944](https://github.com/Creditop-SAS/legacy-backend/pull/1944); en qa la 505114 ofrece 20-dic, 5, 10 y 15 de enero (2026-11-17).
-- [ ] Revisar con la 149 los huecos de CORE-918 fuera del plan: pagaré y documentos de Credifamilia por
-  `CredifamiliaLenders::engineLenderIdFor`, 500 sin perfil, y firma Netco sin SigningV1. Termina con cada uno
-  corregido o descartado.
-
 - [x] ~~Ver en qa que la tarjeta del listado ya no suma el FGA~~ — 2026-11-25: con el
   [#1562](https://github.com/Creditop-SAS/frontend-monorepo/pull/1562) desplegado, la 505322 (Banco Finandina) quedó
   con `amount` 5.000.000 sobre 5.000.000 pedidos.
@@ -133,9 +155,6 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
   [#2100](https://github.com/Creditop-SAS/legacy-backend/pull/2100) desplegado y su migración en qa (la 149 en
   `last_installment`), la 505322 da primera cuota 220.563 igual a la mensual; el detalle con intereses es el
   [#1563](https://github.com/Creditop-SAS/frontend-monorepo/pull/1563).
-- [ ] Ver en qa la dirección del deudor en el pie del pagaré, con una solicitud de Banco Finandina y una de una entidad
-  sin catálogo. Arreglo en [#2101](https://github.com/Creditop-SAS/legacy-backend/pull/2101), contra `qa`. Termina con
-  el #2101 mergeado y desplegado y la dirección de residencia impresa en los dos pagarés.
 - [ ] Cargar el perfil del riel 4 de la 149 en producción con `extra_days_interest = last_installment` (y el 4x1000).
   Hoy no tiene perfil y la migración no toca nada ahí; sin ese valor calcularía con la regla de Credifamilia. Depende de:
   Oscar o Laura — la migración y el perfil en producción, a mano.
@@ -144,16 +163,6 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
 
 - [x] ~~Reproducir el «Oops!» de Mediarte X (caso 15)~~ — no se reproduce: cierra en 11 (505128, 2026-11-17).
 - [x] ~~Repetir la firma (caso 1)~~ — en qa cierra en 11 con firma y OTP (uReq 505097, 2026-11-17).
-- [ ] Encontrar por qué el listado ofrece 15 MM (casos 9 y 10). El motor de qa decide bien: por el backend
-  directo, 1,5 MM queda sin perfil y con 0, con los criterios `finandina_*` en `users_category_log`. Lo que
-  falla es otro camino del front; en la corrida, el listado recibió 400 y 401 de `POST /v1/preapprovals/check`.
-  Hipótesis de Abel, sin verificar: pre-approvals-service o el API Gateway llaman al backend de develop, que no
-  tiene CRED-519. Termina con la llamada ubicada y apuntada a qa (o qa llevado a develop), y el listado
-  mostrando el monto de la fórmula (decisión de Abel).
-- [ ] Correr las 10 revisiones del backoffice de la guía: el simulador tiene que dar el mismo perfil y monto que
-  `/available-quota`.
-- [ ] Ubicar la suite `tests/test_finandina.py` (sin commitear en ningún repo), subirla y dejar los resultados por
-  caso en CRED-519. Depende de: quien corrió el QA.
 - [ ] Decidir si se dejan apagadas las reglas de centrales, ingresos ≥ 0 y género de la 149 (49788–49790,
   49795–49797, 49802–49804). Depende de: Abel.
 - [ ] Revisar las diferencias con la política que quedan por confirmar: Abel cuenta 98 zonas en dev y la
