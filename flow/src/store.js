@@ -555,7 +555,7 @@ function flowDocumentTypes(v, countryId) {
 }
 // lenders.product → el producto de Flow (el codeudor y Ábaco dependen de renting / renting con compra).
 const FLOW_PRODUCT = { credit: 'credito', renting: 'renting', rto: 'rto' }
-export function applyProductionImport({ comercio, sucursal, item, profiles = [], tramos = [], groupRules = [], importedAt = new Date().toISOString() }) {
+export function applyProductionImport({ comercio, sucursal, item, profiles = [], tramos = [], groupRules = [], identity = [], importedAt = new Date().toISOString() }) {
   const lenderId = flowNum(item.id); let l = customLenders.find(x => x.production?.lenderId === lenderId && x.production?.branchId === flowNum(sucursal.id))
   if (!l) { let name = String(item.name || 'Entidad de producción'), n = 2; while (customLenders.some(x => x.name === name)) name = String(item.name || 'Entidad') + ' (prod ' + n++ + ')'; const norm = normalizeType(item.response_type, FLOW_PRODUCT[item.product] || 'credito'); l = L({ name, rt: norm.rt, custom: true, producto: norm.producto, terms: {}, overrides: {}, entidad: {} }); customLenders.push(l) }
   const amountMin = flowNum(item.min_amount), amountMax = flowNum(item.max_amount), dues = flowDues(item.fee_numbers, flowNum(item.max_fee_number)), rate = item.rate == null ? null : flowNum(item.rate)
@@ -607,6 +607,8 @@ export function applyProductionImport({ comercio, sucursal, item, profiles = [],
   }
   const importedGroups = [...byGroup.values()]
   sucursalGroupsOf(l.name).splice(0, sucursalGroupsOf(l.name).length, ...importedGroups)
+  // Los proveedores de identidad de la entidad (lender_identity_validation_types), en orden: el primero es el primario.
+  l.entidad = { ...l.entidad, identity: identity.map(x => ({ slug: String(x.slug), label: String(x.label) })) }
   l.production = { lenderId, commerceId: flowNum(comercio.id), branchId: flowNum(sucursal.id), importedAt, baseline: { amountMin, amountMax, dues, rate, paisId: l.entidad.paisId, documentTypes: clone(documentTypes), profiles: clone(perfilOf(l.name)), tramos: clone(importedTramos), groupRules: clone(importedGroups), 'datacredito.minScore': dc.minScore, 'datacredito.maxNegatives': dc.maxNegatives, 'datacredito.maxInquiries': dc.maxInquiries, 'datacredito.minMaturation': dc.minMaturation, 'datacredito.allowZeroScore': dc.allowZeroScore } }
   ui.selected = l.name; focusWinningProfile(l.name); editTick.n++; return l
 }
@@ -1503,3 +1505,33 @@ export function resetGraph() {
 // español son deuda congelada de `make tablero-naming` y se renombran aparte.
 export { perfil as clientProfile, sucursalDiag as branchGateDiag, sucursalDatacreditoOf as branchCreditBureauRules,
   perfilDiag as categoryDiag, cuotaBreakdown as installmentBreakdown }
+
+// ── Validación de identidad (después de elegir una entidad que origina en casa) ─────────────────────────────────
+// Los proveedores salen de lender_identity_validation_types, en orden: el primero es el primario y, si termina sin
+// validar, SwitchValidationProviderService pasa al siguiente. Sin proveedor primario el backend contesta
+// `next_step: error` con HTTP 200 y el asistente cae a las instrucciones de siempre: el error no se nota.
+// Ver knowledge/identity-validation. Lo que contesta cada proveedor se dicta acá (Flow no lo sabe): `identityResult`.
+export const IDENTITY_PROVIDERS = {
+  none: 'no pide nada: sigue el flujo',
+  aws: 'lee la cédula (OCR) y compara la cara con una selfie (Rekognition)',
+  ado: 'foto de la cédula y selfie en la plataforma de ADO',
+  crosscore: 'enrolamiento biométrico y la evaluación de Experian CrossCore',
+  evidente: 'un cuestionario de preguntas (Evidente) y, si hace falta, un código',
+  questions: 'está en el catálogo, pero el backend no lo atiende: error «no soportado»',
+}
+export function identityProvidersOf(lender) { return (lender?.entidad?.identity || []).filter(x => x && x.slug) }
+const identityResult = reactive({}) // { [lenderName]: { [slug]: 'valida' | 'no_valida' } }; default: valida
+export function identityResultOf(name, slug) { return identityResult[name]?.[slug] === 'no_valida' ? 'no_valida' : 'valida' }
+export function setIdentityResult(name, slug, v) { identityResult[name] = { ...(identityResult[name] || {}), [slug]: v }; editTick.n++ }
+// Camina los proveedores en orden: el primero que valida decide; si ninguno valida, la identidad no pasa.
+export function identityOutcome(lender) {
+  const providers = identityProvidersOf(lender)
+  if (!providers.length) return { status: 'unset', providers, steps: [] }
+  const steps = []
+  for (const p of providers) {
+    const r = p.slug === 'none' ? 'valida' : (p.slug === 'questions' ? 'no_valida' : identityResultOf(lender.name, p.slug))
+    steps.push({ ...p, result: r })
+    if (r === 'valida') return { status: 'pass', by: p, providers, steps }
+  }
+  return { status: 'fail', providers, steps }
+}

@@ -5,6 +5,7 @@ import {
   customLenders, merchant, lenders, state, bureau, clientProfile as profile, setNull, editTick, money, RT_LABEL,
   branchGateDiag, branchCreditBureauRules, categoryDiag, usesQuotaEngine, usesPreApproval, preApprovalResponseOf,
   setPreApprovalField, installmentBreakdown, bondOf, calcValue, selectionCheck,
+  identityOutcome, setIdentityResult, IDENTITY_PROVIDERS,
 } from './store'
 
 // La TABLA del flujo (2026-11-25): el mismo cliente contra todas las entidades, paso por paso. Cada fila es un paso de
@@ -85,17 +86,32 @@ function selectionCell(c, previous) {
   return { status: 'pass', title: 'Pasa a 3 · Selección', line: NEXT_BY_RT[c.def.rt] || '' }
 }
 
+// ── Fila 4 · VALIDACIÓN DE IDENTIDAD: sólo para las que originan en casa (CreditopX y delegada). Un proveedor comprueba
+// que quien está del otro lado es el dueño de la cédula; si el primario no valida, pasa al siguiente en orden
+// (`identityOutcome`, knowledge/identity-validation). El agregador y el redirect la hacen en el flujo de la entidad.
+function identityCell(c, previous) {
+  if (previous.status !== 'pass') return { status: 'off', title: 'No llega', line: 'se cortó antes' }
+  if (c.def.rt === 0 || c.def.rt === 1) return { status: 'na', title: 'No aplica', line: 'la valida la entidad en su flujo' }
+  const o = identityOutcome(c.def)
+  if (o.status === 'unset') return { status: 'warn', title: 'Sin proveedor', line: 'el backend contesta error y el cliente ve las instrucciones de siempre' }
+  const names = o.providers.map(p => p.label.replace(/^Validación /, '')).join(' → ')
+  if (o.status === 'pass') return { status: 'pass', title: 'Validada', line: names }
+  return { status: 'fail', title: 'No validó', line: names + ': ninguno validó' }
+}
+
 const ROWS = [
   { key: 'listing', n: 1, label: 'Listado', ask: '¿Aparece la tarjeta?' },
   { key: 'preapproval', n: 2, label: 'Preaprobación', ask: '¿Cuánto le prestan?' },
   { key: 'selection', n: 3, label: 'Elegir la entidad', ask: '¿Qué se guarda al tocar «Continuar»?' },
+  { key: 'identity', n: 4, label: 'Validación de identidad', ask: '¿Es el dueño de la cédula?' },
 ]
-const NEXT_ROWS = ['Validación de identidad', 'Plan de pagos', 'Firma y cierre']
+const NEXT_ROWS = ['Plan de pagos', 'Firma y cierre']
 
 const grid = computed(() => columns.value.map(c => {
   const listing = listingCell(c)
   const preapproval = preApprovalCell(c, listing)
-  return { c, cells: { listing, preapproval, selection: selectionCell(c, preapproval) } }
+  const selection = selectionCell(c, preapproval)
+  return { c, cells: { listing, preapproval, selection, identity: identityCell(c, selection) } }
 }))
 
 // ── La celda abierta: la «calculadora» del paso, en el panel de la derecha.
@@ -150,6 +166,12 @@ const selDetail = computed(() => {
   else if (b && l.rt !== 4) { saved = b.financiado + b.admin; savedWhy = 'monto − cuota inicial + costos del comercio' }
   return { l, r, check, n, fee, saved, savedWhy, next: NEXT_BY_RT[l.rt] }
 })
+const idDetail = computed(() => {
+  if (!openCol.value || open.value.row !== 'identity') return null
+  const l = openCol.value.c.def
+  return { l, outcome: identityOutcome(l), inHouse: l.rt === 2 || l.rt === 4 }
+})
+const ID_RESULTS = [['valida', 'valida'], ['no_valida', 'no valida']]
 const STATUS = [['aprueba', 'aprueba'], ['rechaza', 'rechaza'], ['timeout', 'no contesta']]
 const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
 </script>
@@ -338,6 +360,44 @@ const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
           </div>
           <p class="tv-p tv-p--m">Si la solicitud ya tenía OTRA entidad elegida (o ya está en 11), elegir una distinta no la cambia:
             crea una solicitud nueva para esa entidad, y ahí sí revisa que la originación esté habilitada en la sucursal.</p>
+        </div>
+
+        <div v-else-if="idDetail" class="region-body tv-calc__b">
+          <h3>¿Es el dueño de la cédula?</h3>
+          <p class="tv-p">En el listado las centrales ya compararon el <b>nombre</b> que escribió con el de la cédula. Acá se
+            comprueba a la <b>persona</b>: que quien está del otro lado es el dueño del documento. Lo hace un proveedor que
+            elige cada entidad, y si el primero no valida, se pasa al siguiente en orden.</p>
+          <template v-if="!idDetail.inHouse">
+            <p class="tv-p tv-p--m">{{ idDetail.l.rt === 0 ? 'El redirect' : 'El agregador' }} no pasa por acá: la identidad la
+              valida la entidad en su propio flujo.</p>
+          </template>
+          <template v-else-if="idDetail.outcome.status === 'unset'">
+            <div class="tv-verdict no">{{ idDetail.l.name }} no tiene proveedor de identidad cargado
+              (<code>lender_identity_validation_types</code>). En el backend eso es un error que no se ve: contesta
+              «next_step: error» y el cliente ve las instrucciones de siempre.</div>
+          </template>
+          <template v-else>
+            <div class="tv-sec">Proveedores, en orden (dictá lo que contesta cada uno)</div>
+            <div v-for="(p, i) in idDetail.outcome.steps" :key="p.slug" class="tv-gate" :class="p.result === 'valida' ? 'ok' : 'no'">
+              <div class="tv-gate__h">{{ i === 0 ? 'Primario' : 'Respaldo ' + i }} · {{ p.label }}</div>
+              <div class="tv-p tv-p--m">{{ IDENTITY_PROVIDERS[p.slug] || p.slug }}</div>
+              <div v-if="p.slug !== 'none' && p.slug !== 'questions'" class="tv-chips">
+                <button v-for="[k, t] in ID_RESULTS" :key="k" type="button" class="chip-toggle" :class="{ on: p.result === k }"
+                  @click="setIdentityResult(idDetail.l.name, p.slug, k)">{{ t }}</button>
+              </div>
+            </div>
+            <div v-for="p in idDetail.outcome.providers.slice(idDetail.outcome.steps.length)" :key="'skip' + p.slug" class="tv-gate na">
+              <div class="tv-gate__h">Respaldo · {{ p.label }}</div>
+              <div class="tv-p tv-p--m">no se usa: ya validó uno antes</div>
+            </div>
+            <div class="tv-verdict" :class="idDetail.outcome.status === 'pass' ? 'ok' : 'no'">
+              <template v-if="idDetail.outcome.status === 'pass'">Validada con {{ idDetail.outcome.by.label }}: sigue al plan de pagos.</template>
+              <template v-else>Ningún proveedor validó: la solicitud no sigue.</template>
+            </div>
+          </template>
+          <p class="tv-p tv-p--m">Dos atajos: si un administrador validó a la persona a mano en las últimas 24 horas, el paso se
+            salta; y si el país del comercio no tiene centrales habilitadas, no se pide (los proveedores sólo conocen
+            personas colombianas).</p>
         </div>
       </aside>
     </div>
