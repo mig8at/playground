@@ -6,7 +6,7 @@ created: "2026-10-28T10:38:26-05:00"
 knowledge: [lender-response-types, lender-credential-sources, lender-listing, field-scoring-policy, creditopx-quota, kyc-pipeline, identity-name-validation, credifamilia-origination, client-profiling, deceval-promissory-note, finandina-policy, signing-document-generation]
 jira: [CORE-845, CRED-519]
 jira_title: "Finandina: originación completa en Creditop"
-ramas: legacy-backend:finandina-originacion, legacy-backend:mareigua-cuenta-por-entidad, CORE-845, frontend-monorepo:finandina-formulario-figma
+ramas: legacy-backend:finandina-originacion, legacy-backend:mareigua-cuenta-por-entidad, CORE-845, frontend-monorepo:finandina-formulario-figma, frontend-monorepo:no-fga-on-card
 ---
 
 ## Pendientes
@@ -125,10 +125,11 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
 
 - [ ] Que la tarjeta del listado no muestre el FGA (reunión del 2026-11-23). Hoy el «valor a financiar» del riel 4
   lo incluye: 5.000.000 pedidos salen como 5.450.000, con el FGA al 9 % sin IVA, porque `lenders_by_allieds.iva` de
-  la 149 está en 0 en qa. Termina con la tarjeta mostrando el monto pedido. Arreglo en
-  [#1515](https://github.com/Creditop-SAS/frontend-monorepo/pull/1515) (abierto contra `main`, pasado por Goldfish):
-  el riel 4 no suma FGA en el card (`CalculateLoanFinancialsUc::cardGuaranteeRate`), así que muestra y persiste el
-  monto pedido. Falta: la revisión, el merge y verlo en qa con una solicitud nueva.
+  la 149 está en 0 en qa. Termina con la tarjeta mostrando el monto pedido. El arreglo (el riel 4 no suma FGA en el
+  card, `CalculateLoanFinancialsUc::cardGuaranteeRate`, así que muestra y persiste el monto pedido) está en la rama
+  `fix/CORE-845-delegated-origination-no-fga-on-card-qa`, sobre `qa`: el #1515 se cerró sin mergear porque apuntaba a
+  `main` y el flujo es qa → main. Falta: publicar el PR contra `qa`, la revisión, el merge y verlo en qa con una
+  solicitud nueva (`amount` igual al pedido).
 - [ ] Que la fianza se cobre una sola vez y como la calcula Finandina. El plan del riel 4 la vuelve a calcular sobre
   `user_requests.amount`, que ya trae el FGA de la tarjeta: con 5.000.000 cobró 583.695 (9 % + IVA sobre 5.450.000)
   y financió 6.033.695. Según el simulador de Finandina («Simulacion Aval Libre Inversion FGA», Drive, 2026-11-23):
