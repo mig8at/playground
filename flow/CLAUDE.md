@@ -15,7 +15,7 @@ de vez en cuando y **no tiene que seguir al código al pie de la letra**. Lo que
     línea, categorías activas con su regla de titular inicial, tramos, reglas de la sucursal, producto y la ficha delegada
     (`delegated_origination_profiles`).
   - `bin/flow client --occupation pensionado --continuity 12m --score 800 …` — el cliente de la solicitud.
-  - `bin/flow add|select|remove|clear|delegated|open`. `bin/flow` sin argumentos lo dice todo.
+  - `bin/flow add|select|remove|clear|delegated|view graph|table|open`. `bin/flow` sin argumentos lo dice todo.
   - Hoy en Cockpit (2026-11-25, de qa): Motai Renting y Rent to Own (sucursal 682), Credifamilia y CrediPullman (2232) y
     Banco Finandina (2247), con el cliente empleado, sin negativos y 12 meses de continuidad.
   - ⚠ Cada ventana guarda su propio escenario: con dos apps abiertas (Cockpit y un navegador), las dos reciben el
@@ -26,6 +26,21 @@ de vez en cuando y **no tiene que seguir al código al pie de la letra**. Lo que
   `brief <tema> --text`. Mapa → una ficha → la fuente que cita. No le pases cédulas, solicitudes ni datos de un caso.
 - **Un caso o un estado real** no se contesta acá: el harness (correr), `bin/pg` (la base, Loki) y, en prod, el
   tracer del repo compartido.
+
+## Dos vistas: Grafo y Tabla
+
+Arriba, «Grafo | Tabla» (o `bin/flow view table`), guardado en `flow-settings`. El **grafo** cuenta UNA entidad, nodo por
+nodo. La **tabla** (`src/TableView.vue`, 2026-11-25) pone el mismo cliente contra todas las entidades: una fila por paso de
+la solicitud y una columna por entidad, y cada celda dice si pasa (verde), si se corta (rojo), si sigue con probabilidad
+baja (ámbar) o si no le aplica. Al abrir una celda sale, a la derecha, la «calculadora» del paso; arriba se edita el
+cliente (monto, ocupación, edad, score, negativos, continuidad) y toda la tabla se recalcula.
+
+- Hoy tiene dos filas: **1 · Listado** (las reglas duras de la sucursal: tipo de documento, centrales y grupos; CreditopX
+  que no las cumple no sale, las demás salen con probabilidad baja) y **2 · Preaprobación** (quién contesta, las
+  categorías si decide el motor, lo que se dicta si decide la API, el cupo y la cuota con su fianza). Las de abajo
+  (elegir, identidad, plan, firma) están dibujadas vacías y se suman paso a paso.
+- **No tiene lógica propia**: usa la de `store.js` (el listado, `sucursalGate`, `perfilDiag`, `bondOf`,
+  `cuotaBreakdown`), con alias en inglés al final de ese archivo. Lo que se cambia en una vista se ve en la otra.
 
 ## Los rieles (el `response_type` de la entidad)
 

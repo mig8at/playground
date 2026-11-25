@@ -2,6 +2,7 @@
 // misma lógica de la interfaz, contesta, y cuenta qué tiene después de cada guardado. Así lo carga y lo cambia Claude por
 // consola y Miguel sólo lo mira en Cockpit.
 import { watch, nextTick } from 'vue'
+import { settings } from './settings'
 import { customLenders, addCustomLender, removeCustomLender, selectOffer, findLenderDef, setDelegated, delegatedOf, markDelegatedBaseline, bondOf,
   applyProductionImport, merchant, ui, persistPing, lenders, bureau, state, setNull } from './store'
 
@@ -42,6 +43,7 @@ const HANDLERS = {
     if (c.fields.amount != null) { state.monto = String(Number(c.fields.amount)); set.amount = Number(c.fields.amount) }
     return { client: set }
   },
+  view(c) { settings.view = c.view === 'table' ? 'table' : 'graph'; return { view: settings.view } },
   delegated(c) { const l = findLenderDef(c.name); if (!l) throw new Error('no existe ' + c.name); if (l.rt !== 4) throw new Error(c.name + ' no es delegada'); applyDelegated(l, c.fields); return { delegated: delegatedOf(l) } },
 }
 
@@ -54,6 +56,7 @@ function report() {
     app: APP_ID,
     merchant: { name: merchant.nombre, branch: merchant.sucursal },
     selected: ui.selected,
+    view: settings.view,
     entities: customLenders.map(l => ({ name: l.name, rt: l.rt, product: l.producto, enabled: !!merchant.enabled[l.name],
       production: l.production ? { lenderId: l.production.lenderId, branchId: l.production.branchId, importedAt: l.production.importedAt } : null,
       delegated: l.rt === 4 ? delegatedOf(l) : undefined, bond: l.rt === 4 ? bondOf(l) : undefined, listing: listing[l.name] || null })),

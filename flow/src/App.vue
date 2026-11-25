@@ -40,6 +40,8 @@ import CodeudorNode from './nodes/CodeudorNode.vue'
 import InfoAdicionalNode from './nodes/InfoAdicionalNode.vue'
 import CreditStatusNode from './nodes/CreditStatusNode.vue'
 import FieldInfoPanel from './nodes/FieldInfoPanel.vue'
+import TableView from './TableView.vue'
+import { settings } from './settings'
 import { ui, findLenderDef, entidadCfg, perfilOf, perfil, bureau, fieldNull, providerDown, lenders, postSelSteps, selectionCheck, usesCategories, usesQuotaEngine, isInHouse, delegatedOf, closeFieldInfo, focusWinningProfile, persistPing } from './store'
 import { Check } from 'lucide-vue-next'
 
@@ -412,10 +414,17 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
     <main class="editor">
       <div class="region-head">
         <span class="flow-title">Flujo de una solicitud</span>
-        <span class="flow-crumbs">comercio → solicitud → burós → perfil → entidades → después de elegir</span>
-        <EditorActions />
+        <div class="flow-views" role="tablist" aria-label="Vista">
+          <button type="button" role="tab" :aria-selected="settings.view === 'graph'" :class="{ on: settings.view === 'graph' }" @click="settings.view = 'graph'">Grafo</button>
+          <button type="button" role="tab" :aria-selected="settings.view === 'table'" :class="{ on: settings.view === 'table' }" @click="settings.view = 'table'">Tabla</button>
+        </div>
+        <span class="flow-crumbs">{{ settings.view === 'table' ? 'el mismo cliente, todas las entidades, paso por paso' : 'comercio → solicitud → burós → perfil → entidades → después de elegir' }}</span>
+        <EditorActions v-if="settings.view === 'graph'" />
       </div>
-      <div class="region-body canvas">
+      <div v-if="settings.view === 'table'" class="region-body">
+        <TableView />
+      </div>
+      <div v-else class="region-body canvas">
         <VueFlow :nodes="nodes" :edges="edges" :min-zoom="0.2" :max-zoom="2" :nodes-draggable="true" :fit-view-on-init="true" :fit-view-options="{ padding: 0.14 }" @pane-click="closeFieldInfo">
           <template #node-merchant="props"><MerchantNode v-bind="props" /></template>
           <template #node-canal="props"><CanalNode v-bind="props" /></template>
@@ -466,7 +475,7 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
         </VueFlow>
       </div>
     </main>
-    <FieldInfoPanel />
+    <FieldInfoPanel v-if="settings.view === 'graph'" />
     <footer class="statusbar">
       <span>{{ ui.selected ? 'Entidad elegida: ' + ui.selected : 'Elegí una entidad en «Entidades disponibles» para ver lo que sigue' }}</span>
       <span v-if="justSaved" class="flow-saved"><Check :size="12" /> escenario guardado</span>

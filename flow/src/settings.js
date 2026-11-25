@@ -13,6 +13,8 @@ const s = load()
 export const settings = reactive({
   // compat: si venías con alguno de los 3 checks viejos prendidos, arranca revelando
   showExtra: !!(s.showExtra ?? (s.showUnused || s.showBusiness || s.showServicing)),
+  // La vista: 'graph' (el grafo de una entidad) o 'table' (todas las entidades lado a lado, paso por paso).
+  view: s.view === 'table' ? 'table' : 'graph',
 })
 
 function apply() {
@@ -22,5 +24,5 @@ apply() // sincrónico al importar → sin parpadeo al cargar
 
 watch(settings, () => {
   apply()
-  try { localStorage.setItem('flow-settings', JSON.stringify({ showExtra: settings.showExtra })) } catch {}
+  try { localStorage.setItem('flow-settings', JSON.stringify({ showExtra: settings.showExtra, view: settings.view })) } catch {}
 }, { deep: true })

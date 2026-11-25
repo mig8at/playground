@@ -1498,3 +1498,8 @@ export function resetGraph() {
   try { localStorage.removeItem(GRAPH_KEY); localStorage.removeItem(LS_CUSTOM) } catch {}
   location.reload()
 }
+
+// Nombres en inglés para lo nuevo (2026-11-25): la tabla del flujo (TableView.vue) usa estos. Los originales en
+// español son deuda congelada de `make tablero-naming` y se renombran aparte.
+export { perfil as clientProfile, sucursalDiag as branchGateDiag, sucursalDatacreditoOf as branchCreditBureauRules,
+  perfilDiag as categoryDiag, cuotaBreakdown as installmentBreakdown }

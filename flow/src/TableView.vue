@@ -1,0 +1,357 @@
+<script setup>
+import { computed, ref } from 'vue'
+import { X, Check, Minus, CircleAlert, ChevronRight } from 'lucide-vue-next'
+import {
+  customLenders, merchant, lenders, state, bureau, clientProfile as profile, setNull, editTick, money, RT_LABEL,
+  branchGateDiag, branchCreditBureauRules, categoryDiag, usesQuotaEngine, usesPreApproval, preApprovalResponseOf,
+  setPreApprovalField, installmentBreakdown, bondOf, calcValue,
+} from './store'
+
+// La TABLA del flujo (2026-11-25): el mismo cliente contra todas las entidades, paso por paso. Cada fila es un paso de
+// la solicitud y cada columna una entidad; cada celda dice si la entidad pasa ese paso, y al abrirla sale la
+// «calculadora» del paso. No tiene lógica propia: todo sale de `store.js`, lo mismo que dibuja el grafo, y lo carga
+// `bin/flow` (import, client). Por ahora tiene las dos primeras filas: el listado y la preaprobación.
+
+// ── El cliente, arriba: los datos que deciden. Editarlos recalcula toda la tabla.
+const EMP = [['empleado', 'Empleado'], ['independiente', 'Independiente'], ['pensionado', 'Pensionado'], ['desempleado', 'Desempleado']]
+const CONT = [['<3m', '< 3 meses'], ['3m', '3 meses'], ['6m', '6 meses'], ['12m', '12 meses o más']]
+function setBureau(key, v, numeric = true) {
+  bureau[key] = numeric ? (v === '' ? null : Number(v)) : v
+  setNull(key, v === '' || v == null)
+  editTick.n++
+}
+function setAmount(v) { state.monto = String(v).replace(/\D/g, ''); editTick.n++ }
+const amount = computed(() => parseInt(String(state.monto).replace(/\D/g, '')) || 0)
+
+// ── Las columnas: las entidades del comercio, en el orden en que se cargaron.
+const columns = computed(() => {
+  editTick.n // dependencia: recalcula al editar
+  const byName = Object.fromEntries(lenders.value.map(r => [r.name, r]))
+  return customLenders.filter(l => merchant.enabled[l.name]).map(l => ({ def: l, row: byName[l.name] || null }))
+})
+
+// ── Fila 1 · el LISTADO: ¿aparece la tarjeta? Reglas duras de la sucursal (tipo de documento, datacrédito, grupos).
+// CreditopX que no las cumple desaparece; las demás siguen, con probabilidad baja: decide la entidad.
+function listingCell(c) {
+  const rt = c.def.rt
+  if (!c.row) return { status: 'off', title: 'No sale', line: 'el país de la entidad no es el del comercio' }
+  const gate = branchGateDiag(c.def.name).gate
+  if (gate.ok) return { status: 'pass', title: 'Sale', line: 'cumple las reglas duras', gate }
+  if (rt === 2) return { status: 'fail', title: 'No sale', line: gate.reason, gate }
+  return { status: 'warn', title: 'Sale con prob. baja', line: gate.reason, gate }
+}
+
+// ── Fila 2 · la PREAPROBACIÓN: ¿cuánto le prestan? Quién contesta depende del tipo de la entidad.
+function whoDecides(l) {
+  if (l.rt === 0) return 'nadie: redirige a su sitio'
+  if (usesQuotaEngine(l)) return l.rt === 2 ? 'motor de cupo (CreditopX)' : 'motor de cupo, con la política de ' + l.name
+  if (usesPreApproval(l)) return 'la API de ' + l.name
+  return '—'
+}
+// El cupo de verdad, no el monto pedido (el listado guarda min(monto, cupo)): el de la categoría que gana si decide el
+// motor, o el monto máximo que contesta la API (o el tope de la entidad si no se dictó).
+// Como el listado: topeado por el máximo del comercio para esa entidad (`lenders_by_allieds.max_amount`, que hereda el
+// de la línea de crédito).
+function maxQuota(l) {
+  const cap = calcValue(merchant.nombre, 'montoMax', l) || Infinity
+  let q = 0
+  if (usesQuotaEngine(l)) { const w = categoryDiag(l.name).rows.find(x => x.won); q = w ? w.cupo : 0 }
+  else if (usesPreApproval(l)) q = preApprovalResponseOf(l.name).maxAmount ?? (l.terms?.amountMax || 0)
+  return Math.min(q, cap)
+}
+function preApprovalCell(c, first) {
+  if (first.status === 'fail' || first.status === 'off') return { status: 'off', title: 'No llega', line: 'se cortó en el listado' }
+  const l = c.def, r = c.row
+  if (l.rt === 0) return { status: 'na', title: 'No aplica', line: 'redirige: decide la entidad en su sitio' }
+  const max = maxQuota(l)
+  if (r.ok) return { status: 'pass', title: 'Aprobada' + (max ? ' · hasta ' + money(max) : ''), line: r.category ? 'categoría ' + r.category : whoDecides(l) }
+  return { status: 'fail', title: 'Rechazada', line: r.reason }
+}
+
+const ROWS = [
+  { key: 'listing', n: 1, label: 'Listado', ask: '¿Aparece la tarjeta?' },
+  { key: 'preapproval', n: 2, label: 'Preaprobación', ask: '¿Cuánto le prestan?' },
+]
+const NEXT_ROWS = ['Elegir la entidad', 'Validación de identidad', 'Plan de pagos', 'Firma y cierre']
+
+const grid = computed(() => columns.value.map(c => {
+  const listing = listingCell(c)
+  return { c, cells: { listing, preapproval: preApprovalCell(c, listing) } }
+}))
+
+// ── La celda abierta: la «calculadora» del paso, en el panel de la derecha.
+const open = ref(null) // { name, row }
+const openCol = computed(() => open.value && grid.value.find(g => g.c.def.name === open.value.name))
+function toggle(name, row) { open.value = open.value && open.value.name === name && open.value.row === row ? null : { name, row } }
+
+// Detalle del listado: cada compuerta con lo que pide y lo que tiene el cliente.
+const listingDetail = computed(() => {
+  if (!openCol.value || open.value.row !== 'listing') return null
+  const name = openCol.value.c.def.name
+  const gate = branchGateDiag(name).gate
+  const dc = branchCreditBureauRules(name)
+  return { gate, dc }
+})
+const FIELD = { employment: 'Ocupación', gender: 'Género', monthlyIncome: 'Ingreso', age: 'Edad', documentType: 'Tipo de documento' }
+const condText = (x) => {
+  const c = x.c, v = Array.isArray(c.value) ? c.value.join(' | ') : (c.field === 'monthlyIncome' ? money(c.value) : c.value)
+  const op = c.op === 'in' ? 'es' : c.op === 'not in' ? 'no es' : c.op
+  return `${FIELD[c.field] || c.field} ${op} ${v}`
+}
+
+// Detalle de la preaprobación: las categorías (si decide el motor), lo que dicta la API, y la calculadora de cuota.
+const CHECK = { occupation: 'ocupación', age: 'edad', income: 'ingreso verificado', continuity: 'continuidad', gender: 'género', score: 'score', negatives: 'negativos', delinq: 'mora', history: 'historia', inquiries: 'consultas' }
+const preDetail = computed(() => {
+  if (!openCol.value || open.value.row !== 'preapproval') return null
+  const { def: l, row: r } = openCol.value.c
+  const cats = usesQuotaEngine(l) ? categoryDiag(l.name) : null
+  return { l, r, cats, who: whoDecides(l), pa: usesPreApproval(l) ? preApprovalResponseOf(l.name) : null }
+})
+const term = ref(null)
+const terms = computed(() => (preDetail.value?.r?.dues || []).slice().sort((a, b) => a - b))
+const chosenTerm = computed(() => terms.value.includes(term.value) ? term.value : terms.value[terms.value.length - 1])
+const quote = computed(() => {
+  const d = preDetail.value
+  if (!d || !d.r || !d.r.ok || !chosenTerm.value || d.l.rt === 0) return null
+  const b = installmentBreakdown(d.r, chosenTerm.value)
+  return { ...b, bond: d.l.rt === 4 ? bondOf(d.l) : null, n: chosenTerm.value }
+})
+const STATUS = [['aprueba', 'aprueba'], ['rechaza', 'rechaza'], ['timeout', 'no contesta']]
+const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
+</script>
+
+<template>
+  <div class="tv">
+    <!-- El cliente -->
+    <section class="tv-client" aria-label="El cliente de la solicitud">
+      <div class="tv-client__title">El cliente</div>
+      <label class="tv-f"><span>Monto</span><input inputmode="numeric" :value="money(amount)" @change="e => setAmount(e.target.value)" /></label>
+      <label class="tv-f"><span>Ocupación</span>
+        <select :value="profile.employment ?? ''" @change="e => setBureau('employment', e.target.value, false)">
+          <option v-for="[k, t] in EMP" :key="k" :value="k">{{ t }}</option>
+        </select></label>
+      <label class="tv-f tv-f--s"><span>Edad</span><input type="number" :value="profile.edad ?? ''" @change="e => setBureau('edad', e.target.value)" /></label>
+      <label class="tv-f tv-f--s"><span>Score</span><input type="number" :value="profile.score ?? ''" @change="e => setBureau('score', e.target.value)" /></label>
+      <label class="tv-f tv-f--s"><span>Negativos 12m</span><input type="number" :value="profile.negatives12m ?? ''" @change="e => setBureau('negatives12m', e.target.value)" /></label>
+      <label class="tv-f"><span>Continuidad laboral</span>
+        <select :value="bureau.agilContinuity ?? ''" @change="e => setBureau('agilContinuity', e.target.value, false)">
+          <option v-for="[k, t] in CONT" :key="k" :value="k">{{ t }}</option>
+        </select></label>
+      <div class="tv-f tv-f--ro"><span>Ingreso</span><b>{{ money(profile.salario) }}</b><em>{{ profile.salarioFuente }}</em></div>
+      <div class="tv-f tv-f--ro"><span>Documento</span><b>{{ state.tipoDoc }}</b></div>
+    </section>
+
+    <div class="tv-body">
+      <div class="tv-scroll">
+        <div v-if="!grid.length" class="tv-empty">No hay entidades cargadas. Se cargan por consola: <code>bin/flow import --branch … --lender …</code></div>
+        <div v-else class="tv-grid" :style="{ gridTemplateColumns: `150px repeat(${grid.length}, minmax(168px, 1fr))` }">
+          <!-- Cabecera: una entidad por columna -->
+          <div class="tv-corner">{{ merchant.nombre }}<small>{{ merchant.sucursal }}</small></div>
+          <div v-for="g in grid" :key="'h' + g.c.def.name" class="tv-colhead">
+            <span class="lg__chip" :class="'rt' + g.c.def.rt">rt{{ g.c.def.rt }}</span>
+            <b>{{ g.c.def.name }}</b>
+            <small>{{ RT_LABEL[g.c.def.rt] }} · {{ g.c.def.producto }}</small>
+          </div>
+
+          <!-- Filas que ya funcionan -->
+          <template v-for="row in ROWS" :key="row.key">
+            <div class="tv-rowhead"><span class="tv-n">{{ row.n }}</span><b>{{ row.label }}</b><small>{{ row.ask }}</small></div>
+            <button v-for="g in grid" :key="row.key + g.c.def.name" type="button" class="tv-cell"
+              :class="['tv-cell--' + g.cells[row.key].status, { 'tv-cell--open': open && open.name === g.c.def.name && open.row === row.key }]"
+              :disabled="g.cells[row.key].status === 'off'" @click="toggle(g.c.def.name, row.key)">
+              <span class="tv-cell__ic">
+                <Check v-if="g.cells[row.key].status === 'pass'" :size="13" />
+                <X v-else-if="g.cells[row.key].status === 'fail'" :size="13" />
+                <CircleAlert v-else-if="g.cells[row.key].status === 'warn'" :size="13" />
+                <Minus v-else :size="13" />
+              </span>
+              <span class="tv-cell__t">{{ g.cells[row.key].title }}</span>
+              <span class="tv-cell__l">{{ g.cells[row.key].line }}</span>
+              <ChevronRight v-if="g.cells[row.key].status !== 'off'" class="tv-cell__go" :size="12" />
+            </button>
+          </template>
+
+          <!-- Lo que viene: la forma de la tabla, sin datos todavía -->
+          <template v-for="(label, i) in NEXT_ROWS" :key="'next' + i">
+            <div class="tv-rowhead tv-rowhead--next"><span class="tv-n">{{ ROWS.length + i + 1 }}</span><b>{{ label }}</b><small>próximamente</small></div>
+            <div v-for="g in grid" :key="'n' + i + g.c.def.name" class="tv-cell tv-cell--next"></div>
+          </template>
+        </div>
+      </div>
+
+      <!-- La calculadora del paso -->
+      <aside v-if="openCol" class="tv-calc auxiliarybar" aria-label="El detalle del paso">
+        <div class="region-head">
+          <span class="tv-calc__h"><span class="tv-n">{{ open.row === 'listing' ? 1 : 2 }}</span> {{ openCol.c.def.name }}</span>
+          <div class="region-actions"><button type="button" class="region-action" title="Cerrar" aria-label="Cerrar" @click="open = null"><X :size="15" /></button></div>
+        </div>
+
+        <div v-if="listingDetail" class="region-body tv-calc__b">
+          <h3>¿Aparece la tarjeta?</h3>
+          <p class="tv-p">Antes de preguntarle a nadie, CreditOp mira las <b>reglas duras</b> de la sucursal para esta entidad:
+            requisitos que el cliente cumple o no. {{ openCol.c.def.rt === 2
+              ? 'Es CreditopX: si no las cumple, la tarjeta no sale.'
+              : 'No es CreditopX: aunque no las cumpla, la tarjeta sale con probabilidad baja, porque la que decide es la entidad.' }}</p>
+
+          <div class="tv-gate" :class="listingDetail.gate.documentTypes.ok ? 'ok' : 'no'">
+            <div class="tv-gate__h"><Check v-if="listingDetail.gate.documentTypes.ok" :size="12" /><X v-else :size="12" /> Tipo de documento</div>
+            <div class="tv-kv"><span>acepta</span><b>{{ listingDetail.gate.documentTypes.docs.join(', ') || 'ninguno' }}</b></div>
+            <div class="tv-kv"><span>el cliente</span><b>{{ state.tipoDoc }}</b></div>
+          </div>
+
+          <div class="tv-gate" :class="!listingDetail.gate.datacredito.on ? 'na' : listingDetail.gate.datacredito.ok ? 'ok' : 'no'">
+            <div class="tv-gate__h"><Check v-if="listingDetail.gate.datacredito.ok" :size="12" /><X v-else :size="12" /> Centrales de riesgo (datacrédito)</div>
+            <template v-if="listingDetail.gate.datacredito.on">
+              <div class="tv-kv"><span>score mínimo</span><b>{{ listingDetail.dc.minScore || 'sin mínimo' }} <em>· el cliente {{ profile.score ?? 'sin dato' }}</em></b></div>
+              <div class="tv-kv"><span>negativos máx.</span><b>{{ listingDetail.dc.maxNegatives < 20 ? listingDetail.dc.maxNegatives : 'sin tope' }} <em>· {{ profile.negatives12m ?? 'sin dato' }}</em></b></div>
+              <div class="tv-kv"><span>consultas máx.</span><b>{{ listingDetail.dc.maxInquiries < 20 ? listingDetail.dc.maxInquiries : 'sin tope' }} <em>· {{ profile.inquiries6m ?? 'sin dato' }}</em></b></div>
+              <div v-for="f in listingDetail.gate.datacredito.fails" :key="f.key" class="tv-why">✗ {{ f.reason }}</div>
+            </template>
+            <div v-else class="tv-p tv-p--m">La sucursal no le pone reglas de centrales a esta entidad.</div>
+          </div>
+
+          <div class="tv-gate" :class="!listingDetail.gate.groups.on ? 'na' : listingDetail.gate.groups.ok ? 'ok' : 'no'">
+            <div class="tv-gate__h"><Check v-if="listingDetail.gate.groups.ok" :size="12" /><X v-else :size="12" /> Grupos de reglas de la sucursal</div>
+            <div v-if="!listingDetail.gate.groups.on" class="tv-p tv-p--m">No hay grupos: no filtra.</div>
+            <div v-else class="tv-p tv-p--m">Alcanza con cumplir UN grupo entero.</div>
+            <div v-for="(gr, i) in listingDetail.gate.groups.groups" :key="i" class="tv-group" :class="gr.ok ? 'ok' : 'no'">
+              <div v-for="(x, j) in gr.conds" :key="j" class="tv-cond" :class="x.ok ? 'ok' : 'no'">
+                <Check v-if="x.ok" :size="11" /><X v-else :size="11" /> {{ condText(x) }}<em v-if="!x.ok"> · {{ x.reason }}</em>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-else-if="preDetail" class="region-body tv-calc__b">
+          <h3>¿Cuánto le prestan?</h3>
+          <p class="tv-p">El servicio de preaprobación le pregunta a <b>{{ preDetail.who }}</b>. Lo que contesta es el <b>cupo</b>:
+            el máximo que le prestan a este cliente. Si pide más, la tarjeta le pide bajar el monto.</p>
+
+          <!-- Decide el motor: la categoría -->
+          <template v-if="preDetail.cats">
+            <div class="tv-sec">Categorías: gana la primera que cumple todo</div>
+            <div v-for="row in preDetail.cats.rows" :key="row.cat.id" class="tv-catrow" :class="{ won: row.won, ok: row.ok && !row.won, no: !row.ok }">
+              <span class="tv-catrow__n">{{ row.cat.label }}</span>
+              <span v-if="row.won" class="tv-catrow__s">gana · cupo {{ money(row.cupo) }} · {{ row.cat.maxFeeNumber }} cuotas<template v-if="row.cat.fga != null"> · FGA {{ row.cat.fga }} %</template></span>
+              <span v-else-if="row.ok" class="tv-catrow__s">también cumple</span>
+              <span v-else class="tv-catrow__s">falla: {{ Object.entries(row.checks).filter(([, v]) => !v).map(([k]) => CHECK[k] || k).join(', ') }}</span>
+            </div>
+          </template>
+
+          <!-- Decide la API: se dicta lo que contesta -->
+          <template v-if="preDetail.pa">
+            <div class="tv-sec">Lo que contesta la API (dictalo)</div>
+            <div class="tv-chips">
+              <button v-for="[k, t] in STATUS" :key="k" type="button" class="chip-toggle" :class="{ on: preDetail.pa.status === k }" @click="setPa('status', k)">{{ t }}</button>
+            </div>
+            <label class="tv-f tv-f--row"><span>Monto máximo</span><input type="number" :value="preDetail.pa.maxAmount ?? ''" placeholder="el de la entidad" @change="e => setPa('maxAmount', e.target.value)" /></label>
+            <label class="tv-f tv-f--row"><span>Tasa % mensual</span><input type="number" step="0.01" :value="preDetail.pa.rate ?? ''" placeholder="la de la entidad" @change="e => setPa('rate', e.target.value)" /></label>
+          </template>
+
+          <div class="tv-verdict" :class="preDetail.r && preDetail.r.ok ? 'ok' : 'no'">
+            <template v-if="preDetail.r && preDetail.r.ok">Aprobada: le prestan hasta <b>{{ money(maxQuota(preDetail.l)) }}</b> y pide {{ money(amount) }}</template>
+            <template v-else>{{ preDetail.r ? preDetail.r.reason : 'sin respuesta' }}</template>
+          </div>
+
+          <!-- La calculadora de la cuota -->
+          <template v-if="quote">
+            <div class="tv-sec">La cuota</div>
+            <div v-if="terms.length <= 10" class="tv-chips">
+              <button v-for="n in terms" :key="n" type="button" class="chip-toggle" :class="{ on: n === chosenTerm }" @click="term = n">{{ n }}</button>
+              <span class="tv-p tv-p--m">cuotas</span>
+            </div>
+            <label v-else class="tv-f tv-f--row"><span>Plazo</span>
+              <select :value="chosenTerm" @change="e => term = Number(e.target.value)"><option v-for="n in terms" :key="n" :value="n">{{ n }} cuotas</option></select></label>
+            <div class="tv-kv"><span>Monto que pide</span><b>{{ money(amount) }}</b></div>
+            <div v-if="preDetail.r.initialFeeAmount" class="tv-kv"><span>− Cuota inicial ({{ preDetail.r.initialFeePct }} %)</span><b>{{ money(preDetail.r.initialFeeAmount) }}</b></div>
+            <div class="tv-kv"><span>= Se financia</span><b>{{ money(quote.financiado) }}</b></div>
+            <div v-if="quote.admin" class="tv-kv"><span>+ Costos del comercio</span><b>{{ money(quote.admin) }}</b></div>
+            <div v-if="quote.fga" class="tv-kv"><span>+ Fianza con IVA<template v-if="quote.bond"> ({{ quote.bond.pct }} %, {{ quote.bond.type === 'mensual' ? 'vencida' : 'anticipada' }})</template></span>
+              <b>{{ money(quote.fga) }}<em v-if="quote.bond && quote.bond.type === 'mensual'"> · en las cuotas</em></b></div>
+            <div class="tv-kv"><span>= Capital del crédito</span><b>{{ money(quote.capital) }}</b></div>
+            <div class="tv-kv"><span>Tasa mensual</span><b>{{ preDetail.r.rate ?? '—' }} %</b></div>
+            <div class="tv-kv"><span>Seguros por cuota</span><b>{{ money(Math.round(quote.seguros)) }}</b></div>
+            <div class="tv-total"><span>Cuota mensual · {{ quote.n }} cuotas</span><b>{{ money(quote.cuota) }}</b></div>
+            <p v-if="quote.bond" class="tv-p tv-p--m">La fianza sale de {{ quote.bond.pctFrom }}. En la delegada la cuota real la calcula el backend
+              (suma el 4×1000 y el interés de los días hasta la primera cuota): esto es una aproximación.</p>
+          </template>
+          <p v-else-if="preDetail.l.rt === 0" class="tv-p tv-p--m">El redirect no muestra cuota: el cliente la ve en el sitio de la entidad.</p>
+        </div>
+      </aside>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.tv { display: flex; flex-direction: column; height: 100%; min-height: 0; background: var(--bg); color: var(--ink); }
+.tv-client { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 14px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--card); }
+.tv-client__title { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--mut); font-weight: 600; align-self: center; margin-right: 4px; }
+.tv-f { display: flex; flex-direction: column; gap: 2px; font-size: 10px; color: var(--mut); }
+.tv-f input, .tv-f select { font-size: 12px; padding: 3px 6px; width: 120px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; }
+.tv-f--s input { width: 64px; }
+.tv-f--ro b { font-size: 12px; color: var(--ink); padding: 3px 0; }
+.tv-f--ro em { font-style: normal; font-size: 9.5px; }
+.tv-f--row { flex-direction: row; justify-content: space-between; align-items: center; margin: 4px 0; }
+.tv-f--row input { width: 130px; }
+
+.tv-body { flex: 1; min-height: 0; display: flex; }
+.tv-scroll { flex: 1; min-width: 0; overflow: auto; padding: 14px 16px 24px; }
+.tv-empty { color: var(--mut); font-size: 12px; padding: 24px; }
+.tv-grid { display: grid; gap: 6px; align-items: stretch; }
+.tv-corner { font-size: 11px; font-weight: 600; color: var(--fg-2); display: flex; flex-direction: column; justify-content: flex-end; padding: 4px 2px; }
+.tv-corner small, .tv-colhead small, .tv-rowhead small { font-weight: 400; color: var(--mut); font-size: 10px; }
+.tv-colhead { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 6px; background: var(--card); border: 1px solid var(--line); font-size: 12px; position: sticky; top: -14px; z-index: 1; }
+.tv-colhead .lg__chip { align-self: flex-start; }
+.tv-rowhead { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 8px 4px; font-size: 12px; }
+.tv-rowhead--next { opacity: .6; }
+.tv-n { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; background: var(--card2); color: var(--fg-2); font-size: 10px; font-weight: 700; margin-bottom: 2px; }
+
+.tv-cell { position: relative; display: grid; grid-template-columns: 18px 1fr; grid-template-rows: auto auto; gap: 2px 6px; align-items: start; text-align: left;
+  padding: 9px 22px 9px 9px; min-height: 64px; border-radius: 6px; border: 1px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; font: inherit; transition: border-color .12s, transform .12s; }
+.tv-cell:hover:not(:disabled) { border-color: color-mix(in oklab, var(--ink) 35%, var(--line)); }
+.tv-cell__ic { grid-row: 1 / 3; display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; }
+.tv-cell__t { font-size: 12px; font-weight: 600; }
+.tv-cell__l { grid-column: 2; font-size: 10.5px; line-height: 1.35; color: var(--fg-2); }
+.tv-cell__go { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); color: var(--mut); }
+.tv-cell--pass { background: var(--tint-green); border-color: var(--bd-green); }
+.tv-cell--pass .tv-cell__ic { background: var(--green); color: var(--badge-fg); }
+.tv-cell--fail { background: var(--tint-red); border-color: color-mix(in oklab, var(--red) 40%, var(--card)); }
+.tv-cell--fail .tv-cell__ic { background: var(--red); color: var(--badge-fg); }
+.tv-cell--warn { background: var(--tint-amber); border-color: color-mix(in oklab, var(--amber) 40%, var(--card)); }
+.tv-cell--warn .tv-cell__ic { background: var(--amber); color: var(--badge-fg); }
+.tv-cell--na .tv-cell__ic { background: var(--card2); color: var(--mut); }
+.tv-cell--off { opacity: .4; cursor: default; background: transparent; border-style: dashed; }
+.tv-cell--off .tv-cell__ic { color: var(--mut); }
+.tv-cell--open { outline: 2px solid var(--ink); outline-offset: 1px; }
+.tv-cell--next { min-height: 40px; cursor: default; background: transparent; border-style: dashed; border-color: color-mix(in oklab, var(--ink) 22%, transparent); }
+
+.tv-calc { width: 340px; flex: none; }
+.tv-calc__h { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; }
+.tv-calc__b { overflow: auto; padding: 12px 14px 20px; font-size: 12px; }
+.tv-calc__b h3 { margin: 0 0 6px; font-size: 14px; }
+.tv-p { font-size: 11.5px; line-height: 1.45; color: var(--fg-2); margin: 0 0 10px; }
+.tv-p--m { font-size: 10.5px; color: var(--mut); margin: 4px 0; }
+.tv-sec { font-size: 9.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--mut); font-weight: 600; margin: 14px 0 6px; }
+.tv-gate { border: 1px solid var(--line); border-left-width: 3px; border-radius: 5px; padding: 7px 9px; margin-bottom: 8px; background: var(--card); }
+.tv-gate.ok { border-left-color: var(--green); } .tv-gate.no { border-left-color: var(--red); } .tv-gate.na { border-left-color: var(--line); }
+.tv-gate__h { display: flex; align-items: center; gap: 5px; font-weight: 600; font-size: 11.5px; margin-bottom: 4px; }
+.tv-kv { display: flex; justify-content: space-between; gap: 10px; font-size: 11.5px; padding: 2px 0; }
+.tv-kv span { color: var(--fg-2); }
+.tv-kv b { text-align: right; font-weight: 600; }
+.tv-kv em { font-style: normal; font-weight: 400; color: var(--mut); }
+.tv-why { font-size: 10.5px; color: var(--red); margin-top: 3px; }
+.tv-group { border-top: 1px dashed var(--line); padding: 4px 0 2px; }
+.tv-group:first-of-type { border-top: 0; }
+.tv-cond { display: flex; align-items: center; gap: 4px; font-size: 11px; padding: 1px 0; }
+.tv-cond.ok { color: var(--green); } .tv-cond.no { color: var(--red); }
+.tv-cond em { font-style: normal; color: var(--mut); }
+.tv-catrow { display: flex; flex-direction: column; padding: 5px 8px; border-radius: 4px; margin-bottom: 3px; border: 1px solid var(--line); font-size: 11px; }
+.tv-catrow.won { background: var(--tint-green); border-color: var(--bd-green); font-weight: 600; }
+.tv-catrow.no { opacity: .6; }
+.tv-catrow__s { font-size: 10px; color: var(--fg-2); font-weight: 400; }
+.tv-chips { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-bottom: 6px; }
+.tv-verdict { margin-top: 12px; padding: 8px 10px; border-radius: 5px; font-size: 12px; }
+.tv-verdict.ok { background: var(--tint-green); } .tv-verdict.no { background: var(--tint-red); }
+.tv-total { display: flex; justify-content: space-between; margin-top: 8px; padding: 8px 10px; border-radius: 5px; background: var(--card2); font-size: 12.5px; }
+.tv-total b { font-size: 14px; }
+</style>

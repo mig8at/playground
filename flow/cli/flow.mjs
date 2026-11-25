@@ -26,6 +26,7 @@ const USAGE = `bin/flow — Flow por consola (le habla a la app abierta; si no h
   bin/flow client [--score 800] [--negatives 0] [--arrears 0] [--inquiries 2] [--history 24] [--occupation empleado|independiente|pensionado|desempleado]
                   [--continuity <3m|3m|6m|12m] [--age 41] [--gender F|M] [--income 5400000] [--amount 1200000]
                                                  el cliente de la solicitud (lo que contestan las centrales) y el monto
+  bin/flow view graph|table                      el grafo de una entidad o la tabla (todas las entidades, paso por paso)
   bin/flow open                                  la trae al frente en Cockpit
 
   --target: local · dev · qa · staging · prod (prod por Redash, sólo lectura). Sin --target, qa.`
@@ -171,6 +172,7 @@ async function main() {
     case 'unselect': return send([{ type: 'unselect' }])
     case 'remove': if (!o._[1]) throw new Error('falta el nombre'); return send([{ type: 'remove', name: o._.slice(1).join(' ') }])
     case 'clear': return send([{ type: 'clear' }])
+    case 'view': if (!['graph', 'table'].includes(o._[1])) throw new Error('bin/flow view graph|table'); return send([{ type: 'view', view: o._[1] }])
     case 'delegated': if (!o._[1]) throw new Error('falta el nombre'); return send([{ type: 'delegated', name: o._.slice(1).join(' '), fields: delegatedFlags(o) }])
     case 'client': {
       const fields = {}
