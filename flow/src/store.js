@@ -1507,7 +1507,7 @@ export function resetGraph() {
 
 // Nombres en inglés para lo nuevo (2026-11-25): la tabla del flujo (TableView.vue) usa estos. Los originales en
 // español son deuda congelada de `make tablero-naming` y se renombran aparte.
-export { perfil as clientProfile, sucursalDiag as branchGateDiag, sucursalDatacreditoOf as branchCreditBureauRules,
+export { documentTypesForSolicitud as requestDocumentTypes, perfil as clientProfile, sucursalDiag as branchGateDiag, sucursalDatacreditoOf as branchCreditBureauRules,
   perfilDiag as categoryDiag, cuotaBreakdown as installmentBreakdown }
 
 // ── Validación de identidad (después de elegir una entidad que origina en casa) ─────────────────────────────────

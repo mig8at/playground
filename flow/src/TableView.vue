@@ -6,7 +6,7 @@ import {
   branchGateDiag, branchCreditBureauRules, categoryDiag, usesQuotaEngine, usesPreApproval, preApprovalResponseOf,
   setPreApprovalField, installmentBreakdown, bondOf, calcValue, selectionCheck,
   identityOutcome, setIdentityResult, IDENTITY_PROVIDERS, paymentDateOptions, paymentSchedule, delegatedOf, CREDITOPX_PAYMENT_DAYS,
-  closingOutcome, setSignatureOk,
+  closingOutcome, setSignatureOk, requestDocumentTypes,
 } from './store'
 
 // La TABLA del flujo (2026-11-25): el mismo cliente contra todas las entidades, paso por paso. Cada fila es un paso de
@@ -23,6 +23,15 @@ function setBureau(key, v, numeric = true) {
   editTick.n++
 }
 function setAmount(v) { state.monto = String(v).replace(/\D/g, ''); editTick.n++ }
+// El ingreso que deciden las reglas es el primero de la cascada (Ágil Data → Mareigua → Quanto → declarado). Editarlo
+// acá lo escribe como el de Ágil Data, que es el que gana: para la tabla no importa de qué central venga.
+function setIncome(v) { const n = String(v).replace(/\D/g, ''); setBureau('agilIncome', n === '' ? '' : Number(n)) }
+// Los tipos de documento del país del comercio (o todos si no tiene), y el actual aunque no esté en la lista.
+const documentTypes = computed(() => {
+  const list = requestDocumentTypes()
+  return list.includes(state.tipoDoc) ? list : [state.tipoDoc, ...list].filter(Boolean)
+})
+function setDocumentType(v) { state.tipoDoc = v; editTick.n++ }
 const amount = computed(() => parseInt(String(state.monto).replace(/\D/g, '')) || 0)
 
 // ── Las columnas: las entidades del comercio, en el orden en que se cargaron.
@@ -246,8 +255,12 @@ const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
         <select :value="bureau.agilContinuity ?? ''" @change="e => setBureau('agilContinuity', e.target.value, false)">
           <option v-for="[k, t] in CONT" :key="k" :value="k">{{ t }}</option>
         </select></label>
-      <div class="tv-f tv-f--ro"><span>Ingreso</span><b>{{ money(profile.salario) }}</b><em>{{ profile.salarioFuente }}</em></div>
-      <div class="tv-f tv-f--ro"><span>Documento</span><b>{{ state.tipoDoc }}</b></div>
+      <label class="tv-f" :title="'Sale de ' + profile.salarioFuente + '. Al editarlo se escribe como el de Ágil Data, que es el primero de la cascada.'"><span>Ingreso</span>
+        <input inputmode="numeric" :value="money(profile.salario)" @change="e => setIncome(e.target.value)" /></label>
+      <label class="tv-f tv-f--s"><span>Documento</span>
+        <select :value="state.tipoDoc" @change="e => setDocumentType(e.target.value)">
+          <option v-for="d in documentTypes" :key="d" :value="d">{{ d }}</option>
+        </select></label>
     </section>
 
     <div class="tv-body">
@@ -534,6 +547,7 @@ const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
 .tv-f { display: flex; flex-direction: column; gap: 2px; font-size: 10px; color: var(--mut); }
 .tv-f input, .tv-f select { font-size: 12px; padding: 3px 6px; width: 120px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; }
 .tv-f--s input { width: 64px; }
+.tv-f--s select { width: 80px; }
 .tv-f--ro b { font-size: 12px; color: var(--ink); padding: 3px 0; }
 .tv-f--ro em { font-style: normal; font-size: 9.5px; }
 .tv-f--row { flex-direction: row; justify-content: space-between; align-items: center; margin: 4px 0; }
