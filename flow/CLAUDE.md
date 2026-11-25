@@ -46,7 +46,7 @@ sola «delegada»: no se distingue Finandina de Credifamilia. Dos nodos lo expli
   → «Entidades disponibles», de arriba abajo sobre el listado. La ficha delegada quedó al lado de «Configurar entidad».
   En qa (medido el 2026-11-25) la política «titular extendida» (tipo 2) la tienen sólo Banco Finandina (149), Motai
   Renting (158), Rent to Own (205) y AltaX (211); CrediPullman y Credifamilia no: `extended` les aprueba sin evaluar.
-- **Borde punteado = contesta un tercero** (2026-11-25): las centrales, Ábaco y el servicio de preaprobación cuando
+- **Halo = contesta un tercero** (2026-11-25; antes fue borde punteado): las centrales, Ábaco y el servicio de preaprobación cuando
   decide la API de la entidad (agregador o delegada sin motor). Una central «caída» se marca con borde rojo.
 - **Elegir la entidad** (`LenderSelectionNode.vue`, `selectionCheck`): `update-user-request` NO vuelve a consultar el
   cupo; rechaza el monto distinto del pedido de la tienda, la cuota inicial que alcanza el monto y la originación apagada,

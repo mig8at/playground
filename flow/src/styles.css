@@ -27,6 +27,9 @@
   --edit: #c2871a;
   --rt0-fg: var(--fg-3);
   --mark: var(--muted-foreground);
+  /* el halo de lo que contesta un tercero: neutro, sigue al tema y a la paleta */
+  --ext-ring: color-mix(in oklab, var(--foreground) 28%, transparent);
+  --ext-glow: color-mix(in oklab, var(--foreground) 10%, transparent);
   --pink: #a84b7c;
   --gold: #94651a;
   /* lo que imita un objeto real y no sigue al tema: la cámara (oscura) y el papel del pagaré (blanco) */
@@ -948,8 +951,11 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 /* Riel 4 · originación delegada (2026-11-25): verde azulado, aparte de CreditopX (violeta). */
 .lender__rt.rt4, .cfg-rt.rt4, .lg__chip.rt4 { background: var(--tint-green2); color: var(--teal); }
 
-/* LO QUE CONTESTA UN TERCERO va con borde punteado (2026-11-25): las centrales (Experian, Quanto, Ágil Data, TusDatos,
+/* LO QUE CONTESTA UN TERCERO va con un HALO (un anillo apartado del borde y un brillo suave; antes punteado) (2026-11-25): las centrales (Experian, Quanto, Ágil Data, TusDatos,
    Mareigua), Ábaco y, en el servicio de preaprobación, la API de la entidad cuando es ella la que decide (agregador o
-   delegada sin el motor de cupo). Lo de CreditOp va con borde lleno. */
-.node--exp, .node--quanto, .node--agil, .node--tus, .node--mareigua, .node--extra, .node--external { border-style: dashed; }
-.lg__ext { width: 16px; height: 11px; border: 1.5px dashed var(--fg-3); border-radius: 3px; }
+   delegada sin el motor de cupo). Lo de CreditOp, sin halo. */
+.node--exp, .node--quanto, .node--agil, .node--tus, .node--mareigua, .node--extra, .node--external {
+  outline: 2px solid var(--ext-ring); outline-offset: 4px;
+  box-shadow: 0 0 18px var(--ext-glow), var(--shadow-1);
+}
+.lg__ext { width: 14px; height: 10px; border: 1.5px solid var(--line); border-radius: 3px; outline: 1.5px solid var(--ext-ring); outline-offset: 2px; margin: 0 2px; }
