@@ -622,6 +622,10 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
              "...yyyyyy...", ".....yy.....", ".....yy.....", "....aaaa....", "...aaaaaa...", "...kkkkkk..."],
     popper: ["..........p.", ".....g..p...", "..b.....y..p", "......y.....", "...ooo..g...", "..ooooo.....",
              ".ooooo..b...", ".oooo.......", "ooo.........", "oo..........", "o...........", "............"],
+    hand:   ["....s.s.....", "...s.s.s....", "...s.s.s.s..", "...s.s.s.s..", "..ssssssss..", ".s.sssssss..",
+             ".ssssssss...", "..sssssss...", "...ssssss...", "....ssss....", "............", "............"],
+    fire:   [".....r......", "....rr......", "....rrr..r..", "...rrrr.rr..", "..rrrorrrr..", "..rroorrrr..",
+             ".rrooooorrr.", ".rrooyyoorr.", ".rroyyyyorr.", "..rooyyoor..", "...rooooor..", "....rrrrr..."],
     paper:  ["wwwwwww.....", "w.....ww....", "w.....w.w...", "w.....wwww..", "w.gg.....w..", "w........w..",
              "w.ggggg..w..", "w........w..", "w.gggg...w..", "w........w..", "wwwwwwwwww..", "............"]
   };
@@ -804,7 +808,12 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
     { id: "record", voice: "¡Nuevo récord! 312 solicitudes en un solo día.", group: "Negocio", label: "Récord", sound: () => { pip(1047, 90); pip(1319, 90, .1); pip(1568, 220, .2); }, draw(b, t) {
       const big = b.h >= 64, gold = i => (Math.sin(t * 5 + i * 0.5) > 0 ? C.yellow : C.amber);
       sparkles(b, t, big ? 60 : 34, C.yellow);
-      const n = fmt(312 * ease((t - 0.4) / 1.2));
+      const n = fmt(312 * ease((t - 0.4) / 1.2)), fl = (t * 8 | 0) % 2;
+      const fire = { r: [255,80,30], o: fl ? [255,150,40] : [255,200,60], y: fl ? C.yellow : [255,150,40] };
+      if (t > 0.3) {
+        if (big) { art(b, ICONS.fire, 8, 32, 2, fire); art(b, ICONS.fire, 224, 32, 2, fire); }
+        else { art(b, ICONS.fire, 33, 4, 1, fire); art(b, ICONS.fire, 211, 4, 1, fire); }
+      }
       if (big) {
         wave(b, "NUEVO RECORD!", cx(b, "NUEVO RECORD!", 3), 8, 3, gold, t, 2);
         const s = n + " SOLICITUDES"; text(b, s, cx(b, "312 SOLICITUDES", 2), 36, 2, C.white);
@@ -899,10 +908,12 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         typed(b, "BIENVENIDA,", 48, 10, 2, C.teal, t, 0.2, 16);
         typed(b, "SOFIA!", 48, 28, 3, C.white, t, 0.9, 10);
         text(b, "HOY ARRANCA EN DESARROLLO", 48, 55, 1, mul(C.gray, ease((t - 1.6) / 0.5)));
+        if (t > 1.5) art(b, ICONS.hand, 162 + ((t * 4 | 0) % 2), 26, 2, { s: [255,200,120] });   // saluda
       } else {
         owl(b, 4, 8 + bob, 1, blink);
         typed(b, "BIENVENIDA, SOFIA!", 28, 4, 2, C.teal, t, 0.2, 14);
         text(b, "HOY ARRANCA EN DESARROLLO", 28, 22, 1, mul(C.white, ease((t - 1.5) / 0.5)));
+        if (t > 1.5) art(b, ICONS.hand, 184 + ((t * 4 | 0) % 2), 19, 1, { s: [255,200,120] });
       }
     } },
     { id: "birthday", voice: "¡Feliz cumpleaños, Pepito!", group: "Cultura", label: "Cumpleaños", sound: () => { pip(784, 120); pip(784, 120, .15); pip(880, 200, .3); pip(784, 200, .55); pip(1047, 260, .8); }, draw(b, t) {
