@@ -125,6 +125,25 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
   background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,0) 35%, rgba(0,0,0,.18));
   box-shadow: inset 0 1px 0 rgba(255,255,255,.12), inset 0 -1px 0 rgba(0,0,0,.5); }
 .wall-led canvas { display: block; width: 100%; height: auto; }
+.room-bar { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 16px; border-bottom: 1px solid var(--line); }
+.room-bar .tabs { border-bottom: none; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; margin-bottom: 6px; }
+.seg button { font: 500 0.85rem var(--font-body); color: var(--muted); background: var(--surface); border: none; padding: 6px 14px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { color: var(--fg); background: var(--accent-soft); }
+.seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+/* la vista 3D: el cuarto es de verdad, así que no cambia con el tema */
+.room3d { position: relative; aspect-ratio: 16 / 9; max-width: 100%; background: #e9ebef; border: 1px solid #d4d8de; border-radius: 4px; overflow: hidden;
+  touch-action: pan-y; cursor: grab; user-select: none; }
+.room3d:active { cursor: grabbing; }
+.room3d canvas { display: block; width: 100%; height: 100%; }
+.room3d .ctl { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 6px; }
+.room3d .ctl button { font: 600 0.85rem var(--font-body); min-width: 34px; height: 34px; padding: 0 10px; color: #1b1f27; background: rgba(255,255,255,.92);
+  border: 1px solid #c9ced6; border-radius: 6px; cursor: pointer; }
+.room3d .ctl button:focus-visible { outline: 2px solid #b86200; outline-offset: 1px; }
+.room3d .hint { position: absolute; left: 10px; bottom: 12px; font: 0.78rem var(--font-body); color: #3c4350; background: rgba(255,255,255,.85); padding: 4px 8px; border-radius: 4px; }
+.room3d .msg { position: absolute; inset: 0; display: grid; place-items: center; font: 0.9rem var(--font-body); color: #3c4350; }
+@media (max-width: 520px) { .room3d { aspect-ratio: 4 / 3; } .room3d .hint { display: none; } }
 .h-dim { display: flex; align-items: center; border-right: 1.5px solid var(--accent); padding-right: 8px; }
 .w-dim { border-top: 1.5px solid var(--accent); text-align: center; padding-top: 4px; }
 .h-dim span, .w-dim span { font: 0.78rem var(--font-mono); color: var(--fg); }
@@ -213,10 +232,16 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       </table>
     </div>
     <div class="room">
+      <div class="room-bar">
       <div class="tabs" role="tablist" aria-label="Opción en la pared" id="wallTabs">
         <button type="button" role="tab" id="wall-tab-1" aria-selected="false" aria-controls="wall-panel" data-opt="0" tabindex="-1">Opción 1 · 4 paneles</button>
         <button type="button" role="tab" id="wall-tab-2" aria-selected="false" aria-controls="wall-panel" data-opt="1" tabindex="-1">Opción 2 · 8 paneles</button>
         <button type="button" role="tab" id="wall-tab-3" aria-selected="true" aria-controls="wall-panel" data-opt="2">Opción 3 · 12 paneles</button>
+      </div>
+      <div class="seg" role="group" aria-label="Vista de la pared">
+        <button type="button" id="view-flat" aria-pressed="true">Plano</button>
+        <button type="button" id="view-3d" aria-pressed="false">3D</button>
+      </div>
       </div>
       <div class="room-body" id="wall-panel" role="tabpanel" aria-labelledby="wall-tab-1">
         <div class="h-dim"><span>2,50 m</span></div>
@@ -226,7 +251,16 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         <div></div>
         <div class="w-dim"><span>4,00 m</span></div>
       </div>
-      <p class="note">A escala: una pared de 4 m de ancho y unos 2,5 m de alto (un techo normal; falta medirla) y el tablero centrado, con el borde de abajo a unos 1,95 m del piso. El tablero muestra lo mismo que la simulación de arriba.</p>
+      <div class="room3d" id="room3d" hidden aria-label="El tablero en la pared, en 3D: se gira arrastrando hacia los lados y se acerca con los botones">
+        <div class="msg" id="room3dMsg">Cargando la vista 3D…</div>
+        <span class="hint">Arrastra para girar · Ctrl + rueda para acercar</span>
+        <div class="ctl">
+          <button type="button" id="r3-out" aria-label="Alejar">−</button>
+          <button type="button" id="r3-in" aria-label="Acercar">+</button>
+          <button type="button" id="r3-reset">De frente</button>
+        </div>
+      </div>
+      <p class="note">A escala: una pared de 4 m de ancho y unos 2,5 m de alto (un techo normal; falta medirla) y el tablero centrado, con el borde de abajo a unos 1,95 m del piso. El tablero muestra lo mismo que la simulación de arriba. En «3D», la esquina de la izquierda y la puerta de la derecha (0,9 × 2,1 m, tamaño estándar) son de referencia: su lugar real falta medirlo.</p>
     </div>
   </section>
 
@@ -1522,6 +1556,114 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
   });
   setWall(2);
 
+  // --- la pared en 3D: se carga sólo cuando alguien la abre ---
+  // Medidas en metros: x a lo largo de la pared (0 en la esquina izquierda), y hacia arriba, z hacia el cuarto.
+  // El tablero va centrado en los 4 m de pared; la puerta, a la derecha de esos 4 m.
+  const room3d = document.getElementById("room3d"), flatEl = document.getElementById("wall-panel");
+  const viewFlat = document.getElementById("view-flat"), view3d = document.getElementById("view-3d");
+  let r3 = null, r3loading = false;
+  const BOARD = [[1.024, 0.128], [1.024, 0.256], [1.536, 0.256]];
+  const D0 = 5.2, cam = { az: 0, d: D0 }, AZ = 0.44, DMIN = 1.2, DMAX = 6.5, TARGET = [2, 1.45, 0], EYE = 1.6;
+  function setView(three) {
+    viewFlat.setAttribute("aria-pressed", String(!three)); view3d.setAttribute("aria-pressed", String(three));
+    flatEl.hidden = three; room3d.hidden = !three;
+    if (three) load3d();
+  }
+  viewFlat.addEventListener("click", () => setView(false));
+  view3d.addEventListener("click", () => setView(true));
+  function load3d() {
+    if (r3 || r3loading) return;
+    r3loading = true;
+    const sc = document.createElement("script");
+    sc.src = "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";
+    sc.onload = () => { try { build3d(); } catch (e) { document.getElementById("room3dMsg").textContent = "No se pudo armar la vista 3D."; } };
+    sc.onerror = () => { document.getElementById("room3dMsg").textContent = "No se pudo cargar la vista 3D (sin conexión a la librería)."; };
+    document.head.appendChild(sc);
+  }
+  function build3d() {
+    const T = window.THREE;
+    const renderer = new T.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
+    renderer.outputEncoding = T.sRGBEncoding;
+    room3d.insertBefore(renderer.domElement, room3d.firstChild);
+    document.getElementById("room3dMsg").remove();
+    const scene = new T.Scene(); scene.background = new T.Color(0xe9ebef);
+    const camera = new T.PerspectiveCamera(50, 16 / 9, 0.05, 50);
+    scene.add(new T.HemisphereLight(0xffffff, 0xb9b2a6, 0.75));
+    const sun = new T.DirectionalLight(0xffffff, 0.55); sun.position.set(3.2, 4.2, 4.5); sun.target.position.set(2, 1.2, 0);
+    sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); sun.shadow.radius = 4;
+    Object.assign(sun.shadow.camera, { left: -4, right: 4, top: 4, bottom: -4, near: 0.5, far: 15 });
+    scene.add(sun, sun.target);
+    const mat = c => new T.MeshLambertMaterial({ color: c });
+    const box = (w, h, d, c, x, y, z, recv = true) => {
+      const m = new T.Mesh(new T.BoxGeometry(w, h, d), mat(c)); m.position.set(x, y, z); m.receiveShadow = recv; scene.add(m); return m;
+    };
+    const H = 2.5, DOOR = [4.15, 5.05, 2.1], W = 5.4, DEPTH = 6;
+    // el piso, la pared del tablero (con el hueco de la puerta) y la pared de la esquina
+    const floor = new T.Mesh(new T.PlaneGeometry(W, DEPTH), mat(0xcfc6b8)); floor.rotation.x = -Math.PI / 2; floor.position.set(W / 2, 0, DEPTH / 2); floor.receiveShadow = true; scene.add(floor);
+    box(DOOR[0], H, 0.12, 0xffffff, DOOR[0] / 2, H / 2, -0.06);
+    box(DOOR[1] - DOOR[0], H - DOOR[2], 0.12, 0xffffff, (DOOR[0] + DOOR[1]) / 2, (H + DOOR[2]) / 2, -0.06);
+    box(W - DOOR[1], H, 0.12, 0xffffff, (DOOR[1] + W) / 2, H / 2, -0.06);
+    box(0.12, H, DEPTH, 0xf3f3f1, -0.06, H / 2, DEPTH / 2);
+    box(0.12, H, DEPTH, 0xf3f3f1, W + 0.06, H / 2, DEPTH / 2);                       // la pared de la derecha cierra el cuarto
+    const ceil = new T.Mesh(new T.PlaneGeometry(W, DEPTH), new T.MeshBasicMaterial({ color: 0xe6e6e3 }));   /* sin luz propia: si no, sale oscuro */ ceil.rotation.x = Math.PI / 2; ceil.position.set(W / 2, H, DEPTH / 2); scene.add(ceil);
+    // el guardaescobas, que marca dónde se encuentran las paredes con el piso
+    box(DOOR[0], 0.08, 0.015, 0xbfc3ca, DOOR[0] / 2, 0.04, 0.0075);
+    box(W - DOOR[1], 0.08, 0.015, 0xbfc3ca, (DOOR[1] + W) / 2, 0.04, 0.0075);
+    box(0.015, 0.08, DEPTH, 0xbfc3ca, 0.0075, 0.04, DEPTH / 2);
+    box(0.015, 0.08, DEPTH, 0xbfc3ca, W - 0.0075, 0.04, DEPTH / 2);
+    // la puerta: marco, hoja de madera un poco hundida y la manija
+    const dw = DOOR[1] - DOOR[0], dx = (DOOR[0] + DOOR[1]) / 2;
+    box(0.06, DOOR[2], 0.16, 0xd8d4cc, DOOR[0] + 0.03, DOOR[2] / 2, -0.04);
+    box(0.06, DOOR[2], 0.16, 0xd8d4cc, DOOR[1] - 0.03, DOOR[2] / 2, -0.04);
+    box(dw, 0.06, 0.16, 0xd8d4cc, dx, DOOR[2] - 0.03, -0.04);
+    box(dw - 0.12, DOOR[2] - 0.06, 0.04, 0xa8825a, dx, (DOOR[2] - 0.06) / 2, -0.05);
+    box(0.12, 0.025, 0.05, 0x8a8f98, DOOR[0] + 0.16, 1.0, 0.0);
+    // el tablero: una caja negra con la simulación en vivo como cara de adelante
+    const tex = new T.CanvasTexture(panels[wallOpt].cv); tex.encoding = T.sRGBEncoding; tex.anisotropy = 4;
+    const black = mat(0x0b0b0d), face = new T.MeshBasicMaterial({ map: tex });
+    const board = new T.Mesh(new T.BoxGeometry(1, 1, 0.035), [black, black, black, black, face, black]);
+    board.castShadow = true; scene.add(board);
+    let shownOpt = -1;
+    function fitBoard() {
+      const [bw, bh] = BOARD[wallOpt];
+      board.scale.set(bw, bh, 1); board.position.set(2, 1.95 + bh / 2, 0.0175);
+      tex.image = panels[wallOpt].cv; tex.needsUpdate = true; shownOpt = wallOpt;
+    }
+    function place() {
+      cam.az = Math.max(-AZ, Math.min(AZ, cam.az)); cam.d = Math.max(DMIN, Math.min(DMAX, cam.d));
+      let x = TARGET[0] + cam.d * Math.sin(cam.az), z = cam.d * Math.cos(cam.az);
+      x = Math.max(0.25, Math.min(W - 0.25, x)); z = Math.min(DEPTH - 0.2, z);   // la cámara no sale del cuarto
+      camera.position.set(x, EYE, z); camera.lookAt(TARGET[0], TARGET[1], TARGET[2]);
+    }
+    function resize() {
+      const w = room3d.clientWidth, h = room3d.clientHeight; if (!w || !h) return;
+      renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+    }
+    new ResizeObserver(resize).observe(room3d); resize();
+    // girar arrastrando hacia los lados; acercar con Ctrl + rueda (o el gesto de pellizco) o con los botones
+    let drag = null;
+    room3d.addEventListener("pointerdown", e => { if (e.target.closest(".ctl")) return; drag = { x: e.clientX, az: cam.az }; room3d.setPointerCapture(e.pointerId); });
+    room3d.addEventListener("pointermove", e => { if (!drag) return; cam.az = drag.az - (e.clientX - drag.x) * 0.004; });
+    const end = () => { drag = null; };
+    room3d.addEventListener("pointerup", end); room3d.addEventListener("pointercancel", end);
+    room3d.addEventListener("wheel", e => { if (!e.ctrlKey) return; e.preventDefault(); cam.d *= Math.exp(e.deltaY * 0.004); }, { passive: false });
+    document.getElementById("r3-in").addEventListener("click", () => { cam.d /= 1.35; });
+    document.getElementById("r3-out").addEventListener("click", () => { cam.d *= 1.35; });
+    document.getElementById("r3-reset").addEventListener("click", () => { cam.az = 0; cam.d = D0; });
+    room3d.tabIndex = 0;
+    room3d.addEventListener("keydown", e => {
+      const k = { ArrowLeft: () => cam.az += 0.08, ArrowRight: () => cam.az -= 0.08, "+": () => cam.d /= 1.2, "=": () => cam.d /= 1.2, "-": () => cam.d *= 1.2 }[e.key];
+      if (k) { k(); e.preventDefault(); }
+    });
+    r3 = { render() {
+      if (room3d.hidden) return;
+      if (shownOpt !== wallOpt) fitBoard();
+      tex.needsUpdate = true; place(); renderer.render(scene, camera);
+    } };
+  }
+
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   function frame(now) {
     const t = Math.max(0, (now - start) / 1000);   // al elegir un mensaje, el primer cuadro puede traer un «now» anterior al arranque
@@ -1535,6 +1677,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       paint(p);
     }
     wallCv.getContext("2d").drawImage(panels[wallOpt].cv, 0, 0, wallCv.width, wallCv.height);
+    if (r3) r3.render();
     requestAnimationFrame(frame);
   }
   btns[0].setAttribute("aria-pressed", "true"); showDesc(0);
