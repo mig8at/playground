@@ -431,6 +431,10 @@ func (e evaluator) eval(sig Signal, t time.Time) Eval {
 		} else if ceil > 0 {
 			ev.Why += fmt.Sprintf("; en una hora cualquiera de esos días se llega hasta %s", fmtNum(math.Round(ceil)))
 		}
+		if kindOf(sig) == "stage" {
+			wm := e.rules.WindowMinutes
+			stageGate(&ev, window(se.approved, t, wm), window(se.denied, t, wm))
+		}
 	default:
 		down := float64(ev.Now) <= th.Ratio*ev.Median
 		switch {

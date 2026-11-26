@@ -229,6 +229,43 @@ func stagesLogQL() string {
 	return `sum by (stage) (count_over_time(` + stagePipeline() + ` [5m]))`
 }
 
+// stagesNamedLogQL: por etapa, las líneas que nombran una solicitud (`context.user_request_id`).
+func stagesNamedLogQL() string {
+	return `sum by (stage) (count_over_time(` + stagePipeline() + ` | ureq!="" [5m]))`
+}
+
+// stagesDistinctLogQL: por etapa, cuántas solicitudes distintas nombran las líneas del bloque. Sumado bloque a bloque
+// cuenta dos veces a quien reintenta en dos bloques seguidos: para la compuerta eso es conservador (baja menos alertas).
+func stagesDistinctLogQL() string {
+	return `count by (stage) (sum by (stage, ureq) (count_over_time(` + stagePipeline() + ` | ureq!="" [5m])))`
+}
+
+// stageMinRequests: una etapa cuyas líneas nombran la solicitud sólo es ALERTA si toca al menos tantas distintas.
+// El 22/11/2026 el pagaré dio alerta con 20 errores contra 0: eran 20 reintentos de UNA solicitud (la 637606, un cupo
+// rotativo sin número de contrato), en poco más de un minuto. Era un caso trabado, no una caída: queda «para mirar».
+const stageMinRequests = 3
+
+// stageGate: si la mayoría de las líneas nombran una solicitud y tocan menos de `stageMinRequests`, la alerta baja a
+// «para mirar»; y el porqué dice cuántas toca. Las etapas cuyas líneas no la nombran (las centrales traen el usuario)
+// siguen por líneas.
+func stageGate(ev *Eval, named, distinct int) {
+	if named == 0 || ev.Now == 0 {
+		return
+	}
+	ev.Why += fmt.Sprintf(" · tocan %d %s", distinct, plural(distinct, "solicitud", "solicitudes"))
+	if ev.Level == levelAlert && named*2 >= ev.Now && distinct < stageMinRequests {
+		ev.Level = levelWarn
+		ev.Why += fmt.Sprintf(" (menos de %d: un caso trabado o alguien reintentando, no una caída)", stageMinRequests)
+	}
+}
+
+func plural(n int, one, many string) string {
+	if n == 1 {
+		return one
+	}
+	return many
+}
+
 func stageSignalOf(m map[string]string) Signal {
 	if stageByKey(m["stage"]) == nil {
 		return ""

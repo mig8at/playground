@@ -89,3 +89,30 @@ func TestEveryRuleStageExists(t *testing.T) {
 		}
 	}
 }
+
+func TestStageGate(t *testing.T) {
+	// El pagaré del 22/11/2026: 20 errores, los 20 de la misma solicitud, en dos bloques de 5 minutos.
+	ev := Eval{Level: levelAlert, Now: 20, Why: "20 errores"}
+	stageGate(&ev, 20, 2)
+	if ev.Level != levelWarn {
+		t.Errorf("una solicitud reintentando no es alerta: quedó %v (%s)", ev.Level, ev.Why)
+	}
+	// Muchas solicitudes distintas: sigue siendo alerta.
+	ev = Eval{Level: levelAlert, Now: 168, Why: "168 errores"}
+	stageGate(&ev, 150, 40)
+	if ev.Level != levelAlert {
+		t.Errorf("40 solicitudes es alerta: quedó %v", ev.Level)
+	}
+	// Las líneas no nombran la solicitud (las centrales): no se toca.
+	ev = Eval{Level: levelAlert, Now: 100, Why: "100 errores"}
+	stageGate(&ev, 0, 0)
+	if ev.Level != levelAlert || ev.Why != "100 errores" {
+		t.Errorf("sin solicitudes nombradas no se toca: %v (%s)", ev.Level, ev.Why)
+	}
+	// Pocas líneas nombran la solicitud (la minoría): tampoco baja.
+	ev = Eval{Level: levelAlert, Now: 100, Why: "100 errores"}
+	stageGate(&ev, 10, 1)
+	if ev.Level != levelAlert {
+		t.Errorf("si la mayoría no nombra la solicitud, no baja: %v", ev.Level)
+	}
+}

@@ -93,8 +93,18 @@ Lo que ninguna regla ubica queda en **«Sin etapa»**: esa lista dice qué falta
   laborales) sólo mandan al cliente a la pantalla siguiente. Por eso una etapa se compara contra lo normal de ESA etapa,
   con la misma regla que los errores de un servicio (que SUBAN, con techo).
 - **Avisan** como cualquier señal de errores, salvo «Sin etapa» y «Pedidos HTTP rechazados» (`silentStages`), que se ven
-  pero no avisan. Backtest del 19 al 26/11/2026 (`-backtest 7 -signals 'stage:*'`): 8 alertas, casi todas pegadas a un
-  despliegue (el 23/11, tras legacy-application v1.2.19, Plataforma con 168 errores contra 0).
+  pero no avisan. Backtest del 19 al 26/11/2026 (`-backtest 7 -signals 'stage:*'`), contra las demás alertas de la misma
+  hora: de 8 alertas, 3 no las habría dado ninguna otra señal (dos de Plataforma tras un despliegue, que el techo de
+  errores del servicio dejaba pasar: el 23/11, tras legacy-application v1.2.19, 168 contra 0) y 5 coincidían con una que
+  ya existía (ahí lo que suma es nombrar la etapa).
+- **La compuerta de solicitudes** (`stageGate`, `logsVersion` 6): además de las líneas se guardan, por bloque, las que
+  nombran una solicitud (`approved`) y cuántas distintas (`denied`). Si la mayoría de las líneas nombra la solicitud y
+  tocan menos de 3 (`stageMinRequests`), la alerta baja a «para mirar», y el porqué siempre dice cuántas toca. Nació de
+  la alerta del pagaré del 22/11/2026: 20 errores contra 0 que eran 20 reintentos de UNA solicitud (la 637606, un cupo
+  rotativo de Credi Free sin número de contrato, que siguió en 10 «Pendiente de autorización»); un caso trabado, no una
+  caída. Con la compuerta, esa alerta no sale y las otras siguen. Las distintas, sumadas bloque a bloque, cuentan dos
+  veces a quien reintenta en dos bloques: es conservador (baja menos). Las etapas cuyas líneas no nombran la solicitud
+  (las centrales, la plataforma) siguen por líneas.
 - **El detalle** (`GET /api/stage?key=…&hours=1|6|24`, `bin/sentinel stages <etapa>`): lee de Loki las líneas de la etapa
   (hasta 5.000, las más recientes), las agrupa por mensaje normalizado, cuenta las solicitudes que nombran
   (`context.user_request_id`) y lee de producción en qué estado están hoy; hasta 8 de ejemplo con su enlace a tracer.

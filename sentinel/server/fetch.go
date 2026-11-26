@@ -241,7 +241,8 @@ const (
 //	3: errores por entidad (`lerr:`)
 //	4: las llamadas a proveedores externos (`out:`, outbound.go)
 //	5: los errores por etapa del recorrido (`stage:`, stages.go)
-const logsVersion = 5
+//	6: por etapa, además, las líneas que nombran una solicitud y cuántas distintas (la compuerta de alerta)
+const logsVersion = 6
 
 // logKindsSince: las clases de señal que agregó cada versión después de `since`. Se reemplazan sólo ésas: pasar una
 // clase que no se pidió la dejaría en cero.
@@ -256,7 +257,7 @@ func logKindsSince(since int) []string {
 	if since < 4 {
 		kinds = append(kinds, "out")
 	}
-	if since < 5 {
+	if since < 6 {
 		kinds = append(kinds, "stage")
 	}
 	return kinds
@@ -296,8 +297,11 @@ func logErrors(cl *connlogs.Client, from, to time.Time, f Fresh, since int, slug
 	if since < 4 {
 		jobs = append(jobs, job{query: outCallsLogQL, signalOf: outSignalOf}, job{query: outFailsLogQL, signalOf: outSignalOf, field: "denied"})
 	}
-	if since < 5 {
-		jobs = append(jobs, job{query: stagesLogQL(), signalOf: stageSignalOf})
+	if since < 6 {
+		// Total: las líneas; approved: las que nombran una solicitud; denied: las solicitudes distintas del bloque.
+		jobs = append(jobs, job{query: stagesLogQL(), signalOf: stageSignalOf},
+			job{query: stagesNamedLogQL(), signalOf: stageSignalOf, field: "approved"},
+			job{query: stagesDistinctLogQL(), signalOf: stageSignalOf, field: "denied"})
 	}
 	parts, errs := make([]Fresh, len(jobs)), make([]error, len(jobs))
 	var wg sync.WaitGroup
