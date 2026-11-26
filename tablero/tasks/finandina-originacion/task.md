@@ -27,23 +27,20 @@ Deceval (Hans, CRED-463) y el paso a producción van al final y no son parte de 
 llega la integración. El pagaré genérico, con CREDITOP COLOMBIA S.A.S como acreedor, se queda así: no es la versión
 final y no se hace plantilla propia de la 149.
 
-- [ ] Encontrar por qué el listado ofrece 15 MM (casos 9 y 10). El motor de qa decide bien: por el backend
-  directo, 1,5 MM queda sin perfil y con 0, con los criterios `finandina_*` en `users_category_log`. Lo que
-  falla es otro camino del front; en la corrida, el listado recibió 400 y 401 de `POST /v1/preapprovals/check`.
-  Hipótesis de Abel, sin verificar: pre-approvals-service o el API Gateway llaman al backend de develop, que no
-  tiene CRED-519. Termina con la llamada ubicada y apuntada a qa (o qa llevado a develop), y el listado
-  mostrando el monto de la fórmula (decisión de Abel).
 - [ ] Correr las 10 revisiones del backoffice de la guía: el simulador tiene que dar el mismo perfil y monto que
   `/available-quota`.
 - [ ] Ubicar la suite `tests/test_finandina.py` (sin commitear en ningún repo), subirla y dejar los resultados por
   caso en CRED-519. Depende de: quien corrió el QA.
-- [ ] Que el recuadro de la huella de los T&C diga «Huella» entero: hoy sale «Huell» porque el cuadro de texto del Word
-  es angosto para la fuente con que lo convierte LibreOffice (visto en la 505325, última página). El Word con el cuadro
-  ensanchado está en `artifacts/tyc-finandina-preparado-huella-2026-11-26.docx` (convertido en local da «Huella»).
-  Falta convertirlo con el servicio, revisar que los 19 campos sigan en su lugar y subir `finandina/terminos-y-condiciones`
-  al pdf-mapper de qa. Termina con el documento firmado en qa mostrando «Huella» completo. Depende de: Docker y la VPN.
-
 ### Hecho
+
+- [x] ~~Encontrar por qué el listado ofrece 15 MM (casos 9 y 10)~~ — 2026-11-26: pre-approvals-service (uno solo, en
+  `inertia-develop`, para dev, qa y staging) le pedía el cupo al backend de develop, sin CRED-519. Con permiso de Miguel
+  se apuntó `LENDING_PRODUCTS_CREDITOP_X_API_URL` (secreto `dev/pre-approvals-service`) a `legacy-backend-qa`: el caso 9
+  (505331) queda rechazado («Sin cupo disponible») y el caso 10 (505332) aprobado por 7,5 MM, decididos por el motor de qa.
+
+- [x] ~~Que el recuadro de la huella de los T&C diga «Huella» entero~~ — descartado por Miguel (2026-11-26): con la firma
+  electrónica la huella no hace falta, y el recuadro puede quedar como está. El Word corregido queda en
+  `artifacts/tyc-finandina-preparado-huella-2026-11-26.docx` por si se retoma.
 
 - [x] ~~Que el riel 4 responda 409 `OFFER_CHANGED` cuando la oferta cambia~~ — 2026-11-26, [#2115](https://github.com/Creditop-SAS/legacy-backend/pull/2115)
   en qa: con la bolsa del perfil agotada, el plan de la 505330 respondió 409 y el wizard la devolvió al listado; con la

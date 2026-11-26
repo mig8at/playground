@@ -323,6 +323,7 @@ por un mock, dev deja de ser representativo y la prueba no vale.
 | | `local` | `dev` | `staging` | `qa` |
 |---|---|---|---|---|
 | pre-aprobaciones | mock `:8095` | **MS real** `pre-approvals-service…:8082` | MS real | MS real |
+| └ cupo de CreditopX y Finandina en el MS | — | **el backend de qa** (`LENDING_PRODUCTS_CREDITOP_X_API_URL` → `legacy-backend-qa`, desde 2026-11-26; antes `legacy-backend`, de develop). El MS es UNO para los tres ambientes: dev y staging también consultan el motor de qa | el de qa | el de qa |
 | └ Credifamilia en el MS | — | **lambda mock** `credifamilia-mockery-lamba` (desde 2026-10-15; antes el sandbox `pruebas.credifamilia.com.mx`, que rechazaba a todos). Se dicta con `LAMBDA=1 CF_FIANZA=…` | lambda mock | lambda mock |
 | payvalida · mdm · lenders · forms · ábaco | mocks | reales | reales | reales |
 | backend (rama que sirve) | local (sail/Docker) | `legacy-backend` → **develop** | `legacy-backend-stg` → **staging** | `legacy-backend-qa` → **qa** |
