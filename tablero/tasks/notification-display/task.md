@@ -39,7 +39,7 @@ No toca los repos de producto. Es un servicio nuevo más el firmware del control
   - Fuente de 5 V: 20 A para 4 paneles, 40 A para 8. Amplificador I2S MAX98357A y parlante de 3 W 4 Ω para voz y sonidos, cables HUB75, cables de poder, soportes.
   - Altura de 2,2 a 2,5 m, brillo medio.
 - **Servidor**: junta los datos y le manda JSON al controlador por WiFi. Ajusta las imágenes al tamaño exacto del panel antes de mandarlas.
-- **Fuentes de datos**: la base de producción (sólo lectura, agregados), los despliegues y PRs de GitHub, el monitoreo de la API, y un calendario de cumpleaños y aniversarios.
+- **Fuentes de datos**: la base de producción (sólo lectura, agregados), los despliegues de GitHub, el avance de los proyectos (un porcentaje que carga el equipo), el monitoreo de la API, y un calendario de cumpleaños y aniversarios.
 
 ## Cómo se ataca
 
@@ -47,10 +47,11 @@ No toca los repos de producto. Es un servicio nuevo más el firmware del control
 2. **Contrato**: el JSON de los cinco tipos (`text`, `image`, `counter`, `sound`, `voice`), con prioridad y duración; el controlador rechaza lo demás.
 3. **Servidor mínimo**: rotación en ciclo con hora y clima como relleno, y una alerta crítica que interrumpe.
 4. **Voz**: el texto a voz pasa en el servidor: arma la frase con cifras agregadas, la convierte en MP3 y se lo manda al tablero, que sólo lo reproduce por el amplificador I2S y el parlante; sólo en eventos.
-5. **Contenido de desarrollo**: deploys exitosos o fallidos, caídas o errores de la API, PRs pendientes, uptime.
-6. **Contenido de negocio**: descargas de la app, solicitudes, créditos aprobados y desembolsados, monto del mes con barra hacia la meta, crecimiento por mes y por año; un récord dispara un sonido especial; los mensajes de celebración cierran con el eslogan «¡Vámola!»; los «primeros»: un comercio que sale a producción (cuando se activa su integración), la primera solicitud de un comercio o de una entidad (la primera fila de `user_requests` por `allied_id` o `lender_id`), el primer desembolso de una entidad (el primer `disbursed_at` por `lender_id`); sin comercios ni entidades de prueba.
-7. **Cultura**: cumpleaños, aniversarios, bienvenidas y la mascota en pixel art.
-8. **Montaje** en la pared, con los paneles definitivos.
+5. **Contenido de desarrollo**: deploys exitosos o fallidos, caídas o errores de la API, uptime y el avance de los proyectos en curso (integraciones como Finandina, VTEX o Shopify, en porcentaje). Sin PRs: al equipo no le dicen nada en la pared.
+6. **Canales**: la primera venta por e-commerce, las descargas de la app y la primera compra desde la app.
+7. **Contenido de negocio**: descargas de la app, solicitudes, créditos aprobados y desembolsados, monto del mes con barra hacia la meta, crecimiento por mes y por año; un récord dispara un sonido especial; los mensajes de celebración cierran con el eslogan «¡Vámola!»; los «primeros»: un comercio que sale a producción (cuando se activa su integración), la primera solicitud de un comercio o de una entidad (la primera fila de `user_requests` por `allied_id` o `lender_id`), el primer desembolso de una entidad (el primer `disbursed_at` por `lender_id`); sin comercios ni entidades de prueba.
+8. **Cultura**: cumpleaños, aniversarios, bienvenidas y la mascota en pixel art.
+9. **Montaje** en la pared, con los paneles definitivos.
 
 El prototipo visual de las dos opciones y la arquitectura: `artifacts/notification-display.html`.
 
@@ -92,7 +93,8 @@ Hoy las cifras del negocio y el estado de los despliegues están repartidos en v
 - Un tablero LED horizontal de interior, en la parte alta de la pared sobre el área de desarrollo, de 1,02 m de ancho (13 o 26 cm de alto según la opción).
 - Muestra texto, números con barra hacia la meta, íconos y pixel art, hace un sonido corto ante eventos y dice en voz los importantes (un récord, una alerta, un cumpleaños).
 - **Negocio**: descargas de la app, solicitudes, créditos aprobados y desembolsados, monto del mes contra la meta y récords con sonido especial.
-- **Desarrollo**: despliegues exitosos o fallidos, caídas o errores de la API, PRs pendientes y disponibilidad.
+- **Desarrollo**: despliegues exitosos o fallidos, caídas o errores de la API, disponibilidad y el avance de los proyectos en curso.
+- **Canales**: la primera venta por e-commerce, las descargas de la app y la primera compra desde la app.
 - **Cultura**: cumpleaños, aniversarios, bienvenidas, una mascota en pixel art, y hora o clima cuando no hay nada más.
 - Las alertas críticas interrumpen lo que se está mostrando; el resto rota en ciclo.
 

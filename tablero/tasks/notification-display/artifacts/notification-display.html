@@ -173,7 +173,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         <button type="button" id="sound" aria-pressed="false">Sonido</button>
       </div>
     </div>
-    <p class="note">24 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados, salvo «Crecimiento por mes»: su forma es la real (desembolsos por mes en producción, sin cifras absolutas). Su porcentaje de 2025 compara el año completo con 2024; el de 2026, enero a octubre con el mismo tramo de 2025.</p>
+    <p class="note">28 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados, salvo «Crecimiento por mes»: su forma es la real (desembolsos por mes en producción, sin cifras absolutas). Su porcentaje de 2025 compara el año completo con 2024; el de 2026, enero a octubre con el mismo tramo de 2025.</p>
   </section>
 
   <section aria-labelledby="size">
@@ -372,7 +372,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
           <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="arrow wifi" d="M0,0 L10,5 L0,10 z"/></marker>
         </defs>
         <rect class="box" x="10" y="14" width="200" height="46" rx="6"/><text x="24" y="35">Base de producción</text><text class="sub" x="24" y="51">sólo lectura, agregados</text>
-        <rect class="box" x="10" y="72" width="200" height="46" rx="6"/><text x="24" y="93">GitHub</text><text class="sub" x="24" y="109">deploys y PRs</text>
+        <rect class="box" x="10" y="72" width="200" height="46" rx="6"/><text x="24" y="93">GitHub</text><text class="sub" x="24" y="109">deploys</text>
         <rect class="box" x="10" y="130" width="200" height="46" rx="6"/><text x="24" y="151">Monitoreo de la API</text><text class="sub" x="24" y="167">caídas, errores, uptime</text>
         <rect class="box" x="10" y="188" width="200" height="46" rx="6"/><text x="24" y="209">Calendario del equipo</text><text class="sub" x="24" y="225">cumpleaños, ingresos</text>
 
@@ -449,6 +449,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
           <li>Créditos aprobados y desembolsados</li>
           <li>Monto del mes con barra hacia la meta</li>
           <li>Récords, con un sonido especial</li>
+          <li>Canales: la primera venta por e-commerce, las descargas de la app y la primera compra desde la app</li>
           <li>Los primeros: un comercio que sale a producción, la primera solicitud y el primer desembolso de un comercio o de una entidad</li>
         </ul>
       </div>
@@ -457,7 +458,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         <ul class="clean">
           <li>Deploys exitosos o fallidos</li>
           <li>Caídas o errores de la API (alerta crítica)</li>
-          <li>PRs pendientes de revisión</li>
+          <li>El avance de los proyectos: integraciones y canales, en porcentaje</li>
           <li>Uptime</li>
         </ul>
       </div>
@@ -607,6 +608,10 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
              "..wwwwwwww..", "..ww.ww.ww..", "....aaaa....", ".....aa.....", "....a..a....", "............"],
     medal:  ["..pp....pp..", "...pp..pp...", "....pppp....", ".....pp.....", "....yyyy....", "...yyyyyy...",
              "..yyyywyyy..", "..yyywwyyy..", "..yyyywyyy..", "..yyyywyyy..", "...yyyyyy...", "....yyyy...."],
+    cart:   ["............", "ww..........", ".w..........", ".wgggggggg..", ".wg......g..", ".wg......g..",
+             ".wgggggggg..", "..w.........", "..wwwwwwww..", "............", "...ww...ww..", "...ww...ww.."],
+    phone:  ["...wwwwww...", "...w....w...", "...wggggw...", "...wggggw...", "...wggggw...", "...wggggw...",
+             "...wggggw...", "...wggggw...", "...w....w...", "...w.ww.w...", "...w....w...", "...wwwwww..."],
     paper:  ["wwwwwww.....", "w.....ww....", "w.....w.w...", "w.....wwww..", "w.gg.....w..", "w........w..",
              "w.ggggg..w..", "w........w..", "w.gggg...w..", "w........w..", "wwwwwwwwww..", "............"]
   };
@@ -814,16 +819,16 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         if (on) check(b, 2, 16, 2, C.green);
         typed(b, "DEPLOY EXITOSO", 20, 15, 2, C.green, t, 0.2, 18);
         typed(b, "API V2.41 EN PRODUCCION", 20, 36, 1, C.white, t, 1.1, 30);
-        text(b, "0 ERRORES · 3 PRS POR REVISAR", 20, 50, 1, mul(C.gray, ease((t - 2) / 0.5)));
+        text(b, "0 ERRORES · 4 MIN DE DESPLIEGUE", 20, 50, 1, mul(C.gray, ease((t - 2) / 0.5)));
       } else {
         if (on) check(b, 2, 12, 1, C.green);
         typed(b, "API V2.41 EN PRODUCCION", 12, 11, 1, C.white, t, 0.2, 26);
-        text(b, "0 ERRORES · 3 PRS POR REVISAR", 12, 23, 1, mul(C.gray, ease((t - 1.2) / 0.5)));
+        text(b, "0 ERRORES · 4 MIN DE DESPLIEGUE", 12, 23, 1, mul(C.gray, ease((t - 1.2) / 0.5)));
       }
     } },
-    { id: "uptime", group: "Desarrollo", label: "Uptime y PRs", draw(b, t) {
+    { id: "uptime", group: "Desarrollo", label: "Uptime", draw(b, t) {
       const big = b.h >= 64, u = (90 + 9.98 * ease(t / 1.2)).toFixed(2).replace(".", ",") + "%";
-      head(b, "UPTIME · 30 DIAS", C.hDev, "5 PRS ABIERTOS", C.white, t);
+      head(b, "UPTIME · 30 DIAS", C.hDev, null, C.white, t);
       // 30 barras que llenan exacto de x0 al margen derecho (algunas miden 1 px más)
       const x0 = big ? 2 : 84, y = big ? 42 : 11, h = big ? 10 : 11, n = 30, W = b.w - 2 - x0 + 1;
       for (let i = 0; i < n; i++) {
@@ -834,11 +839,24 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         text(b, u, 2, 14, 3, C.green);
         text(b, "UPTIME API", rx(b, "UPTIME API", 2), 14, 2, C.white);
         text(b, "ULTIMOS 30 DIAS", rx(b, "ULTIMOS 30 DIAS", 1), 31, 1, C.gray);
-        text(b, "1 CAIDA DE 4 MIN · 5 PRS POR REVISAR", 2, 56, 1, C.gray);
+        text(b, "1 CAIDA DE 4 MIN EN 30 DIAS", 2, 56, 1, C.gray);
       } else {
         text(b, u, 2, 10, 2, C.green);
         text(b, "1 CAIDA DE 4 MIN", x0, 25, 1, C.gray);
       }
+    } },
+    { id: "projects", group: "Desarrollo", label: "Proyectos", draw(b, t) {
+      // avance de los proyectos en curso (ejemplo): el % lo carga el equipo, no se calcula
+      const big = b.h >= 64, rows = [["FINANDINA", 80], ["VTEX", 50], ["SHOPIFY", 90]];
+      head(b, "PROYECTOS", C.hDev, "AVANCE", C.gray, t);
+      const ys = big ? [17, 33, 49] : [9, 17, 25], bx = 80, pw = tw("100%", 1), bmax = b.w - 2 - pw - 6 - bx;
+      rows.forEach(([name, p], i) => {
+        const y = ys[i], g = ease((t - 0.3 - i * 0.25) / 0.9), v = Math.round(p * g), s = v + "%";
+        text(b, name, 2, y, 1, C.white);
+        rect(b, bx, y + 1, bmax, 5, C.bTrack);
+        rect(b, bx, y + 1, Math.round(bmax * v / 100), 5, p >= 90 ? C.bG : mul(C.bG, 0.65));
+        text(b, s, rx(b, s, 1), y, 1, p >= 90 ? C.bG : C.white);
+      });
     } },
     { id: "alert", voice: "Atención: la API está caída. Errores del 12 por ciento.", group: "Desarrollo", label: "Alerta crítica", critical: true, sound: () => { pip(880, 160); pip(880, 160, .25); }, draw(b, t) {
       const big = b.h >= 64, on = (t % 1) < 0.5;
@@ -856,6 +874,21 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         text(b, "API CAIDA", 22, 4, 2, on ? C.white : C.red);
         text(b, "ERRORES 5XX 12% · HACE 4 MIN", 22, 22, 1, C.yellow);
       }
+    } },
+    { id: "first-ecommerce", group: "Canales", label: "Primera venta e-commerce", voice: "¡Primera venta por e-commerce! ¡Vámola!", sound: () => { pip(784, 100); pip(988, 100, .12); pip(1175, 100, .24); pip(1568, 300, .36); }, draw(b, t) {
+      firstOf(b, t, { icon: "cart", what: "PRIMERA VENTA ECOMMERCE", name: "SHOPIFY" });
+    } },
+    { id: "app-downloads", group: "Canales", label: "Descargas de la app", draw(b, t) {
+      const big = b.h >= 64, n = fmt(12480 * ease(t / 1.6)), k = big ? 3 : 2, ik = big ? 2 : 1;
+      head(b, "APP CREDITOP", C.bLav, "+340 HOY", C.bG, t);
+      const y = big ? 20 : 11, x = 2;
+      art(b, ICONS.phone, x, y + ((7 * k - 12 * ik) >> 1), ik, ICON_COLORS);
+      text(b, n, x + 12 * ik + 8, y, k, C.white);
+      text(b, "DESCARGAS", x + 12 * ik + 8 + tw("12.480", k) + 8, y + 7 * k - 7, 1, C.bLav);
+      if (big) text(b, "+2.100 ESTE MES", 2, 54, 1, mul(C.bLav, ease((t - 1.6) / 0.5)));
+    } },
+    { id: "first-app", group: "Canales", label: "Primera compra en la app", voice: "¡Primera compra desde la app! ¡Vámola!", sound: () => { pip(784, 100); pip(988, 100, .12); pip(1175, 100, .24); pip(1568, 300, .36); }, draw(b, t) {
+      firstOf(b, t, { icon: "phone", what: "PRIMERA COMPRA", name: "DESDE LA APP" });
     } },
     { id: "welcome", voice: "Bienvenida al equipo, Sofía.", group: "Cultura", label: "Bienvenida", draw(b, t) {
       const big = b.h >= 64, blink = (t % 3) > 2.8, bob = Math.round(Math.sin(t * 3));
