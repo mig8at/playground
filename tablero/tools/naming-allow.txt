@@ -193,3 +193,6 @@ json: sabueso/server/people.go representante_legal estado_matricula fecha_actual
 json: sabueso/server/model.go sas s a ltda sa y cia de la el los las bic zomac sigla
 # `blacklist` es inglés (la lista negra de documentos del perfilamiento: `isBlacklisted` en flow/src/store.js, 2026-11-26)
 blacklist
+
+# palabras de cartera en inglés que no salen en las bibliotecas estándar (flow/src/portfolio.js, 2026-11-26)
+arrears fund owed

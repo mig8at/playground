@@ -16,7 +16,7 @@ export const DEFAULT_ASSUMPTIONS = {
   term: 12, // cuotas
   monthlyRate: 1.9, // % mensual, interés corriente
   lateRate: 2.2, // % mensual, interés de mora
-  fgaPct: 9, // % del FGA (en qa: 5 en AA·A·B y 9 en C·S·Y)
+  guaranteeFundPct: 9, // % del FGA (en qa: 5 en AA·A·B y 9 en C·S·Y)
   vatPct: 19, // IVA del FGA
   lifePerMillion: 1500, // seguro de vida por millón de capital, cada mes
   guaranteeFee: 2000, // seguro de garantía, cargo fijo de cada corte
@@ -50,7 +50,7 @@ export const STATES = {
 }
 
 /** Las franjas del reporte de riesgo del admin, con lo que ofrecería cobranza (rama `cobranza`, sin mergear). */
-export const MORA_BANDS = [
+export const ARREARS_BANDS = [
   { key: 'ok', label: 'Al día', from: 0, to: 0, offer: null },
   { key: 'b1', label: '1-30', from: 1, to: 30, offer: 'M1 pago inmediato · M2 compromiso de pago · M3 mínimo a cuotas' },
   { key: 'b2', label: '31-60', from: 31, to: 60, offer: 'M4 normalización · M5 extensión de plazo' },
@@ -58,7 +58,7 @@ export const MORA_BANDS = [
   { key: 'b4', label: '91-180', from: 91, to: 180, offer: 'M6 reestructuración (90-120) · M7 pago de capital (120-180)' },
   { key: 'b5', label: 'castigada', from: 181, to: Infinity, offer: 'M8 pago total con descuento a capital' },
 ]
-export const bandOf = (days) => MORA_BANDS.find((b) => days >= b.from && days <= b.to) || MORA_BANDS[0]
+export const bandOf = (days) => ARREARS_BANDS.find((b) => days >= b.from && days <= b.to) || ARREARS_BANDS[0]
 
 /** El orden en que un pago llena el mínimo. */
 export const CASCADE = [
@@ -78,7 +78,7 @@ export const DESTINATIONS = {
   collection: { to: '¿?', note: 'el código no dice quién lo cobra', read: false },
   life: { to: 'Aseguradora', note: 'al fallecer, la reclamación aplica lo que pagó la aseguradora', read: false },
   guarantee: { to: 'Fondo de garantías', note: 'si el fondo paga, el crédito pasa a 7', read: false },
-  fga: { to: 'Fondo de garantías', note: 'vive dentro del capital: cada peso de capital lleva su parte', read: false },
+  guaranteeFund: { to: 'Fondo de garantías', note: 'vive dentro del capital: cada peso de capital lleva su parte', read: false },
 }
 
 const round = (n) => Math.round(n)
@@ -92,15 +92,15 @@ export function simulate(a, scenario) {
   const start = new Date(2026, 0, 15)
   const i = a.monthlyRate / 100
   const financed = a.amount - a.downPayment
-  const fga = round(financed * (a.fgaPct / 100) * (1 + a.vatPct / 100))
-  const base = financed + fga
+  const guaranteeFund = round(financed * (a.guaranteeFundPct / 100) * (1 + a.vatPct / 100))
+  const base = financed + guaranteeFund
   const quota = round(i === 0 ? base / a.term : (base * i) / (1 - Math.pow(1 + i, -a.term)))
 
   // El estado del crédito: lo por facturar y el mínimo (lo facturado que no se ha pagado).
   const s = {
     unbilled: base, // capital por facturar (incluye el FGA)
-    fgaBalance: fga, // parte del capital POR FACTURAR que es FGA
-    dueFga: 0, // parte del capital VENCIDO que es FGA
+    fundBalance: guaranteeFund, // parte del capital POR FACTURAR que es FGA
+    dueFund: 0, // parte del capital VENCIDO que es FGA
     due: { collection: 0, late: 0, interest: 0, life: 0, guarantee: 0, principal: 0 },
     accrued: 0, // interés causado del ciclo, todavía sin facturar
     newlyBilledPrincipal: 0, // el capital del último corte, que no causa mora los primeros 7 días
@@ -112,7 +112,7 @@ export function simulate(a, scenario) {
     favor: 0, // saldo a favor
     closedAt: null,
   }
-  const paid = { collection: 0, late: 0, interest: 0, life: 0, guarantee: 0, principal: 0, fga: 0, insurer: 0, fund: 0 }
+  const paid = { collection: 0, late: 0, interest: 0, life: 0, guarantee: 0, principal: 0, guaranteeFund: 0, insurer: 0, fund: 0 }
   const events = [{ day: 0, kind: 'disbursement', voucher: 'compra', text: `Desembolso: queda Autorizada (11). Voucher de compra para el comercio.`, amount: a.amount }]
   const days = []
   const commission = round(financed * (a.ctxCommissionPct / 100))
@@ -129,17 +129,17 @@ export function simulate(a, scenario) {
       s.due[c.key] -= take; left -= take; parts[c.key] = take; paid[c.key] += take
       if (c.key === 'principal') {
         // El FGA no tiene paso propio: cada peso de capital lleva su parte (`GuaranteeAttribution`).
-        const fgaPart = round(take * (s.dueFga / Math.max(1, s.due.principal + take)))
-        s.dueFga -= fgaPart; paid.fga += fgaPart; parts.fga = fgaPart
+        const fundPart = round(take * (s.dueFund / Math.max(1, s.due.principal + take)))
+        s.dueFund -= fundPart; paid.guaranteeFund += fundPart; parts.guaranteeFund = fundPart
       }
     }
     // El sobrante: sin mora, abono a capital que reduce el plazo (tipo 1). Con mora, no se imputa: queda a favor.
     let extra = 0
     if (left > 0 && s.status === 1 && dueTotal() === 0) {
       extra = Math.min(left, s.unbilled)
-      const fgaPart = round(extra * (s.fgaBalance / Math.max(1, s.unbilled)))
-      s.fgaBalance -= fgaPart; s.unbilled -= extra; left -= extra
-      paid.principal += extra; paid.fga += fgaPart; parts.extra = extra
+      const fundPart = round(extra * (s.fundBalance / Math.max(1, s.unbilled)))
+      s.fundBalance -= fundPart; s.unbilled -= extra; left -= extra
+      paid.principal += extra; paid.guaranteeFund += fundPart; parts.extra = extra
     }
     if (left > 0) { s.favor += left; parts.favor = left }
     events.push({ day, kind: 'payment', voucher: 'pago', text: label, amount, parts })
@@ -179,8 +179,8 @@ export function simulate(a, scenario) {
         const life = round((s.unbilled / 1e6) * a.lifePerMillion)
         s.due.interest += s.accrued; s.accrued = 0
         s.due.principal += principal; s.due.life += life; s.due.guarantee += a.guaranteeFee
-        const fgaPart = last ? s.fgaBalance : round(principal * (s.fgaBalance / Math.max(1, s.unbilled)))
-        s.fgaBalance -= fgaPart; s.dueFga += fgaPart
+        const fundPart = last ? s.fundBalance : round(principal * (s.fundBalance / Math.max(1, s.unbilled)))
+        s.fundBalance -= fundPart; s.dueFund += fundPart
         s.unbilled -= principal
         s.newlyBilledPrincipal = principal
         s.nextPayment = day + 5
@@ -216,16 +216,16 @@ export function simulate(a, scenario) {
         events.push({ day, kind: 'state', text: 'Más de 180 días: el reporte de riesgo la llama «castigada» (no es un estado del crédito).' })
       }
       if (scenario === 'stops' && s.daysLate === 200) {
-        const owed = totalBalance()
-        paid.fund += owed
-        events.push({ day, kind: 'state', text: `Recuperado por fondo de garantías (7): el fondo paga ${fmt(owed)}; los saldos no se tocan.`, amount: owed })
+        const debt = totalBalance()
+        paid.fund += debt
+        events.push({ day, kind: 'state', text: `Recuperado por fondo de garantías (7): el fondo paga ${fmt(debt)}; los saldos no se tocan.`, amount: debt })
         s.status = 7; s.closedAt = day
       }
     }
     if (s.status === 9 && deathDay !== null && day === deathDay + 60) {
-      const owed = totalBalance()
-      paid.insurer += owed
-      events.push({ day, kind: 'state', text: `Reclamación: la aseguradora paga ${fmt(owed)} y el crédito queda Recuperado por reclamación (14).`, amount: owed })
+      const debt = totalBalance()
+      paid.insurer += debt
+      events.push({ day, kind: 'state', text: `Reclamación: la aseguradora paga ${fmt(debt)} y el crédito queda Recuperado por reclamación (14).`, amount: debt })
       s.status = 14; s.closedAt = day
     }
 
@@ -237,7 +237,7 @@ export function simulate(a, scenario) {
     })
     if (s.closedAt !== null && day >= s.closedAt + 20) break
   }
-  return { days, events, quota, fga, base, financed, commission, start }
+  return { days, events, quota, guaranteeFund, base, financed, commission, start }
 }
 
 export const fmt = (n) => '$ ' + Math.round(n || 0).toLocaleString('es-CO')

@@ -3,9 +3,9 @@
 // es `portfolio.js`; acá sólo se dibuja: la comparación de los rieles, el reloj de noches, el saldo, la cascada del
 // último pago con su voucher, a quién va cada peso, el estado con su franja de mora y la bitácora.
 import { computed, ref, watch, onUnmounted } from 'vue'
-import { Play, Pause, RotateCcw, Receipt } from 'lucide-vue-next'
+import { Play, Pause, RotateCcw as Restart, Receipt } from 'lucide-vue-next'
 import {
-  portfolio, simulate, SCENARIOS, STATES, MORA_BANDS, bandOf, CASCADE, DESTINATIONS, COLLECTION_TIERS,
+  portfolio, simulate, SCENARIOS, STATES, ARREARS_BANDS, bandOf, CASCADE, DESTINATIONS, COLLECTION_TIERS,
   DEFAULT_ASSUMPTIONS, fmt, dateOf,
 } from './portfolio.js'
 
@@ -49,7 +49,7 @@ const lateSpans = computed(() => {
 const MARK = { disbursement: 'mk-blue', billing: 'mk-tick', payment: 'mk-green', state: 'mk-amber', collection: 'mk-red' }
 
 // Lo que debe hoy, por componente.
-const owedParts = computed(() => {
+const debtParts = computed(() => {
   const t = today.value
   return [
     { key: 'unbilled', label: 'Capital por facturar', value: t.unbilled, cls: 'c-principal-soft' },
@@ -57,7 +57,7 @@ const owedParts = computed(() => {
     ...CASCADE.slice().reverse().map((c) => ({ key: c.key, label: `${c.label} · vencido`, value: t.due[c.key], cls: 'c-' + c.key })),
   ].filter((p) => p.value > 0)
 })
-const owedTotal = computed(() => owedParts.value.reduce((a, p) => a + p.value, 0))
+const debtTotal = computed(() => debtParts.value.reduce((a, p) => a + p.value, 0))
 const dueToday = computed(() => Object.values(today.value.due).reduce((a, b) => a + b, 0))
 
 // El último pago hasta hoy: cómo se repartió y su voucher.
@@ -74,8 +74,8 @@ const paymentParts = computed(() => {
 const flows = computed(() => {
   const p = today.value.paid
   const rows = [
-    { key: 'principal', label: 'Capital (sin el FGA)', value: p.principal - p.fga },
-    { key: 'fga', label: 'FGA (dentro del capital)', value: p.fga },
+    { key: 'principal', label: 'Capital (sin el FGA)', value: p.principal - p.guaranteeFund },
+    { key: 'guaranteeFund', label: 'FGA (dentro del capital)', value: p.guaranteeFund },
     { key: 'interest', label: 'Interés corriente', value: p.interest },
     { key: 'late', label: 'Interés de mora', value: p.late },
     { key: 'collection', label: 'Gasto de cobranza', value: p.collection },
@@ -86,13 +86,13 @@ const flows = computed(() => {
   if (p.fund) rows.push({ key: 'fund', label: 'Pago del fondo de garantías', value: p.fund, to: 'Comercio', note: 'el fondo responde por el crédito', read: false })
   return rows
 })
-const paidByJuan = computed(() => {
+const paidByCustomer = computed(() => {
   const p = today.value.paid
   return p.principal + p.interest + p.late + p.collection + p.life + p.guarantee
 })
 
 const state = computed(() => STATES[today.value.status] || { name: String(today.value.status), group: '' })
-const band = computed(() => (today.value.status === 2 ? bandOf(today.value.daysLate) : MORA_BANDS[0]))
+const band = computed(() => (today.value.status === 2 ? bandOf(today.value.daysLate) : ARREARS_BANDS[0]))
 const log = computed(() => sim.value.events.filter((e) => e.day <= day.value).slice(-9).reverse())
 const scenarioHint = computed(() => SCENARIOS.find((s) => s.key === portfolio.scenario)?.hint)
 const pct = (v, t) => (t > 0 ? (v / t) * 100 : 0) + '%'
@@ -131,12 +131,12 @@ const RAILS = [
           <label>Cuotas<input v-model.number="portfolio.assumptions.term" type="number" min="1" max="48"></label>
           <label>Interés mensual %<input v-model.number="portfolio.assumptions.monthlyRate" type="number" min="0" step="0.1"></label>
           <label>Mora mensual %<input v-model.number="portfolio.assumptions.lateRate" type="number" min="0" step="0.1"></label>
-          <label>FGA %<input v-model.number="portfolio.assumptions.fgaPct" type="number" min="0" step="1"></label>
+          <label>FGA %<input v-model.number="portfolio.assumptions.guaranteeFundPct" type="number" min="0" step="1"></label>
           <label>Seguro de vida por millón<input v-model.number="portfolio.assumptions.lifePerMillion" type="number" min="0" step="100"></label>
           <label>Seguro de garantía por corte<input v-model.number="portfolio.assumptions.guaranteeFee" type="number" min="0" step="500"></label>
           <label>Comisión CTX %<input v-model.number="portfolio.assumptions.ctxCommissionPct" type="number" min="0" step="0.5"></label>
         </div>
-        <p class="pf-note">FGA {{ fmt(sim.fga) }} (con IVA) sobre {{ fmt(sim.financed) }}: Juan debe {{ fmt(sim.base) }}. Gasto de cobranza:
+        <p class="pf-note">FGA {{ fmt(sim.guaranteeFund) }} (con IVA) sobre {{ fmt(sim.financed) }}: Juan debe {{ fmt(sim.base) }}. Gasto de cobranza:
           {{ COLLECTION_TIERS.map((t) => `${fmt(t.amount)} el día ${t.from}`).join(' · ') }}. Números de juguete, ninguno es de una entidad real.
           <button type="button" class="pf-link" @click="portfolio.assumptions = { ...DEFAULT_ASSUMPTIONS }">volver a los de ejemplo</button></p>
       </details>
@@ -146,7 +146,7 @@ const RAILS = [
       <div class="pf-clock-head">
         <button type="button" class="pf-icon" :aria-label="playing ? 'Pausar' : 'Correr las noches'" @click="play">
           <Pause v-if="playing" :size="15" /><Play v-else :size="15" /></button>
-        <button type="button" class="pf-icon" aria-label="Volver al desembolso" @click="jump(0)"><RotateCcw :size="14" /></button>
+        <button type="button" class="pf-icon" aria-label="Volver al desembolso" @click="jump(0)"><Restart :size="14" /></button>
         <b>Día {{ today.day }}</b><span class="pf-mut">{{ dateOf(today.date) }} · noche de las 00:30</span>
         <span class="pf-state" :class="['st-' + state.group, { 'st-late': today.status === 2 }]">{{ state.name }}<template v-if="today.daysLate"> · {{ today.daysLate }} días de mora</template></span>
       </div>
@@ -170,11 +170,11 @@ const RAILS = [
 
     <div class="pf-grid">
       <section class="pf-card" aria-label="Lo que debe hoy">
-        <h3>Lo que debe hoy <span class="pf-mut">{{ fmt(owedTotal) }}</span></h3>
-        <div class="pf-bar"><span v-for="p in owedParts" :key="p.key" :class="p.cls" :style="{ width: pct(p.value, owedTotal) }" :title="`${p.label}: ${fmt(p.value)}`"></span></div>
+        <h3>Lo que debe hoy <span class="pf-mut">{{ fmt(debtTotal) }}</span></h3>
+        <div class="pf-bar"><span v-for="p in debtParts" :key="p.key" :class="p.cls" :style="{ width: pct(p.value, debtTotal) }" :title="`${p.label}: ${fmt(p.value)}`"></span></div>
         <ul class="pf-rows">
-          <li v-for="p in owedParts" :key="p.key"><i :class="p.cls"></i>{{ p.label }}<b>{{ fmt(p.value) }}</b></li>
-          <li v-if="!owedParts.length" class="pf-mut">Nada: el crédito está cerrado.</li>
+          <li v-for="p in debtParts" :key="p.key"><i :class="p.cls"></i>{{ p.label }}<b>{{ fmt(p.value) }}</b></li>
+          <li v-if="!debtParts.length" class="pf-mut">Nada: el crédito está cerrado.</li>
         </ul>
         <p class="pf-note">El mínimo exigible es lo vencido: <b>{{ fmt(dueToday) }}</b><template v-if="today.nextPayment !== null">, {{ today.nextPayment < today.day ? 'venció' : 'vence' }} el día {{ today.nextPayment }}</template>.
           Cada noche el interés se causa sobre el capital por facturar; en el corte, lo causado y la cuota pasan al mínimo, que acumula lo que no se pagó.</p>
@@ -204,7 +204,7 @@ const RAILS = [
       </section>
 
       <section class="pf-card" aria-label="A quién va cada peso">
-        <h3>A quién va cada peso <span class="pf-mut">acumulado · Juan pagó {{ fmt(paidByJuan) }}</span></h3>
+        <h3>A quién va cada peso <span class="pf-mut">acumulado · Juan pagó {{ fmt(paidByCustomer) }}</span></h3>
         <table class="pf-flows">
           <tbody>
             <tr v-for="f in flows" :key="f.key" :class="{ zero: !f.value }">
@@ -223,7 +223,7 @@ const RAILS = [
       <section class="pf-card" aria-label="El estado y la cobranza">
         <h3>Estado y cobranza</h3>
         <div class="pf-bands">
-          <span v-for="b in MORA_BANDS" :key="b.key" class="pf-band" :class="{ on: today.status === 2 ? band.key === b.key : (b.key === 'ok' && today.status === 1) }">{{ b.label }}</span>
+          <span v-for="b in ARREARS_BANDS" :key="b.key" class="pf-band" :class="{ on: today.status === 2 ? band.key === b.key : (b.key === 'ok' && today.status === 1) }">{{ b.label }}</span>
           <span v-for="(s, id) in STATES" v-show="+id > 2" :key="id" class="pf-band pf-band-end" :class="{ on: today.status === +id }">{{ s.name }}</span>
         </div>
         <p v-if="today.status === 2" class="pf-note">Franja <b>{{ band.label }}</b> del reporte de riesgo. Cobranza ofrecería: {{ band.offer }}.
@@ -298,7 +298,7 @@ const RAILS = [
 .pf-bar span { display: block; min-width: 2px; transition: width .15s }
 .pf-rows { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px }
 .pf-rows li { display: flex; align-items: center; gap: 7px }
-.pf-rows li b { margin-left: auto; font-weight: 500; font-variant-numeric: tabular-nums }
+.pf-rows li b { margin-left: auto; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap }
 .pf-rows li.zero { color: var(--fg-3) }
 .pf-rows i { width: 9px; height: 9px; border-radius: 2px; flex: none }
 .pf-cascade { counter-reset: c } .pf-cascade li::before { counter-increment: c; content: counter(c); color: var(--fg-3); width: 12px; font-size: 11px }
