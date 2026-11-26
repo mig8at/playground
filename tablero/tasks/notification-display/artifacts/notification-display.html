@@ -173,7 +173,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         <button type="button" id="sound" aria-pressed="false">Sonido</button>
       </div>
     </div>
-    <p class="note">30 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados, salvo «Crecimiento por mes», cuya forma es real, los dos tops (comercios y entidades), con las ventas reales de 2026, «Suben y bajan», con los desembolsos reales del trimestre, los de «Atención», con el uso real de noviembre, y «Carrera del mes», con las ventas reales de noviembre día a día (desembolsos por mes en producción, sin cifras absolutas). Su porcentaje de 2025 compara el año completo con 2024; el de 2026, enero a octubre con el mismo tramo de 2025.</p>
+    <p class="note">30 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados, salvo «Crecimiento por mes», cuya forma es real, los dos tops (comercios y entidades), con las ventas reales de 2026, «Suben y bajan», con los desembolsos reales del trimestre, los de «Atención», con el uso real de noviembre, y «Carrera del año», con las ventas reales de 2026 semana a semana (desembolsos por mes en producción, sin cifras absolutas). Su porcentaje de 2025 compara el año completo con 2024; el de 2026, enero a octubre con el mismo tramo de 2025.</p>
   </section>
 
   <section aria-labelledby="size">
@@ -450,7 +450,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
           <li>Monto del mes con barra hacia la meta</li>
           <li>Qué comercios suben y cuáles bajan en el trimestre, en un tablero de aeropuerto; y a cuánto cerraría el mes a este ritmo</li>
           <li>Las solicitudes en vivo: cada una avanza por entran, perfil, entidad y venta, y se ve dónde se queda</li>
-          <li>La carrera del mes: las ventas acumuladas día a día, con los rebases entre comercios</li>
+          <li>La carrera del año: las ventas acumuladas semana a semana, con los rebases entre comercios</li>
           <li>Récords, con un sonido especial</li>
           <li>Atención: los comercios activos sin solicitudes este mes, los que dejaron de usar CreditOp las entidades asignadas que nadie usa y las que reciben solicitudes pero casi no venden</li>
           <li>Canales: la primera venta por e-commerce, las descargas de la app y la primera compra desde la app</li>
@@ -931,16 +931,20 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         else { text(b, n, x - (tw(n, 1) >> 1), 1, 1, c); text(b, L[k], x - (tw(L[k], 1) >> 1), 23, 1, C.bLav); }
       });
     } },
-    { id: "race", group: "Negocio", label: "Carrera del mes", dur: 11, draw(b, t) {
-      // Una carrera de barras: ventas acumuladas día a día de noviembre de 2026 (al 25), medidas en producción.
-      // Sonría rebasa a Pullman el día 3, y Free Spirit y Tripleten se rebasan seis veces por el 4.º puesto.
+    { id: "race", group: "Negocio", label: "Carrera del año", dur: 12, draw(b, t) {
+      // Una carrera de barras del año: ventas acumuladas semana a semana de 2026 (al 25-nov, 47 semanas), medidas en
+      // producción. Sonría y Pullman, primero y segundo todo el año; Credimovil arranca en cero hacia mayo y a principios
+      // de noviembre rebasa a Dentix por el 3.er puesto; Crédito Directo y Tripleten se pelean el 5.º.
       const RACE = [
-        ["SONRIA",      [6,6,92,164,225,296,378,385,473,527,599,668,737,819,826,826,906,977,1052,1147,1230,1237,1317,1394,1475]],
-        ["PULLMAN",     [18,47,79,92,105,134,177,234,273,295,315,364,386,428,452,480,505,525,539,562,604,641,680,722,738]],
-        ["CREDIMOVIL",  [5,18,43,74,95,122,146,151,186,203,233,255,282,315,320,327,353,378,408,429,457,467,491,502,515]],
-        ["FREE SPIRIT", [7,12,17,26,30,39,55,61,65,70,78,96,105,125,140,156,157,167,179,190,197,207,216,223,225]],
-        ["TRIPLETEN",   [2,9,18,23,29,40,44,47,64,70,82,89,99,103,106,117,127,137,139,142,146,153,166,180,185]]];
-      const big = b.h >= 64, per = 0.36, days = 25;
+        ["SONRIA",     [309,738,1199,1689,2147,2612,3065,3561,4104,4580,5076,5468,6009,6333,6807,7289,7823,8264,8774,9175,9694,10218,10570,10920,11374,11772,12154,12547,12908,13325,13693,13990,14276,14673,15053,15418,15919,16422,16976,17398,17855,18381,18853,19283,19718,20096,20594]],
+        ["PULLMAN",    [299,668,970,1158,1356,1580,1743,1972,2135,2290,2468,2725,2899,3068,3222,3400,3533,3690,3955,4088,4239,4476,4752,4912,5085,5227,5452,5651,5847,6102,6277,6468,6641,6822,6979,7155,7346,7563,7678,7869,8054,8210,8374,8516,8739,8949,9162]],
+        ["CREDIMOVIL", [0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,3,4,12,14,20,52,102,170,234,340,456,576,691,818,943,1068,1213,1373,1518,1685,1826,1965,2110,2247,2398,2547,2706,2865,3010,3147]],
+        ["DENTIX",     [41,106,159,210,270,527,633,741,813,902,1046,1086,1208,1317,1420,1496,1592,1668,1757,1860,1939,1999,2034,2087,2137,2158,2183,2228,2265,2299,2334,2338,2365,2411,2466,2505,2548,2615,2652,2674,2719,2761,2794,2819,2847,2862,2888]],
+        ["TRIPLETEN",  [11,35,53,77,106,133,150,171,200,229,257,273,293,309,329,351,390,425,452,492,539,600,651,695,744,795,851,907,958,1018,1060,1106,1148,1199,1246,1285,1333,1381,1427,1478,1517,1559,1622,1667,1726,1781,1829]],
+        ["C. DIRECTO", [0,0,0,0,0,0,0,0,0,0,0,0,0,3,10,28,75,114,202,351,419,535,608,681,752,849,923,995,1037,1088,1136,1181,1200,1230,1248,1280,1335,1401,1440,1524,1568,1610,1638,1664,1707,1749,1789]],
+        ["EMO MAT.",   [0,0,0,3,20,35,53,78,115,136,166,183,210,224,258,297,318,337,372,399,425,446,510,521,549,582,619,665,697,725,753,775,814,844,860,905,930,949,967,1001,1020,1044,1057,1078,1093,1122,1139]]];
+      const MES = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
+      const big = b.h >= 64, per = 0.2, days = 47;                        // 47 semanas en ~9,5 s
       const f = Math.max(0, (t - 0.3) / per), d = Math.min(days - 1, Math.floor(f)), r = d >= days - 1 ? 1 : f - d;
       const valAt = (v, k) => v[Math.min(days - 1, k)];
       const now = RACE.map(([, v]) => d >= days - 1 ? v[days - 1] : v[d] + (v[d + 1] - v[d]) * r);
@@ -949,13 +953,13 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       const swap = ease(Math.min(1, r / 0.7));                           // el cambio de puesto se desliza durante el día
       const pos = RACE.map((_, i) => r0[i] + (r1[i] - r0[i]) * swap);
       const passing = RACE.map((_, i) => r1[i] < r0[i] || (r0[i] < rPrev[i] && r < 0.4));
-      const show = big ? 5 : 4, rowH = big ? 10 : 8, y0 = big ? 11 : 1, nx = 2, bx = 70, bmax = big ? 150 : 120;   // en 32, aire para el día
-      const day = Math.min(days, d + 1), anyPass = passing.some((p, i) => p && pos[i] < show - 0.5);
+      const show = big ? 5 : 4, rowH = big ? 10 : 8, y0 = big ? 11 : 1, nx = 2, bx = 70, bmax = big ? 140 : 116;   // en 32, aire para el día
+      const week = Math.min(days, d + 1), mes = MES[Math.min(10, Math.floor(((week - 1) * 7) / 30.5))], anyPass = passing.some((p, i) => p && pos[i] < show - 0.5);
       if (big) {
-        text(b, "CARRERA DE NOV", 2, 1, 1, C.gray);
-        const hd = "DIA " + day + (anyPass ? " · REBASO!" : ""); text(b, hd, rx(b, hd, 1), 1, 1, anyPass ? C.yellow : C.white);
-      } else { const hd = "D" + day; text(b, hd, rx(b, hd, 1), 1, 1, anyPass ? C.yellow : C.gray); }
-      const top = Math.max(60, ...now);
+        text(b, "CARRERA 2026 · VENTAS", 2, 1, 1, C.gray);
+        const hd = mes + (anyPass ? " · REBASO!" : ""); text(b, hd, rx(b, hd, 1), 1, 1, anyPass ? C.yellow : C.white);
+      } else { text(b, mes, rx(b, mes, 1), 1, 1, anyPass ? C.yellow : C.gray); }
+      const top = Math.max(300, ...now);
       RACE.forEach(([name], i) => {
         const y = Math.round(y0 + pos[i] * rowH);
         if (pos[i] > show - 1 + 0.001 && y + 7 > b.h) return;            // sólo los primeros puestos
