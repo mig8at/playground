@@ -173,7 +173,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         <button type="button" id="sound" aria-pressed="false">Sonido</button>
       </div>
     </div>
-    <p class="note">18 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados.</p>
+    <p class="note">19 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados, salvo «Crecimiento por mes»: su forma es la real (desembolsos por mes en producción, sin cifras absolutas).</p>
   </section>
 
   <section aria-labelledby="size">
@@ -707,6 +707,30 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         const s = String(Math.round(v * g));
         text(b, s, rx(b, s, 1) + off, y, 1, col);
       });
+    } },
+    { id: "growth", group: "Negocio", label: "Crecimiento por mes", voice: "Así hemos crecido: créditos desembolsados cada mes, desde agosto de 2023.", draw(b, t) {
+      // la FORMA real: desembolsos por mes (disbursed_at) de ago-2023 a nov-2026, medidos en producción el 2026-11-25,
+      // guardados como % del mejor mes (nov-2025) para no publicar cifras; nov-2026 va hasta el día 25
+      const D = [0,0,0,0,0,2,12,12,13,12,14,19,15,17,21,25,23,26,23,25,27,28,28,34,35,44,77,100,47,38,38,35,34,39,37,41,40,48,48,39];
+      const big = b.h >= 64, n = D.length, bw = 5, x0 = (b.w - (n * 6 - 1)) >> 1, rec = D.indexOf(100);
+      const top = big ? 14 : 10, bottom = big ? 53 : 30, hmax = bottom - top + 1;
+      head(b, "DESEMBOLSOS POR MES", C.bLav, "DESDE AGO 2023", C.bLav, t);
+      D.forEach((d, i) => {
+        const g = ease((t - 0.3 - i * 0.05) / 0.25); if (g <= 0) return;
+        const h = Math.max(1, Math.round(hmax * d / 100 * g));
+        const col = i === n - 1 ? C.white : (i === rec && t > 2.7 ? C.bG : mul(C.bLav, 0.8));
+        rect(b, x0 + i * 6, bottom - h + 1, bw, h, col);
+      });
+      [[5, "2024"], [17, "2025"], [29, "2026"]].forEach(([i, y]) => {
+        const xm = x0 + i * 6 + 2;
+        if (big) { rect(b, xm, 55, 1, 2, mul(C.bLav, 0.6)); text(b, y, xm - (tw(y, 1) >> 1), 57, 1, mul(C.bLav, ease((t - 0.5) / 0.5))); }
+        else rect(b, xm, 31, 1, 1, mul(C.bLav, 0.6));
+      });
+      if (t > 2.7) {
+        const xr = x0 + rec * 6 - tw("RECORD", 1) - 9;
+        text(b, "RECORD", xr, big ? 15 : 10, 1, mul(C.bG, ease((t - 2.7) / 0.4)));
+        text(b, "2,9 VECES 2024", rx(b, "2,9 VECES 2024", 1), big ? 16 : 11, 1, mul(C.bG, ease((t - 3) / 0.4)));
+      }
     } },
     { id: "record", voice: "¡Nuevo récord! 312 solicitudes en un solo día.", group: "Negocio", label: "Récord", sound: () => { pip(1047, 90); pip(1319, 90, .1); pip(1568, 220, .2); }, draw(b, t) {
       const big = b.h >= 64, gold = i => (Math.sin(t * 5 + i * 0.5) > 0 ? C.yellow : C.amber);
