@@ -181,7 +181,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         <button type="button" id="sound" aria-pressed="false">Sonido</button>
       </div>
     </div>
-    <p class="note">30 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados, salvo «Crecimiento por mes», cuya forma es real, los dos tops (comercios y entidades), con las ventas reales de 2026, «Suben y bajan», con los desembolsos reales del trimestre, los de «Atención», con el uso real de los últimos 30 días, y «Carrera del año», con las ventas reales de 2026 semana a semana (desembolsos por mes en producción, sin cifras absolutas). Su porcentaje de 2025 compara el año completo con 2024; el de 2026, enero a octubre con el mismo tramo de 2025.</p>
+    <p class="note">33 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados, salvo «Crecimiento por mes», cuya forma es real, los dos tops (comercios y entidades), con las ventas reales de 2026, «Suben y bajan», con los desembolsos reales del trimestre, «Ventas de hoy», con un día real contra el anterior a la misma hora, los de «Atención», con el uso real de los últimos 30 días, y «Carrera del año», con las ventas reales de 2026 semana a semana (desembolsos por mes en producción, sin cifras absolutas). Su porcentaje de 2025 compara el año completo con 2024; el de 2026, enero a octubre con el mismo tramo de 2025.</p>
   </section>
 
   <section aria-labelledby="size">
@@ -660,6 +660,8 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
              "gggwggggwggg", "ggggwwwwgggg", "gwggggggggwg", "gggggggggggg", "............", "............"],
     unplug: ["..w.w..", "..w.w..", ".wwwww.", ".wwwww.", "..www..", "...w...", "...w..."],
     chartDown: ["wr.....", "w.r....", "w..r.r.", "w...r.r", "w.....r", "w......", "wwwwwww"],
+    hourglass: ["wwwwwww", ".w...w.", "..wyw..", "...w...", "..w.w..", ".wyyyw.", "wwwwwww"],
+    arrowDown: ["...r...", "...r...", "...r...", "r..r..r", ".r.r.r.", "..rrr..", "...r..."],
     shop:   ["....wwww....", "...w....w...", "...w....w...", ".gggggggggg.", ".gggggggggg.", ".gggwggwggg.",
              ".gggggggggg.", ".gggggggggg.", ".gggggggggg.", ".gggggggggg.", ".gggggggggg.", "............"],
     paper:  ["wwwwwww.....", "w.....ww....", "w.....w.w...", "w.....wwww..", "w.gg.....w..", "w........w..",
@@ -670,7 +672,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
 
   function attnHead(b, icon, label, right, t) {
     const big = b.h >= 64, k = big ? 2 : 1, y = big ? 3 : 1, iy = big ? 0 : 1;
-    art(b, ICONS[icon], 2, iy, k, { w: [190,190,205], r: C.red });
+    art(b, ICONS[icon], 2, iy, k, { w: [190,190,205], r: C.red, y: C.yellow });
     if (icon === "unplug") for (let j = 0; j < 7; j++) rect(b, 2 + j * k, iy + (6 - j) * k, k, k, C.red);   // la raya de «sin uso»
     text(b, label, 2 + 7 * k + 4, y, 1, C.gray);
     if (right) text(b, right, rx(b, right, 1), y, 1, mul(C.gray, ease((t - 0.4) / 0.5)));
@@ -731,6 +733,31 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         text(b, n, mid - (tw(n, 2) >> 1), ny, 2, c);
         if (big) text(b, d, mid - (tw(d, 1) >> 1), 46, 1, mul(C.green, ease((t - t0 - 1.2) / 0.5)));
       });
+    } },
+    { id: "today-sales", group: "Negocio", label: "Ventas de hoy", draw(b, t) {
+      // ventas (desembolsos) de hoy contra ayer a la misma hora. Medido en producción: el 25-nov-2026 hasta las 17:15
+      // iban 194 ventas por $692 M; el 24-nov a esa hora iban 131 (+48 %). En vivo lo calcula el servidor a cada minuto.
+      const big = b.h >= 64, v = 194, prev = 131, cur = v * ease(t / 1.6), num = fmt(cur);
+      const d = "+" + Math.round(100 * (v - prev) / prev) + "%", da = ease((t - 1.4) / 0.5);
+      head(b, "VENTAS DE HOY", C.hNeg, big ? "VS AYER A ESTA HORA" : d + " VS AYER", big ? C.gray : C.green, t);
+      const flap = (t * 3 | 0) % 2;
+      if (big) {
+        art(b, ICONS.bill, 2, 12 + flap, 2, BILL);
+        text(b, num, 32, 14, 3, C.white);
+        const lx = 32 + tw("194", 3) + 8;                              // dos líneas: no se acercan al porcentaje
+        text(b, "VENTAS", lx, 17, 1, C.gray); text(b, "$692 M", lx, 28, 1, C.white);
+        text(b, d, rx(b, d, 3), 14, 3, mul(C.green, da));
+        const bx = 32, bw = b.w - 2 - 24 - bx;                       // hoy y ayer, en la misma escala
+        text(b, "HOY", 2, 42, 1, C.gray);  bar(b, bx, 42, bw, 5, cur / v, C.green, t);
+        text(b, fmt(cur), rx(b, fmt(cur), 1), 41, 1, C.white);
+        const pa = ease((t - 0.4) / 1.4);
+        text(b, "AYER", 2, 53, 1, C.gray); rect(b, bx, 53, bw, 5, C.dim); rect(b, bx, 53, Math.round(bw * prev / v * pa), 5, C.bLav);
+        text(b, String(prev), rx(b, String(prev), 1), 52, 1, C.gray);
+      } else {
+        art(b, ICONS.bill, 2, 11 + flap, 1, BILL);
+        text(b, num, 18, 11, 2, C.white);
+        text(b, "VENTAS · $692 M", 18 + tw("194", 2) + 6, 18, 1, C.gray);
+      }
     } },
     { id: "disbursed", group: "Negocio", label: "Desembolsos y meta", draw(b, t) {
       const big = b.h >= 64, goal = 1650, v = 1284 * ease(t / 1.8), num = fmt(v), pct = Math.round(100 * v / goal) + "%";
@@ -1117,6 +1144,42 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         const vs = String(Math.round(v * ease((t - t0 - 0.3) / 0.6))), right = trx - 12;
         text(b, vs, right - tw(vs, 1), y, 1, C.red);
         const ss = fmt(sol) + " → "; text(b, ss, right - tw(vs, 1) - tw(ss, 1) - 1, y, 1, C.gray);
+      });
+    } },
+    { id: "approved-idle", group: "Atención", label: "Aprobadas sin desembolsar", draw(b, t) {
+      // créditos que la entidad aprobó y no se desembolsaron (estado «Aprobada no desembolsada»): plata que quedó sobre la
+      // mesa. Medido en producción, solicitudes creadas del 27-oct al 25-nov-2026: 66 por $218 M (monto pedido). Addi 38,
+      // Welli 13 (más 3 de Welli Risk), Meddipay 10.
+      const big = b.h >= 64, rows = [["ADDI", 38], ["WELLI", 13], ["MEDDIPAY", 10]];
+      attnHead(b, "hourglass", "APROBADAS SIN DESEMBOLSAR", "30 DIAS", t);
+      const m = "$" + Math.round(218 * ease((t - 0.3) / 1.4)) + " M", k = big ? 3 : 2, y = big ? 17 : 12;
+      text(b, m, 2, y, k, C.yellow);
+      const sub = "EN 66 CREDITOS";
+      if (big) text(b, sub, 2, 46, 1, mul(C.gray, ease((t - 1.2) / 0.5)));
+      else text(b, sub, 2 + tw("$218 M", 2) + 8, 19, 1, mul(C.gray, ease((t - 1.2) / 0.5)));
+      if (!big) return;
+      const cx0 = Math.max(2 + tw("$218 M", 3) + 24, b.w - 120);   // la columna por entidad, a la derecha
+      rows.forEach(([name, n], i) => {
+        const t0 = 0.6 + i * 0.25, off = Math.round((1 - ease((t - t0) / 0.45)) * b.w), y = 17 + i * 14;
+        if (off >= b.w) return;
+        text(b, name, cx0 + off, y, 1, C.white);
+        text(b, String(n), rx(b, String(n), 1) + off, y, 1, C.yellow);
+      });
+    } },
+    { id: "slowing-merchants", group: "Atención", label: "Comercios que frenan", draw(b, t) {
+      // comercios que venden menos que su propio ritmo: ventas de la última semana contra el promedio semanal de las 4
+      // anteriores, sólo comercios con 8 o más por semana. Medido en producción al 25-nov-2026: My Tech 4 contra 13,5
+      // (-70 %), Refurbi 19 contra 28 (-32 %), Credimovil 138 contra 154 (-10 %). Avisa antes de que lleguen a «sin uso».
+      const big = b.h >= 64, rows = [["MY TECH", 4, 13.5], ["REFURBI", 19, 28], ["CREDIMOVIL", 138, 153.8]];
+      attnHead(b, "arrowDown", b.w > 256 ? "COMERCIOS QUE VIENEN FRENANDO" : "VIENEN FRENANDO", "SEMANA VS PROMEDIO", t);
+      const ys = big ? [17, 33, 49] : [12, 23]   /* en 256×32, dos filas con aire */;
+      rows.forEach(([name, now, avg], i) => {
+        const t0 = 0.3 + i * 0.25, off = Math.round((1 - ease((t - t0) / 0.45)) * b.w), y = ys[i];
+        if (off >= b.w || y === undefined) return;
+        text(b, name, 2 + off, y, 1, C.white);
+        const pc = "▼ " + Math.round(100 * (avg - now) / avg) + "%", px0 = rx(b, "▼ 70%", 1) + off;
+        text(b, pc, px0, y, 1, C.red);
+        const vs = now + " VS " + Math.round(avg); text(b, vs, px0 - 10 - tw(vs, 1), y, 1, C.gray);
       });
     } },
     { id: "uptime", group: "Desarrollo", label: "Uptime", draw(b, t) {
