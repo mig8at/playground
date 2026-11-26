@@ -173,7 +173,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         <button type="button" id="sound" aria-pressed="false">Sonido</button>
       </div>
     </div>
-    <p class="note">30 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados, salvo «Crecimiento por mes» y «Ciudad de comercios», cuya forma es real, los dos tops (comercios y entidades), con las ventas reales de 2026, y «Suben y bajan», con los desembolsos reales del trimestre (desembolsos por mes en producción, sin cifras absolutas). Su porcentaje de 2025 compara el año completo con 2024; el de 2026, enero a octubre con el mismo tramo de 2025.</p>
+    <p class="note">26 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados, salvo «Crecimiento por mes», cuya forma es real, los dos tops (comercios y entidades), con las ventas reales de 2026, y «Suben y bajan», con los desembolsos reales del trimestre (desembolsos por mes en producción, sin cifras absolutas). Su porcentaje de 2025 compara el año completo con 2024; el de 2026, enero a octubre con el mismo tramo de 2025.</p>
   </section>
 
   <section aria-labelledby="size">
@@ -449,7 +449,6 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
           <li>Créditos aprobados y desembolsados</li>
           <li>Monto del mes con barra hacia la meta</li>
           <li>Qué comercios suben y cuáles bajan en el trimestre, en un tablero de aeropuerto; y a cuánto cerraría el mes a este ritmo</li>
-          <li>La ciudad de comercios: un edificio por comercio, tan alto como sus solicitudes</li>
           <li>Las solicitudes en vivo: cada una avanza por entran, perfil, entidad y venta, y se ve dónde se queda</li>
           <li>Récords, con un sonido especial</li>
           <li>Canales: la primera venta por e-commerce, las descargas de la app y la primera compra desde la app</li>
@@ -544,10 +543,13 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
     }
   }
 
-  const C = { amber:[255,176,59], white:[235,235,230], gray:[110,116,128], green:[60,220,130],
-              red:[255,48,40], dred:[90,6,6], yellow:[255,220,60], teal:[40,200,175], dim:[40,43,50],
-              pink:[255,90,160], blue:[70,140,255], amberDim:[150,100,30],
-              hNeg:[200,135,45], hDev:[60,175,105], hCul:[45,170,150],
+  // Una paleta para todo el tablero: cifras en blanco cálido; el verde CreditOp como único acento (lo bueno, lo
+  // importante); un lavanda grisáceo para todas las etiquetas; rojo y amarillo suaves sólo para bajadas, alertas y
+  // récords. «amber» quedó como nombre histórico: hoy es el verde del acento.
+  const C = { amber:[5,213,135], white:[236,234,226], gray:[128,126,156], green:[5,213,135],
+              red:[255,84,72], dred:[80,12,10], yellow:[255,206,84], teal:[40,200,175], dim:[34,34,46],
+              pink:[255,110,170], blue:[90,150,255], amberDim:[22,105,74],
+              hNeg:[128,126,156], hDev:[128,126,156], hCul:[128,126,156],
               // marca CreditOp, del sistema de diseño del front: morado #4C39FF, verde #05D587, violeta #252256, verde claro #AFF248
               bP:[76,57,255], bP3:[135,122,255], bG:[5,213,135], bLG:[175,242,72], bV:[37,34,86], bVd:[16,14,40],
               bLav:[155,153,177], bTrack:[30,30,42] };   // lavanda = violet-200 #9B99B1, para etiquetas
@@ -603,7 +605,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
     const f = Math.round(w * clamp(frac));
     rect(b, x, y, f, h, c);
     const sx = (t * 140) % (f + 60) - 30;          // brillo que recorre la barra
-    for (let i = 0; i < 8; i++) if (sx + i >= 0 && sx + i < f) rect(b, x + sx + i, y, 1, h, mul([255,235,190], 0.6 + 0.05 * i));
+    for (let i = 0; i < 8; i++) if (sx + i >= 0 && sx + i < f) rect(b, x + sx + i, y, 1, h, mix(c, [200,255,225], 0.25 + 0.05 * i));   // un brillo del mismo color, más claro
   }
 
   // íconos de 12×12 al estilo emoji, para los avisos de «primero»
@@ -653,7 +655,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
   function firstOf(b, t, o) {
     const big = b.h >= 64, blink = t < 0.9 && (t * 6 | 0) % 2 === 1;
     sparkles(b, t, big ? 12 : 6, mul(C.bG, 0.5));
-    const foot = o.foot === undefined ? "VAMOLA!!!" : o.foot;
+    const foot = !big ? "" : o.foot === undefined ? "VAMOLA!!!" : o.foot;   // en 256×32 no cabe con aire: va sin cierre
     const k = big ? 3 : 2, ik = big ? 2 : 1, iw = 12 * ik, gap = big ? 8 : 5;
     const nw = tw(o.name, k), x = (b.w - (iw + gap + nw)) >> 1;       // ícono + nombre, centrados juntos
     const y0 = big ? (b.h - (7 + 6 + 7 * k + (foot ? 6 + 7 : 0))) >> 1 : (foot ? 1 : 4);
@@ -690,7 +692,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
   const SCENES = [
     { id: "today", group: "Negocio", label: "Resumen del día", draw(b, t) {
       const big = b.h >= 64;
-      const cols = [["DESCARGAS", 1820, "+12% VS AYER", C.teal], ["SOLICITUDES", 640, "+8% VS AYER", C.amber], ["APROBADAS", 212, "+5% VS AYER", C.green]];
+      const cols = [["DESCARGAS", 1820, "+12% VS AYER", C.white], ["SOLICITUDES", 640, "+8% VS AYER", C.white], ["APROBADAS", 212, "+5% VS AYER", C.green]];
       for (let s = 1; s < 3; s++) rect(b, Math.round(b.w * s / 3), big ? 8 : 3, 1, big ? 48 : 26, C.dim);
       cols.forEach(([lab, v, d, c], i) => {
         const mid = Math.round(b.w * (2 * i + 1) / 6), t0 = i * 0.25, n = fmt(v * ease((t - t0) / 1.4));
@@ -711,7 +713,6 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         text(b, pct, rx(b, pct, 3), 14, 3, C.white);
         bar(b, 2, 42, b.w - 4, 8, v / goal, C.amber, t);
         text(b, "FALTAN " + fmt(goal - v) + " PARA LA META", 2, 55, 1, C.gray);
-        text(b, "DIA 25 DE 30", rx(b, "DIA 25 DE 30", 1), 55, 1, C.gray);
       } else {
         art(b, ICONS.bill, 2, 11 + flap, 1, BILL);
         text(b, num, 18, 10, 2, C.amber);
@@ -794,27 +795,10 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         art(b, ICONS.bag, 2, 12 - hop, 2, BAG);
         text(b, s, 32, 14, 3, C.amber);
         text(b, "MILLONES DE PESOS", 32, 41, 1, C.gray);
-        text(b, "PROYECCION $1.480 M", 32, 53, 1, mul(C.white, ease((t - 1.6) / 0.5)));
       } else {
         art(b, ICONS.bag, 2, 11 - hop, 1, BAG);
         text(b, s, 18, 10, 2, C.amber);
         text(b, "MILLONES DE PESOS", 18, 25, 1, C.gray);
-      }
-    } },
-    { id: "lender", voice: "CreditopX creció 23 por ciento frente a octubre.", group: "Negocio", label: "Entidad que creció", draw(b, t) {
-      const big = b.h >= 64, p = "+" + Math.round(23 * ease(t / 1.4)) + "%", bob = Math.round(Math.abs(Math.sin(t * 4)) * 2);
-      head(b, "ENTIDAD DEL MES", C.hNeg, big ? "DESEMBOLSOS VS OCTUBRE" : "VS OCTUBRE", C.gray, t);
-      if (big) {
-        typed(b, "CREDITOPX", 2, 14, 3, C.white, t, 0.2, 14);
-        text(b, p, rx(b, p, 2), 18, 2, C.green);
-        art(b, ARROW, rx(b, p, 2) - 18, 18 - bob, 2, { x: C.green });
-        text(b, "DESEMBOLSOS CRECIERON", 2, 41, 1, C.gray);
-        text(b, "312 CREDITOS EN NOVIEMBRE", 2, 53, 1, mul(C.white, ease((t - 1.4) / 0.5)));
-      } else {
-        art(b, ARROW, 2, 13 - bob, 1, { x: C.green });
-        text(b, p, 12, 10, 2, C.green);
-        typed(b, "CREDITOPX", 72, 10, 2, C.white, t, 0.2, 14);
-        text(b, "312 CREDITOS EN NOVIEMBRE", 2, 25, 1, C.gray);
       }
     } },
     { id: "ranking", group: "Negocio", label: "Top de entidades", draw(b, t) {
@@ -932,43 +916,6 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         else { text(b, n, x - (tw(n, 1) >> 1), 1, 1, c); text(b, L[k], x - (tw(L[k], 1) >> 1), 23, 1, C.bLav); }
       });
     } },
-    { id: "city", group: "Negocio", label: "Ciudad de comercios", draw(b, t) {
-      // cada edificio es un comercio, tan alto como las solicitudes que tuvo en el mes (raíz, para que se vean los chicos).
-      // La forma es la real: los 40 comercios con más solicitudes de nov-2026 (al 25), de 122 con solicitudes, sin puntos
-      // de prueba, como % del más alto en raíz. Sin nombres. Los más altos al centro; crecen en ondas desde el centro.
-      const H = [100,100,69,60,58,58,54,52,44,43,43,37,37,36,35,33,30,26,24,23,22,20,20,18,17,17,17,15,13,11,10,10,10,9,8,8,8,8,7,7];
-      const big = b.h >= 64, ground = big ? 61 : 30, hmax = big ? 44 : 16, n = H.length;   // en 32, la antena no toca el texto
-      text(b, "122 COMERCIOS · NOV", 2, big ? 3 : 1, 1, C.bLav);
-      const tot = "30.559 SOLICITUDES"; text(b, tot, rx(b, tot, 1), big ? 3 : 1, 1, mul(C.white, ease((t - 2) / 0.5)));
-      for (let i = 0; i < (big ? 20 : 10); i++) {                        // estrellas que titilan
-        const x = 2 + hash(i + 300) * 250 | 0, y = (big ? 12 : 9) + hash(i + 400) * (big ? 10 : 4) | 0;
-        if (Math.sin(t * 2 + i) > 0.3) px(b, x, y, [70,70,95]);
-      }
-      // los lugares: los altos tienden al centro pero mezclados, como una ciudad (el «azar» sale de una cuenta, no de Math.random)
-      const order = H.map((_, i) => i).sort((a, c) => {
-        const key = i => (i % 2 ? 1 : -1) * (i * 0.6 + hash(i + 11) * 14);
-        return key(a) - key(c);
-      });
-      const widths = order.map(i => 4 + (hash(i + 77) * 3 | 0)), total = widths.reduce((a, w) => a + w + 1, -1);
-      let x = (b.w - total) >> 1;
-      order.forEach((i, pos) => {
-        const w = widths[pos], dist = Math.abs(pos - (n >> 1)), g = ease((t - 0.2 - dist * 0.04) / 0.6);
-        const h = Math.max(1, Math.round(hmax * H[i] / 100 * g)), top = ground - h + 1;
-        const tone = 0.85 + hash(i + 5) * 0.3;
-        rect(b, x, top, w, h, mul([58,64,92], tone));
-        rect(b, x, top, w, 1, mul([100,108,145], tone));
-        for (let wy = top + 2; wy < ground - 1; wy += 3) for (let wx = x + 1; wx < x + w - 1; wx += 2) {   // ventanas
-          const k = i * 97 + wy * 7 + wx, lit = hash(k) > 0.5 !== (Math.sin(t * 0.7 + k) > 0.97);
-          if (lit && g > 0.9) px(b, wx, wy, [255,200,90]);
-        }
-        if (i === 0 && g > 0.95) {                                       // la antena del más alto, con su luz
-          rect(b, x + (w >> 1), top - 4, 1, 4, [120,124,140]);
-          if ((t * 1.5 | 0) % 2) px(b, x + (w >> 1), top - 5, C.red);
-        }
-        x += w + 1;
-      });
-      rect(b, 0, ground + 1, b.w, b.h - ground - 1, [20,20,28]);
-    } },
     { id: "growth", group: "Negocio", label: "Crecimiento por mes", voice: "Así hemos crecido: 165 por ciento en 2025, y 15 por ciento en lo que va de 2026.", draw(b, t) {
       // la FORMA real: desembolsos por mes (disbursed_at) de ago-2023 a nov-2026, medidos en producción el 2026-11-25,
       // guardados como % del mejor mes (nov-2025) para no publicar cifras; nov-2026 va hasta el día 25
@@ -1018,8 +965,8 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       firstOf(b, t, { icon: "medal", what: "PRIMERA VENTA", name: "FINANDINA" });
     } },
     { id: "record", voice: "¡Nuevo récord! 312 solicitudes en un solo día.", group: "Negocio", label: "Récord", sound: () => { pip(1047, 90); pip(1319, 90, .1); pip(1568, 220, .2); }, draw(b, t) {
-      const big = b.h >= 64, gold = i => (Math.sin(t * 5 + i * 0.5) > 0 ? C.yellow : C.amber);
-      sparkles(b, t, big ? 60 : 34, C.yellow);
+      const big = b.h >= 64, gold = i => mix(C.yellow, [255,236,170], (Math.sin(t * 5 - i * 0.5) + 1) / 2);
+      sparkles(b, t, big ? 24 : 12, mul(C.yellow, 0.8));
       const n = fmt(312 * ease((t - 0.4) / 1.2)), fl = (t * 8 | 0) % 2;
       const fire = { r: [255,80,30], o: fl ? [255,150,40] : [255,200,60], y: fl ? C.yellow : [255,150,40] };
       if (t > 0.3) {
@@ -1111,29 +1058,28 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       const big = b.h >= 64, blink = (t % 3) > 2.8, bob = Math.round(Math.sin(t * 3));
       if (big) {
         owl(b, 6, 16 + bob, 2, blink);
-        typed(b, "BIENVENIDA,", 48, 10, 2, C.teal, t, 0.2, 16);
+        typed(b, "BIENVENIDA,", 48, 10, 2, C.green, t, 0.2, 16);
         typed(b, "SOFIA!", 48, 28, 3, C.white, t, 0.9, 10);
         text(b, "HOY ARRANCA EN DESARROLLO", 48, 55, 1, mul(C.gray, ease((t - 1.6) / 0.5)));
         if (t > 1.5) art(b, ICONS.hand, 162 + ((t * 4 | 0) % 2), 26, 2, { s: [255,200,120] });   // saluda
       } else {
         owl(b, 4, 8 + bob, 1, blink);
-        typed(b, "BIENVENIDA, SOFIA!", 28, 4, 2, C.teal, t, 0.2, 14);
+        typed(b, "BIENVENIDA, SOFIA!", 28, 4, 2, C.green, t, 0.2, 14);
         text(b, "HOY ARRANCA EN DESARROLLO", 28, 22, 1, mul(C.white, ease((t - 1.5) / 0.5)));
         if (t > 1.5) art(b, ICONS.hand, 184 + ((t * 4 | 0) % 2), 19, 1, { s: [255,200,120] });
       }
     } },
     { id: "birthday", voice: "¡Feliz cumpleaños, Pepito!", group: "Cultura", label: "Cumpleaños", sound: () => { pip(784, 120); pip(784, 120, .15); pip(880, 200, .3); pip(784, 200, .55); pip(1047, 260, .8); }, draw(b, t) {
       const big = b.h >= 64, fl = Math.sin(t * 14) > 0;
-      confetti(b, t, big ? 70 : 40);
+      confetti(b, t, big ? 24 : 12, [C.pink, C.yellow, C.green, C.white]);
       const map = { f: fl ? C.yellow : C.amber, y: C.white, c: C.white, p: C.pink, w: C.white, b: [200,120,60], g: C.gray };
-      const rainbow = i => hsv((t * 0.15 + i * 0.09) % 1);
       const fl1 = Math.round(Math.sin(t * 2) * 2), fl2 = Math.round(Math.sin(t * 2 + 1.5) * 2);
       if (big) {
         art(b, ICONS.balloon, 212, 18 + fl1, 2, { b: C.pink, w: C.white });
         art(b, ICONS.balloon, 232, 14 + fl2, 2, { b: [5,213,135], w: C.white });
         art(b, CAKE, 6, 17, 2, map);
         wave(b, "FELIZ CUMPLE", 48, 10, 2, C.pink, t, 1);
-        wave(b, "PEPITO!", 48, 30, 3, rainbow, t, 2);
+        wave(b, "PEPITO!", 48, 30, 3, C.white, t, 2);
       } else {
         art(b, ICONS.balloon, 230, 8 + (fl1 >> 1), 1, { b: C.pink, w: C.white });
         art(b, ICONS.balloon, 242, 6 + (fl2 >> 1), 1, { b: [5,213,135], w: C.white });
@@ -1144,7 +1090,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
     } },
     { id: "anniversary", voice: "Feliz aniversario, Andrés: tres años en CreditOp.", group: "Cultura", label: "Aniversario", draw(b, t) {
       const big = b.h >= 64;
-      sparkles(b, t, big ? 26 : 14, C.amber);
+      sparkles(b, t, big ? 12 : 6, mul(C.yellow, 0.6));
       const map = { y: C.yellow, a: C.amber, w: C.white, k: [150,100,60] };
       const pop = { o: C.amber, p: C.pink, g: [5,213,135], b: C.blue, y: C.yellow }, hop = Math.round(Math.abs(Math.sin(t * 3)) * 2);
       if (big) {
@@ -1163,7 +1109,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
     // Marca CreditOp, sobria: fondo negro; blanco para lo que se lee; verde CreditOp sólo para el dato que importa;
     // morado sólo como detalle chico (una línea, la X); lavanda apagado para etiquetas. Sin degradados ni mezclas.
     { id: "brand", group: "Marca CreditOp", label: "Marca", draw(b, t) {
-      const big = b.h >= 64, k = big ? 4 : 3, w = "CREDITOP", x = cx(b, w, k), y = big ? 9 : 3, ww = tw(w, k);
+      const big = b.h >= 64, k = big ? 4 : 3, w = "CREDITOP", x = cx(b, w, k), y = big ? 9 : 1, ww = tw(w, k);
       const shown = Math.round(ease(t / 1.1) * (ww + 2));                   // aparece de izquierda a derecha
       text(b, w, x, y, k, C.bG);
       if (shown < ww) rect(b, x + shown, y, b.w - x - shown, 7 * k, [0,0,0]);
@@ -1172,19 +1118,6 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         if (uw > 0) rect(b, x + ((ww - uw) >> 1), y + 7 * k + 4, uw, 1, C.bP);
         typed(b, "VAMOLA!!!", cx(b, "VAMOLA!!!", 2), 46, 2, C.white, t, 1.4, 12);
       } else typed(b, "VAMOLA!!!", cx(b, "VAMOLA!!!", 1), 25, 1, C.white, t, 1.2, 20);
-    } },
-    { id: "brand-disbursed", group: "Marca CreditOp", label: "Desembolsos en marca", draw(b, t) {
-      const big = b.h >= 64, goal = 1650, v = 1284 * ease(t / 1.8), num = fmt(v), pct = Math.round(100 * v / goal) + "%";
-      head(b, "DESEMBOLSOS · NOV", C.bLav, "META " + fmt(goal), C.bLav, t);
-      const bar2 = (y, h) => { rect(b, 2, y, b.w - 4, h, C.bTrack); rect(b, 2, y, Math.round((b.w - 4) * v / goal), h, C.bG); };
-      if (big) {
-        text(b, num, 2, 14, 3, C.bG); text(b, "CREDITOS", 2 + tw(num, 3) + 8, 28, 1, C.bLav);
-        text(b, pct, rx(b, pct, 3), 14, 3, C.white); bar2(42, 8);
-        text(b, "FALTAN " + fmt(goal - v) + " PARA LA META", 2, 55, 1, C.bLav);
-      } else {
-        text(b, num, 2, 10, 2, C.bG); text(b, "CREDITOS", 2 + tw(num, 2) + 6, 17, 1, C.bLav);
-        text(b, pct, rx(b, pct, 2), 10, 2, C.white); bar2(26, 5);
-      }
     } },
     { id: "goal", group: "Marca CreditOp", label: "Meta cumplida", voice: "¡Meta del mes cumplida: 1650 desembolsos!", sound: () => { pip(784, 100); pip(988, 100, .12); pip(1175, 100, .24); pip(1568, 300, .36); }, draw(b, t) {
       const big = b.h >= 64;
@@ -1197,19 +1130,6 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       } else {
         typed(b, "META CUMPLIDA!", 24, 3, 2, C.white, t, 0.3, 20);
         text(b, "1.650 DESEMBOLSOS EN NOV", 24, 22, 1, mul(C.bG, ease((t - 1) / 0.5)));
-      }
-    } },
-    { id: "creditopx", group: "Marca CreditOp", label: "CreditopX", voice: "CreditopX: 312 créditos este mes.", draw(b, t) {
-      const big = b.h >= 64, k = big ? 3 : 2, up = "+" + Math.round(23 * ease(t / 1.4)) + "%", y = big ? 10 : 3;
-      typed(b, "CREDITOP", 2, y, k, C.white, t, 0, 16);
-      if (t > 0.55) text(b, "X", 2 + 8 * 6 * k, y, k, C.bP3);
-      text(b, up, rx(b, up, 2), big ? 13 : 3, 2, C.bG);
-      if (big) {
-        text(b, "VS OCTUBRE", rx(b, "VS OCTUBRE", 1), 30, 1, C.bLav);
-        text(b, "312 CREDITOS EN NOVIEMBRE", 2, 40, 1, mul(C.white, ease((t - 1) / 0.5)));
-        text(b, "LA ENTIDAD QUE MAS CRECIO", 2, 52, 1, mul(C.bLav, ease((t - 1.3) / 0.5)));
-      } else {
-        text(b, "312 CREDITOS · LA QUE MAS CRECIO", 2, 22, 1, mul(C.bLav, ease((t - 1) / 0.5)));
       }
     } },
     { id: "team", group: "Marca CreditOp", label: "Buen trabajo", voice: "¡Buen trabajo, equipo! 30.000 solicitudes en noviembre. ¡Vámola!", sound: () => { pip(784, 100); pip(988, 100, .12); pip(1175, 100, .24); pip(1568, 300, .36); }, draw(b, t) {
@@ -1232,7 +1152,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       text(b, hm, x, cy, k, C.white);
       const wx = x + tw(hm, k) + 12, iy = cy + ((7 * k - 24) >> 1), sy = cy + ((7 * k - 17) >> 1);
       const rays = Math.sin(t * 3) > 0 ? C.yellow : null;            // los rayos del sol titilan
-      art(b, ICONS.weather, wx, iy, 2, { y: C.amber, r: rays, w: C.white });
+      art(b, ICONS.weather, wx, iy, 2, { y: [255,186,70], r: rays, w: C.white });
       text(b, "18° NUBLADO", wx + 32, sy, 1, C.white);
       text(b, "BOGOTA", wx + 32, sy + 10, 1, C.gray);
     } }
