@@ -46,7 +46,7 @@ No toca los repos de producto. Es un servicio nuevo más el firmware del control
 1. **Banco de prueba**: un panel, el controlador y la fuente; un patrón de prueba y un texto fijo.
 2. **Contrato**: el JSON de los cinco tipos (`text`, `image`, `counter`, `sound`, `voice`), con prioridad y duración; el controlador rechaza lo demás.
 3. **Servidor mínimo**: rotación en ciclo con hora y clima como relleno, y una alerta crítica que interrumpe.
-4. **Voz**: el servidor arma la frase con cifras agregadas, pide el audio a un servicio de texto a voz y le manda al tablero la dirección del MP3; sólo en eventos.
+4. **Voz**: el texto a voz pasa en el servidor: arma la frase con cifras agregadas, la convierte en MP3 y se lo manda al tablero, que sólo lo reproduce por el amplificador I2S y el parlante; sólo en eventos.
 5. **Contenido de desarrollo**: deploys exitosos o fallidos, caídas o errores de la API, PRs pendientes, uptime.
 6. **Contenido de negocio**: descargas de la app, solicitudes, créditos aprobados y desembolsados, monto del mes con barra hacia la meta; un récord dispara un sonido especial.
 7. **Cultura**: cumpleaños, aniversarios, bienvenidas y la mascota en pixel art.
