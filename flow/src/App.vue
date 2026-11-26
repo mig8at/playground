@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import '@vue-flow/core/dist/style.css'
@@ -42,6 +42,10 @@ import CreditStatusNode from './nodes/CreditStatusNode.vue'
 import FieldInfoPanel from './nodes/FieldInfoPanel.vue'
 import TableView from './TableView.vue'
 import PortfolioView from './PortfolioView.vue'
+import PortfolioSidebar from './PortfolioSidebar.vue'
+import PortfolioDetail from './PortfolioDetail.vue'
+import PortfolioConsole from './PortfolioConsole.vue'
+import { portfolioUi, portfolioSim } from './portfolio.js'
 import ScenarioSidebar from './ScenarioSidebar.vue'
 import { consoleLog, clearLog } from './consoleLog'
 import { settings } from './settings'
@@ -85,6 +89,7 @@ function onKey(e) {
   const typing = t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA')
   if (e.key !== 'Escape') return
   if (typing) { t.blur(); return }
+  if (settings.view === 'portfolio') { portfolioUi.selected = null; return }
   if (ui.fieldInfo) closeFieldInfo()
   else if (ui.selected) ui.selected = null
 }
@@ -93,20 +98,40 @@ function onKey(e) {
 // tabla). Cada medida se guarda; lo que se pinta se DERIVA con `fitRegions`, así lo que se plegó por falta de lugar
 // vuelve solo cuando la ventana crece. El secundario se cierra con su ✕ (o Esc), no desde el pie: aparece y se va con
 // lo elegido, así que su manija no pliega (`collapsible: false`).
-const sidebarOpen = ref(readSize('flow.sidebar-open', 1) !== 0)
-const sidebarW = ref(readSize('flow.sidebar-w', 300))
-const auxW = ref(readSize('flow.auxiliarybar-w', 340))
+// CADA VISTA TIENE SUS PROPIAS REGIONES (2026-11-26, pedido de Miguel): la tabla, el grafo y la cartera guardan aparte
+// si su sidebar, su consola y su detalle están abiertos y cuánto miden, y cada una pone su propio contenido en ellas
+// (ver la plantilla). La tabla conserva las llaves de antes (`flow.sidebar-w`…); las demás, `flow.<vista>.…`, y arrancan
+// con las medidas de la tabla.
+const regionKey = (view, name) => (view === 'table' ? `flow.${name}` : `flow.${view}.${name}`)
+const regionStore = reactive({})
+function regionOf(view) {
+  if (!regionStore[view]) {
+    const read = (name, fallback) => readSize(regionKey(view, name), readSize(regionKey('table', name), fallback))
+    regionStore[view] = {
+      sidebarOpen: read('sidebar-open', 1) !== 0, sidebarW: read('sidebar-w', 300), auxW: read('auxiliarybar-w', 340),
+      panelOpen: read('panel-open', 0) !== 0, panelH: read('panel-h', 180),
+    }
+  }
+  return regionStore[view]
+}
+const region = computed(() => regionOf(settings.view))
+const viewKey = (name) => regionKey(settings.view, name)
+const regionRef = (field) => computed({ get: () => region.value[field], set: (v) => { region.value[field] = v } })
+const sidebarOpen = regionRef('sidebarOpen')
+const sidebarW = regionRef('sidebarW')
+const auxW = regionRef('auxW')
 const tableDetailOpen = ref(false)
 // El secundario aparece con lo elegido; el botón del pie lo oculta sin soltar la elección, y elegir otra cosa lo vuelve a
 // mostrar. Sin nada que detallar, el botón queda apagado (no se borra: ocultar una región nunca borra su botón).
 const auxHidden = ref(false)
-const panelOpen = ref(readSize('flow.panel-open', 0) !== 0)   // la consola arranca cerrada: se mira de vez en cuando
-const panelH = ref(readSize('flow.panel-h', 180))
+const panelOpen = regionRef('panelOpen')   // la consola arranca cerrada: se mira de vez en cuando
+const panelH = regionRef('panelH')
 const viewportW = ref(window.innerWidth)
 const viewportH = ref(window.innerHeight)
 const onWindowResize = () => { viewportW.value = window.innerWidth; viewportH.value = window.innerHeight }
-const auxHasContent = computed(() => (settings.view === 'table' ? tableDetailOpen.value : !!ui.fieldInfo))
-watch([() => ui.fieldInfo, tableDetailOpen, () => settings.view], () => { auxHidden.value = false })
+const auxHasContent = computed(() => (settings.view === 'table' ? tableDetailOpen.value
+  : settings.view === 'portfolio' ? portfolioUi.selected !== null : !!ui.fieldInfo))
+watch([() => ui.fieldInfo, tableDetailOpen, () => portfolioUi.selected, () => settings.view], () => { auxHidden.value = false })
 const shown = computed(() => {
   // En orden de sacrificio: primero el secundario, después el sidebar. El editor nunca baja de su mínimo.
   const [aux, sidebar] = fitRegions(viewportW.value - cssSize('--editor-min', 360) - 16, [
@@ -124,9 +149,9 @@ const panelResize = {
   get: () => shown.value.panel,
   set: (v) => { if (!v) panelOpen.value = false; else { panelOpen.value = true; panelH.value = v } },
   reopen: () => panelH.value,
-  commit: (v) => { saveSize('flow.panel-open', v ? 1 : 0); if (v) saveSize('flow.panel-h', panelH.value) },
+  commit: (v) => { saveSize(viewKey('panel-open'), v ? 1 : 0); if (v) saveSize(viewKey('panel-h'), panelH.value) },
 }
-function togglePanel() { panelOpen.value = !shown.value.panel; saveSize('flow.panel-open', panelOpen.value ? 1 : 0) }
+function togglePanel() { panelOpen.value = !shown.value.panel; saveSize(viewKey('panel-open'), panelOpen.value ? 1 : 0) }
 function toggleAux() { if (auxHasContent.value) auxHidden.value = !!shown.value.aux }
 // Lo que no viste de la consola se marca con un punto en su botón; abrirla lo da por visto.
 watch(() => shown.value.panel, (h) => { if (h) consoleLog.unseen = 0 })
@@ -139,7 +164,7 @@ const sidebarResize = {
   get: () => shown.value.sidebar,
   set: (v) => { if (!v) sidebarOpen.value = false; else { sidebarOpen.value = true; sidebarW.value = v } },
   reopen: () => sidebarW.value,
-  commit: (v) => { saveSize('flow.sidebar-open', v ? 1 : 0); if (v) saveSize('flow.sidebar-w', sidebarW.value) },
+  commit: (v) => { saveSize(viewKey('sidebar-open'), v ? 1 : 0); if (v) saveSize(viewKey('sidebar-w'), sidebarW.value) },
 }
 const auxResize = {
   label: 'Ancho del detalle', sign: -1, defaultValue: 340, collapsible: false,
@@ -147,9 +172,9 @@ const auxResize = {
   max: () => viewportW.value - cssSize('--editor-min', 360) - shown.value.sidebar,
   get: () => shown.value.aux,
   set: (v) => { auxW.value = v },
-  commit: () => saveSize('flow.auxiliarybar-w', auxW.value),
+  commit: () => saveSize(viewKey('auxiliarybar-w'), auxW.value),
 }
-function toggleSidebar() { sidebarOpen.value = !shown.value.sidebar; saveSize('flow.sidebar-open', sidebarOpen.value ? 1 : 0) }
+function toggleSidebar() { sidebarOpen.value = !shown.value.sidebar; saveSize(viewKey('sidebar-open'), sidebarOpen.value ? 1 : 0) }
 
 // Encuadrar el grafo: la cámara la maneja la persona (no se re-encuadra sola al elegir), y esto la devuelve a ver todo.
 const { fitView } = useVueFlow()
@@ -495,7 +520,9 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
   <div class="workbench" :style="layoutVars">
     <aside v-show="shown.sidebar" class="sidebar" aria-label="El escenario: entidades y cliente">
       <div class="rsz rsz-edge-right" v-resize="sidebarResize"></div>
-      <ScenarioSidebar />
+      <!-- La tabla y el grafo son dos vistas de la MISMA solicitud: comparten su escenario. La cartera tiene el suyo. -->
+      <PortfolioSidebar v-if="settings.view === 'portfolio'" />
+      <ScenarioSidebar v-else />
     </aside>
     <main class="editor">
       <div v-if="settings.view === 'table'" class="region-head">
@@ -563,7 +590,19 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
         </VueFlow>
       </div>
     </main>
-    <section v-if="shown.panel" class="panel" aria-label="Consola: lo que llega por bin/flow">
+    <section v-if="shown.panel && settings.view === 'portfolio'" class="panel" aria-label="Bitácora del crédito">
+      <div class="rsz rsz-edge-top" data-rsz="panel" v-resize="panelResize"></div>
+      <div class="region-head">
+        <span>Bitácora <small class="flow-head-meta">lo que le pasó al crédito hasta el día del reloj</small></span>
+        <span class="count">{{ portfolioSim.events.filter((e) => e.day <= portfolioUi.day).length }}</span>
+        <div class="region-actions">
+          <button type="button" class="region-action" title="Cerrar la bitácora" aria-label="Cerrar la bitácora" @click="togglePanel">
+            <span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
+        </div>
+      </div>
+      <PortfolioConsole />
+    </section>
+    <section v-else-if="shown.panel" class="panel" aria-label="Consola: lo que llega por bin/flow">
       <div class="rsz rsz-edge-top" data-rsz="panel" v-resize="panelResize"></div>
       <div class="region-head">
         <span>Consola <small class="flow-head-meta">lo que llega por bin/flow</small></span>
@@ -582,12 +621,18 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
           <span class="log-time">{{ timeOf(l.at) }}</span><span>{{ l.text }}</span></div>
       </div>
     </section>
+    <PortfolioDetail v-if="settings.view === 'portfolio' && shown.aux > 0" :width="shown.aux">
+      <template #resize><div class="rsz rsz-edge-left" v-resize="auxResize"></div></template>
+    </PortfolioDetail>
     <FieldInfoPanel v-if="settings.view === 'graph' && shown.aux > 0" :width="shown.aux">
       <template #resize><div class="rsz rsz-edge-left" v-resize="auxResize"></div></template>
     </FieldInfoPanel>
     <footer class="statusbar">
-      <span>{{ ui.selected ? 'Entidad elegida: ' + ui.selected : 'Elegí una entidad en el escenario o en «Entidades disponibles»' }}</span>
-      <span v-if="justSaved" class="flow-saved"><Check :size="12" /> escenario guardado</span>
+      <span v-if="settings.view === 'portfolio'">Cartera · {{ portfolioUi.selected !== null ? 'noche del día ' + portfolioSim.events[portfolioUi.selected]?.day : 'día ' + portfolioUi.day + ' del reloj' }}</span>
+      <template v-else>
+        <span>{{ ui.selected ? 'Entidad elegida: ' + ui.selected : 'Elegí una entidad en el escenario o en «Entidades disponibles»' }}</span>
+        <span v-if="justSaved" class="flow-saved"><Check :size="12" /> escenario guardado</span>
+      </template>
       <div class="layout-controls" role="group" aria-label="El grafo y las regiones visibles">
         <button ref="themeButton" type="button" class="region-action" style="display: none" tabindex="-1" aria-hidden="true"></button>
         <!-- El grafo se asoma desde acá: la vista de Flow es la tabla (2026-11-26). -->
@@ -602,13 +647,13 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
         <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Mostrar u ocultar el escenario" aria-label="Mostrar u ocultar el escenario" @click="toggleSidebar">
           <span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span>
         </button>
-        <button type="button" class="region-action flow-console-toggle" :class="{ unseen: consoleLog.unseen && !shown.panel }" :aria-pressed="!!shown.panel"
+        <button type="button" class="region-action flow-console-toggle" :class="{ unseen: settings.view !== 'portfolio' && consoleLog.unseen && !shown.panel }" :aria-pressed="!!shown.panel"
           :title="shown.panel ? 'Ocultar la consola' : 'Mostrar la consola: lo que llega por bin/flow' + (consoleLog.unseen ? ' (' + consoleLog.unseen + ' sin ver)' : '')"
           aria-label="Mostrar u ocultar la consola" @click="togglePanel">
           <span class="ui-icon" data-icon="bottom" aria-hidden="true"></span>
         </button>
         <button type="button" class="region-action" :aria-pressed="!!shown.aux" :disabled="!auxHasContent"
-          :title="!auxHasContent ? 'El detalle: abrí una celda de la tabla o un campo del grafo' : shown.aux ? 'Ocultar el detalle' : 'Mostrar el detalle'"
+          :title="!auxHasContent ? 'El detalle: abrí una celda de la tabla, un campo del grafo o una noche de la cartera' : shown.aux ? 'Ocultar el detalle' : 'Mostrar el detalle'"
           aria-label="Mostrar u ocultar el detalle" @click="toggleAux">
           <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
         </button>

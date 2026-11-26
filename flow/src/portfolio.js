@@ -7,7 +7,7 @@
 //   · creditopx-credit-states (los estados y sus grupos) · creditopx-offer-calculation (FGA y cuota)
 // Lo que simplifica, a propósito: corte mensual con la fecha de pago 5 días después; la tasa diaria es la mensual / 30;
 // el seguro de vida es un valor por millón sobre el capital por facturar; sin colillas, subsidio ni pronto pago.
-import { reactive, watch } from 'vue'
+import { reactive, watch, computed } from 'vue'
 
 /** Los supuestos del ejemplo. Se editan en la vista; ninguno sale de una entidad real. */
 export const DEFAULT_ASSUMPTIONS = {
@@ -253,3 +253,29 @@ export const portfolio = reactive({
 watch(portfolio, () => {
   try { localStorage.setItem('flow.portfolio', JSON.stringify(portfolio)) } catch { /* sin almacenamiento */ }
 }, { deep: true })
+
+// ── LO QUE COMPARTEN LAS REGIONES DE LA PISTA: el editor (el reloj), el sidebar (historia y supuestos), el detalle (la
+// noche elegida) y la consola (la bitácora) leen la misma simulación, el mismo día y el mismo evento elegido.
+export const portfolioSim = computed(() => simulate(portfolio.assumptions, portfolio.scenario))
+export const portfolioUi = reactive({ day: 0, selected: null, playing: false })
+export const portfolioLastDay = computed(() => portfolioSim.value.days.length - 1)
+export const portfolioToday = computed(() => portfolioSim.value.days[Math.min(portfolioUi.day, portfolioLastDay.value)])
+watch(() => [portfolio.scenario, JSON.stringify(portfolio.assumptions)], () => {
+  portfolioUi.day = Math.min(portfolioUi.day, portfolioLastDay.value); portfolioUi.selected = null
+})
+
+let timer = null
+/** El reloj: una noche cada 60 ms. */
+export function playPortfolio() {
+  if (portfolioUi.playing) { stopPortfolio(); return }
+  if (portfolioUi.day >= portfolioLastDay.value) portfolioUi.day = 0
+  portfolioUi.playing = true
+  timer = setInterval(() => { if (portfolioUi.day >= portfolioLastDay.value) stopPortfolio(); else portfolioUi.day += 1 }, 60)
+}
+export function stopPortfolio() { portfolioUi.playing = false; clearInterval(timer); timer = null }
+/** Ir a un día; con `event`, además lo elige y abre su detalle. */
+export function jumpPortfolio(day, event = null) {
+  stopPortfolio(); portfolioUi.day = day
+  if (event !== null) portfolioUi.selected = event
+}
+export function chooseScenario(key) { portfolio.scenario = key; stopPortfolio(); portfolioUi.day = 0; portfolioUi.selected = null }

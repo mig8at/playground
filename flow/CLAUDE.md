@@ -34,6 +34,14 @@ de vez en cuando y **no tiene que seguir al código al pie de la letra**. Lo que
 
 ## La ventana (2026-11-26): el workbench de la base
 
+- **Cada vista tiene sus propias regiones** (2026-11-26, pedido de Miguel: «que no se mezcle»): la tabla, el grafo y la
+  cartera guardan aparte si su sidebar, su consola y su detalle están abiertos y cuánto miden (`regionOf` en
+  `App.vue`; la tabla conserva las llaves `flow.sidebar-w`…, las demás `flow.<vista>.…`) y cada una pone su contenido:
+  la tabla y el grafo comparten el **escenario** (son dos vistas de la misma solicitud) y la consola de `bin/flow`, con
+  su detalle propio (la calculadora de la celda o el campo del nodo); la cartera trae los suyos (abajo). Una vista nueva
+  suma su sidebar, su detalle y su consola en la plantilla de `App.vue`; si todavía no tiene qué mostrar en una región,
+  la región dice «Próximamente» en vez de mostrar la de otra vista.
+
 - **La vista es la tabla.** Flow abre siempre en ella; el **grafo** se asoma desde el botón del pie (icono de flujo) y se
   cierra con su ✕ o el mismo botón. No se recuerda: al recargar vuelve a la tabla (decisión de Miguel, 2026-11-26).
 - **Sidebar «Escenario»** (`ScenarioSidebar.vue`): en la banda, el comercio y la sucursal; abajo, grupos plegables con el
@@ -116,10 +124,16 @@ desembolso**, para entender la cartera, no para operarla. No usa el escenario de
 (Juan, $3.000.000 a 12 cuotas) con números de ejemplo que se editan en «Supuestos» y se guardan en `flow.portfolio`.
 La lógica es `src/portfolio.js` (`simulate`, día por día) y la vista `src/PortfolioView.vue`.
 
+- **Sus cuatro regiones** (`portfolio.js` guarda lo que comparten: la simulación, el día del reloj y la noche
+  elegida, `portfolioUi`): el **sidebar** (`PortfolioSidebar.vue`) elige la historia y edita los supuestos; el
+  **editor** (`PortfolioView.vue`) es el reloj y lo que debe, paga y a quién va; el **detalle** (`PortfolioDetail.vue`)
+  abre la noche que se toca en el reloj o en la bitácora (cómo se repartió el pago, el mínimo ese día, el estado), y
+  la **consola** (`PortfolioConsole.vue`) es la bitácora hasta el día del reloj. Los estilos que comparten están en
+  `src/portfolio.css`, todos con prefijo `pf-`.
 - **Arriba, los tres rieles lado a lado**: quién presta, quién cobra las cuotas, si hay voucher de pago y qué gana CreditOp
   (SaaS + comisión CTX o la que paga la entidad: el modelo de revenue de `tools/forecast` del repo compartido). CreditOp
   no cobra intereses.
-- **Cinco historias**: paga a tiempo, se atrasa 45 días, abona de más (sobrante tipo 1: acorta el plazo), deja de pagar
+- **Cinco historias** (en el sidebar): paga a tiempo, se atrasa 45 días, abona de más (sobrante tipo 1: acorta el plazo), deja de pagar
   (a los 180 días el reporte la llama «castigada»; a los 200 paga el fondo de garantías → 7) y fallece (9, saldo
   congelado; a los 60 días la aseguradora paga → 14).
 - **El reloj**: cada día es una noche de causación (`UpdateCreditopXRequestsCommand`): corte que factura la cuota y
@@ -131,7 +145,7 @@ La lógica es `src/portfolio.js` (`simulate`, día por día) y la vista `src/Por
 - **A quién va cada peso**, acumulado: lo leído en línea llena y lo inferido punteado (seguro de vida, fondo, gasto de
   cobranza: el código no dice a quién llega).
 - **Estado y cobranza**: las franjas del reporte de riesgo del admin y la alternativa M1-M8 de la rama `cobranza` de
-  frontend-monorepo (sin mergear al 2026-11-26), y la bitácora de eventos.
+  frontend-monorepo (sin mergear al 2026-11-26).
 - **Se ve como el workbench** (2026-11-26): secciones con `region-head group`, `toggle` para las historias, `table`,
   `log-line` y `region-action`; los colores son tokens del tema (capital = `--primary-ink`, intereses y seguros = las
   `--chart-*`, mora y cobranza = `--status-*`), así que siguen la paleta de Cockpit. Las píldoras son `pf-pill` y no

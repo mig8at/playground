@@ -1,0 +1,82 @@
+/* La pista «Cartera» de Flow: los estilos que comparten sus cuatro regiones (el editor `PortfolioView`, el sidebar
+   `PortfolioSidebar`, el detalle `PortfolioDetail` y la consola `PortfolioConsole`). Todo con prefijo `pf-` y con tokens
+   del tema: los colores siguen la paleta de Cockpit. */
+/* Los colores de la pista salen del tema: el capital es la tinta de la marca, los intereses y seguros las series del
+   tema y la mora y la cobranza los estados. Nada de colores fijos: cambia con la paleta de Cockpit. */
+.pf { display: flex; flex-direction: column; font-size: var(--text-base); color: var(--foreground) }
+.pf-side, .pf-detail, .pf-console { font-size: var(--text-base); color: var(--foreground) }
+.pf, .pf-side, .pf-detail, .pf-console {
+  --c-principal: var(--primary-ink); --c-principal-soft: color-mix(in oklab, var(--primary-ink) 35%, var(--card));
+  --c-interest: var(--chart-1); --c-interest-soft: color-mix(in oklab, var(--chart-1) 35%, var(--card));
+  --c-late: var(--status-warn); --c-collection: var(--status-bad); --c-life: var(--chart-3); --c-guarantee: var(--chart-4);
+  --c-favor: var(--fg-3) }
+.pf-sec { border-bottom: 1px solid var(--border); min-width: 0 }
+.pf-sec > .region-head.group { gap: var(--space-2) }
+.pf-sec > .region-head.group .count { margin-left: auto }
+.pf-pad { padding: var(--space-3) var(--space-4) var(--space-4) }
+.pf-grow { flex: 1 }
+.pf-note { margin: var(--space-2) 0 0; color: var(--fg-2); line-height: 1.55 }
+.pf-pill { display: inline-flex; align-items: center; height: 20px; padding: 0 var(--space-2); border-radius: 999px; border: 1px solid transparent;
+  font-size: var(--text-xs); font-weight: 500; white-space: nowrap; color: var(--fg-2) }
+.pf-pill-outline { border-color: var(--border) }
+.pf-pill-inferred { border-color: var(--border); border-style: dashed; color: var(--fg-3) }
+.pf-pill-muted { background: var(--muted); color: var(--foreground) }
+.pf-pill-ok { border-color: var(--status-ok); color: var(--status-ok) }
+.pf-pill-bad { background: var(--status-bad); color: var(--on-status-bad) }
+.pf-rails { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)) }
+.pf-rail { padding: var(--space-3) var(--space-4); min-width: 0 }
+.pf-rail + .pf-rail { border-left: 1px solid var(--border) }
+.pf-rail.here { box-shadow: inset 0 2px 0 var(--primary-ink) }
+.pf-rail header { display: flex; gap: var(--space-2); align-items: center; margin-bottom: var(--space-2) }
+.pf-rail header .pf-pill { margin-left: auto }
+.pf-kv { display: grid; grid-template-columns: auto 1fr; gap: 2px var(--space-3); margin: 0 }
+.pf-kv dt { color: var(--fg-3) } .pf-kv dd { margin: 0; color: var(--fg-2) }
+.pf-clock-head { display: flex; gap: var(--space-2); align-items: center; margin-bottom: var(--space-2) }
+.pf-line { width: 100%; height: 120px; display: block }
+.pf-area { fill: color-mix(in oklab, var(--primary-ink) 18%, transparent); stroke: var(--primary-ink); stroke-width: 1.5; vector-effect: non-scaling-stroke }
+.pf-late-span { fill: color-mix(in oklab, var(--status-bad) 14%, transparent) }
+.pf-now { stroke: var(--foreground); stroke-width: 1; vector-effect: non-scaling-stroke }
+.pf-mark { cursor: pointer }
+.pf-mark.on circle { stroke: var(--foreground); stroke-width: 2; vector-effect: non-scaling-stroke }
+.pf-mk-disbursement circle, .pf-legend .pf-mk-disbursement { fill: var(--primary-ink); background: var(--primary-ink) }
+.pf-mk-payment circle, .pf-legend .pf-mk-payment { fill: var(--status-ok); background: var(--status-ok) }
+.pf-mk-collection circle, .pf-legend .pf-mk-collection { fill: var(--status-bad); background: var(--status-bad) }
+.pf-mk-state circle, .pf-legend .pf-mk-state { fill: var(--status-warn); background: var(--status-warn) }
+.pf-mk-billing rect, .pf-legend .pf-mk-billing { fill: var(--fg-3); background: var(--fg-3) }
+.pf-range { width: 100%; margin: var(--space-1) 0; accent-color: var(--primary-ink) }
+.pf-legend { display: flex; gap: var(--space-4); flex-wrap: wrap; color: var(--fg-3); font-size: var(--text-sm) }
+.pf-legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px }
+.pf-legend .pf-mk-billing { width: 2px; height: 9px; border-radius: 0 }
+.pf-legend .pf-late-sw { width: 12px; border-radius: 2px; background: color-mix(in oklab, var(--status-bad) 22%, transparent) }
+.pf-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) }
+.pf-cols > .pf-sec:nth-child(odd) { border-right: 1px solid var(--border) }
+.pf-bar { display: flex; height: 14px; border-radius: var(--radius-sm); overflow: hidden; background: var(--muted) }
+.pf-bar span { display: block; min-width: 2px; transition: width var(--motion-fast) }
+.pf-rows { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: flex; flex-direction: column }
+.pf-rows li { display: flex; align-items: center; gap: var(--space-2); min-height: 24px }
+.pf-rows li b { margin-left: auto; font-weight: 500; font-family: var(--font-mono); font-size: var(--text-sm); white-space: nowrap }
+.pf-rows li.zero { color: var(--fg-3) }
+.pf-rows i { width: 8px; height: 8px; border-radius: 2px; flex: none }
+.pf-cascade { counter-reset: c } .pf-cascade li::before { counter-increment: c; content: counter(c); color: var(--fg-3); width: 12px; font-size: var(--text-xs) }
+.pf-c-principal { background: var(--c-principal) } .pf-c-principal-soft { background: var(--c-principal-soft) }
+.pf-c-interest { background: var(--c-interest) } .pf-c-interest-soft { background: var(--c-interest-soft) }
+.pf-c-late { background: var(--c-late) } .pf-c-collection { background: var(--c-collection) }
+.pf-c-life { background: var(--c-life) } .pf-c-guarantee { background: var(--c-guarantee) } .pf-c-favor { background: var(--c-favor) }
+.pf-pay { display: grid; grid-template-columns: minmax(0, 1fr) 176px; gap: var(--space-4); align-items: start }
+/* El voucher: la tirilla, con la tinta del tema y el corte en zigzag del papel. */
+.pf-voucher { margin: 0; padding: var(--space-3) var(--space-3) var(--space-4); background: var(--background); color: var(--foreground);
+  border: 1px solid var(--border); border-bottom: 0; text-align: center; font-size: var(--text-sm);
+  --zz: 6px; mask: conic-gradient(from -45deg at bottom, transparent 90deg, black 0) bottom / calc(var(--zz) * 2) var(--zz) repeat-x,
+    linear-gradient(black 0 0) top / 100% calc(100% - var(--zz)) no-repeat }
+.pf-voucher-head { color: var(--fg-3); font-size: var(--text-xs); letter-spacing: .04em; padding-bottom: var(--space-2); border-bottom: 1px dashed var(--border) }
+.pf-voucher-ok { margin-top: var(--space-2); font-weight: 600; color: var(--status-ok) }
+.pf-voucher-date { color: var(--fg-3); font-size: var(--text-xs) }
+.pf-voucher dl { display: grid; grid-template-columns: auto auto; justify-content: space-between; gap: 2px var(--space-2); margin: var(--space-2) 0; text-align: left }
+.pf-voucher dt { color: var(--fg-3) } .pf-voucher dd { margin: 0; text-align: right; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.pf-voucher-ref { padding: var(--space-1) 0; border-top: 1px dashed var(--border); border-bottom: 1px dashed var(--border); font-family: var(--font-mono); color: var(--primary-ink) }
+.pf-voucher-foot { margin-top: var(--space-2); color: var(--fg-3); font-family: var(--font-mono); font-size: var(--text-xs) }
+.pf-flows tr.zero td { color: var(--fg-3) }
+.pf-flows .num { font-family: var(--font-mono); font-size: var(--text-sm); white-space: nowrap }
+.pf-callout { margin: var(--space-3) 0 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--muted); color: var(--fg-2); line-height: 1.55 }
+.pf-bands { display: flex; flex-wrap: wrap; gap: var(--space-1) }
+@media (max-width: 900px) { .pf-rails, .pf-cols { grid-template-columns: 1fr } .pf-pay { grid-template-columns: 1fr } .pf-rail + .pf-rail { border-left: 0 } }
