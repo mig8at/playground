@@ -206,7 +206,7 @@ func validateView(v *ReportView, known map[string]bool) {
 
 // pathInMain: si la ruta existe en main de alguno de los repos que se despliegan.
 func pathInMain(p string) bool {
-	for _, repo := range []string{"legacy-backend", "frontend-monorepo", "legacy-application", "pre-approvals-service"} {
+	for _, repo := range verifyRepos() {
 		if dir := repoDir(repo); dir != "" {
 			if _, err := runTool(10*time.Second, dir, "git", "cat-file", "-e", "origin/main:"+p); err == nil {
 				return true

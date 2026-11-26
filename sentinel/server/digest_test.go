@@ -1,8 +1,11 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // Lo que no sale de la Mac aunque se cuele en un texto: el paquete va a una cuenta de consumidor de AI Studio.
@@ -32,5 +35,26 @@ func TestScrubSecrets(t *testing.T) {
 	}
 	if !strings.Contains(out, "$timeout = 30;") {
 		t.Errorf("lo que no es secreto queda: %s", out)
+	}
+}
+
+func TestReportSince(t *testing.T) {
+	dir := t.TempDir()
+	s := &sentinel{store: &store{dir: dir}}
+	now := time.Date(2026, 11, 28, 9, 0, 0, 0, bogota)
+	// Sin informes: los 28 días.
+	if got := s.reportSince(now); !got.Equal(now.AddDate(0, 0, -packDays)) {
+		t.Errorf("sin informes: %v", got)
+	}
+	_ = os.MkdirAll(s.reportDir(), 0o755)
+	// Uno viejo sin marca: a las 8:30 de su día.
+	_ = os.WriteFile(filepath.Join(s.reportDir(), "2026-11-24.md"), []byte("# viejo\n"), 0o644)
+	if got := s.reportSince(now); !got.Equal(time.Date(2026, 11, 24, 8, 30, 0, 0, bogota)) {
+		t.Errorf("sin marca: %v", got)
+	}
+	// El último con marca manda: arranca donde terminó.
+	_ = os.WriteFile(filepath.Join(s.reportDir(), "2026-11-26.md"), []byte("<!-- Sentinel · informe del 2026-11-26 · cubre: 2026-10-29T00:00:00-05:00 → 2026-11-26T15:10:00-05:00 · … -->\n"), 0o644)
+	if got := s.reportSince(now); !got.Equal(time.Date(2026, 11, 26, 15, 10, 0, 0, bogota)) {
+		t.Errorf("con marca: %v", got)
 	}
 }

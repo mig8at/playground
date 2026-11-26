@@ -46,8 +46,8 @@ const cliHelp = `sentinel — el vigía de producción, por consola. Sólo lee (
   bin/sentinel stages [etapa] [--hours N]   los errores por etapa del recorrido contra lo normal; con una etapa, sus mensajes,
                                             las solicitudes que toca y en qué estado quedaron (lee Loki y producción)
   bin/sentinel digest [AAAA-MM-DD|--all]    el resumen de un día para la memoria (por defecto ayer; --all, los que faltan)
-  bin/sentinel pack [--out archivo]         arma el paquete para Gemini (la memoria, el contexto y el código desplegado) y dice cuánto pesa
-  bin/sentinel report                       el informe del día: el paquete a Gemini por AI Studio (Chrome con Jarvis); solo, a las 8:30
+  bin/sentinel pack [--since día] [--out f]         arma el paquete para Gemini (la memoria, el contexto y el código desplegado) y dice cuánto pesa
+  bin/sentinel report [--since AAAA-MM-DD]  el informe desde donde quedó el anterior (o desde el día dado): el paquete a Gemini por AI Studio (Chrome con Jarvis); solo, a las 8:30
   bin/sentinel month                        el mes a la fecha contra el mismo tramo del mes anterior, por entidad y comercio (lee producción)
   bin/sentinel schema                       lo que producción tiene y dev ya no: columnas renombradas o borradas
   bin/sentinel ack <señal> [--undo]         reconocer un episodio («ya lo sé»); pide la API arriba
@@ -78,6 +78,7 @@ func runCLI(root string, args []string) int {
 	onlyPrompt := fs.Bool("prompt", false, "why: mostrar lo que recibiría el modelo, sin preguntarle")
 	allDays := fs.Bool("all", false, "digest: todos los días que no tienen resumen")
 	outPath := fs.String("out", "", "pack: dónde escribir el paquete")
+	sinceDay := fs.String("since", "", "pack, report: desde qué día cubrir (AAAA-MM-DD); por defecto, desde donde quedó el último informe")
 	var positional []string
 	// Los flags pueden ir antes o después de los argumentos.
 	rest := args[1:]
@@ -147,22 +148,32 @@ func runCLI(root string, args []string) int {
 			fmt.Printf("%s · %d KB · %.0f s\n", d, st.Size()>>10, time.Since(start).Seconds())
 		}
 		return 0
-	case "pack":
+	case "pack", "report":
+		since := c.s.reportSince(time.Now())
+		if *sinceDay != "" {
+			d, err := time.ParseInLocation("2006-01-02", *sinceDay, bogota)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "sentinel: --since va como AAAA-MM-DD")
+				return 2
+			}
+			since = d
+		}
+		if cmd == "report" {
+			out, info, err := c.s.runReport(c.rules, time.Now(), since)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "sentinel:", err)
+				return 1
+			}
+			fmt.Print(info.Text())
+			fmt.Println("\nInforme:", out)
+			return 0
+		}
 		path := *outPath
 		if path == "" {
 			path = filepath.Join(c.s.reportDir(), "packs", time.Now().In(bogota).Format("2006-01-02")+".md")
 		}
-		info, err := c.s.buildPack(c.rules, path, time.Now())
+		info, err := c.s.buildPack(c.rules, path, time.Now(), since)
 		return printOut(info, err, *asJSON)
-	case "report":
-		out, info, err := c.s.runReport(c.rules, time.Now())
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "sentinel:", err)
-			return 1
-		}
-		fmt.Print(info.Text())
-		fmt.Println("\nInforme:", out)
-		return 0
 	}
 	// verdict y why le preguntan al modelo de segundo plano (verdict.go).
 	if cmd == "verdict" || cmd == "why" {

@@ -145,6 +145,16 @@ contexto completo, y aprovechar su ventana de cientos de miles de tokens con dat
   semana incluidos; si falla, reintenta a las 3 horas), o a pedido con `bin/sentinel report`. Diario y a las 8:30 por
   decisión de Miguel (2026-11-26: a las 6 va en camino, sin red); lo demás sigue igual, cada 5 minutos. El foco es lo que
   cambió desde el informe anterior, con los 28 días como memoria. El aviso de macOS trae el titular.
+- **Arranca desde donde quedó el anterior** (`reportSince`): cada informe anota en su primera línea qué tramo cubrió
+  («cubre: A → B») y el siguiente cubre desde B hasta ahora, así que si la Mac estuvo apagada o no salió varios días, el
+  próximo recorre todo el tramo (como Knowledge con main). El código del paquete cubre todo el período (al menos 7 días,
+  con el mismo tope de bytes). `bin/sentinel report --since AAAA-MM-DD` elige el inicio a mano.
+- **El informe base del mes** (26/11/2026, `--since 2026-10-29`): ~453 mil tokens (916 KB de código de 20 despliegues,
+  580 KB de resúmenes con los casos de #tech-ops), 4 min. Recorrió el mes semana por semana (encontró, con el archivo,
+  el desbordamiento de `next_payment_guarantee` que el 30/10 dejó 5.714 créditos sin causar) y cruzó #tech-ops con
+  Sentinel: confirmó con un caso la falla de credenciales de Brilla y listó las BRECHAS CIEGAS de Sentinel (15 casos de
+  ADO «persona registrada previamente» con 1–15 errores por día medidos, 12 de enlaces de firma cerrados, 2 de Nequi
+  sin actualizar —la trampa F-247—, 7 de registros con varios nombres). 21 de 21 rutas existen.
 - **Dictamen e informe se leen**: el informe (8:30) recibe el dictamen de esa mañana (7:30); el dictamen recibe el
   titular, los hallazgos y las acciones del último informe. Así ninguno contradice al otro sin decirlo.
 - **Los repos que no están en `make deploys`** (`tagRepos`: pre-approvals-service y merchant-api) entran por sus tags
@@ -175,8 +185,9 @@ contexto completo, y aprovechar su ventana de cientos de miles de tokens con dat
   despliegues (`make deploys`); Sentinel sólo conoce su última versión (las tarjetas de servicios). Por eso el informe no
   pudo explicar con un diff los errores de `failed to save workflow audit leg`. Resuelto el mismo día con `tagRepos`: el
   segundo informe (~418 mil tokens, 2 min 36 s) usó el código de preapprovals-service v0.1.23 (atribuyó como hipótesis
-  los errores de Brilla al adaptador nuevo), corrigió en una sección «Rectificación» lo que el primero había dicho mal, y
-  la verificación marcó 1 de 7 rutas que no existe en main.
+  los errores de Brilla al adaptador nuevo), corrigió en una sección «Rectificación» lo que el primero había dicho mal. La
+  verificación marcó 1 de 7 rutas como inexistente, pero era de merchant-api, que la verificación no miraba: desde
+  entonces busca en todos los repos cuyo código entra (`verifyRepos`).
 - ⚠ **AI Studio por la web es una cuenta de consumidor**: lo que se manda puede revisarlo Google. El paquete va
   agregado y normalizado (`scrub`, con su prueba): sin números de solicitud, cédulas, celulares, correos ni autores de
   commits. El código sí va, como ya va para poner al día knowledge. `.data/memory.off` apaga lo automático.

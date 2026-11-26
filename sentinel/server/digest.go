@@ -237,6 +237,12 @@ func tagDeploys(repo string, days int) []Deploy {
 	return list
 }
 
+// verifyRepos: dónde se buscan las rutas que cita un informe: los repos cuyo código entra al paquete. Sin merchant-api,
+// el informe del mes (26/11/2026) dio 4 rutas «inexistentes» que estaban en main de merchant-api.
+func verifyRepos() []string {
+	return append([]string{"legacy-backend", "frontend-monorepo", "legacy-application"}, tagRepos...)
+}
+
 // allDeploys: los despliegues de `make deploys` y los tags de `tagRepos`, del más nuevo al más viejo.
 func allDeploys(root string, days int) ([]Deploy, error) {
 	list, err := deploys(root, days)
@@ -361,12 +367,27 @@ type PackInfo struct {
 	Missing []string       `json:"missing,omitempty"` // días sin resumen
 }
 
-const packQuestion = `Sos el analista de producción de CreditOp (fintech colombiana de originación de crédito). Recibís la memoria de Sentinel,
+// packQuestion: lo que se le pide, con el PERÍODO que tiene que cubrir: desde donde quedó el informe anterior hasta
+// ahora (reportSince). Si la Mac estuvo apagada o el informe no salió varios días, el siguiente cubre todo el tramo,
+// como Knowledge cuando se pone al día con main desde el último commit que vio.
+func packQuestion(since, now time.Time) string {
+	days := int(now.Sub(since).Hours()/24 + 0.5)
+	period := fmt.Sprintf("del %s al %s (%d días)", since.In(bogota).Format("2006-01-02 15:04"), now.In(bogota).Format("2006-01-02 15:04"), days)
+	how := "contá lo que CAMBIÓ en ese tramo"
+	if days > 2 {
+		how = "es un tramo de varios días: recorrelo ENTERO, semana por semana o día por día cuando importe, sin quedarte en lo último"
+	}
+	return fmt.Sprintf(packQuestionText, period, how)
+}
+
+const packQuestionText = `Sos el analista de producción de CreditOp (fintech colombiana de originación de crédito). Recibís la memoria de Sentinel,
 su vigía de producción: resúmenes diarios (errores por etapa del recorrido de una solicitud, despliegues con sus commits,
-avisos), el mes a la fecha, el código que se desplegó la última semana, tus informes anteriores y el contexto del
-negocio. Escribí en español, en Markdown, el informe del día. El foco es lo que CAMBIÓ desde tu informe anterior
-(normalmente el de ayer) y lo que pasó en las últimas 24 horas, incluido el resumen PARCIAL de hoy; los 28 días son
-para reconocer qué es nuevo, qué se repite y qué viene de antes:
+los casos de soporte de #tech-ops, avisos), el mes a la fecha, el código que se desplegó, tus informes anteriores y el
+contexto del negocio. Escribí en español, en Markdown, el informe del PERÍODO %s: es desde donde quedó tu informe
+anterior hasta ahora (incluido el resumen PARCIAL de hoy); %s. Lo que es anterior al período es memoria, para
+reconocer qué es nuevo, qué se repite y qué viene de antes. Cruzá lo que reporta operaciones en #tech-ops con lo que
+mide Sentinel: un caso que coincide con una falla medida la confirma; muchos casos de lo mismo sin falla medida son
+algo que Sentinel no ve.
 
 1. **Lo que se rompió**: cada problema real, con cuándo empezó, a quién tocó (etapa, entidad, comercio, cuántas
    solicitudes) y si sigue. Separá lo que es una caída de lo que es un caso suelto o un reintento.
@@ -383,14 +404,14 @@ Reglas: cada afirmación lleva su evidencia entre paréntesis (el día y la secc
 que es hipótesis se dice «hipótesis». No inventes rutas, versiones ni números: si no está en el paquete, no lo afirmes.`
 
 // buildPack arma el paquete en `path`.
-func (s *sentinel) buildPack(rules Rules, path string, now time.Time) (*PackInfo, error) {
+func (s *sentinel) buildPack(rules Rules, path string, now, since time.Time) (*PackInfo, error) {
 	info := &PackInfo{Path: path, Parts: map[string]int{}}
 	var b strings.Builder
 	section := func(name, text string) {
 		b.WriteString(text)
 		info.Parts[name] += len(text)
 	}
-	section("instrucciones", "# La memoria de Sentinel · "+now.In(bogota).Format("2006-01-02 15:04")+"\n\n"+packQuestion+"\n\n")
+	section("instrucciones", "# La memoria de Sentinel · "+now.In(bogota).Format("2006-01-02 15:04")+"\n\n"+packQuestion(since, now)+"\n\n")
 
 	// El contexto fijo: qué es CreditOp, el índice del conocimiento y las trampas conocidas (sólo sus índices: las
 	// trampas enteras traen casos de prueba con datos).
@@ -435,7 +456,7 @@ func (s *sentinel) buildPack(rules Rules, path string, now time.Time) (*PackInfo
 		}
 	}
 
-	deps, _ := allDeploys(s.root, packCodeDays+30)
+	deps, _ := allDeploys(s.root, max(packCodeDays, int(now.Sub(since).Hours()/24)+1)+30)
 
 	// Los resúmenes de los días, del más viejo al más nuevo.
 	var dates []string
@@ -469,16 +490,20 @@ func (s *sentinel) buildPack(rules Rules, path string, now time.Time) (*PackInfo
 	}
 
 	// El código de lo que se desplegó en la última semana.
-	since := now.In(bogota).AddDate(0, 0, -packCodeDays).Format(time.RFC3339)
+	codeFrom := now.In(bogota).AddDate(0, 0, -packCodeDays)
+	if since.Before(codeFrom) {
+		codeFrom = since // un período largo trae el código de todo el período (con el mismo tope de bytes)
+	}
+	codeSince := codeFrom.In(bogota).Format(time.RFC3339)
 	var recent []Deploy
 	for _, d := range deps {
-		if d.At >= since && d.OK {
+		if d.At >= codeSince && d.OK {
 			recent = append(recent, d)
 		}
 	}
 	sort.Slice(recent, func(i, j int) bool { return recent[i].At < recent[j].At })
 	code := 0
-	b.WriteString("# El código que se desplegó a producción la última semana\n\n")
+	b.WriteString("# El código que se desplegó a producción desde el " + codeFrom.In(bogota).Format("2006-01-02") + "\n\n")
 	for _, d := range recent {
 		prev := previousDeploy(deps, d)
 		if prev == nil {
@@ -498,7 +523,7 @@ func (s *sentinel) buildPack(rules Rules, path string, now time.Time) (*PackInfo
 		code += len(diff)
 		section("código desplegado", fmt.Sprintf("## %s %s, desplegado el %s (desde %s)\n%s\n\n%s\n", d.Repo, d.Version, d.At, prev.Version, d.Title, diff))
 	}
-	section("instrucciones", "\n# De nuevo, lo que se pide\n\n"+packQuestion+"\n\n"+viewInstructions+"\n")
+	section("instrucciones", "\n# De nuevo, lo que se pide\n\n"+packQuestion(since, now)+"\n\n"+viewInstructions+"\n")
 
 	text := b.String()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -531,14 +556,46 @@ func (p *PackInfo) Text() string {
 
 // ── el informe ───────────────────────────────────────────────────────────────────────────────────────────────────
 
+var reCovers = regexp.MustCompile(`cubre: \S+ → (\S+)`)
+
+// reportSince: desde dónde arranca el informe de ahora: donde terminó el último que se guardó (su marca «cubre: … → B»;
+// los viejos, sin marca, a las 8:30 de su día). Sin ninguno, los 28 días.
+func (s *sentinel) reportSince(now time.Time) time.Time {
+	files, _ := filepath.Glob(filepath.Join(s.reportDir(), "*.md"))
+	sort.Strings(files)
+	for i := len(files) - 1; i >= 0; i-- {
+		raw, err := os.ReadFile(files[i])
+		if err != nil {
+			continue
+		}
+		head := string(raw)
+		if len(head) > 600 {
+			head = head[:600]
+		}
+		if m := reCovers.FindStringSubmatch(head); m != nil {
+			if t, err := time.Parse(time.RFC3339, m[1]); err == nil && t.Before(now) {
+				return t
+			}
+		}
+		date := strings.TrimSuffix(filepath.Base(files[i]), ".md")
+		if d, err := time.ParseInLocation("2006-01-02", date, bogota); err == nil {
+			t := d.Add(reportHour*time.Hour + reportMinute*time.Minute)
+			if t.Before(now) {
+				return t
+			}
+		}
+	}
+	return now.AddDate(0, 0, -packDays)
+}
+
 var reCodePath = regexp.MustCompile(`[A-Za-z0-9_\-]+(?:/[A-Za-z0-9_.\-]+)+\.(?:php|ts|tsx|go|vue|js|py|sql)`)
 
 // runReport: el paquete a Gemini por la web de AI Studio y el informe guardado, con la verificación de las rutas que
 // cita contra main de los repos (una ruta inventada no falla en ningún lado: se dice).
-func (s *sentinel) runReport(rules Rules, now time.Time) (string, *PackInfo, error) {
+func (s *sentinel) runReport(rules Rules, now, since time.Time) (string, *PackInfo, error) {
 	date := now.In(bogota).Format("2006-01-02")
 	pack := filepath.Join(s.reportDir(), "packs", date+".md")
-	info, err := s.buildPack(rules, pack, now)
+	info, err := s.buildPack(rules, pack, now, since)
 	if err != nil {
 		return "", nil, err
 	}
@@ -568,7 +625,9 @@ func (s *sentinel) runReport(rules Rules, now time.Time) (string, *PackInfo, err
 		log.Printf("sentinel: el informe del %s sin vista: %v", date, verr)
 	}
 	report += "\n\n" + verifyPaths(report)
-	header := fmt.Sprintf("<!-- Sentinel · informe del %s · paquete de ~%d mil tokens (%d días, %d despliegues) · Gemini por AI Studio -->\n\n", date, info.Tokens/1000, info.Days, info.Deploys)
+	// «cubre: A → B» es lo que lee el informe siguiente para arrancar donde quedó este (reportSince).
+	header := fmt.Sprintf("<!-- Sentinel · informe del %s · cubre: %s → %s · paquete de ~%d mil tokens (%d días, %d despliegues) · Gemini por AI Studio -->\n\n",
+		date, since.In(bogota).Format(time.RFC3339), now.In(bogota).Format(time.RFC3339), info.Tokens/1000, info.Days, info.Deploys)
 	if err := os.WriteFile(out, []byte(header+report+"\n"), 0o644); err != nil {
 		return "", info, err
 	}
@@ -587,7 +646,7 @@ func verifyPaths(report string) string {
 	var found, missing []string
 	for p := range paths {
 		ok := false
-		for _, repo := range []string{"legacy-backend", "frontend-monorepo", "legacy-application", "pre-approvals-service"} {
+		for _, repo := range verifyRepos() {
 			dir := repoDir(repo)
 			if dir == "" {
 				continue
@@ -685,7 +744,7 @@ func (s *sentinel) maybeMemory(rules Rules) {
 			}
 			return // el informe, en la pasada siguiente: de a una cosa
 		}
-		out, info, err := s.runReport(rules, now)
+		out, info, err := s.runReport(rules, now, s.reportSince(now))
 		if err != nil {
 			log.Printf("sentinel: el informe del día no salió: %v", err)
 			return
