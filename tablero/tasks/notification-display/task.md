@@ -4,7 +4,7 @@ title: "Pantalla de notificaciones"
 stage: evaluation
 created: "2026-11-25T19:04:00-05:00"
 knowledge: []
-jira: []
+jira: [CORE-1055]
 jira_title: "Pantalla de notificaciones"
 ---
 
@@ -12,8 +12,11 @@ jira_title: "Pantalla de notificaciones"
 
 - [ ] Elegir entre la opción 1 (4 paneles, 256×32) y la opción 2 (8 paneles, 256×64); termina cuando la elegida quede en «Cómo se ataca» y la descartada en «Lo que se evaluó y NO se eligió».
   Depende de: Miguel — si caben imágenes y el presupuesto.
-- [ ] Medir la pared y fijar altura y punto de anclaje; termina cuando haya ancho útil, altura (2,2–2,5 m) y toma de corriente medidos en sitio.
-- [ ] Cotizar y comprar el hardware de la lista; termina cuando todo esté en la oficina y un panel prenda con un patrón de prueba.
+- [ ] Medir la pared y fijar altura y punto de anclaje; termina cuando haya ancho útil, altura (2,2–2,5 m) y toma de corriente medidos en sitio. El pedido dice que la pared mide 2 m de alto y que el tablero va a 2,2–2,5 m: una de las dos cifras está mal.
+- [ ] Cotizar en pesos y comprar el hardware de la lista del prototipo (paneles Waveshare P4 64×32, Matrix Portal S3, Mean Well LRS-200-5); termina cuando todo esté en la oficina y un panel prenda con un patrón de prueba. Fervicom (Bogotá) debe confirmar si tiene P4 de 64×32.
+- [ ] Probar los 8 paneles encadenados en un solo ESP32-S3; termina cuando 256×64 se vea sin parpadeo con el color planeado, o se pase a Raspberry Pi.
+- [ ] Decidir si se compra el aparato mini (Ulanzi TC001, 32×8 con buzzer, US$45,99) como primer paso o como repetidor; termina con la decisión en «Cómo se ataca».
+  Depende de: Miguel.
 - [ ] Definir el contrato JSON de los cuatro tipos (texto, imagen, contador, sonido); termina cuando el controlador rechace cualquier otro tipo y un mensaje mal formado no lo cuelgue.
 - [ ] Armar el servidor que junta los datos y empuja al tablero; termina cuando las cifras de negocio salgan agregadas de la base de producción (sólo lectura) y se refresquen solas.
 - [ ] Prioridad de alertas críticas sobre la rotación; termina cuando una caída simulada interrumpa el ciclo, suene y vuelva a la rotación al resolverse.

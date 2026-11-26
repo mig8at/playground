@@ -102,6 +102,30 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
 .dot { width: 10px; height: 10px; border-radius: 2px; flex: none; }
 .legal { border-left: 3px solid var(--crit); background: var(--surface); padding: 14px 18px; border-radius: 0 6px 6px 0; }
 .legal b { color: var(--crit); }
+.mini-row { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; }
+.mini-row .bezel { width: min(100%, 360px); border-radius: 10px; padding: 10px 14px; background: #f2f0ec; }
+.mini-row .bezel canvas { border-radius: 2px; }
+.scale svg { width: 100%; min-width: 620px; height: auto; display: block; }
+.scale .wall { fill: var(--surface); stroke: var(--line); }
+.scale .floor { stroke: var(--muted); stroke-width: 2; }
+.scale .led { fill: #0b0b0d; }
+.scale .ledline { stroke: rgba(150,155,165,.5); stroke-width: 1; }
+.scale .desk { fill: var(--line); }
+.scale .person { fill: none; stroke: var(--muted); stroke-width: 2; }
+.scale .dim { stroke: var(--accent); stroke-width: 1.2; fill: none; }
+.scale text { fill: var(--fg); font-family: var(--font-mono); font-size: 12px; }
+.scale text.m { fill: var(--muted); }
+.warnbox { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 0 6px 6px 0; font-size: 0.9rem; }
+.real { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+.real-led { width: 64mm; height: 32mm; max-width: 100%; background-color: #0b0b0d;
+  background-image: radial-gradient(circle at center, #ffb03b 0 1.05mm, transparent 1.15mm);
+  background-size: 4mm 4mm; border-radius: 2px; }
+.total td { font-weight: 600; border-bottom: none; }
+.src { font-size: 0.82rem; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+.src a, .card a, td a { color: var(--accent); text-underline-offset: 2px; }
+.swatches { display: flex; flex-wrap: wrap; gap: 10px; }
+.sw { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 0.78rem; }
+.sw i { width: 18px; height: 18px; border-radius: 50%; display: inline-block; box-shadow: 0 0 0 3px #0b0b0d; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 </style>
 
@@ -115,6 +139,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       <span>Fecha: <b>25 de noviembre de 2026</b></span>
       <span>Paneles: <b>HUB75 P4 · 64×32 px</b></span>
       <span>Altura: <b>2,2–2,5 m</b></span>
+      <span>Jira: <b>CORE-1055</b></span>
     </div>
   </header>
 
@@ -148,25 +173,195 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       <button type="button" id="auto" aria-pressed="true">Rotación automática</button>
       <button type="button" id="sound" aria-pressed="false">Sonido</button>
     </div>
-    <p class="note">La rotación cambia de mensaje cada 6 s. Una alerta crítica corta la rotación y suena dos veces; con «Sonido» prendido se oye el «pip».</p>
+    <p class="note">La rotación cambia de mensaje cada 6 s. Una alerta crítica corta la rotación y suena dos veces; con «Sonido» prendido se oye el «pip». Cada LED se dibuja como en el panel: un punto de unos 2,1 mm cada 4 mm sobre fondo negro.</p>
+    <div class="option">
+      <div class="option-head">
+        <h3>Opción mini · un aparato de escritorio</h3>
+        <span class="tag">sólo avisos y pip</span>
+        <span class="dims">32 × 8 px · Ulanzi TC001 · buzzer incluido</span>
+      </div>
+      <div class="mini-row">
+        <div class="bezel"><canvas id="led8" width="512" height="128" aria-label="Simulación del reloj de píxeles de 32 por 8"></canvas></div>
+        <p class="note" style="max-width: 46ch">Para quien quiera sólo el aviso: una tira de 32×8 que muestra un mensaje corto y suena. Sirve aunque no se monte el tablero grande. Detalle más abajo.</p>
+      </div>
+    </div>
   </section>
 
-  <section aria-labelledby="hw">
-    <h2 id="hw">Hardware</h2>
+  <section aria-labelledby="size">
+    <h2 id="size">Medidas reales</h2>
+    <p class="lead">Un panel P4 de 64×32 mide <b>256 × 128 mm</b>: 64 LED × 4 mm de ancho y 32 × 4 mm de alto. Sin marco, los paneles se juntan borde con borde, así que el tablero mide exactamente la suma.</p>
     <div class="scroll">
       <table>
-        <thead><tr><th>Pieza</th><th>Opción 1</th><th>Opción 2</th><th>Nota</th></tr></thead>
+        <thead><tr><th></th><th>Opción 1</th><th>Opción 2</th><th>Mini</th></tr></thead>
         <tbody>
-          <tr><td>Paneles RGB HUB75 P4, 64×32 (25,6 × 12,8 cm)</td><td class="num">4</td><td class="num">8</td><td>Paso de 4 mm: se lee bien a 3–6 m.</td></tr>
-          <tr><td>Resolución total</td><td class="num">256 × 32</td><td class="num">256 × 64</td><td>La 2 permite texto al doble de alto, íconos y pixel art.</td></tr>
-          <tr><td>Tamaño</td><td class="num">1,02 m × 13 cm</td><td class="num">1,02 m × 26 cm</td><td>Ocupa una cuarta parte del ancho de la pared.</td></tr>
-          <tr><td>Fuente de 5 V</td><td class="num">20 A</td><td class="num">40 A</td><td>Dimensionada para brillo medio con margen.</td></tr>
-          <tr><td>Controlador</td><td colspan="2">ESP32 con WiFi + adaptador HUB75</td><td>Librería <code>ESP32-HUB75-MatrixPanel-DMA</code>. Alternativa: Raspberry Pi con <code>rpi-rgb-led-matrix</code>.</td></tr>
-          <tr><td>Sonido</td><td colspan="2">Bocina pequeña</td><td>Sólo sonidos cortos: pip, récord, alerta.</td></tr>
-          <tr><td>Montaje</td><td colspan="2">Cables HUB75, cables de poder, soportes</td><td>A 2,2–2,5 m, brillo medio.</td></tr>
+          <tr><td>Paneles</td><td class="num">4 × 1</td><td class="num">4 × 2</td><td class="num">aparato único</td></tr>
+          <tr><td>Píxeles</td><td class="num">256 × 32</td><td class="num">256 × 64</td><td class="num">32 × 8</td></tr>
+          <tr><td>Medida de la cara</td><td class="num">1.024 × 128 mm</td><td class="num">1.024 × 256 mm</td><td class="num">a confirmar al comprar</td></tr>
+          <tr><td>Letra chica (7 px)</td><td class="num">28 mm de alto</td><td class="num">28 mm de alto</td><td class="num">7 px</td></tr>
+          <tr><td>Letra grande (14 px)</td><td class="num">sólo una línea, 56 mm</td><td class="num">56 mm de alto</td><td class="num">—</td></tr>
+          <tr><td>Consumo máximo (todo blanco)</td><td class="num">≤ 80 W</td><td class="num">≤ 160 W</td><td class="num">5 V 1 A</td></tr>
+          <tr><td>Fuente de 5 V</td><td class="num">20 A</td><td class="num">40 A</td><td class="num">cargador USB</td></tr>
         </tbody>
       </table>
     </div>
+    <div class="scroll scale">
+      <svg viewBox="0 0 760 520" role="img" aria-label="Pared de 4 metros con el tablero de 1,02 metros a 2,2 metros del piso, sobre cuatro puestos">
+        <rect class="wall" x="80" y="54" width="640" height="416"/>
+        <text class="m" x="88" y="160">pared, 4 m de ancho</text><text class="m" x="88" y="176">el alto, por medir</text>
+        <!-- puestos: escritorio a 75 cm y una cabeza sentada a ~125 cm -->
+        <g>
+          <rect class="desk" x="96" y="350" width="144" height="6"/><rect class="desk" x="110" y="356" width="4" height="114"/><rect class="desk" x="222" y="356" width="4" height="114"/><circle class="person" cx="168" cy="270" r="16"/><path class="person" d="M150,350 L150,300 Q168,288 186,300 L186,350"/>
+          <rect class="desk" x="256" y="350" width="144" height="6"/><rect class="desk" x="270" y="356" width="4" height="114"/><rect class="desk" x="382" y="356" width="4" height="114"/><circle class="person" cx="328" cy="270" r="16"/><path class="person" d="M310,350 L310,300 Q328,288 346,300 L346,350"/>
+          <rect class="desk" x="416" y="350" width="144" height="6"/><rect class="desk" x="430" y="356" width="4" height="114"/><rect class="desk" x="542" y="356" width="4" height="114"/><circle class="person" cx="488" cy="270" r="16"/><path class="person" d="M470,350 L470,300 Q488,288 506,300 L506,350"/>
+          <rect class="desk" x="576" y="350" width="144" height="6"/><rect class="desk" x="590" y="356" width="4" height="114"/><rect class="desk" x="702" y="356" width="4" height="114"/><circle class="person" cx="648" cy="270" r="16"/><path class="person" d="M630,350 L630,300 Q648,288 666,300 L666,350"/>
+        </g>
+        <!-- tablero opción 2: 102,4 × 25,6 cm, borde inferior a 2,20 m; escala 1 cm = 1,6 px -->
+        <rect class="led" x="318" y="77" width="164" height="41"/>
+        <line class="ledline" x1="359" y1="77" x2="359" y2="118"/><line class="ledline" x1="400" y1="77" x2="400" y2="118"/><line class="ledline" x1="441" y1="77" x2="441" y2="118"/><line class="ledline" x1="318" y1="97.5" x2="482" y2="97.5"/>
+        <rect x="318" y="97.5" width="164" height="20.5" fill="none" stroke="var(--accent)" stroke-dasharray="3 3"/>
+        <text x="318" y="68">1,02 m</text>
+        <text class="m" x="490" y="92">opción 2: 25,6 cm</text>
+        <text class="m" x="490" y="112">opción 1: 12,8 cm (punteado)</text>
+        <path class="dim" d="M300,118 L300,470 M294,118 L306,118 M294,470 L306,470"/>
+        <text x="236" y="300">2,20 m</text>
+        <line class="floor" x1="60" y1="470" x2="740" y2="470"/>
+        <path class="dim" d="M80,494 L720,494 M80,488 L80,500 M720,488 L720,500"/>
+        <text x="380" y="512">4,00 m</text>
+      </svg>
+    </div>
+    <p class="warnbox">El pedido dice que la pared mide 2 m de alto y que el tablero va a 2,2–2,5 m. Las dos cosas no caben juntas: o la pared es más alta, o los 2 m se miden desde otro punto. Hay que medirla antes de comprar los soportes; es el segundo pendiente de la tarea. El dibujo está a escala en lo ancho y en la altura del tablero.</p>
+    <div class="real">
+      <div class="real-led" role="img" aria-label="Un trozo de 16 por 8 LED a tamaño real"></div>
+      <p class="note" style="max-width: 50ch">Un trozo de 16 × 8 LED a tamaño nominal (64 × 32 mm). Depende de la pantalla en que se mire: si se pone una regla encima y no da 64 mm, la pantalla escala distinto. El tablero real es 16 de estos trozos de ancho.</p>
+    </div>
+  </section>
+
+  <section aria-labelledby="hw">
+    <h2 id="hw">Dónde comprarlo y cuánto cuesta</h2>
+    <p class="lead">Precios de lista en dólares, vistos el 25 de noviembre de 2026, sin envío ni impuestos de importación. Ninguna tienda colombiana publica hoy el panel P4 de 64×32 con precio; lo más cercano en Bogotá es Fervicom, a quien hay que preguntarle la resolución.</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Pieza</th><th>Dónde</th><th>Precio unidad</th><th>Opción 1</th><th>Opción 2</th></tr></thead>
+        <tbody>
+          <tr><td>Panel RGB P4 64×32, HUB75, 256×128 mm (trae cable HUB75 de 30 cm y el adaptador de poder)</td><td><a href="https://www.waveshare.com/rgb-matrix-p4-64x32.htm" target="_blank" rel="noopener">Waveshare</a></td><td class="num">US$17,99</td><td class="num">4 · US$71,96</td><td class="num">8 · US$143,92</td></tr>
+          <tr><td>Controlador ESP32-S3 con conector HUB75 que se enchufa directo al panel, sin soldar</td><td><a href="https://www.adafruit.com/product/5778" target="_blank" rel="noopener">Adafruit Matrix Portal S3</a></td><td class="num">US$19,95</td><td class="num">1 · US$19,95</td><td class="num">1 · US$19,95</td></tr>
+          <tr><td>Fuente 5 V 40 A, 200 W (para la opción 1 basta una de 20 A)</td><td><a href="https://www.digikey.com/en/products/result?keywords=LRS-200-5" target="_blank" rel="noopener">Mean Well LRS-200-5</a></td><td class="num">US$29,30</td><td class="num">≈ US$20</td><td class="num">1 · US$29,30</td></tr>
+          <tr><td>Buzzer pasivo o bocina pequeña de 8 Ω</td><td>tienda local de electrónica</td><td class="num">≈ US$2</td><td class="num">US$2</td><td class="num">US$2</td></tr>
+          <tr><td>Cable de poder 18 AWG, terminales, regleta</td><td>tienda local</td><td class="num">≈ US$10</td><td class="num">US$10</td><td class="num">US$15</td></tr>
+          <tr><td>Soportes: perfil de aluminio o lámina de MDF negra</td><td>ferretería</td><td class="num">≈ US$20</td><td class="num">US$20</td><td class="num">US$30</td></tr>
+          <tr class="total"><td>Total estimado</td><td></td><td></td><td class="num">≈ US$145</td><td class="num">≈ US$240</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">En pesos, a una tasa supuesta de 4.000 COP por dólar: unos <b>580.000</b> para la opción 1 y <b>960.000</b> para la opción 2, antes de envío e importación. Las filas con «≈» son estimaciones, no cotizaciones. La mini (Ulanzi TC001) va aparte: US$45,99 en <a href="https://www.ulanzi.com/products/ulanzi-pixel-smart-clock-2882" target="_blank" rel="noopener">la tienda de Ulanzi</a>.</p>
+    <div class="grid2">
+      <div class="card">
+        <h3>Otros lugares donde buscar</h3>
+        <ul class="clean">
+          <li><a href="https://www.fervicom.com/categoria/inicio/pantallas-led/" target="_blank" rel="noopener">Fervicom</a> (Bogotá): módulos P4 RGB de interior desde $92.000 con IVA; los que aparecen son de 80×40 o sin resolución publicada.</li>
+          <li><a href="https://pmdway.com/products/p4-indoor-64-x-32-rgb-led-matrix-panel" target="_blank" rel="noopener">PMD Way</a>: el mismo panel P4 64×32, US$36,95.</li>
+          <li>AliExpress y eBay: paneles P4 64×32 genéricos desde unos US$10–22, con calidad variable.</li>
+          <li>Mercado Libre Colombia: buscar «P4 64x32 HUB75» y «fuente 5V 40A»; no salió un anuncio con ese panel exacto.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Antes de comprar</h3>
+        <ul class="clean">
+          <li>Que el panel diga <b>interior</b>, <b>1/16 scan</b> y <b>HUB75</b>. Uno de exterior (1/8 scan) usa otra configuración.</li>
+          <li>Comprar todos los paneles del mismo lote: entre lotes cambia el tono del blanco.</li>
+          <li>Comprar un panel de más como repuesto.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="wire">
+    <h2 id="wire">Cómo se conecta</h2>
+    <p class="lead">Los datos van en cadena, de panel en panel, por el cable HUB75: cada panel tiene una entrada y una salida. La corriente no va en cadena: cada panel recibe su propio cable desde la fuente.</p>
+    <div class="scroll arch">
+      <svg viewBox="0 0 900 270" role="img" aria-label="Cadena de datos en zigzag por los ocho paneles y alimentación de cada panel desde la fuente">
+        <rect class="box hot" x="10" y="40" width="130" height="56" rx="6"/><text x="24" y="64">Matrix Portal S3</text><text class="sub" x="24" y="82">ESP32-S3 · WiFi</text>
+        <rect class="box" x="10" y="170" width="130" height="56" rx="6"/><text x="24" y="194">Fuente 5 V 40 A</text><text class="sub" x="24" y="212">LRS-200-5</text>
+        <g>
+          <rect x="200" y="30" width="160" height="70" fill="#0b0b0d"/><rect x="370" y="30" width="160" height="70" fill="#0b0b0d"/><rect x="540" y="30" width="160" height="70" fill="#0b0b0d"/><rect x="710" y="30" width="160" height="70" fill="#0b0b0d"/>
+          <rect x="200" y="110" width="160" height="70" fill="#0b0b0d"/><rect x="370" y="110" width="160" height="70" fill="#0b0b0d"/><rect x="540" y="110" width="160" height="70" fill="#0b0b0d"/><rect x="710" y="110" width="160" height="70" fill="#0b0b0d"/>
+          <text x="272" y="70" fill="#e5e8ee">1</text><text x="442" y="70" fill="#e5e8ee">2</text><text x="612" y="70" fill="#e5e8ee">3</text><text x="782" y="70" fill="#e5e8ee">4</text>
+          <text x="782" y="150" fill="#e5e8ee">5</text><text x="612" y="150" fill="#e5e8ee">6</text><text x="442" y="150" fill="#e5e8ee">7</text><text x="272" y="150" fill="#e5e8ee">8</text>
+        </g>
+        <path class="wire wifi" d="M140,60 L200,60" marker-end="url(#arw)"/>
+        <path class="wire wifi" d="M330,50 L390,50 M500,50 L560,50 M670,50 L730,50 M850,60 C885,60 885,130 850,130 M730,140 L670,140 M560,140 L500,140 M390,140 L330,140"/>
+        <path class="wire" d="M140,198 L190,198 L190,240 L860,240"/>
+        <path class="wire" d="M280,240 L280,180 M450,240 L450,180 M620,240 L620,180 M790,240 L790,180"/>
+        <text class="sub" x="150" y="52">HUB75</text>
+        <text class="sub" x="200" y="262">bus de 5 V y tierra: un cable a cada par de paneles (arriba y abajo comparten la bajada)</text>
+      </svg>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <h3>Los pasos</h3>
+        <ul class="clean">
+          <li>Enchufar el Matrix Portal S3 en la entrada HUB75 del panel 1.</li>
+          <li>Cable HUB75 de la salida de cada panel a la entrada del siguiente, en zigzag: 1→4 arriba, bajar, 5→8 abajo.</li>
+          <li>Cada panel, a la fuente con su adaptador de poder de 4 pines (5 V y tierra), con cable de 18 AWG.</li>
+          <li>La tierra del controlador, unida a la de la fuente.</li>
+          <li>En el código, declarar 4 columnas por 2 filas de 64×32 y la cadena en zigzag con <code>VirtualMatrixPanel</code>.</li>
+          <li>El buzzer, a un pin libre del controlador.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Las guías</h3>
+        <ul class="clean">
+          <li><a href="https://www.waveshare.com/wiki/RGB-Matrix-P4-64x32" target="_blank" rel="noopener">Wiki del panel en Waveshare</a>: pines, alimentación y ejemplos para ESP32 y Raspberry Pi.</li>
+          <li><a href="https://github.com/mrcodetastic/ESP32-HUB75-MatrixPanel-DMA" target="_blank" rel="noopener">ESP32-HUB75-MatrixPanel-DMA</a>: la librería, con el ejemplo <i>ChainedPanels</i> para encadenar paneles en filas.</li>
+          <li><a href="https://learn.adafruit.com/adafruit-matrixportal-s3" target="_blank" rel="noopener">Guía del Matrix Portal S3</a>: conexión al panel y primer programa.</li>
+          <li><a href="https://esphome.io/components/display/hub75/" target="_blank" rel="noopener">ESPHome · HUB75</a>: la alternativa sin escribir firmware a mano.</li>
+          <li><a href="https://github.com/hzeller/rpi-rgb-led-matrix" target="_blank" rel="noopener">rpi-rgb-led-matrix</a>: si se usa una Raspberry Pi.</li>
+        </ul>
+      </div>
+    </div>
+    <p class="warnbox">Ocho paneles desde un solo ESP32-S3 es posible (hay un montaje documentado con 12 paneles en un Matrix Portal S3), pero la memoria limita la profundidad de color y el refresco. Se comprueba en el banco de prueba con los 8 paneles antes de montar. Si parpadea, la salida es una Raspberry Pi con <code>rpi-rgb-led-matrix</code>.</p>
+  </section>
+
+  <section aria-labelledby="mini">
+    <h2 id="mini">El aparato chico: Ulanzi TC001</h2>
+    <div class="grid2">
+      <div class="card">
+        <h3>Qué es</h3>
+        <dl class="kv">
+          <dt>Pantalla</dt><dd>32 × 8 LED a todo color</dd>
+          <dt>Sonido</dt><dd>buzzer pasivo: pitidos y melodías cortas, no audio</dd>
+          <dt>Conexión</dt><dd>WiFi, con un ESP32 adentro</dd>
+          <dt>Energía</dt><dd>cargador de 5 V 1 A y batería de respaldo</dd>
+          <dt>Precio</dt><dd>US$45,99 en la tienda de Ulanzi</dd>
+        </dl>
+      </div>
+      <div class="card">
+        <h3>Cómo recibe los avisos</h3>
+        <p>Con el firmware libre <a href="https://blueforcer.github.io/awtrix3/" target="_blank" rel="noopener">AWTRIX 3</a> expone una API HTTP: el mismo servidor que alimenta el tablero grande le manda un aviso corto y un sonido. El volumen va de 0 a 30 y se puede silenciar por la API.</p>
+        <p class="note">Sirve como primer paso barato, o como repetidor en otro puesto. Los foros describen su buzzer como chillón: alcanza para un pip, no para música.</p>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="color">
+    <h2 id="color">Los colores, contra el panel real</h2>
+    <p class="lead">Los paneles son RGB a todo color: cada LED mezcla rojo, verde y azul. La librería saca hasta 24 bits de color (8 por canal), así que los colores de la simulación se pueden mostrar tal cual.</p>
+    <div class="swatches">
+      <span class="sw"><i style="background: rgb(255,176,59)"></i>ámbar · cifras</span>
+      <span class="sw"><i style="background: rgb(60,220,130)"></i>verde · deploy bien</span>
+      <span class="sw"><i style="background: rgb(255,48,40)"></i>rojo · alerta</span>
+      <span class="sw"><i style="background: rgb(255,220,60)"></i>amarillo · detalle de alerta</span>
+      <span class="sw"><i style="background: rgb(40,200,175)"></i>turquesa · mascota</span>
+      <span class="sw"><i style="background: rgb(235,235,230)"></i>blanco · texto</span>
+      <span class="sw"><i style="background: rgb(110,116,128)"></i>gris · etiquetas</span>
+    </div>
+    <ul class="clean">
+      <li><b>Lo que es igual:</b> los colores planos y saturados, que es todo lo que usa el diseño. En el panel se ven más vivos que en una pantalla.</li>
+      <li><b>Lo que cambia:</b> con 8 paneles la librería puede bajar la profundidad de color para no parpadear; los degradados se verían en escalones. El diseño no usa degradados.</li>
+      <li><b>El gris:</b> es un LED blanco a poca potencia, y a brillo medio se ve como un blanco tenue, un poco azulado. Por eso sólo se usa para etiquetas.</li>
+      <li><b>El negro:</b> un LED apagado es negro de verdad y la cara del panel es negra; no hay «fondo» que se vea gris como en la simulación.</li>
+      <li><b>El ángulo:</b> ≥ 140–160° según la hoja de Waveshare; desde los 4 puestos, de frente y hacia arriba, se ve sin cambio de color.</li>
+    </ul>
   </section>
 
   <section aria-labelledby="arch">
@@ -275,6 +470,21 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       </div>
     </div>
     <p class="legal"><b>Sólo cifras agregadas.</b> Nunca nombres, cédulas ni montos individuales de clientes (Ley 1581 de 2012). Lo que muestra el tablero sale de conteos y sumas; el servidor no guarda nada de un cliente.</p>
+  </section>
+
+  <section aria-labelledby="src">
+    <h2 id="src">Fuentes</h2>
+    <div class="src">
+      <a href="https://www.waveshare.com/wiki/Template:RGB-Matrix-P4-64x32_Spec" target="_blank" rel="noopener">Waveshare · especificación del RGB-Matrix-P4-64x32 (256×128 mm, 5 V 4 A, ≤ 20 W, 1/16 scan)</a>
+      <a href="https://www.waveshare.com/rgb-matrix-p4-64x32.htm" target="_blank" rel="noopener">Waveshare · tienda y contenido de la caja</a>
+      <a href="https://github.com/mrcodetastic/ESP32-HUB75-MatrixPanel-DMA" target="_blank" rel="noopener">ESP32-HUB75-MatrixPanel-DMA · color hasta 24 bits, paneles encadenados</a>
+      <a href="https://www.adafruit.com/product/5778" target="_blank" rel="noopener">Adafruit · Matrix Portal S3</a>
+      <a href="https://www.hackster.io/news/this-large-format-led-matrix-display-chains-12-panels-to-a-single-adafruit-matrix-portal-s3-d28617468d8a" target="_blank" rel="noopener">Hackster · 12 paneles en un Matrix Portal S3</a>
+      <a href="https://octopart.com/es/part/mean-well/LRS-200-5" target="_blank" rel="noopener">Octopart · Mean Well LRS-200-5</a>
+      <a href="https://www.ulanzi.com/products/ulanzi-pixel-smart-clock-2882" target="_blank" rel="noopener">Ulanzi · TC001</a>
+      <a href="https://svitrix.github.io/svitrix-firmware/sounds.html" target="_blank" rel="noopener">Firmware del TC001 · buzzer pasivo y volumen</a>
+      <a href="https://www.fervicom.com/categoria/inicio/pantallas-led/" target="_blank" rel="noopener">Fervicom · pantallas LED en Bogotá</a>
+    </div>
   </section>
 
 </div>
@@ -421,22 +631,44 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
   ];
 
   // --- dibujo de los LEDs ---
+  // el TC001: 32×8, sólo avisos cortos
+  function miniScene(b, t, scene) {
+    const msgs = [
+      ["DEPLOY OK", C.green], ["1.284", C.amber], ["HOLA!", C.teal], ["API CAIDA", C.red], [null, C.white]
+    ];
+    let [s, c] = msgs[scene];
+    if (!s) { const n = new Date(); s = String(n.getHours()).padStart(2, "0") + ":" + String(n.getMinutes()).padStart(2, "0"); }
+    if (scene === 3 && (t % 1) > 0.5) return;
+    const w = tw(s, 1);
+    const x = w <= b.w ? Math.floor((b.w - w) / 2) : b.w - ((t * 18) % (w + b.w));
+    text(b, s, x, 1, 1, c);
+  }
+
   const panels = [
-    { cv: document.getElementById("led32"), buf: makeBuf(256, 32) },
-    { cv: document.getElementById("led64"), buf: makeBuf(256, 64) }
+    { cv: document.getElementById("led32"), buf: makeBuf(256, 32), seams: 64 },
+    { cv: document.getElementById("led64"), buf: makeBuf(256, 64), seams: 64 },
+    { cv: document.getElementById("led8"), buf: makeBuf(32, 8), seams: 0, mini: true }
   ];
+  // un LED SMD2121 mide ~2,1 mm en un paso de 4 mm: el punto ocupa ~53 % del paso
   function paint(p) {
     const { cv, buf } = p, g = cv.getContext("2d");
-    const pitch = cv.width / buf.w, r = pitch * 0.42;
+    const pitch = cv.width / buf.w, s = pitch * (p.mini ? 0.8 : 0.53), o = (pitch - s) / 2;
     g.fillStyle = "#050506"; g.fillRect(0, 0, cv.width, cv.height);
     for (let y = 0; y < buf.h; y++) for (let x = 0; x < buf.w; x++) {
       const i = (y * buf.w + x) * 3, R = buf.d[i], G = buf.d[i + 1], B = buf.d[i + 2];
-      g.fillStyle = (R | G | B) ? `rgb(${R},${G},${B})` : "#16171b";
-      g.beginPath(); g.arc(x * pitch + pitch / 2, y * pitch + pitch / 2, r, 0, 6.2832); g.fill();
+      const lit = R | G | B;
+      if (lit) {
+        g.fillStyle = `rgba(${R},${G},${B},.22)`;
+        g.fillRect(x * pitch, y * pitch, pitch, pitch);           // halo del LED encendido
+      }
+      g.fillStyle = lit ? `rgb(${R},${G},${B})` : "#141418";
+      g.beginPath(); g.arc(x * pitch + pitch / 2, y * pitch + pitch / 2, s / 2, 0, 6.2832); g.fill();
     }
-    g.fillStyle = "rgba(120,128,140,.35)";
-    for (let x = 64; x < buf.w; x += 64) g.fillRect(x * pitch - 0.5, 0, 1, cv.height);
-    for (let y = 32; y < buf.h; y += 32) g.fillRect(0, y * pitch - 0.5, cv.width, 1);
+    if (p.seams) {
+      g.fillStyle = "rgba(120,128,140,.35)";
+      for (let x = p.seams; x < buf.w; x += p.seams) g.fillRect(x * pitch - 0.5, 0, 1, cv.height);
+      for (let y = 32; y < buf.h; y += 32) g.fillRect(0, y * pitch - 0.5, cv.width, 1);
+    }
   }
 
   // --- sonido ---
@@ -470,7 +702,11 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
     const t = (now - start) / 1000;
     // la alerta crítica no rota: se queda hasta que alguien elige otro mensaje
     if (auto && scene !== 3 && t > 6) setScene(scene === 2 ? 4 : (scene + 1) % 5 === 3 ? 4 : (scene + 1) % 5);
-    for (const p of panels) { p.buf.d.fill(0); scenes[scene](p.buf, reduce ? 3 : t); paint(p); }
+    for (const p of panels) {
+      p.buf.d.fill(0);
+      if (p.mini) miniScene(p.buf, reduce ? 3 : t, scene); else scenes[scene](p.buf, reduce ? 3 : t);
+      paint(p);
+    }
     requestAnimationFrame(frame);
   }
   btns[0].setAttribute("aria-pressed", "true");
