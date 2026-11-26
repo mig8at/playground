@@ -714,11 +714,10 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       // guardados como % del mejor mes (nov-2025) para no publicar cifras; nov-2026 va hasta el día 25
       const D = [0,0,0,0,0,2,12,12,13,12,14,19,15,17,21,25,23,26,23,25,27,28,28,34,35,44,77,100,47,38,38,35,34,39,37,41,40,48,48,39];
       const big = b.h >= 64, n = D.length, bw = 5, x0 = (b.w - (n * 6 - 1)) >> 1, rec = D.indexOf(100);
-      const top = big ? 14 : 10, bottom = big ? 53 : 30, hmax = bottom - top + 1;
+      const top = big ? 2 : 10, bottom = big ? 53 : 30, hmax = bottom - top + 1;   // sin título: en 64 la gráfica usa todo el alto
       // crecimiento por año: 2025 completo contra 2024 (56.014 vs 21.112) y 2026 de ene a oct contra el mismo tramo
       // de 2025 (45.169 vs 39.344); 2024 va sin % porque 2023 sólo tuvo 5 meses
       const YEARS = [[5, "2024", null], [17, "2025", "165%"], [29, "2026", "15%"]];
-      head(b, "DESEMBOLSOS POR MES", C.bLav, big ? "DESDE AGO 2023" : null, C.bLav, t);
       if (!big) {                                            // en 256×32 no hay fila de ejes: el dato va en la cabecera
         let xx = b.w - 2 - tw("2025 ▲165% · 2026 ▲15%", 1);
         YEARS.slice(1).forEach(([i, y, p], k) => {
@@ -743,8 +742,9 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         } else rect(b, xm, 31, 1, 1, mul(C.bLav, 0.6));
       });
       if (t > 2.7) {
-        const xr = x0 + rec * 6 - tw("RECORD NOV 2025", 1) - 9;
-        text(b, "RECORD NOV 2025", xr, big ? 15 : 10, 1, mul(C.bG, ease((t - 2.7) / 0.4)));
+        // el mes récord y su causa: las tres marcas del Grupo Pash explican casi todo el salto (ver la pila de la tarea)
+        const lab = "NOV 2025 · GRUPO PASH", xr = x0 + rec * 6 - tw(lab, 1) - 9;
+        text(b, lab, xr, big ? 2 : 10, 1, mul(C.bG, ease((t - 2.7) / 0.4)));
       }
     } },
     { id: "record", voice: "¡Nuevo récord! 312 solicitudes en un solo día.", group: "Negocio", label: "Récord", sound: () => { pip(1047, 90); pip(1319, 90, .1); pip(1568, 220, .2); }, draw(b, t) {
