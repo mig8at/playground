@@ -61,7 +61,7 @@ async function syncTab() {
   entryBase = tab?.url ? entryOf(tab.url) : null;
   lockPerson(!!target && inProgress(tab?.url));
   const u = tab?.url ? ureqOf(tab.url) : null;
-  if (u !== lastUreq) { lastUreq = u; lastStatus = null; $('reqLine').textContent = u ? String(u) : ''; refreshDb(); refreshDocs(true); }
+  if (u !== lastUreq) { lastUreq = u; lastStatus = null; $('reqLine').textContent = u ? String(u) : ''; refreshDb(); refreshDocs(true); refreshVoucher(true); }
   renderStep(tab?.url);
   await trackScreen(tab?.url);
   renderFlow();
@@ -474,7 +474,7 @@ function renderDb() {
   foot.append(Object.assign(document.createElement('span'), { textContent: `${db.at}${db.error ? ' · ⚠ ' + db.error : ''}${recentCount ? ` · ● ${recentCount} cambio(s)` : ''}` }), all);
 }
 
-// ── LA SOLICITUD, abajo, en tres pestañas: Recorrido, Base y Documentos. La elegida se recuerda en esta máquina.
+// ── LA SOLICITUD, abajo, en cuatro pestañas: Recorrido, Base, Documentos y Voucher. La elegida se recuerda en esta máquina.
 let pane = 'flow';
 try { pane = localStorage.getItem('probeta.pane') || 'flow'; } catch { /* sin almacenamiento */ }
 function renderPanes() {
@@ -482,13 +482,14 @@ function renderPanes() {
     const on = b.dataset.pane === pane;
     b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on));
   }
-  for (const p of ['flow', 'db', 'docs']) $(`pane-${p}`).hidden = p !== pane;
+  for (const p of ['flow', 'db', 'docs', 'voucher']) $(`pane-${p}`).hidden = p !== pane;
 }
 document.querySelectorAll('#ptabs button').forEach((b) => b.addEventListener('click', () => {
   pane = b.dataset.pane;
   try { localStorage.setItem('probeta.pane', pane); } catch { /* sin almacenamiento */ }
   renderPanes();
   if (pane === 'docs') refreshDocs(true);
+  if (pane === 'voucher') refreshVoucher(true);
 }));
 renderPanes();
 
@@ -550,6 +551,56 @@ function renderDocs() {
 }
 $('docsAll').onclick = () => { for (const d of docs.list.filter((x) => x.hasFile)) window.open(docUrl(d.id, 'download'), '_blank'); };
 
+// ── EL VOUCHER (`/api/ext/voucher`): la tirilla «¡Transacción exitosa!» que el backend arma al quedar Autorizada (11) y le
+// manda al cliente; es lo que el comercio mira para entregar. No queda en la base: el panel lo busca en el bucket por su
+// llave fija. Se ve entero (es angosto) y al tocarlo se abre en otra pestaña. Se vuelve a mirar cada 15 s.
+let voucher = { ureq: null, info: null, error: '' }, voucherAt = 0;
+const voucherUrl = (mode = '') => `${API}/voucher?target=${encodeURIComponent(target)}&ureq=${voucher.ureq}${mode ? `&${mode}=1` : ''}`;
+async function refreshVoucher(force = false) {
+  if (!target || !lastUreq) { voucher = { ureq: null, info: null, error: '' }; renderVoucher(); return; }
+  if (!force && voucher.ureq === lastUreq && Date.now() - voucherAt < 15000) return;
+  voucherAt = Date.now();
+  try {
+    const r = await api(`/voucher?ureq=${lastUreq}&info=1`);
+    const same = voucher.ureq === lastUreq && JSON.stringify(voucher.info) === JSON.stringify(r) && !voucher.error;
+    voucher = { ureq: lastUreq, info: r, error: r.error || '' };
+    if (same) return;
+  } catch (e) { voucher = { ureq: lastUreq, info: null, error: e.message }; }
+  renderVoucher();
+}
+function openVoucher() {
+  const url = voucherUrl();
+  if (chrome?.tabs?.create) chrome.tabs.create({ url }); else window.open(url, '_blank');
+}
+function renderVoucher() {
+  const v = voucher.ureq === lastUreq ? voucher.info : null;
+  const ok = !!v?.exists;
+  $('voucherN').textContent = ok ? '1' : '';
+  const when = v?.modifiedAt ? new Date(v.modifiedAt).toLocaleString('es-CO', { hour12: false, day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+  $('voucherNote').textContent = !lastUreq || !target ? 'Sin solicitud en la pestaña.'
+    : voucher.error ? voucher.error
+    : ok ? `generado ${when}${v.size ? ` · ${Math.round(v.size / 1024)} KB` : ''}`
+    : v?.status === 11 && v?.note ? v.note
+    : v?.status === 11 ? 'La solicitud está Autorizada pero el voucher no está en el bucket: mirá «Voucher generation failed» en los logs.'
+    : 'Todavía no hay voucher: sale solo cuando la solicitud queda Autorizada (11).';
+  $('voucherNote').className = voucher.error || (!ok && v?.status === 11) ? 'warn' : '';
+  $('voucherActs').hidden = !ok;
+  const thumb = $('voucherThumb');
+  thumb.hidden = !ok;
+  if (!ok) { thumb.innerHTML = ''; return; }
+  $('voucherDown').href = voucherUrl('download');
+  const src = voucherUrl('thumb') + `&v=${encodeURIComponent(v.modifiedAt || '')}`;
+  if (thumb.firstChild?.dataset?.src !== src) {
+    thumb.innerHTML = '';
+    const img = Object.assign(document.createElement('img'), { alt: 'Voucher', src });
+    img.dataset.src = src;
+    img.onerror = () => { img.remove(); thumb.textContent = 'PDF'; };
+    thumb.append(img);
+  }
+}
+$('voucherThumb').onclick = openVoucher;
+$('voucherOpen').onclick = openVoucher;
+
 // ── lo que avisa la página ──────────────────────────────────────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   if (sender.tab?.id !== tabId) return false;
@@ -565,5 +616,5 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
 
 chrome.tabs.onActivated.addListener(syncTab);
 chrome.tabs.onUpdated.addListener((id, info) => { if (id === tabId && info.url) syncTab(); });
-setInterval(() => { syncTab(); readOtp(); refreshDb(); refreshDocs(); }, 5000);
+setInterval(() => { syncTab(); readOtp(); refreshDb(); refreshDocs(); refreshVoucher(); }, 5000);
 load().then(syncTab).then(() => { refreshState(); readOtp(); });

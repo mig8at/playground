@@ -64,6 +64,7 @@
     <button data-pane="flow" role="tab">Recorrido</button>
     <button data-pane="db" role="tab">Base</button>
     <button data-pane="docs" role="tab">Documentos <span class="n" id="docsN"></span></button>
+    <button data-pane="voucher" role="tab">Voucher <span class="n" id="voucherN"></span></button>
   </nav>
   <section class="pane" id="pane-flow"><div id="flow" class="flow"></div></section>
   <section class="pane" id="pane-db" hidden>
@@ -77,6 +78,10 @@
   <section class="pane docs" id="pane-docs" hidden>
     <div class="dochead"><span id="docsNote"></span><button class="link" id="docsAll" title="Bajar todos los PDF de la solicitud">descargar todos</button></div>
     <div class="docgrid" id="docsGrid"></div>
+  </section>
+  <section class="pane voucher" id="pane-voucher" hidden>
+    <div class="dochead"><span id="voucherNote"></span><span class="acts" id="voucherActs" hidden><button class="link" id="voucherOpen">Abrir</button> · <a class="link" id="voucherDown" target="_blank">Descargar</a></span></div>
+    <button class="vthumb" id="voucherThumb" title="Abrir el voucher en otra pestaña" hidden></button>
   </section>
 
   <script src="sidepanel.js"></script>

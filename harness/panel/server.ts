@@ -1987,58 +1987,85 @@ const server = createServer(async (req, res) => {
                 const r = await dbopsJson(['decrypt-central', String(ureq), String(id)], tgt);
                 return send(r?.ok ? 200 : 409, r ? { ok: !!r.ok, central: r.central, plain: r.plain, detail: r.motivo } : { ok: false, detail: 'sin respuesta' });
             }
-            if (path === '/api/ext/documents' || path === '/api/ext/document') {
-                // LOS DOCUMENTOS FIRMADOS de la solicitud (`user_request_signing_documents`): la lista, y cada PDF servido desde
-                // acá para que la extensión lo muestre adentro (el bucket lo entrega como descarga) o lo baje con un nombre
-                // legible. Sólo lectura, y fuera de local sólo de un cliente de PRUEBA, como el descifrado.
+            if (path === '/api/ext/documents' || path === '/api/ext/document' || path === '/api/ext/voucher') {
+                // LOS DOCUMENTOS FIRMADOS de la solicitud (`user_request_signing_documents`) y su VOUCHER: la lista, y cada PDF
+                // servido desde acá para que la extensión lo muestre adentro (el bucket lo entrega como descarga) o lo baje con
+                // un nombre legible. Sólo lectura, y fuera de local sólo de un cliente de PRUEBA, como el descifrado.
                 const ureq = Number(digits(q.get('ureq')));
                 if (!ureq) return send(400, { error: 'falta la solicitud' });
-                if (tgt !== 'local') {
-                    const mail = String(sqlJson(`SELECT u.email FROM user_requests ur JOIN users u ON u.id = ur.user_id WHERE ur.id = ${ureq}`)[0]?.email ?? '');
-                    if (!TEST_MAIL.test(mail)) return send(409, { error: `el cliente de ${ureq} no parece de prueba (correo «${mail || 'vacío'}»): sus documentos no se abren desde acá` });
+                const who: any = sqlJson(`SELECT u.email, u.document_number, ur.request_number, ur.user_request_status_id FROM user_requests ur JOIN users u ON u.id = ur.user_id WHERE ur.id = ${ureq}`)[0];
+                if (!who) return send(404, { error: `no pude leer la solicitud ${ureq} en ${tgt} (¿no existe, o la VPN está caída?)` });
+                if (tgt !== 'local' && !TEST_MAIL.test(String(who.email ?? ''))) {
+                    return send(409, { error: `el cliente de ${ureq} no parece de prueba (correo «${who.email || 'vacío'}»): sus documentos no se abren desde acá` });
                 }
                 const docs = sqlJson(`SELECT id, document_type, signer_role, status, signed_at, created_at, url FROM user_request_signing_documents WHERE user_request_id = ${ureq} ORDER BY id`);
+                const fromBucket = (u: URL) => /\.s3[.-][\w.-]*amazonaws\.com$/.test(u.host) || /^(localhost|127\.0\.0\.1):(4566|9000)$/.test(u.host);
+                // Lo sirve: entero (`download=1` como adjunto) o la primera página como PNG de 360 px (`thumb=1`, pdftoppm de
+                // poppler), guardada en memoria por la URL del archivo.
+                const servePdf = async (src: URL, name: string, label: string) => {
+                    if (!fromBucket(src)) return send(409, { error: `${label} apunta a ${src.host}, que no es un bucket de documentos` });
+                    if (q.get('thumb')) {
+                        const hit = extThumbs.get(src.href);
+                        if (hit) { res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'max-age=3600', ...cors }); return res.end(hit); }
+                    }
+                    const r = await fetch(src);
+                    if (!r.ok) return send(r.status === 404 || r.status === 403 ? 404 : 502, { error: `el bucket contestó ${r.status} para ${label}` });
+                    if (q.get('thumb')) {
+                        const { mkdtempSync } = await import('node:fs');
+                        const { tmpdir } = await import('node:os');
+                        const { execFileSync } = await import('node:child_process');
+                        const dir = mkdtempSync(join(tmpdir(), 'probeta-thumb-'));
+                        try {
+                            writeFileSync(join(dir, 'doc.pdf'), Buffer.from(await r.arrayBuffer()));
+                            const bin = ['/opt/homebrew/bin/pdftoppm', '/usr/local/bin/pdftoppm', 'pdftoppm'].find((b) => !b.startsWith('/') || existsSync(b))!;
+                            execFileSync(bin, ['-f', '1', '-l', '1', '-singlefile', '-png', '-scale-to-x', '360', '-scale-to-y', '-1', join(dir, 'doc.pdf'), join(dir, 'p')], { timeout: 20000 });
+                            const png = readFileSync(join(dir, 'p.png'));
+                            if (extThumbs.size > 200) extThumbs.clear();
+                            extThumbs.set(src.href, png);
+                            res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'max-age=3600', ...cors });
+                            return res.end(png);
+                        } catch (e) {
+                            return send(501, { error: `no pude armar la miniatura (¿pdftoppm instalado?): ${(e as Error).message.split('\n')[0]}` });
+                        } finally { rmSync(dir, { recursive: true, force: true }); }
+                    }
+                    res.writeHead(200, { 'content-type': 'application/pdf', 'cache-control': 'no-store', ...cors,
+                        'content-disposition': `${q.get('download') ? 'attachment' : 'inline'}; filename="${name}"` });
+                    return res.end(Buffer.from(await r.arrayBuffer()));
+                };
+                if (path === '/api/ext/voucher') {
+                    // EL VOUCHER (la tirilla «¡Transacción exitosa!» que el backend arma al quedar Autorizada, `VoucherService`):
+                    // no queda en la base, pero su llave es fija —`admin/allieds/vouchers/<cédula>-<request_number>.pdf`, en el
+                    // mismo bucket que los firmados—, así que se arma con la raíz del bucket de un documento firmado (o el
+                    // `AWS_URL` del backend local) y se pregunta si está. `info=1` sólo contesta eso.
+                    let root = '';
+                    const any = docs.find((d: any) => d.url);
+                    if (any) {
+                        const u = new URL(String(any.url));
+                        root = /amazonaws\.com$/.test(u.host) ? u.origin : `${u.origin}/${u.pathname.split('/')[1]}`;
+                    } else if (tgt === 'local') {
+                        try {
+                            const env = readFileSync(join(homedir(), 'Desktop/CREDITOP/github/legacy-backend/.env'), 'utf8');
+                            root = (env.match(/^AWS_URL=["']?([^"'\n]+)/m)?.[1] ?? '').replace(/\/+$/, '');
+                        } catch { /* sin el .env del backend */ }
+                    }
+                    const status = Number(who.user_request_status_id);
+                    if (!root || !who.document_number || !who.request_number) {
+                        return send(200, { ureq, status, exists: false, note: 'no sé en qué bucket buscarlo: la solicitud no tiene documentos firmados todavía' });
+                    }
+                    const src = new URL(`${root}/admin/allieds/vouchers/${who.document_number}-${who.request_number}.pdf`);
+                    if (q.get('info')) {
+                        const h = await fetch(src, { method: 'HEAD' }).catch(() => null);
+                        return send(200, { ureq, status, exists: !!h?.ok, size: Number(h?.headers.get('content-length') || 0) || null, modifiedAt: h?.headers.get('last-modified') || null });
+                    }
+                    return servePdf(src, `${ureq}_voucher.pdf`, 'el voucher');
+                }
                 if (path === '/api/ext/documents') {
                     return send(200, { ureq, documents: docs.map((d: any) => ({ id: d.id, type: d.document_type, role: d.signer_role, status: d.status, signedAt: d.signed_at, createdAt: d.created_at, hasFile: !!d.url })) });
                 }
                 const id = Number(digits(q.get('id')));
                 const doc: any = docs.find((d: any) => Number(d.id) === id);
                 if (!doc?.url) return send(404, { error: `la solicitud ${ureq} no tiene el documento ${id}` });
-                // Sólo de donde se guardan los documentos: el bucket de S3 o el S3 local (ministack, MinIO).
-                const src = new URL(String(doc.url));
-                if (!/\.s3[.-][\w.-]*amazonaws\.com$/.test(src.host) && !/^(localhost|127\.0\.0\.1):(4566|9000)$/.test(src.host)) {
-                    return send(409, { error: `el documento apunta a ${src.host}, que no es un bucket de documentos` });
-                }
-                // `thumb=1`: la primera página como PNG de 360 px de ancho, para la miniatura de la extensión (pdftoppm, de
-                // poppler). Se guarda en memoria por la URL del archivo: un documento firmado no cambia.
-                if (q.get('thumb')) {
-                    const hit = extThumbs.get(String(doc.url));
-                    if (hit) { res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'max-age=3600', ...cors }); return res.end(hit); }
-                }
-                const r = await fetch(src);
-                if (!r.ok) return send(502, { error: `el bucket contestó ${r.status} para ${doc.document_type}` });
-                if (q.get('thumb')) {
-                    const { mkdtempSync } = await import('node:fs');
-                    const { tmpdir } = await import('node:os');
-                    const { execFileSync } = await import('node:child_process');
-                    const dir = mkdtempSync(join(tmpdir(), 'probeta-thumb-'));
-                    try {
-                        writeFileSync(join(dir, 'doc.pdf'), Buffer.from(await r.arrayBuffer()));
-                        const bin = ['/opt/homebrew/bin/pdftoppm', '/usr/local/bin/pdftoppm', 'pdftoppm'].find((b) => !b.startsWith('/') || existsSync(b))!;
-                        execFileSync(bin, ['-f', '1', '-l', '1', '-singlefile', '-png', '-scale-to-x', '360', '-scale-to-y', '-1', join(dir, 'doc.pdf'), join(dir, 'p')], { timeout: 20000 });
-                        const png = readFileSync(join(dir, 'p.png'));
-                        if (extThumbs.size > 200) extThumbs.clear();
-                        extThumbs.set(String(doc.url), png);
-                        res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'max-age=3600', ...cors });
-                        return res.end(png);
-                    } catch (e) {
-                        return send(501, { error: `no pude armar la miniatura (¿pdftoppm instalado?): ${(e as Error).message.split('\n')[0]}` });
-                    } finally { rmSync(dir, { recursive: true, force: true }); }
-                }
-                const name = `${ureq}_${String(doc.document_type).replace(/[^\w-]+/g, '-')}.pdf`;
-                res.writeHead(200, { 'content-type': 'application/pdf', 'cache-control': 'no-store', ...cors,
-                    'content-disposition': `${q.get('download') ? 'attachment' : 'inline'}; filename="${name}"` });
-                return res.end(Buffer.from(await r.arrayBuffer()));
+                return servePdf(new URL(String(doc.url)), `${ureq}_${String(doc.document_type).replace(/[^\w-]+/g, '-')}.pdf`, String(doc.document_type));
             }
             if (path === '/api/ext/verdict') {
                 const ureq = Number(digits(q.get('ureq')));

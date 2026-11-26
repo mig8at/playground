@@ -47,7 +47,7 @@ ambiente. La extensión no guarda credenciales. `make harness-extension` dice c�
     vuelve a `…/confirmation`. Sólo si la solicitud es del celular de arriba y su cliente tiene correo de prueba; nunca
     prod. Es un rodeo: no prueba que la validación real funcione.
 
-- **La solicitud, abajo, en tres pestañas** (2026-11-26): **Recorrido**, **Base** y **Documentos**; la elegida se
+- **La solicitud, abajo, en cuatro pestañas** (2026-11-26): **Recorrido**, **Base**, **Documentos** y **Voucher**; la elegida se
   recuerda en la máquina. **Documentos** muestra una miniatura de la primera página de cada documento firmado
   (`user_request_signing_documents`: vinculación, T&C, pagaré…), con la hora de la firma; al tocarla, el PDF se abre en
   una pestaña aparte. «Descargar» lo baja como `<solicitud>_<documento>.pdf` y «descargar todos» los baja juntos. El
@@ -55,6 +55,12 @@ ambiente. La extensión no guarda credenciales. `make harness-extension` dice c�
   guardadas en memoria): la primera vez tardan unos segundos. Sólo desde el bucket de S3 o el S3 local, y fuera de local
   sólo de un cliente de prueba. Se vuelve a leer cada 15 s. Probado con la 505329 de qa: las tres miniaturas, la hora
   bien y el T&C abierto aparte.
+- **Voucher** (2026-11-26): la tirilla «¡Transacción exitosa!» que el backend arma al quedar Autorizada (11) y le manda
+  al cliente, la que mira el comercio para entregar. Se ve entera; al tocarla o con «Abrir» se abre en otra pestaña, y
+  «Descargar» la baja como `<solicitud>_voucher.pdf`. No queda en la base: el panel (`/api/ext/voucher`, `info=1` dice
+  si está) la busca en el bucket por su llave fija, `admin/allieds/vouchers/<cédula>-<request_number>.pdf`, con la raíz
+  del bucket de un documento firmado (en local sin firmados, el `AWS_URL` del backend). Si la solicitud está en 11 y no
+  está, lo dice: es un «Voucher generation failed» del backend. Probado con la 505329 de qa (145 KB, la miniatura bien).
 
 ⚠ Sólo qa y local aceptan dictado (F-149): en dev y staging el panel lo avisa y las centrales contestan lo de por
 defecto. Nunca prod. `sidepanel.html#tab=<id>` ata el panel a una pestaña (para abrirlo como página o probarlo).
