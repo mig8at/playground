@@ -196,8 +196,9 @@ const preDetail = computed(() => {
   const cats = usesQuotaEngine(l) ? categoryDiag(l.name) : null
   const won = cats?.rows.find(x => x.won)?.cat || null
   const policyAmount = won && won.capacityMethod === 'finandina_v1' ? finandinaAmount(l, won, clientSubject()) : null
-  // Por categoría: los requisitos que filtran (los que fallan primero) y los abiertos aparte. Se abren la que gana y las
-  // que fallaron antes que ella, que son las que explican por qué no ganó otra; si ninguna gana, todas.
+  // Por categoría: los requisitos que filtran (los que fallan primero) y los abiertos aparte. Sólo se abre la que gana
+  // (decisión de Miguel, 2026-11-26): las demás quedan plegadas para no hacer ruido —su banda ya dice cuántos requisitos
+  // fallan y el resumen de arriba, cuáles— y se abren a mano para ver el detalle.
   const winAt = cats ? cats.rows.findIndex(x => x.won) : -1
   const catRows = (cats?.rows || []).map((row, i) => {
     const all = categoryRequirements(l.name, row.cat)
@@ -205,7 +206,7 @@ const preDetail = computed(() => {
     const fails = all.filter(x => !x.ok).length
     const state = row.won ? 'won' : row.ok ? 'ok' : 'no'
     const stateLabel = cats.blacklisted ? 'lista negra' : row.won ? 'gana' : row.ok ? 'también cumple' : `no cumple ${fails} de ${reqs.length}`
-    return { row, reqs, free: all.filter(x => !x.restricts && x.ok).map(x => x.label), state, stateLabel, open: winAt < 0 || i <= winAt }
+    return { row, reqs, free: all.filter(x => !x.restricts && x.ok).map(x => x.label), state, stateLabel, open: row.won }
   })
   // El resumen, arriba: quién ganó y qué tumbó a las que tenían más prioridad (cuántas falló cada requisito).
   const before = catRows.filter((x, i) => !x.row.ok && (winAt < 0 || i < winAt))
@@ -361,7 +362,7 @@ const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
             el máximo que le prestan a este cliente. Si pide más, la tarjeta le pide bajar el monto.</p>
 
           <!-- Decide el motor: la categoría. Cada una con lo que pide y lo que tiene el cliente, en verde lo que cumple y en
-               rojo lo que no; abiertas la que gana y las que fallaron antes que ella (las que explican el resultado). -->
+               rojo lo que no; abierta sólo la que gana, las demás plegadas. -->
           <template v-if="preDetail.cats">
             <div class="tv-sec">Categorías, en orden de prioridad: gana la primera que cumple todo</div>
             <div v-if="preDetail.catSummary" class="tv-cat-sum" :class="preDetail.catSummary.winner ? 'ok' : 'no'">
