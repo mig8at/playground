@@ -173,7 +173,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         <button type="button" id="sound" aria-pressed="false">Sonido</button>
       </div>
     </div>
-    <p class="note">26 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados, salvo «Crecimiento por mes», cuya forma es real, y «Top de comercios», con las ventas reales de 2026 (desembolsos por mes en producción, sin cifras absolutas). Su porcentaje de 2025 compara el año completo con 2024; el de 2026, enero a octubre con el mismo tramo de 2025.</p>
+    <p class="note">26 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados, salvo «Crecimiento por mes», cuya forma es real, y los dos tops (comercios y entidades), con las ventas reales de 2026 (desembolsos por mes en producción, sin cifras absolutas). Su porcentaje de 2025 compara el año completo con 2024; el de 2026, enero a octubre con el mismo tramo de 2025.</p>
   </section>
 
   <section aria-labelledby="size">
@@ -754,19 +754,19 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       }
     } },
     { id: "ranking", group: "Negocio", label: "Top de entidades", draw(b, t) {
-      const big = b.h >= 64, rows = [["CREDITOPX", 142], ["SISTECREDITO", 98], ["CREDIFAMILIA", 61]];
-      head(b, "TOP ENTIDADES · HOY", C.hNeg, "CREDITOS", C.gray, t);
-      const ys = big ? [17, 33, 49] : [9, 17, 25], bx = 96, vw = tw("000", 1), bmax = b.w - 2 - vw - 6 - bx;
+      // las entidades que más venden en el año: ventas (desembolsos) de 2026 al 25-nov, medidas en producción
+      const big = b.h >= 64, rows = [["ADDI", 13939], ["WELLI", 8567], ["MEDDIPAY", 6773]];
+      head(b, "TOP ENTIDADES · 2026", C.hNeg, "VENTAS", C.gray, t);
+      const ys = big ? [17, 33, 49] : [9, 17, 25], bx = 120, vw = tw("13.939", 1), bmax = b.w - 2 - vw - 6 - bx;
       rows.forEach(([name, v], i) => {
         const t0 = 0.2 + i * 0.2, off = Math.round((1 - ease((t - t0) / 0.45)) * b.w), y = ys[i];
         if (off >= b.w) return;
-        const col = i === 0 ? C.amber : C.white;
         text(b, String(i + 1), 2 + off, y, 1, MEDAL[i]);
-        text(b, name, 12 + off, y, 1, col);
-        const g = ease((t - t0 - 0.3) / 0.7);
-        rect(b, bx + off, y + 1, Math.round(bmax * v / 142 * g), big ? 5 : 5, i === 0 ? C.amber : C.amberDim);
-        const s = String(Math.round(v * g));
-        text(b, s, rx(b, s, 1) + off, y, 1, col);
+        text(b, name, 12 + off, y, 1, i === 0 ? C.amber : C.white);
+        const g = ease((t - t0 - 0.3) / 0.9);
+        rect(b, bx + off, y + 1, Math.max(1, Math.round(bmax * v / rows[0][1] * g)), 5, i === 0 ? C.amber : C.amberDim);
+        const s = fmt(v * g);
+        text(b, s, rx(b, s, 1) + off, y, 1, i === 0 ? C.amber : C.white);
       });
     } },
     { id: "top-merchants", group: "Negocio", label: "Top de comercios", draw(b, t) {
