@@ -742,8 +742,8 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         } else rect(b, xm, 31, 1, 1, mul(C.bLav, 0.6));
       });
       if (t > 2.7) {
-        // el mes récord y su causa: las tres marcas del Grupo Pash explican casi todo el salto (ver la pila de la tarea)
-        const lab = "NOV 2025 · GRUPO PASH", xr = x0 + rec * 6 - tw(lab, 1) - 9;
+        // el mes récord: Black Friday (28-nov-2025), el fin de semana de más desembolsos; el detalle, en la pila de la tarea
+        const lab = "NOV 2025 · BLACK FRIDAY", xr = x0 + rec * 6 - tw(lab, 1) - 9;
         text(b, lab, xr, big ? 2 : 10, 1, mul(C.bG, ease((t - 2.7) / 0.4)));
       }
     } },
