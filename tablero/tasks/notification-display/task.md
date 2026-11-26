@@ -4,8 +4,8 @@ title: "Pantalla de notificaciones"
 stage: evaluation
 created: "2026-11-25T19:04:00-05:00"
 knowledge: []
-jira: [CORE-1055]
-jira_title: "Pantalla de notificaciones"
+jira: []
+jira_title: ""
 ---
 
 ## Pendientes
