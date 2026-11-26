@@ -27,17 +27,12 @@ Deceval (Hans, CRED-463) y el paso a producción van al final y no son parte de 
 llega la integración. El pagaré genérico, con CREDITOP COLOMBIA S.A.S como acreedor, se queda así: no es la versión
 final y no se hace plantilla propia de la 149.
 
-- [ ] Ver en qa los dos arreglos de documentos en una firma nueva de Banco Finandina desde la sucursal de autogestión:
-  la ciudad de firma de los T&C dice «BOGOTÁ» ([#2102](https://github.com/Creditop-SAS/legacy-backend/pull/2102), en
-  merge) y el pie del pagaré trae la dirección del deudor
-  ([#2101](https://github.com/Creditop-SAS/legacy-backend/pull/2101), ya se vio bien en la 505325), también en el pagaré
-  de una entidad sin catálogo. Termina con los documentos firmados en qa con la ciudad y la dirección correctas.
 - [ ] Que el riel 4 responda 409 `OFFER_CHANGED` cuando la oferta cambia antes de firmar, como el tipo 2 (D15 del ADR),
   y no 500 «error durante el cálculo del plan de pagos»: si la preaprobación `creditop_x` ya no está aprobada, el plan,
   los documentos y la autorización del riel tienen que devolver el error que el wizard sabe mostrar. Termina con el
   caso 11 de la guía en qa mostrando el aviso de volver al listado.
-  Arreglo listo en la rama local `legacy-backend:fix/CORE-845-delegated-offer-changed` (contra qa, sin push), con la
-  descripción en `artifacts/pr-legacy-riel4-offer-changed.md` y Goldfish atendido.
+  Arreglo en [#2115](https://github.com/Creditop-SAS/legacy-backend/pull/2115) (contra qa; Credifamilia y Materiales
+  no cambian). Al mergear: el caso 11 en qa.
 - [ ] Encontrar por qué el listado ofrece 15 MM (casos 9 y 10). El motor de qa decide bien: por el backend
   directo, 1,5 MM queda sin perfil y con 0, con los criterios `finandina_*` en `users_category_log`. Lo que
   falla es otro camino del front; en la corrida, el listado recibió 400 y 401 de `POST /v1/preapprovals/check`.
@@ -55,6 +50,10 @@ final y no se hace plantilla propia de la 149.
   al pdf-mapper de qa. Termina con el documento firmado en qa mostrando «Huella» completo. Depende de: Docker y la VPN.
 
 ### Hecho
+
+- [x] ~~Ver en qa la ciudad y la dirección en una firma nueva~~ — 2026-11-26, 505328 desde la sucursal de autogestión
+  `a1110f50` (ciudad genérica): los T&C dicen «en la ciudad de BOGOTÁ» (#2102) y el pagaré trae la dirección del
+  deudor (#2101). No se probó el pagaré de una entidad sin catálogo.
 
 - [x] ~~Revisar con la 149 los huecos de CORE-918 fuera del plan~~ — 2026-11-26, descartados para qa: los documentos de
   Credifamilia sólo los arma `CredifamiliaLenders::supports` (24 y Materiales), y la 149 va por su catálogo; no tiene

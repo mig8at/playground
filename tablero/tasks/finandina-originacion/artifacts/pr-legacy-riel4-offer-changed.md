@@ -20,15 +20,19 @@ reconoce y devuelve al cliente al listado. Este cambio lleva el riel 4 a lo mism
   aprueba (`rejected`, `not_eligible`), responde el mismo 409. La compuerta ya corre al generar los
   documentos, al validar el OTP de firma y en la autorización, así que el riel 4 queda frenado en esos pasos
   con el mismo error.
-- El plan del riel 4 (`ExternallyManagedPaymentScheduleService`, simular y confirmar) ahora pasa por la
-  compuerta entera, como el plan del tipo 2: además de la comprobación nueva, el tope de créditos del cliente en
-  el mes y la comparación con la foto de la oferta. Esas dos ya corrían en el riel 4 al generar los documentos,
-  en el OTP y en la autorización; ahora frenan desde el plan.
+- El plan del riel 4 (`ExternallyManagedPaymentScheduleService`, simular y confirmar) pasa por la compuerta
+  entera sólo para las entidades que toman el cupo de la preaprobación `creditop_x` (Banco Finandina), como el
+  plan del tipo 2: además de la comprobación nueva, el tope de créditos del cliente en el mes y la comparación con
+  la foto de la oferta. Esas dos ya corrían para Finandina al generar los documentos, en el OTP y en la
+  autorización; ahora frenan desde el plan.
 
 No frena nada cuando no se puede saber: si pre-approvals-service no contesta, contesta un error o `pending`,
 se sigue como antes. Tampoco vuelve a medir una solicitud que ya reservó su cupo del mes (al autorizar), para
-no contar su propio crédito como usado. A Credifamilia no le aplica la comprobación nueva (sus insumos salen de
-otra fuente); sí le aplica la compuerta en el plan, como se explica arriba.
+no contar su propio crédito como usado.
+
+**Credifamilia (Salud y Materiales) no cambia.** Queda afuera antes de cualquier consulta
+(`CredifamiliaLenders::supports`): su plan no pasa por la compuerta y la comprobación nueva no le hace ninguna
+consulta en los documentos, el OTP ni la autorización.
 
 `not_eligible` también cuenta como «ya no aprueba»: el servicio lo usa cuando la entidad no evaluará al cliente
 para el producto, y el listado tampoco se lo ofrecería.
@@ -43,20 +47,19 @@ no contesta.
 - `app/Services/PaymentPlan/DelegatedOrigination/CreditopXPreApprovalInputs.php`: `approvedAmountNow()`, el cupo
   que aprueba el motor hoy (0 si dice que no, null si no se sabe). Se corrige el docblock que decía que el
   servicio guarda la preaprobación.
-- `app/Services/PaymentPlan/DelegatedOrigination/DelegatedOfferCheck.php` (nuevo): decide si aplica (riel 4,
-  insumos `creditop_x_pre_approval`, sin cupo reservado) y pregunta.
+- `app/Services/PaymentPlan/DelegatedOrigination/DelegatedOfferCheck.php` (nuevo): decide si aplica (no es
+  Credifamilia, riel 4, insumos `creditop_x_pre_approval`, sin cupo reservado) y pregunta.
 - `Modules/Loans/App/Services/InitialFee/OfferStillStandsGuard.php`: la comprobación del riel 4.
 - `Modules/Loans/App/Services/PaymentSchedule/ExternallyManagedPaymentScheduleService.php`: la compuerta al
-  simular y al confirmar el plan.
+  simular y al confirmar el plan, sólo si aplica.
 - Pruebas: `OfferStillStandsGuardTest` (cinco casos del riel 4), `CreditopXApprovedAmountNowTest` (nuevo, con
-  la respuesta del servicio simulada), `ExternallyManagedOfferChangedTest` (nuevo: el plan del riel 4 responde el
-  409 al simular y al confirmar, sin calcular nada), `ValidateInitialFeePaidTest` (la compuerta con la consulta
-  nueva apagada) y `MaterialesAmountBandTermsTest` (la compuerta deja seguir, para medir sólo las bandas).
+  la respuesta del servicio simulada), `ExternallyManagedOfferChangedTest` (nuevo: el plan de Finandina responde
+  el 409 al simular y al confirmar, sin calcular nada, y una entidad fuera de la consulta no llega a la
+  compuerta) y `ValidateInitialFeePaidTest` (la compuerta con la consulta nueva apagada).
 
 ## Cómo se comprobó
 
 - `OfferStillStandsGuardTest`, `ValidateInitialFeePaidTest`, `ExternallyManagedOfferChangedTest` y las pruebas de
-  `tests/Unit/PaymentPlan/DelegatedOrigination/`: 61 de 61, sobre SQLite.
-- No se corrió `MaterialesAmountBandTermsTest`, que necesita MySQL (sólo cambia cómo se construye el servicio).
+  `tests/Unit/PaymentPlan/DelegatedOrigination/`: 62 de 62, sobre SQLite.
 - Falta verlo en qa: repetir el caso de la 505130 (bajar la bolsa del perfil después de elegir la entidad) y
   ver el 409 y el aviso del wizard que devuelve al listado.
