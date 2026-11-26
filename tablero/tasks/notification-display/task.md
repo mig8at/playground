@@ -58,11 +58,12 @@ No toca los repos de producto. Es un servicio nuevo más el firmware del control
 
 El prototipo visual de las dos opciones y la arquitectura: `artifacts/notification-display.html`.
 
-**El período de cada mensaje** (se eligió el que hace estable y comparable la cifra):
+**El período de cada mensaje** (se eligió el que hace estable y comparable la cifra). Regla: el tablero se mira de día, en horario de trabajo, así que todo lo que se muestra tiene que valer durante todo el día.
 
 | período | mensajes | por qué |
 |---|---|---|
-| hoy, contra ayer | resumen del día, récord | lo que pasa hoy; un día suelto se compara con el anterior |
+| hoy, contra ayer a la misma hora | resumen del día | a las 10 a. m. no se compara con el día entero de ayer, sino con ayer a las 10 a. m. |
+| período cerrado (ayer, semana o mes pasado) | récord | un récord del día se completa de noche y nadie lo ve; uno cerrado vale todo el día siguiente |
 | en vivo | solicitudes en vivo (sapitos) | cada evento; la conversión de base, con 30 días |
 | mes calendario | desembolsos y meta, proyección del cierre, ingresos, meta cumplida, hito del mes | las metas de forecast son mensuales |
 | últimos 30 días | comercios sin uso, entidades sin uso, solicitudes sin venta, uptime | una ventana móvil no engaña al principio del mes; para la conversión, mejor con margen (solicitudes de hace 15 a 45 días) |

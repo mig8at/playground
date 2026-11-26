@@ -765,6 +765,8 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
           else if (r > 0 && (chr === "▲" || chr === "▼" || c >= cols - 6)) col = page.up ? C.bG : C.red;
           else if (r === 0) col = C.white;
           if (chr !== " ") text(b, chr, x + ((cw - 1 - 5) >> 1), y + ((ch - 7) >> 1), 1, col);
+          if (r === 0 && c === 0 && !flipping)                                     // ✈ en la primera paleta
+            art(b, ["..w..", "..ww.", "wwwww", "..ww.", "..w.."], x + ((cw - 1 - 5) >> 1), y + ((ch - 5) >> 1), 1, { w: page.up ? C.green : C.red });
         }
       }
     } },
@@ -1027,22 +1029,25 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
     { id: "first-disb-lender", group: "Negocio", label: "Primera venta (entidad)", voice: "¡Primera venta de Finandina! ¡Vámola!", sound: () => { pip(784, 100); pip(988, 100, .12); pip(1175, 100, .24); pip(1568, 300, .36); }, draw(b, t) {
       firstOf(b, t, { icon: "medal", what: "PRIMERA VENTA", name: "FINANDINA" });
     } },
-    { id: "record", voice: "¡Nuevo récord! 312 solicitudes en un solo día.", group: "Negocio", label: "Récord", sound: () => { pip(1047, 90); pip(1319, 90, .1); pip(1568, 220, .2); }, draw(b, t) {
+    { id: "record", voice: "¡Octubre fue el mes con más solicitudes de la historia: 35.140!", group: "Negocio", label: "Récord", sound: () => { pip(1047, 90); pip(1319, 90, .1); pip(1568, 220, .2); }, draw(b, t) {
+      // Un récord se celebra sobre un período CERRADO (ayer, la semana o el mes pasado): así vale todo el día y nadie se lo
+      // pierde. Un récord del día se completaría de noche. Medido en producción al 25-nov-2026: octubre de 2026, 35.140
+      // solicitudes, el mes con más de la historia (antes, abril de 2026 con 32.405: +8 %).
       const big = b.h >= 64, gold = i => mix(C.yellow, [255,236,170], (Math.sin(t * 5 - i * 0.5) + 1) / 2);
       sparkles(b, t, big ? 24 : 12, mul(C.yellow, 0.8));
-      const n = fmt(312 * ease((t - 0.4) / 1.2)), fl = (t * 8 | 0) % 2;
+      const n = fmt(35140 * ease((t - 0.4) / 1.4)), fl = (t * 8 | 0) % 2, title = "MES RECORD!";
       const fire = { r: [255,80,30], o: fl ? [255,150,40] : [255,200,60], y: fl ? C.yellow : [255,150,40] };
-      if (t > 0.3) {
-        if (big) { art(b, ICONS.fire, 8, 32, 2, fire); art(b, ICONS.fire, 224, 32, 2, fire); }
-        else { art(b, ICONS.fire, 33, 4, 1, fire); art(b, ICONS.fire, 211, 4, 1, fire); }
-      }
       if (big) {
-        wave(b, "NUEVO RECORD!", cx(b, "NUEVO RECORD!", 3), 8, 3, gold, t, 2);
-        const s = n + " SOLICITUDES"; text(b, s, cx(b, "312 SOLICITUDES", 2), 36, 2, C.white);
-        text(b, "EN UN SOLO DIA · VAMOLA!!!", cx(b, "EN UN SOLO DIA · VAMOLA!!!", 1), 55, 1, C.gray);
+        const tx = cx(b, title, 3);
+        if (t > 0.3) { art(b, ICONS.fire, tx - 28, 4, 2, fire); art(b, ICONS.fire, tx + tw(title, 3) + 4, 4, 2, fire); }
+        wave(b, title, tx, 6, 3, gold, t, 2);
+        const s = n + " SOLICITUDES"; text(b, s, cx(b, "35.140 SOLICITUDES", 2), 34, 2, C.white);
+        const f = "OCTUBRE · LA MAYOR DE LA HISTORIA"; text(b, f, cx(b, f, 1), 55, 1, mul(C.gray, ease((t - 1.6) / 0.5)));
       } else {
-        wave(b, "NUEVO RECORD!", cx(b, "NUEVO RECORD!", 2), 3, 2, gold, t, 1);
-        const s = n + " SOLICITUDES EN UN DIA"; text(b, s, cx(b, "312 SOLICITUDES EN UN DIA", 1), 23, 1, C.white);
+        const tx = cx(b, title, 2);
+        if (t > 0.3) { art(b, ICONS.fire, tx - 16, 3, 1, fire); art(b, ICONS.fire, tx + tw(title, 2) + 4, 3, 1, fire); }
+        wave(b, title, tx, 3, 2, gold, t, 1);
+        const s = "OCTUBRE: " + n + " SOLICITUDES"; text(b, s, cx(b, "OCTUBRE: 35.140 SOLICITUDES", 1), 23, 1, C.white);
       }
     } },
     // Atención: lo que no va bien, para verlo igual que lo bueno. Amarillo para avisar, rojo para lo que se perdió.
