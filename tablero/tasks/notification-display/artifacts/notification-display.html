@@ -683,6 +683,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
 
   // --- los mensajes: cada uno dibuja en un búfer de 256×32 o 256×64 en el instante t (s) ---
   // Rejilla común: margen de 2 px a los lados; cabecera en y=1 (32) o y=3 (64); todo en múltiplos del alto de letra.
+  let funnelT = -1;                     // el embudo suena sólo con lo que pasó desde el cuadro anterior
   const SCENES = [
     { id: "today", group: "Negocio", label: "Resumen del día", draw(b, t) {
       const big = b.h >= 64;
@@ -787,47 +788,73 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       });
     } },
     { id: "funnel", group: "Negocio", label: "Embudo en vivo", draw(b, t) {
-      // de las que entran, cuántas llegan a cada etapa. Ejemplo con el promedio diario real de los últimos 30 días
-      // (estado actual de las solicitudes creadas, nov-2026): 1.214 entran · 516 pasan el perfil · 390 eligen entidad · 174 venden
-      const big = b.h >= 64, V = [1214, 516, 390, 174], L = ["ENTRAN", "PERFIL", "ENTIDAD", "VENTA"];
-      const x0 = 8, seg = 60, x1 = x0 + seg * 4 - 2, cy = big ? 30 : 20, hm = big ? 16 : 10;
-      const H = V.map(v => 2 + (hm - 2) * Math.pow(v / V[0], 0.7));
-      const half = x => {                                                // alto del embudo: se angosta parejo entre etapas
-        const c = (x - x0 - seg / 2) / seg;
-        if (c <= 0) return H[0]; if (c >= 3) return H[3];
-        const i = Math.floor(c); return H[i] + (H[i + 1] - H[i]) * (c - i);
-      };
-      head(b, "EMBUDO · HOY", C.bLav, "14% TERMINA EN VENTA", C.bG, t);
-      const g = ease(t / 0.8);
-      for (let x = x0; x <= x1; x++) {                                   // el cuerpo del embudo, que se dibuja de izquierda a derecha
-        if (x > x0 + (x1 - x0) * g) break;
+      // Cada solicitud es una bolita: entra, avanza de compuerta en compuerta (cada paso es un evento del backend)
+      // y donde se queda, cae y revienta. Conversión real de los últimos 30 días: de 1.214 que entran al día,
+      // 516 pasan el perfil, 390 eligen entidad y 174 venden. Aquí va acelerado: una bolita cada 0,35 s.
+      const big = b.h >= 64, BASE = [1214, 516, 390, 174], L = ["ENTRAN", "PERFIL", "ENTIDAD", "VENTA"];
+      const x0 = 8, seg = 60, x1 = x0 + seg * 4 - 2, cy = big ? 30 : 20, hm = big ? 16 : 10, floor = big ? 50 : 30;
+      const H = BASE.map(v => 2 + (hm - 2) * Math.pow(v / BASE[0], 0.7));
+      const half = x => { const c = (x - x0 - seg / 2) / seg; if (c <= 0) return H[0]; if (c >= 3) return H[3];
+        const i = Math.floor(c); return H[i] + (H[i + 1] - H[i]) * (c - i); };
+      head(b, "EMBUDO · EN VIVO", C.bLav, "14% TERMINA EN VENTA", C.bG, t);
+      for (let x = x0; x <= x1; x++) {
         const h = Math.round(half(x));
         rect(b, x, cy - h, 1, 2 * h, [34,34,50]);
         px(b, x, cy - h - 1, mul(C.bLav, 0.85)); px(b, x, cy + h, mul(C.bLav, 0.85));
       }
-      // puntitos que recorren el embudo: cada uno se queda en una etapa según la conversión real, cae y se apaga
-      const keep = [V[1] / V[0], V[2] / V[1], V[3] / V[2]], N = big ? 70 : 40, len = x1 - x0, dot = big ? 2 : 1;
-      if (t > 0.8) for (let i = 0; i < N; i++) {
-        let stop = 3; const r = [hash(i + 50), hash(i + 90), hash(i + 130)];
-        for (let k = 0; k < 3; k++) if (r[k] > keep[k]) { stop = k; break; }
-        const x = x0 + ((t - 0.8) * 34 + hash(i) * len) % len, oy = hash(i + 7) * 2 - 1;
-        const dropX = x0 + seg * (stop + 1) - 6;
-        if (stop < 3 && x > dropX) {
-          const fall = (x - dropX) * 0.7, y = cy + oy * (half(dropX) - 1) + fall;
-          if (y < (big ? 48 : 31) && fall < 14) rect(b, x, y, dot, dot, mul(C.gray, Math.max(0.2, 1 - fall / 14)));
-        } else {
-          const end = stop === 3 && x > x0 + seg * 3;
-          rect(b, x, cy + oy * (half(x) - dot), dot, dot, end ? C.bG : C.white);
+      for (let k = 1; k < 4; k++) rect(b, x0 + seg * k - 1, cy - Math.round(half(x0 + seg * k)), 1, 2 * Math.round(half(x0 + seg * k)), [60,60,80]); // compuertas
+      // la vida de una bolita, en función del tiempo desde que entró: avanza, espera en cada compuerta y pasa o cae
+      const keep = [BASE[1] / BASE[0], BASE[2] / BASE[1], BASE[3] / BASE[2]], SP = 70, G = 260, every = 0.35;
+      const fate = i => { for (let k = 0; k < 3; k++) if (hash(i * 3 + k + 50) > keep[k]) return k; return 3; };   // en qué compuerta se queda
+      // devuelve dónde está la bolita y cuántas compuertas ya cruzó (passed); null si ya salió de la pantalla
+      const ball = (i, tau) => {
+        const stop = fate(i), oy = hash(i + 7) * 2 - 1; let x = x0, clock = 0;
+        for (let k = 0; k <= 3; k++) {
+          const gate = k < 3 ? x0 + seg * (k + 1) - 3 : x1 - 2, run = (gate - x) / SP;
+          if (tau < clock + run) return { x: x + (tau - clock) * SP, oy, state: "run", passed: k };
+          clock += run; x = gate;
+          if (k === 3) { const f = tau - clock; return f < 0.6 ? { x, oy, state: "sale", f, passed: 3 } : null; }
+          const wait = 0.15 + hash(i * 5 + k) * 0.5;
+          if (tau < clock + wait) return { x, oy, state: "wait", passed: k };
+          clock += wait;
+          if (k === stop) {                                            // se cae: gravedad, piso y ¡pum!
+            const f = tau - clock, y0 = cy + oy * (half(x) - 2), y = y0 + 0.5 * G * f * f;
+            if (y < floor) return { x: x + f * 12, y, state: "fall", passed: k };
+            const hit = Math.sqrt(2 * (floor - y0) / G), p = f - hit;
+            return p < 0.45 ? { x: x + hit * 12, y: floor, state: "pum", p, passed: k } : null;
+          }
         }
+      };
+      const counts = [0, 0, 0, 0], last = Math.floor(t / every);
+      const bolita = (x, y, c) => { x = Math.round(x); y = Math.round(y);
+        if (big) { rect(b, x - 1, y, 3, 1, c); rect(b, x, y - 1, 1, 3, c); } else rect(b, x, y, 2, 2, c); };
+      const prev = funnelT > t ? -1 : funnelT, dt = t - prev;
+      for (let i = 0; i <= last; i++) {
+        const tau = t - (i * every + hash(i + 3) * 0.2); if (tau < 0) continue;
+        const st = tau < 12 ? ball(i, tau) : null, passed = st ? st.passed : fate(i);
+        counts[0]++; for (let k = 1; k <= passed; k++) counts[k]++;     // lo que ya cruzó cada compuerta
+        if (!st) continue;
+        if (big && st.state === "pum" && st.p < dt) pip(150, 70);          // ¡pum!
+        if (big && st.state === "sale" && st.f < dt) pip(1568, 50);        // una venta
+        if (st.state === "pum") {                                      // el golpe: unos píxeles que saltan y se apagan
+          const a = 1 - st.p / 0.45;
+          for (let j = 0; j < 6; j++) {
+            const dx = (j - 2.5) * 2 * st.p * 6, dy = -Math.abs(Math.sin(j * 1.7)) * 8 * st.p * (1 - st.p * 1.5);
+            px(b, st.x + dx, st.y + dy, mul([255,90,60], a));
+          }
+        } else if (st.state === "fall") bolita(st.x, st.y, [255,120,80]);
+        else if (st.state === "sale") rect(b, st.x - 2, cy - 3, 6, 6, mul(C.bG, 1 - st.f / 0.6));
+        else bolita(st.x, cy + st.oy * (half(st.x) - 3), st.x > x0 + seg * 3 ? C.bG : C.white);
       }
-      // las cifras de cada etapa; en 256×32 se alternan con el nombre de la etapa
+      if (big) funnelT = t;
+      // las cifras: la base del día más lo que va pasando; en 256×32 se alternan con el nombre de la etapa
       const showName = !big && (t % 4) > 2;
-      V.forEach((v, i) => {
-        const mid = x0 + i * seg + (seg >> 1) - 1, n = fmt(v * ease((t - 0.4 - i * 0.2) / 1.2));
-        const s = showName ? L[i] : n, c = i === 3 ? C.bG : C.white, sw = tw(s, 1);
-        if (t > 0.4 + i * 0.2) rect(b, mid - (sw >> 1) - 2, cy - 4, sw + 4, 9, [34,34,50]);   // un respiro detrás de la cifra
-        text(b, s, mid - (sw >> 1), cy - 3, 1, mul(c, ease((t - 0.4 - i * 0.2) / 0.4)));
-        if (big) text(b, L[i], mid - (tw(L[i], 1) >> 1), 54, 1, mul(C.bLav, ease((t - 0.6 - i * 0.2) / 0.4)));
+      BASE.forEach((v, i) => {
+        const mid = x0 + i * seg + (seg >> 1) - 1, s = showName ? L[i] : fmt(v + counts[i]);
+        const c = i === 3 ? C.bG : C.white, sw = tw(s, 1);
+        rect(b, mid - (sw >> 1) - 2, cy - 4, sw + 4, 9, [34,34,50]);
+        text(b, s, mid - (sw >> 1), cy - 3, 1, c);
+        if (big) text(b, L[i], mid - (tw(L[i], 1) >> 1), 55, 1, mul(C.bLav, 0.9));
       });
     } },
     { id: "growth", group: "Negocio", label: "Crecimiento por mes", voice: "Así hemos crecido: 165 por ciento en 2025, y 15 por ciento en lo que va de 2026.", draw(b, t) {
