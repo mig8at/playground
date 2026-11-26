@@ -70,7 +70,11 @@ section { display: flex; flex-direction: column; gap: 18px; }
 }
 .controls button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 .controls button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.controls .sep { flex: 1; }
+.controls { flex-direction: column; align-items: stretch; gap: 14px; }
+.scene-groups { display: flex; flex-direction: column; gap: 10px; }
+.scene-group { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.scene-group .eyebrow { width: 92px; flex: none; }
+.toggles { display: flex; flex-wrap: wrap; gap: 8px; }
 .note { font-size: 0.82rem; color: var(--muted); }
 
 /* --- bloques --- */
@@ -164,17 +168,14 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         <div class="bezel"><canvas id="led64" width="1024" height="256" aria-label="Simulación del tablero de 256 por 64 píxeles"></canvas></div>
       </div>
     </div>
-    <div class="controls" role="group" aria-label="Mensaje en pantalla">
-      <button type="button" id="sc-text" data-scene="0">Texto</button>
-      <button type="button" id="sc-counter" data-scene="1">Contador con meta</button>
-      <button type="button" id="sc-icon" data-scene="2">Pixel art</button>
-      <button type="button" id="sc-alert" data-scene="3">Alerta crítica</button>
-      <button type="button" id="sc-idle" data-scene="4">Reposo: hora y clima</button>
-      <span class="sep"></span>
-      <button type="button" id="auto" aria-pressed="true">Rotación automática</button>
-      <button type="button" id="sound" aria-pressed="false">Sonido</button>
+    <div class="controls">
+      <div class="scene-groups" id="sceneBtns" role="group" aria-label="Mensaje en pantalla"></div>
+      <div class="toggles">
+        <button type="button" id="auto" aria-pressed="true">Rotación automática</button>
+        <button type="button" id="sound" aria-pressed="false">Sonido</button>
+      </div>
     </div>
-    <p class="note">La rotación cambia de mensaje cada 6 s. Una alerta crítica corta la rotación y suena dos veces; con «Sonido» prendido se oye el «pip». Cada LED se dibuja como en el panel: un punto de unos 2,1 mm cada 4 mm sobre fondo negro.</p>
+    <p class="note">13 mensajes de ejemplo. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, y el récord y el cumpleaños tienen su melodía. Las cifras y los nombres son inventados.</p>
   </section>
 
   <section aria-labelledby="size">
@@ -459,7 +460,8 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
     "!":[4,4,4,4,4,0,4],"-":[0,0,0,31,0,0,0],"/":[1,1,2,4,8,16,16],"%":[24,25,2,4,8,19,3],
     "+":[0,4,4,31,4,4,0],"°":[12,18,18,12,0,0,0],"·":[0,0,0,12,12,0,0],"$":[4,15,20,14,5,30,4]
   };
-  const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase();
+  F["\u0001"] = [13,22,17,25,21,19,17];   // Ñ: la tilde arriba y la N en 5 filas
+  const norm = s => s.toUpperCase().replace(/Ñ/g, "\u0001").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const tw = (s, k) => norm(s).length * 6 * k - k;
 
   function makeBuf(w, h) { return { w, h, d: new Uint8ClampedArray(w * h * 3) }; }
@@ -478,108 +480,291 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
   }
 
   const C = { amber:[255,176,59], white:[235,235,230], gray:[110,116,128], green:[60,220,130],
-              red:[255,48,40], dred:[90,6,6], yellow:[255,220,60], teal:[40,200,175], dim:[50,54,62] };
+              red:[255,48,40], dred:[90,6,6], yellow:[255,220,60], teal:[40,200,175], dim:[40,43,50],
+              pink:[255,90,160], blue:[70,140,255], amberDim:[150,100,30],
+              hNeg:[200,135,45], hDev:[60,175,105], hCul:[45,170,150] };
+
+  // --- utilidades de dibujo y animación ---
+  const clamp = v => Math.max(0, Math.min(1, v));
+  const ease = v => 1 - Math.pow(1 - clamp(v), 3);
+  const mul = (c, a) => c.map(v => v * a | 0);
+  const hash = i => { const s = Math.sin(i * 12.9898) * 43758.5453; return s - Math.floor(s); };
+  const hsv = h => { const f = n => { const k = (n + h * 6) % 6; return 255 * (1 - Math.max(0, Math.min(k, 4 - k, 1))) | 0; }; return [f(5), f(3), f(1)]; };
+  const fmt = n => Math.round(n).toLocaleString("es-CO");
+  const cx = (b, s, k) => Math.floor((b.w - tw(s, k)) / 2);
+  const rx = (b, s, k, m = 2) => b.w - m - tw(s, k);
+  // la letra que se escribe sola, con el cursor mientras escribe
+  function typed(b, s, x, y, k, c, t, t0 = 0, cps = 24) {
+    const n = Math.max(0, Math.min(s.length, Math.floor((t - t0) * cps)));
+    text(b, s.slice(0, n), x, y, k, c);
+    if (n < s.length && t >= t0) rect(b, x + n * 6 * k, y, k, 7 * k, c);
+  }
+  // letras que ondulan; color fijo o una función por letra
+  function wave(b, s, x, y, k, c, t, amp = 1) {
+    [...norm(s)].forEach((ch, i) => {
+      const dy = Math.round(Math.sin(t * 6 - i * 0.6) * amp);
+      text(b, ch, x + i * 6 * k, y + dy, k, typeof c === "function" ? c(i) : c);
+    });
+  }
+  // la cabecera de cada mensaje: categoría a la izquierda, dato a la derecha
+  function head(b, label, color, right, rc = C.gray, t = 9) {
+    const y = b.h >= 64 ? 3 : 1;
+    typed(b, label, 2, y, 1, color, t, 0, 40);
+    if (right) text(b, right, rx(b, right, 1), y, 1, mul(rc, ease(t / 0.6)));
+  }
+  function art(b, rows, x, y, k, map) {
+    rows.forEach((row, r) => [...row].forEach((ch, c) => { const col = map[ch]; if (col) rect(b, x + c * k, y + r * k, k, k, col); }));
+  }
+  function confetti(b, t, n) {
+    const pal = [C.pink, C.yellow, C.teal, C.blue, C.green, C.amber];
+    for (let i = 0; i < n; i++) {
+      const sp = 8 + hash(i + 7) * 16, y = (hash(i + 3) * (b.h + 6) + t * sp) % (b.h + 6) - 3;
+      const x = hash(i) * b.w + Math.sin(t * 2 + i) * 2;
+      px(b, x, y, pal[i % pal.length]); if (b.h >= 64) px(b, x + 1, y, pal[i % pal.length]);
+    }
+  }
+  function sparkles(b, t, n, c) {
+    for (let i = 0; i < n; i++) {
+      const x = hash(i + 11) * b.w | 0, y = hash(i + 29) * b.h | 0, s = Math.sin(t * 4 + hash(i + 5) * 6.28);
+      if (s > 0.75) { px(b, x, y, c); px(b, x - 1, y, mul(c, .5)); px(b, x + 1, y, mul(c, .5)); px(b, x, y - 1, mul(c, .5)); px(b, x, y + 1, mul(c, .5)); }
+      else if (s > 0.3) px(b, x, y, mul(c, .45));
+    }
+  }
+  function bar(b, x, y, w, h, frac, c, t) {
+    rect(b, x, y, w, h, C.dim);
+    const f = Math.round(w * clamp(frac));
+    rect(b, x, y, f, h, c);
+    const sx = (t * 140) % (f + 60) - 30;          // brillo que recorre la barra
+    for (let i = 0; i < 8; i++) if (sx + i >= 0 && sx + i < f) rect(b, x + sx + i, y, 1, h, mul([255,235,190], 0.6 + 0.05 * i));
+  }
 
   const OWL = [
-    "................",
-    "..o..........o..",
-    "..oo........oo..",
-    "..oooooooooooo..",
-    ".oooooooooooooo.",
-    ".owwwwoooowwwwo.",
-    ".owkkwoooowkkwo.",
-    ".owkkwoooowkkwo.",
-    ".owwwwoyyowwwwo.",
-    ".ooooooyyoooooo.",
-    ".oooooooooooooo.",
-    "..oooyyyyyyooo..",
-    "..oooyyyyyyooo..",
-    "...oooooooooo...",
-    "....yy....yy....",
-    "................"
+    "..o..........o..", "..oo........oo..", "..oooooooooooo..", ".oooooooooooooo.",
+    ".owwwwoooowwwwo.", ".owkkwoooowkkwo.", ".owkkwoooowkkwo.", ".owwwwoyyowwwwo.",
+    ".ooooooyyoooooo.", ".oooooooooooooo.", "..oooyyyyyyooo..", "..oooyyyyyyooo..",
+    "...oooooooooo...", "....yy....yy....", "................", "................"
   ];
-  function owl(b, x, y, k, blink) {
-    const map = { o: C.teal, w: C.white, k: [10,10,12], y: C.amber };
-    OWL.forEach((row, r) => [...row].forEach((ch, c) => {
-      let col = map[ch]; if (!col) return;
-      if (blink && ch === "k") col = C.white;
-      rect(b, x + c * k, y + r * k, k, k, col);
-    }));
-  }
+  const CAKE = [
+    ".......f........", "......fyf.......", ".......c........", ".......c........",
+    "..pppppppppppp..", ".pppwppppwpppwp.", ".pbbpbbbpbbbbpb.", ".bbbbbbbbbbbbbb.",
+    ".wwwwwwwwwwwwww.", ".bbbbbbbbbbbbbb.", ".bbppbbbbbbppbb.", ".bbbbbbbbbbbbbb.",
+    "gggggggggggggggg", "................", "................", "................"
+  ];
+  const TROPHY = [
+    "yyyyyyyyyyy", "y.yyyyyyy.y", "y.yyyyyyy.y", ".yyyyyyyyy.", "..yyyyyyy..",
+    "...yyyyy...", "....yyy....", ".....y.....", "....yyy....", "..yyyyyyy..", "..aaaaaaa.."
+  ];
+  const ARROW = ["...x...", "..xxx..", ".xxxxx.", "xxxxxxx", "..xxx..", "..xxx..", "..xxx.."];
+  const owl = (b, x, y, k, blink) => art(b, OWL, x, y, k, { o: C.teal, w: C.white, k: blink ? C.white : [10,10,12], y: C.amber });
   function check(b, x, y, k, c) { // 7×6
-    [[0,3],[1,4],[2,5],[3,4],[4,3],[5,2],[6,1],[6,0]].forEach(([i, j]) => rect(b, x + i * k, y + j * k, k, k, c));
-    [[1,3],[2,4],[3,3],[4,2],[5,1]].forEach(([i, j]) => rect(b, x + i * k, y + j * k, k, k, c));
+    [[0,3],[1,4],[2,5],[3,4],[4,3],[5,2],[6,1],[6,0],[1,3],[2,4],[3,3],[4,2],[5,1]].forEach(([i, j]) => rect(b, x + i * k, y + j * k, k, k, c));
   }
   function warn(b, x, y, k, c, ink) { // triángulo de 11×10
     for (let r = 0; r < 10; r++) { const half = Math.floor(r / 2 + 0.5); rect(b, x + (5 - half) * k, y + r * k, (half * 2 + 1) * k, k, c); }
     rect(b, x + 5 * k, y + 3 * k, k, 4 * k, ink); rect(b, x + 5 * k, y + 8 * k, k, k, ink);
   }
-  const fmt = n => Math.round(n).toLocaleString("es-CO");
 
-  // --- escenas: cada una dibuja en un búfer w×h (h = 32 o 64) en el instante t (s) ---
-  const scenes = [
-    function textScene(b, t) {
-      const big = b.h >= 64, k = big ? 2 : 1;
-      check(b, 2, big ? 4 : 2, 1, C.green);
-      text(b, "DESARROLLO · DEPLOY", 12, big ? 4 : 2, 1, C.gray);
-      const msg = "DEPLOY EXITOSO: API V2.41 EN PRODUCCION · 0 ERRORES · 3 PRS POR REVISAR";
-      const w = tw(msg, k), span = w + b.w, x = b.w - ((t * (big ? 40 : 30)) % span);
-      text(b, msg, x, big ? 30 : 16, k, C.white);
-    },
-    function counterScene(b, t) {
-      const big = b.h >= 64, goal = 1650, val = Math.min(1284, 1284 * Math.min(1, t / 1.6));
-      text(b, "DESEMBOLSOS NOV", 2, big ? 3 : 2, 1, C.gray);
-      const num = fmt(val);
+  // --- los mensajes: cada uno dibuja en un búfer de 256×32 o 256×64 en el instante t (s) ---
+  // Rejilla común: margen de 2 px a los lados; cabecera en y=1 (32) o y=3 (64); todo en múltiplos del alto de letra.
+  const SCENES = [
+    { id: "today", group: "Negocio", label: "Resumen del día", draw(b, t) {
+      const big = b.h >= 64;
+      const cols = [["DESCARGAS", 1820, "+12% VS AYER", C.teal], ["SOLICITUDES", 640, "+8% VS AYER", C.amber], ["APROBADAS", 212, "+5% VS AYER", C.green]];
+      for (let s = 1; s < 3; s++) rect(b, Math.round(b.w * s / 3), big ? 8 : 3, 1, big ? 48 : 26, C.dim);
+      cols.forEach(([lab, v, d, c], i) => {
+        const mid = Math.round(b.w * (2 * i + 1) / 6), t0 = i * 0.25, n = fmt(v * ease((t - t0) / 1.4));
+        const ly = big ? 10 : 3, ny = big ? 24 : 14;
+        text(b, lab, mid - (tw(lab, 1) >> 1), ly, 1, mul(C.gray, ease((t - t0) / 0.4)));
+        text(b, n, mid - (tw(n, 2) >> 1), ny, 2, c);
+        if (big) text(b, d, mid - (tw(d, 1) >> 1), 46, 1, mul(C.green, ease((t - t0 - 1.2) / 0.5)));
+      });
+    } },
+    { id: "disbursed", group: "Negocio", label: "Desembolsos y meta", draw(b, t) {
+      const big = b.h >= 64, goal = 1650, v = 1284 * ease(t / 1.8), num = fmt(v), pct = Math.round(100 * v / goal) + "%";
+      head(b, "DESEMBOLSOS · NOV", C.hNeg, "META " + fmt(goal), C.gray, t);
       if (big) {
         text(b, num, 2, 14, 3, C.amber);
-        text(b, "/ META " + fmt(goal), 2 + tw(num, 3) + 6, 21, 1, C.gray);
+        text(b, "CREDITOS", 2 + tw(num, 3) + 8, 28, 1, C.gray);
+        text(b, pct, rx(b, pct, 3), 14, 3, C.white);
+        bar(b, 2, 42, b.w - 4, 8, v / goal, C.amber, t);
+        text(b, "FALTAN " + fmt(goal - v) + " PARA LA META", 2, 55, 1, C.gray);
+        text(b, "DIA 25 DE 30", rx(b, "DIA 25 DE 30", 1), 55, 1, C.gray);
       } else {
-        text(b, num, b.w - tw(num, 1) - 2, 2, 1, C.amber);
+        text(b, num, 2, 10, 2, C.amber);
+        text(b, "CREDITOS", 2 + tw(num, 2) + 6, 17, 1, C.gray);
+        text(b, pct, rx(b, pct, 2), 10, 2, C.white);
+        bar(b, 2, 26, b.w - 4, 5, v / goal, C.amber, t);
       }
-      const bx = 2, by = big ? 42 : 13, bw = big ? 220 : 210, bh = big ? 10 : 7;
-      rect(b, bx, by, bw, bh, C.dim);
-      const fill = Math.round(bw * val / goal);
-      rect(b, bx, by, fill, bh, C.amber);
-      const pct = Math.round(100 * val / goal) + "%";
-      text(b, pct, bx + bw + 4, by + (bh - 7) / 2, 1, C.white);
-      text(b, big ? "EJEMPLO · FALTAN " + fmt(goal - 1284) : "META " + fmt(goal) + " · EJEMPLO", 2, big ? 56 : 23, 1, C.gray);
-    },
-    function iconScene(b, t) {
-      const big = b.h >= 64, k = big ? 2 : 1, blink = (t % 3) > 2.8;
-      const bob = Math.round(Math.sin(t * 3) * (big ? 1 : 0));
-      owl(b, 6, (big ? 0 : 8) + bob, k, blink);
+    } },
+    { id: "revenue", group: "Negocio", label: "Ingresos del mes", draw(b, t) {
+      const big = b.h >= 64, v = 1240 * ease(t / 1.6), s = "$" + fmt(v) + " M";
+      head(b, "INGRESOS · NOV", C.hNeg, "+18% VS OCT", C.green, t);
+      const data = [52, 61, 58, 70, 66, 74, 69, 81, 77, 88, 84, 100];
+      const n = data.length, bw = big ? 6 : 7, gap = big ? 2 : 3, x0 = b.w - 2 - (n * (bw + gap) - gap);
+      const top = big ? 14 : 10, bottom = big ? 59 : 30, hmax = bottom - top;
+      data.forEach((d, i) => {
+        const h = Math.max(1, Math.round(hmax * d / 100 * ease((t - 0.3 - i * 0.07) / 0.5)));
+        rect(b, x0 + i * (bw + gap), bottom - h, bw, h, i === n - 1 ? C.amber : C.amberDim);
+      });
       if (big) {
-        text(b, "BIENVENIDO", 50, 12, 2, C.teal);
-        text(b, "AL EQUIPO!", 50, 34, 2, C.white);
+        text(b, s, 2, 14, 3, C.amber);
+        text(b, "MILLONES DE PESOS", 2, 41, 1, C.gray);
+        text(b, "PROYECCION $1.480 M", 2, 53, 1, mul(C.white, ease((t - 1.6) / 0.5)));
       } else {
-        text(b, "BIENVENIDO AL EQUIPO!", 28, 8, 1, C.teal);
-        text(b, "HOY ARRANCA EN DESARROLLO", 28, 18, 1, C.white);
+        text(b, s, 2, 10, 2, C.amber);
+        text(b, "MILLONES DE PESOS", 2, 25, 1, C.gray);
       }
-    },
-    function alertScene(b, t) {
+    } },
+    { id: "lender", group: "Negocio", label: "Entidad que creció", draw(b, t) {
+      const big = b.h >= 64, p = "+" + Math.round(23 * ease(t / 1.4)) + "%", bob = Math.round(Math.abs(Math.sin(t * 4)) * 2);
+      head(b, "ENTIDAD DEL MES", C.hNeg, big ? "DESEMBOLSOS VS OCTUBRE" : "VS OCTUBRE", C.gray, t);
+      if (big) {
+        typed(b, "CREDITOPX", 2, 14, 3, C.white, t, 0.2, 14);
+        text(b, p, rx(b, p, 2), 18, 2, C.green);
+        art(b, ARROW, rx(b, p, 2) - 18, 18 - bob, 2, { x: C.green });
+        text(b, "DESEMBOLSOS CRECIERON", 2, 41, 1, C.gray);
+        text(b, "312 CREDITOS EN NOVIEMBRE", 2, 53, 1, mul(C.white, ease((t - 1.4) / 0.5)));
+      } else {
+        art(b, ARROW, 2, 13 - bob, 1, { x: C.green });
+        text(b, p, 12, 10, 2, C.green);
+        typed(b, "CREDITOPX", 72, 10, 2, C.white, t, 0.2, 14);
+        text(b, "312 CREDITOS EN NOVIEMBRE", 2, 25, 1, C.gray);
+      }
+    } },
+    { id: "ranking", group: "Negocio", label: "Top de entidades", draw(b, t) {
+      const big = b.h >= 64, rows = [["CREDITOPX", 142], ["FINANDINA", 98], ["CREDIFAMILIA", 61]];
+      head(b, "TOP ENTIDADES · HOY", C.hNeg, "CREDITOS", C.gray, t);
+      const ys = big ? [17, 33, 49] : [9, 17, 25], bx = 96, vw = tw("000", 1), bmax = b.w - 2 - vw - 6 - bx;
+      rows.forEach(([name, v], i) => {
+        const t0 = 0.2 + i * 0.2, off = Math.round((1 - ease((t - t0) / 0.45)) * b.w), y = ys[i];
+        if (off >= b.w) return;
+        const col = i === 0 ? C.amber : C.white;
+        text(b, String(i + 1), 2 + off, y, 1, C.amber);
+        text(b, name, 12 + off, y, 1, col);
+        const g = ease((t - t0 - 0.3) / 0.7);
+        rect(b, bx + off, y + 1, Math.round(bmax * v / 142 * g), big ? 5 : 5, i === 0 ? C.amber : C.amberDim);
+        const s = String(Math.round(v * g));
+        text(b, s, rx(b, s, 1) + off, y, 1, col);
+      });
+    } },
+    { id: "record", group: "Negocio", label: "Récord", sound: () => { pip(1047, 90); pip(1319, 90, .1); pip(1568, 220, .2); }, draw(b, t) {
+      const big = b.h >= 64, gold = i => (Math.sin(t * 5 + i * 0.5) > 0 ? C.yellow : C.amber);
+      sparkles(b, t, big ? 60 : 34, C.yellow);
+      const n = fmt(312 * ease((t - 0.4) / 1.2));
+      if (big) {
+        wave(b, "NUEVO RECORD!", cx(b, "NUEVO RECORD!", 3), 8, 3, gold, t, 2);
+        const s = n + " SOLICITUDES"; text(b, s, cx(b, "312 SOLICITUDES", 2), 36, 2, C.white);
+        text(b, "EN UN SOLO DIA", cx(b, "EN UN SOLO DIA", 1), 55, 1, C.gray);
+      } else {
+        wave(b, "NUEVO RECORD!", cx(b, "NUEVO RECORD!", 2), 3, 2, gold, t, 1);
+        const s = n + " SOLICITUDES EN UN DIA"; text(b, s, cx(b, "312 SOLICITUDES EN UN DIA", 1), 23, 1, C.white);
+      }
+    } },
+    { id: "deploy", group: "Desarrollo", label: "Deploy exitoso", draw(b, t) {
+      const big = b.h >= 64, on = t > 0.15;
+      head(b, "DESARROLLO · DEPLOY", C.hDev, "HACE 2 MIN", C.gray, t);
+      if (big) {
+        if (on) check(b, 2, 16, 2, C.green);
+        typed(b, "DEPLOY EXITOSO", 20, 15, 2, C.green, t, 0.2, 18);
+        typed(b, "API V2.41 EN PRODUCCION", 20, 36, 1, C.white, t, 1.1, 30);
+        text(b, "0 ERRORES · 3 PRS POR REVISAR", 20, 50, 1, mul(C.gray, ease((t - 2) / 0.5)));
+      } else {
+        if (on) check(b, 2, 12, 1, C.green);
+        typed(b, "API V2.41 EN PRODUCCION", 12, 11, 1, C.white, t, 0.2, 26);
+        text(b, "0 ERRORES · 3 PRS POR REVISAR", 12, 23, 1, mul(C.gray, ease((t - 1.2) / 0.5)));
+      }
+    } },
+    { id: "uptime", group: "Desarrollo", label: "Uptime y PRs", draw(b, t) {
+      const big = b.h >= 64, u = (90 + 9.98 * ease(t / 1.2)).toFixed(2).replace(".", ",") + "%";
+      head(b, "UPTIME · 30 DIAS", C.hDev, "5 PRS ABIERTOS", C.white, t);
+      // 30 barras que llenan exacto de x0 al margen derecho (algunas miden 1 px más)
+      const x0 = big ? 2 : 84, y = big ? 42 : 11, h = big ? 10 : 11, n = 30, W = b.w - 2 - x0 + 1;
+      for (let i = 0; i < n; i++) {
+        const xa = x0 + Math.round(i * W / n), xb = x0 + Math.round((i + 1) * W / n) - 1;
+        if (t > 0.3 + i * 0.03) rect(b, xa, y, xb - xa, h, i === 17 ? C.yellow : C.green);
+      }
+      if (big) {
+        text(b, u, 2, 14, 3, C.green);
+        text(b, "UPTIME API", rx(b, "UPTIME API", 2), 14, 2, C.white);
+        text(b, "ULTIMOS 30 DIAS", rx(b, "ULTIMOS 30 DIAS", 1), 31, 1, C.gray);
+        text(b, "1 CAIDA DE 4 MIN · 5 PRS POR REVISAR", 2, 56, 1, C.gray);
+      } else {
+        text(b, u, 2, 10, 2, C.green);
+        text(b, "1 CAIDA DE 4 MIN", x0, 25, 1, C.gray);
+      }
+    } },
+    { id: "alert", group: "Desarrollo", label: "Alerta crítica", critical: true, sound: () => { pip(880, 160); pip(880, 160, .25); }, draw(b, t) {
       const big = b.h >= 64, on = (t % 1) < 0.5;
       if (on) rect(b, 0, 0, b.w, b.h, C.dred);
       const fr = on ? C.red : [140,20,16];
       rect(b, 0, 0, b.w, 1, fr); rect(b, 0, b.h - 1, b.w, 1, fr); rect(b, 0, 0, 1, b.h, fr); rect(b, b.w - 1, 0, 1, b.h, fr);
-      const k = big ? 2 : 1;
-      warn(b, 4, big ? 12 : 6, k, C.yellow, on ? C.dred : [0,0,0]);
-      text(b, "API CAIDA", big ? 34 : 20, big ? 10 : 6, k, on ? C.white : C.red);
-      text(b, "ERRORES 5XX 12% · 4 MIN", big ? 34 : 20, big ? 38 : 18, 1, C.yellow);
-      if (big) text(b, "ALERTA CRITICA", 34, 50, 1, C.white);
-    },
-    function idleScene(b, t) {
+      const ink = on ? C.dred : [0,0,0];
+      if (big) {
+        warn(b, 8, 21, 2, C.yellow, ink);
+        text(b, "API CAIDA", 40, 8, 3, on ? C.white : C.red);
+        text(b, "ERRORES 5XX 12% · HACE 4 MIN", 40, 37, 1, C.yellow);
+        text(b, "ALERTA CRITICA · REVISAR YA", 40, 50, 1, C.white);
+      } else {
+        warn(b, 4, 11, 1, C.yellow, ink);
+        text(b, "API CAIDA", 22, 4, 2, on ? C.white : C.red);
+        text(b, "ERRORES 5XX 12% · HACE 4 MIN", 22, 22, 1, C.yellow);
+      }
+    } },
+    { id: "welcome", group: "Cultura", label: "Bienvenida", draw(b, t) {
+      const big = b.h >= 64, blink = (t % 3) > 2.8, bob = Math.round(Math.sin(t * 3));
+      if (big) {
+        owl(b, 6, 16 + bob, 2, blink);
+        typed(b, "BIENVENIDA,", 48, 10, 2, C.teal, t, 0.2, 16);
+        typed(b, "SOFIA!", 48, 28, 3, C.white, t, 0.9, 10);
+        text(b, "HOY ARRANCA EN DESARROLLO", 48, 55, 1, mul(C.gray, ease((t - 1.6) / 0.5)));
+      } else {
+        owl(b, 4, 8 + bob, 1, blink);
+        typed(b, "BIENVENIDA, SOFIA!", 28, 4, 2, C.teal, t, 0.2, 14);
+        text(b, "HOY ARRANCA EN DESARROLLO", 28, 22, 1, mul(C.white, ease((t - 1.5) / 0.5)));
+      }
+    } },
+    { id: "birthday", group: "Cultura", label: "Cumpleaños", sound: () => { pip(784, 120); pip(784, 120, .15); pip(880, 200, .3); pip(784, 200, .55); pip(1047, 260, .8); }, draw(b, t) {
+      const big = b.h >= 64, fl = Math.sin(t * 14) > 0;
+      confetti(b, t, big ? 70 : 40);
+      const map = { f: fl ? C.yellow : C.amber, y: C.white, c: C.white, p: C.pink, w: C.white, b: [200,120,60], g: C.gray };
+      const rainbow = i => hsv((t * 0.15 + i * 0.09) % 1);
+      if (big) {
+        art(b, CAKE, 6, 17, 2, map);
+        wave(b, "FELIZ CUMPLE", 48, 10, 2, C.pink, t, 1);
+        wave(b, "PEPITO!", 48, 30, 3, rainbow, t, 2);
+      } else {
+        art(b, CAKE, 4, 9, 1, map);
+        wave(b, "FELIZ CUMPLE", 26, 3, 2, C.pink, t, 1);
+        typed(b, "PEPITO! QUE LA PASES BIEN", 26, 22, 1, C.white, t, 0.6, 22);
+      }
+    } },
+    { id: "anniversary", group: "Cultura", label: "Aniversario", draw(b, t) {
+      const big = b.h >= 64;
+      sparkles(b, t, big ? 26 : 14, C.amber);
+      const map = { y: C.yellow, a: C.amber };
+      if (big) {
+        art(b, TROPHY, 6, 20, 2, map);
+        typed(b, "FELIZ ANIVERSARIO", 36, 10, 2, C.yellow, t, 0.2, 18);
+        text(b, "ANDRES · 3 AÑOS", 36, 30, 2, mul(C.white, ease((t - 1.1) / 0.5)));
+        text(b, "EN CREDITOP", 36, 50, 1, mul(C.gray, ease((t - 1.5) / 0.5)));
+      } else {
+        art(b, TROPHY, 4, 10, 1, map);
+        typed(b, "FELIZ ANIVERSARIO", 20, 3, 2, C.yellow, t, 0.2, 18);
+        text(b, "ANDRES · 3 AÑOS EN CREDITOP", 20, 22, 1, mul(C.white, ease((t - 1.2) / 0.5)));
+      }
+    } },
+    { id: "idle", group: "Reposo", label: "Hora y clima", draw(b, t) {
       const big = b.h >= 64, now = new Date();
       const hm = String(now.getHours()).padStart(2, "0") + (now.getSeconds() % 2 ? ":" : " ") + String(now.getMinutes()).padStart(2, "0");
-      const k = big ? 4 : 3;
-      text(b, hm, 6, big ? 18 : 6, k, C.white);
-      const wx = 6 + tw(hm, k) + 16;
-      // sol detrás de una nube
-      const sy = big ? 20 : 6;
-      for (let a = 0; a < 6.28; a += 0.2) px(b, wx + 7 + Math.cos(a) * 6, sy + 7 + Math.sin(a) * 6, C.amber);
+      const k = big ? 4 : 3, gw = tw(hm, k) + 14 + 20 + 6 + tw("18° NUBLADO", 1), x = Math.floor((b.w - gw) / 2);
+      const cy = big ? 18 : 6;
+      text(b, hm, x, cy, k, C.white);
+      const wx = x + tw(hm, k) + 14, sy = cy + (7 * k - 20) / 2 | 0;
+      for (let a = 0; a < 6.28; a += 0.2) px(b, wx + 7 + Math.cos(a + t) * 6, sy + 7 + Math.sin(a + t) * 6, C.amber);
       rect(b, wx + 3, sy + 9, 16, 5, C.white); rect(b, wx + 6, sy + 6, 8, 3, C.white);
-      text(b, "18° NUBLADO", wx + 24, sy + 4, 1, C.white);
-      text(b, "BOGOTA · EJEMPLO", wx + 24, sy + 14, 1, C.gray);
-    }
+      text(b, "18° NUBLADO", wx + 26, sy + 3, 1, C.white);
+      text(b, "BOGOTA", wx + 26, sy + 13, 1, C.gray);
+    } }
   ];
 
   // --- dibujo de los LEDs ---
@@ -624,16 +809,30 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
 
   // --- estado y rotación ---
   let scene = 0, start = performance.now(), auto = true;
+  const groupsEl = document.getElementById("sceneBtns");
+  const groups = [...new Set(SCENES.map(s => s.group))];
+  groups.forEach(g => {
+    const wrap = document.createElement("div"); wrap.className = "scene-group";
+    const lab = document.createElement("span"); lab.className = "eyebrow"; lab.textContent = g; wrap.appendChild(lab);
+    SCENES.forEach((s, i) => {
+      if (s.group !== g) return;
+      const bt = document.createElement("button"); bt.type = "button"; bt.id = "sc-" + s.id; bt.dataset.scene = i; bt.textContent = s.label;
+      wrap.appendChild(bt);
+    });
+    groupsEl.appendChild(wrap);
+  });
   const btns = [...document.querySelectorAll("[data-scene]")];
   const autoBtn = document.getElementById("auto"), soundBtn = document.getElementById("sound");
   function setScene(i) {
     scene = i; start = performance.now();
     btns.forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.scene === i)));
-    if (i === 3) { pip(880, 160); pip(880, 160, 0.25); } else pip();
+    (SCENES[i].sound || (() => pip()))();
   }
   btns.forEach(b => b.addEventListener("click", () => setScene(+b.dataset.scene)));
   autoBtn.addEventListener("click", () => { auto = !auto; autoBtn.setAttribute("aria-pressed", String(auto)); start = performance.now(); });
   soundBtn.addEventListener("click", () => { soundOn = !soundOn; soundBtn.setAttribute("aria-pressed", String(soundOn)); if (soundOn) pip(); });
+  // la rotación salta la alerta: una alerta real entra sola y se queda hasta resolverse
+  function nextScene(i) { do { i = (i + 1) % SCENES.length; } while (SCENES[i].critical); return i; }
 
   // la pared: la opción elegida, copiada en vivo desde su simulación
   const wallCv = document.getElementById("wallCanvas");
@@ -657,10 +856,12 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
   function frame(now) {
     const t = (now - start) / 1000;
     // la alerta crítica no rota: se queda hasta que alguien elige otro mensaje
-    if (auto && scene !== 3 && t > 6) setScene(scene === 2 ? 4 : (scene + 1) % 5 === 3 ? 4 : (scene + 1) % 5);
+    if (auto && !SCENES[scene].critical && t > 7) setScene(nextScene(scene));
+    const tt = reduce ? 9 : t, fade = reduce ? 1 : ease(t / 0.25);   // cada mensaje entra con un fundido corto
     for (const p of panels) {
       p.buf.d.fill(0);
-      scenes[scene](p.buf, reduce ? 3 : t);
+      SCENES[scene].draw(p.buf, tt);
+      if (fade < 1) for (let i = 0; i < p.buf.d.length; i++) p.buf.d[i] *= fade;
       paint(p);
     }
     wallCv.getContext("2d").drawImage(panels[wallOpt].cv, 0, 0, wallCv.width, wallCv.height);
