@@ -173,7 +173,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         <button type="button" id="sound" aria-pressed="false">Sonido</button>
       </div>
     </div>
-    <p class="note">26 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados, salvo «Crecimiento por mes»: su forma es la real (desembolsos por mes en producción, sin cifras absolutas). Su porcentaje de 2025 compara el año completo con 2024; el de 2026, enero a octubre con el mismo tramo de 2025.</p>
+    <p class="note">26 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados, salvo «Crecimiento por mes» y «Top de comercios»: su forma y sus porcentajes son reales (desembolsos por mes en producción, sin cifras absolutas). Su porcentaje de 2025 compara el año completo con 2024; el de 2026, enero a octubre con el mismo tramo de 2025.</p>
   </section>
 
   <section aria-labelledby="size">
@@ -634,9 +634,14 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
              "kkk......kkk", "kkkk....kkkk", "..kkk..kkk..", ".kkkkkkkkkk.", ".kk.kkkk.kk.", "....kkkk...."],
     target: ["...gggggg...", "..g......g..", ".g..gggg..g.", "g..g....g..g", "g.g..ww..g.g", "g.g.wwww.g.g",
              "g.g.wwww.g.g", "g.g..ww..g.g", "g..g....g..g", ".g..gggg..g.", "..g......g..", "...gggggg..."],
+    bag:    ["....kk.kk...", ".....kkk....", "....yyyy....", "...yyyyyy...", "..yyywwyyy..", ".yyywyyyyyy.",
+             ".yyyywwyyyy.", ".yyyyyywyyy.", ".yyywwwyyyy.", ".yyyyyyyyyy.", "..yyyyyyyy..", "...yyyyyy..."],
+    bill:   ["............", "............", "gggggggggggg", "gwggggggggwg", "ggggwwwwgggg", "gggwggggwggg",
+             "gggwggggwggg", "ggggwwwwgggg", "gwggggggggwg", "gggggggggggg", "............", "............"],
     paper:  ["wwwwwww.....", "w.....ww....", "w.....w.w...", "w.....wwww..", "w.gg.....w..", "w........w..",
              "w.ggggg..w..", "w........w..", "w.gggg...w..", "w........w..", "wwwwwwwwww..", "............"]
   };
+  const BAG = { y: [215,150,55], w: [255,240,210], k: [140,90,45] }, BILL = { g: [40,170,90], w: [200,250,215] };
   const ICON_COLORS = { w: [235,235,230], g: [5,213,135], a: [255,176,59], y: [255,205,60], p: [135,122,255] };
 
   // Avisos de «primero»: cortos y para el equipo, sin explicar lo obvio. Tres piezas centradas:
@@ -657,6 +662,8 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
     typed(b, o.name, x + iw + gap, ny, k, C.white, t, 0.4, 14);
     if (foot) text(b, foot, cx(b, foot, 1), big ? ny + 7 * k + 6 : 25, 1, mul(C.bLav, ease((t - (big ? 1.6 : 1.4)) / 0.5)));
   }
+
+  const MEDAL = [[255,205,60], [200,205,215], [205,127,50]];   // oro, plata, bronce para los puestos 1, 2 y 3
 
   const OWL = [
     "..o..........o..", "..oo........oo..", "..oooooooooooo..", ".oooooooooooooo.",
@@ -691,16 +698,19 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
     { id: "disbursed", group: "Negocio", label: "Desembolsos y meta", draw(b, t) {
       const big = b.h >= 64, goal = 1650, v = 1284 * ease(t / 1.8), num = fmt(v), pct = Math.round(100 * v / goal) + "%";
       head(b, "DESEMBOLSOS · NOV", C.hNeg, "META " + fmt(goal), C.gray, t);
+      const flap = (t * 3 | 0) % 2;                                       // el billete aletea
       if (big) {
-        text(b, num, 2, 14, 3, C.amber);
-        text(b, "CREDITOS", 2 + tw(num, 3) + 8, 28, 1, C.gray);
+        art(b, ICONS.bill, 2, 12 + flap, 2, BILL);
+        text(b, num, 32, 14, 3, C.amber);
+        text(b, "CREDITOS", 32 + tw(num, 3) + 8, 28, 1, C.gray);
         text(b, pct, rx(b, pct, 3), 14, 3, C.white);
         bar(b, 2, 42, b.w - 4, 8, v / goal, C.amber, t);
         text(b, "FALTAN " + fmt(goal - v) + " PARA LA META", 2, 55, 1, C.gray);
         text(b, "DIA 25 DE 30", rx(b, "DIA 25 DE 30", 1), 55, 1, C.gray);
       } else {
-        text(b, num, 2, 10, 2, C.amber);
-        text(b, "CREDITOS", 2 + tw(num, 2) + 6, 17, 1, C.gray);
+        art(b, ICONS.bill, 2, 11 + flap, 1, BILL);
+        text(b, num, 18, 10, 2, C.amber);
+        text(b, "CREDITOS", 18 + tw(num, 2) + 6, 17, 1, C.gray);
         text(b, pct, rx(b, pct, 2), 10, 2, C.white);
         bar(b, 2, 26, b.w - 4, 5, v / goal, C.amber, t);
       }
@@ -709,19 +719,22 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       const big = b.h >= 64, v = 1240 * ease(t / 1.6), s = "$" + fmt(v) + " M";
       head(b, "INGRESOS · NOV", C.hNeg, "+18% VS OCT", C.green, t);
       const data = [52, 61, 58, 70, 66, 74, 69, 81, 77, 88, 84, 100];
-      const n = data.length, bw = big ? 6 : 7, gap = big ? 2 : 3, x0 = b.w - 2 - (n * (bw + gap) - gap);
+      const n = data.length, bw = big ? 4 : 7, gap = big ? 2 : 3, x0 = b.w - 2 - (n * (bw + gap) - gap);
       const top = big ? 14 : 10, bottom = big ? 59 : 30, hmax = bottom - top;
       data.forEach((d, i) => {
         const h = Math.max(1, Math.round(hmax * d / 100 * ease((t - 0.3 - i * 0.07) / 0.5)));
         rect(b, x0 + i * (bw + gap), bottom - h, bw, h, i === n - 1 ? C.amber : C.amberDim);
       });
+      const hop = Math.round(Math.abs(Math.sin(t * 3)));
       if (big) {
-        text(b, s, 2, 14, 3, C.amber);
-        text(b, "MILLONES DE PESOS", 2, 41, 1, C.gray);
-        text(b, "PROYECCION $1.480 M", 2, 53, 1, mul(C.white, ease((t - 1.6) / 0.5)));
+        art(b, ICONS.bag, 2, 12 - hop, 2, BAG);
+        text(b, s, 32, 14, 3, C.amber);
+        text(b, "MILLONES DE PESOS", 32, 41, 1, C.gray);
+        text(b, "PROYECCION $1.480 M", 32, 53, 1, mul(C.white, ease((t - 1.6) / 0.5)));
       } else {
-        text(b, s, 2, 10, 2, C.amber);
-        text(b, "MILLONES DE PESOS", 2, 25, 1, C.gray);
+        art(b, ICONS.bag, 2, 11 - hop, 1, BAG);
+        text(b, s, 18, 10, 2, C.amber);
+        text(b, "MILLONES DE PESOS", 18, 25, 1, C.gray);
       }
     } },
     { id: "lender", voice: "CreditopX creció 23 por ciento frente a octubre.", group: "Negocio", label: "Entidad que creció", draw(b, t) {
@@ -741,19 +754,35 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       }
     } },
     { id: "ranking", group: "Negocio", label: "Top de entidades", draw(b, t) {
-      const big = b.h >= 64, rows = [["CREDITOPX", 142], ["FINANDINA", 98], ["CREDIFAMILIA", 61]];
+      const big = b.h >= 64, rows = [["CREDITOPX", 142], ["SISTECREDITO", 98], ["CREDIFAMILIA", 61]];
       head(b, "TOP ENTIDADES · HOY", C.hNeg, "CREDITOS", C.gray, t);
       const ys = big ? [17, 33, 49] : [9, 17, 25], bx = 96, vw = tw("000", 1), bmax = b.w - 2 - vw - 6 - bx;
       rows.forEach(([name, v], i) => {
         const t0 = 0.2 + i * 0.2, off = Math.round((1 - ease((t - t0) / 0.45)) * b.w), y = ys[i];
         if (off >= b.w) return;
         const col = i === 0 ? C.amber : C.white;
-        text(b, String(i + 1), 2 + off, y, 1, C.amber);
+        text(b, String(i + 1), 2 + off, y, 1, MEDAL[i]);
         text(b, name, 12 + off, y, 1, col);
         const g = ease((t - t0 - 0.3) / 0.7);
         rect(b, bx + off, y + 1, Math.round(bmax * v / 142 * g), big ? 5 : 5, i === 0 ? C.amber : C.amberDim);
         const s = String(Math.round(v * g));
         text(b, s, rx(b, s, 1) + off, y, 1, col);
+      });
+    } },
+    { id: "top-merchants", group: "Negocio", label: "Top de comercios", draw(b, t) {
+      // los que más venden en el mes: participación en las ventas de nov-2026 (desembolsos al día 25), medida en producción
+      const big = b.h >= 64, rows = [["SONRIA", 33], ["AMOBLANDO PULLMAN", 17], ["CREDIMOVIL", 12]];
+      head(b, "TOP COMERCIOS · NOV", C.hNeg, "% DE LAS VENTAS", C.gray, t);
+      const ys = big ? [17, 33, 49] : [9, 17, 25], bx = 120, pw = tw("33%", 1), bmax = b.w - 2 - pw - 6 - bx;
+      rows.forEach(([name, p], i) => {
+        const t0 = 0.2 + i * 0.2, off = Math.round((1 - ease((t - t0) / 0.45)) * b.w), y = ys[i];
+        if (off >= b.w) return;
+        text(b, String(i + 1), 2 + off, y, 1, MEDAL[i]);
+        text(b, name, 12 + off, y, 1, i === 0 ? C.amber : C.white);
+        const g = ease((t - t0 - 0.3) / 0.7);
+        rect(b, bx + off, y + 1, Math.round(bmax * p / 33 * g), 5, i === 0 ? C.amber : C.amberDim);
+        const s = Math.round(p * g) + "%";
+        text(b, s, rx(b, s, 1) + off, y, 1, i === 0 ? C.amber : C.white);
       });
     } },
     { id: "growth", group: "Negocio", label: "Crecimiento por mes", voice: "Así hemos crecido: 165 por ciento en 2025, y 15 por ciento en lo que va de 2026.", draw(b, t) {
@@ -820,20 +849,6 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       } else {
         wave(b, "NUEVO RECORD!", cx(b, "NUEVO RECORD!", 2), 3, 2, gold, t, 1);
         const s = n + " SOLICITUDES EN UN DIA"; text(b, s, cx(b, "312 SOLICITUDES EN UN DIA", 1), 23, 1, C.white);
-      }
-    } },
-    { id: "deploy", group: "Desarrollo", label: "Deploy exitoso", draw(b, t) {
-      const big = b.h >= 64, on = t > 0.15;
-      head(b, "DESARROLLO · DEPLOY", C.hDev, "HACE 2 MIN", C.gray, t);
-      if (big) {
-        if (on) art(b, ICONS.check, 2, 10, 2, { g: [20,160,100], w: C.white });
-        typed(b, "DEPLOY EXITOSO", 32, 15, 2, C.green, t, 0.2, 18);
-        typed(b, "API V2.41 EN PRODUCCION", 32, 36, 1, C.white, t, 1.1, 30);
-        text(b, "0 ERRORES · 4 MIN DE DESPLIEGUE", 32, 50, 1, mul(C.gray, ease((t - 2) / 0.5)));
-      } else {
-        if (on) art(b, ICONS.check, 2, 11, 1, { g: [20,160,100], w: C.white });
-        typed(b, "API V2.41 EN PRODUCCION", 18, 11, 1, C.white, t, 0.2, 26);
-        text(b, "0 ERRORES · 4 MIN DE DESPLIEGUE", 18, 23, 1, mul(C.gray, ease((t - 1.2) / 0.5)));
       }
     } },
     { id: "uptime", group: "Desarrollo", label: "Uptime", draw(b, t) {
