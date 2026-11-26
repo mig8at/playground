@@ -61,6 +61,12 @@ ambiente. La extensión no guarda credenciales. `make harness-extension` dice c�
   si está) la busca en el bucket por su llave fija, `admin/allieds/vouchers/<cédula>-<request_number>.pdf`, con la raíz
   del bucket de un documento firmado (en local sin firmados, el `AWS_URL` del backend). Si la solicitud está en 11 y no
   está, lo dice: es un «Voucher generation failed» del backend. Probado con la 505329 de qa (145 KB, la miniatura bien).
+- **Esqueletos y lo recordado** (2026-11-26): lo último que se leyó de cada solicitud (tablas, documentos, voucher)
+  queda en memoria y en `chrome.storage.session` (las últimas 12), así que al volver a una pestaña se pinta al instante
+  y se refresca detrás, aunque el panel se haya cerrado. Lo que nunca se leyó muestra un esqueleto del tamaño final
+  (la consola con sus pestañas y filas, tres tarjetas de documento, el hueco del voucher) y la consola guarda su alto
+  con datos, para que nada salte al llegar. Visto con un Chromium sin ventana y la API con 4 s de demora: a 0,4 s de
+  volver ya estaban las tablas y el voucher.
 
 ⚠ Sólo qa y local aceptan dictado (F-149): en dev y staging el panel lo avisa y las centrales contestan lo de por
 defecto. Nunca prod. `sidepanel.html#tab=<id>` ata el panel a una pestaña (para abrirlo como página o probarlo).

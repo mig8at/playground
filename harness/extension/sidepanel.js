@@ -61,7 +61,11 @@ async function syncTab() {
   entryBase = tab?.url ? entryOf(tab.url) : null;
   lockPerson(!!target && inProgress(tab?.url));
   const u = tab?.url ? ureqOf(tab.url) : null;
-  if (u !== lastUreq) { lastUreq = u; lastStatus = null; $('reqLine').textContent = u ? String(u) : ''; refreshDb(); refreshDocs(true); refreshVoucher(true); }
+  if (u !== lastUreq) {
+    lastUreq = u; lastStatus = null; $('reqLine').textContent = u ? String(u) : '';
+    renderDb(); renderDocs(); renderVoucher();
+    restore(u).finally(() => { refreshDb(); refreshDocs(true); refreshVoucher(true); });
+  }
   renderStep(tab?.url);
   await trackScreen(tab?.url);
   renderFlow();
@@ -329,12 +333,56 @@ let dbAllCols = false;
 const SHORT = { user_request_records: 'ur_records', risk_central_user_data: 'centrales', user_request_risk_central_user_data: 'ur_centrales',
   user_summaries: 'summaries', user_field_values: 'field_values', creditop_x_user_requests_records: 'creditop_x', lender_transactions: 'lender_tx' };
 const HOT_MS = 20000;
+// ── LO ÚLTIMO QUE SE LEYÓ de cada solicitud (tablas, documentos, voucher), en memoria y en `chrome.storage.session` (vive
+// mientras Chrome esté abierto, aunque se cierre el panel). Al volver a una pestaña se pinta eso al instante y se refresca
+// detrás; lo que nunca se leyó muestra un esqueleto del tamaño final, para que nada salte al llegar.
+const seen = new Map();
+const SEEN_MAX = 12;
+function remember(ureq, part, value) {
+  if (!ureq) return;
+  const e = seen.get(ureq) || {};
+  e[part] = value; e.at = Date.now();
+  seen.delete(ureq); seen.set(ureq, e);
+  while (seen.size > SEEN_MAX) seen.delete(seen.keys().next().value);
+  try {
+    const json = JSON.stringify(e);
+    if (json.length < 400000) chrome.storage?.session?.set({ [`probeta.seen.${ureq}`]: e });
+  } catch { /* sin almacenamiento de sesión */ }
+}
+async function recall(ureq) {
+  if (!ureq) return null;
+  if (seen.has(ureq)) return seen.get(ureq);
+  try {
+    const got = await chrome.storage?.session?.get(`probeta.seen.${ureq}`);
+    const e = got?.[`probeta.seen.${ureq}`];
+    if (e) { seen.set(ureq, e); return e; }
+  } catch { /* sin almacenamiento de sesión */ }
+  return null;
+}
+/** Pinta lo recordado de `ureq` (si sigue siendo la solicitud de la pestaña) antes de leer de nuevo. */
+async function restore(ureq) {
+  const e = await recall(ureq);
+  if (!e || ureq !== lastUreq) return;
+  if (e.db && db.ureq !== ureq) {
+    db = e.db; dbPrev = new Map(); dbChanged = new Map(); dbDetail = null;
+    for (const t of db.tables || []) for (const row of t.rows) dbPrev.set(`${t.table}:${row.id}`, row);
+    applyRequestLine();
+    renderDb();
+  }
+  if (e.docs && docs.ureq !== ureq) { docs = { ...e.docs, error: '' }; renderDocs(); }
+  if (e.voucher && voucher.ureq !== ureq) { voucher = { ...e.voucher, error: '' }; renderVoucher(); }
+}
+/** Una fila gris que late, del alto de lo que va a llegar. */
+const bone = (cls = '', style = '') => `<span class="bone ${cls}"${style ? ` style="${style}"` : ''}></span>`;
+
 let db = { ureq: null, tables: [], at: '' }, dbTab = 'user_requests', dbPrev = new Map(), dbChanged = new Map(), dbBusy = false;
 async function refreshDb() {
   if (!target || !lastUreq || dbBusy) { renderDb(); return; }
   dbBusy = true;
   try {
-    const r = await api(`/tables?ureq=${lastUreq}`);
+    const asked = lastUreq;
+    const r = await api(`/tables?ureq=${asked}`);
+    if (asked !== lastUreq) { dbBusy = false; return refreshDb(); }
     if (db.ureq !== lastUreq) { dbPrev = new Map(); dbChanged = new Map(); dbDetail = null; }
     const now = Date.now(), first = dbPrev.size === 0;
     for (const t of r.tables || []) for (const row of t.rows) {
@@ -349,16 +397,19 @@ async function refreshDb() {
     db = { ureq: lastUreq, tables: r.tables || [], labels: r.labels || {}, at: new Date().toLocaleTimeString('es-CO', { hour12: false }) };
     // El estado y la entidad de la solicitud salen de aquí mismo (antes, de un dictamen aparte): el final del recorrido y
     // la línea de arriba.
-    const ur = db.tables.find((x) => x.table === 'user_requests')?.rows?.[0];
-    if (ur) {
-      lastStatus = { status: ur.user_request_status_id, statusName: db.labels.user_request_status_id?.[String(ur.user_request_status_id)] || '' };
-      const lender = db.labels.lender_id?.[String(ur.lender_id)];
-      $('reqLine').textContent = `${lastUreq}${lender ? ` · ${lender}` : ''}`;
-      renderFlow();
-    }
+    applyRequestLine();
+    remember(lastUreq, 'db', db);
   } catch (e) { db = { ...db, error: e.message }; }
   dbBusy = false;
   renderDb();
+}
+function applyRequestLine() {
+  const ur = db.tables?.find((x) => x.table === 'user_requests')?.rows?.[0];
+  if (!ur || db.ureq !== lastUreq) return;
+  lastStatus = { status: ur.user_request_status_id, statusName: db.labels?.user_request_status_id?.[String(ur.user_request_status_id)] || '' };
+  const lender = db.labels?.lender_id?.[String(ur.lender_id)];
+  $('reqLine').textContent = `${lastUreq}${lender ? ` · ${lender}` : ''}`;
+  renderFlow();
 }
 /** ¿Es un objeto o una lista en JSON? Devuelve el valor ya parseado, o `undefined`. */
 const jsonOf = (v) => { if (typeof v !== 'string' || !/^[\[{]/.test(v)) return undefined; try { return JSON.parse(v); } catch { return undefined; } };
@@ -383,7 +434,12 @@ function renderDb() {
   $('dbConsole').hidden = !lastUreq || !target;
   $('dbEmpty').hidden = !$('dbConsole').hidden;
   if (!lastUreq || !target) return;
-  if (db.ureq !== lastUreq) { tabs.innerHTML = ''; rows.innerHTML = '<div class="empty">Leyendo…</div>'; foot.textContent = ''; return; }
+  if (db.ureq !== lastUreq) {
+    tabs.innerHTML = Array.from({ length: 6 }, (_, i) => bone('tabbone', `width:${[78, 52, 64, 48, 70, 40][i]}px`)).join('');
+    rows.innerHTML = `<div class="skel">${bone('headbone')}${Array.from({ length: 4 }, (_, i) => bone('rowbone', `width:${[92, 70, 84, 60][i]}%`)).join('')}</div>`;
+    foot.innerHTML = bone('footbone');
+    return;
+  }
   const now = Date.now(), hot = (key) => { const c = dbChanged.get(key); return c && now - c.at < HOT_MS ? c : null; };
   tabs.innerHTML = '';
   for (const t of db.tables) {
@@ -506,9 +562,12 @@ async function refreshDocs(force = false) {
   if (!force && docs.ureq === lastUreq && Date.now() - docsAt < 15000) return;
   docsAt = Date.now();
   try {
-    const r = await api(`/documents?ureq=${lastUreq}`);
+    const asked = lastUreq;
+    const r = await api(`/documents?ureq=${asked}`);
+    if (asked !== lastUreq) return;
     const same = docs.ureq === lastUreq && JSON.stringify(docs.list) === JSON.stringify(r.documents || []) && !docs.error;
     docs = { ureq: lastUreq, list: r.documents || [], error: r.error || '' };
+    if (!r.error) remember(lastUreq, 'docs', docs);
     if (same) return;
   } catch (e) { docs = { ureq: lastUreq, list: [], error: e.message }; }
   renderDocs();
@@ -522,6 +581,12 @@ function renderDocs() {
   $('docsN').textContent = n ? String(n) : '';
   const grid = $('docsGrid');
   grid.innerHTML = '';
+  if (lastUreq && target && docs.ureq !== lastUreq) {
+    // Todavía sin leer: tres tarjetas vacías del tamaño de las de verdad (vinculación, T&C y pagaré es lo común).
+    $('docsAll').hidden = true; $('docsNote').textContent = ''; $('docsNote').className = '';
+    grid.innerHTML = Array.from({ length: 3 }, () => `<figure class="doc skel">${bone('thumbbone')}<figcaption>${bone('capbone')}${bone('capbone short')}${bone('capbone link')}</figcaption></figure>`).join('');
+    return;
+  }
   const files = docs.list.filter((d) => d.hasFile);
   $('docsAll').hidden = files.length < 2;
   $('docsNote').textContent = !lastUreq || !target ? 'Sin solicitud en la pestaña.'
@@ -561,9 +626,12 @@ async function refreshVoucher(force = false) {
   if (!force && voucher.ureq === lastUreq && Date.now() - voucherAt < 15000) return;
   voucherAt = Date.now();
   try {
-    const r = await api(`/voucher?ureq=${lastUreq}&info=1`);
+    const asked = lastUreq;
+    const r = await api(`/voucher?ureq=${asked}&info=1`);
+    if (asked !== lastUreq) return;
     const same = voucher.ureq === lastUreq && JSON.stringify(voucher.info) === JSON.stringify(r) && !voucher.error;
     voucher = { ureq: lastUreq, info: r, error: r.error || '' };
+    if (!r.error) remember(lastUreq, 'voucher', voucher);
     if (same) return;
   } catch (e) { voucher = { ureq: lastUreq, info: null, error: e.message }; }
   renderVoucher();
@@ -573,6 +641,15 @@ function openVoucher() {
   if (chrome?.tabs?.create) chrome.tabs.create({ url }); else window.open(url, '_blank');
 }
 function renderVoucher() {
+  if (lastUreq && target && voucher.ureq !== lastUreq) {
+    // Todavía sin leer: el hueco del voucher, con su forma (360 × 757 la miniatura).
+    $('voucherN').textContent = ''; $('voucherNote').textContent = ''; $('voucherNote').className = '';
+    $('voucherActs').hidden = true;
+    const thumb = $('voucherThumb');
+    thumb.hidden = false; thumb.disabled = true; thumb.classList.add('skel'); thumb.innerHTML = '';
+    return;
+  }
+  $('voucherThumb').disabled = false; $('voucherThumb').classList.remove('skel');
   const v = voucher.ureq === lastUreq ? voucher.info : null;
   const ok = !!v?.exists;
   $('voucherN').textContent = ok ? '1' : '';

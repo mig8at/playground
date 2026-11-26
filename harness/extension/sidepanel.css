@@ -130,3 +130,19 @@ h2 button.link, .dochead button.link { all: unset; cursor: pointer; color: var(-
 .vthumb[hidden] { display: none }
 .vthumb:hover, .vthumb:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent) }
 .vthumb img { display: block; width: 100% }
+
+/* Los esqueletos: el hueco de lo que está por llegar, del mismo tamaño, para que al volver a una pestaña nada salte. */
+@keyframes bone-pulse { 0%, 100% { opacity: .55 } 50% { opacity: 1 } }
+.bone { display: block; border-radius: 4px; background: color-mix(in srgb, var(--fg3) 22%, transparent); animation: bone-pulse 1.4s ease-in-out infinite }
+.console .bone { background: #33332f }
+.console .tabs .tabbone { display: inline-block; height: 12px; margin: 7px 4px 6px 2px; flex: none }
+/* Las filas guardan su alto con y sin datos: una tabla de una fila no encoge el panel al llegar. */
+.console .rows { min-height: 128px }
+.console .skel { padding: 10px; display: flex; flex-direction: column; gap: 10px }
+.console .headbone { height: 12px; width: 100%; margin-bottom: 4px }
+.console .rowbone { height: 11px }
+.console .footbone { height: 10px; width: 120px }
+.doc.skel .thumbbone { aspect-ratio: 1 / 1.294; border-radius: 6px }
+.doc.skel .capbone { height: 10px; width: 80% } .doc.skel .capbone.short { width: 50%; margin-top: 4px } .doc.skel .capbone.link { width: 36%; margin-top: 4px }
+.vthumb { aspect-ratio: 360 / 757 }
+.vthumb.skel { cursor: default; border-color: transparent; background: color-mix(in srgb, var(--fg3) 22%, transparent); animation: bone-pulse 1.4s ease-in-out infinite }
