@@ -173,7 +173,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         <button type="button" id="sound" aria-pressed="false">Sonido</button>
       </div>
     </div>
-    <p class="note">26 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados, salvo «Crecimiento por mes», cuya forma es real, los dos tops (comercios y entidades), con las ventas reales de 2026, y «Suben y bajan», con los desembolsos reales del trimestre (desembolsos por mes en producción, sin cifras absolutas). Su porcentaje de 2025 compara el año completo con 2024; el de 2026, enero a octubre con el mismo tramo de 2025.</p>
+    <p class="note">28 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados, salvo «Crecimiento por mes», cuya forma es real, los dos tops (comercios y entidades), con las ventas reales de 2026, «Suben y bajan», con los desembolsos reales del trimestre, y los de «Atención», con el uso real de noviembre (desembolsos por mes en producción, sin cifras absolutas). Su porcentaje de 2025 compara el año completo con 2024; el de 2026, enero a octubre con el mismo tramo de 2025.</p>
   </section>
 
   <section aria-labelledby="size">
@@ -451,6 +451,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
           <li>Qué comercios suben y cuáles bajan en el trimestre, en un tablero de aeropuerto; y a cuánto cerraría el mes a este ritmo</li>
           <li>Las solicitudes en vivo: cada una avanza por entran, perfil, entidad y venta, y se ve dónde se queda</li>
           <li>Récords, con un sonido especial</li>
+          <li>Atención: los comercios activos sin solicitudes este mes, los que dejaron de usar CreditOp y las entidades asignadas que nadie usa</li>
           <li>Canales: la primera venta por e-commerce, las descargas de la app y la primera compra desde la app</li>
           <li>Los primeros: un comercio que sale a producción y la primera venta de un comercio o de una entidad</li>
         </ul>
@@ -981,6 +982,40 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         wave(b, "NUEVO RECORD!", cx(b, "NUEVO RECORD!", 2), 3, 2, gold, t, 1);
         const s = n + " SOLICITUDES EN UN DIA"; text(b, s, cx(b, "312 SOLICITUDES EN UN DIA", 1), 23, 1, C.white);
       }
+    } },
+    // Atención: lo que no va bien, para verlo igual que lo bueno. Amarillo para avisar, rojo para lo que se perdió.
+    { id: "idle-merchants", group: "Atención", label: "Comercios sin uso", draw(b, t) {
+      // comercios activos que ya habían usado CreditOp y no tienen solicitudes este mes; y los que sí tenían en octubre.
+      // Medido en producción al 25-nov-2026: 81 de 170 sin solicitudes en noviembre, 20 de ellos usaban en octubre.
+      const big = b.h >= 64, n = String(Math.round(81 * ease((t - 0.3) / 1.2))), k = big ? 3 : 2;
+      text(b, big ? "COMERCIOS SIN SOLICITUDES EN NOVIEMBRE" : "SIN SOLICITUDES EN NOV", 2, big ? 3 : 1, 1, C.gray);
+      const y = big ? 20 : 10, zx = 4, nx = 4 + (big ? 22 : 14);
+      for (let j = 0; j < 3; j++) {                                   // 💤 las zetas suben y se apagan
+        const f = ((t * 0.6 + j / 3) % 1), zy = y + 7 * k - 7 - Math.round(f * (big ? 14 : 8)), zxj = zx + Math.round(f * (big ? 10 : 6));
+        text(b, "Z", zxj, zy, 1, mul(C.yellow, Math.sin(f * Math.PI)));
+      }
+      text(b, n, nx, y, k, C.yellow);
+      text(b, "DE 170 ACTIVOS", nx + tw("81", k) + 8, y + 7 * k - 7, 1, C.gray);
+      const lost = "▼ 20 DEJARON DE USAR" + (big ? " · USABAN EN OCTUBRE" : "");
+      text(b, lost, 2, big ? 54 : 25, 1, mul(C.red, ease((t - 1.6) / 0.5)));
+    } },
+    { id: "idle-lenders", group: "Atención", label: "Entidades sin uso", draw(b, t) {
+      // entidades activas y asignadas a comercios, con casi nada de uso en 30 días. Medido en producción al 25-nov-2026:
+      // 82 de 148 sin solicitudes. Banco de Bogotá: asignado a 62 comercios, 1 solicitud; Servicrédito 7 y 0; Sufi 5 y 0.
+      const big = b.h >= 64, rows = [["BANCO DE BOGOTA", 62, 1], ["SERVICREDITO", 7, 0], ["SUFI", 5, 0]];
+      text(b, "ENTIDADES SIN USO · 30 DIAS", 2, big ? 3 : 1, 1, C.gray);
+      const tot = "82 DE 148"; text(b, tot, rx(b, tot, 1), big ? 3 : 1, 1, mul(C.yellow, ease((t - 0.4) / 0.5)));
+      const ys = big ? [17, 33, 49] : [9, 17, 25];
+      rows.forEach(([name, com, sol], i) => {
+        const t0 = 0.3 + i * 0.25, off = Math.round((1 - ease((t - t0) / 0.45)) * b.w), y = ys[i];
+        if (off >= b.w) return;
+        text(b, "▼", 2 + off, y, 1, C.red);
+        text(b, name, 12 + off, y, 1, C.white);
+        const r = com + " COMERCIOS · " + sol + " SOL.";
+        const x = rx(b, r, 1) + off, cut = tw(com + " COMERCIOS · ", 1) + 1;
+        text(b, com + " COMERCIOS · ", x, y, 1, C.gray);
+        text(b, sol + " SOL.", x + cut, y, 1, sol === 0 ? C.red : C.yellow);
+      });
     } },
     { id: "uptime", group: "Desarrollo", label: "Uptime", draw(b, t) {
       const big = b.h >= 64, u = (90 + 9.98 * ease(t / 1.2)).toFixed(2).replace(".", ",") + "%";
