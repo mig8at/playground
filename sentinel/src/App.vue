@@ -277,6 +277,9 @@ const shiftText = (s) => s?.shift && `Cambio de nivel: ×${fmt(s.shift.ratio)} p
 const dayBarMax = computed(() => Math.max(1, selected.value?.now?.total || 0, ...(selected.value?.samples || []).map((x) => x.n)))
 const clock = (iso) => (iso ? new Date(iso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false }) : '')
 const dayClock = (iso) => (iso ? new Date(iso).toLocaleString('es-CO', { weekday: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : '')
+// El porqué del servidor junta varias cosas con « · »: la medida primero y después el contexto (el despliegue que lo
+// volvió más sensible, la plata en juego). En una sola línea la medida se perdía: va arriba y el contexto debajo, chico.
+const whyParts = (why) => { const [head, ...rest] = String(why || '').split(' · '); return { head, rest } }
 const pct = (x) => `${Math.round((x || 0) * 100)} %`
 // Pesos en corto: «$1.234 millones», «$85,3 millones», «$950 mil».
 const money = (x) => (x >= 1e9 ? `$${Math.round(x / 1e6).toLocaleString('es-CO')} millones` : x >= 1e6 ? `$${(x / 1e6).toLocaleString('es-CO', { maximumFractionDigits: 1 })} millones` : `$${Math.round(x / 1e3).toLocaleString('es-CO')} mil`)
@@ -375,10 +378,20 @@ function chartFor(s) {
   const ticks = [0, Math.round(top / 2), Math.round(top)].map((v) => ({ v, y: y(v) }))
   // Los despliegues de HOY, en su hora. Los de ayer se listan a la derecha.
   const todayStr = new Date().toDateString()
+  // Las etiquetas se escalonan: varios despliegues en la misma media hora (el monolito y el front juntos) se escribían
+  // uno encima del otro. Cada una va al primer renglón donde no pisa a la anterior; desde el cuarto, sólo la línea.
+  const rowEnds = []
   const marks = (data.value?.deploys || []).filter((d) => new Date(d.at).toDateString() === todayStr).map((d) => {
     const t = new Date(d.at)
-    return { ...d, x: x(t.getHours() + t.getMinutes() / 60) }
+    return { ...d, x: x(t.getHours() + t.getMinutes() / 60), label: `${repoShort(d.repo)} ${d.version}` }
+  }).sort((a, b) => a.x - b.x).map((m) => {
+    const width = m.label.length * 5.6 + 10
+    let row = rowEnds.findIndex((end) => end < m.x)
+    if (row < 0) row = rowEnds.length
+    if (row < 3) rowEnds[row] = m.x + width
+    return { ...m, row, labelY: PAD.t + 10 + row * 12 }
   })
+  const markRows = Math.min(3, rowEnds.length)
   // Los cambios de política de HOY de la entidad elegida (o de todas, en el rechazo de CreditopX): como los despliegues.
   const lenderId = s.kind === 'lender' ? s.id : s.kind === 'reject' ? s.signal.slice(7) : null
   const policyMarks = lenderId == null ? [] : (data.value?.policies || [])
@@ -393,7 +406,7 @@ function chartFor(s) {
   const gaps = (data.value?.gaps || []).filter((g) => new Date(g.to) > dayStart).map((g) => ({
     key: g.from, x1: x(hourOf(g.from)), x2: x(hourOf(g.to)), title: `Sentinel no miró de ${dayClock(g.from)} a ${dayClock(g.to)}`,
   })).filter((g) => g.x2 - g.x1 > 1)
-  return { band, median, today, ticks, marks, policyMarks, gaps, lastX: last >= 0 ? x(last) : 0, lastY: last >= 0 ? y(s.today[last]) : 0, hours: [0, 6, 12, 18, 23].map((h) => ({ h, x: x(h) })) }
+  return { band, median, today, ticks, marks, markRows, policyMarks, gaps, lastX: last >= 0 ? x(last) : 0, lastY: last >= 0 ? y(s.today[last]) : 0, hours: [0, 6, 12, 18, 23].map((h) => ({ h, x: x(h) })) }
 }
 // Los errores en los logs que nombran a la entidad elegida (preapprovals-service y legacy-backend).
 const lenderErrors = computed(() => (selected.value?.kind === 'lender' ? (data.value?.lenderErrors || []).find((x) => x.id === selected.value.id) : null))
@@ -551,7 +564,7 @@ onBeforeUnmount(() => {
           <div v-for="s in suggestions" :key="`q-${s.signal}`" class="row subject suggestion">
             <button type="button" class="subject-open" :title="s.why" @click="pick(s)">
               <i class="dot" :class="`is-${s.state}`" aria-hidden="true"></i>
-              <span class="subject-name">{{ s.name }}</span>
+              <span class="subject-name" :title="s.name">{{ s.name }}</span>
               <small class="subject-kind">{{ KIND_LABEL[s.kind].toLowerCase() }}</small>
             </button>
             <button type="button" class="region-action" :title="`Seguir ${s.name}`" :aria-label="`Seguir ${s.name}`" @click="setFollow(s, true)">
@@ -571,7 +584,7 @@ onBeforeUnmount(() => {
           <div v-for="s in group.list" :key="`f-${s.signal}`" class="row subject followed" :class="{ on: isOn(s), 'is-quiet': s.state === 'quiet' }">
             <button type="button" class="subject-open" :title="s.why" @click="pick(s)">
               <i class="dot" :class="`is-${s.state}`" aria-hidden="true"></i>
-              <span class="subject-name">{{ s.name }}</span>
+              <span class="subject-name" :title="s.name">{{ s.name }}</span>
               <svg v-if="spark(s)" class="spark" viewBox="0 0 72 22" aria-hidden="true"><polyline class="spark-normal" :points="spark(s).normal" /><polyline class="spark-today" :points="spark(s).today" /></svg>
               <small class="subject-nums" :title="`${spanLabel(s).toLowerCase()} · lo normal en esa ventana`">{{ s.now.total }} · {{ fmt(s.median) }}</small>
               <small v-if="lenderErrorsOf(s)?.now.total" class="err-badge" :class="`is-${lenderErrorsOf(s).state}`" :title="`errores en los logs: ${lenderErrorsOf(s).why}`">{{ lenderErrorsOf(s).now.total }} err</small>
@@ -593,21 +606,36 @@ onBeforeUnmount(() => {
       </div>
       <div class="region-body">
         <div v-if="selected" class="view">
-          <p class="verdict" :class="`is-${selected.state}`">
-            <i class="dot" :class="`is-${selected.state}`" aria-hidden="true"></i>
-            <b>{{ STATE_LABEL[selected.state] }}</b> · {{ selected.why }}
-          </p>
+          <div class="verdict" :class="`is-${selected.state}`">
+            <p class="verdict-main"><i class="dot" :class="`is-${selected.state}`" aria-hidden="true"></i><b>{{ STATE_LABEL[selected.state] }}</b> {{ whyParts(selected.why).head }}</p>
+            <p v-if="whyParts(selected.why).rest.length" class="verdict-ctx">{{ whyParts(selected.why).rest.join(' · ') }}</p>
+          </div>
           <p v-if="sourceNoteOf(selected)" class="source-note" role="status">⚠ {{ sourceNoteOf(selected) }}. Lo que se ve acá es lo de la última lectura que sí llegó.</p>
           <p v-if="selected.raw !== selected.state && (selected.raw === 'alert' || selected.raw === 'warn')" class="note">
             Ahora mismo daría «{{ STATE_LABEL[selected.raw] }}», pero todavía no se sostuvo: se avisa cuando dura {{ data.rules.sustain }} lecturas seguidas ({{ data.rules.sustain * data.rules.stepMinutes }} min).</p>
           <p v-if="hours(selected) > 1" class="note">Mira las últimas {{ hours(selected) }} horas y no una: {{ selected.kind === 'reject' || selected.kind === 'out' || selected.kind === 'funnel' ? 'en una hora hay muy pocas para hablar de una tasa' : 'es de lo que seguís, y en una hora entra tan poco que no hay con qué comparar' }}.</p>
           <p v-if="selected.silence" class="note">Callado desde el {{ dayClock(selected.silence.since) }}: {{ silentFor(selected.silence.minutes) }} sin escribir una línea, más que el silencio más largo de las semanas anteriores ({{ silentFor(selected.silence.longest) }}). Se marca hasta que vuelva a escribir, aunque la estadística de la hora ya lo tome por normal.</p>
           <p v-if="selected.shift" class="note">{{ shiftText(selected) }}</p>
-          <p v-if="selected.explain" class="note why-note"><b>Por qué (hipótesis del modelo, al pasar a alerta):</b> {{ selected.explain }}</p>
-          <p v-if="selected.stake && selected.stake.share < 1" class="note">Mueve {{ sharePct(selected.stake.share) }} de lo desembolsado en los últimos 28 días (~{{ money(selected.stake.perDay) }} por día, {{ selected.stake.count }} créditos): es lo que se deja de colocar si esto se cae.</p>
-          <p v-if="selectedMonth" class="note">En el mes ({{ monthRows?.span }}): {{ selectedMonth.req.toLocaleString('es-CO') }} solicitudes contra {{ selectedMonth.reqPrev.toLocaleString('es-CO') }}
-            (<span :class="paceClass(selectedMonth.reqPace)">{{ paceText(selectedMonth.reqPace) }}</span>) y {{ selectedMonth.disb.toLocaleString('es-CO') }} desembolsos contra {{ selectedMonth.disbPrev.toLocaleString('es-CO') }}
-            (<span :class="paceClass(selectedMonth.disbPace)">{{ paceText(selectedMonth.disbPace) }}</span>), {{ money(selectedMonth.amount) }}. El porcentaje es el ritmo: cuenta los días hábiles y de descanso de cada mes.</p>
+          <details v-if="selected.explain" class="why-note">
+            <summary>Por qué, según el modelo <small>(hipótesis, al pasar a alerta)</small></summary>
+            <p>{{ selected.explain }}</p>
+          </details>
+          <dl v-if="(selected.stake && selected.stake.share < 1) || selectedMonth" class="facts">
+            <div v-if="selected.stake && selected.stake.share < 1" class="fact" title="Lo desembolsado de los últimos 28 días: es lo que se deja de colocar si esto se cae">
+              <dt>Peso en lo desembolsado</dt>
+              <dd><b>{{ sharePct(selected.stake.share) }}</b> <small>~{{ money(selected.stake.perDay) }} por día · {{ selected.stake.count }} créditos en 28 días</small></dd>
+            </div>
+            <template v-if="selectedMonth">
+              <div class="fact" :title="`En el mes, ${monthRows?.span}. El porcentaje es el ritmo: cuenta los días hábiles y de descanso de cada mes`">
+                <dt>Solicitudes en el mes</dt>
+                <dd><b>{{ selectedMonth.req.toLocaleString('es-CO') }}</b> <small>contra {{ selectedMonth.reqPrev.toLocaleString('es-CO') }}</small> <span class="pace" :class="paceClass(selectedMonth.reqPace)">{{ paceText(selectedMonth.reqPace) }}</span></dd>
+              </div>
+              <div class="fact" :title="`En el mes, ${monthRows?.span}. El porcentaje es el ritmo: cuenta los días hábiles y de descanso de cada mes`">
+                <dt>Desembolsos en el mes</dt>
+                <dd><b>{{ selectedMonth.disb.toLocaleString('es-CO') }}</b> <small>contra {{ selectedMonth.disbPrev.toLocaleString('es-CO') }} · {{ money(selectedMonth.amount) }}</small> <span class="pace" :class="paceClass(selectedMonth.disbPace)">{{ paceText(selectedMonth.disbPace) }}</span></dd>
+              </div>
+            </template>
+          </dl>
 
           <div class="cards">
             <div class="card-num"><span class="card-label">{{ spanLabel(selected) }}</span><span class="card-value">{{ selected.now.total }}</span>
@@ -649,12 +677,13 @@ onBeforeUnmount(() => {
               <polygon class="band" :points="chart.band" />
               <polyline class="median" :points="chart.median" />
               <g v-for="m in chart.marks" :key="m.url" class="deploy-mark">
+                <title>{{ m.label }} · {{ dayClock(m.at) }}</title>
                 <line :x1="m.x" :x2="m.x" :y1="PAD.t" :y2="H - PAD.b" />
-                <text :x="m.x + 4" :y="PAD.t + 10">{{ repoShort(m.repo) }} {{ m.version }}</text>
+                <text v-if="m.row < 3" :x="m.x + 4" :y="m.labelY">{{ m.label }}</text>
               </g>
               <g v-for="p in chart.policyMarks" :key="`pol-${p.lenderId}-${p.version}`" class="policy-mark">
                 <line :x1="p.x" :x2="p.x" :y1="PAD.t" :y2="H - PAD.b" />
-                <text :x="p.x + 4" :y="PAD.t + 22">política v{{ p.version }}</text>
+                <text :x="p.x + 4" :y="PAD.t + 10 + chart.markRows * 12">política v{{ p.version }}</text>
                 <title>Cambio de política de {{ p.lender }} (versión {{ p.version }}) · {{ dayClock(p.at) }}</title>
               </g>
               <polyline class="today" :points="chart.today" />
@@ -757,7 +786,7 @@ onBeforeUnmount(() => {
                 </template>
               </tbody>
             </table></div>
-            <p class="chart-note">De producción, {{ monthRows.span }} a la misma hora. El ritmo divide por los días de cada tramo (un día de descanso pesa {{ String(monthData?.restWeight ?? '').replace('.', ',') }}): un mes con más festivos no se ve como caída. Es una vista, no avisa; lo que ella ve y la curva no es una tendencia lenta. Todo, con <code>bin/sentinel month</code>.<template v-if="monthData?.note"> ⚠ {{ monthData.note }}</template></p>
+            <p class="chart-note">{{ monthRows.span[0].toUpperCase() + monthRows.span.slice(1) }}, a la misma hora. El ritmo cuenta los días hábiles y de descanso de cada tramo. No avisa: muestra la tendencia lenta que la curva de la hora no ve. Todo, con <code>bin/sentinel month</code>.<template v-if="monthData?.note"> ⚠ {{ monthData.note }}</template></p>
           </section>
 
           <section v-if="lenderReject" class="chart-box lender-reject">
@@ -928,14 +957,19 @@ onBeforeUnmount(() => {
           </div>
         </section>
         <p v-if="data && !attention.length" class="none">Nada fuera de lo normal en la última hora{{ known.length ? ' que no conozcas' : '' }}.</p>
-        <div v-for="s in attention" :key="`a-${s.signal}`" class="attention-item">
-          <button type="button" class="row stacked attention-row" :class="`is-${s.state}`" @click="pick(s)">
-            <span class="attention-name"><i class="dot" :class="`is-${s.state}`" aria-hidden="true"></i>{{ s.name }}</span>
-            <small class="muted attention-kind">{{ KIND_LABEL[s.kind] }}</small>
-            <small class="row-desc">{{ s.why }}</small>
-            <small v-if="s.explain" class="row-desc why-text">Por qué: {{ s.explain }}</small>
+        <div v-for="s in attention" :key="`a-${s.signal}`" class="attention-item" :class="[`is-${s.state}`, { on: isOn(s) }]">
+          <button type="button" class="attention-open" @click="pick(s)">
+            <span class="attention-name"><i class="dot" :class="`is-${s.state}`" aria-hidden="true"></i>{{ s.name }}<small class="attention-kind">{{ KIND_LABEL[s.kind] }}</small></span>
+            <span class="attention-why">{{ whyParts(s.why).head }}</span>
+            <span v-for="(r, i) in whyParts(s.why).rest" :key="i" class="attention-ctx">{{ r }}</span>
           </button>
-          <button type="button" class="btn btn-ghost ack" title="Ya lo sé: pasa a «Conocidos» hasta que se cierre o empeore" @click="setAck(s, true)">Reconocer</button>
+          <button type="button" class="region-action ack" title="Reconocer: ya lo sé, pasa a «Conocidos» hasta que se cierre o empeore" :aria-label="`Reconocer ${s.name}`" @click="setAck(s, true)">
+            <span class="ui-icon" data-icon="check" aria-hidden="true"></span>
+          </button>
+          <details v-if="s.explain" class="attention-explain">
+            <summary>Por qué, según el modelo</summary>
+            <p>{{ s.explain }}</p>
+          </details>
         </div>
 
         <template v-if="known.length">
@@ -944,7 +978,9 @@ onBeforeUnmount(() => {
             <button type="button" class="row attention-row known" :title="s.why" @click="pick(s)">
               <span class="attention-name"><i class="dot" :class="`is-${s.state}`" aria-hidden="true"></i>{{ s.name }}</span>
             </button>
-            <button type="button" class="btn btn-ghost ack" title="Vuelve a «Para mirar»" @click="setAck(s, false)">Devolver</button>
+            <button type="button" class="region-action ack" title="Devolver a «Para mirar»" :aria-label="`Devolver ${s.name} a Para mirar`" @click="setAck(s, false)">
+              <span class="ui-icon" data-icon="restore" aria-hidden="true"></span>
+            </button>
           </div>
         </template>
 
@@ -1077,7 +1113,7 @@ onBeforeUnmount(() => {
 .subject-open { display: flex; flex: 1; min-width: 0; align-items: center; gap: 6px; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer }
 .followed .unfollow { visibility: hidden }
 .followed:hover .unfollow, .followed:focus-within .unfollow { visibility: visible }
-.spark { flex: none; width: 72px; height: 22px }
+.spark { flex: none; width: 56px; height: 22px }
 .err-badge { flex: none; padding: 0 5px; border-radius: 999px; font-size: var(--text-xs); color: var(--fg-2);
   background: color-mix(in oklab, var(--status-bad) 14%, transparent) }
 .err-badge.is-warn, .err-badge.is-alert { color: var(--foreground); background: color-mix(in oklab, var(--status-bad) 35%, transparent) }
@@ -1101,8 +1137,19 @@ th[aria-sort="descending"] .th-sort::after { content: ' ↓' }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0) }
 
 .view { display: flex; flex-direction: column; gap: var(--space-6); padding: var(--space-6); max-width: 980px }
-.verdict { margin: 0; display: flex; align-items: center; gap: 4px; font-size: var(--text-body); color: var(--fg-2) }
+.verdict { display: grid; gap: 2px }
+.verdict-main { margin: 0; font-size: var(--text-body); line-height: 1.4; color: var(--foreground); text-wrap: pretty }
+.verdict-main .dot { margin-right: 6px; vertical-align: 1px }
+.verdict-main b { margin-right: 4px }
+.verdict-ctx { margin: 0; padding-left: 14px; font-size: var(--text-sm); color: var(--fg-2); text-wrap: pretty }
 .verdict b { color: var(--foreground) }
+.facts { margin: 0; display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-6) }
+.fact { display: grid; gap: 2px; min-width: 0 }
+.fact dt { font-size: var(--text-xs); color: var(--fg-3) }
+.fact dd { margin: 0; font-size: var(--text-sm); color: var(--fg-2); font-variant-numeric: tabular-nums }
+.fact dd b { color: var(--foreground); font-size: var(--text-body) }
+.fact .pace { margin-left: 4px; font-weight: 600; color: var(--foreground) }
+.fact .pace.pace-down { color: var(--status-bad) }
 .verdict.is-alert b { color: var(--status-bad) }
 .verdict.is-warn b { color: var(--status-warn) }
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-3) }
@@ -1159,8 +1206,10 @@ h3 { margin: 0; font-size: var(--text-xs); font-weight: 600; color: var(--fg-3);
 .verdict-li::before { content: '–'; position: absolute; left: 0; color: var(--muted-foreground) }
 .verdict-li.sub { padding-left: 24px }
 .verdict-li.sub::before { left: 12px }
-.why-text { font-style: italic }
-.why-note { border-left: 2px solid var(--muted-foreground); padding-left: 8px }
+.why-note { margin: calc(var(--space-3) * -1) 0 0; border-left: 2px solid var(--muted-foreground); padding-left: 8px; font-size: var(--text-sm); color: var(--fg-2) }
+.why-note summary { cursor: pointer; width: fit-content; color: var(--foreground) }
+.why-note summary small { color: var(--fg-3) }
+.why-note p { margin: 4px 0 0; line-height: 1.45; max-width: 80ch; text-wrap: pretty }
 .chart .policy-mark line { stroke: var(--primary); stroke-width: 1.5; stroke-dasharray: 1 3 }
 .chart .policy-mark text { fill: var(--primary); font-size: 10px }
 .chart-note { margin: 0; font-size: var(--text-xs); color: var(--fg-3) }
@@ -1171,12 +1220,24 @@ h3 { margin: 0; font-size: var(--text-xs); font-weight: 600; color: var(--fg-3);
 .day-bar.today small { color: var(--foreground); font-weight: 600 }
 
 .attention-row .row-desc { white-space: normal }
-.attention-item { display: flex; align-items: flex-start; gap: var(--space-1) }
-.attention-item .attention-row { flex: 1; min-width: 0 }
-.attention-name { white-space: normal; overflow-wrap: anywhere }
-.attention-kind { display: block; padding-left: calc(var(--space-2) + 8px) }
-.attention-item .ack { flex: none; margin: var(--space-1) var(--space-2) 0 0; font-size: var(--text-sm) }
+/* Cada cosa que pide atención: el nombre y su clase arriba, la medida, y el contexto debajo, chico. «Reconocer» es un
+   ícono en la esquina (como botón de texto se comía una columna y dejaba el porqué en una franja angosta). */
+.attention-item { position: relative; margin: 0 var(--space-2) var(--space-1); border-radius: 6px }
+.attention-item:hover, .attention-item.on { background: var(--hover) }
+.attention-open { display: grid; gap: 3px; width: 100%; padding: var(--space-2) 32px var(--space-2) var(--space-2); border: 0;
+  background: none; color: var(--foreground); font: inherit; text-align: left; cursor: pointer; border-radius: 6px }
+.attention-name { display: block; font-weight: 600; overflow-wrap: anywhere }
+.attention-kind { margin-left: 6px; font-weight: 400; font-size: var(--text-xs); color: var(--fg-3) }
+.attention-why { font-size: var(--text-sm); line-height: 1.4; color: var(--foreground); text-wrap: pretty }
+.attention-ctx { font-size: var(--text-xs); line-height: 1.35; color: var(--fg-2); text-wrap: pretty }
+.attention-item .ack { position: absolute; top: 6px; right: 4px }
 .attention-item:not(:hover, :focus-within) .ack { color: var(--fg-3) }   /* en reposo, apagado por la tinta (con opacity no pasaba AA) */
+.attention-explain { margin: 0 var(--space-2) var(--space-2) calc(var(--space-2) + 14px); font-size: var(--text-xs); color: var(--fg-2) }
+.attention-explain summary { cursor: pointer; color: var(--fg-2); width: fit-content }
+.attention-explain summary:hover { color: var(--foreground) }
+.attention-explain p { margin: 4px 0 0; line-height: 1.45; text-wrap: pretty }
+.attention-item:has(.known) .ack, .attention-item .attention-row.known + .ack { position: static }
+.attention-item:has(.attention-row.known) { display: flex; align-items: center; margin: 0 }
 .attention-row.known { opacity: 0.75 }
 .region-head.toggle { width: 100%; border: 0; background: none; cursor: pointer; font: inherit; color: inherit; text-align: left }
 .chart .gap { fill: var(--fg-2); opacity: 0.12 }
