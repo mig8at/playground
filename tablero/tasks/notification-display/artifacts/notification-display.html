@@ -173,7 +173,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         <button type="button" id="sound" aria-pressed="false">Sonido</button>
       </div>
     </div>
-    <p class="note">28 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados, salvo «Crecimiento por mes», cuya forma es real, los dos tops (comercios y entidades), con las ventas reales de 2026, «Suben y bajan», con los desembolsos reales del trimestre, y los de «Atención», con el uso real de noviembre (desembolsos por mes en producción, sin cifras absolutas). Su porcentaje de 2025 compara el año completo con 2024; el de 2026, enero a octubre con el mismo tramo de 2025.</p>
+    <p class="note">29 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados, salvo «Crecimiento por mes», cuya forma es real, los dos tops (comercios y entidades), con las ventas reales de 2026, «Suben y bajan», con los desembolsos reales del trimestre, y los de «Atención», con el uso real de noviembre (desembolsos por mes en producción, sin cifras absolutas). Su porcentaje de 2025 compara el año completo con 2024; el de 2026, enero a octubre con el mismo tramo de 2025.</p>
   </section>
 
   <section aria-labelledby="size">
@@ -451,7 +451,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
           <li>Qué comercios suben y cuáles bajan en el trimestre, en un tablero de aeropuerto; y a cuánto cerraría el mes a este ritmo</li>
           <li>Las solicitudes en vivo: cada una avanza por entran, perfil, entidad y venta, y se ve dónde se queda</li>
           <li>Récords, con un sonido especial</li>
-          <li>Atención: los comercios activos sin solicitudes este mes, los que dejaron de usar CreditOp y las entidades asignadas que nadie usa</li>
+          <li>Atención: los comercios activos sin solicitudes este mes, los que dejaron de usar CreditOp las entidades asignadas que nadie usa y las que reciben solicitudes pero casi no venden</li>
           <li>Canales: la primera venta por e-commerce, las descargas de la app y la primera compra desde la app</li>
           <li>Los primeros: un comercio que sale a producción y la primera venta de un comercio o de una entidad</li>
         </ul>
@@ -1015,6 +1015,24 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         const x = rx(b, r, 1) + off, cut = tw(com + " COMERCIOS · ", 1) + 1;
         text(b, com + " COMERCIOS · ", x, y, 1, C.gray);
         text(b, sol + " SOL.", x + cut, y, 1, sol === 0 ? C.red : C.yellow);
+      });
+    } },
+    { id: "low-conversion", group: "Atención", label: "Solicitudes sin venta", draw(b, t) {
+      // entidades con muchas solicitudes y pocas ventas en 30 días, contra el promedio de las solicitudes que eligen entidad.
+      // Medido en producción al 25-nov-2026: promedio 35 %. Bancolombia consumo 1.896 → 10 (0,5 %), Mayi 135 → 3 (2,2 %),
+      // Nequi 259 → 7 (2,7 %). Las solicitudes de los últimos días todavía pueden venderse.
+      const big = b.h >= 64, rows = [["BANCOLOMBIA CONSUMO", 1896, "0,5%"], ["MAYI", 135, "2,2%"], ["NEQUI", 259, "2,7%"]];
+      text(b, big ? "NO SE VUELVEN VENTA · 30 DIAS" : "NO SE VUELVEN VENTA", 2, big ? 3 : 1, 1, C.gray);
+      const avg = "PROMEDIO 35%"; text(b, avg, rx(b, avg, 1), big ? 3 : 1, 1, mul(C.green, ease((t - 0.4) / 0.5)));
+      const ys = big ? [17, 33, 49] : [9, 17, 25];
+      rows.forEach(([name, sol, pct], i) => {
+        const t0 = 0.3 + i * 0.25, off = Math.round((1 - ease((t - t0) / 0.45)) * b.w), y = ys[i];
+        if (off >= b.w) return;
+        text(b, "▼", 2 + off, y, 1, C.red);
+        text(b, name, 12 + off, y, 1, C.white);
+        const solS = fmt(sol) + " SOL.", px0 = rx(b, pct, 1) + off;
+        text(b, pct, px0, y, 1, C.red);
+        text(b, solS, px0 - 8 - tw(solS, 1), y, 1, C.gray);
       });
     } },
     { id: "uptime", group: "Desarrollo", label: "Uptime", draw(b, t) {
