@@ -989,6 +989,34 @@ export function perfilDiag(lenderName) {
   })
   return { rows, winner, blacklisted, subject: { employment: s.employment, age: s.age, income: s.monthlyIncome, gender: s.gender, verified: s.incomeVerified, continuity: s.continuityMonths } }
 }
+// Lo que PIDE cada requisito de una categoría y lo que TIENE el cliente, para leer por qué ganó o no (2026-11-26). Sale de
+// `catChecks`, la misma que decide, así el ✓/✗ no se puede desfasar de la regla. `restricts: false` = el umbral está
+// abierto y no filtra a nadie (se muestra aparte, apagado).
+const OCC_LABEL = { empleado: 'empleado', independiente: 'independiente', pensionado: 'pensionado', desempleado: 'desempleado' }
+const GENDER_LABEL = { M: 'hombre', F: 'mujer' }
+export function categoryRequirements(lenderName, c) {
+  const s = subjectOf(); const l = findLenderDef(lenderName)
+  const checks = catChecks(c, s, l)
+  const none = 'sin dato'
+  const v = (x, unit = '') => (x == null ? none : x + unit)
+  const list = (arr, map) => (arr || []).map(x => map[x] || x).join(', ') || 'ninguna'
+  const months = (n) => (n == null ? none : n + ' meses')
+  const policy = c.capacityMethod === 'finandina_v1' ? finandinaAmount(l, c, s) : null
+  const defs = {
+    capacity: { label: 'Política de Finandina', asks: 'ingreso de Ágil Data o Mareigua dentro de sus bandas', has: policy ? (policy.applies ? 'aplica: ' + money(policy.amount) : policy.reason) : none, restricts: true },
+    occupation: { label: 'Ocupación', asks: list(c.occupation, OCC_LABEL), has: v(OCC_LABEL[s.employment] || s.employment), restricts: !OCCUPATIONS.every(o => c.occupation.includes(o)) },
+    age: { label: 'Edad', asks: `entre ${c.minAge} y ${c.maxAge} años`, has: v(s.age, ' años'), restricts: true },
+    income: { label: 'Ingreso verificado', asks: c.verifiedIncome ? 'de una central (no declarado)' : 'cualquiera', has: s.incomeSource || none, restricts: !!c.verifiedIncome },
+    continuity: { label: 'Continuidad laboral', asks: c.minContinuity ? `${c.minContinuity} meses o más` : 'cualquiera', has: months(s.continuityMonths), restricts: !!c.minContinuity },
+    gender: { label: 'Género', asks: list(c.gender, GENDER_LABEL), has: v(GENDER_LABEL[s.gender] || s.gender), restricts: !(c.gender.includes('M') && c.gender.includes('F')) },
+    score: { label: 'Score', asks: c.minScore > 0 ? `${c.minScore} o más` : 'cualquiera', has: v(s.score), restricts: c.minScore > 0 },
+    negatives: { label: 'Negativos 12 meses', asks: c.maxNegatives < 20 ? `${c.maxNegatives} como máximo` : 'sin tope', has: v(s.negatives12m), restricts: c.maxNegatives < 20 },
+    delinq: { label: 'Mora vigente', asks: c.maxDelinq < 10 ? `${c.maxDelinq} como máximo` : 'sin tope', has: v(s.currentArrears), restricts: c.maxDelinq < 10 },
+    history: { label: 'Historia crediticia', asks: c.minHistory > 0 ? `${c.minHistory} meses o más` : 'cualquiera', has: months(s.creditHistoryMonths), restricts: c.minHistory > 0 },
+    inquiries: { label: 'Consultas 6 meses', asks: c.maxInquiries < 20 ? `${c.maxInquiries} como máximo` : 'sin tope', has: v(s.inquiries6m), restricts: c.maxInquiries < 20 },
+  }
+  return Object.entries(checks).map(([key, ok]) => ({ key, ok, ...(defs[key] || { label: key, asks: '—', has: '—', restricts: true }) }))
+}
 // El carrusel abre en el perfil que realmente preaprobó al solicitante, no en la primera fila
 // de configuración. Si nadie cumple, queda en la primera para poder diagnosticar el motivo.
 export function focusWinningProfile(lenderName) {

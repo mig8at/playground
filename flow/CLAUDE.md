@@ -54,7 +54,9 @@ sidebar «Escenario» y toda la tabla se recalcula.
 
 - Tiene las seis filas: **1 · Listado** (las reglas duras de la sucursal: tipo de documento, centrales y grupos; CreditopX
   que no las cumple no sale, las demás salen con probabilidad baja) y **2 · Preaprobación** (quién contesta, las
-  categorías si decide el motor, lo que se dicta si decide la API, el cupo y la cuota con su fianza) y **3 · Elegir la
+  categorías si decide el motor —cada una con lo que pide y lo que tiene el cliente, en verde y rojo, y arriba quién ganó
+  y qué tumbó a las de más prioridad (`categoryRequirements`, que sale de la misma `catChecks` que decide)—, lo que se
+  dicta si decide la API, el cupo y la cuota con su fianza) y **3 · Elegir la
   entidad** (`selectionCheck`: lo que revisa `update-user-request`, lo que guarda —el `amount` de CreditopX lleva el FGA,
   el de la delegada no— y por dónde sigue cada riel) y **4 · Validación de identidad** (`identityOutcome`: los proveedores de
   `lender_identity_validation_types` en orden, que `bin/flow import` trae desde 2026-11-25; lo que contesta cada uno se

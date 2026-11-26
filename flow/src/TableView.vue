@@ -6,7 +6,7 @@ import {
   branchGateDiag, branchCreditBureauRules, categoryDiag, usesQuotaEngine, usesPreApproval, preApprovalResponseOf,
   setPreApprovalField, installmentBreakdown, bondOf, calcValue, selectionCheck,
   identityOutcome, setIdentityResult, IDENTITY_PROVIDERS, paymentDateOptions, paymentSchedule, delegatedOf, CREDITOPX_PAYMENT_DAYS,
-  closingOutcome, setSignatureOk, finandinaAmount, clientSubject,
+  closingOutcome, setSignatureOk, finandinaAmount, clientSubject, categoryRequirements, isBlacklisted,
 } from './store'
 
 // La TABLA del flujo (2026-11-25): el mismo cliente contra todas las entidades, paso por paso. Cada fila es un paso de
@@ -170,14 +170,33 @@ const condText = (x) => {
 }
 
 // Detalle de la preaprobación: las categorías (si decide el motor), lo que dicta la API, y la calculadora de cuota.
-const CHECK = { capacity: 'capacidad (Finandina)', occupation: 'ocupación', age: 'edad', income: 'ingreso verificado', continuity: 'continuidad', gender: 'género', score: 'score', negatives: 'negativos', delinq: 'mora', history: 'historia', inquiries: 'consultas' }
 const preDetail = computed(() => {
   if (!openCol.value || open.value.row !== 'preapproval') return null
   const { def: l, row: r } = openCol.value.c
   const cats = usesQuotaEngine(l) ? categoryDiag(l.name) : null
   const won = cats?.rows.find(x => x.won)?.cat || null
   const policyAmount = won && won.capacityMethod === 'finandina_v1' ? finandinaAmount(l, won, clientSubject()) : null
-  return { l, r, cats, who: whoDecides(l), pa: usesPreApproval(l) ? preApprovalResponseOf(l.name) : null, policyAmount, won }
+  // Por categoría: los requisitos que filtran (los que fallan primero) y los abiertos aparte. Se abren la que gana y las
+  // que fallaron antes que ella, que son las que explican por qué no ganó otra; si ninguna gana, todas.
+  const winAt = cats ? cats.rows.findIndex(x => x.won) : -1
+  const catRows = (cats?.rows || []).map((row, i) => {
+    const all = categoryRequirements(l.name, row.cat)
+    const reqs = all.filter(x => x.restricts || !x.ok).sort((a, b) => Number(a.ok) - Number(b.ok))
+    const fails = all.filter(x => !x.ok).length
+    const state = row.won ? 'won' : row.ok ? 'ok' : 'no'
+    const stateLabel = cats.blacklisted ? 'lista negra' : row.won ? 'gana' : row.ok ? 'también cumple' : `no cumple ${fails} de ${reqs.length}`
+    return { row, reqs, free: all.filter(x => !x.restricts && x.ok).map(x => x.label), state, stateLabel, open: winAt < 0 || i <= winAt }
+  })
+  // El resumen, arriba: quién ganó y qué tumbó a las que tenían más prioridad (cuántas falló cada requisito).
+  const before = catRows.filter((x, i) => !x.row.ok && (winAt < 0 || i < winAt))
+  const tally = {}
+  before.forEach(x => x.reqs.filter(q => !q.ok).forEach(q => { tally[q.label] = (tally[q.label] || 0) + 1 }))
+  const catSummary = cats && !isBlacklisted(l.name) ? {
+    winner: winAt >= 0 ? cats.rows[winAt].cat.label : null,
+    before: before.length,
+    reasons: Object.entries(tally).sort((a, b) => b[1] - a[1]).map(([k, n]) => ({ label: k, n })),
+  } : null
+  return { l, r, cats, catRows, catSummary, blacklisted: isBlacklisted(l.name), who: whoDecides(l), pa: usesPreApproval(l) ? preApprovalResponseOf(l.name) : null, policyAmount, won }
 })
 const term = ref(null)
 const terms = computed(() => (preDetail.value?.r?.dues || []).slice().sort((a, b) => a - b))
@@ -318,15 +337,32 @@ const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
           <p class="tv-p">El servicio de preaprobación le pregunta a <b>{{ preDetail.who }}</b>. Lo que contesta es el <b>cupo</b>:
             el máximo que le prestan a este cliente. Si pide más, la tarjeta le pide bajar el monto.</p>
 
-          <!-- Decide el motor: la categoría -->
+          <!-- Decide el motor: la categoría. Cada una con lo que pide y lo que tiene el cliente, en verde lo que cumple y en
+               rojo lo que no; abiertas la que gana y las que fallaron antes que ella (las que explican el resultado). -->
           <template v-if="preDetail.cats">
-            <div class="tv-sec">Categorías: gana la primera que cumple todo</div>
-            <div v-for="row in preDetail.cats.rows" :key="row.cat.id" class="tv-catrow" :class="{ won: row.won, ok: row.ok && !row.won, no: !row.ok }">
-              <span class="tv-catrow__n">{{ row.cat.label }}</span>
-              <span v-if="row.won" class="tv-catrow__s">gana · cupo {{ money(row.cupo) }} · {{ row.cat.maxFeeNumber ? 'hasta ' + row.cat.maxFeeNumber + ' cuotas' : 'sin tope de cuotas' }}<template v-if="row.cat.fga != null"> · FGA {{ row.cat.fga }} %</template></span>
-              <span v-else-if="row.ok" class="tv-catrow__s">también cumple</span>
-              <span v-else class="tv-catrow__s">falla: {{ Object.entries(row.checks).filter(([, v]) => !v).map(([k]) => CHECK[k] || k).join(', ') }}</span>
+            <div class="tv-sec">Categorías, en orden de prioridad: gana la primera que cumple todo</div>
+            <div v-if="preDetail.catSummary" class="tv-cat-sum" :class="preDetail.catSummary.winner ? 'ok' : 'no'">
+              <div><template v-if="preDetail.catSummary.winner">Gana <b>{{ preDetail.catSummary.winner }}</b></template><template v-else><b>Ninguna categoría cumple</b></template><template v-if="preDetail.catSummary.before">{{ preDetail.catSummary.winner ? ': las ' + preDetail.catSummary.before + ' de antes fallaron por' : ': fallan por' }}</template></div>
+              <div v-if="preDetail.catSummary.reasons.length" class="tv-cat-sum__why">
+                <span v-for="x in preDetail.catSummary.reasons" :key="x.label" class="tv-cat-sum__chip"><X :size="11" /> {{ x.label }}<small v-if="preDetail.catSummary.before > 1"> ×{{ x.n }}</small></span>
+              </div>
             </div>
+            <div v-if="preDetail.blacklisted" class="tv-verdict no">El documento está en la lista negra de {{ preDetail.l.name }}: ninguna categoría aplica.</div>
+            <details v-for="cat in preDetail.catRows" :key="cat.row.cat.id" class="tv-cat" :class="cat.state" :open="cat.open">
+              <summary class="tv-cat__h">
+                <span class="tv-cat__ic"><Check v-if="cat.row.ok" :size="12" /><X v-else :size="12" /></span>
+                <b class="tv-cat__name">{{ cat.row.cat.label }}</b>
+                <span class="tv-cat__state">{{ cat.stateLabel }}</span>
+                <ChevronRight class="tv-cat__chev" :size="14" />
+              </summary>
+              <div v-if="cat.row.won" class="tv-cat__won">Cupo {{ money(cat.row.cupo) }} · {{ cat.row.cat.maxFeeNumber ? 'hasta ' + cat.row.cat.maxFeeNumber + ' cuotas' : 'sin tope de cuotas' }}<template v-if="cat.row.cat.fga != null"> · FGA {{ cat.row.cat.fga }} %</template></div>
+              <div v-for="r in cat.reqs" :key="r.key" class="tv-req" :class="r.ok ? 'ok' : 'no'">
+                <span class="tv-req__ic"><Check v-if="r.ok" :size="12" /><X v-else :size="12" /></span>
+                <span class="tv-req__label">{{ r.label }}</span>
+                <span class="tv-req__vals"><span>pide <b>{{ r.asks }}</b></span><span>tiene <b>{{ r.has }}</b></span></span>
+              </div>
+              <div v-if="cat.free.length" class="tv-req-open">Sin restricción: {{ cat.free.join(' · ') }}</div>
+            </details>
           </template>
 
           <!-- Finandina: el monto de su política -->
@@ -592,10 +628,42 @@ const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
 .tv-cond { display: flex; align-items: center; gap: 4px; font-size: var(--text-sm); padding: 1px 0; }
 .tv-cond.ok { color: var(--green); } .tv-cond.no { color: var(--red); }
 .tv-cond em { font-style: normal; color: var(--fg-3); }
-.tv-catrow { display: flex; flex-direction: column; padding: var(--space-1) var(--space-2); margin-bottom: 2px; border-left: 2px solid transparent; font-size: var(--text-sm); }
-.tv-catrow.won { background: var(--tint-green); border-left-color: var(--green); font-weight: 600; }
-.tv-catrow.no { opacity: .6; }
-.tv-catrow__s { font-size: var(--text-xs); color: var(--fg-2); font-weight: 400; }
+/* El resumen de las categorías: quién ganó y, en rojo, qué requisitos tumbaron a las de más prioridad. */
+.tv-cat-sum { padding: var(--space-2) var(--space-3); margin-bottom: var(--space-2); border-left: 2px solid; font-size: var(--text-sm); }
+.tv-cat-sum.ok { border-left-color: var(--green); background: var(--tint-green); }
+.tv-cat-sum.no { border-left-color: var(--red); background: var(--tint-red); }
+.tv-cat-sum__why { display: flex; flex-wrap: wrap; gap: 4px; margin-top: var(--space-1); }
+.tv-cat-sum__chip { display: inline-flex; align-items: center; gap: 3px; padding: 1px 8px; border-radius: 999px; background: color-mix(in oklab, var(--red) 16%, var(--card)); color: var(--red); font-size: var(--text-xs); font-weight: 600; }
+.tv-cat-sum__chip small { font-weight: 400; }
+/* Una categoría: se pliega; la banda dice si gana, si también cumple o cuántos requisitos falla. Cada requisito es una
+   fila con lo que pide y lo que tiene el cliente: verde lo que cumple, rojo (con tinte) lo que no. */
+.tv-cat { border-left: 2px solid var(--line); margin-bottom: var(--space-2); background: color-mix(in oklab, var(--muted) 40%, transparent); }
+.tv-cat.won { border-left-color: var(--green); background: color-mix(in oklab, var(--green) 8%, transparent); }
+.tv-cat.no { border-left-color: var(--red); }
+.tv-cat__h { display: flex; align-items: center; gap: var(--space-2); min-height: var(--row-h); padding: var(--space-1) var(--space-2); cursor: pointer; list-style: none; font-size: var(--text-sm); }
+.tv-cat__h::-webkit-details-marker { display: none; }
+.tv-cat__h:hover { background: var(--hover); }
+.tv-cat__ic { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; flex: none; }
+.tv-cat.won .tv-cat__ic, .tv-cat.ok .tv-cat__ic { background: var(--green); color: var(--badge-fg); }
+.tv-cat.no .tv-cat__ic { background: var(--red); color: var(--badge-fg); }
+.tv-cat__name { font-weight: 600; color: var(--foreground); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tv-cat__state { margin-left: auto; font-size: var(--text-xs); color: var(--fg-2); white-space: nowrap; }
+.tv-cat.won .tv-cat__state { color: var(--green); font-weight: 600; }
+.tv-cat.no .tv-cat__state { color: var(--red); }
+.tv-cat__chev { flex: none; color: var(--fg-3); transition: transform .15s; }
+.tv-cat[open] .tv-cat__chev { transform: rotate(90deg); }
+.tv-cat__won { padding: 0 var(--space-2) var(--space-2) calc(var(--space-2) + 24px); font-size: var(--text-xs); color: var(--fg-2); }
+.tv-req { display: grid; grid-template-columns: 16px 1fr; gap: 0 var(--space-2); padding: var(--space-1) var(--space-2); font-size: var(--text-sm); }
+.tv-req + .tv-req { border-top: 1px solid color-mix(in oklab, var(--border) 60%, transparent); }
+.tv-req__ic { grid-row: 1 / 3; display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; margin-top: 1px; }
+.tv-req.ok .tv-req__ic { color: var(--green); }
+.tv-req.no { background: var(--tint-red); }
+.tv-req.no .tv-req__ic, .tv-req.no .tv-req__label { color: var(--red); }
+.tv-req__label { font-weight: 600; color: var(--foreground); }
+.tv-req__vals { display: flex; flex-wrap: wrap; gap: 0 var(--space-3); font-size: var(--text-xs); color: var(--fg-3); }
+.tv-req__vals b { font-weight: 600; color: var(--fg-2); }
+.tv-req.no .tv-req__vals span:last-child b { color: var(--red); }
+.tv-req-open { padding: var(--space-1) var(--space-2) var(--space-2) calc(var(--space-2) + 24px); font-size: var(--text-xs); color: var(--fg-3); }
 .tv-chips { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-bottom: 6px; }
 .tv-verdict { margin-top: var(--space-3); padding: var(--space-2) var(--space-3); border-left: 2px solid; font-size: var(--text-base); }
 .tv-verdict.ok { background: var(--tint-green); border-left-color: var(--green); } .tv-verdict.no { background: var(--tint-red); border-left-color: var(--red); }
