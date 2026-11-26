@@ -59,23 +59,24 @@
   <h2>OTP</h2>
   <p class="otp"><span id="otp">—</span><button class="icon" id="otpRefresh" title="Leer el último OTP de este celular" aria-label="Leer el OTP">↻</button><button class="icon" id="otpCopy" title="Copiar" aria-label="Copiar el OTP">⧉</button></p>
 
-  <h2 class="split">Recorrido <span id="reqLine"></span></h2>
-  <div id="flow" class="flow"></div>
-
-  <h2 class="split" id="docsTitle" hidden>Documentos firmados <button class="link" id="docsAll" title="Bajar todos los PDF de la solicitud">descargar todos</button></h2>
-  <section id="docs" class="docs" hidden>
-    <ul id="docsList"></ul>
-    <div class="viewer" id="viewer" hidden>
-      <div class="vbar"><span id="viewerName"></span><button class="link" id="viewerClose">cerrar</button></div>
-      <iframe id="viewerFrame" title="Documento firmado"></iframe>
-    </div>
+  <h2 class="split">Solicitud <span id="reqLine"></span></h2>
+  <nav class="ptabs" id="ptabs" role="tablist">
+    <button data-pane="flow" role="tab">Recorrido</button>
+    <button data-pane="db" role="tab">Base</button>
+    <button data-pane="docs" role="tab">Documentos <span class="n" id="docsN"></span></button>
+  </nav>
+  <section class="pane" id="pane-flow"><div id="flow" class="flow"></div></section>
+  <section class="pane" id="pane-db" hidden>
+    <p class="empty" id="dbEmpty">Sin solicitud en la pestaña.</p>
+    <section id="dbConsole" class="console">
+      <div class="tabs" id="dbTabs"></div>
+      <div class="rows" id="dbRows"></div>
+      <div class="foot" id="dbFoot"></div>
+    </section>
   </section>
-
-  <h2 id="dbTitle">Base</h2>
-  <section id="dbConsole" class="console">
-    <div class="tabs" id="dbTabs"></div>
-    <div class="rows" id="dbRows"></div>
-    <div class="foot" id="dbFoot"></div>
+  <section class="pane docs" id="pane-docs" hidden>
+    <div class="dochead"><span id="docsNote"></span><button class="link" id="docsAll" title="Bajar todos los PDF de la solicitud">descargar todos</button></div>
+    <div class="docgrid" id="docsGrid"></div>
   </section>
 
   <script src="sidepanel.js"></script>

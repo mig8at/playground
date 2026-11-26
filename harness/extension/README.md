@@ -23,11 +23,11 @@ ambiente. La extensión no guarda credenciales. `make harness-extension` dice c�
 - **Antes de cada envío de datos personales** («Siguiente», «Continuar») la página espera un instante a que el panel
   vuelva a dictar: el lambda olvida lo dictado en minutos (F-139).
 - **OTP**: en local, los últimos 4 del celular; fuera, el último que generó el servicio de OTP (el de #qa-messages).
-- **Recorrido**: la línea de tiempo —bolitas que se llenan con las pantallas por las que pasa la pestaña, con su hora—
+- **Recorrido** (pestaña): la línea de tiempo —bolitas que se llenan con las pantallas por las que pasa la pestaña, con su hora—
   y, al lado del título, la solicitud y la entidad. Los pasos fijos (monto, celular, código, datos personales, empleo,
   entidades, confirmación, identidad, fecha de pago, firma) salen siempre; los opcionales sólo si se pasó por ahí. El
   último punto, «Autorizada (11)», lo dice la base; una cancelación o un rechazo lo pinta en rojo.
-- **La base de la solicitud** (al final, siempre a la vista, sin barras de desplazamiento): una pestaña por tabla que toca la solicitud (`user_requests`,
+- **La base de la solicitud** (pestaña **Base**): una pestaña por tabla que toca la solicitud (`user_requests`,
   `users`, sus registros, las centrales, summaries, field values, CreditopX, la transacción con la entidad, `logs`), con
   sus filas —las de esa solicitud y su cliente, no por ventana de tiempo: la base de qa es compartida— en una tabla
   horizontal, sólo con las columnas que aportan (afuera lo repetido, lo cifrado y lo interno; «todas las columnas» las
@@ -47,12 +47,14 @@ ambiente. La extensión no guarda credenciales. `make harness-extension` dice c�
     vuelve a `…/confirmation`. Sólo si la solicitud es del celular de arriba y su cliente tiene correo de prueba; nunca
     prod. Es un rodeo: no prueba que la validación real funcione.
 
-- **Documentos firmados** (2026-11-26), entre el recorrido y la base, cuando la solicitud tiene alguno en
-  `user_request_signing_documents`: uno por fila (formulario de vinculación, T&C, pagaré…) con la hora de la firma,
-  **Ver** (el PDF dentro del panel, en un visor debajo) y **Descargar** (`<solicitud>_<documento>.pdf`); «descargar
-  todos» si hay más de uno. El panel los sirve (`/api/ext/documents` y `/api/ext/document`) porque el bucket los entrega
-  como descarga; sólo desde el bucket de S3 o el S3 local, y fuera de local sólo de un cliente de prueba. Se vuelve a
-  leer cada 15 s. Probado con la 505329 de qa: los tres documentos, la hora bien y los T&C abiertos en el visor.
+- **La solicitud, abajo, en tres pestañas** (2026-11-26): **Recorrido**, **Base** y **Documentos**; la elegida se
+  recuerda en la máquina. **Documentos** muestra una miniatura de la primera página de cada documento firmado
+  (`user_request_signing_documents`: vinculación, T&C, pagaré…), con la hora de la firma; al tocarla, el PDF se abre en
+  una pestaña aparte. «Descargar» lo baja como `<solicitud>_<documento>.pdf` y «descargar todos» los baja juntos. El
+  panel sirve los PDF y arma las miniaturas (`/api/ext/documents` y `/api/ext/document`, `thumb=1` con `pdftoppm`,
+  guardadas en memoria): la primera vez tardan unos segundos. Sólo desde el bucket de S3 o el S3 local, y fuera de local
+  sólo de un cliente de prueba. Se vuelve a leer cada 15 s. Probado con la 505329 de qa: las tres miniaturas, la hora
+  bien y el T&C abierto aparte.
 
 ⚠ Sólo qa y local aceptan dictado (F-149): en dev y staging el panel lo avisa y las centrales contestan lo de por
 defecto. Nunca prod. `sidepanel.html#tab=<id>` ata el panel a una pestaña (para abrirlo como página o probarlo).

@@ -112,6 +112,8 @@ const BOOT = {
 };
 for (const f of codeFiles()) BOOT.mtimes.set(f, mtimeOf(f));
 const envDriftCache = new Map<string, { at: number; data: any }>();
+/** Las miniaturas de los documentos firmados para Probeta (`/api/ext/document?thumb=1`), por la URL del archivo. */
+const extThumbs = new Map<string, Buffer>();
 
 /** Lo que contesta `/api/panel-version`, guardado 30 s. Cada respuesta hace un `stat` de todo `panel/` y `pkg/` y lanza
  *  cuatro procesos (dos `lsof` y dos `git`) para saber qué sirve :5174, y el pie la pide cada minuto por cada pestaña
@@ -2007,8 +2009,32 @@ const server = createServer(async (req, res) => {
                 if (!/\.s3[.-][\w.-]*amazonaws\.com$/.test(src.host) && !/^(localhost|127\.0\.0\.1):(4566|9000)$/.test(src.host)) {
                     return send(409, { error: `el documento apunta a ${src.host}, que no es un bucket de documentos` });
                 }
+                // `thumb=1`: la primera página como PNG de 360 px de ancho, para la miniatura de la extensión (pdftoppm, de
+                // poppler). Se guarda en memoria por la URL del archivo: un documento firmado no cambia.
+                if (q.get('thumb')) {
+                    const hit = extThumbs.get(String(doc.url));
+                    if (hit) { res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'max-age=3600', ...cors }); return res.end(hit); }
+                }
                 const r = await fetch(src);
                 if (!r.ok) return send(502, { error: `el bucket contestó ${r.status} para ${doc.document_type}` });
+                if (q.get('thumb')) {
+                    const { mkdtempSync } = await import('node:fs');
+                    const { tmpdir } = await import('node:os');
+                    const { execFileSync } = await import('node:child_process');
+                    const dir = mkdtempSync(join(tmpdir(), 'probeta-thumb-'));
+                    try {
+                        writeFileSync(join(dir, 'doc.pdf'), Buffer.from(await r.arrayBuffer()));
+                        const bin = ['/opt/homebrew/bin/pdftoppm', '/usr/local/bin/pdftoppm', 'pdftoppm'].find((b) => !b.startsWith('/') || existsSync(b))!;
+                        execFileSync(bin, ['-f', '1', '-l', '1', '-singlefile', '-png', '-scale-to-x', '360', '-scale-to-y', '-1', join(dir, 'doc.pdf'), join(dir, 'p')], { timeout: 20000 });
+                        const png = readFileSync(join(dir, 'p.png'));
+                        if (extThumbs.size > 200) extThumbs.clear();
+                        extThumbs.set(String(doc.url), png);
+                        res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'max-age=3600', ...cors });
+                        return res.end(png);
+                    } catch (e) {
+                        return send(501, { error: `no pude armar la miniatura (¿pdftoppm instalado?): ${(e as Error).message.split('\n')[0]}` });
+                    } finally { rmSync(dir, { recursive: true, force: true }); }
+                }
                 const name = `${ureq}_${String(doc.document_type).replace(/[^\w-]+/g, '-')}.pdf`;
                 res.writeHead(200, { 'content-type': 'application/pdf', 'cache-control': 'no-store', ...cors,
                     'content-disposition': `${q.get('download') ? 'attachment' : 'inline'}; filename="${name}"` });

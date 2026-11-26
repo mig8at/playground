@@ -61,7 +61,7 @@ async function syncTab() {
   entryBase = tab?.url ? entryOf(tab.url) : null;
   lockPerson(!!target && inProgress(tab?.url));
   const u = tab?.url ? ureqOf(tab.url) : null;
-  if (u !== lastUreq) { lastUreq = u; lastStatus = null; $('reqLine').textContent = u ? String(u) : ''; viewing = null; refreshDb(); refreshDocs(true); }
+  if (u !== lastUreq) { lastUreq = u; lastStatus = null; $('reqLine').textContent = u ? String(u) : ''; refreshDb(); refreshDocs(true); }
   renderStep(tab?.url);
   await trackScreen(tab?.url);
   renderFlow();
@@ -380,7 +380,8 @@ async function decryptRow(row) {
 }
 function renderDb() {
   const tabs = $('dbTabs'), rows = $('dbRows'), foot = $('dbFoot');
-  $('dbConsole').hidden = $('dbTitle').hidden = !lastUreq || !target;
+  $('dbConsole').hidden = !lastUreq || !target;
+  $('dbEmpty').hidden = !$('dbConsole').hidden;
   if (!lastUreq || !target) return;
   if (db.ureq !== lastUreq) { tabs.innerHTML = ''; rows.innerHTML = '<div class="empty">Leyendo…</div>'; foot.textContent = ''; return; }
   const now = Date.now(), hot = (key) => { const c = dbChanged.get(key); return c && now - c.at < HOT_MS ? c : null; };
@@ -473,58 +474,81 @@ function renderDb() {
   foot.append(Object.assign(document.createElement('span'), { textContent: `${db.at}${db.error ? ' · ⚠ ' + db.error : ''}${recentCount ? ` · ● ${recentCount} cambio(s)` : ''}` }), all);
 }
 
-// ── LOS DOCUMENTOS FIRMADOS de la solicitud: la lista (`/api/ext/documents`) y cada PDF servido por el panel, que se ve
-// acá mismo («Ver», en un visor debajo) o se baja con el nombre `<solicitud>_<documento>.pdf`. Aparece cuando la solicitud
-// tiene alguno; se vuelve a leer cada 15 s. Fuera de local, sólo de un cliente de prueba (lo decide el panel).
+// ── LA SOLICITUD, abajo, en tres pestañas: Recorrido, Base y Documentos. La elegida se recuerda en esta máquina.
+let pane = 'flow';
+try { pane = localStorage.getItem('probeta.pane') || 'flow'; } catch { /* sin almacenamiento */ }
+function renderPanes() {
+  for (const b of document.querySelectorAll('#ptabs button')) {
+    const on = b.dataset.pane === pane;
+    b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on));
+  }
+  for (const p of ['flow', 'db', 'docs']) $(`pane-${p}`).hidden = p !== pane;
+}
+document.querySelectorAll('#ptabs button').forEach((b) => b.addEventListener('click', () => {
+  pane = b.dataset.pane;
+  try { localStorage.setItem('probeta.pane', pane); } catch { /* sin almacenamiento */ }
+  renderPanes();
+  if (pane === 'docs') refreshDocs(true);
+}));
+renderPanes();
+
+// ── LOS DOCUMENTOS FIRMADOS de la solicitud (`/api/ext/documents`): una miniatura de la primera página de cada uno (la
+// arma el panel) y, al tocarla, el PDF en una pestaña aparte. «Descargar» lo baja como `<solicitud>_<documento>.pdf`.
+// Se vuelve a leer cada 15 s. Fuera de local, sólo de un cliente de prueba (lo decide el panel).
 // La base guarda la hora de Colombia sin zona y el conector la marca «Z»: se lee como hora local, no como UTC.
 const DOC_NAMES = { promissory_note: 'Pagaré', vinculacion: 'Formulario de vinculación', 'terminos-y-condiciones': 'Términos y condiciones',
   consent: 'Autorización', payment_plan: 'Plan de pagos', fga: 'Garantía' };
-let docs = { ureq: null, list: [], error: '' }, docsAt = 0, viewing = null;
-const docUrl = (id, download) => `${API}/document?target=${encodeURIComponent(target)}&ureq=${docs.ureq}&id=${id}${download ? '&download=1' : ''}`;
+let docs = { ureq: null, list: [], error: '' }, docsAt = 0;
+const docUrl = (id, mode = '') => `${API}/document?target=${encodeURIComponent(target)}&ureq=${docs.ureq}&id=${id}${mode ? `&${mode}=1` : ''}`;
 async function refreshDocs(force = false) {
   if (!target || !lastUreq) { docs = { ureq: null, list: [], error: '' }; renderDocs(); return; }
   if (!force && docs.ureq === lastUreq && Date.now() - docsAt < 15000) return;
   docsAt = Date.now();
   try {
     const r = await api(`/documents?ureq=${lastUreq}`);
+    const same = docs.ureq === lastUreq && JSON.stringify(docs.list) === JSON.stringify(r.documents || []) && !docs.error;
     docs = { ureq: lastUreq, list: r.documents || [], error: r.error || '' };
+    if (same) return;
   } catch (e) { docs = { ureq: lastUreq, list: [], error: e.message }; }
-  if (viewing && !docs.list.some((d) => d.id === viewing)) viewing = null;
   renderDocs();
 }
+function openDoc(id) {
+  const url = docUrl(id);
+  if (chrome?.tabs?.create) chrome.tabs.create({ url }); else window.open(url, '_blank');
+}
 function renderDocs() {
-  const show = !!target && !!lastUreq && docs.ureq === lastUreq && (docs.list.length > 0 || !!docs.error);
-  $('docs').hidden = $('docsTitle').hidden = !show;
-  if (!show) return;
+  const n = docs.ureq === lastUreq ? docs.list.length : 0;
+  $('docsN').textContent = n ? String(n) : '';
+  const grid = $('docsGrid');
+  grid.innerHTML = '';
   const files = docs.list.filter((d) => d.hasFile);
   $('docsAll').hidden = files.length < 2;
-  const ul = $('docsList');
-  ul.innerHTML = '';
-  if (docs.error) { ul.append(Object.assign(document.createElement('li'), { className: 'warn', textContent: docs.error })); }
+  $('docsNote').textContent = !lastUreq || !target ? 'Sin solicitud en la pestaña.'
+    : docs.error ? docs.error : !n ? 'La solicitud todavía no tiene documentos firmados.' : '';
+  $('docsNote').className = docs.error ? 'warn' : '';
   for (const d of docs.list) {
-    const li = document.createElement('li');
+    const name = DOC_NAMES[d.type] || d.type;
     const when = d.signedAt ? new Date(String(d.signedAt).replace(' ', 'T').replace(/Z$/, '')).toLocaleString('es-CO', { hour12: false, day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
-    const name = Object.assign(document.createElement('span'), { className: 'name', textContent: DOC_NAMES[d.type] || d.type });
-    const meta = Object.assign(document.createElement('small'), { textContent: d.signedAt ? `firmado ${when}` : (d.status || 'sin firmar') });
-    li.append(name, meta);
+    const card = document.createElement('figure');
+    card.className = 'doc' + (d.hasFile ? '' : ' nofile');
+    const thumb = document.createElement('button');
+    thumb.className = 'thumb'; thumb.title = d.hasFile ? `Abrir ${name} en otra pestaña` : 'Sin archivo';
+    thumb.disabled = !d.hasFile;
     if (d.hasFile) {
-      const see = Object.assign(document.createElement('button'), { className: viewing === d.id ? 'on' : '', textContent: viewing === d.id ? 'Ocultar' : 'Ver' });
-      see.onclick = () => { viewing = viewing === d.id ? null : d.id; renderDocs(); };
-      const down = Object.assign(document.createElement('a'), { className: 'btn', textContent: 'Descargar', href: docUrl(d.id, true), target: '_blank' });
-      li.append(see, down);
-    }
-    ul.append(li);
+      const img = Object.assign(document.createElement('img'), { alt: name, loading: 'lazy', src: docUrl(d.id, 'thumb') });
+      img.onerror = () => { img.remove(); thumb.textContent = 'PDF'; };
+      thumb.append(img);
+      thumb.onclick = () => openDoc(d.id);
+    } else thumb.textContent = '—';
+    const cap = document.createElement('figcaption');
+    cap.append(Object.assign(document.createElement('b'), { textContent: name }),
+      Object.assign(document.createElement('small'), { textContent: d.signedAt ? `firmado ${when}` : (d.status || 'sin firmar') }));
+    if (d.hasFile) cap.append(Object.assign(document.createElement('a'), { className: 'link', textContent: 'Descargar', href: docUrl(d.id, 'download'), target: '_blank' }));
+    card.append(thumb, cap);
+    grid.append(card);
   }
-  const doc = docs.list.find((d) => d.id === viewing);
-  $('viewer').hidden = !doc;
-  if (doc) {
-    $('viewerName').textContent = DOC_NAMES[doc.type] || doc.type;
-    const src = docUrl(doc.id, false);
-    if ($('viewerFrame').dataset.src !== src) { $('viewerFrame').src = src; $('viewerFrame').dataset.src = src; }
-  } else if ($('viewerFrame').dataset.src) { $('viewerFrame').removeAttribute('src'); delete $('viewerFrame').dataset.src; }
 }
-$('viewerClose').onclick = () => { viewing = null; renderDocs(); };
-$('docsAll').onclick = () => { for (const d of docs.list.filter((x) => x.hasFile)) window.open(docUrl(d.id, true), '_blank'); };
+$('docsAll').onclick = () => { for (const d of docs.list.filter((x) => x.hasFile)) window.open(docUrl(d.id, 'download'), '_blank'); };
 
 // ── lo que avisa la página ──────────────────────────────────────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((msg, sender, reply) => {

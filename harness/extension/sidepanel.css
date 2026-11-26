@@ -98,18 +98,27 @@ h2.split span { color: var(--fg2); font-weight: 400; overflow: hidden; text-over
 h2 .lock { color: var(--accent); font-weight: 400 }
 .log:empty, .state[hidden] { display: none }
 .tune summary { cursor: pointer; color: var(--fg3); font-size: 11.5px; margin: 2px 0 8px }
-/* Los documentos firmados: una fila por documento con «Ver» y «Descargar», y el visor del PDF debajo. */
-.docs ul { list-style: none; margin: 0; padding: 0 }
-.docs li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; grid-template-rows: auto auto; column-gap: 6px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line) }
-.docs li .name { grid-column: 1; font-size: 12.5px }
-.docs li small { grid-column: 1; grid-row: 2; color: var(--fg3); font-size: 11px }
-.docs li button, .docs li .btn { grid-row: 1 / span 2; height: 26px }
-.docs li button.on { border-color: var(--accent); color: var(--accent) }
-.docs li.warn { display: block; color: var(--warn); font-size: 11.5px; border: 0 }
-.docs .btn { display: inline-flex; align-items: center; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; color: var(--fg); text-decoration: none; font-size: 12px }
-.docs .btn:hover { border-color: var(--fg3) }
-.viewer { margin-top: 8px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden }
-.viewer .vbar { display: flex; justify-content: space-between; align-items: center; padding: 4px 8px; font-size: 11.5px; color: var(--fg2); border-bottom: 1px solid var(--line) }
-.viewer iframe { display: block; width: 100%; height: 70vh; border: 0; background: #fff }
-h2 button.link, .viewer button.link { all: unset; cursor: pointer; color: var(--accent); font-size: 11px; font-weight: 400 }
-h2 button.link[hidden] { display: none }
+/* La solicitud, abajo: tres pestañas (Recorrido, Base, Documentos). */
+.ptabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin-bottom: 10px }
+.ptabs button { all: unset; cursor: pointer; padding: 6px 10px; font-size: 12px; color: var(--fg2); border-bottom: 2px solid transparent; margin-bottom: -1px }
+.ptabs button:hover { color: var(--fg) }
+.ptabs button.on { color: var(--fg); border-bottom-color: var(--accent); font-weight: 600 }
+.ptabs .n { color: var(--fg3); font-weight: 400; margin-left: 2px }
+.pane > .empty, .docs .dochead span { color: var(--fg3); font-size: 11.5px; margin: 4px 0 }
+/* Los documentos: una miniatura de la primera página por documento; al tocarla se abre en otra pestaña. */
+.docs .dochead { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 18px; margin-bottom: 6px }
+.docs .dochead span.warn { color: var(--warn) }
+.docgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 12px }
+.doc { margin: 0; display: flex; flex-direction: column; gap: 6px; min-width: 0 }
+.doc .thumb { all: unset; cursor: pointer; display: flex; align-items: center; justify-content: center; aspect-ratio: 1 / 1.294; overflow: hidden;
+  background: #fff; border: 1px solid var(--line); border-radius: 6px; color: #888780; font-size: 12px; transition: border-color .15s, box-shadow .15s }
+.doc .thumb:hover, .doc .thumb:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent) }
+.doc .thumb:disabled { cursor: default }
+.doc .thumb img { width: 100%; height: 100%; object-fit: cover; object-position: top }
+.doc figcaption { display: flex; flex-direction: column; gap: 1px; min-width: 0 }
+.doc figcaption b { font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.doc figcaption small { color: var(--fg3); font-size: 11px }
+.doc figcaption .link { color: var(--accent); font-size: 11px; text-decoration: none; align-self: flex-start }
+.doc figcaption .link:hover { text-decoration: underline }
+h2 button.link, .dochead button.link { all: unset; cursor: pointer; color: var(--accent); font-size: 11px; font-weight: 400 }
+.dochead button.link[hidden] { display: none }
