@@ -42,6 +42,7 @@ import CreditStatusNode from './nodes/CreditStatusNode.vue'
 import FieldInfoPanel from './nodes/FieldInfoPanel.vue'
 import TableView from './TableView.vue'
 import ScenarioSidebar from './ScenarioSidebar.vue'
+import { consoleLog, clearLog } from './consoleLog'
 import { settings } from './settings'
 import { ui, findLenderDef, entidadCfg, perfilOf, perfil, bureau, fieldNull, providerDown, lenders, postSelSteps, selectionCheck, usesCategories, usesQuotaEngine, isInHouse, delegatedOf, closeFieldInfo, focusWinningProfile, persistPing } from './store'
 import { Check, Workflow } from 'lucide-vue-next'
@@ -95,18 +96,41 @@ const sidebarOpen = ref(readSize('flow.sidebar-open', 1) !== 0)
 const sidebarW = ref(readSize('flow.sidebar-w', 300))
 const auxW = ref(readSize('flow.auxiliarybar-w', 340))
 const tableDetailOpen = ref(false)
+// El secundario aparece con lo elegido; el botón del pie lo oculta sin soltar la elección, y elegir otra cosa lo vuelve a
+// mostrar. Sin nada que detallar, el botón queda apagado (no se borra: ocultar una región nunca borra su botón).
+const auxHidden = ref(false)
+const panelOpen = ref(readSize('flow.panel-open', 0) !== 0)   // la consola arranca cerrada: se mira de vez en cuando
+const panelH = ref(readSize('flow.panel-h', 180))
 const viewportW = ref(window.innerWidth)
-const onWindowResize = () => { viewportW.value = window.innerWidth }
-const auxOpen = computed(() => (settings.view === 'table' ? tableDetailOpen.value : !!ui.fieldInfo))
+const viewportH = ref(window.innerHeight)
+const onWindowResize = () => { viewportW.value = window.innerWidth; viewportH.value = window.innerHeight }
+const auxHasContent = computed(() => (settings.view === 'table' ? tableDetailOpen.value : !!ui.fieldInfo))
+watch([() => ui.fieldInfo, tableDetailOpen, () => settings.view], () => { auxHidden.value = false })
 const shown = computed(() => {
   // En orden de sacrificio: primero el secundario, después el sidebar. El editor nunca baja de su mínimo.
   const [aux, sidebar] = fitRegions(viewportW.value - cssSize('--editor-min', 360) - 16, [
-    { size: auxOpen.value ? auxW.value : 0, min: cssSize('--sidebar-min', 240) },
+    { size: auxHasContent.value && !auxHidden.value ? auxW.value : 0, min: cssSize('--sidebar-min', 240) },
     { size: sidebarOpen.value ? sidebarW.value : 0, min: cssSize('--sidebar-min', 240) },
   ])
-  return { sidebar, aux }
+  const [panel] = fitRegions(viewportH.value - 240, [{ size: panelOpen.value ? panelH.value : 0, min: cssSize('--panel-min', 124) }])
+  return { sidebar, aux, panel }
 })
-const layoutVars = computed(() => ({ '--sidebar-w': `${shown.value.sidebar}px`, '--auxiliarybar-w': `${shown.value.aux}px` }))
+const layoutVars = computed(() => ({ '--sidebar-w': `${shown.value.sidebar}px`, '--auxiliarybar-w': `${shown.value.aux}px`, '--panel-h': `${shown.value.panel}px` }))
+const panelResize = {
+  label: 'Alto de la consola', axis: 'y', sign: -1, defaultValue: 180,
+  min: () => cssSize('--panel-min', 124),
+  max: () => viewportH.value - 240,
+  get: () => shown.value.panel,
+  set: (v) => { if (!v) panelOpen.value = false; else { panelOpen.value = true; panelH.value = v } },
+  reopen: () => panelH.value,
+  commit: (v) => { saveSize('flow.panel-open', v ? 1 : 0); if (v) saveSize('flow.panel-h', panelH.value) },
+}
+function togglePanel() { panelOpen.value = !shown.value.panel; saveSize('flow.panel-open', panelOpen.value ? 1 : 0) }
+function toggleAux() { if (auxHasContent.value) auxHidden.value = !!shown.value.aux }
+// Lo que no viste de la consola se marca con un punto en su botón; abrirla lo da por visto.
+watch(() => shown.value.panel, (h) => { if (h) consoleLog.unseen = 0 })
+watch(() => consoleLog.lines.length, () => { if (shown.value.panel) consoleLog.unseen = 0 })
+const timeOf = (d) => d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
 const sidebarResize = {
   label: 'Ancho del escenario', sign: 1, defaultValue: 300,
   min: () => cssSize('--sidebar-min', 240),
@@ -486,7 +510,7 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
         </div>
       </div>
       <div v-if="settings.view === 'table'" class="region-body">
-        <TableView :detail-width="shown.aux" @detail="v => (tableDetailOpen = v)">
+        <TableView :detail-width="shown.aux" :detail-visible="shown.aux > 0" @detail="v => (tableDetailOpen = v)">
           <template #resize><div class="rsz rsz-edge-left" v-resize="auxResize"></div></template>
         </TableView>
       </div>
@@ -529,20 +553,50 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
         </VueFlow>
       </div>
     </main>
-    <FieldInfoPanel v-if="settings.view === 'graph'" :width="shown.aux">
+    <section v-if="shown.panel" class="panel" aria-label="Consola: lo que llega por bin/flow">
+      <div class="rsz rsz-edge-top" data-rsz="panel" v-resize="panelResize"></div>
+      <div class="region-head">
+        <span>Consola <small class="flow-head-meta">lo que llega por bin/flow</small></span>
+        <span class="count">{{ consoleLog.lines.length }}</span>
+        <div class="region-actions">
+          <button type="button" class="region-action" title="Vaciar la consola" aria-label="Vaciar la consola" :disabled="!consoleLog.lines.length" @click="clearLog">
+            <span class="ui-icon" data-icon="eraser" aria-hidden="true"></span></button>
+          <button type="button" class="region-action" title="Cerrar la consola" aria-label="Cerrar la consola" @click="togglePanel">
+            <span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
+        </div>
+      </div>
+      <div class="region-body flow-console">
+        <p v-if="!consoleLog.lines.length" class="flow-console__empty">Nada todavía. Acá aparece cada comando de <code>bin/flow</code>
+          (import, client, select…) con lo que contestó la app.</p>
+        <div v-for="l in consoleLog.lines" :key="l.id" class="log-line" :class="l.kind && 'log-line--' + l.kind">
+          <span class="log-time">{{ timeOf(l.at) }}</span><span>{{ l.text }}</span></div>
+      </div>
+    </section>
+    <FieldInfoPanel v-if="settings.view === 'graph' && shown.aux > 0" :width="shown.aux">
       <template #resize><div class="rsz rsz-edge-left" v-resize="auxResize"></div></template>
     </FieldInfoPanel>
     <footer class="statusbar">
       <span>{{ ui.selected ? 'Entidad elegida: ' + ui.selected : 'Elegí una entidad en el escenario o en «Entidades disponibles»' }}</span>
       <span v-if="justSaved" class="flow-saved"><Check :size="12" /> escenario guardado</span>
-      <div class="layout-controls" role="group" aria-label="Regiones visibles">
+      <div class="layout-controls" role="group" aria-label="El grafo y las regiones visibles">
         <button ref="themeButton" type="button" class="region-action" style="display: none" tabindex="-1" aria-hidden="true"></button>
         <!-- El grafo se asoma desde acá: la vista de Flow es la tabla (2026-11-26). -->
-        <button type="button" class="region-action" :aria-pressed="settings.view === 'graph'"
+        <button type="button" class="region-action flow-graph-toggle" :aria-pressed="settings.view === 'graph'"
           :title="settings.view === 'graph' ? 'Volver a la tabla' : 'Ver el grafo: una entidad, nodo por nodo'" aria-label="Ver el grafo"
           @click="settings.view = settings.view === 'graph' ? 'table' : 'graph'"><Workflow :size="16" /></button>
+        <!-- Las regiones, en el orden de la pantalla: izquierda, abajo, derecha. -->
         <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Mostrar u ocultar el escenario" aria-label="Mostrar u ocultar el escenario" @click="toggleSidebar">
           <span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span>
+        </button>
+        <button type="button" class="region-action flow-console-toggle" :class="{ unseen: consoleLog.unseen && !shown.panel }" :aria-pressed="!!shown.panel"
+          :title="shown.panel ? 'Ocultar la consola' : 'Mostrar la consola: lo que llega por bin/flow' + (consoleLog.unseen ? ' (' + consoleLog.unseen + ' sin ver)' : '')"
+          aria-label="Mostrar u ocultar la consola" @click="togglePanel">
+          <span class="ui-icon" data-icon="bottom" aria-hidden="true"></span>
+        </button>
+        <button type="button" class="region-action" :aria-pressed="!!shown.aux" :disabled="!auxHasContent"
+          :title="!auxHasContent ? 'El detalle: abrí una celda de la tabla o un campo del grafo' : shown.aux ? 'Ocultar el detalle' : 'Mostrar el detalle'"
+          aria-label="Mostrar u ocultar el detalle" @click="toggleAux">
+          <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
         </button>
       </div>
     </footer>

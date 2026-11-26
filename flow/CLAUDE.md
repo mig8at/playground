@@ -41,9 +41,13 @@ de vez en cuando y **no tiene que seguir al código al pie de la letra**. Lo que
 - **Sidebar secundario**: la calculadora de la celda de la tabla (teletransportada al `.workbench` desde `TableView.vue`)
   o el detalle de un campo o nodo del grafo (`FieldInfoPanel.vue`). Aparece con lo elegido y se cierra con su ✕ o Esc;
   su manija ajusta el ancho pero no lo pliega.
-- **Pie**: la entidad elegida, «escenario guardado», el botón del grafo, el del sidebar y el del panel «Claude». El tema
-  sigue siendo de Cockpit: el botón del tema está oculto y existe para que `bindThemeToggle` escuche a Cockpit.
-- Las medidas (`flow.sidebar-w`, `flow.sidebar-open`, `flow.auxiliarybar-w`) se guardan; lo que se pinta se deriva con
+- **Consola** (`panel` de la base, `consoleLog.js`): cada comando de `bin/flow` que llega a la ventana, con lo que contestó
+  o su error. Arranca cerrada; un punto en su botón avisa lo que no viste. En memoria: al recargar empieza vacía.
+- **Pie**: la entidad elegida y «escenario guardado»; a la derecha, el panel «Claude», el grafo y las tres regiones en el
+  orden de la pantalla (escenario, consola, detalle). El del detalle oculta el secundario sin soltar lo elegido, y queda
+  apagado si no hay nada que detallar. El tema sigue siendo de Cockpit: el botón del tema está oculto y existe para que
+  `bindThemeToggle` escuche a Cockpit.
+- Las medidas (`flow.sidebar-w`, `flow.sidebar-open`, `flow.auxiliarybar-w`, `flow.panel-open`, `flow.panel-h`) se guardan; lo que se pinta se deriva con
   `fitRegions` en `App.vue`.
 
 ## Dos vistas: Tabla y Grafo

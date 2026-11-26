@@ -18,7 +18,7 @@ import {
 const amount = computed(() => parseInt(String(state.monto).replace(/\D/g, '')) || 0)
 // La calculadora vive en el sidebar secundario de la ventana (`auxiliarybar`, teletransportada al `.workbench`): su ancho
 // lo da App.vue, como el del detalle de un campo del grafo.
-defineProps({ detailWidth: { type: Number, default: 340 } })
+defineProps({ detailWidth: { type: Number, default: 340 }, detailVisible: { type: Boolean, default: true } })
 const emit = defineEmits(['detail'])
 
 // ── Las columnas: las entidades del comercio, en el orden en que se cargaron.
@@ -314,7 +314,7 @@ const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
 
       <!-- La calculadora del paso -->
       <Teleport to=".workbench" defer>
-      <aside v-if="openCol" class="tv-calc auxiliarybar" aria-label="El detalle del paso" :style="{ width: detailWidth + 'px' }">
+      <aside v-if="openCol && detailVisible" class="tv-calc auxiliarybar" aria-label="El detalle del paso" :style="{ width: detailWidth + 'px' }">
         <slot name="resize" />
         <div class="region-head">
           <span class="tv-calc__h"><span class="tv-n">{{ ROWS.find(x => x.key === open.row)?.n }}</span> {{ openCol.c.def.name }}</span>

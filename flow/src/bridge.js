@@ -2,6 +2,7 @@
 // misma lógica de la interfaz, contesta, y cuenta qué tiene después de cada guardado. Así lo carga y lo cambia Claude por
 // consola y Miguel sólo lo mira en Cockpit.
 import { watch, nextTick } from 'vue'
+import { logLine, describeCommand } from './consoleLog'
 import { settings } from './settings'
 import { customLenders, addCustomLender, removeCustomLender, selectOffer, findLenderDef, setDelegated, delegatedOf, markDelegatedBaseline, bondOf,
   applyProductionImport, merchant, ui, persistPing, lenders, bureau, state, setNull } from './store'
@@ -67,13 +68,15 @@ function report() {
 export function startBridge() {
   if (typeof EventSource === 'undefined') return
   const source = new EventSource('/api/events?app=' + APP_ID)
-  source.onopen = () => report()
+  source.onopen = () => { report(); logLine('conectada: bin/flow le habla a esta ventana', { kind: 'muted' }) }
   source.onmessage = async (ev) => {
     let msg; try { msg = JSON.parse(ev.data) } catch { return }
     const results = []
     for (const c of msg.commands || []) {
       try { results.push({ type: c.type, ok: true, ...(HANDLERS[c.type] ? HANDLERS[c.type](c) : (() => { throw new Error('comando desconocido: ' + c.type) })()) }) }
       catch (e) { results.push({ type: c.type, ok: false, error: e.message }) }
+      const r = results[results.length - 1]
+      logLine(describeCommand(c, r), { kind: r.ok ? '' : 'bad' })   // a la consola de la app
       await nextTick()
     }
     fetch('/api/ack', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: msg.id, results }) }).catch(() => {})

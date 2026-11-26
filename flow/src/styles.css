@@ -80,6 +80,16 @@ body { font-family: var(--font-sans); color: var(--ink); overflow: hidden; }
 .canvas { flex: 1; min-height: 0; overflow: hidden; position: relative; padding: 0; }
 .flow-reset--armed, .flow-reset--armed:hover { background: var(--red); color: var(--badge-fg); }
 .flow-head-meta { margin-left: var(--space-2); font-weight: 400; font-size: var(--text-xs); color: var(--fg-3); }
+.flow-graph-toggle { margin-right: var(--space-2); }
+/* La consola: líneas de log de la base; un error de bin/flow en rojo, el aviso de conexión apagado. */
+.flow-console { padding: var(--space-1) 0; }
+.flow-console__empty { margin: 0; padding: var(--space-1) var(--gutter); font-size: var(--text-sm); color: var(--fg-3); }
+.flow-console__empty code { font-family: var(--font-mono); font-size: var(--text-xs); }
+.log-line--bad { color: var(--status-bad); }
+.log-line--muted { color: var(--fg-3); }
+/* Un punto sobre el botón de la consola si llegó algo que no viste (como el del panel «Claude»). */
+.flow-console-toggle { position: relative; }
+.flow-console-toggle.unseen::after { content: ""; position: absolute; top: 3px; right: 3px; width: 6px; height: 6px; border-radius: 50%; background: var(--primary); }
 .flow-saved { display: inline-flex; align-items: center; gap: 4px; color: var(--green); }
 .vue-flow { background: var(--panel-surface, var(--background)); }
 
