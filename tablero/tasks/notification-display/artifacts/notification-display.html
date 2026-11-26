@@ -616,6 +616,12 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
              "..rrrrrrrr..", "..rrrrrrrr..", ".kkkkkkkkkk.", ".kkkkkkkkkk.", "............", "............"],
     balloon:["..bbb..", ".bbbbb.", ".bwbbb.", ".bbbbb.", ".bbbbb.", "..bbb..", "...b...", "...w...", "....w..",
              "...w...", "....w..", "...w..."],
+    weather:["r...r.......", "..yyy..r....", ".yyyyy......", "ryyyyy.ww...", ".yyyywwwwww.", "..yywwwwwwww",
+             "...wwwwwwwww", "..wwwwwwwwww", "..wwwwwwwwww", "...wwwwwwww.", "............", "............"],
+    trophy: [".yyyyyyyyyy.", "yyywyyyyyyyy", "y.ywyyyyyy.y", "y.ywyyyyyy.y", ".yyyyyyyyyy.", "..yyyyyyyy..",
+             "...yyyyyy...", ".....yy.....", ".....yy.....", "....aaaa....", "...aaaaaa...", "...kkkkkk..."],
+    popper: ["..........p.", ".....g..p...", "..b.....y..p", "......y.....", "...ooo..g...", "..ooooo.....",
+             ".ooooo..b...", ".oooo.......", "ooo.........", "oo..........", "o...........", "............"],
     paper:  ["wwwwwww.....", "w.....ww....", "w.....w.w...", "w.....wwww..", "w.gg.....w..", "w........w..",
              "w.ggggg..w..", "w........w..", "w.gggg...w..", "w........w..", "wwwwwwwwww..", "............"]
   };
@@ -651,10 +657,6 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
     "..pppppppppppp..", ".pppwppppwpppwp.", ".pbbpbbbpbbbbpb.", ".bbbbbbbbbbbbbb.",
     ".wwwwwwwwwwwwww.", ".bbbbbbbbbbbbbb.", ".bbppbbbbbbppbb.", ".bbbbbbbbbbbbbb.",
     "gggggggggggggggg", "................", "................", "................"
-  ];
-  const TROPHY = [
-    "yyyyyyyyyyy", "y.yyyyyyy.y", "y.yyyyyyy.y", ".yyyyyyyyy.", "..yyyyyyy..",
-    "...yyyyy...", "....yyy....", ".....y.....", "....yyy....", "..yyyyyyy..", "..aaaaaaa.."
   ];
   const ARROW = ["...x...", "..xxx..", ".xxxxx.", "xxxxxxx", "..xxx..", "..xxx..", "..xxx.."];
   const owl = (b, x, y, k, blink) => art(b, OWL, x, y, k, { o: C.teal, w: C.white, k: blink ? C.white : [10,10,12], y: C.amber });
@@ -926,14 +928,17 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
     { id: "anniversary", voice: "Feliz aniversario, Andrés: tres años en CreditOp.", group: "Cultura", label: "Aniversario", draw(b, t) {
       const big = b.h >= 64;
       sparkles(b, t, big ? 26 : 14, C.amber);
-      const map = { y: C.yellow, a: C.amber };
+      const map = { y: C.yellow, a: C.amber, w: C.white, k: [150,100,60] };
+      const pop = { o: C.amber, p: C.pink, g: [5,213,135], b: C.blue, y: C.yellow }, hop = Math.round(Math.abs(Math.sin(t * 3)) * 2);
       if (big) {
-        art(b, TROPHY, 6, 20, 2, map);
+        art(b, ICONS.trophy, 6, 20, 2, map);
+        if (t > 0.8) art(b, ICONS.popper, 228, 32 - hop, 2, pop);
         typed(b, "FELIZ ANIVERSARIO", 36, 10, 2, C.yellow, t, 0.2, 18);
         text(b, "ANDRES · 3 AÑOS", 36, 30, 2, mul(C.white, ease((t - 1.1) / 0.5)));
         text(b, "EN CREDITOP", 36, 50, 1, mul(C.gray, ease((t - 1.5) / 0.5)));
       } else {
-        art(b, TROPHY, 4, 10, 1, map);
+        art(b, ICONS.trophy, 4, 10, 1, map);
+        if (t > 0.8) art(b, ICONS.popper, 240, 19 - (hop >> 1), 1, pop);
         typed(b, "FELIZ ANIVERSARIO", 20, 3, 2, C.yellow, t, 0.2, 18);
         text(b, "ANDRES · 3 AÑOS EN CREDITOP", 20, 22, 1, mul(C.white, ease((t - 1.2) / 0.5)));
       }
@@ -1004,14 +1009,14 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
     { id: "idle", group: "Reposo", label: "Hora y clima", draw(b, t) {
       const big = b.h >= 64, now = new Date();
       const hm = String(now.getHours()).padStart(2, "0") + (now.getSeconds() % 2 ? ":" : " ") + String(now.getMinutes()).padStart(2, "0");
-      const k = big ? 4 : 3, gw = tw(hm, k) + 14 + 20 + 6 + tw("18° NUBLADO", 1), x = Math.floor((b.w - gw) / 2);
+      const k = big ? 4 : 3, gw = tw(hm, k) + 12 + 24 + 8 + tw("18° NUBLADO", 1), x = Math.floor((b.w - gw) / 2);
       const cy = big ? 18 : 6;
       text(b, hm, x, cy, k, C.white);
-      const wx = x + tw(hm, k) + 14, sy = cy + (7 * k - 20) / 2 | 0;
-      for (let a = 0; a < 6.28; a += 0.2) px(b, wx + 7 + Math.cos(a + t) * 6, sy + 7 + Math.sin(a + t) * 6, C.amber);
-      rect(b, wx + 3, sy + 9, 16, 5, C.white); rect(b, wx + 6, sy + 6, 8, 3, C.white);
-      text(b, "18° NUBLADO", wx + 26, sy + 3, 1, C.white);
-      text(b, "BOGOTA", wx + 26, sy + 13, 1, C.gray);
+      const wx = x + tw(hm, k) + 12, iy = cy + ((7 * k - 24) >> 1), sy = cy + ((7 * k - 17) >> 1);
+      const rays = Math.sin(t * 3) > 0 ? C.yellow : null;            // los rayos del sol titilan
+      art(b, ICONS.weather, wx, iy, 2, { y: C.amber, r: rays, w: C.white });
+      text(b, "18° NUBLADO", wx + 32, sy, 1, C.white);
+      text(b, "BOGOTA", wx + 32, sy + 10, 1, C.gray);
     } }
   ];
 
