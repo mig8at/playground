@@ -120,6 +120,6 @@ En la oficina de desarrollo, con el tablero montado y conectado a la red WiFi de
 - Ninguna pantalla muestra datos individuales de clientes.
 
 ## Dependencias / contraparte
-- Compra del hardware (paneles, controlador, fuente, amplificador, parlante, cables y soportes)
-- Un servicio de texto a voz para generar las frases..
+- Compra del hardware (paneles, controlador, fuente, amplificador, parlante, cables y soportes).
+- Un servicio de texto a voz en el servidor, para convertir las frases en MP3.
 - Un punto de corriente y WiFi en la pared elegida.
