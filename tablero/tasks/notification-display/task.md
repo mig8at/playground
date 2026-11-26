@@ -58,6 +58,18 @@ No toca los repos de producto. Es un servicio nuevo más el firmware del control
 
 El prototipo visual de las dos opciones y la arquitectura: `artifacts/notification-display.html`.
 
+**El período de cada mensaje** (se eligió el que hace estable y comparable la cifra):
+
+| período | mensajes | por qué |
+|---|---|---|
+| hoy, contra ayer | resumen del día, récord | lo que pasa hoy; un día suelto se compara con el anterior |
+| en vivo | solicitudes en vivo (sapitos) | cada evento; la conversión de base, con 30 días |
+| mes calendario | desembolsos y meta, proyección del cierre, ingresos, meta cumplida, hito del mes | las metas de forecast son mensuales |
+| últimos 30 días | comercios sin uso, entidades sin uso, solicitudes sin venta, uptime | una ventana móvil no engaña al principio del mes; para la conversión, mejor con margen (solicitudes de hace 15 a 45 días) |
+| trimestre (Q) | suben y bajan | un mes suelto es muy ruidoso para comparar comercios |
+| año en curso | top de comercios, top de entidades, carrera del año | lo acumulado se lee mejor en el año |
+| toda la historia | crecimiento por mes | la forma del negocio desde el primer desembolso |
+
 ## Lo que se evaluó y NO se eligió
 
 Un aparato de escritorio sólo para avisos (Ulanzi TC001: 32×8 LED, WiFi y buzzer, US$45,99). Se descartó porque lo que se quiere es el tablero de paneles HUB75 P4 en la pared; la elección entre la opción 1 y la 2 sigue abierta.

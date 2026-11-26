@@ -173,7 +173,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         <button type="button" id="sound" aria-pressed="false">Sonido</button>
       </div>
     </div>
-    <p class="note">30 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados, salvo «Crecimiento por mes», cuya forma es real, los dos tops (comercios y entidades), con las ventas reales de 2026, «Suben y bajan», con los desembolsos reales del trimestre, los de «Atención», con el uso real de noviembre, y «Carrera del año», con las ventas reales de 2026 semana a semana (desembolsos por mes en producción, sin cifras absolutas). Su porcentaje de 2025 compara el año completo con 2024; el de 2026, enero a octubre con el mismo tramo de 2025.</p>
+    <p class="note">30 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados, salvo «Crecimiento por mes», cuya forma es real, los dos tops (comercios y entidades), con las ventas reales de 2026, «Suben y bajan», con los desembolsos reales del trimestre, los de «Atención», con el uso real de los últimos 30 días, y «Carrera del año», con las ventas reales de 2026 semana a semana (desembolsos por mes en producción, sin cifras absolutas). Su porcentaje de 2025 compara el año completo con 2024; el de 2026, enero a octubre con el mismo tramo de 2025.</p>
   </section>
 
   <section aria-labelledby="size">
@@ -931,7 +931,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         else { text(b, n, x - (tw(n, 1) >> 1), 1, 1, c); text(b, L[k], x - (tw(L[k], 1) >> 1), 23, 1, C.bLav); }
       });
     } },
-    { id: "race", group: "Negocio", label: "Carrera del año", dur: 12, draw(b, t) {
+    { id: "race", group: "Negocio", label: "Carrera del año", dur: 14, draw(b, t) {
       // Una carrera de barras del año: ventas acumuladas semana a semana de 2026 (al 25-nov, 47 semanas), medidas en
       // producción. Sonría y Pullman, primero y segundo todo el año; Credimovil arranca en cero hacia mayo y a principios
       // de noviembre rebasa a Dentix por el 3.er puesto; Crédito Directo y Tripleten se pelean el 5.º.
@@ -944,27 +944,35 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         ["C. DIRECTO", [0,0,0,0,0,0,0,0,0,0,0,0,0,3,10,28,75,114,202,351,419,535,608,681,752,849,923,995,1037,1088,1136,1181,1200,1230,1248,1280,1335,1401,1440,1524,1568,1610,1638,1664,1707,1749,1789]],
         ["EMO MAT.",   [0,0,0,3,20,35,53,78,115,136,166,183,210,224,258,297,318,337,372,399,425,446,510,521,549,582,619,665,697,725,753,775,814,844,860,905,930,949,967,1001,1020,1044,1057,1078,1093,1122,1139]]];
       const MES = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
-      const big = b.h >= 64, per = 0.2, days = 47;                        // 47 semanas en ~9,5 s
-      const f = Math.max(0, (t - 0.3) / per), d = Math.min(days - 1, Math.floor(f)), r = d >= days - 1 ? 1 : f - d;
-      const valAt = (v, k) => v[Math.min(days - 1, k)];
-      const now = RACE.map(([, v]) => d >= days - 1 ? v[days - 1] : v[d] + (v[d + 1] - v[d]) * r);
-      const ranks = k => { const vs = RACE.map(([, v]) => valAt(v, k)); return vs.map((x, i) => vs.filter((y, j) => y > x || (y === x && j < i)).length); };
-      const r0 = ranks(d), r1 = ranks(d + 1), rPrev = ranks(Math.max(0, d - 1));
-      const swap = ease(Math.min(1, r / 0.7));                           // el cambio de puesto se desliza durante el día
-      const pos = RACE.map((_, i) => r0[i] + (r1[i] - r0[i]) * swap);
-      const passing = RACE.map((_, i) => r1[i] < r0[i] || (r0[i] < rPrev[i] && r < 0.4));
-      const show = big ? 5 : 4, rowH = big ? 10 : 8, y0 = big ? 11 : 1, nx = 2, bx = 70, bmax = big ? 140 : 116;   // en 32, aire para el día
-      const week = Math.min(days, d + 1), mes = MES[Math.min(10, Math.floor(((week - 1) * 7) / 30.5))], anyPass = passing.some((p, i) => p && pos[i] < show - 0.5);
+      const big = b.h >= 64, per = 0.26, days = 47;                        // 47 semanas en ~12 s
+      // el valor de cada comercio en cualquier instante, con una curva suave entre semanas (Catmull-Rom, sin pasarse)
+      const valAt = (v, tt) => {
+        const f = Math.max(0, (tt - 0.4) / per), i = Math.min(days - 1, Math.floor(f)), u = i >= days - 1 ? 0 : f - i;
+        const g = k => v[Math.max(0, Math.min(days - 1, k))], p0 = g(i - 1), p1 = g(i), p2 = g(i + 1), p3 = g(i + 2);
+        const c = 0.5 * (2 * p1 + (-p0 + p2) * u + (2 * p0 - 5 * p1 + 4 * p2 - p3) * u * u + (-p0 + 3 * p1 - 3 * p2 + p3) * u * u * u);
+        return Math.min(Math.max(c, Math.min(p1, p2)), Math.max(p1, p2)) * ease(tt / 0.8);   // y al empezar, las barras crecen desde cero
+      };
+      const rankAt = tt => { const vs = RACE.map(([, v]) => valAt(v, tt)); return vs.map((x, i) => vs.filter((y, j) => y > x || (y === x && j < i)).length); };
+      // el puesto se mueve como un promedio de los últimos 0,5 s: los cambios se deslizan, no saltan
+      const N = 12, hist = Array.from({ length: N }, (_, k) => rankAt(t - k * 0.04));
+      const wsum = N * (N + 1) / 2, pos = RACE.map((_, i) => hist.reduce((a, r, k) => a + r[i] * (N - k), 0) / wsum);
+      const rNow = hist[0], rAgo = rankAt(t - 0.8), now = RACE.map(([, v]) => valAt(v, t));
+      const passing = RACE.map((_, i) => rNow[i] < rAgo[i] && t > 1);
+      const show = big ? 5 : 4, rowH = big ? 10 : 8, y0 = big ? 11 : 1, mx = 2, nx = 10, bx = 74, bmax = big ? 136 : 112;
+      const f = Math.max(0, (t - 0.4) / per), week = Math.min(days, Math.floor(f) + 1);
+      const mes = MES[Math.min(10, Math.floor(((week - 1) * 7) / 30.5))], anyPass = passing.some((p, i) => p && rNow[i] < show);
       if (big) {
-        text(b, "CARRERA 2026 · VENTAS", 2, 1, 1, C.gray);
+        art(b, ["wkwkwk", "kwkwkw", "wkwkwk", "kwkwkw", "w.....", "w....."], 2, 1, 1, { w: C.white, k: [60,60,70] });   // 🏁
+        text(b, "CARRERA 2026 · VENTAS", 11, 1, 1, C.gray);
         const hd = mes + (anyPass ? " · REBASO!" : ""); text(b, hd, rx(b, hd, 1), 1, 1, anyPass ? C.yellow : C.white);
-      } else { text(b, mes, rx(b, mes, 1), 1, 1, anyPass ? C.yellow : C.gray); }
+      } else text(b, mes, rx(b, mes, 1), 1, 1, anyPass ? C.yellow : C.gray);
       const top = Math.max(300, ...now);
       RACE.forEach(([name], i) => {
-        const y = Math.round(y0 + pos[i] * rowH);
-        if (pos[i] > show - 1 + 0.001 && y + 7 > b.h) return;            // sólo los primeros puestos
-        if (pos[i] > show - 0.5) return;
-        const lead = r1[i] === 0 && swap > 0.5 || r0[i] === 0 && swap <= 0.5, pass = passing[i];
+        if (pos[i] > show - 0.5) return;                                 // sólo los primeros puestos
+        const y = Math.round(y0 + pos[i] * rowH); if (y + 7 > b.h) return;
+        const lead = rNow[i] === 0, pass = passing[i];
+        if (rNow[i] < 3) for (let dy = 0; dy < 5; dy++) for (let dx = 0; dx < 5; dx++)   // 🥇🥈🥉
+          if ((dx - 2) ** 2 + (dy - 2) ** 2 <= 5) px(b, mx + dx, y + 1 + dy, MEDAL[rNow[i]]);
         const w = Math.max(1, Math.round(bmax * now[i] / top)), barC = pass ? C.yellow : lead ? C.green : C.amberDim;
         text(b, name, nx, y, 1, pass ? C.yellow : lead ? C.green : C.white);
         rect(b, bx, y + 1, w, 5, barC);
@@ -1039,18 +1047,19 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
     } },
     // Atención: lo que no va bien, para verlo igual que lo bueno. Amarillo para avisar, rojo para lo que se perdió.
     { id: "idle-merchants", group: "Atención", label: "Comercios sin uso", draw(b, t) {
-      // comercios activos que ya habían usado CreditOp y no tienen solicitudes este mes; y los que sí tenían en octubre.
-      // Medido en producción al 25-nov-2026: 81 de 170 sin solicitudes en noviembre, 20 de ellos usaban en octubre.
-      const big = b.h >= 64, n = String(Math.round(81 * ease((t - 0.3) / 1.2))), k = big ? 3 : 2;
-      text(b, big ? "COMERCIOS SIN SOLICITUDES EN NOVIEMBRE" : "SIN SOLICITUDES EN NOV", 2, big ? 3 : 1, 1, C.gray);
+      // comercios activos que ya habían usado CreditOp y no tienen solicitudes en los últimos 30 días (ventana móvil: un
+      // mes calendario engaña al principio del mes); y los que sí tenían en los 30 anteriores. Medido en producción al
+      // 25-nov-2026, sin comercios de prueba: 73 de 164 sin solicitudes, 16 de ellos usaban el mes anterior.
+      const big = b.h >= 64, n = String(Math.round(73 * ease((t - 0.3) / 1.2))), k = big ? 3 : 2;
+      text(b, big ? "COMERCIOS SIN SOLICITUDES EN 30 DIAS" : "SIN SOLICITUDES EN 30 DIAS", 2, big ? 3 : 1, 1, C.gray);
       const y = big ? 20 : 10, zx = 4, nx = 4 + (big ? 22 : 14);
       for (let j = 0; j < 3; j++) {                                   // 💤 las zetas suben y se apagan
         const f = ((t * 0.6 + j / 3) % 1), zy = y + 7 * k - 7 - Math.round(f * (big ? 14 : 8)), zxj = zx + Math.round(f * (big ? 10 : 6));
         text(b, "Z", zxj, zy, 1, mul(C.yellow, Math.sin(f * Math.PI)));
       }
       text(b, n, nx, y, k, C.yellow);
-      text(b, "DE 170 ACTIVOS", nx + tw("81", k) + 8, y + 7 * k - 7, 1, C.gray);
-      const lost = "▼ 20 DEJARON DE USAR" + (big ? " · USABAN EN OCTUBRE" : "");
+      text(b, "DE 164 ACTIVOS", nx + tw("73", k) + 8, y + 7 * k - 7, 1, C.gray);
+      const lost = "▼ 16 DEJARON DE USAR" + (big ? " · USABAN HACE UN MES" : "");
       text(b, lost, 2, big ? 54 : 25, 1, mul(C.red, ease((t - 1.6) / 0.5)));
     } },
     { id: "idle-lenders", group: "Atención", label: "Entidades sin uso", draw(b, t) {
