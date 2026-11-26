@@ -125,6 +125,9 @@ func (s *sentinel) digestDay(rules Rules, date string, deploys []Deploy) (string
 		b.WriteString("Ninguno.\n\n")
 	}
 
+	// Los casos que abrió operaciones en #tech-ops ese día (techops.go).
+	b.WriteString(techopsSection(day, end))
+
 	// Los avisos del día y su porqué.
 	notes := noticesOn(s.store.dir, date)
 	if len(notes) > 0 {
@@ -191,6 +194,57 @@ func previousDeploy(list []Deploy, d Deploy) *Deploy {
 		}
 	}
 	return best
+}
+
+// tagRepos: los repos que se despliegan pero no están en la lista de `make deploys` (que sale de los workflows de
+// GitHub): su versión en producción es el tag («prod se despliega al taguear»). Sin esto el primer informe no pudo
+// explicar las fallas de preapprovals-service del 23/11: su v0.1.23 se tagueó a las 19:46 y fallaba desde las 20:22.
+var tagRepos = []string{"pre-approvals-service", "merchant-api"}
+
+// tagDeploys: los tags de los últimos `days` días de un repo, como despliegues (la hora es la del tag).
+func tagDeploys(repo string, days int) []Deploy {
+	dir := repoDir(repo)
+	if dir == "" {
+		return nil
+	}
+	gitRef(dir, "HEAD") // trae los tags
+	out, err := runTool(15*time.Second, dir, "git", "for-each-ref", "--sort=-creatordate", "--format=%(refname:short)|%(creatordate:iso-strict)|%(subject)", "refs/tags")
+	if err != nil {
+		return nil
+	}
+	since := time.Now().AddDate(0, 0, -days)
+	var list []Deploy
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		parts := strings.SplitN(line, "|", 3)
+		if len(parts) < 2 {
+			continue
+		}
+		at, err := time.Parse(time.RFC3339, parts[1])
+		if err != nil {
+			continue
+		}
+		if at.Before(since) {
+			// Uno más viejo, para tener el «anterior» del primero de la ventana.
+			list = append(list, Deploy{Repo: repo, Version: parts[0], Title: "tag " + parts[0], At: at.In(bogota).Format(time.RFC3339), OK: true})
+			break
+		}
+		title := "tag " + parts[0]
+		if len(parts) == 3 && parts[2] != "" {
+			title += " · " + parts[2]
+		}
+		list = append(list, Deploy{Repo: repo, Version: parts[0], Title: title, At: at.In(bogota).Format(time.RFC3339), OK: true})
+	}
+	return list
+}
+
+// allDeploys: los despliegues de `make deploys` y los tags de `tagRepos`, del más nuevo al más viejo.
+func allDeploys(root string, days int) ([]Deploy, error) {
+	list, err := deploys(root, days)
+	for _, r := range tagRepos {
+		list = append(list, tagDeploys(r, days)...)
+	}
+	sort.Slice(list, func(i, j int) bool { return list[i].At > list[j].At })
+	return list, err
 }
 
 // repoDir: el clon sólo-main del repo (~/Desktop/CREDITOP/main-clones/<repo>), o el de trabajo si no hay.
@@ -381,7 +435,7 @@ func (s *sentinel) buildPack(rules Rules, path string, now time.Time) (*PackInfo
 		}
 	}
 
-	deps, _ := deploys(s.root, packCodeDays+30)
+	deps, _ := allDeploys(s.root, packCodeDays+30)
 
 	// Los resúmenes de los días, del más viejo al más nuevo.
 	var dates []string
@@ -402,6 +456,11 @@ func (s *sentinel) buildPack(rules Rules, path string, now time.Time) (*PackInfo
 	// 26/11/2026: el primer informe no vio el despliegue de las 11:14 que rompió una columna, porque llegaba hasta ayer.
 	if today, err := s.digestDay(rules, now.In(bogota).Format("2006-01-02"), deps); err == nil {
 		section("resúmenes diarios", strings.Replace(today, "# Resumen de producción del ", "# Resumen PARCIAL (el día no terminó) del ", 1)+"\n")
+	}
+
+	// El dictamen de esta mañana (verdict.go), para que el informe no diga otra cosa sin explicarlo.
+	if v := s.loadVerdict(now.In(bogota).Format("2006-01-02")); v != nil && v.Text != "" {
+		section("dictamen de hoy", "# El dictamen de esta mañana (otro modelo, con menos contexto)\n\n"+scrub(v.Text)+"\n\n")
 	}
 
 	// El mes a la fecha (month.go).
@@ -559,10 +618,11 @@ func verifyPaths(report string) string {
 // ── lo automático, dentro de la API de fondo ────────────────────────────────────────────────────────────────────
 
 // La memoria se arma sola: en cada pasada, a lo sumo UN resumen de un día que falte (~30 s de Loki, en segundo plano,
-// para no cargarlo de golpe), y el informe TODOS los días desde las 6:30 si el de hoy no está (antes del dictamen de
-// las 7:30, que también le pregunta a AI Studio, que contesta de a una; también fines de semana: el Black Friday cae
-// viernes). Necesita Chrome con Jarvis; un intento fallido se reintenta a las 3 horas. Decisión de Miguel
-// (2026-11-26): diario, no semanal. Con `memory.off` en .data, nada de esto corre.
+// para no cargarlo de golpe), y el informe TODOS los días desde las 8:30 si el de hoy no está (también fines de semana:
+// el Black Friday cae viernes): el barrido de ayer y lo que va de hoy. Decisión de Miguel (2026-11-26): diario y a las
+// 8:30, cuando ya llegó al trabajo y hay red (a las 6 va en camino). Necesita Chrome con Jarvis; un intento fallido se
+// reintenta a las 3 horas. Después del dictamen de las 7:30, que también usa AI Studio (de a una): el informe lo lee.
+// Con `memory.off` en .data, nada de esto corre.
 var memoryState struct {
 	mu          sync.Mutex
 	busy        bool
@@ -572,7 +632,7 @@ var memoryState struct {
 	failed      map[string]time.Time // un día que falló no se reintenta hasta 6 horas después
 }
 
-const reportHour, reportMinute = 6, 30
+const reportHour, reportMinute = 8, 30
 
 func (s *sentinel) maybeMemory(rules Rules) {
 	if _, err := os.Stat(filepath.Join(s.store.dir, "memory.off")); err == nil {
@@ -610,7 +670,7 @@ func (s *sentinel) maybeMemory(rules Rules) {
 		defer func() { st.mu.Lock(); st.busy = false; st.mu.Unlock() }()
 		if len(missing) > 0 {
 			if time.Since(st.depsAt) > 6*time.Hour {
-				if d, err := deploys(s.root, 40); err == nil {
+				if d, err := allDeploys(s.root, 40); err == nil {
 					st.deps, st.depsAt = d, time.Now()
 				}
 			}

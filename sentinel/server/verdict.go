@@ -151,6 +151,18 @@ func (s *sentinel) makeVerdict(ctx context.Context, rules Rules, now time.Time) 
 	} else {
 		return v, err
 	}
+	// El último informe del día (Gemini, con 28 días de memoria y el código desplegado; digest.go): el dictamen lo lee
+	// para no contradecirlo sin decirlo. Sólo el titular, los hallazgos y las acciones: el informe entero es largo.
+	if rep, err := s.latestReport(); err == nil && rep.View != nil {
+		fmt.Fprintf(&b, "## El último informe del día (%s, Gemini con 28 días de memoria)\n\n%s (%s)\n", rep.Date, rep.View.Headline, rep.View.Level)
+		for _, f := range rep.View.Findings {
+			fmt.Fprintf(&b, "- [%s · %s] %s: %s\n", f.Severity, f.Status, f.Title, f.Summary)
+		}
+		for _, a := range rep.View.Actions {
+			fmt.Fprintf(&b, "- acción: %s\n", a.Text)
+		}
+		b.WriteString("\n")
+	}
 	yesterday := now.In(bogota).AddDate(0, 0, -1).Format("2006-01-02")
 	for _, d := range []string{yesterday, day} {
 		if r, err := c.day(d); err == nil {

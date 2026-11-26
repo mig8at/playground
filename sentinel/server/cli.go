@@ -47,7 +47,7 @@ const cliHelp = `sentinel — el vigía de producción, por consola. Sólo lee (
                                             las solicitudes que toca y en qué estado quedaron (lee Loki y producción)
   bin/sentinel digest [AAAA-MM-DD|--all]    el resumen de un día para la memoria (por defecto ayer; --all, los que faltan)
   bin/sentinel pack [--out archivo]         arma el paquete para Gemini (la memoria, el contexto y el código desplegado) y dice cuánto pesa
-  bin/sentinel report                       el informe del día: el paquete a Gemini por AI Studio (Chrome con Jarvis); solo, a las 6:30
+  bin/sentinel report                       el informe del día: el paquete a Gemini por AI Studio (Chrome con Jarvis); solo, a las 8:30
   bin/sentinel month                        el mes a la fecha contra el mismo tramo del mes anterior, por entidad y comercio (lee producción)
   bin/sentinel schema                       lo que producción tiene y dev ya no: columnas renombradas o borradas
   bin/sentinel ack <señal> [--undo]         reconocer un episodio («ya lo sé»); pide la API arriba
@@ -127,7 +127,7 @@ func runCLI(root string, args []string) int {
 	// La memoria para Gemini (digest.go).
 	switch cmd {
 	case "digest":
-		deps, err := deploys(c.s.root, 40)
+		deps, err := allDeploys(c.s.root, 40)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "sentinel: sin los despliegues:", err)
 		}

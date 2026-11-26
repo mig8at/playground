@@ -141,10 +141,20 @@ contexto completo, y aprovechar su ventana de cientos de miles de tokens con dat
   60 KB por despliegue y 900 KB en total). Lo que justifica la ventana grande es cruzar el código que salió con los
   errores que aparecieron después.
 - **El informe** (`.data/reports/<día>.md`): el paquete a Gemini por la web de AI Studio (`bin/aistudio --file`), con
-  Chrome y Jarvis. **Todos los días desde las 6:30** lo arma la API (antes del dictamen de las 7:30, que también usa AI
-  Studio, de a una; fines de semana incluidos; si falla, reintenta a las 3 horas), o a pedido con `bin/sentinel report`.
-  Diario por decisión de Miguel (2026-11-26); el foco es lo que cambió desde el informe anterior, con los 28 días como
-  memoria. El aviso de macOS trae el titular. Cada informe vuelve a entrar en los siguientes: así sabe qué concluyó antes. Al final, Sentinel
+  Chrome y Jarvis. **Todos los días desde las 8:30** lo arma la API: el barrido de ayer y lo que va de hoy (fines de
+  semana incluidos; si falla, reintenta a las 3 horas), o a pedido con `bin/sentinel report`. Diario y a las 8:30 por
+  decisión de Miguel (2026-11-26: a las 6 va en camino, sin red); lo demás sigue igual, cada 5 minutos. El foco es lo que
+  cambió desde el informe anterior, con los 28 días como memoria. El aviso de macOS trae el titular.
+- **Dictamen e informe se leen**: el informe (8:30) recibe el dictamen de esa mañana (7:30); el dictamen recibe el
+  titular, los hallazgos y las acciones del último informe. Así ninguno contradice al otro sin decirlo.
+- **Los repos que no están en `make deploys`** (`tagRepos`: pre-approvals-service y merchant-api) entran por sus tags
+  («prod se despliega al taguear»), con la hora del tag: en el resumen del día con sus commits y en el paquete con su
+  código. Medido: preapprovals-service v0.1.23 se tagueó el 23/11 a las 19:46 y fallaba desde las 20:22.
+- **Los casos de #tech-ops** (`server/techops.go`) van en el resumen de cada día: número, prioridad, tipo, comercio,
+  entidad, canal, la descripción y la última respuesta del hilo, filtradas; NUNCA la cédula ni el celular del formulario
+  (prueba `TestTechopsParse`). ⚠ Necesita que el token de Slack de `connectors/.env` lea el historial del canal
+  (`channels:history`, o `groups:history` si es privado): el 26/11/2026 ninguno de los dos tokens lo tenía
+  (`missing_scope`), y el resumen lo dice. Agregar el permiso es configurar la app de Slack. Cada informe vuelve a entrar en los siguientes: así sabe qué concluyó antes. Al final, Sentinel
   (no el modelo) verifica contra main cada ruta de código que cita y lista las que no existen.
 - **La vista** (`server/view.go`, `.data/reports/<día>.json`, `#/report`): con el informe, Gemini devuelve un JSON de
   vocabulario fijo (titular y nivel, hasta 8 hallazgos con sus señales, despliegue y archivos, tendencias, acciones).
@@ -160,7 +170,10 @@ contexto completo, y aprovechar su ventana de cientos de miles de tokens con dat
   15 de 15 rutas citadas existen; la vista citó 37 señales y ninguna se descartó.
 - **Límite**: el código de preapprovals-service y merchant-api no entra, porque esos repos no están en la lista de
   despliegues (`make deploys`); Sentinel sólo conoce su última versión (las tarjetas de servicios). Por eso el informe no
-  pudo explicar con un diff los errores de `failed to save workflow audit leg`.
+  pudo explicar con un diff los errores de `failed to save workflow audit leg`. Resuelto el mismo día con `tagRepos`: el
+  segundo informe (~418 mil tokens, 2 min 36 s) usó el código de preapprovals-service v0.1.23 (atribuyó como hipótesis
+  los errores de Brilla al adaptador nuevo), corrigió en una sección «Rectificación» lo que el primero había dicho mal, y
+  la verificación marcó 1 de 7 rutas que no existe en main.
 - ⚠ **AI Studio por la web es una cuenta de consumidor**: lo que se manda puede revisarlo Google. El paquete va
   agregado y normalizado (`scrub`, con su prueba): sin números de solicitud, cédulas, celulares, correos ni autores de
   commits. El código sí va, como ya va para poner al día knowledge. `.data/memory.off` apaga lo automático.
