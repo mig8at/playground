@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { VueFlow, Panel } from '@vue-flow/core'
+import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
@@ -41,9 +41,11 @@ import InfoAdicionalNode from './nodes/InfoAdicionalNode.vue'
 import CreditStatusNode from './nodes/CreditStatusNode.vue'
 import FieldInfoPanel from './nodes/FieldInfoPanel.vue'
 import TableView from './TableView.vue'
+import ScenarioSidebar from './ScenarioSidebar.vue'
 import { settings } from './settings'
 import { ui, findLenderDef, entidadCfg, perfilOf, perfil, bureau, fieldNull, providerDown, lenders, postSelSteps, selectionCheck, usesCategories, usesQuotaEngine, isInHouse, delegatedOf, closeFieldInfo, focusWinningProfile, persistPing } from './store'
 import { Check } from 'lucide-vue-next'
+import { vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle } from './workbench.js'
 
 // El tema lo pone workbench.js (el de Cockpit) como clase `dark` en el <html>; acá sólo se sigue, para los colores
 // que se pintan por código (los edges y el patrón de fondo). `ui-theme` avisa cada cambio.
@@ -84,8 +86,63 @@ function onKey(e) {
   if (ui.fieldInfo) closeFieldInfo()
   else if (ui.selected) ui.selected = null
 }
-onMounted(() => { window.addEventListener('keydown', onKey); window.addEventListener('ui-theme', onTheme) })
-onUnmounted(() => { window.removeEventListener('keydown', onKey); window.removeEventListener('ui-theme', onTheme); clearTimeout(savedTimer) })
+// ── Las regiones, con el contrato de la base (2026-11-26): el sidebar «Escenario» a la izquierda, el editor (grafo o
+// tabla) y, a la derecha, el sidebar secundario cuando hay algo que detallar (el campo o nodo del grafo, o la celda de la
+// tabla). Cada medida se guarda; lo que se pinta se DERIVA con `fitRegions`, así lo que se plegó por falta de lugar
+// vuelve solo cuando la ventana crece. El secundario se cierra con su ✕ (o Esc), no desde el pie: aparece y se va con
+// lo elegido, así que su manija no pliega (`collapsible: false`).
+const sidebarOpen = ref(readSize('flow.sidebar-open', 1) !== 0)
+const sidebarW = ref(readSize('flow.sidebar-w', 300))
+const auxW = ref(readSize('flow.auxiliarybar-w', 340))
+const tableDetailOpen = ref(false)
+const viewportW = ref(window.innerWidth)
+const onWindowResize = () => { viewportW.value = window.innerWidth }
+const auxOpen = computed(() => (settings.view === 'table' ? tableDetailOpen.value : !!ui.fieldInfo))
+const shown = computed(() => {
+  // En orden de sacrificio: primero el secundario, después el sidebar. El editor nunca baja de su mínimo.
+  const [aux, sidebar] = fitRegions(viewportW.value - cssSize('--editor-min', 360) - 16, [
+    { size: auxOpen.value ? auxW.value : 0, min: cssSize('--sidebar-min', 240) },
+    { size: sidebarOpen.value ? sidebarW.value : 0, min: cssSize('--sidebar-min', 240) },
+  ])
+  return { sidebar, aux }
+})
+const layoutVars = computed(() => ({ '--sidebar-w': `${shown.value.sidebar}px`, '--auxiliarybar-w': `${shown.value.aux}px` }))
+const sidebarResize = {
+  label: 'Ancho del escenario', sign: 1, defaultValue: 300,
+  min: () => cssSize('--sidebar-min', 240),
+  max: () => viewportW.value - cssSize('--editor-min', 360) - shown.value.aux,
+  get: () => shown.value.sidebar,
+  set: (v) => { if (!v) sidebarOpen.value = false; else { sidebarOpen.value = true; sidebarW.value = v } },
+  reopen: () => sidebarW.value,
+  commit: (v) => { saveSize('flow.sidebar-open', v ? 1 : 0); if (v) saveSize('flow.sidebar-w', sidebarW.value) },
+}
+const auxResize = {
+  label: 'Ancho del detalle', sign: -1, defaultValue: 340, collapsible: false,
+  min: () => cssSize('--sidebar-min', 240),
+  max: () => viewportW.value - cssSize('--editor-min', 360) - shown.value.sidebar,
+  get: () => shown.value.aux,
+  set: (v) => { auxW.value = v },
+  commit: () => saveSize('flow.auxiliarybar-w', auxW.value),
+}
+function toggleSidebar() { sidebarOpen.value = !shown.value.sidebar; saveSize('flow.sidebar-open', sidebarOpen.value ? 1 : 0) }
+
+// Encuadrar el grafo: la cámara la maneja la persona (no se re-encuadra sola al elegir), y esto la devuelve a ver todo.
+const { fitView } = useVueFlow()
+const fitGraph = () => fitView({ padding: 0.14, duration: 300 })
+
+// El tema no se elige en Flow (lo manda Cockpit), pero `bindThemeToggle` necesita un botón del pie: es el que escucha a
+// Cockpit y, adentro de él, pone a su lado el botón del panel «Claude», como en el resto de las herramientas. El del tema
+// queda oculto.
+const themeButton = ref(null)
+let themeBinding = null
+onMounted(() => {
+  window.addEventListener('keydown', onKey); window.addEventListener('ui-theme', onTheme); window.addEventListener('resize', onWindowResize)
+  if (themeButton.value) themeBinding = bindThemeToggle(themeButton.value)
+})
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKey); window.removeEventListener('ui-theme', onTheme); window.removeEventListener('resize', onWindowResize)
+  clearTimeout(savedTimer); themeBinding?.destroy?.()
+})
 
 const nodes = ref([
   // Config del comercio: "Entidades del comercio" (incluye los productos CreditopX) entra al merchant desde arriba.
@@ -410,19 +467,23 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
 </script>
 
 <template>
-  <div class="workbench">
+  <div class="workbench" :style="layoutVars">
+    <aside v-show="shown.sidebar" class="sidebar" aria-label="El escenario: entidades y cliente">
+      <div class="rsz rsz-edge-right" v-resize="sidebarResize"></div>
+      <ScenarioSidebar />
+    </aside>
     <main class="editor">
-      <div class="region-head">
-        <span class="flow-title">Flujo de una solicitud</span>
-        <div class="flow-views" role="tablist" aria-label="Vista">
-          <button type="button" role="tab" :aria-selected="settings.view === 'graph'" :class="{ on: settings.view === 'graph' }" @click="settings.view = 'graph'">Grafo</button>
-          <button type="button" role="tab" :aria-selected="settings.view === 'table'" :class="{ on: settings.view === 'table' }" @click="settings.view = 'table'">Tabla</button>
-        </div>
-        <span class="flow-crumbs">{{ settings.view === 'table' ? 'el mismo cliente, todas las entidades, paso por paso' : 'comercio → solicitud → burós → perfil → entidades → después de elegir' }}</span>
-        <EditorActions v-if="settings.view === 'graph'" />
-      </div>
+      <nav class="tabs" role="tablist" aria-label="Vista">
+        <button type="button" role="tab" class="tab" :aria-selected="settings.view === 'graph'" :class="{ on: settings.view === 'graph' }"
+          title="Una entidad, nodo por nodo: comercio → solicitud → burós → perfil → entidades → después de elegir" @click="settings.view = 'graph'">Grafo</button>
+        <button type="button" role="tab" class="tab" :aria-selected="settings.view === 'table'" :class="{ on: settings.view === 'table' }"
+          title="El mismo cliente contra todas las entidades, paso por paso" @click="settings.view = 'table'">Tabla</button>
+        <EditorActions v-if="settings.view === 'graph'" @fit="fitGraph" />
+      </nav>
       <div v-if="settings.view === 'table'" class="region-body">
-        <TableView />
+        <TableView :detail-width="shown.aux" @detail="v => (tableDetailOpen = v)">
+          <template #resize><div class="rsz rsz-edge-left" v-resize="auxResize"></div></template>
+        </TableView>
       </div>
       <div v-else class="region-body canvas">
         <VueFlow :nodes="nodes" :edges="edges" :min-zoom="0.2" :max-zoom="2" :nodes-draggable="true" :fit-view-on-init="true" :fit-view-options="{ padding: 0.14 }" @pane-click="closeFieldInfo">
@@ -460,25 +521,21 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
           <template #node-infoadicional="props"><InfoAdicionalNode v-bind="props" /></template>
           <template #node-cstatus="props"><CreditStatusNode v-bind="props" /></template>
           <Background :pattern-color="isDark ? '#2f2e27' : '#cfcabd'" :gap="22" />
-          <Panel position="bottom-right" class="hud hud--legend">
-            <div class="lg"><span class="lg__chip rt2">rt2</span> CreditopX · decide CreditOp</div>
-            <div class="lg"><span class="lg__chip rt4">rt4</span> delegada · su política, cierra acá</div>
-            <div class="lg"><span class="lg__chip rt1">rt1</span> agregador · decide su API</div>
-            <div class="lg"><span class="lg__chip rt0">rt0</span> redirect · decide su sitio</div>
-            <div class="lg lg--dash"><span class="lg__dash"></span> config / herencia</div>
-            <div class="lg"><span class="lg__ext"></span> con halo: contesta un tercero</div>
-            <div class="lg"><span class="lg__dim"></span> con entidad elegida: a media luz su config · apagado lo que no usa</div>
-            <div class="lg"><span class="lg__chip mprod--credito">C</span><span class="lg__chip mprod--renting">R</span><span class="lg__chip mprod--rto">RB</span> productos</div>
-            <div class="lg"><i class="kv-dot inh-heredada"></i> heredada <i class="kv-dot inh-editada"></i> editada</div>
-            <div class="lg"><i class="lg-sw lg-sw--won"></i> categoría gana <i class="lg-sw lg-sw--off"></i> no aplica <i class="lg-sw lg-sw--fail"></i> no cumple</div>
-          </Panel>
         </VueFlow>
       </div>
     </main>
-    <FieldInfoPanel v-if="settings.view === 'graph'" />
+    <FieldInfoPanel v-if="settings.view === 'graph'" :width="shown.aux">
+      <template #resize><div class="rsz rsz-edge-left" v-resize="auxResize"></div></template>
+    </FieldInfoPanel>
     <footer class="statusbar">
-      <span>{{ ui.selected ? 'Entidad elegida: ' + ui.selected : 'Elegí una entidad en «Entidades disponibles» para ver lo que sigue' }}</span>
+      <span>{{ ui.selected ? 'Entidad elegida: ' + ui.selected : 'Elegí una entidad en el escenario o en «Entidades disponibles»' }}</span>
       <span v-if="justSaved" class="flow-saved"><Check :size="12" /> escenario guardado</span>
+      <div class="layout-controls" role="group" aria-label="Regiones visibles">
+        <button ref="themeButton" type="button" class="region-action" style="display: none" tabindex="-1" aria-hidden="true"></button>
+        <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Mostrar u ocultar el escenario" aria-label="Mostrar u ocultar el escenario" @click="toggleSidebar">
+          <span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span>
+        </button>
+      </div>
     </footer>
   </div>
 </template>

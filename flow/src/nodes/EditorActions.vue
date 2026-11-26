@@ -6,6 +6,7 @@ import { resetGraph } from '../store'
 
 // Las acciones del lienzo, en la banda del editor (la base: lo frecuente, como iconos con su título).
 // Reiniciar pide dos clics (sin modal): el 1º lo arma (rojo) y se desarma solo a los 3 s.
+const emit = defineEmits(['fit'])
 const confirmReset = ref(false)
 let confirmTimer
 function onReset() {
@@ -19,6 +20,9 @@ onUnmounted(() => clearTimeout(confirmTimer))
 
 <template>
   <div class="region-actions">
+    <button type="button" class="region-action" title="Encuadrar el grafo: volver a ver todos los nodos" aria-label="Encuadrar el grafo" @click="emit('fit')">
+      <span class="ui-icon" data-icon="maximize" aria-hidden="true"></span>
+    </button>
     <button type="button" class="region-action" :aria-pressed="settings.showExtra"
       :title="settings.showExtra ? 'Ocultar lo que no participa en la solicitud (revenue, servicing, buró informativo, inertes)' : 'Mostrar lo que no participa en la solicitud: revenue, servicing, buró informativo e inertes, atenuados'"
       aria-label="Mostrar campos fuera de la solicitud" @click="settings.showExtra = !settings.showExtra">

@@ -27,13 +27,30 @@ de vez en cuando y **no tiene que seguir al código al pie de la letra**. Lo que
 - **Un caso o un estado real** no se contesta acá: el harness (correr), `bin/pg` (la base, Loki) y, en prod, el
   tracer del repo compartido.
 
+## La ventana (2026-11-26): el workbench de la base
+
+- **Sidebar «Escenario»** (`ScenarioSidebar.vue`), a la izquierda y para las dos vistas: el comercio y la sucursal, las
+  **entidades** (elegir una acá es lo mismo que en «Entidades disponibles»; el punto dice si sale en el listado), el
+  **cliente** (`ClientForm.vue`: monto, ingreso, ocupación, continuidad, edad, score, negativos, documento, cuotas que ya
+  paga y experiencia) y la **leyenda**, que antes flotaba sobre el lienzo. Secciones plegables (`<details>`), guardadas
+  en `flow.sidebar-sections`.
+- **Editor**: las pestañas «Grafo | Tabla» son su banda; en el grafo, a la derecha, Encuadrar, mostrar lo que no
+  participa y Reiniciar.
+- **Sidebar secundario**: el detalle de un campo o nodo del grafo (`FieldInfoPanel.vue`) o la calculadora de la celda de
+  la tabla (teletransportada al `.workbench` desde `TableView.vue`). Aparece con lo elegido y se cierra con su ✕ o Esc;
+  su manija ajusta el ancho pero no lo pliega.
+- **Pie**: la entidad elegida, «escenario guardado» y el botón del sidebar. El tema sigue siendo de Cockpit: el botón del
+  tema está oculto y existe para que `bindThemeToggle` escuche a Cockpit y ponga al lado el botón del panel «Claude».
+- Las medidas (`flow.sidebar-w`, `flow.sidebar-open`, `flow.auxiliarybar-w`) se guardan; lo que se pinta se deriva con
+  `fitRegions` en `App.vue`.
+
 ## Dos vistas: Grafo y Tabla
 
 Arriba, «Grafo | Tabla» (o `bin/flow view table`), guardado en `flow-settings`. El **grafo** cuenta UNA entidad, nodo por
 nodo. La **tabla** (`src/TableView.vue`, 2026-11-25) pone el mismo cliente contra todas las entidades: una fila por paso de
 la solicitud y una columna por entidad, y cada celda dice si pasa (verde), si se corta (rojo), si sigue con probabilidad
-baja (ámbar) o si no le aplica. Al abrir una celda sale, a la derecha, la «calculadora» del paso; arriba se edita el
-cliente (monto, ocupación, edad, score, negativos, continuidad) y toda la tabla se recalcula.
+baja (ámbar) o si no le aplica. Al abrir una celda sale, a la derecha, la «calculadora» del paso; el cliente se edita en el
+sidebar «Escenario» y toda la tabla se recalcula.
 
 - Tiene las seis filas: **1 · Listado** (las reglas duras de la sucursal: tipo de documento, centrales y grupos; CreditopX
   que no las cumple no sale, las demás salen con probabilidad baja) y **2 · Preaprobación** (quién contesta, las

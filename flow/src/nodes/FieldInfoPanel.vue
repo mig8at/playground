@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { ui, closeFieldInfo } from '../store'
 import { FIELD_DOCS, FIELD_STATUS, LAYER_LABELS, NODE_STAGE } from '../fieldDocs'
-import { X, Database, Layers3, FileCode2 } from 'lucide-vue-next'
+import { Database, Layers3, FileCode2 } from 'lucide-vue-next'
 
 // El sidebar secundario (`auxiliarybar` de la base): detalle de un CAMPO o de un NODO (kind:'node' → vista más rica con role + bullets).
 // Muestra: dónde se guarda (tablas), en qué capa vive la lógica, estado/etapa y el detalle.
@@ -13,13 +13,16 @@ const st = computed(() => doc.value ? FIELD_STATUS[doc.value.status] : null)
 const badgeLabel = computed(() => isNode.value ? ('Nodo · ' + (NODE_STAGE[doc.value.stage]?.label || doc.value.stage)) : st.value?.label)
 const badgeClass = computed(() => isNode.value ? 'fi--node' : ('fi--' + doc.value.status))
 const layerLabel = (l) => LAYER_LABELS[l] || l
+// El ancho lo da App.vue (la manija y lo que entra en la ventana), igual que el de la calculadora de la tabla.
+defineProps({ width: { type: Number, default: 340 } })
 </script>
 
 <template>
-  <aside v-if="doc" class="auxiliarybar" aria-label="Detalle del campo o del nodo">
+  <aside v-if="doc" class="auxiliarybar fieldinfo-aux" aria-label="Detalle del campo o del nodo" :style="{ width: width + 'px' }">
+    <slot name="resize" />
     <div class="region-head">
       <span class="fi-badge" :class="badgeClass">{{ badgeLabel }}</span>
-      <div class="region-actions"><button type="button" class="region-action" @click="closeFieldInfo" title="Cerrar el detalle" aria-label="Cerrar el detalle"><X :size="15" /></button></div>
+      <div class="region-actions"><button type="button" class="region-action" @click="closeFieldInfo" title="Cerrar el detalle" aria-label="Cerrar el detalle"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button></div>
     </div>
     <div class="region-body fieldinfo">
       <h3 class="fieldinfo__title">{{ doc.label }}</h3>

@@ -78,10 +78,8 @@ body { font-family: var(--font-sans); color: var(--ink); overflow: hidden; }
 /* El lienzo es el cuerpo del editor: no scrollea (lo mueve Vue Flow) y pinta la superficie del panel. */
 .editor { display: flex; flex-direction: column; }
 .canvas { flex: 1; min-height: 0; overflow: hidden; position: relative; padding: 0; }
-.flow-title { font-weight: 600; white-space: nowrap; }
-.flow-crumbs { flex: 1; min-width: 0; text-align: left; padding-left: 12px; color: var(--fg-3); font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .flow-reset--armed, .flow-reset--armed:hover { background: var(--red); color: var(--badge-fg); }
-.flow-saved { display: inline-flex; align-items: center; gap: 4px; color: var(--green); margin-left: auto; }
+.flow-saved { display: inline-flex; align-items: center; gap: 4px; color: var(--green); }
 .vue-flow { background: var(--panel-surface, var(--background)); }
 
 /* ---- nodo genérico ---- */
@@ -558,16 +556,8 @@ body { font-family: var(--font-sans); color: var(--ink); overflow: hidden; }
   to { opacity: 1; transform: none; }
 }
 
-/* ---- HUD (overlays fijos del canvas: título + leyenda) ---- */
-.hud {
-  pointer-events: none; user-select: none;
-  background: var(--glass); backdrop-filter: blur(4px);
-  border: 0.5px solid var(--line); border-radius: 8px;
-  padding: 7px 10px; margin: 10px;
-  box-shadow: var(--shadow-1);
-}
-.hud--legend { display: flex; flex-direction: column; gap: 4px; }
-.lg { display: flex; align-items: center; gap: 6px; font-size: 9.5px; color: var(--mut); }
+/* ---- La leyenda: vive en el sidebar «Escenario» (antes flotaba sobre el lienzo) y sus chips los usa también la tabla ---- */
+.lg { display: flex; align-items: center; gap: 6px; font-size: var(--text-xs); color: var(--fg-2); }
 .lg__chip { font-size: 8px; letter-spacing: .03em; text-transform: uppercase; border-radius: 5px; padding: 1px 5px; }
 .lg__chip.rt2 { background: var(--tint-purple); color: var(--purple-d); }
 .lg__chip.rt1 { background: var(--tint-amber); color: var(--amber); }
@@ -592,8 +582,9 @@ body { font-family: var(--font-sans); color: var(--ink); overflow: hidden; }
 .fld-doc { cursor: pointer; text-decoration: underline dotted; text-decoration-color: color-mix(in oklab, var(--mut) 45%, transparent); text-underline-offset: 2px; }
 .fld-doc:hover { color: var(--ink); text-decoration-color: var(--mut); }
 
-.fieldinfo { padding: 12px 14px 14px; color: var(--ink); }
-.auxiliarybar { display: flex; flex-direction: column; }
+.fieldinfo { padding: var(--space-3) var(--gutter) var(--space-6); color: var(--ink); }
+/* El sidebar secundario lleva su manija pegada al borde izquierdo (`rsz-edge-left`), que se posiciona contra él. */
+.auxiliarybar { display: flex; flex-direction: column; position: relative; }
 .fi-badge { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; border-radius: 6px; padding: 3px 8px; }
 .fi--muerto { color: var(--mut); background: var(--tint-gray); }
 .fi--pisado { color: var(--amber); background: color-mix(in oklab, var(--amber) 16%, transparent); }
@@ -604,7 +595,7 @@ body { font-family: var(--font-sans); color: var(--ink); overflow: hidden; }
 .fld-tag--decide { color: var(--green); background: color-mix(in oklab, var(--green) 14%, transparent); }
 .fld-tag--display { color: var(--blue); background: color-mix(in oklab, var(--blue) 13%, transparent); }
 .fld-tag--kyc { color: var(--teal); background: color-mix(in oklab, var(--teal) 14%, transparent); }
-.fieldinfo__sec { display: flex; align-items: center; gap: 5px; font-size: 9px; text-transform: uppercase; letter-spacing: .05em; color: var(--mut); margin: 12px 0 5px; font-weight: 600; }
+.fieldinfo__sec { display: flex; align-items: center; gap: 5px; font-size: var(--text-sm); color: var(--fg-2); margin: var(--space-4) 0 var(--space-2); font-weight: 600; }
 .fieldinfo__sec svg { opacity: .8; }
 .fieldinfo__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
 .fieldinfo__list code { font-size: 10px; color: var(--teal); background: var(--tint-green2); border-radius: 5px; padding: 2px 6px; word-break: break-all; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
@@ -623,7 +614,7 @@ body { font-family: var(--font-sans); color: var(--ink); overflow: hidden; }
 /* header de nodo clicable (reemplaza al tooltip por el sidebar) */
 .nhd-doc { cursor: pointer; }
 .nhd-doc:hover { filter: brightness(1.07); }
-.fieldinfo__title { margin: 0 0 4px; font-size: 14px; font-weight: 600; color: var(--ink); }
+.fieldinfo__title { margin: 0 0 4px; font-size: var(--text-title); font-weight: 600; color: var(--ink); }
 .fieldinfo__col { display: inline-block; font-size: 10px; color: var(--teal); background: var(--tint-green2); border-radius: 5px; padding: 2px 6px; margin-bottom: 8px; word-break: break-all; }
 .fieldinfo__hint { font-size: 11px; color: var(--mut); margin: 0 0 8px; line-height: 1.45; }
 .fieldinfo__sum { font-size: 12px; color: var(--ink); font-weight: 500; margin: 0 0 8px; line-height: 1.45; }
@@ -967,7 +958,3 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .vue-flow__node.node-context:hover, .vue-flow__node.node-off:hover { opacity: 1; }
 
 /* Grafo | Tabla, en la banda del editor */
-.flow-views { display: inline-flex; border: 1px solid var(--line); border-radius: 5px; overflow: hidden; margin: 0 10px; }
-.flow-views button { font: inherit; font-size: 11px; padding: 2px 10px; border: 0; background: transparent; color: var(--fg-2); cursor: pointer; }
-.flow-views button + button { border-left: 1px solid var(--line); }
-.flow-views button.on { background: var(--card2); color: var(--ink); font-weight: 600; }

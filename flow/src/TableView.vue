@@ -1,12 +1,12 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { X, Check, Minus, CircleAlert, ChevronRight } from 'lucide-vue-next'
 import {
-  customLenders, merchant, lenders, state, bureau, clientProfile as profile, setNull, editTick, money, RT_LABEL,
+  customLenders, merchant, lenders, state, clientProfile as profile, editTick, money, RT_LABEL, ui,
   branchGateDiag, branchCreditBureauRules, categoryDiag, usesQuotaEngine, usesPreApproval, preApprovalResponseOf,
   setPreApprovalField, installmentBreakdown, bondOf, calcValue, selectionCheck,
   identityOutcome, setIdentityResult, IDENTITY_PROVIDERS, paymentDateOptions, paymentSchedule, delegatedOf, CREDITOPX_PAYMENT_DAYS,
-  closingOutcome, setSignatureOk, requestDocumentTypes, finandinaAmount, clientSubject,
+  closingOutcome, setSignatureOk, finandinaAmount, clientSubject,
 } from './store'
 
 // La TABLA del flujo (2026-11-25): el mismo cliente contra todas las entidades, paso por paso. Cada fila es un paso de
@@ -14,25 +14,12 @@ import {
 // «calculadora» del paso. No tiene lógica propia: todo sale de `store.js`, lo mismo que dibuja el grafo, y lo carga
 // `bin/flow` (import, client). Por ahora tiene las dos primeras filas: el listado y la preaprobación.
 
-// ── El cliente, arriba: los datos que deciden. Editarlos recalcula toda la tabla.
-const EMP = [['empleado', 'Empleado'], ['independiente', 'Independiente'], ['pensionado', 'Pensionado'], ['desempleado', 'Desempleado']]
-const CONT = [['<3m', '< 3 meses'], ['3m', '3 meses'], ['6m', '6 meses'], ['12m', '12 meses o más']]
-function setBureau(key, v, numeric = true) {
-  bureau[key] = numeric ? (v === '' ? null : Number(v)) : v
-  setNull(key, v === '' || v == null)
-  editTick.n++
-}
-function setAmount(v) { state.monto = String(v).replace(/\D/g, ''); editTick.n++ }
-// El ingreso que deciden las reglas es el primero de la cascada (Ágil Data → Mareigua → Quanto → declarado). Editarlo
-// acá lo escribe como el de Ágil Data, que es el que gana: para la tabla no importa de qué central venga.
-function setIncome(v) { const n = String(v).replace(/\D/g, ''); setBureau('agilIncome', n === '' ? '' : Number(n)) }
-// Los tipos de documento del país del comercio (o todos si no tiene), y el actual aunque no esté en la lista.
-const documentTypes = computed(() => {
-  const list = requestDocumentTypes()
-  return list.includes(state.tipoDoc) ? list : [state.tipoDoc, ...list].filter(Boolean)
-})
-function setDocumentType(v) { state.tipoDoc = v; editTick.n++ }
+// El cliente se edita en el sidebar «Escenario» (`ClientForm.vue`): vale para las dos vistas.
 const amount = computed(() => parseInt(String(state.monto).replace(/\D/g, '')) || 0)
+// La calculadora vive en el sidebar secundario de la ventana (`auxiliarybar`, teletransportada al `.workbench`): su ancho
+// lo da App.vue, como el del detalle de un campo del grafo.
+defineProps({ detailWidth: { type: Number, default: 340 } })
+const emit = defineEmits(['detail'])
 
 // ── Las columnas: las entidades del comercio, en el orden en que se cargaron.
 const columns = computed(() => {
@@ -164,6 +151,7 @@ const grid = computed(() => columns.value.map(c => {
 // ── La celda abierta: la «calculadora» del paso, en el panel de la derecha.
 const open = ref(null) // { name, row }
 const openCol = computed(() => open.value && grid.value.find(g => g.c.def.name === open.value.name))
+watch(openCol, (v) => emit('detail', !!v), { immediate: true })
 function toggle(name, row) { open.value = open.value && open.value.name === name && open.value.row === row ? null : { name, row } }
 
 // Detalle del listado: cada compuerta con lo que pide y lo que tiene el cliente.
@@ -242,41 +230,13 @@ const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
 
 <template>
   <div class="tv">
-    <!-- El cliente -->
-    <section class="tv-client" aria-label="El cliente de la solicitud">
-      <div class="tv-client__title">El cliente</div>
-      <label class="tv-f"><span>Monto</span><input inputmode="numeric" :value="money(amount)" @change="e => setAmount(e.target.value)" /></label>
-      <label class="tv-f"><span>Ocupación</span>
-        <select :value="profile.employment ?? ''" @change="e => setBureau('employment', e.target.value, false)">
-          <option v-for="[k, t] in EMP" :key="k" :value="k">{{ t }}</option>
-        </select></label>
-      <label class="tv-f tv-f--s"><span>Edad</span><input type="number" :value="profile.edad ?? ''" @change="e => setBureau('edad', e.target.value)" /></label>
-      <label class="tv-f tv-f--s"><span>Score</span><input type="number" :value="profile.score ?? ''" @change="e => setBureau('score', e.target.value)" /></label>
-      <label class="tv-f tv-f--s"><span>Negativos 12m</span><input type="number" :value="profile.negatives12m ?? ''" @change="e => setBureau('negatives12m', e.target.value)" /></label>
-      <label class="tv-f"><span>Continuidad laboral</span>
-        <select :value="bureau.agilContinuity ?? ''" @change="e => setBureau('agilContinuity', e.target.value, false)">
-          <option v-for="[k, t] in CONT" :key="k" :value="k">{{ t }}</option>
-        </select></label>
-      <label class="tv-f" :title="'Sale de ' + profile.salarioFuente + '. Al editarlo se escribe como el de Ágil Data, que es el primero de la cascada.'"><span>Ingreso</span>
-        <input inputmode="numeric" :value="money(profile.salario)" @change="e => setIncome(e.target.value)" /></label>
-      <label class="tv-f" title="Lo que paga por mes en cuotas de las deudas que ya tiene (Experian). La capacidad de Finandina lo descuenta."><span>Cuotas que ya paga</span>
-        <input inputmode="numeric" :value="money(bureau.monthlyDebtPayment ?? 0)" @change="e => setBureau('monthlyDebtPayment', String(e.target.value).replace(/\D/g, '') || 0)" /></label>
-      <label class="tv-f" title="Si tuvo un crédito de al menos el mínimo de la entidad. Sin experiencia, Finandina topa el monto."><span>Experiencia crediticia</span>
-        <select :value="bureau.creditExperience === false ? 'no' : 'si'" @change="e => setBureau('creditExperience', e.target.value === 'si', false)">
-          <option value="si">Sí</option><option value="no">No</option></select></label>
-      <label class="tv-f tv-f--s"><span>Documento</span>
-        <select :value="state.tipoDoc" @change="e => setDocumentType(e.target.value)">
-          <option v-for="d in documentTypes" :key="d" :value="d">{{ d }}</option>
-        </select></label>
-    </section>
-
     <div class="tv-body">
       <div class="tv-scroll">
         <div v-if="!grid.length" class="tv-empty">No hay entidades cargadas. Se cargan por consola: <code>bin/flow import --branch … --lender …</code></div>
         <div v-else class="tv-grid" :style="{ gridTemplateColumns: `150px repeat(${grid.length}, minmax(168px, 1fr))` }">
           <!-- Cabecera: una entidad por columna -->
           <div class="tv-corner">{{ merchant.nombre }}<small>{{ merchant.sucursal }}</small></div>
-          <div v-for="g in grid" :key="'h' + g.c.def.name" class="tv-colhead">
+          <div v-for="g in grid" :key="'h' + g.c.def.name" class="tv-colhead" :class="{ 'tv-colhead--on': ui.selected === g.c.def.name }">
             <span class="lg__chip" :class="'rt' + g.c.def.rt">rt{{ g.c.def.rt }}</span>
             <b>{{ g.c.def.name }}</b>
             <small>{{ RT_LABEL[g.c.def.rt] }} · {{ g.c.def.producto }}</small>
@@ -309,10 +269,12 @@ const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
       </div>
 
       <!-- La calculadora del paso -->
-      <aside v-if="openCol" class="tv-calc auxiliarybar" aria-label="El detalle del paso">
+      <Teleport to=".workbench" defer>
+      <aside v-if="openCol" class="tv-calc auxiliarybar" aria-label="El detalle del paso" :style="{ width: detailWidth + 'px' }">
+        <slot name="resize" />
         <div class="region-head">
           <span class="tv-calc__h"><span class="tv-n">{{ ROWS.find(x => x.key === open.row)?.n }}</span> {{ openCol.c.def.name }}</span>
-          <div class="region-actions"><button type="button" class="region-action" title="Cerrar" aria-label="Cerrar" @click="open = null"><X :size="15" /></button></div>
+          <div class="region-actions"><button type="button" class="region-action" title="Cerrar" aria-label="Cerrar" @click="open = null"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button></div>
         </div>
 
         <div v-if="listingDetail" class="region-body tv-calc__b">
@@ -389,8 +351,8 @@ const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
             <div class="tv-chips">
               <button v-for="[k, t] in STATUS" :key="k" type="button" class="chip-toggle" :class="{ on: preDetail.pa.status === k }" @click="setPa('status', k)">{{ t }}</button>
             </div>
-            <label class="tv-f tv-f--row"><span>Monto máximo</span><input type="number" :value="preDetail.pa.maxAmount ?? ''" placeholder="el de la entidad" @change="e => setPa('maxAmount', e.target.value)" /></label>
-            <label class="tv-f tv-f--row"><span>Tasa % mensual</span><input type="number" step="0.01" :value="preDetail.pa.rate ?? ''" placeholder="la de la entidad" @change="e => setPa('rate', e.target.value)" /></label>
+            <label class="tv-f tv-f--row"><span>Monto máximo</span><input class="input input-sm" type="number" :value="preDetail.pa.maxAmount ?? ''" placeholder="el de la entidad" @change="e => setPa('maxAmount', e.target.value)" /></label>
+            <label class="tv-f tv-f--row"><span>Tasa % mensual</span><input class="input input-sm" type="number" step="0.01" :value="preDetail.pa.rate ?? ''" placeholder="la de la entidad" @change="e => setPa('rate', e.target.value)" /></label>
           </template>
 
           <div class="tv-verdict" :class="preDetail.r && preDetail.r.ok ? 'ok' : 'no'">
@@ -406,7 +368,7 @@ const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
               <span class="tv-p tv-p--m">cuotas</span>
             </div>
             <label v-else class="tv-f tv-f--row"><span>Plazo</span>
-              <select :value="chosenTerm" @change="e => term = Number(e.target.value)"><option v-for="n in terms" :key="n" :value="n">{{ n }} cuotas</option></select></label>
+              <span class="select"><select class="input input-sm" :value="chosenTerm" @change="e => term = Number(e.target.value)"><option v-for="n in terms" :key="n" :value="n">{{ n }} cuotas</option></select></span></label>
             <div class="tv-kv"><span>Monto que pide</span><b>{{ money(amount) }}</b></div>
             <div v-if="preDetail.r.initialFeeAmount" class="tv-kv"><span>− Cuota inicial ({{ preDetail.r.initialFeePct }} %)</span><b>{{ money(preDetail.r.initialFeeAmount) }}</b></div>
             <div class="tv-kv"><span>= Se financia</span><b>{{ money(quote.financiado) }}</b></div>
@@ -502,8 +464,8 @@ const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
                 @click="setPlan(planDetail.l.name, 'date', o.label)">{{ o.label }}</button>
             </div>
             <label class="tv-f tv-f--row"><span>Plazo</span>
-              <select :value="planDetail.n" @change="e => setPlan(planDetail.l.name, 'n', Number(e.target.value))">
-                <option v-for="n in planDetail.dues" :key="n" :value="n">{{ n }} cuotas</option></select></label>
+              <span class="select"><select class="input input-sm" :value="planDetail.n" @change="e => setPlan(planDetail.l.name, 'n', Number(e.target.value))">
+                <option v-for="n in planDetail.dues" :key="n" :value="n">{{ n }} cuotas</option></select></span></label>
 
             <div class="tv-sec">La cuota</div>
             <div class="tv-kv"><span>Capital del crédito</span><b>{{ money(planDetail.plan.breakdown.capital) }}</b></div>
@@ -559,82 +521,85 @@ const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
           </template>
         </div>
       </aside>
+      </Teleport>
     </div>
   </div>
 </template>
 
 <style scoped>
-.tv { display: flex; flex-direction: column; height: 100%; min-height: 0; background: var(--bg); color: var(--ink); }
-.tv-client { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 14px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--card); }
-.tv-client__title { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--mut); font-weight: 600; align-self: center; margin-right: 4px; }
-.tv-f { display: flex; flex-direction: column; gap: 2px; font-size: 10px; color: var(--mut); }
-.tv-f input, .tv-f select { font-size: 12px; padding: 3px 6px; width: 120px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; }
-.tv-f--s input { width: 64px; }
-.tv-f--s select { width: 80px; }
-.tv-f--ro b { font-size: 12px; color: var(--ink); padding: 3px 0; }
-.tv-f--ro em { font-style: normal; font-size: 9.5px; }
-.tv-f--row { flex-direction: row; justify-content: space-between; align-items: center; margin: 4px 0; }
-.tv-f--row input { width: 130px; }
+/* La tabla es el cuerpo del editor; la calculadora, el sidebar secundario de la ventana. La tipografía es la de la base:
+   11 los metadatos, 12 los rótulos, 13 el texto, sin mayúsculas sostenidas. */
+.tv { display: flex; flex-direction: column; height: 100%; min-height: 0; color: var(--ink); }
+.tv-f { display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--text-sm); color: var(--fg-2); }
+.tv-f input, .tv-f select { width: 140px; }
+.tv-f--row { flex-direction: row; justify-content: space-between; align-items: center; margin: var(--space-1) 0; }
 
 .tv-body { flex: 1; min-height: 0; display: flex; }
-.tv-scroll { flex: 1; min-width: 0; overflow: auto; padding: 14px 16px 24px; }
-.tv-empty { color: var(--mut); font-size: 12px; padding: 24px; }
+.tv-scroll { flex: 1; min-width: 0; overflow: auto; padding: var(--space-3) var(--space-4) var(--space-6); }
+.tv-empty { color: var(--fg-3); font-size: var(--text-base); padding: var(--space-6); }
+.tv-empty code { font-family: var(--font-mono); font-size: var(--text-sm); }
 .tv-grid { display: grid; gap: 6px; align-items: stretch; }
-.tv-corner { font-size: 11px; font-weight: 600; color: var(--fg-2); display: flex; flex-direction: column; justify-content: flex-end; padding: 4px 2px; }
-.tv-corner small, .tv-colhead small, .tv-rowhead small { font-weight: 400; color: var(--mut); font-size: 10px; }
-.tv-colhead { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 6px; background: var(--card); border: 1px solid var(--line); font-size: 12px; position: sticky; top: -14px; z-index: 1; }
+.tv-corner { font-size: var(--text-sm); font-weight: 600; color: var(--fg-2); display: flex; flex-direction: column; justify-content: flex-end; padding: 4px 2px; }
+.tv-corner small, .tv-colhead small, .tv-rowhead small { font-weight: 400; color: var(--fg-3); font-size: var(--text-xs); }
+.tv-colhead { display: flex; flex-direction: column; gap: 2px; padding: var(--space-2) 10px; border-radius: var(--radius-control); background: var(--card); border: 1px solid var(--line); font-size: var(--text-sm); position: sticky; top: calc(-1 * var(--space-3)); z-index: 1; }
+.tv-colhead--on { box-shadow: inset 0 2px 0 var(--primary); }
 .tv-colhead .lg__chip { align-self: flex-start; }
-.tv-rowhead { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 8px 4px; font-size: 12px; }
+.tv-rowhead { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: var(--space-2) 4px; font-size: var(--text-sm); }
 .tv-rowhead--next { opacity: .6; }
-.tv-n { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; background: var(--card2); color: var(--fg-2); font-size: 10px; font-weight: 700; margin-bottom: 2px; }
+.tv-n { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; background: var(--card2); color: var(--fg-2); font-size: var(--text-xs); font-weight: 600; margin-bottom: 2px; font-variant-numeric: tabular-nums; }
 
 .tv-cell { position: relative; display: grid; grid-template-columns: 18px 1fr; grid-template-rows: auto auto; gap: 2px 6px; align-items: start; text-align: left;
-  padding: 9px 22px 9px 9px; min-height: 64px; border-radius: 6px; border: 1px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; font: inherit; transition: border-color .12s, transform .12s; }
+  padding: 9px 22px 9px 9px; min-height: 64px; border-radius: var(--radius-control); border: 1px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; font: inherit; transition: border-color .12s; }
 .tv-cell:hover:not(:disabled) { border-color: color-mix(in oklab, var(--ink) 35%, var(--line)); }
 .tv-cell__ic { grid-row: 1 / 3; display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; }
-.tv-cell__t { font-size: 12px; font-weight: 600; }
-.tv-cell__l { grid-column: 2; font-size: 10.5px; line-height: 1.35; color: var(--fg-2); }
-.tv-cell__go { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); color: var(--mut); }
+.tv-cell__t { font-size: var(--text-sm); font-weight: 600; }
+.tv-cell__l { grid-column: 2; font-size: var(--text-xs); line-height: 1.35; color: var(--fg-2); }
+.tv-cell__go { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); color: var(--fg-3); }
 .tv-cell--pass { background: var(--tint-green); border-color: var(--bd-green); }
 .tv-cell--pass .tv-cell__ic { background: var(--green); color: var(--badge-fg); }
 .tv-cell--fail { background: var(--tint-red); border-color: color-mix(in oklab, var(--red) 40%, var(--card)); }
 .tv-cell--fail .tv-cell__ic { background: var(--red); color: var(--badge-fg); }
 .tv-cell--warn { background: var(--tint-amber); border-color: color-mix(in oklab, var(--amber) 40%, var(--card)); }
 .tv-cell--warn .tv-cell__ic { background: var(--amber); color: var(--badge-fg); }
-.tv-cell--na .tv-cell__ic { background: var(--card2); color: var(--mut); }
+.tv-cell--na .tv-cell__ic { background: var(--card2); color: var(--fg-3); }
 .tv-cell--off { opacity: .4; cursor: default; background: transparent; border-style: dashed; }
-.tv-cell--off .tv-cell__ic { color: var(--mut); }
-.tv-cell--open { outline: 2px solid var(--ink); outline-offset: 1px; }
+.tv-cell--off .tv-cell__ic { color: var(--fg-3); }
+.tv-cell--open { outline: 2px solid var(--ring); outline-offset: 1px; }
 .tv-cell--next { min-height: 40px; cursor: default; background: transparent; border-style: dashed; border-color: color-mix(in oklab, var(--ink) 22%, transparent); }
 
-.tv-calc { width: 340px; flex: none; }
-.tv-calc__h { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; }
-.tv-calc__b { overflow: auto; padding: 12px 14px 20px; font-size: 12px; }
-.tv-calc__b h3 { margin: 0 0 6px; font-size: 14px; }
-.tv-p { font-size: 11.5px; line-height: 1.45; color: var(--fg-2); margin: 0 0 10px; }
-.tv-p--m { font-size: 10.5px; color: var(--mut); margin: 4px 0; }
-.tv-sec { font-size: 9.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--mut); font-weight: 600; margin: 14px 0 6px; }
-.tv-gate { border: 1px solid var(--line); border-left-width: 3px; border-radius: 5px; padding: 7px 9px; margin-bottom: 8px; background: var(--card); }
-.tv-gate.ok { border-left-color: var(--green); } .tv-gate.no { border-left-color: var(--red); } .tv-gate.na { border-left-color: var(--line); }
-.tv-gate__h { display: flex; align-items: center; gap: 5px; font-weight: 600; font-size: 11.5px; margin-bottom: 4px; }
-.tv-kv { display: flex; justify-content: space-between; gap: 10px; font-size: 11.5px; padding: 2px 0; }
+/* La calculadora: una región de primer nivel (el `auxiliarybar` de la base), con su manija a la izquierda. */
+.tv-calc { position: relative; }
+.tv-calc__h { display: inline-flex; align-items: center; gap: 6px; }
+.tv-calc__b { padding: var(--space-3) var(--gutter) var(--space-6); font-size: var(--text-base); }
+.tv-calc__b h3 { margin: 0 0 var(--space-2); font-size: var(--text-title); font-weight: 600; color: var(--foreground); }
+.tv-p { font-size: var(--text-sm); line-height: 1.5; color: var(--fg-2); margin: 0 0 var(--space-3); }
+.tv-p--m { font-size: var(--text-xs); color: var(--fg-3); margin: var(--space-1) 0; }
+.tv-p code { font-family: var(--font-mono); font-size: var(--text-xs); }
+/* El encabezado de un grupo dentro de la calculadora: el de la base (12, peso 600, sin mayúsculas). */
+.tv-sec { font-size: var(--text-sm); color: var(--fg-2); font-weight: 600; margin: var(--space-4) 0 var(--space-2); }
+/* Un callout de la base: barra de color a la izquierda y tinte, cuadrado. */
+.tv-gate { border-left: 2px solid var(--line); padding: var(--space-2) var(--space-3); margin-bottom: var(--space-2); background: var(--tint-neutral); }
+.tv-gate.ok { border-left-color: var(--green); background: color-mix(in oklab, var(--green) 6%, transparent); }
+.tv-gate.no { border-left-color: var(--red); background: color-mix(in oklab, var(--red) 6%, transparent); }
+.tv-gate__h { display: flex; align-items: center; gap: 5px; font-weight: 600; font-size: var(--text-sm); margin-bottom: var(--space-1); }
+.tv-kv { display: flex; justify-content: space-between; gap: 10px; font-size: var(--text-sm); padding: 2px 0; }
 .tv-kv span { color: var(--fg-2); }
-.tv-kv b { text-align: right; font-weight: 600; }
-.tv-kv em { font-style: normal; font-weight: 400; color: var(--mut); }
-.tv-why { font-size: 10.5px; color: var(--red); margin-top: 3px; }
+.tv-kv b { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+.tv-kv em { font-style: normal; font-weight: 400; color: var(--fg-3); }
+.tv-why { font-size: var(--text-xs); color: var(--red); margin-top: 3px; }
 .tv-group { border-top: 1px dashed var(--line); padding: 4px 0 2px; }
 .tv-group:first-of-type { border-top: 0; }
-.tv-cond { display: flex; align-items: center; gap: 4px; font-size: 11px; padding: 1px 0; }
+.tv-cond { display: flex; align-items: center; gap: 4px; font-size: var(--text-sm); padding: 1px 0; }
 .tv-cond.ok { color: var(--green); } .tv-cond.no { color: var(--red); }
-.tv-cond em { font-style: normal; color: var(--mut); }
-.tv-catrow { display: flex; flex-direction: column; padding: 5px 8px; border-radius: 4px; margin-bottom: 3px; border: 1px solid var(--line); font-size: 11px; }
-.tv-catrow.won { background: var(--tint-green); border-color: var(--bd-green); font-weight: 600; }
+.tv-cond em { font-style: normal; color: var(--fg-3); }
+.tv-catrow { display: flex; flex-direction: column; padding: var(--space-1) var(--space-2); margin-bottom: 2px; border-left: 2px solid transparent; font-size: var(--text-sm); }
+.tv-catrow.won { background: var(--tint-green); border-left-color: var(--green); font-weight: 600; }
 .tv-catrow.no { opacity: .6; }
-.tv-catrow__s { font-size: 10px; color: var(--fg-2); font-weight: 400; }
+.tv-catrow__s { font-size: var(--text-xs); color: var(--fg-2); font-weight: 400; }
 .tv-chips { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-bottom: 6px; }
-.tv-verdict { margin-top: 12px; padding: 8px 10px; border-radius: 5px; font-size: 12px; }
-.tv-verdict.ok { background: var(--tint-green); } .tv-verdict.no { background: var(--tint-red); }
-.tv-kv--hi { background: var(--tint-amber); border-radius: 3px; padding: 2px 4px; margin: 0 -4px; }
-.tv-total { display: flex; justify-content: space-between; margin-top: 8px; padding: 8px 10px; border-radius: 5px; background: var(--card2); font-size: 12.5px; }
-.tv-total b { font-size: 14px; }
+.tv-verdict { margin-top: var(--space-3); padding: var(--space-2) var(--space-3); border-left: 2px solid; font-size: var(--text-base); }
+.tv-verdict.ok { background: var(--tint-green); border-left-color: var(--green); } .tv-verdict.no { background: var(--tint-red); border-left-color: var(--red); }
+.tv-kv--hi { background: var(--tint-amber); padding: 2px 4px; margin: 0 -4px; }
+.tv-total { display: flex; justify-content: space-between; margin-top: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--card2); font-size: var(--text-base); }
+.tv-total b { font-size: var(--text-body); font-variant-numeric: tabular-nums; }
 </style>
