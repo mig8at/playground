@@ -153,8 +153,11 @@ contexto completo, y aprovechar su ventana de cientos de miles de tokens con dat
 - **Los casos de #tech-ops** (`server/techops.go`) van en el resumen de cada día: número, prioridad, tipo, comercio,
   entidad, canal, la descripción y la última respuesta del hilo, filtradas; NUNCA la cédula ni el celular del formulario
   (prueba `TestTechopsParse`). ⚠ Necesita que el token de Slack de `connectors/.env` lea el historial del canal
-  (`channels:history`, o `groups:history` si es privado): el 26/11/2026 ninguno de los dos tokens lo tenía
-  (`missing_scope`), y el resumen lo dice. Agregar el permiso es configurar la app de Slack. Cada informe vuelve a entrar en los siguientes: así sabe qué concluyó antes. Al final, Sentinel
+  (`channels:history`, o `groups:history` si es privado). Los tokens son de la app «miguel» de api.slack.com (A0BGABUV83Y;
+  su bot se llama `demo_app`): el 26/11/2026 se le agregaron los dos permisos al TOKEN DE USUARIO (sólo lectura) y
+  Miguel aceptó la reinstalación; el token no cambió. Si un día falta el permiso, el resumen lo dice y sigue sin los
+  casos. Medido ese día: el 24/11 tuvo 14 casos (Pullman 3, Motai 2), con su última respuesta; los números de clientes
+  e IMEI salen como `<n>`. Cada informe vuelve a entrar en los siguientes: así sabe qué concluyó antes. Al final, Sentinel
   (no el modelo) verifica contra main cada ruta de código que cita y lista las que no existen.
 - **La vista** (`server/view.go`, `.data/reports/<día>.json`, `#/report`): con el informe, Gemini devuelve un JSON de
   vocabulario fijo (titular y nivel, hasta 8 hallazgos con sus señales, despliegue y archivos, tendencias, acciones).
