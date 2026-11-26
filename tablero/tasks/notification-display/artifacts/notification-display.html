@@ -102,13 +102,20 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
 .dot { width: 10px; height: 10px; border-radius: 2px; flex: none; }
 .legal { border-left: 3px solid var(--crit); background: var(--surface); padding: 14px 18px; border-radius: 0 6px 6px 0; }
 .legal b { color: var(--crit); }
-.scale svg { width: 100%; min-width: 620px; height: auto; display: block; }
-.scale .wall { fill: var(--surface); stroke: var(--line); }
-.scale .led { fill: #0b0b0d; }
-.scale .ledline { stroke: rgba(150,155,165,.5); stroke-width: 1; }
-.scale .dim { stroke: var(--accent); stroke-width: 1.2; fill: none; }
-.scale text { fill: var(--fg); font-family: var(--font-mono); font-size: 12px; }
-.scale text.m { fill: var(--muted); }
+.room { display: flex; flex-direction: column; gap: 14px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--line); }
+.tabs button { font: 500 0.9rem var(--font-body); color: var(--muted); background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 9px 14px; cursor: pointer; }
+.tabs button[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); }
+.tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.room-body { display: grid; grid-template-columns: auto 1fr; gap: 10px; }
+/* la pared es blanca de verdad: no cambia con el tema */
+.wall-box { position: relative; aspect-ratio: 2 / 1; max-width: 100%; background: #ffffff; border: 1px solid #d4d8de; box-shadow: inset 0 -18px 40px rgba(0,0,0,.04); }
+.wall-led { position: absolute; left: 37.2%; width: 25.6%; top: 10%; background: #050506; box-shadow: 0 6px 14px rgba(0,0,0,.25); }
+.wall-led canvas { display: block; width: 100%; height: auto; }
+.wall-led-dim { position: absolute; top: calc(100% + 8px); left: 0; right: 0; text-align: center; font: 0.72rem var(--font-mono); color: #5b6473; white-space: nowrap; }
+.h-dim { display: flex; align-items: center; border-right: 1.5px solid var(--accent); padding-right: 8px; }
+.w-dim { border-top: 1.5px solid var(--accent); text-align: center; padding-top: 4px; }
+.h-dim span, .w-dim span { font: 0.78rem var(--font-mono); color: var(--fg); }
 .warnbox { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 0 6px 6px 0; font-size: 0.9rem; }
 .total td { font-weight: 600; border-bottom: none; }
 .src { font-size: 0.82rem; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
@@ -183,22 +190,20 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         </tbody>
       </table>
     </div>
-    <div class="scroll scale">
-      <svg viewBox="0 0 760 420" role="img" aria-label="Pared de 4 por 2 metros con el tablero de 1,02 metros centrado en la parte alta">
-        <!-- escala: 1 cm = 1,6 px. Pared 400 × 200 cm; el tablero centrado, a 20 cm del borde de arriba -->
-        <rect class="wall" x="60" y="40" width="640" height="320"/>
-        <rect class="led" x="298" y="72" width="164" height="41"/>
-        <line class="ledline" x1="339" y1="72" x2="339" y2="113"/><line class="ledline" x1="380" y1="72" x2="380" y2="113"/><line class="ledline" x1="421" y1="72" x2="421" y2="113"/><line class="ledline" x1="298" y1="92.5" x2="462" y2="92.5"/>
-        <rect x="298" y="72" width="164" height="20.5" fill="none" stroke="var(--accent)" stroke-dasharray="3 3"/>
-        <path class="dim" d="M298,62 L462,62 M298,57 L298,67 M462,57 L462,67"/>
-        <text x="356" y="54">1,02 m</text>
-        <text class="m" x="472" y="86">opción 1: 12,8 cm (punteado)</text>
-        <text class="m" x="472" y="108">opción 2: 25,6 cm</text>
-        <path class="dim" d="M60,382 L700,382 M60,376 L60,388 M700,376 L700,388"/>
-        <text x="356" y="404">4,00 m</text>
-        <path class="dim" d="M52,40 L52,360 M47,40 L57,40 M47,360 L57,360"/>
-        <text x="0" y="204">2,00 m</text>
-      </svg>
+    <div class="room">
+      <div class="tabs" role="tablist" aria-label="Opción en la pared">
+        <button type="button" role="tab" id="wall-tab-1" aria-selected="true" aria-controls="wall-panel" data-opt="0">Opción 1 · 4 paneles</button>
+        <button type="button" role="tab" id="wall-tab-2" aria-selected="false" aria-controls="wall-panel" data-opt="1" tabindex="-1">Opción 2 · 8 paneles</button>
+      </div>
+      <div class="room-body" id="wall-panel" role="tabpanel" aria-labelledby="wall-tab-1">
+        <div class="h-dim"><span>2,00 m</span></div>
+        <div class="wall-box">
+          <div class="wall-led"><canvas id="wallCanvas" width="1024" height="128" aria-label="El tablero en la pared, a escala"></canvas><span class="wall-led-dim" id="wallLedDim">1,02 × 0,13 m</span></div>
+        </div>
+        <div></div>
+        <div class="w-dim"><span>4,00 m</span></div>
+      </div>
+      <p class="note">A escala: la pared de 4 × 2 m y el tablero centrado, a 20 cm del borde de arriba. El tablero muestra lo mismo que la simulación de arriba.</p>
     </div>
   </section>
 
@@ -626,6 +631,25 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
   autoBtn.addEventListener("click", () => { auto = !auto; autoBtn.setAttribute("aria-pressed", String(auto)); start = performance.now(); });
   soundBtn.addEventListener("click", () => { soundOn = !soundOn; soundBtn.setAttribute("aria-pressed", String(soundOn)); if (soundOn) pip(); });
 
+  // la pared: la opción elegida, copiada en vivo desde su simulación
+  const wallCv = document.getElementById("wallCanvas"), wallDim = document.getElementById("wallLedDim");
+  const tabs = [...document.querySelectorAll('[role="tab"]')];
+  let wallOpt = 0;
+  function setWall(i) {
+    wallOpt = i;
+    tabs.forEach((t, k) => { t.setAttribute("aria-selected", String(k === i)); t.tabIndex = k === i ? 0 : -1; });
+    document.getElementById("wall-panel").setAttribute("aria-labelledby", tabs[i].id);
+    wallCv.height = i ? 256 : 128;
+    wallDim.textContent = i ? "1,02 × 0,26 m" : "1,02 × 0,13 m";
+  }
+  tabs.forEach((t, k) => {
+    t.addEventListener("click", () => setWall(k));
+    t.addEventListener("keydown", e => {
+      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+      const n = (k + 1) % 2; setWall(n); tabs[n].focus();
+    });
+  });
+
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   function frame(now) {
     const t = (now - start) / 1000;
@@ -636,6 +660,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       scenes[scene](p.buf, reduce ? 3 : t);
       paint(p);
     }
+    wallCv.getContext("2d").drawImage(panels[wallOpt].cv, 0, 0, wallCv.width, wallCv.height);
     requestAnimationFrame(frame);
   }
   btns[0].setAttribute("aria-pressed", "true");
