@@ -131,7 +131,7 @@ function closingCell(c, previous) {
 
 // ── El scroll: la columna de los pasos y la fila de las entidades quedan fijas (CSS sticky). Elegir una entidad —en la
 // cabecera, en el escenario o en el grafo— la trae a la vista si quedó fuera, así con muchas se puede saltar a una.
-const ROWHEAD_W = 170, COL_W = 176
+const STEP_COLUMN_W = 170, COL_W = 176
 const scroller = ref(null)
 const scrolledX = ref(false)
 const onScroll = (e) => { scrolledX.value = e.target.scrollLeft > 0 }
@@ -143,7 +143,7 @@ watch(() => ui.selected, (name) => {
     if (!box || !head) return
     // Medido en pantalla y no con offsetLeft: la cabecera es sticky y su offsetParent no es el contenedor del scroll.
     const b = box.getBoundingClientRect(), h = head.getBoundingClientRect()
-    const hiddenLeft = h.left - (b.left + ROWHEAD_W + 6), hiddenRight = h.right - (b.left + box.clientWidth - 16)
+    const hiddenLeft = h.left - (b.left + STEP_COLUMN_W + 6), hiddenRight = h.right - (b.left + box.clientWidth - 16)
     if (hiddenLeft < 0) box.scrollBy({ left: hiddenLeft, behavior: 'smooth' })
     else if (hiddenRight > 0) box.scrollBy({ left: hiddenRight, behavior: 'smooth' })
   })
@@ -272,7 +272,7 @@ const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
     <div class="tv-body">
       <div ref="scroller" class="tv-scroll" :class="{ 'scrolled-x': scrolledX }" @scroll.passive="onScroll">
         <div v-if="!grid.length" class="tv-empty">No hay entidades cargadas. Se cargan por consola: <code>bin/flow import --branch … --lender …</code></div>
-        <div v-else class="tv-grid" :style="{ gridTemplateColumns: `${ROWHEAD_W}px repeat(${grid.length}, minmax(${COL_W}px, 1fr))` }">
+        <div v-else class="tv-grid" :style="{ gridTemplateColumns: `${STEP_COLUMN_W}px repeat(${grid.length}, minmax(${COL_W}px, 1fr))` }">
           <!-- Cabecera: una entidad por columna -->
           <div class="tv-corner">{{ merchant.nombre }}<small>{{ merchant.sucursal }}</small></div>
           <div v-for="g in grid" :key="'h' + g.c.def.name" class="tv-colhead" :class="{ 'tv-colhead--on': ui.selected === g.c.def.name }" :data-lender="g.c.def.name">
