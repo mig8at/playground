@@ -173,7 +173,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         <button type="button" id="sound" aria-pressed="false">Sonido</button>
       </div>
     </div>
-    <p class="note">29 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados, salvo «Crecimiento por mes», cuya forma es real, los dos tops (comercios y entidades), con las ventas reales de 2026, «Suben y bajan», con los desembolsos reales del trimestre, y los de «Atención», con el uso real de noviembre (desembolsos por mes en producción, sin cifras absolutas). Su porcentaje de 2025 compara el año completo con 2024; el de 2026, enero a octubre con el mismo tramo de 2025.</p>
+    <p class="note">30 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados, salvo «Crecimiento por mes», cuya forma es real, los dos tops (comercios y entidades), con las ventas reales de 2026, «Suben y bajan», con los desembolsos reales del trimestre, los de «Atención», con el uso real de noviembre, y «Carrera del mes», con las ventas reales de noviembre día a día (desembolsos por mes en producción, sin cifras absolutas). Su porcentaje de 2025 compara el año completo con 2024; el de 2026, enero a octubre con el mismo tramo de 2025.</p>
   </section>
 
   <section aria-labelledby="size">
@@ -450,6 +450,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
           <li>Monto del mes con barra hacia la meta</li>
           <li>Qué comercios suben y cuáles bajan en el trimestre, en un tablero de aeropuerto; y a cuánto cerraría el mes a este ritmo</li>
           <li>Las solicitudes en vivo: cada una avanza por entran, perfil, entidad y venta, y se ve dónde se queda</li>
+          <li>La carrera del mes: las ventas acumuladas día a día, con los rebases entre comercios</li>
           <li>Récords, con un sonido especial</li>
           <li>Atención: los comercios activos sin solicitudes este mes, los que dejaron de usar CreditOp las entidades asignadas que nadie usa y las que reciben solicitudes pero casi no venden</li>
           <li>Canales: la primera venta por e-commerce, las descargas de la app y la primera compra desde la app</li>
@@ -649,6 +650,8 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
              "gggwggggwggg", "ggggwwwwgggg", "gwggggggggwg", "gggggggggggg", "............", "............"],
     unplug: ["..w.w..", "..w.w..", ".wwwww.", ".wwwww.", "..www..", "...w...", "...w..."],
     chartDown: ["wr.....", "w.r....", "w..r.r.", "w...r.r", "w.....r", "w......", "wwwwwww"],
+    shop:   ["....wwww....", "...w....w...", "...w....w...", ".gggggggggg.", ".gggggggggg.", ".gggwggwggg.",
+             ".gggggggggg.", ".gggggggggg.", ".gggggggggg.", ".gggggggggg.", ".gggggggggg.", "............"],
     paper:  ["wwwwwww.....", "w.....ww....", "w.....w.w...", "w.....wwww..", "w.gg.....w..", "w........w..",
              "w.ggggg..w..", "w........w..", "w.gggg...w..", "w........w..", "wwwwwwwwww..", "............"]
   };
@@ -928,6 +931,42 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         else { text(b, n, x - (tw(n, 1) >> 1), 1, 1, c); text(b, L[k], x - (tw(L[k], 1) >> 1), 23, 1, C.bLav); }
       });
     } },
+    { id: "race", group: "Negocio", label: "Carrera del mes", dur: 11, draw(b, t) {
+      // Una carrera de barras: ventas acumuladas día a día de noviembre de 2026 (al 25), medidas en producción.
+      // Sonría rebasa a Pullman el día 3, y Free Spirit y Tripleten se rebasan seis veces por el 4.º puesto.
+      const RACE = [
+        ["SONRIA",      [6,6,92,164,225,296,378,385,473,527,599,668,737,819,826,826,906,977,1052,1147,1230,1237,1317,1394,1475]],
+        ["PULLMAN",     [18,47,79,92,105,134,177,234,273,295,315,364,386,428,452,480,505,525,539,562,604,641,680,722,738]],
+        ["CREDIMOVIL",  [5,18,43,74,95,122,146,151,186,203,233,255,282,315,320,327,353,378,408,429,457,467,491,502,515]],
+        ["FREE SPIRIT", [7,12,17,26,30,39,55,61,65,70,78,96,105,125,140,156,157,167,179,190,197,207,216,223,225]],
+        ["TRIPLETEN",   [2,9,18,23,29,40,44,47,64,70,82,89,99,103,106,117,127,137,139,142,146,153,166,180,185]]];
+      const big = b.h >= 64, per = 0.36, days = 25;
+      const f = Math.max(0, (t - 0.3) / per), d = Math.min(days - 1, Math.floor(f)), r = d >= days - 1 ? 1 : f - d;
+      const valAt = (v, k) => v[Math.min(days - 1, k)];
+      const now = RACE.map(([, v]) => d >= days - 1 ? v[days - 1] : v[d] + (v[d + 1] - v[d]) * r);
+      const ranks = k => { const vs = RACE.map(([, v]) => valAt(v, k)); return vs.map((x, i) => vs.filter((y, j) => y > x || (y === x && j < i)).length); };
+      const r0 = ranks(d), r1 = ranks(d + 1), rPrev = ranks(Math.max(0, d - 1));
+      const swap = ease(Math.min(1, r / 0.7));                           // el cambio de puesto se desliza durante el día
+      const pos = RACE.map((_, i) => r0[i] + (r1[i] - r0[i]) * swap);
+      const passing = RACE.map((_, i) => r1[i] < r0[i] || (r0[i] < rPrev[i] && r < 0.4));
+      const show = big ? 5 : 4, rowH = big ? 10 : 8, y0 = big ? 11 : 1, nx = 2, bx = 70, bmax = big ? 150 : 120;   // en 32, aire para el día
+      const day = Math.min(days, d + 1), anyPass = passing.some((p, i) => p && pos[i] < show - 0.5);
+      if (big) {
+        text(b, "CARRERA DE NOV", 2, 1, 1, C.gray);
+        const hd = "DIA " + day + (anyPass ? " · REBASO!" : ""); text(b, hd, rx(b, hd, 1), 1, 1, anyPass ? C.yellow : C.white);
+      } else { const hd = "D" + day; text(b, hd, rx(b, hd, 1), 1, 1, anyPass ? C.yellow : C.gray); }
+      const top = Math.max(60, ...now);
+      RACE.forEach(([name], i) => {
+        const y = Math.round(y0 + pos[i] * rowH);
+        if (pos[i] > show - 1 + 0.001 && y + 7 > b.h) return;            // sólo los primeros puestos
+        if (pos[i] > show - 0.5) return;
+        const lead = r1[i] === 0 && swap > 0.5 || r0[i] === 0 && swap <= 0.5, pass = passing[i];
+        const w = Math.max(1, Math.round(bmax * now[i] / top)), barC = pass ? C.yellow : lead ? C.green : C.amberDim;
+        text(b, name, nx, y, 1, pass ? C.yellow : lead ? C.green : C.white);
+        rect(b, bx, y + 1, w, 5, barC);
+        text(b, fmt(now[i]), bx + w + 4, y, 1, pass ? C.yellow : C.white);
+      });
+    } },
     { id: "growth", group: "Negocio", label: "Crecimiento por mes", voice: "Así hemos crecido: 165 por ciento en 2025, y 15 por ciento en lo que va de 2026.", draw(b, t) {
       // la FORMA real: desembolsos por mes (disbursed_at) de ago-2023 a nov-2026, medidos en producción el 2026-11-25,
       // guardados como % del mejor mes (nov-2025) para no publicar cifras; nov-2026 va hasta el día 25
@@ -1115,7 +1154,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       if (big) text(b, "+2.100 ESTE MES", 2, 54, 1, mul(C.bLav, ease((t - 1.6) / 0.5)));
     } },
     { id: "first-app", group: "Canales", label: "Primera compra en la app", voice: "¡Primera compra desde la app! ¡Vámola!", sound: () => { pip(784, 100); pip(988, 100, .12); pip(1175, 100, .24); pip(1568, 300, .36); }, draw(b, t) {
-      firstOf(b, t, { icon: "phone", what: "PRIMERA COMPRA", name: "DESDE LA APP" });
+      firstOf(b, t, { icon: "shop", what: "PRIMERA COMPRA", name: "DESDE LA APP" });
     } },
     { id: "welcome", voice: "Bienvenida al equipo, Sofía.", group: "Cultura", label: "Bienvenida", draw(b, t) {
       const big = b.h >= 64, blink = (t % 3) > 2.8, bob = Math.round(Math.sin(t * 3));
@@ -1324,7 +1363,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
   function frame(now) {
     const t = (now - start) / 1000;
     // la alerta crítica no rota: se queda hasta que alguien elige otro mensaje
-    if (auto && !SCENES[scene].critical && t > 7) setScene(nextScene(scene));
+    if (auto && !SCENES[scene].critical && t > (SCENES[scene].dur || 7)) setScene(nextScene(scene));   // la carrera dura más
     const tt = reduce ? 9 : t, fade = reduce ? 1 : ease(t / 0.25);   // cada mensaje entra con un fundido corto
     for (const p of panels) {
       p.buf.d.fill(0);
