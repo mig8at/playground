@@ -188,6 +188,27 @@ ninguna vía aprobada, la solicitud sale de 11 a 8 (Cancelado) y `final_amount` 
 la plata volvió al cliente; los reportes ya emitidos no se corrigen. Un cobro rechazado o expirado
 pasa la solicitud a 8 sólo si sigue en 3 (el estado cobrable), sin notificar al comercio.
 
+## Nequi: nadie pregunta el estado cuando se cierra la pantalla
+
+Nequi no avisa cuando el cliente aprueba el cobro: CreditOp tiene que preguntarle. Lo pregunta el endpoint de
+estado (`GET {user_request_id}/nequi-payment/status`): `NequiPaymentService::checkStatus` toma los intentos que
+siguen pendientes, `NequiIntentResolver` consulta cada vía en Nequi, persiste lo que contesta y, si alguna quedó
+aprobada, sella la solicitud (la sección anterior). Ese endpoint sólo lo llama la pantalla de cobro del asistente
+(`lenders-marketplace/nequi/payment-status`), con un temporizador cada 4 s (`NEQUI_POLL_INTERVAL_MS`) que corre
+mientras la pantalla está abierta y se corta al vencer la ventana del intento.
+
+El intento vence a los 45 minutos de creado (`DEFAULT_TTL_MINUTES`, ajustable con
+`services.nequi.intent_ttl_minutes`). El barrido que consultaría y reversaría los vencidos existe
+(`nequi:reverse-expired`), pero **no está agendado** en `app/Console/Kernel.php`: su propio docblock lo deja como
+decisión de despliegue. Por eso, si el cliente aprueba en su app de Nequi después de que se cerró la pantalla, nadie
+le pregunta a Nequi: el intento queda pendiente en `lender_transactions`, la solicitud sigue en el estado cobrable
+(«Seleccionó entidad», con el botón Gestionar para el asesor) y no hay comprobante, aunque la plata se haya cobrado.
+Un intento pendiente se sigue tomando como activo aunque haya vencido, así que volver a consultar el estado lo
+pregunta de nuevo en Nequi; no se verificó corriendo qué contesta Nequi en ese caso.
+
+El síntoma de soporte y cómo se resolvió un caso: [F-247](../traps/traps.md#f-247). legacy-application no tiene
+este cobro.
+
 ## Links que vencen: continuación y aprobación manual
 
 El link con el que el cliente retoma una solicitud (`/self-service/{hash}/{id}/confirmation`) puede

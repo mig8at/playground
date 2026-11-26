@@ -233,6 +233,8 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«en qa el pipeline de KYC gira y termina en "No pudimos verificar tu información"»** / `run_open: false` pidiendo un dato que ya se guardó | **F-244** |
 | **«dicté el caso a la lambda de qa, salió ✓, y la central contestó otra persona»** / `JUAN CARLOS PEREZ GOMEZ` | **F-245** · F-139 |
 | **«en local el mismo caso consulta Experian una vez sí y otra no»** · «la categoría cambia entre corridas idénticas» (comercio sin CreditopX ni disparador) | **F-246** |
+| **«quedó en Seleccionó entidad y al asesor le sigue saliendo Gestionar, pero el cliente dice que pagó con Nequi»** | **F-247** |
+| **«en el admin sale desembolsado un monto y el voucher dice otro»** | **F-248** |
 | **«el backend se cayó bajo carga»** / muchos 504 a los 60 s exactos que igual terminaron escribiendo | **F-180** |
 | **«el código serializa»** / medir concurrencia en local y ver las peticiones de a una | **F-181** |
 | **«genera el documento en prod y en local tira 500»** / `Undefined variable` en una plantilla de Rent to Own | **F-182** · F-150 |
@@ -252,6 +254,8 @@ distinto según con qué pregunta llegues.
 | F-243 | En la base compartida, un comercio del pipeline de KYC (`kyc_pipeline_allieds`, hoy sólo Mediarte) **no pasa el OTP con un teléfono de `qa_otp_bypass_phones`**: el bypass viejo desvía el envío y el código nunca llega al servicio de OTP ni a **#qa-messages**, que es el mecanismo de hoy; la validación v2 le preguntaba al servicio. Con un teléfono FUERA de la lista, el código sale en #qa-messages y valida | ARREGLADO en `main` (`dbcf666b2`) · sin medir en qa |
 | F-244 | El pipeline de KYC **termina** cuando falta un dato personal, y el arranque que sigue al formulario, si llega antes de 30 s, da **429**: el wizard no reintenta y a los 120 s muestra «No pudimos verificar tu información». Además, el guardado v2 de datos personales acepta 4 por cédula y por hora | ABIERTO · en `develop` y `main` |
 | F-245 | Lo dictado a la lambda de centrales de qa vive en UN contenedor: la confirmación sale verde y la consulta del pipeline cae en otro y contesta la persona por defecto | TRAMPA |
+| F-247 | Nequi no avisa cuando el cliente aprueba y sólo la pantalla abierta le pregunta: si se cerró, el cobro aprobado no llega y la solicitud queda en «Seleccionó entidad» | ABIERTO · barrido sin agendar |
+| F-248 | El voucher no cuadra con el monto del admin porque el monto se cambió a mano después de desembolsar: lo que se hace es anular y originar de nuevo | regla de operación |
 | F-246 | En `local` y `development`, `validatePreApproveLender` se reemplaza por un booleano al azar al guardar los datos laborales: en un comercio que no dispara Experian, la consulta de viabilidad al buró corre o no según una moneda | TRAMPA |
 | F-01 | El loader SSR esconde los 5xx del backend | TRAMPA |
 | F-02 | "Firmar" rebota a los documentos sin ningún mensaje | TRAMPA |
@@ -6454,3 +6458,32 @@ dos. **No se sabe cuántos diagnósticos viejos eran esto.**
   `development` depende del `APP_ENV` efectivo, en disputa para los remotos (`harness/CLAUDE.md`).
 - **Estado:** vivo, por diseño del código.
 
+### F-247 · «Seleccionó entidad» con Nequi aunque el cliente pagó: nadie le pregunta a Nequi cuando se cierra la pantalla
+
+- **Síntoma:** una solicitud de Nequi queda en «Seleccionó entidad», al asesor le sigue saliendo el botón Gestionar y
+  no hay comprobante, pero el cliente dice que aprobó el cobro en su app. Visto en #tech-ops el 2026-11-24 (caso 248,
+  DENTIX por e-commerce): Nequi había contestado SUCCESS al crear el cobro y lo dejó pendiente de que el cliente lo
+  aprobara; la última consulta fue 5 minutos después y el plazo venció 40 minutos más tarde.
+- **Causa raíz (verificada en `main` f197ad35 de legacy-backend y d6b4afe9 de frontend-monorepo):** Nequi no avisa;
+  el estado sólo se pregunta desde la pantalla de cobro del asistente, cada 4 s mientras está abierta
+  (`payment-status.tsx`, `NEQUI_POLL_INTERVAL_MS`). El barrido que lo haría después existe pero no está agendado
+  (`app/Console/Commands/ReverseExpiredNequiIntentsCommand.php:45`). El mecanismo:
+  [user-request-lifecycle](../user-request-lifecycle/rules.md#nequi-nadie-pregunta-el-estado-cuando-se-cierra-la-pantalla).
+- **Cómo se resolvió el caso:** preguntarle a Nequi el estado real del cobro desde el servidor; si se pagó, dejar la
+  solicitud al día y generar el comprobante; si no, que la asesora genere el cobro de nuevo. El equipo lo tenía
+  identificado y pendiente de resolver de fondo.
+- **Para soporte:** antes de pedirle al cliente que pague otra vez, consultar el estado del cobro: un segundo cobro
+  sobre uno ya aprobado es plata doble.
+- **Estado:** abierto; agendar `nequi:reverse-expired` es decisión de despliegue.
+
+### F-248 · El voucher dice otro monto que el admin: se cambió el monto después de desembolsar
+
+- **Síntoma:** en el admin la solicitud sale desembolsada por un monto y el voucher por otro (#tech-ops, casos 220 y
+  257, noviembre de 2026; en el 257, DENTIX CreditopX).
+- **Causa (dicha por el equipo en el hilo del caso 257, sin verificar en el código para CreditopX):** alguien cambió a
+  mano el monto desembolsado después de que se firmaron los documentos, y el voucher se había generado con el
+  anterior. Para las entidades de riel 0 y 1, el voucher del backoffice es un PDF que se genera una vez con
+  `final_amount` y, si ya existe, no se vuelve a generar (`Modules/Backoffice/App/Services/ApplicationVoucherService.php:187-190`).
+- **La regla de operación:** no se cambian valores después de desembolsar. Como los documentos ya están firmados,
+  se cancela la solicitud y se origina otra por el valor nuevo.
+- **Estado:** regla de operación; no hay arreglo de código pendiente.

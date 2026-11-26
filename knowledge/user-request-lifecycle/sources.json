@@ -1,8 +1,8 @@
 {
   "version": 1,
   "title": "Solicitud: estados, cierre y guardas contra el retroceso",
-  "summary": "El catálogo de estados de user_requests con sus ids anotados y por qué se lee por nombre, qué estados cierran una solicitud en cada monolito, la cancelación en cascada de solicitudes CreditopX hermanas al autorizar y safeCancel, la guarda de 11 y 8 que vive en el grupo de rutas (y el desembolso IMEI que la saltea), el 11 confirmado antes de radicar en originación delegada, el webhook tardío contra Autorizada, la gestión manual del comercio, una solicitud por pedido en ecommerce, Nequi y los links que vencen.",
-  "reviewedAt": "2026-11-25T14:24:33+00:00",
+  "summary": "El catálogo de estados de user_requests con sus ids anotados y por qué se lee por nombre, qué estados cierran una solicitud en cada monolito, la cancelación en cascada de solicitudes CreditopX hermanas al autorizar y safeCancel, la guarda de 11 y 8 que vive en el grupo de rutas (y el desembolso IMEI que la saltea), el 11 confirmado antes de radicar en originación delegada, el webhook tardío contra Autorizada, la gestión manual del comercio, una solicitud por pedido en ecommerce, Nequi (y que nadie le pregunta el estado cuando se cierra la pantalla) y los links que vencen.",
+  "reviewedAt": "2026-11-26T18:30:00+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -203,7 +203,8 @@
       "commit": "f633899b97c6a9193ea2b85f308d67e5373f5ad7",
       "blob": "8978751a5e16a6400fad536d2d2dcba734facb61",
       "sections": [
-        "nequi-un-pago-de-contado-que-puede-salir-de-autorizada"
+        "nequi-un-pago-de-contado-que-puede-salir-de-autorizada",
+        "nequi-nadie-pregunta-el-estado-cuando-se-cierra-la-pantalla"
       ]
     },
     {
@@ -212,7 +213,8 @@
       "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "9ec8634b100f733d04c9ca31a22fbdf7de817967",
       "sections": [
-        "nequi-un-pago-de-contado-que-puede-salir-de-autorizada"
+        "nequi-un-pago-de-contado-que-puede-salir-de-autorizada",
+        "nequi-nadie-pregunta-el-estado-cuando-se-cierra-la-pantalla"
       ]
     },
     {
@@ -294,6 +296,60 @@
       "blob": "d0c63811fa4fd49c177fdad6e886b69e7aef6785",
       "sections": [
         "links-que-vencen-continuacion-y-aprobacion-manual"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Console/Commands/ReverseExpiredNequiIntentsCommand.php",
+      "commit": "f197ad35694e8b99fb0d4c63da99e47aa7cc571a",
+      "blob": "2bb528c1cdbb1d1adc87f27f7b61a564660672d7",
+      "sections": [
+        "nequi-nadie-pregunta-el-estado-cuando-se-cierra-la-pantalla"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Console/Kernel.php",
+      "commit": "f197ad35694e8b99fb0d4c63da99e47aa7cc571a",
+      "blob": "9ee74124d8db9ff4d1d0f902832eb1159dd863b7",
+      "sections": [
+        "nequi-nadie-pregunta-el-estado-cuando-se-cierra-la-pantalla"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/Lenders/Nequi/NequiPaymentIntentRepository.php",
+      "commit": "f197ad35694e8b99fb0d4c63da99e47aa7cc571a",
+      "blob": "a55e8fd65852c23cc70104bb4a19b4089a15921a",
+      "sections": [
+        "nequi-nadie-pregunta-el-estado-cuando-se-cierra-la-pantalla"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/Lenders/Nequi/NequiIntentResolver.php",
+      "commit": "f197ad35694e8b99fb0d4c63da99e47aa7cc571a",
+      "blob": "8a004c06e7449fda043b32384855865dabaf33db",
+      "sections": [
+        "nequi-nadie-pregunta-el-estado-cuando-se-cierra-la-pantalla"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/lenders-marketplace/nequi/payment-status.tsx",
+      "commit": "d6b4afe91302df0c4c8e14e1bb132230c268926d",
+      "blob": "fbad8a648359c2026e3fb6c32e63a56fab3c6b73",
+      "sections": [
+        "nequi-nadie-pregunta-el-estado-cuando-se-cierra-la-pantalla"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/lenders-marketplace/src/components/nequi/nequi-polling.service.ts",
+      "commit": "d6b4afe91302df0c4c8e14e1bb132230c268926d",
+      "blob": "27ed64024f70b64825e2d0b4ee39079317bf9a37",
+      "sections": [
+        "nequi-nadie-pregunta-el-estado-cuando-se-cierra-la-pantalla"
       ]
     }
   ]
