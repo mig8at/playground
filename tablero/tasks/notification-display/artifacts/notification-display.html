@@ -173,7 +173,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         <button type="button" id="sound" aria-pressed="false">Sonido</button>
       </div>
     </div>
-    <p class="note">19 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados, salvo «Crecimiento por mes»: su forma es la real (desembolsos por mes en producción, sin cifras absolutas). Su porcentaje de 2025 compara el año completo con 2024; el de 2026, enero a octubre con el mismo tramo de 2025.</p>
+    <p class="note">21 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados, salvo «Crecimiento por mes»: su forma es la real (desembolsos por mes en producción, sin cifras absolutas). Su porcentaje de 2025 compara el año completo con 2024; el de 2026, enero a octubre con el mismo tramo de 2025.</p>
   </section>
 
   <section aria-labelledby="size">
@@ -449,6 +449,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
           <li>Créditos aprobados y desembolsados</li>
           <li>Monto del mes con barra hacia la meta</li>
           <li>Récords, con un sonido especial</li>
+          <li>La primera solicitud de un comercio o de una entidad nueva</li>
         </ul>
       </div>
       <div class="card cat">
@@ -600,6 +601,29 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
     for (let i = 0; i < 8; i++) if (sx + i >= 0 && sx + i < f) rect(b, x + sx + i, y, 1, h, mul([255,235,190], 0.6 + 0.05 * i));
   }
 
+  // un recuadro con texto: la etiqueta «NUEVO» de las primeras solicitudes
+  function badge(b, label, x, y, c) {
+    const w = tw(label, 1) + 6;
+    rect(b, x, y, w, 1, c); rect(b, x, y + 10, w, 1, c); rect(b, x, y, 1, 11, c); rect(b, x + w - 1, y, 1, 11, c);
+    text(b, label, x + 3, y + 2, 1, c);
+    return w;
+  }
+  // primera solicitud de un comercio o de una entidad: la misma pantalla con otros textos
+  function firstOf(b, t, what, name, foot, tag) {
+    const big = b.h >= 64, on = t < 0.9 ? (t * 6 | 0) % 2 === 0 : true;   // la etiqueta parpadea dos veces y queda
+    sparkles(b, t, big ? 14 : 8, mul(C.bG, 0.6));
+    if (on) badge(b, tag, b.w - 2 - (tw(tag, 1) + 6), big ? 2 : 0, C.bG);
+    if (big) {
+      text(b, "PRIMERA SOLICITUD DE " + what, 2, 4, 1, C.bLav);
+      typed(b, name, 2, 20, 3, C.white, t, 0.5, 14);
+      text(b, foot, 2, 52, 1, mul(C.bG, ease((t - 1.8) / 0.5)));
+    } else {
+      text(b, "PRIMERA SOLICITUD · " + what.split(" ").pop(), 2, 1, 1, C.bLav);
+      typed(b, name, 2, 10, 2, C.white, t, 0.5, 14);
+      text(b, foot, 2, 25, 1, mul(C.bG, ease((t - 1.8) / 0.5)));
+    }
+  }
+
   const OWL = [
     "..o..........o..", "..oo........oo..", "..oooooooooooo..", ".oooooooooooooo.",
     ".owwwwoooowwwwo.", ".owkkwoooowkkwo.", ".owkkwoooowkkwo.", ".owwwwoyyowwwwo.",
@@ -746,6 +770,12 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         const lab = "NOV 2025 · BLACK FRIDAY", xr = x0 + rec * 6 - tw(lab, 1) - 9;
         text(b, lab, xr, big ? 2 : 10, 1, mul(C.bG, ease((t - 2.7) / 0.4)));
       }
+    } },
+    { id: "first-merchant", group: "Negocio", label: "Primer comercio", voice: "Primera solicitud de un comercio nuevo: La 70 Calzado. ¡Bienvenidos!", sound: () => { pip(1319, 80); pip(1760, 140, .1); }, draw(b, t) {
+      firstOf(b, t, "UN COMERCIO", "LA 70 CALZADO", b.h >= 64 ? "BIENVENIDO A CREDITOP · NUEVO 27 DEL MES" : "BIENVENIDO A CREDITOP", "NUEVO");
+    } },
+    { id: "first-lender", group: "Negocio", label: "Primera entidad", voice: "Primera solicitud para una entidad nueva: Credinueva.", sound: () => { pip(1319, 80); pip(1760, 140, .1); }, draw(b, t) {
+      firstOf(b, t, "UNA ENTIDAD", "CREDINUEVA", b.h >= 64 ? "YA SALE EN EL LISTADO DE 12 COMERCIOS" : "YA SALE EN 12 COMERCIOS", "NUEVA");
     } },
     { id: "record", voice: "¡Nuevo récord! 312 solicitudes en un solo día.", group: "Negocio", label: "Récord", sound: () => { pip(1047, 90); pip(1319, 90, .1); pip(1568, 220, .2); }, draw(b, t) {
       const big = b.h >= 64, gold = i => (Math.sin(t * 5 + i * 0.5) > 0 ? C.yellow : C.amber);
