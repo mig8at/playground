@@ -48,7 +48,7 @@ No toca los repos de producto. Es un servicio nuevo más el firmware del control
 3. **Servidor mínimo**: rotación en ciclo con hora y clima como relleno, y una alerta crítica que interrumpe.
 4. **Voz**: el texto a voz pasa en el servidor: arma la frase con cifras agregadas, la convierte en MP3 y se lo manda al tablero, que sólo lo reproduce por el amplificador I2S y el parlante; sólo en eventos.
 5. **Contenido de desarrollo**: deploys exitosos o fallidos, caídas o errores de la API, PRs pendientes, uptime.
-6. **Contenido de negocio**: descargas de la app, solicitudes, créditos aprobados y desembolsados, monto del mes con barra hacia la meta, crecimiento por mes y por año; un récord dispara un sonido especial; la primera solicitud de un comercio o de una entidad nuevos (la primera fila de `user_requests` por `allied_id` o `lender_id`, sin comercios ni entidades de prueba).
+6. **Contenido de negocio**: descargas de la app, solicitudes, créditos aprobados y desembolsados, monto del mes con barra hacia la meta, crecimiento por mes y por año; un récord dispara un sonido especial; los «primeros»: la primera solicitud de un comercio o de una entidad (la primera fila de `user_requests` por `allied_id` o `lender_id`), el primer desembolso de una entidad (el primer `disbursed_at` por `lender_id`) y el primero de un comercio con una entidad (por el par `allied_id` y `lender_id`); sin comercios ni entidades de prueba.
 7. **Cultura**: cumpleaños, aniversarios, bienvenidas y la mascota en pixel art.
 8. **Montaje** en la pared, con los paneles definitivos.
 
