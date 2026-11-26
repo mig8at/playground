@@ -173,7 +173,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         <button type="button" id="sound" aria-pressed="false">Sonido</button>
       </div>
     </div>
-    <p class="note">26 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados, salvo «Crecimiento por mes», cuya forma es real, y los dos tops (comercios y entidades), con las ventas reales de 2026 (desembolsos por mes en producción, sin cifras absolutas). Su porcentaje de 2025 compara el año completo con 2024; el de 2026, enero a octubre con el mismo tramo de 2025.</p>
+    <p class="note">27 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados, salvo «Crecimiento por mes», cuya forma es real, y los dos tops (comercios y entidades), con las ventas reales de 2026 (desembolsos por mes en producción, sin cifras absolutas). Su porcentaje de 2025 compara el año completo con 2024; el de 2026, enero a octubre con el mismo tramo de 2025.</p>
   </section>
 
   <section aria-labelledby="size">
@@ -448,6 +448,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
           <li>Solicitudes del día</li>
           <li>Créditos aprobados y desembolsados</li>
           <li>Monto del mes con barra hacia la meta</li>
+          <li>El embudo en vivo: de las solicitudes que entran hoy, cuántas pasan el perfil, eligen entidad y terminan en venta</li>
           <li>Récords, con un sonido especial</li>
           <li>Canales: la primera venta por e-commerce, las descargas de la app y la primera compra desde la app</li>
           <li>Los primeros: un comercio que sale a producción y la primera venta de un comercio o de una entidad</li>
@@ -783,6 +784,50 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         rect(b, bx + off, y + 1, Math.max(1, Math.round(bmax * v / rows[0][1] * g)), 5, i === 0 ? C.amber : C.amberDim);
         const s = fmt(v * g);
         text(b, s, rx(b, s, 1) + off, y, 1, i === 0 ? C.amber : C.white);
+      });
+    } },
+    { id: "funnel", group: "Negocio", label: "Embudo en vivo", draw(b, t) {
+      // de las que entran, cuántas llegan a cada etapa. Ejemplo con el promedio diario real de los últimos 30 días
+      // (estado actual de las solicitudes creadas, nov-2026): 1.214 entran · 516 pasan el perfil · 390 eligen entidad · 174 venden
+      const big = b.h >= 64, V = [1214, 516, 390, 174], L = ["ENTRAN", "PERFIL", "ENTIDAD", "VENTA"];
+      const x0 = 8, seg = 60, x1 = x0 + seg * 4 - 2, cy = big ? 30 : 20, hm = big ? 16 : 10;
+      const H = V.map(v => 2 + (hm - 2) * Math.pow(v / V[0], 0.7));
+      const half = x => {                                                // alto del embudo: se angosta parejo entre etapas
+        const c = (x - x0 - seg / 2) / seg;
+        if (c <= 0) return H[0]; if (c >= 3) return H[3];
+        const i = Math.floor(c); return H[i] + (H[i + 1] - H[i]) * (c - i);
+      };
+      head(b, "EMBUDO · HOY", C.bLav, "14% TERMINA EN VENTA", C.bG, t);
+      const g = ease(t / 0.8);
+      for (let x = x0; x <= x1; x++) {                                   // el cuerpo del embudo, que se dibuja de izquierda a derecha
+        if (x > x0 + (x1 - x0) * g) break;
+        const h = Math.round(half(x));
+        rect(b, x, cy - h, 1, 2 * h, [34,34,50]);
+        px(b, x, cy - h - 1, mul(C.bLav, 0.85)); px(b, x, cy + h, mul(C.bLav, 0.85));
+      }
+      // puntitos que recorren el embudo: cada uno se queda en una etapa según la conversión real, cae y se apaga
+      const keep = [V[1] / V[0], V[2] / V[1], V[3] / V[2]], N = big ? 70 : 40, len = x1 - x0, dot = big ? 2 : 1;
+      if (t > 0.8) for (let i = 0; i < N; i++) {
+        let stop = 3; const r = [hash(i + 50), hash(i + 90), hash(i + 130)];
+        for (let k = 0; k < 3; k++) if (r[k] > keep[k]) { stop = k; break; }
+        const x = x0 + ((t - 0.8) * 34 + hash(i) * len) % len, oy = hash(i + 7) * 2 - 1;
+        const dropX = x0 + seg * (stop + 1) - 6;
+        if (stop < 3 && x > dropX) {
+          const fall = (x - dropX) * 0.7, y = cy + oy * (half(dropX) - 1) + fall;
+          if (y < (big ? 48 : 31) && fall < 14) rect(b, x, y, dot, dot, mul(C.gray, Math.max(0.2, 1 - fall / 14)));
+        } else {
+          const end = stop === 3 && x > x0 + seg * 3;
+          rect(b, x, cy + oy * (half(x) - dot), dot, dot, end ? C.bG : C.white);
+        }
+      }
+      // las cifras de cada etapa; en 256×32 se alternan con el nombre de la etapa
+      const showName = !big && (t % 4) > 2;
+      V.forEach((v, i) => {
+        const mid = x0 + i * seg + (seg >> 1) - 1, n = fmt(v * ease((t - 0.4 - i * 0.2) / 1.2));
+        const s = showName ? L[i] : n, c = i === 3 ? C.bG : C.white, sw = tw(s, 1);
+        if (t > 0.4 + i * 0.2) rect(b, mid - (sw >> 1) - 2, cy - 4, sw + 4, 9, [34,34,50]);   // un respiro detrás de la cifra
+        text(b, s, mid - (sw >> 1), cy - 3, 1, mul(c, ease((t - 0.4 - i * 0.2) / 0.4)));
+        if (big) text(b, L[i], mid - (tw(L[i], 1) >> 1), 54, 1, mul(C.bLav, ease((t - 0.6 - i * 0.2) / 0.4)));
       });
     } },
     { id: "growth", group: "Negocio", label: "Crecimiento por mes", voice: "Así hemos crecido: 165 por ciento en 2025, y 15 por ciento en lo que va de 2026.", draw(b, t) {
