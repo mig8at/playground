@@ -22,6 +22,11 @@ a producto; de la 3 en adelante dependen de las respuestas de la fase 0.
 **Decisión.** Miguel, 2026-11-25: la tarea se da por terminada cuando lo nuestro quede listo en qa. El pagaré en
 Deceval (Hans, CRED-463) y el paso a producción van al final y no son parte de este cierre.
 
+**Decisión.** Santi, 2026-11-26: por ahora Finandina firma con el OTP de CreditOp (pagaré tradicional,
+`promissory_type_id` 1, como ya está en qa y prod) para mostrar el flujo de punta a punta. Deceval se conecta si
+llega la integración. El pagaré genérico, con CREDITOP COLOMBIA S.A.S como acreedor, se queda así: no es la versión
+final y no se hace plantilla propia de la 149.
+
 - [ ] Ver en qa los dos arreglos de documentos en una firma nueva de Banco Finandina desde la sucursal de autogestión:
   la ciudad de firma de los T&C dice «BOGOTÁ» ([#2102](https://github.com/Creditop-SAS/legacy-backend/pull/2102), en
   merge) y el pie del pagaré trae la dirección del deudor
