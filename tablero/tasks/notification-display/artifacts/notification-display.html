@@ -173,7 +173,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         <button type="button" id="sound" aria-pressed="false">Sonido</button>
       </div>
     </div>
-    <p class="note">25 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados, salvo «Crecimiento por mes»: su forma es la real (desembolsos por mes en producción, sin cifras absolutas). Su porcentaje de 2025 compara el año completo con 2024; el de 2026, enero a octubre con el mismo tramo de 2025.</p>
+    <p class="note">24 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados, salvo «Crecimiento por mes»: su forma es la real (desembolsos por mes en producción, sin cifras absolutas). Su porcentaje de 2025 compara el año completo con 2024; el de 2026, enero a octubre con el mismo tramo de 2025.</p>
   </section>
 
   <section aria-labelledby="size">
@@ -449,7 +449,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
           <li>Créditos aprobados y desembolsados</li>
           <li>Monto del mes con barra hacia la meta</li>
           <li>Récords, con un sonido especial</li>
-          <li>Los primeros: un comercio que sale a producción, la primera solicitud y el primer desembolso de un comercio o de una entidad, y el primero de un comercio con una entidad</li>
+          <li>Los primeros: un comercio que sale a producción, la primera solicitud y el primer desembolso de un comercio o de una entidad</li>
         </ul>
       </div>
       <div class="card cat">
@@ -601,26 +601,34 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
     for (let i = 0; i < 8; i++) if (sx + i >= 0 && sx + i < f) rect(b, x + sx + i, y, 1, h, mul([255,235,190], 0.6 + 0.05 * i));
   }
 
+  // íconos de 12×12 al estilo emoji, para los avisos de «primero»
+  const ICONS = {
+    rocket: [".....ww.....", "....wwww....", "....wggw....", "....wggw....", "....wwww....", "...wwwwww...",
+             "..wwwwwwww..", "..ww.ww.ww..", "....aaaa....", ".....aa.....", "....a..a....", "............"],
+    medal:  ["..pp....pp..", "...pp..pp...", "....pppp....", ".....pp.....", "....yyyy....", "...yyyyyy...",
+             "..yyyywyyy..", "..yyywwyyy..", "..yyyywyyy..", "..yyyywyyy..", "...yyyyyy...", "....yyyy...."],
+    paper:  ["wwwwwww.....", "w.....ww....", "w.....w.w...", "w.....wwww..", "w.gg.....w..", "w........w..",
+             "w.ggggg..w..", "w........w..", "w.gggg...w..", "w........w..", "wwwwwwwwww..", "............"]
+  };
+  const ICON_COLORS = { w: [235,235,230], g: [5,213,135], a: [255,176,59], y: [255,205,60], p: [135,122,255] };
+
   // Avisos de «primero»: cortos y para el equipo, sin explicar lo obvio. Tres piezas centradas:
   //   qué pasó (verde, parpadea dos veces) · el nombre (grande, blanco) · el cierre (VAMOLA!!!)
   function firstOf(b, t, o) {
     const big = b.h >= 64, blink = t < 0.9 && (t * 6 | 0) % 2 === 1;
     sparkles(b, t, big ? 12 : 6, mul(C.bG, 0.5));
     const foot = o.foot === undefined ? "VAMOLA!!!" : o.foot;
-    if (big) {
-      const lines = o.lines || [[o.name, 3]];
-      const nameH = lines.reduce((h, [, k], i) => h + 7 * k + (i ? 3 : 0), 0);
-      const y0 = (b.h - (7 + 6 + nameH + (foot ? 6 + 7 : 0))) >> 1;
-      if (!blink) text(b, o.what, cx(b, o.what, 1), y0, 1, C.bG);
-      let y = y0 + 13;
-      lines.forEach(([s, k, c], i) => { typed(b, s, cx(b, s, k), y, k, c || C.white, t, 0.4 + i * 0.6, 14); y += 7 * k + 3; });
-      if (foot) text(b, foot, cx(b, foot, 1), y0 + 13 + nameH + 6, 1, mul(C.bLav, ease((t - 1.6) / 0.5)));
-    } else {
-      const name = o.short || o.name;
-      if (!blink) text(b, o.what, cx(b, o.what, 1), foot ? 1 : 4, 1, C.bG);
-      typed(b, name, cx(b, name, 2), foot ? 10 : 14, 2, C.white, t, 0.4, 14);
-      if (foot) text(b, foot, cx(b, foot, 1), 25, 1, mul(C.bLav, ease((t - 1.4) / 0.5)));
+    const k = big ? 3 : 2, ik = big ? 2 : 1, iw = 12 * ik, gap = big ? 8 : 5;
+    const nw = tw(o.name, k), x = (b.w - (iw + gap + nw)) >> 1;       // ícono + nombre, centrados juntos
+    const y0 = big ? (b.h - (7 + 6 + 7 * k + (foot ? 6 + 7 : 0))) >> 1 : (foot ? 1 : 4);
+    const ny = big ? y0 + 13 : (foot ? 10 : 14);
+    if (!blink) text(b, o.what, cx(b, o.what, 1), y0, 1, C.bG);
+    if (t > 0.25) {                                                     // el ícono aparece y rebota suave
+      const bob = Math.round(Math.abs(Math.sin(t * 3)) * (big ? 2 : 1));
+      art(b, ICONS[o.icon], x, ny + ((7 * k - iw) >> 1) - bob, ik, ICON_COLORS);
     }
+    typed(b, o.name, x + iw + gap, ny, k, C.white, t, 0.4, 14);
+    if (foot) text(b, foot, cx(b, foot, 1), big ? ny + 7 * k + 6 : 25, 1, mul(C.bLav, ease((t - (big ? 1.6 : 1.4)) / 0.5)));
   }
 
   const OWL = [
@@ -772,22 +780,19 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
     } },
     // Los «primeros»: Cencosud y Finandina son ejemplos de lo que viene (Finandina no tiene solicitudes en prod, 2026-11-25)
     { id: "go-live", group: "Negocio", label: "En vivo", voice: "¡Cencosud ya está en vivo! ¡Vámola!", sound: () => { pip(784, 100); pip(988, 100, .12); pip(1175, 100, .24); pip(1568, 300, .36); }, draw(b, t) {
-      firstOf(b, t, { what: "YA EN VIVO", name: "CENCOSUD" });
+      firstOf(b, t, { icon: "rocket", what: "YA EN VIVO", name: "CENCOSUD" });
     } },
     { id: "first-merchant", group: "Negocio", label: "Primera solicitud (comercio)", voice: "Primera solicitud de Cencosud.", sound: () => { pip(1319, 80); pip(1760, 140, .1); }, draw(b, t) {
-      firstOf(b, t, { what: "PRIMERA SOLICITUD", name: "CENCOSUD", foot: "" });
+      firstOf(b, t, { icon: "paper", what: "PRIMERA SOLICITUD", name: "CENCOSUD", foot: "" });
     } },
     { id: "first-disb-merchant", group: "Negocio", label: "Primera venta (comercio)", voice: "¡Primera venta de Cencosud! ¡Vámola!", sound: () => { pip(784, 100); pip(988, 100, .12); pip(1175, 100, .24); pip(1568, 300, .36); }, draw(b, t) {
-      firstOf(b, t, { what: "PRIMERA VENTA", name: "CENCOSUD" });
+      firstOf(b, t, { icon: "medal", what: "PRIMERA VENTA", name: "CENCOSUD" });
     } },
     { id: "first-lender", group: "Negocio", label: "Primera solicitud (entidad)", voice: "Primera solicitud de Finandina.", sound: () => { pip(1319, 80); pip(1760, 140, .1); }, draw(b, t) {
-      firstOf(b, t, { what: "PRIMERA SOLICITUD", name: "FINANDINA", foot: "" });
+      firstOf(b, t, { icon: "paper", what: "PRIMERA SOLICITUD", name: "FINANDINA", foot: "" });
     } },
     { id: "first-disb-lender", group: "Negocio", label: "Primera venta (entidad)", voice: "¡Primera venta de Finandina! ¡Vámola!", sound: () => { pip(784, 100); pip(988, 100, .12); pip(1175, 100, .24); pip(1568, 300, .36); }, draw(b, t) {
-      firstOf(b, t, { what: "PRIMERA VENTA", name: "FINANDINA" });
-    } },
-    { id: "first-disb-pair", group: "Negocio", label: "Primera venta juntos", voice: "¡Primera venta de Cencosud con Finandina! ¡Vámola!", sound: () => { pip(784, 100); pip(988, 100, .12); pip(1175, 100, .24); pip(1568, 300, .36); }, draw(b, t) {
-      firstOf(b, t, { what: "PRIMERA VENTA JUNTOS", lines: [["CENCOSUD", 2], ["+ FINANDINA", 2, C.bG]], short: "CENCOSUD + FINANDINA" });
+      firstOf(b, t, { icon: "medal", what: "PRIMERA VENTA", name: "FINANDINA" });
     } },
     { id: "record", voice: "¡Nuevo récord! 312 solicitudes en un solo día.", group: "Negocio", label: "Récord", sound: () => { pip(1047, 90); pip(1319, 90, .1); pip(1568, 220, .2); }, draw(b, t) {
       const big = b.h >= 64, gold = i => (Math.sin(t * 5 + i * 0.5) > 0 ? C.yellow : C.amber);
