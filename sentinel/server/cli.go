@@ -28,7 +28,7 @@ import (
 	"time"
 )
 
-var cliCommands = map[string]bool{"now": true, "day": true, "signal": true, "deploy": true, "ack": true, "schema": true, "cases": true, "rules": true, "verdict": true, "why": true, "month": true, "stages": true}
+var cliCommands = map[string]bool{"now": true, "day": true, "signal": true, "deploy": true, "ack": true, "schema": true, "cases": true, "rules": true, "verdict": true, "why": true, "month": true, "stages": true, "digest": true, "pack": true, "report": true}
 
 // cliHelp es lo que dicen `bin/sentinel`, `help`, `-h` y `--help`. No arranca nada ni lee nada.
 const cliHelp = `sentinel — el vigía de producción, por consola. Sólo lee (ack es lo único que escribe, y va por la API).
@@ -45,6 +45,9 @@ const cliHelp = `sentinel — el vigía de producción, por consola. Sólo lee (
   bin/sentinel rules <entidad> [--hours N]  qué regla dura rechaza a la entidad, ahora contra antes (lee producción)
   bin/sentinel stages [etapa] [--hours N]   los errores por etapa del recorrido contra lo normal; con una etapa, sus mensajes,
                                             las solicitudes que toca y en qué estado quedaron (lee Loki y producción)
+  bin/sentinel digest [AAAA-MM-DD|--all]    el resumen de un día para la memoria (por defecto ayer; --all, los que faltan)
+  bin/sentinel pack [--out archivo]         arma el paquete para Gemini (la memoria, el contexto y el código desplegado) y dice cuánto pesa
+  bin/sentinel report                       el informe de la semana: el paquete a Gemini por AI Studio (Chrome con Jarvis)
   bin/sentinel month                        el mes a la fecha contra el mismo tramo del mes anterior, por entidad y comercio (lee producción)
   bin/sentinel schema                       lo que producción tiene y dev ya no: columnas renombradas o borradas
   bin/sentinel ack <señal> [--undo]         reconocer un episodio («ya lo sé»); pide la API arriba
@@ -73,6 +76,8 @@ func runCLI(root string, args []string) int {
 	undo := fs.Bool("undo", false, "ack: deshace el reconocimiento (vuelve a «Pide atención»)")
 	makeIt := fs.Bool("make", false, "verdict: armar el de hoy ahora (si no, muestra el último guardado)")
 	onlyPrompt := fs.Bool("prompt", false, "why: mostrar lo que recibiría el modelo, sin preguntarle")
+	allDays := fs.Bool("all", false, "digest: todos los días que no tienen resumen")
+	outPath := fs.String("out", "", "pack: dónde escribir el paquete")
 	var positional []string
 	// Los flags pueden ir antes o después de los argumentos.
 	rest := args[1:]
@@ -118,6 +123,46 @@ func runCLI(root string, args []string) int {
 		}
 		o := c.s.overview(c.rules, c.reach.Truncate(time.Minute))
 		return printOut(&StagesReport{At: c.reach.Format(time.RFC3339), Freshness: c.freshness(), List: o.Stages, Stages: stages}, nil, *asJSON)
+	}
+	// La memoria para Gemini (digest.go).
+	switch cmd {
+	case "digest":
+		deps, err := deploys(c.s.root, 40)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "sentinel: sin los despliegues:", err)
+		}
+		dates := positional
+		if *allDays {
+			dates = c.s.missingDigests(time.Now())
+		} else if len(dates) == 0 {
+			dates = []string{time.Now().In(bogota).AddDate(0, 0, -1).Format("2006-01-02")}
+		}
+		for _, d := range dates {
+			start := time.Now()
+			if err := c.s.saveDigest(c.rules, d, deps); err != nil {
+				fmt.Fprintf(os.Stderr, "sentinel: %s: %v\n", d, err)
+				continue
+			}
+			st, _ := os.Stat(filepath.Join(c.s.digestDir(), d+".md"))
+			fmt.Printf("%s · %d KB · %.0f s\n", d, st.Size()>>10, time.Since(start).Seconds())
+		}
+		return 0
+	case "pack":
+		path := *outPath
+		if path == "" {
+			path = filepath.Join(c.s.reportDir(), "packs", time.Now().In(bogota).Format("2006-01-02")+".md")
+		}
+		info, err := c.s.buildPack(c.rules, path, time.Now())
+		return printOut(info, err, *asJSON)
+	case "report":
+		out, info, err := c.s.runReport(c.rules, time.Now())
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "sentinel:", err)
+			return 1
+		}
+		fmt.Print(info.Text())
+		fmt.Println("\nInforme:", out)
+		return 0
 	}
 	// verdict y why le preguntan al modelo de segundo plano (verdict.go).
 	if cmd == "verdict" || cmd == "why" {

@@ -34,6 +34,7 @@ un agente para que resuma.
 | `bin/sentinel cases <señal> [--hours N]` · `bin/sentinel rules <entidad> [--hours N]` | solicitudes de ejemplo de la señal (con su enlace a tracer) · qué regla dura rechaza a la entidad, ahora contra antes (§«De la señal al caso»). Leen producción, no lo guardado |
 | `bin/sentinel verdict [--make]` · `bin/sentinel why <señal>` | el dictamen de la mañana (el último guardado; `--make` arma el de hoy ya, ~30 s) · el porqué de una señal ahora, como hipótesis, sin guardar ni avisar (§«El dictamen y el porqué») |
 | `bin/sentinel stages [etapa] [--hours N]` | **los errores por etapa del recorrido** (OTP, datos personales, centrales, entidad, identidad, pagaré…) contra lo normal; con una etapa, qué mensajes la llenan, cuántas solicitudes toca y en qué estado están hoy, con ejemplos (§«Los errores por etapa»). Sin etapa lee lo guardado; con una, Loki y producción en el momento (~3 s) |
+| `bin/sentinel digest [día\|--all]` · `pack` · `report` | **la memoria para Gemini** (§«La memoria y el informe de la semana»): el resumen de un día (por defecto ayer; `--all`, los que faltan), el paquete con cuánto pesa, y el informe de la semana por AI Studio |
 | `bin/sentinel month` | **el mes a la fecha**: este mes contra el mismo tramo del anterior (hasta la misma hora del mismo día), toda la originación, lo que se sigue y las 10 entidades y comercios que más desembolsan: solicitudes, desembolsos, el ritmo de cada uno y lo desembolsado. Una vista, no avisa (§«El mes a la fecha»). Lee producción, ~5 s |
 | `bin/sentinel schema` | **la deriva de esquema**: lo que producción tiene y la base de dev/qa/staging ya NO (columnas renombradas o borradas por una migración que corrió en dev: lo que un servicio desplegado puede estar leyendo, como el `countries.cell_phone_lenght` del 18/11/2026), los cambios de tipo y las migraciones de dev que producción no corrió, con las que por el nombre renombran o borran. Sin respaldos, temporales ni vistas `VW_`. ~5 s, sólo lectura (`server/schema.go`) |
 | `bin/sentinel deploy <repo> [versión] [--hours 2]` | **¿se dañó algo después de un despliegue?** Las horas de después contra las mismas de antes y contra esa franja en los días comparables, en TODAS las señales: errores que subieron, solicitudes que cayeron (con piso de volumen), servicios que se callaron. Sin versión, el último a producción del repo (GitHub). Que algo empeore después no prueba que lo causó: dos repos que se despliegan juntos se ven igual |
@@ -122,6 +123,30 @@ Lo que ninguna regla ubica queda en **«Sin etapa»**: esa lista dice qué falta
 - **Para mapear algo nuevo**: `bin/sentinel stages other --hours 24` lista lo que cae sin etapa; se agrega la regla en
   `stageRules`, un caso en `stages_test.go`, y como cambia la plantilla, la historia se puede volver a pedir subiendo
   `logsVersion`.
+
+## La memoria y el informe de la semana (`server/digest.go`)
+
+Idea de Miguel (2026-11-26): que Sentinel vaya guardando resúmenes para Gemini, así cada tanda que se le manda tiene el
+contexto completo, y aprovechar su ventana de cientos de miles de tokens con datos preparados, no con logs.
+
+- **El resumen de un día** (`.data/digests/<día>.md`, fuera de git): el día contra lo normal (lo de `bin/sentinel day`),
+  los errores por etapa del día entero (mensajes, solicitudes tocadas y su estado), lo que se desplegó con los títulos de
+  sus commits (`git log` entre el tag desplegado y el anterior, en los clones de main; trae los tags antes, porque los
+  locales se atrasan) y los avisos con su porqué. Sin modelo. Queda para siempre: la memoria no depende de los 28 días.
+  La API arma a lo sumo uno por pasada (~30 s de Loki); un día que falla espera 6 horas.
+- **El paquete** (`.data/reports/packs/<día>.md`): las instrucciones (al principio y al final: en un texto enorme lo del
+  medio se pierde), el contexto fijo (`knowledge/business-context.md`, `CREDITOP.md` y los ÍNDICES de las trampas: las
+  trampas enteras traen casos de prueba con datos), los últimos informes, los resúmenes de 28 días, el mes a la fecha y
+  el CÓDIGO de lo que se desplegó en la última semana (el cambio de cada despliegue, sin locks, json ni imágenes, hasta
+  60 KB por despliegue y 900 KB en total). Lo que justifica la ventana grande es cruzar el código que salió con los
+  errores que aparecieron después.
+- **El informe** (`.data/reports/<día>.md`): el paquete a Gemini por la web de AI Studio (`bin/aistudio --file`), con
+  Chrome y Jarvis. Los lunes desde las 7:00 lo arma la API (si falla, reintenta a las 3 horas), o a pedido con
+  `bin/sentinel report`. Cada informe vuelve a entrar en los siguientes: así sabe qué concluyó antes. Al final, Sentinel
+  (no el modelo) verifica contra main cada ruta de código que cita y lista las que no existen.
+- ⚠ **AI Studio por la web es una cuenta de consumidor**: lo que se manda puede revisarlo Google. El paquete va
+  agregado y normalizado (`scrub`, con su prueba): sin números de solicitud, cédulas, celulares, correos ni autores de
+  commits. El código sí va, como ya va para poner al día knowledge. `.data/memory.off` apaga lo automático.
 
 ## El mes a la fecha (`server/month.go`)
 
@@ -480,6 +505,7 @@ modelo supera al otro, se registra y se borra»): `-forecaster chronos` pide vol
 | el dictamen de la mañana y el porqué de una alerta | `server/verdict.go` |
 | la plata en juego (lo desembolsado por entidad y comercio) | `server/stake.go` |
 | el mes a la fecha contra el anterior | `server/month.go` |
+| la memoria para Gemini: resúmenes diarios, paquete e informe | `server/digest.go` |
 | los errores por etapa del recorrido | `server/stages.go` |
 | los servicios en producción: versión y tarjetas | `server/services.go` |
 | el LaunchAgent (de fondo) | `server/agent.go` |

@@ -761,6 +761,7 @@ func (s *sentinel) run() {
 		s.decorate(o)
 	}
 	s.maybeVerdict(o.Rules)
+	s.maybeMemory(o.Rules)
 	s.last, s.err = o, ""
 	s.saveLast(o)
 	if time.Since(s.daysAt) > 30*time.Minute {
