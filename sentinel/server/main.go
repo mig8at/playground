@@ -1193,6 +1193,15 @@ func main() {
 		}
 		writeJSON(w, http.StatusOK, d)
 	})
+	// GET /api/report — el último informe de la semana y su vista para el tablero (digest.go, view.go).
+	mux.HandleFunc("GET /api/report", func(w http.ResponseWriter, r *http.Request) {
+		rep, err := s.latestReport()
+		if err != nil {
+			writeJSON(w, http.StatusNotFound, map[string]string{"error": "todavía no hay informe: bin/sentinel report lo arma"})
+			return
+		}
+		writeJSON(w, http.StatusOK, rep)
+	})
 	// GET /api/month — el mes a la fecha contra el mismo tramo del mes anterior (month.go). Una vista: no avisa.
 	mux.HandleFunc("GET /api/month", func(w http.ResponseWriter, r *http.Request) {
 		m, err := month(s.follow.all())

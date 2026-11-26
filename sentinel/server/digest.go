@@ -312,6 +312,7 @@ negocio. Escribí en español, en Markdown, el informe de la semana:
 3. **Lo que se repite**: problemas que tus informes anteriores ya habían visto y siguen, y lo que se resolvió.
 4. **Tendencias lentas**: comercios o entidades que vienen bajando en el mes sin una alerta.
 5. **Qué mirar primero**: hasta 5 acciones concretas, de la más urgente a la menos.
+6. **La vista para el tablero**: al final, un bloque json con el esquema que se explica al final del paquete.
 
 Reglas: cada afirmación lleva su evidencia entre paréntesis (el día y la sección del resumen, o el archivo del diff). Lo
 que es hipótesis se dice «hipótesis». No inventes rutas, versiones ni números: si no está en el paquete, no lo afirmes.`
@@ -353,6 +354,9 @@ func (s *sentinel) buildPack(rules Rules, path string, now time.Time) (*PackInfo
 		}
 		section("contexto", fmt.Sprintf("# Contexto: %s (`%s`)\n\n%s\n\n", f.name, f.path, scrub(text)))
 	}
+
+	// Los ids de las señales: la vista las nombra por id y los resúmenes hablan con nombres (view.go).
+	section("señales", scrub(s.signalTable(rules, now)))
 
 	// Los informes anteriores: lo que ya se concluyó.
 	if files, _ := filepath.Glob(filepath.Join(s.reportDir(), "*.md")); len(files) > 0 {
@@ -417,7 +421,7 @@ func (s *sentinel) buildPack(rules Rules, path string, now time.Time) (*PackInfo
 		code += len(diff)
 		section("código desplegado", fmt.Sprintf("## %s %s, desplegado el %s (desde %s)\n%s\n\n%s\n", d.Repo, d.Version, d.At, prev.Version, d.Title, diff))
 	}
-	section("instrucciones", "\n# De nuevo, lo que se pide\n\n"+packQuestion+"\n")
+	section("instrucciones", "\n# De nuevo, lo que se pide\n\n"+packQuestion+"\n\n"+viewInstructions+"\n")
 
 	text := b.String()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -474,6 +478,17 @@ func (s *sentinel) runReport(rules Rules, now time.Time) (string, *PackInfo, err
 	}
 	_ = os.Remove(out + ".tmp")
 	report := strings.TrimSpace(string(raw))
+	// La vista para el tablero (view.go): se separa, se valida y se guarda aparte; el informe queda sin el bloque.
+	view, rest, verr := parseView(report)
+	if verr == nil {
+		report = rest
+		validateView(view, s.knownSignals(rules, now))
+		if vraw, err := json.MarshalIndent(view, "", "  "); err == nil {
+			_ = os.WriteFile(filepath.Join(s.reportDir(), date+".json"), vraw, 0o644)
+		}
+	} else {
+		log.Printf("sentinel: el informe del %s sin vista: %v", date, verr)
+	}
 	report += "\n\n" + verifyPaths(report)
 	header := fmt.Sprintf("<!-- Sentinel · informe del %s · paquete de ~%d mil tokens (%d días, %d despliegues) · Gemini por AI Studio -->\n\n", date, info.Tokens/1000, info.Days, info.Deploys)
 	if err := os.WriteFile(out, []byte(header+report+"\n"), 0o644); err != nil {

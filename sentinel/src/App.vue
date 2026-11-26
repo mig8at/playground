@@ -167,6 +167,7 @@ async function setAck(s, on) {
 function readRoute() {
   const { parts } = readHashRoute()
   if (parts[0] === 'queue') route.value = { kind: 'queue', id: 0 }
+  else if (parts[0] === 'report') route.value = { kind: 'report', id: 0 }
   else if ((parts[0] === 'service' || parts[0] === 'logs' || parts[0] === 'step' || parts[0] === 'jserr' || parts[0] === 'out' || parts[0] === 'reject' || parts[0] === 'funnel' || parts[0] === 'stage') && parts[1]) route.value = { kind: parts[0], id: 0, name: decodeURIComponent(parts[1]) }
   else route.value = (parts[0] === 'lender' || parts[0] === 'merchant' || parts[0] === 'lerr') && parts[1] ? { kind: parts[0], id: Number(parts[1]) } : { kind: 'all', id: 0 }
 }
@@ -227,6 +228,33 @@ const NOTICE_DOT = { alert: 'alert', warn: 'warn', recovered: 'ok', stale: 'warn
 const VERDICT_DOT = { green: 'ok', yellow: 'warn', red: 'alert' }
 const verdictOpen = ref(false)
 const plainMd = (t) => t.replace(/\*\*/g, '').replace(/`/g, '').replace(/^#+\s*/, '')
+// ── EL INFORME DE LA SEMANA (GET /api/report, server/digest.go y view.go) ──
+// Gemini decide qué mostrar (titular, hallazgos, tendencias, acciones) y nombra las señales; los NÚMEROS salen de lo
+// guardado, no del modelo: cada señal citada se dibuja con su estado y sus números de ahora.
+const report = ref(null)
+const reportError = ref('')
+async function loadReport() {
+  try {
+    const res = await fetch('/api/report')
+    const body = await res.json()
+    if (body.error) { reportError.value = body.error; report.value = null } else { report.value = body; reportError.value = '' }
+  } catch (err) { reportError.value = String(err) }
+}
+const reportOpen = ref(false)
+const REPORT_LEVEL = { green: 'ok', yellow: 'warn', red: 'alert' }
+const FINDING_STATUS = { open: 'abierto', resolved: 'resuelto', recurring: 'se repite' }
+const signalRef = (sig) => bySignal.value.get(sig) || (sig === 'all:production' ? data.value?.all : null) || (sig?.startsWith('stage:') ? stagePlaceholder(sig.slice(6)) : null)
+const monthOf = (sig) => [...(monthData.value?.lenders || []), ...(monthData.value?.merchants || [])].find((x) => x.signal === sig) || null
+const reportLines = computed(() => (report.value?.markdown || '').replace(/^<!--.*?-->\s*/s, '').split('\n').map((l) => l.trimEnd()).filter((l) => l.trim())
+  .map((l) => {
+    const t = l.trim()
+    if (/^#{1,4} /.test(t)) return { kind: 'h', text: plainMd(t.replace(/^#+ /, '')) }
+    if (/^\s{2,}[-*] /.test(l)) return { kind: 'sub', text: plainMd(t.slice(2)) }
+    if (/^[-*] /.test(t) || /^\d+\. /.test(t)) return { kind: 'li', text: plainMd(t.replace(/^([-*]|\d+\.) /, '')) }
+    return { kind: 'p', text: plainMd(t) }
+  }))
+watch(() => route.value.kind, (k) => { if (k === 'report') loadReport() })
+
 const verdictLines = computed(() => (data.value?.verdict?.text || '').split('\n').map((l) => l.trimEnd()).filter((l) => l.trim())
   .map((l) => {
     const indent = /^\s{2,}-/.test(l)
@@ -644,11 +672,90 @@ onBeforeUnmount(() => {
 
     <main class="editor">
       <div class="region-head">
-        <span>{{ selected ? selected.name : 'Sentinel' }}</span>
+        <span>{{ route.kind === 'report' ? 'Informe de la semana' : selected ? selected.name : 'Sentinel' }}</span>
         <span v-if="selected" class="count">{{ KIND_LABEL[selected.kind] }} · {{ spanLabel(selected).toLowerCase() }} {{ windowRange(selected) }}</span>
       </div>
       <div class="region-body">
-        <div v-if="selected" class="view">
+        <div v-if="route.kind === 'report'" class="view report-view">
+          <p v-if="reportError" class="none">{{ reportError }}</p>
+          <template v-else-if="report">
+            <div v-if="report.view" class="verdict" :class="`is-${REPORT_LEVEL[report.view.level]}`">
+              <p class="verdict-main"><i class="dot" :class="`is-${REPORT_LEVEL[report.view.level]}`" aria-hidden="true"></i><b>{{ report.view.headline }}</b></p>
+              <p class="verdict-ctx">Informe del {{ report.date }}. Lo arma Gemini con la memoria de Sentinel; los números de cada señal son los de ahora, de lo guardado.</p>
+            </div>
+            <p v-else class="note">{{ report.note }}</p>
+
+            <section v-if="report.view?.findings?.length" class="report-findings" aria-label="Hallazgos">
+              <article v-for="(f, i) in report.view.findings" :key="i" class="finding" :class="`is-${f.severity}`">
+                <header class="finding-head">
+                  <i class="dot" :class="`is-${f.severity === 'info' ? 'ok' : f.severity}`" aria-hidden="true"></i>
+                  <h3>{{ f.title }}</h3>
+                  <span class="finding-status" :class="`st-${f.status}`">{{ FINDING_STATUS[f.status] }}</span>
+                  <small v-if="f.since" class="muted">desde {{ f.since }}</small>
+                </header>
+                <p class="finding-summary">{{ f.summary }}</p>
+                <div v-if="f.signals?.length" class="finding-signals">
+                  <template v-for="sg in f.signals" :key="sg">
+                    <button v-if="signalRef(sg)" type="button" class="stage-chip" :class="`is-${signalRef(sg).state}`" :title="signalRef(sg).why" @click="pick(signalRef(sg))">
+                      <i class="dot" :class="`is-${signalRef(sg).state}`" aria-hidden="true"></i>{{ signalRef(sg).name }}
+                      <b>{{ compact(signalRef(sg).now.total) }}</b><small class="muted">· {{ compact(signalRef(sg).median) }}</small>
+                    </button>
+                  </template>
+                </div>
+                <p v-if="f.deploy" class="finding-meta">Despliegue: <b>{{ f.deploy.repo }} {{ f.deploy.version }}</b></p>
+                <ul v-if="f.files?.length" class="finding-files">
+                  <li v-for="p in f.files" :key="p" :title="report.view.files?.[p] ? 'existe en main' : 'no existe en main'">
+                    <span :class="report.view.files?.[p] ? 'file-ok' : 'file-bad'">{{ report.view.files?.[p] ? '✓' : '✗' }}</span> <code>{{ p }}</code>
+                  </li>
+                </ul>
+                <ul v-if="f.evidence?.length" class="finding-evidence">
+                  <li v-for="(e, j) in f.evidence" :key="j">{{ e }}</li>
+                </ul>
+              </article>
+            </section>
+
+            <section v-if="report.view?.trends?.length" class="steps-box" aria-label="Tendencias">
+              <h3>Tendencias del mes</h3>
+              <table class="table steps">
+                <thead><tr><th>Señal</th><th>Qué viene pasando</th><th class="num">Desembolsos en el mes</th><th class="num">Ritmo</th></tr></thead>
+                <tbody>
+                  <tr v-for="t in report.view.trends" :key="t.signal" @click="signalRef(t.signal) && pick(signalRef(t.signal))">
+                    <td><i class="dot" :class="`is-${signalRef(t.signal)?.state || 'quiet'}`" aria-hidden="true"></i>{{ signalRef(t.signal)?.name || t.signal }}</td>
+                    <td class="msg-cell">{{ t.note }}</td>
+                    <td class="num">{{ monthOf(t.signal) ? `${monthOf(t.signal).disb} · ${monthOf(t.signal).disbPrev}` : '—' }}</td>
+                    <td class="num" :class="paceClass(monthOf(t.signal)?.disbPace)"><b>{{ monthOf(t.signal) ? paceText(monthOf(t.signal).disbPace) : '—' }}</b></td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+
+            <section v-if="report.view?.actions?.length" class="steps-box" aria-label="Qué mirar primero">
+              <h3>Qué mirar primero</h3>
+              <ol class="report-actions">
+                <li v-for="(a, i) in report.view.actions" :key="i">{{ a.text }}
+                  <button v-if="a.signal && signalRef(a.signal)" type="button" class="btn btn-link btn-xs" @click="pick(signalRef(a.signal))">abrir</button>
+                </li>
+              </ol>
+            </section>
+
+            <p v-if="report.view?.checks?.length" class="source-note" role="status">⚠ Sentinel descartó o no pudo verificar: {{ report.view.checks.join(' · ') }}</p>
+
+            <section class="steps-box">
+              <button type="button" class="region-head group toggle" :aria-expanded="reportOpen" @click="reportOpen = !reportOpen">
+                <span>{{ reportOpen ? '▾' : '▸' }} El informe entero</span>
+              </button>
+              <div v-show="reportOpen" class="verdict-rest report-text">
+                <template v-for="(l, i) in reportLines" :key="i">
+                  <p v-if="l.kind === 'h'" class="verdict-h">{{ l.text }}</p>
+                  <p v-else-if="l.kind === 'li' || l.kind === 'sub'" class="verdict-li" :class="{ sub: l.kind === 'sub' }">{{ l.text }}</p>
+                  <p v-else class="verdict-p">{{ l.text }}</p>
+                </template>
+              </div>
+            </section>
+          </template>
+          <p v-else class="none">Leyendo el informe…</p>
+        </div>
+        <div v-else-if="selected" class="view">
           <div class="verdict" :class="`is-${selected.state}`">
             <p class="verdict-main"><i class="dot" :class="`is-${selected.state}`" aria-hidden="true"></i><b>{{ STATE_LABEL[selected.state] }}</b> {{ whyParts(selected.why).head }}</p>
             <p v-if="whyParts(selected.why).rest.length" class="verdict-ctx">{{ whyParts(selected.why).rest.join(' · ') }}</p>
@@ -1069,6 +1176,9 @@ onBeforeUnmount(() => {
             <small class="row-desc">Lo escribió el modelo de segundo plano ({{ data.verdict.model }}) con lo guardado de ayer y de hoy. Lo que dice como causa es hipótesis. Por consola: <code>bin/sentinel verdict</code>.</small>
           </div>
         </section>
+        <button type="button" class="row report-link" :class="{ on: route.kind === 'report' }" @click="go(['report']); readRoute()">
+          <span class="ui-icon" data-icon="paper" aria-hidden="true"></span><span>Informe de la semana</span>
+        </button>
         <p v-if="data && !attention.length" class="none">Nada fuera de lo normal en la última hora{{ known.length ? ' que no conozcas' : '' }}.</p>
         <div v-for="s in attention" :key="`a-${s.signal}`" class="attention-item" :class="[`is-${s.state}`, { on: isOn(s) }]">
           <button type="button" class="attention-open" @click="pick(s)">
@@ -1319,6 +1429,27 @@ h3 { margin: 0; font-size: var(--text-xs); font-weight: 600; color: var(--fg-3);
 .stage-msgs .msg-cell { white-space: normal; overflow-wrap: anywhere }
 .stage-examples { margin: 0; display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-2); font-size: var(--text-sm) }
 .stage-sub { margin-top: var(--space-2) }
+.report-view { gap: var(--space-4) }
+.report-findings { display: grid; gap: var(--space-3) }
+.finding { display: grid; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--border); border-left-width: 3px; border-radius: 6px; background: var(--card) }
+.finding.is-alert { border-left-color: var(--status-bad) }
+.finding.is-warn { border-left-color: var(--status-warn) }
+.finding-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-2) }
+.finding-head h3 { margin: 0; font-size: var(--text-body); text-transform: none; letter-spacing: 0; color: var(--foreground) }
+.finding-head .dot { align-self: center }
+.finding-status { font-size: var(--text-xs); padding: 1px 6px; border-radius: 999px; border: 1px solid var(--border); color: var(--fg-2) }
+.finding-status.st-open { border-color: var(--status-bad) }
+.finding-status.st-recurring { border-color: var(--status-warn) }
+.finding-summary { margin: 0; font-size: var(--text-sm); line-height: 1.45; color: var(--foreground); text-wrap: pretty }
+.finding-signals { display: flex; flex-wrap: wrap; gap: var(--space-1) }
+.finding-meta { margin: 0; font-size: var(--text-sm); color: var(--fg-2) }
+.finding-files, .finding-evidence { margin: 0; padding-left: var(--space-4); font-size: var(--text-xs); color: var(--fg-2) }
+.finding-files { list-style: none; padding-left: 0 }
+.file-ok { color: var(--status-ok) }
+.file-bad { color: var(--status-bad) }
+.report-actions { margin: 0; padding-left: var(--space-4); display: grid; gap: var(--space-1); font-size: var(--text-sm) }
+.report-text { max-width: 90ch }
+.report-link { display: flex; align-items: center; gap: var(--space-2); margin: 0 var(--space-2) var(--space-2); width: calc(100% - var(--space-2) * 2) }
 .month-scroll { overflow-x: auto }
 .month-box .table { font-variant-numeric: tabular-nums }
 .month-group th { text-align: left; color: var(--fg-2); font-weight: 600; padding-top: var(--space-2) }
