@@ -729,8 +729,8 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         else rect(b, xm, 31, 1, 1, mul(C.bLav, 0.6));
       });
       if (t > 2.7) {
-        const xr = x0 + rec * 6 - tw("RECORD", 1) - 9;
-        text(b, "RECORD", xr, big ? 15 : 10, 1, mul(C.bG, ease((t - 2.7) / 0.4)));
+        const xr = x0 + rec * 6 - tw("RECORD NOV 2025", 1) - 9;
+        text(b, "RECORD NOV 2025", xr, big ? 15 : 10, 1, mul(C.bG, ease((t - 2.7) / 0.4)));
       }
     } },
     { id: "record", voice: "¡Nuevo récord! 312 solicitudes en un solo día.", group: "Negocio", label: "Récord", sound: () => { pip(1047, 90); pip(1319, 90, .1); pip(1568, 220, .2); }, draw(b, t) {
