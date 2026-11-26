@@ -260,7 +260,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
           <button type="button" id="r3-reset">De frente</button>
         </div>
       </div>
-      <p class="note">A escala: una pared de 4 m de ancho y unos 2,5 m de alto (un techo normal; falta medirla) y el tablero centrado, con el borde de abajo a unos 1,95 m del piso. El tablero muestra lo mismo que la simulación de arriba. En «3D», la esquina de la izquierda y la puerta de la derecha (0,9 × 2,1 m, tamaño estándar) son de referencia: su lugar real falta medirlo.</p>
+      <p class="note">A escala: una pared de 4 m de ancho y unos 2,5 m de alto (un techo normal; falta medirla) y el tablero centrado, con el borde de abajo a unos 1,95 m del piso. El tablero muestra lo mismo que la simulación de arriba. En «3D», a la izquierda va la esquina; a la derecha, una puerta de vidrio de piso a techo y la pared de ventanales. Sus medidas y su lugar exacto son de referencia: falta medirlos.</p>
     </div>
   </section>
 
@@ -1590,8 +1590,9 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
     document.getElementById("room3dMsg").remove();
     const scene = new T.Scene(); scene.background = new T.Color(0xe9ebef);
     const camera = new T.PerspectiveCamera(50, 16 / 9, 0.05, 50);
-    scene.add(new T.HemisphereLight(0xffffff, 0xb9b2a6, 0.75));
-    const sun = new T.DirectionalLight(0xffffff, 0.55); sun.position.set(3.2, 4.2, 4.5); sun.target.position.set(2, 1.2, 0);
+    scene.add(new T.HemisphereLight(0xffffff, 0xb9b2a6, 0.72), new T.AmbientLight(0xffffff, 0.1));
+    const W3 = 5.4;
+    const sun = new T.DirectionalLight(0xffffff, 0.55); sun.position.set(W3 + 3, 3.6, 3.2); sun.target.position.set(2, 1.2, 0.5);   /* la luz entra por los ventanales */
     sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); sun.shadow.radius = 4;
     Object.assign(sun.shadow.camera, { left: -4, right: 4, top: 4, bottom: -4, near: 0.5, far: 15 });
     scene.add(sun, sun.target);
@@ -1599,27 +1600,44 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
     const box = (w, h, d, c, x, y, z, recv = true) => {
       const m = new T.Mesh(new T.BoxGeometry(w, h, d), mat(c)); m.position.set(x, y, z); m.receiveShadow = recv; scene.add(m); return m;
     };
-    const H = 2.5, DOOR = [4.15, 5.05, 2.1], W = 5.4, DEPTH = 6;
-    // el piso, la pared del tablero (con el hueco de la puerta) y la pared de la esquina
+    const H = 2.5, DOOR = [4.15, 5.05], W = 5.4, DEPTH = 6;
+    const glass = new T.MeshBasicMaterial({ color: 0xcfe2ea, transparent: true, opacity: 0.32, depthWrite: false, side: T.DoubleSide });
+    const alu = 0x6b7078;
+    const pane = (w, h, x, y, z, ry = 0) => { const m = new T.Mesh(new T.PlaneGeometry(w, h), glass); m.position.set(x, y, z); m.rotation.y = ry; scene.add(m); };
+    const flat = (w, h, c, x, y, z, ry = 0) => { const m = new T.Mesh(new T.PlaneGeometry(w, h), new T.MeshBasicMaterial({ color: c })); m.position.set(x, y, z); m.rotation.y = ry; scene.add(m); };
+    // el piso, la pared del tablero (con el hueco de la puerta, de piso a techo) y la pared de la esquina
     const floor = new T.Mesh(new T.PlaneGeometry(W, DEPTH), mat(0xcfc6b8)); floor.rotation.x = -Math.PI / 2; floor.position.set(W / 2, 0, DEPTH / 2); floor.receiveShadow = true; scene.add(floor);
     box(DOOR[0], H, 0.12, 0xffffff, DOOR[0] / 2, H / 2, -0.06);
-    box(DOOR[1] - DOOR[0], H - DOOR[2], 0.12, 0xffffff, (DOOR[0] + DOOR[1]) / 2, (H + DOOR[2]) / 2, -0.06);
     box(W - DOOR[1], H, 0.12, 0xffffff, (DOOR[1] + W) / 2, H / 2, -0.06);
-    box(0.12, H, DEPTH, 0xf3f3f1, -0.06, H / 2, DEPTH / 2);
-    box(0.12, H, DEPTH, 0xf3f3f1, W + 0.06, H / 2, DEPTH / 2);                       // la pared de la derecha cierra el cuarto
-    const ceil = new T.Mesh(new T.PlaneGeometry(W, DEPTH), new T.MeshBasicMaterial({ color: 0xe6e6e3 }));   /* sin luz propia: si no, sale oscuro */ ceil.rotation.x = Math.PI / 2; ceil.position.set(W / 2, H, DEPTH / 2); scene.add(ceil);
+    box(0.12, H, DEPTH, 0xc9c6c0, -0.06, H / 2, DEPTH / 2);
+    const ceil = new T.Mesh(new T.PlaneGeometry(W, DEPTH), new T.MeshBasicMaterial({ color: 0xd9d9d5 }));   /* sin luz propia: si no, sale oscuro */ ceil.rotation.x = Math.PI / 2; ceil.position.set(W / 2, H, DEPTH / 2); scene.add(ceil);
     // el guardaescobas, que marca dónde se encuentran las paredes con el piso
     box(DOOR[0], 0.08, 0.015, 0xbfc3ca, DOOR[0] / 2, 0.04, 0.0075);
     box(W - DOOR[1], 0.08, 0.015, 0xbfc3ca, (DOOR[1] + W) / 2, 0.04, 0.0075);
     box(0.015, 0.08, DEPTH, 0xbfc3ca, 0.0075, 0.04, DEPTH / 2);
-    box(0.015, 0.08, DEPTH, 0xbfc3ca, W - 0.0075, 0.04, DEPTH / 2);
-    // la puerta: marco, hoja de madera un poco hundida y la manija
+    // la puerta de vidrio, de piso a techo: marco de aluminio, el vidrio y una manija de barra; detrás, el pasillo
     const dw = DOOR[1] - DOOR[0], dx = (DOOR[0] + DOOR[1]) / 2;
-    box(0.06, DOOR[2], 0.16, 0xd8d4cc, DOOR[0] + 0.03, DOOR[2] / 2, -0.04);
-    box(0.06, DOOR[2], 0.16, 0xd8d4cc, DOOR[1] - 0.03, DOOR[2] / 2, -0.04);
-    box(dw, 0.06, 0.16, 0xd8d4cc, dx, DOOR[2] - 0.03, -0.04);
-    box(dw - 0.12, DOOR[2] - 0.06, 0.04, 0xa8825a, dx, (DOOR[2] - 0.06) / 2, -0.05);
-    box(0.12, 0.025, 0.05, 0x8a8f98, DOOR[0] + 0.16, 1.0, 0.0);
+    flat(dw + 0.4, H, 0xdfe2e6, dx, H / 2, -1.4);
+    const hall = new T.Mesh(new T.PlaneGeometry(dw, 1.4), mat(0xc4bcae)); hall.rotation.x = -Math.PI / 2; hall.position.set(dx, 0.001, -0.7); scene.add(hall);
+    box(0.045, H, 0.08, alu, DOOR[0] + 0.0225, H / 2, -0.04);
+    box(0.045, H, 0.08, alu, DOOR[1] - 0.0225, H / 2, -0.04);
+    box(dw, 0.045, 0.08, alu, dx, H - 0.0225, -0.04);
+    box(dw, 0.06, 0.08, alu, dx, 0.03, -0.04);
+    pane(dw - 0.09, H - 0.1, dx, H / 2, -0.04);
+    box(0.025, 0.7, 0.025, 0x9aa0a8, DOOR[0] + 0.14, 1.05, 0.02);
+    // la pared derecha: ventanales casi de punta a punta, con parales de aluminio; afuera, el cielo y la ciudad lejos
+    const SILL = 0.3, TOP = H - 0.08, Z0 = 0.2, Z1 = DEPTH - 0.2, NW = 5;
+    box(0.12, SILL, DEPTH, 0xf3f3f1, W + 0.06, SILL / 2, DEPTH / 2);
+    box(0.12, H - TOP, DEPTH, 0xf3f3f1, W + 0.06, (H + TOP) / 2, DEPTH / 2);
+    box(0.12, TOP - SILL, Z0, 0xf3f3f1, W + 0.06, (TOP + SILL) / 2, Z0 / 2);
+    box(0.12, TOP - SILL, DEPTH - Z1, 0xf3f3f1, W + 0.06, (TOP + SILL) / 2, (DEPTH + Z1) / 2);
+    box(0.015, 0.08, DEPTH, 0xbfc3ca, W - 0.0075, 0.04, DEPTH / 2);
+    box(0.06, 0.04, Z1 - Z0, alu, W, SILL + 0.02, (Z0 + Z1) / 2);
+    box(0.06, 0.04, Z1 - Z0, alu, W, TOP - 0.02, (Z0 + Z1) / 2);
+    for (let i = 0; i <= NW; i++) box(0.06, TOP - SILL, 0.045, alu, W, (TOP + SILL) / 2, Z0 + (Z1 - Z0) * i / NW);
+    pane(Z1 - Z0, TOP - SILL, W, (TOP + SILL) / 2, (Z0 + Z1) / 2, -Math.PI / 2);
+    flat(30, 12, 0xd6e6f2, W + 6, 4, DEPTH / 2, -Math.PI / 2);
+    for (let i = 0; i < 9; i++) flat(1.6 + hash(i) * 1.4, 0.8 + hash(i + 3) * 2.6, 0xbfc5cd, W + 5.9, 0, -2 + i * 1.5, -Math.PI / 2);   // edificios lejos
     // el tablero: una caja negra con la simulación en vivo como cara de adelante
     const tex = new T.CanvasTexture(panels[wallOpt].cv); tex.encoding = T.sRGBEncoding; tex.anisotropy = 4;
     const black = mat(0x0b0b0d), face = new T.MeshBasicMaterial({ map: tex });
