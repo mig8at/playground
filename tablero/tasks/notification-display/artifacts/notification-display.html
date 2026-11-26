@@ -173,7 +173,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         <button type="button" id="sound" aria-pressed="false">Sonido</button>
       </div>
     </div>
-    <p class="note">23 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados, salvo «Crecimiento por mes»: su forma es la real (desembolsos por mes en producción, sin cifras absolutas). Su porcentaje de 2025 compara el año completo con 2024; el de 2026, enero a octubre con el mismo tramo de 2025.</p>
+    <p class="note">25 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados, salvo «Crecimiento por mes»: su forma es la real (desembolsos por mes en producción, sin cifras absolutas). Su porcentaje de 2025 compara el año completo con 2024; el de 2026, enero a octubre con el mismo tramo de 2025.</p>
   </section>
 
   <section aria-labelledby="size">
@@ -449,7 +449,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
           <li>Créditos aprobados y desembolsados</li>
           <li>Monto del mes con barra hacia la meta</li>
           <li>Récords, con un sonido especial</li>
-          <li>Los primeros: la primera solicitud de un comercio o de una entidad, el primer desembolso de una entidad y el primero de un comercio con una entidad</li>
+          <li>Los primeros: un comercio que sale a producción, la primera solicitud y el primer desembolso de un comercio o de una entidad, y el primero de un comercio con una entidad</li>
         </ul>
       </div>
       <div class="card cat">
@@ -779,21 +779,31 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         text(b, lab, xr, big ? 2 : 10, 1, mul(C.bG, ease((t - 2.7) / 0.4)));
       }
     } },
-    { id: "first-merchant", group: "Negocio", label: "Primer comercio", voice: "Primera solicitud de un comercio nuevo: La 70 Calzado. ¡Bienvenidos!", sound: () => { pip(1319, 80); pip(1760, 140, .1); }, draw(b, t) {
-      firstOf(b, t, { tag: "NUEVO", what: "PRIMERA SOLICITUD DE UN COMERCIO", name: "LA 70 CALZADO",
-        foot: "BIENVENIDO A CREDITOP · NUEVO 27 DEL MES", foot32: "BIENVENIDO A CREDITOP" });
+    // Los «primeros», con una historia que puede pasar: Cencosud sale a producción y Finandina desembolsa por primera vez.
+    // Cencosud y Finandina son ejemplos de lo que viene; Finandina no tiene solicitudes en producción (2026-11-25).
+    { id: "go-live", group: "Negocio", label: "Comercio en producción", voice: "¡Cencosud ya está en producción con CreditOp! ¡Vámola!", sound: () => { pip(784, 100); pip(988, 100, .12); pip(1175, 100, .24); pip(1568, 300, .36); }, draw(b, t) {
+      firstOf(b, t, { tag: "EN VIVO", what: "COMERCIO INTEGRADO EN PRODUCCION", name: "CENCOSUD",
+        foot: "YA VENDE A CREDITO · VAMOLA!!!", foot32: "YA EN PRODUCCION · VAMOLA!!!" });
     } },
-    { id: "first-lender", group: "Negocio", label: "Primera entidad", voice: "Primera solicitud para una entidad nueva: Credinueva.", sound: () => { pip(1319, 80); pip(1760, 140, .1); }, draw(b, t) {
-      firstOf(b, t, { tag: "NUEVA", what: "PRIMERA SOLICITUD DE UNA ENTIDAD", name: "CREDINUEVA",
-        foot: "YA SALE EN EL LISTADO DE 12 COMERCIOS", foot32: "YA SALE EN 12 COMERCIOS" });
+    { id: "first-merchant", group: "Negocio", label: "Primera solicitud de comercio", voice: "Primera solicitud de Cencosud, en Jumbo.", sound: () => { pip(1319, 80); pip(1760, 140, .1); }, draw(b, t) {
+      firstOf(b, t, { tag: "NUEVO", what: "PRIMERA SOLICITUD DE UN COMERCIO", name: "CENCOSUD",
+        foot: "EN SU TIENDA JUMBO CALLE 80 · VAMOLA!!!", foot32: "EN JUMBO · VAMOLA!!!" });
     } },
-    { id: "first-disb-lender", group: "Negocio", label: "Primer desembolso de entidad", voice: "¡Primer desembolso de Finandina!", sound: () => { pip(784, 100); pip(988, 100, .12); pip(1175, 100, .24); pip(1568, 300, .36); }, draw(b, t) {
+    { id: "first-disb-merchant", group: "Negocio", label: "Primer desembolso de comercio", voice: "¡Primer desembolso de Cencosud, en Jumbo, con Sistecrédito! ¡Vámola!", sound: () => { pip(784, 100); pip(988, 100, .12); pip(1175, 100, .24); pip(1568, 300, .36); }, draw(b, t) {
+      firstOf(b, t, { tag: "HITO", what: "PRIMER DESEMBOLSO DE UN COMERCIO", name: "CENCOSUD",
+        foot: "EN JUMBO · CON SISTECREDITO · VAMOLA!!!", foot32: "EN JUMBO, CON SISTECREDITO" });
+    } },
+    { id: "first-lender", group: "Negocio", label: "Primera solicitud de entidad", voice: "Primera solicitud para Finandina, en Sonría.", sound: () => { pip(1319, 80); pip(1760, 140, .1); }, draw(b, t) {
+      firstOf(b, t, { tag: "NUEVA", what: "PRIMERA SOLICITUD DE UNA ENTIDAD", name: "FINANDINA",
+        foot: "EN SONRIA · VAMOLA!!!", foot32: "EN SONRIA · VAMOLA!!!" });
+    } },
+    { id: "first-disb-lender", group: "Negocio", label: "Primer desembolso de entidad", voice: "¡Primer desembolso de Finandina, en Cencosud! ¡Vámola!", sound: () => { pip(784, 100); pip(988, 100, .12); pip(1175, 100, .24); pip(1568, 300, .36); }, draw(b, t) {
       firstOf(b, t, { tag: "HITO", what: "PRIMER DESEMBOLSO DE UNA ENTIDAD", name: "FINANDINA",
-        foot: "SU PRIMER CREDITO CON CREDITOP" });
+        foot: "EN CENCOSUD · VAMOLA!!!", foot32: "EN CENCOSUD · VAMOLA!!!" });
     } },
-    { id: "first-disb-pair", group: "Negocio", label: "Primer desembolso juntos", voice: "La 70 Calzado hizo su primer desembolso con Sistecrédito.", sound: () => { pip(784, 100); pip(988, 100, .12); pip(1175, 100, .24); pip(1568, 300, .36); }, draw(b, t) {
-      firstOf(b, t, { tag: "HITO", what: "PRIMER DESEMBOLSO JUNTOS", lines: [["LA 70 CALZADO", 2], ["+ SISTECREDITO", 2, C.bG]],
-        short: "LA 70 CALZADO", foot: "UN COMERCIO Y UNA ENTIDAD QUE SE ESTRENAN", foot32: "+ SISTECREDITO, SU PRIMER DESEMBOLSO" });
+    { id: "first-disb-pair", group: "Negocio", label: "Primer desembolso juntos", voice: "Cencosud y Finandina: su primer desembolso juntos. ¡Vámola!", sound: () => { pip(784, 100); pip(988, 100, .12); pip(1175, 100, .24); pip(1568, 300, .36); }, draw(b, t) {
+      firstOf(b, t, { tag: "HITO", what: "PRIMER DESEMBOLSO JUNTOS", lines: [["CENCOSUD", 2], ["+ FINANDINA", 2, C.bG]],
+        short: "CENCOSUD", foot: "UN COMERCIO Y UNA ENTIDAD QUE SE ESTRENAN", foot32: "+ FINANDINA · VAMOLA!!!" });
     } },
     { id: "record", voice: "¡Nuevo récord! 312 solicitudes en un solo día.", group: "Negocio", label: "Récord", sound: () => { pip(1047, 90); pip(1319, 90, .1); pip(1568, 220, .2); }, draw(b, t) {
       const big = b.h >= 64, gold = i => (Math.sin(t * 5 + i * 0.5) > 0 ? C.yellow : C.amber);
@@ -802,7 +812,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       if (big) {
         wave(b, "NUEVO RECORD!", cx(b, "NUEVO RECORD!", 3), 8, 3, gold, t, 2);
         const s = n + " SOLICITUDES"; text(b, s, cx(b, "312 SOLICITUDES", 2), 36, 2, C.white);
-        text(b, "EN UN SOLO DIA", cx(b, "EN UN SOLO DIA", 1), 55, 1, C.gray);
+        text(b, "EN UN SOLO DIA · VAMOLA!!!", cx(b, "EN UN SOLO DIA · VAMOLA!!!", 1), 55, 1, C.gray);
       } else {
         wave(b, "NUEVO RECORD!", cx(b, "NUEVO RECORD!", 2), 3, 2, gold, t, 1);
         const s = n + " SOLICITUDES EN UN DIA"; text(b, s, cx(b, "312 SOLICITUDES EN UN DIA", 1), 23, 1, C.white);
@@ -911,8 +921,8 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       if (big) {
         const uw = Math.round(ww * ease((t - 1.1) / 0.6));
         if (uw > 0) rect(b, x + ((ww - uw) >> 1), y + 7 * k + 4, uw, 1, C.bP);
-        typed(b, "VAMONOS!!!", cx(b, "VAMONOS!!!", 1), 49, 1, C.bLav, t, 1.4, 30);
-      } else typed(b, "VAMONOS!!!", cx(b, "VAMONOS!!!", 1), 25, 1, C.bLav, t, 1.2, 30);
+        typed(b, "VAMOLA!!!", cx(b, "VAMOLA!!!", 2), 46, 2, C.white, t, 1.4, 12);
+      } else typed(b, "VAMOLA!!!", cx(b, "VAMOLA!!!", 1), 25, 1, C.white, t, 1.2, 20);
     } },
     { id: "brand-disbursed", group: "Marca CreditOp", label: "Desembolsos en marca", draw(b, t) {
       const big = b.h >= 64, goal = 1650, v = 1284 * ease(t / 1.8), num = fmt(v), pct = Math.round(100 * v / goal) + "%";
@@ -934,7 +944,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       if (big) {
         typed(b, "META CUMPLIDA!", 36, 10, 2, C.white, t, 0.3, 20);
         text(b, fmt(1650 * ease((t - 0.6) / 1.2)) + " / 1.650", 36, 30, 2, C.bG);
-        text(b, "DESEMBOLSOS EN NOVIEMBRE", 36, 52, 1, mul(C.bLav, ease((t - 1.6) / 0.5)));
+        text(b, "DESEMBOLSOS EN NOV · VAMOLA!!!", 36, 52, 1, mul(C.bLav, ease((t - 1.6) / 0.5)));
       } else {
         typed(b, "META CUMPLIDA!", 24, 3, 2, C.white, t, 0.3, 20);
         text(b, "1.650 DESEMBOLSOS EN NOV", 24, 22, 1, mul(C.bG, ease((t - 1) / 0.5)));
@@ -958,7 +968,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       if (big) {
         typed(b, "BUEN TRABAJO,", cx(b, "BUEN TRABAJO,", 3), 6, 3, C.white, t, 0.1, 16);
         typed(b, "EQUIPO!", cx(b, "EQUIPO!", 3), 31, 3, C.bG, t, 1.0, 12);
-        text(b, "14 DEPLOYS ESTA SEMANA", cx(b, "14 DEPLOYS ESTA SEMANA", 1), 56, 1, mul(C.bLav, ease((t - 1.8) / 0.5)));
+        text(b, "14 DEPLOYS ESTA SEMANA · VAMOLA!!!", cx(b, "14 DEPLOYS ESTA SEMANA · VAMOLA!!!", 1), 56, 1, mul(C.bLav, ease((t - 1.8) / 0.5)));
       } else {
         typed(b, "BUEN TRABAJO, EQUIPO!", cx(b, "BUEN TRABAJO, EQUIPO!", 2), 4, 2, C.white, t, 0.1, 18);
         text(b, "14 DEPLOYS ESTA SEMANA", cx(b, "14 DEPLOYS ESTA SEMANA", 1), 23, 1, mul(C.bG, ease((t - 1.4) / 0.5)));
