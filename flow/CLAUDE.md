@@ -20,7 +20,7 @@ de vez en cuando y **no tiene que seguir al código al pie de la letra**. Lo que
     entidades con su mejor categoría; es también el de un escenario nuevo y el del botón «Perfil premium» del sidebar.
     Medido el 2026-11-26 con las 9 entidades de Cockpit: salen las 9, y CrediPullman gana Premium, Finandina Riesgo AA,
     AltaX Perfil General y Motai y Rent to Own Directa.
-  - `bin/flow add|select|remove|clear|delegated|view graph|table|open`. `bin/flow` sin argumentos lo dice todo.
+  - `bin/flow add|select|remove|clear|delegated|view graph|table|portfolio|open`. `bin/flow` sin argumentos lo dice todo.
   - Hoy en Cockpit (2026-11-25, de qa): Motai Renting y Rent to Own (sucursal 682), Credifamilia y CrediPullman (2232) y
     Banco Finandina (2247), con el cliente empleado, sin negativos y 12 meses de continuidad.
   - ⚠ Cada ventana guarda su propio escenario: con dos apps abiertas (Cockpit y un navegador), las dos reciben el
@@ -108,6 +108,33 @@ en el grafo trae su columna a la vista.
   leía como 0 y dejaba a CreditopX sin plazos.
 - **No tiene lógica propia**: usa la de `store.js` (el listado, `sucursalGate`, `perfilDiag`, `bondOf`,
   `cuotaBreakdown`), con alias en inglés al final de ese archivo. Lo que se cambia en una vista se ve en la otra.
+
+## La pista «Cartera» (2026-11-26): lo que pasa después del 11
+
+Tercera vista, desde el pie (icono del banco) o `bin/flow view portfolio`: **la vida de un crédito CreditopX después del
+desembolso**, para entender la cartera, no para operarla. No usa el escenario de la tabla: cuenta UN crédito de juguete
+(Juan, $3.000.000 a 12 cuotas) con números de ejemplo que se editan en «Supuestos» y se guardan en `flow.portfolio`.
+La lógica es `src/portfolio.js` (`simulate`, día por día) y la vista `src/PortfolioView.vue`.
+
+- **Arriba, los tres rieles lado a lado**: quién presta, quién cobra las cuotas, si hay voucher de pago y qué gana CreditOp
+  (SaaS + comisión CTX o la que paga la entidad: el modelo de revenue de `tools/forecast` del repo compartido). CreditOp
+  no cobra intereses.
+- **Cinco historias**: paga a tiempo, se atrasa 45 días, abona de más (sobrante tipo 1: acorta el plazo), deja de pagar
+  (a los 180 días el reporte la llama «castigada»; a los 200 paga el fondo de garantías → 7) y fallece (9, saldo
+  congelado; a los 60 días la aseguradora paga → 14).
+- **El reloj**: cada día es una noche de causación (`UpdateCreditopXRequestsCommand`): corte que factura la cuota y
+  acumula lo no pagado en el mínimo, interés del día sobre el capital por facturar, mora sobre el capital vencido (sin el
+  recién facturado los primeros 7 días) y el gasto de cobranza el día exacto en que empieza cada tramo. El área es el
+  saldo total; las marcas, los eventos (clic = ir a ese día); el sombreado rojo, la mora.
+- **El último pago en cascada** (cobranza → mora → interés → seguro de vida → seguro de garantía → capital) y su voucher
+  de pago. El FGA no tiene paso: cada peso de capital lleva su parte.
+- **A quién va cada peso**, acumulado: lo leído en línea llena y lo inferido punteado (seguro de vida, fondo, gasto de
+  cobranza: el código no dice a quién llega).
+- **Estado y cobranza**: las franjas del reporte de riesgo del admin y la alternativa M1-M8 de la rama `cobranza` de
+  frontend-monorepo (sin mergear al 2026-11-26), y la bitácora de eventos.
+- Simplifica a propósito: corte mensual con vencimiento 5 días después, tasa diaria = mensual / 30, sin colillas,
+  subsidio, pronto pago ni rotativo. Las fuentes: knowledge/ `creditopx-portfolio-servicing`, `creditopx-payment-application`,
+  `creditopx-credit-states` y `creditopx-offer-calculation`.
 
 ## Los rieles (el `response_type` de la entidad)
 

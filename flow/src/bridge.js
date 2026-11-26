@@ -53,7 +53,7 @@ const HANDLERS = {
     editTick.n++
     return { client: set }
   },
-  view(c) { settings.view = c.view === 'table' ? 'table' : 'graph'; return { view: settings.view } },
+  view(c) { settings.view = ['table', 'portfolio'].includes(c.view) ? c.view : 'graph'; return { view: settings.view } },
   delegated(c) { const l = findLenderDef(c.name); if (!l) throw new Error('no existe ' + c.name); if (l.rt !== 4) throw new Error(c.name + ' no es delegada'); applyDelegated(l, c.fields); return { delegated: delegatedOf(l) } },
 }
 

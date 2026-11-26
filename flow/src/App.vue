@@ -41,11 +41,12 @@ import InfoAdicionalNode from './nodes/InfoAdicionalNode.vue'
 import CreditStatusNode from './nodes/CreditStatusNode.vue'
 import FieldInfoPanel from './nodes/FieldInfoPanel.vue'
 import TableView from './TableView.vue'
+import PortfolioView from './PortfolioView.vue'
 import ScenarioSidebar from './ScenarioSidebar.vue'
 import { consoleLog, clearLog } from './consoleLog'
 import { settings } from './settings'
 import { ui, findLenderDef, entidadCfg, perfilOf, perfil, bureau, fieldNull, providerDown, lenders, postSelSteps, selectionCheck, usesCategories, usesQuotaEngine, isInHouse, delegatedOf, closeFieldInfo, focusWinningProfile, persistPing } from './store'
-import { Check, Workflow } from 'lucide-vue-next'
+import { Check, Workflow, Landmark } from 'lucide-vue-next'
 import { vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle } from './workbench.js'
 
 // El tema lo pone workbench.js (el de Cockpit) como clase `dark` en el <html>; acá sólo se sigue, para los colores
@@ -500,6 +501,14 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
       <div v-if="settings.view === 'table'" class="region-head">
         <span>Paso por paso <small class="flow-head-meta">el mismo cliente contra todas las entidades</small></span>
       </div>
+      <div v-else-if="settings.view === 'portfolio'" class="region-head">
+        <span>Cartera <small class="flow-head-meta">la vida de un crédito CreditopX después del 11 · un ejemplo para entender, no evidencia</small></span>
+        <div class="region-actions">
+          <button type="button" class="region-action" title="Volver a la tabla" aria-label="Volver a la tabla" @click="settings.view = 'table'">
+            <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+          </button>
+        </div>
+      </div>
       <div v-else class="region-head">
         <span>Grafo <small class="flow-head-meta">{{ ui.selected ? ui.selected + ', nodo por nodo' : 'elegí una entidad para ver su camino' }}</small></span>
         <EditorActions @fit="fitGraph" />
@@ -514,6 +523,7 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
           <template #resize><div class="rsz rsz-edge-left" v-resize="auxResize"></div></template>
         </TableView>
       </div>
+      <div v-else-if="settings.view === 'portfolio'" class="region-body"><PortfolioView /></div>
       <div v-else class="region-body canvas">
         <VueFlow :nodes="nodes" :edges="edges" :min-zoom="0.2" :max-zoom="2" :nodes-draggable="true" :fit-view-on-init="true" :fit-view-options="{ padding: 0.14 }" @pane-click="closeFieldInfo">
           <template #node-merchant="props"><MerchantNode v-bind="props" /></template>
@@ -584,6 +594,10 @@ watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, se
         <button type="button" class="region-action flow-graph-toggle" :aria-pressed="settings.view === 'graph'"
           :title="settings.view === 'graph' ? 'Volver a la tabla' : 'Ver el grafo: una entidad, nodo por nodo'" aria-label="Ver el grafo"
           @click="settings.view = settings.view === 'graph' ? 'table' : 'graph'"><Workflow :size="16" /></button>
+        <!-- La pista de cartera: lo que pasa después del 11 (2026-11-26). -->
+        <button type="button" class="region-action flow-portfolio-toggle" :aria-pressed="settings.view === 'portfolio'"
+          :title="settings.view === 'portfolio' ? 'Volver a la tabla' : 'Ver la cartera: la vida de un crédito CreditopX después del 11'" aria-label="Ver la cartera"
+          @click="settings.view = settings.view === 'portfolio' ? 'table' : 'portfolio'"><Landmark :size="16" /></button>
         <!-- Las regiones, en el orden de la pantalla: izquierda, abajo, derecha. -->
         <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Mostrar u ocultar el escenario" aria-label="Mostrar u ocultar el escenario" @click="toggleSidebar">
           <span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span>

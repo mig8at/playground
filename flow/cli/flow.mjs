@@ -28,7 +28,8 @@ const USAGE = `bin/flow — Flow por consola (le habla a la app abierta; si no h
                   [--debt 650000] [--experience yes|no] [--identity yes|no] [--aml clean|hit] [--document CC] [--preset best]
                                                  el cliente de la solicitud (lo que contestan las centrales) y el monto;
                                                  --preset best: el cliente premium (cumple casi todo), y encima lo que se pase
-  bin/flow view graph|table                      el grafo de una entidad o la tabla (todas las entidades, paso por paso)
+  bin/flow view graph|table|portfolio            el grafo de una entidad, la tabla (todas las entidades, paso por paso)
+                                                 o la cartera (la vida de un crédito CreditopX después del 11)
   bin/flow open                                  la trae al frente en Cockpit
 
   --target: local · dev · qa · staging · prod (prod por Redash, sólo lectura). Sin --target, qa.`
@@ -193,7 +194,7 @@ async function main() {
     case 'unselect': return send([{ type: 'unselect' }])
     case 'remove': if (!o._[1]) throw new Error('falta el nombre'); return send([{ type: 'remove', name: o._.slice(1).join(' ') }])
     case 'clear': return send([{ type: 'clear' }])
-    case 'view': if (!['graph', 'table'].includes(o._[1])) throw new Error('bin/flow view graph|table'); return send([{ type: 'view', view: o._[1] }])
+    case 'view': if (!['graph', 'table', 'portfolio'].includes(o._[1])) throw new Error('bin/flow view graph|table|portfolio'); return send([{ type: 'view', view: o._[1] }])
     case 'delegated': if (!o._[1]) throw new Error('falta el nombre'); return send([{ type: 'delegated', name: o._.slice(1).join(' '), fields: delegatedFlags(o) }])
     case 'client': {
       const fields = {}
