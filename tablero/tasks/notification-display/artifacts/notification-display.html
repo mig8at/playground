@@ -173,7 +173,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         <button type="button" id="sound" aria-pressed="false">Sonido</button>
       </div>
     </div>
-    <p class="note">27 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados, salvo «Crecimiento por mes», cuya forma es real, y los dos tops (comercios y entidades), con las ventas reales de 2026 (desembolsos por mes en producción, sin cifras absolutas). Su porcentaje de 2025 compara el año completo con 2024; el de 2026, enero a octubre con el mismo tramo de 2025.</p>
+    <p class="note">30 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados, salvo «Crecimiento por mes» y «Ciudad de comercios», cuya forma es real, y los dos tops (comercios y entidades), con las ventas reales de 2026 (desembolsos por mes en producción, sin cifras absolutas). Su porcentaje de 2025 compara el año completo con 2024; el de 2026, enero a octubre con el mismo tramo de 2025.</p>
   </section>
 
   <section aria-labelledby="size">
@@ -448,6 +448,8 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
           <li>Solicitudes del día</li>
           <li>Créditos aprobados y desembolsados</li>
           <li>Monto del mes con barra hacia la meta</li>
+          <li>Cuántos comercios van en ritmo, en riesgo o atrasados contra su meta, y a cuánto cerraría el mes a este ritmo</li>
+          <li>La ciudad de comercios: un edificio por comercio, tan alto como sus solicitudes</li>
           <li>Las solicitudes en vivo: cada una avanza por entran, perfil, entidad y venta, y se ve dónde se queda</li>
           <li>Récords, con un sonido especial</li>
           <li>Canales: la primera venta por e-commerce, las descargas de la app y la primera compra desde la app</li>
@@ -717,6 +719,53 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         bar(b, 2, 26, b.w - 4, 5, v / goal, C.amber, t);
       }
     } },
+    { id: "goal-light", group: "Negocio", label: "Comercios vs meta", draw(b, t) {
+      // el semáforo de la meta del mes, como lo calcula forecast: lo desembolsado contra la meta × días transcurridos / días del mes.
+      // ≥ 95 % en ritmo, ≥ 75 % en riesgo, menos, atrasado. La meta es de MONTO. Cifras de ejemplo.
+      const big = b.h >= 64, cols = [["EN RITMO", 12, C.bG], ["EN RIESGO", 5, C.yellow], ["ATRASADOS", 3, C.red]];
+      text(b, big ? "COMERCIOS VS META · DIA 25 DE 30" : "VS META · DIA 25/30", 2, big ? 3 : 1, 1, C.bLav);
+      cols.forEach(([lab, v, c], i) => {
+        const mid = Math.round(b.w * (2 * i + 1) / 6), t0 = 0.3 + i * 0.25, n = String(Math.round(v * ease((t - t0) / 1)));
+        const pulse = 0.65 + 0.35 * Math.sin(t * 4 + i), r = big ? 4 : 2;
+        if (big) {
+          for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) if (dx * dx + dy * dy <= r * r + 1) px(b, mid + dx, 16 + dy, mul(c, pulse));
+          text(b, n, mid - (tw(n, 3) >> 1), 24, 3, c);
+          text(b, lab, mid - (tw(lab, 1) >> 1), 53, 1, mul(C.bLav, ease((t - t0) / 0.5)));
+        } else {
+          const w = tw(n, 2), x = mid - ((w + 8) >> 1);
+          for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) if (dx * dx + dy * dy <= r * r + 1) px(b, x + 2 + dx, 15 + dy, mul(c, pulse));
+          text(b, n, x + 8, 9, 2, c);
+          text(b, lab, mid - (tw(lab, 1) >> 1), 25, 1, mul(C.bLav, ease((t - t0) / 0.5)));
+        }
+      });
+    } },
+    { id: "projection", group: "Negocio", label: "Proyección del cierre", draw(b, t) {
+      // a este ritmo, ¿cómo cerramos el mes? Meta de MONTO. Ejemplo: van $3.700 M de $5.000 M al día 25 de 30
+      // (hoy deberíamos ir en 83 %); al mismo ritmo se cierra en $4.440 M = 89 %, en riesgo (≥ 75 %, < 95 %).
+      const big = b.h >= 64, meta = 5000, van = 3700 * ease(t / 1.6), hoy = 25 / 30, proy = 3700 / 25 * 30 / meta;
+      const pr = Math.round(100 * proy * ease((t - 1.6) / 0.8)) + "%", col = proy >= 0.95 ? C.bG : proy >= 0.75 ? C.yellow : C.red;
+      const s = "$" + fmt(van) + " M";
+      if (big) {
+        text(b, "META DE DESEMBOLSOS · NOV", 2, 3, 1, C.bLav);
+        text(b, "DIA 25 DE 30", rx(b, "DIA 25 DE 30", 1), 3, 1, C.bLav);
+        text(b, s, 2, 14, 3, C.white);
+        text(b, "DE $5.000 M", 2, 37, 1, C.bLav);
+        if (t > 1.6) { text(b, "CERRAMOS AL", rx(b, "CERRAMOS AL", 1), 14, 1, C.bLav); text(b, pr, rx(b, pr, 3), 22, 3, col); }
+      } else {
+        text(b, "META NOV · DIA 25/30", 2, 1, 1, C.bLav);
+        if (t > 1.6) { const c2 = "CERRAMOS AL " + pr; text(b, c2, rx(b, c2, 1), 1, 1, col); }
+        text(b, s, 2, 10, 2, C.white);
+        text(b, "DE $5.000 M", 2 + tw("$3.700 M", 2) + 6, 17, 1, C.bLav);
+      }
+      // la barra: lo que va, la proyección (tenue) y la raya de dónde deberíamos ir hoy
+      const bx = 2, bw = b.w - 4, by = big ? 47 : 26, bh = big ? 6 : 4;
+      rect(b, bx, by, bw, bh, C.bTrack);
+      if (t > 1.6) rect(b, bx, by, Math.round(bw * Math.min(1, proy) * ease((t - 1.6) / 0.8)), bh, mul(col, 0.3));
+      rect(b, bx, by, Math.round(bw * van / meta), bh, C.amber);
+      const hx = bx + Math.round(bw * hoy), on = (t * 2 | 0) % 2;
+      rect(b, hx, by - 2, 1, bh + 4, on ? C.white : C.gray);
+      if (big) text(b, "HOY DEBERIAMOS IR EN 83%", 2, 57, 1, mul(C.bLav, ease((t - 2.2) / 0.5)));
+    } },
     { id: "revenue", group: "Negocio", label: "Ingresos del mes", draw(b, t) {
       const big = b.h >= 64, v = 1240 * ease(t / 1.6), s = "$" + fmt(v) + " M";
       head(b, "INGRESOS · NOV", C.hNeg, "+18% VS OCT", C.green, t);
@@ -869,6 +918,43 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         if (big) { text(b, n, x - (tw(n, 2) >> 1), 3, 2, c); text(b, L[k], x - (tw(L[k], 1) >> 1), 45, 1, C.bLav); }
         else { text(b, n, x - (tw(n, 1) >> 1), 1, 1, c); text(b, L[k], x - (tw(L[k], 1) >> 1), 23, 1, C.bLav); }
       });
+    } },
+    { id: "city", group: "Negocio", label: "Ciudad de comercios", draw(b, t) {
+      // cada edificio es un comercio, tan alto como las solicitudes que tuvo en el mes (raíz, para que se vean los chicos).
+      // La forma es la real: los 40 comercios con más solicitudes de nov-2026 (al 25), de 122 con solicitudes, sin puntos
+      // de prueba, como % del más alto en raíz. Sin nombres. Los más altos al centro; crecen en ondas desde el centro.
+      const H = [100,100,69,60,58,58,54,52,44,43,43,37,37,36,35,33,30,26,24,23,22,20,20,18,17,17,17,15,13,11,10,10,10,9,8,8,8,8,7,7];
+      const big = b.h >= 64, ground = big ? 61 : 30, hmax = big ? 44 : 16, n = H.length;   // en 32, la antena no toca el texto
+      text(b, "122 COMERCIOS · NOV", 2, big ? 3 : 1, 1, C.bLav);
+      const tot = "30.559 SOLICITUDES"; text(b, tot, rx(b, tot, 1), big ? 3 : 1, 1, mul(C.white, ease((t - 2) / 0.5)));
+      for (let i = 0; i < (big ? 20 : 10); i++) {                        // estrellas que titilan
+        const x = 2 + hash(i + 300) * 250 | 0, y = (big ? 12 : 9) + hash(i + 400) * (big ? 10 : 4) | 0;
+        if (Math.sin(t * 2 + i) > 0.3) px(b, x, y, [70,70,95]);
+      }
+      // los lugares: los altos tienden al centro pero mezclados, como una ciudad (el «azar» sale de una cuenta, no de Math.random)
+      const order = H.map((_, i) => i).sort((a, c) => {
+        const key = i => (i % 2 ? 1 : -1) * (i * 0.6 + hash(i + 11) * 14);
+        return key(a) - key(c);
+      });
+      const widths = order.map(i => 4 + (hash(i + 77) * 3 | 0)), total = widths.reduce((a, w) => a + w + 1, -1);
+      let x = (b.w - total) >> 1;
+      order.forEach((i, pos) => {
+        const w = widths[pos], dist = Math.abs(pos - (n >> 1)), g = ease((t - 0.2 - dist * 0.04) / 0.6);
+        const h = Math.max(1, Math.round(hmax * H[i] / 100 * g)), top = ground - h + 1;
+        const tone = 0.85 + hash(i + 5) * 0.3;
+        rect(b, x, top, w, h, mul([58,64,92], tone));
+        rect(b, x, top, w, 1, mul([100,108,145], tone));
+        for (let wy = top + 2; wy < ground - 1; wy += 3) for (let wx = x + 1; wx < x + w - 1; wx += 2) {   // ventanas
+          const k = i * 97 + wy * 7 + wx, lit = hash(k) > 0.5 !== (Math.sin(t * 0.7 + k) > 0.97);
+          if (lit && g > 0.9) px(b, wx, wy, [255,200,90]);
+        }
+        if (i === 0 && g > 0.95) {                                       // la antena del más alto, con su luz
+          rect(b, x + (w >> 1), top - 4, 1, 4, [120,124,140]);
+          if ((t * 1.5 | 0) % 2) px(b, x + (w >> 1), top - 5, C.red);
+        }
+        x += w + 1;
+      });
+      rect(b, 0, ground + 1, b.w, b.h - ground - 1, [20,20,28]);
     } },
     { id: "growth", group: "Negocio", label: "Crecimiento por mes", voice: "Así hemos crecido: 165 por ciento en 2025, y 15 por ciento en lo que va de 2026.", draw(b, t) {
       // la FORMA real: desembolsos por mes (disbursed_at) de ago-2023 a nov-2026, medidos en producción el 2026-11-25,
