@@ -1,12 +1,12 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, nextTick } from 'vue'
 import { X, Check, Minus, CircleAlert, ChevronRight } from 'lucide-vue-next'
 import {
   customLenders, merchant, lenders, state, clientProfile as profile, editTick, money, RT_LABEL, ui,
   branchGateDiag, branchCreditBureauRules, categoryDiag, usesQuotaEngine, usesPreApproval, preApprovalResponseOf,
   setPreApprovalField, installmentBreakdown, bondOf, calcValue, selectionCheck,
   identityOutcome, setIdentityResult, IDENTITY_PROVIDERS, paymentDateOptions, paymentSchedule, delegatedOf, CREDITOPX_PAYMENT_DAYS,
-  closingOutcome, setSignatureOk, finandinaAmount, clientSubject, categoryRequirements, isBlacklisted,
+  closingOutcome, setSignatureOk, selectOffer, finandinaAmount, clientSubject, categoryRequirements, isBlacklisted,
 } from './store'
 
 // La TABLA del flujo (2026-11-25): el mismo cliente contra todas las entidades, paso por paso. Cada fila es un paso de
@@ -129,6 +129,26 @@ function closingCell(c, previous) {
   return { status: 'pass', title: '11 · Autorizada' + after, line: `${o.sign.docs.length} documentos · cobra ${o.sign.externallyServiced ? 'la entidad' : 'Creditop'}` }
 }
 
+// ── El scroll: la columna de los pasos y la fila de las entidades quedan fijas (CSS sticky). Elegir una entidad —en la
+// cabecera, en el escenario o en el grafo— la trae a la vista si quedó fuera, así con muchas se puede saltar a una.
+const ROWHEAD_W = 170, COL_W = 176
+const scroller = ref(null)
+const scrolledX = ref(false)
+const onScroll = (e) => { scrolledX.value = e.target.scrollLeft > 0 }
+function chooseLender(name) { if (ui.selected === name) ui.selected = null; else selectOffer(name) }
+watch(() => ui.selected, (name) => {
+  if (!name) return
+  nextTick(() => {
+    const box = scroller.value, head = box?.querySelector(`.tv-colhead[data-lender="${CSS.escape(name)}"]`)
+    if (!box || !head) return
+    // Medido en pantalla y no con offsetLeft: la cabecera es sticky y su offsetParent no es el contenedor del scroll.
+    const b = box.getBoundingClientRect(), h = head.getBoundingClientRect()
+    const hiddenLeft = h.left - (b.left + ROWHEAD_W + 6), hiddenRight = h.right - (b.left + box.clientWidth - 16)
+    if (hiddenLeft < 0) box.scrollBy({ left: hiddenLeft, behavior: 'smooth' })
+    else if (hiddenRight > 0) box.scrollBy({ left: hiddenRight, behavior: 'smooth' })
+  })
+})
+
 const ROWS = [
   { key: 'listing', n: 1, label: 'Listado', ask: '¿Aparece la tarjeta?' },
   { key: 'preapproval', n: 2, label: 'Preaprobación', ask: '¿Cuánto le prestan?' },
@@ -250,15 +270,18 @@ const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
 <template>
   <div class="tv">
     <div class="tv-body">
-      <div class="tv-scroll">
+      <div ref="scroller" class="tv-scroll" :class="{ 'scrolled-x': scrolledX }" @scroll.passive="onScroll">
         <div v-if="!grid.length" class="tv-empty">No hay entidades cargadas. Se cargan por consola: <code>bin/flow import --branch … --lender …</code></div>
-        <div v-else class="tv-grid" :style="{ gridTemplateColumns: `150px repeat(${grid.length}, minmax(168px, 1fr))` }">
+        <div v-else class="tv-grid" :style="{ gridTemplateColumns: `${ROWHEAD_W}px repeat(${grid.length}, minmax(${COL_W}px, 1fr))` }">
           <!-- Cabecera: una entidad por columna -->
           <div class="tv-corner">{{ merchant.nombre }}<small>{{ merchant.sucursal }}</small></div>
-          <div v-for="g in grid" :key="'h' + g.c.def.name" class="tv-colhead" :class="{ 'tv-colhead--on': ui.selected === g.c.def.name }">
-            <span class="lg__chip" :class="'rt' + g.c.def.rt">rt{{ g.c.def.rt }}</span>
-            <b>{{ g.c.def.name }}</b>
-            <small>{{ RT_LABEL[g.c.def.rt] }} · {{ g.c.def.producto }}</small>
+          <div v-for="g in grid" :key="'h' + g.c.def.name" class="tv-colhead" :class="{ 'tv-colhead--on': ui.selected === g.c.def.name }" :data-lender="g.c.def.name">
+            <button type="button" class="tv-colhead__btn" :aria-pressed="ui.selected === g.c.def.name"
+              :title="ui.selected === g.c.def.name ? 'Entidad elegida · clic para soltarla' : 'Elegir ' + g.c.def.name + ' (la misma que en el escenario y el grafo)'" @click="chooseLender(g.c.def.name)">
+              <span class="lg__chip" :class="'rt' + g.c.def.rt">rt{{ g.c.def.rt }}</span>
+              <b>{{ g.c.def.name }}</b>
+              <small>{{ RT_LABEL[g.c.def.rt] }} · {{ g.c.def.producto }}</small>
+            </button>
           </div>
 
           <!-- Filas que ya funcionan -->
@@ -571,16 +594,28 @@ const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
 .tv-f--row { flex-direction: row; justify-content: space-between; align-items: center; margin: var(--space-1) 0; }
 
 .tv-body { flex: 1; min-height: 0; display: flex; }
-.tv-scroll { flex: 1; min-width: 0; overflow: auto; padding: var(--space-3) var(--space-4) var(--space-6); }
+/* La tabla scrollea en los dos ejes y deja fijas la fila de las entidades (arriba) y la columna de los pasos (a la
+   izquierda), así con muchas entidades se sigue sabiendo qué es cada fila. El aire va en la grilla y no en el
+   contenedor: lo fijo se pega al borde del scroll, sin compensar un padding. Lo fijo se pinta con la superficie de la
+   región (`--region-bg`) y una sombra del mismo color tapa el hueco entre celdas, para que no se vea pasar nada abajo. */
+.tv-scroll { flex: 1; min-width: 0; overflow: auto; overscroll-behavior: contain; }
 .tv-empty { color: var(--fg-3); font-size: var(--text-base); padding: var(--space-6); }
 .tv-empty code { font-family: var(--font-mono); font-size: var(--text-sm); }
-.tv-grid { display: grid; gap: 6px; align-items: stretch; }
-.tv-corner { font-size: var(--text-sm); font-weight: 600; color: var(--fg-2); display: flex; flex-direction: column; justify-content: flex-end; padding: 4px 2px; }
+.tv-grid { display: grid; gap: 6px; align-items: stretch; width: max-content; min-width: 100%; padding: 0 var(--space-4) var(--space-6) 0; }
+.tv-corner { font-size: var(--text-sm); font-weight: 600; color: var(--fg-2); display: flex; flex-direction: column; justify-content: flex-end; padding: var(--space-3) var(--space-2) var(--space-1) var(--space-4);
+  position: sticky; top: 0; left: 0; z-index: 3; background: var(--region-bg); box-shadow: 6px 0 0 var(--region-bg), 0 6px 0 var(--region-bg); }
 .tv-corner small, .tv-colhead small, .tv-rowhead small { font-weight: 400; color: var(--fg-3); font-size: var(--text-xs); }
-.tv-colhead { display: flex; flex-direction: column; gap: 2px; padding: var(--space-2) 10px; border-radius: var(--radius-control); background: var(--card); border: 1px solid var(--line); font-size: var(--text-sm); position: sticky; top: calc(-1 * var(--space-3)); z-index: 1; }
-.tv-colhead--on { box-shadow: inset 0 2px 0 var(--primary); }
+.tv-colhead { position: sticky; top: 0; z-index: 2; padding-top: var(--space-3); background: var(--region-bg); box-shadow: 0 6px 0 var(--region-bg), 6px 0 0 var(--region-bg); }
+.tv-colhead__btn { display: flex; flex-direction: column; gap: 2px; width: 100%; height: 100%; padding: var(--space-2) 10px; border-radius: var(--radius-control); background: var(--card); border: 1px solid var(--line);
+  font: inherit; font-size: var(--text-sm); color: var(--ink); text-align: left; cursor: pointer; }
+.tv-colhead__btn:hover { border-color: color-mix(in oklab, var(--ink) 35%, var(--line)); }
+.tv-colhead--on .tv-colhead__btn { box-shadow: inset 0 2px 0 var(--primary); border-color: color-mix(in oklab, var(--primary) 50%, var(--line)); }
 .tv-colhead .lg__chip { align-self: flex-start; }
-.tv-rowhead { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: var(--space-2) 4px; font-size: var(--text-sm); }
+.tv-colhead b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tv-rowhead { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4); font-size: var(--text-sm);
+  position: sticky; left: 0; z-index: 1; background: var(--region-bg); box-shadow: 6px 0 0 var(--region-bg); }
+/* La línea que separa lo fijo de lo que pasa por debajo, sólo cuando ya se scrolleó a la derecha. */
+.tv-scroll.scrolled-x .tv-rowhead, .tv-scroll.scrolled-x .tv-corner { border-right: 1px solid var(--border); }
 .tv-rowhead--next { opacity: .6; }
 .tv-n { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; background: var(--card2); color: var(--fg-2); font-size: var(--text-xs); font-weight: 600; margin-bottom: 2px; font-variant-numeric: tabular-nums; }
 

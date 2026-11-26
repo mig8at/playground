@@ -51,6 +51,9 @@ nodo. La **tabla** (`src/TableView.vue`, 2026-11-25) pone el mismo cliente contr
 la solicitud y una columna por entidad, y cada celda dice si pasa (verde), si se corta (rojo), si sigue con probabilidad
 baja (ámbar) o si no le aplica. Al abrir una celda sale, a la derecha, la «calculadora» del paso; el cliente se edita en el
 sidebar «Escenario» y toda la tabla se recalcula.
+Al scrollear quedan fijas la fila de las entidades y la columna de los pasos (las columnas miden 176 como mínimo: con muchas
+entidades la tabla scrollea en vez de apretarse). Clic en la cabecera de una entidad la elige, y elegirla en el escenario o
+en el grafo trae su columna a la vista.
 
 - Tiene las seis filas: **1 · Listado** (las reglas duras de la sucursal: tipo de documento, centrales y grupos; CreditopX
   que no las cumple no sale, las demás salen con probabilidad baja) y **2 · Preaprobación** (quién contesta, las
