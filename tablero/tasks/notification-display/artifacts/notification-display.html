@@ -139,16 +139,16 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
   <header class="head">
     <span class="eyebrow">Tarea #141 · prototipo · evaluación</span>
     <h1>Pantalla de notificaciones</h1>
-    <p class="lead">Un tablero LED horizontal en la parte alta de la pared de la oficina de desarrollo (unos 4 m × 2 m), sobre los puestos de los 4 desarrolladores. Muestra texto, cifras con meta e imágenes que le manda una API propia, hace un «pip» ante eventos y dice en voz los importantes.</p>
+    <p class="lead">Un tablero LED horizontal en la parte alta de la pared de la oficina de desarrollo (unos 4 m de ancho por 2,5 m de alto), sobre los puestos de los 4 desarrolladores. Muestra texto, cifras con meta e imágenes que le manda una API propia, hace un «pip» ante eventos y dice en voz los importantes.</p>
     <div class="meta">
-      <span>Fecha: <b>25 de noviembre de 2026</b></span>
+      <span>Fecha: <b>26 de noviembre de 2026</b></span>
       <span>Paneles: <b>HUB75 P4 · 64×32 px</b></span>
-      <span>Altura: <b>2,2–2,5 m</b></span>    </div>
+      <span>Borde inferior: <b>≈ 1,95 m del piso</b></span>    </div>
   </header>
 
   <section aria-labelledby="sim">
-    <h2 id="sim">Las dos opciones, a escala</h2>
-    <p class="lead">Simulación píxel por píxel. Las líneas finas marcan dónde termina cada panel de 64×32. Las cifras son de ejemplo, no son datos reales.</p>
+    <h2 id="sim">Las tres opciones, a escala</h2>
+    <p class="lead">Simulación píxel por píxel. Las líneas finas marcan dónde termina cada panel de 64×32. Varias cifras son reales, de producción; la nota de abajo dice cuáles.</p>
     <div class="stage">
       <div class="option">
         <div class="option-head">
@@ -181,7 +181,8 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         <button type="button" id="sound" aria-pressed="false">Sonido</button>
       </div>
     </div>
-    <p class="note">33 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados, salvo «Crecimiento por mes», cuya forma es real, los dos tops (comercios y entidades), con las ventas reales de 2026, «Suben y bajan», con los desembolsos reales del trimestre, «Ventas de hoy», con un día real contra el anterior a la misma hora, los de «Atención», con el uso real de los últimos 30 días, y «Carrera del año», con las ventas reales de 2026 semana a semana (desembolsos por mes en producción, sin cifras absolutas). Su porcentaje de 2025 compara el año completo con 2024; el de 2026, enero a octubre con el mismo tramo de 2025.</p>
+    <p class="note">33 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y trece mensajes además lo dicen en voz (la del navegador, de ejemplo).</p>
+    <p class="note"><b>Cifras reales, de producción:</b> «Ventas de hoy» (un día real contra el anterior a la misma hora), los dos tops y la «Carrera del año» (ventas de 2026), «Suben y bajan» (desembolsos del trimestre), «Mes récord» (octubre), los cinco de «Atención» (últimos 30 días o la última semana) y «Crecimiento por mes», que muestra la forma real sin cifras absolutas: su porcentaje de 2025 compara el año completo con 2024, y el de 2026, enero a octubre con el mismo tramo de 2025. <b>De ejemplo:</b> el resumen del día, los desembolsos contra la meta, la proyección, los ingresos, la app, los proyectos, el uptime, la alerta y los nombres de Cultura.</p>
   </section>
 
   <section aria-labelledby="size">
@@ -229,7 +230,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
           <tr><td>Panel RGB P4 64×32, HUB75, 256×128 mm (trae cable HUB75 de 30 cm y el adaptador de poder)</td><td><a href="https://www.waveshare.com/rgb-matrix-p4-64x32.htm" target="_blank" rel="noopener">Waveshare</a></td><td class="num">US$17,99</td><td class="num">4 · US$71,96</td><td class="num">8 · US$143,92</td><td class="num">12 · US$215,88</td></tr>
           <tr><td>Controlador ESP32-S3 con conector HUB75 que se enchufa directo al panel, sin soldar</td><td><a href="https://www.adafruit.com/product/5778" target="_blank" rel="noopener">Adafruit Matrix Portal S3</a></td><td class="num">US$19,95</td><td class="num">1 · US$19,95</td><td class="num">1 · US$19,95</td><td class="num">—</td></tr>
           <tr><td>Para la opción 3: Raspberry Pi 4 (2 GB) con la placa que la une a los paneles HUB75</td><td><a href="https://www.adafruit.com/product/3211" target="_blank" rel="noopener">Adafruit RGB Matrix Bonnet</a> + Raspberry Pi</td><td class="num">US$14,95 + ≈ US$45</td><td class="num">—</td><td class="num">—</td><td class="num">≈ US$60</td></tr>
-          <tr><td>Fuente 5 V 40 A, 200 W (para la opción 1 basta una de 20 A)</td><td><a href="https://www.digikey.com/en/products/result?keywords=LRS-200-5" target="_blank" rel="noopener">Mean Well LRS-200-5</a></td><td class="num">US$29,30</td><td class="num">≈ US$20</td><td class="num">1 · US$29,30</td><td class="num">2 · US$58,60</td></tr>
+          <tr><td>Fuente 5 V 40 A, 200 W (para la opción 1 basta una de 20 A; la opción 3 lleva dos, de 6 paneles cada una)</td><td><a href="https://www.digikey.com/en/products/result?keywords=LRS-200-5" target="_blank" rel="noopener">Mean Well LRS-200-5</a></td><td class="num">US$29,30</td><td class="num">≈ US$20</td><td class="num">1 · US$29,30</td><td class="num">2 · US$58,60</td></tr>
           <tr><td>Amplificador I2S de 3 W para voz y sonidos (entrada digital, 5 V)</td><td><a href="https://www.adafruit.com/product/3006" target="_blank" rel="noopener">Adafruit MAX98357A</a></td><td class="num">US$5,95</td><td class="num">1 · US$5,95</td><td class="num">1 · US$5,95</td><td class="num">1 · US$5,95</td></tr>
           <tr><td>Parlante de 3 W y 4 Ω, con caja</td><td><a href="https://www.adafruit.com/product/3351" target="_blank" rel="noopener">Adafruit 3351</a></td><td class="num">US$3,95</td><td class="num">1 · US$3,95</td><td class="num">1 · US$3,95</td><td class="num">1 · US$3,95</td></tr>
           <tr><td>Cable de poder 18 AWG, terminales, regleta</td><td>tienda local</td><td class="num">≈ US$10</td><td class="num">US$10</td><td class="num">US$15</td><td class="num">US$20</td></tr>
@@ -238,7 +239,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         </tbody>
       </table>
     </div>
-    <p class="note">En pesos, a una tasa supuesta de 4.000 COP por dólar: unos <b>620.000</b> para la opción 1 y <b>1.000.000</b> para la opción 2 y <b>1.620.000</b> para la opción 3, antes de envío e importación. Las filas con «≈» son estimaciones, no cotizaciones.</p>
+    <p class="note">En pesos, a una tasa supuesta de 4.000 COP por dólar: unos <b>620.000</b> para la opción 1, <b>1.000.000</b> para la opción 2 y <b>1.620.000</b> para la opción 3, antes de envío e importación. Las filas con «≈» son estimaciones, no cotizaciones.</p>
     <div class="grid2">
       <div class="card">
         <h3>Otros lugares donde buscar</h3>
@@ -285,11 +286,11 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       <div class="card">
         <h3>Los pasos</h3>
         <ul class="clean">
-          <li>Enchufar el Matrix Portal S3 en la entrada HUB75 del panel 1.</li>
-          <li>Cable HUB75 de la salida de cada panel a la entrada del siguiente, en zigzag: 1→4 arriba, bajar, 5→8 abajo.</li>
+          <li>Enchufar el Matrix Portal S3 en la entrada HUB75 del panel 1 (en la opción 3, la Raspberry Pi con su placa).</li>
+          <li>Cable HUB75 de la salida de cada panel a la entrada del siguiente, en zigzag: 1→4 arriba, bajar, 5→8 abajo (en la opción 1, una sola fila 1→4; en la 3, 1→6 y 7→12).</li>
           <li>Cada panel, a la fuente con su adaptador de poder de 4 pines (5 V y tierra), con cable de 18 AWG.</li>
           <li>La tierra del controlador, unida a la de la fuente.</li>
-          <li>En el código, declarar 4 columnas por 2 filas de 64×32 y la cadena en zigzag con <code>VirtualMatrixPanel</code>.</li>
+          <li>En el código, declarar las columnas y filas de 64×32 (4 × 1, 4 × 2 o 6 × 2) y la cadena en zigzag con <code>VirtualMatrixPanel</code>.</li>
           <li>El amplificador: BCLK, LRC y DIN a tres de los pines libres del controlador (su tira de 6 GPIO admite I2S); VIN a 5 V y GND a tierra, de la misma fuente. El parlante, a los bornes del amplificador.</li>
         </ul>
       </div>
@@ -306,7 +307,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         </ul>
       </div>
     </div>
-    <p class="warnbox">Ocho paneles desde un solo ESP32-S3 es posible (hay un montaje documentado con 12 paneles en un Matrix Portal S3), pero la memoria limita la profundidad de color y el refresco. Se comprueba en el banco de prueba con los 8 paneles antes de montar. Si parpadea, la salida es una Raspberry Pi con <code>rpi-rgb-led-matrix</code>. Para los 12 paneles de la opción 3 se va directo a la Raspberry Pi: tiene memoria de sobra para el color completo, y el mismo amplificador I2S le sirve para el audio.</p>
+    <p class="warnbox">Ocho paneles desde un solo ESP32-S3 es posible (hay un montaje documentado con 12 paneles en un Matrix Portal S3), pero la memoria limita la profundidad de color y el refresco. Se comprueba en el banco de prueba con los 8 paneles antes de montar. Si parpadea, la salida es una Raspberry Pi con <code>rpi-rgb-led-matrix</code>. Para los 12 paneles de la opción 3 se va directo a la Raspberry Pi: tiene memoria de sobra para el color completo. El audio en la Pi está sin comprobar: la librería de los paneles pide apagar el sonido propio de la placa, así que el amplificador I2S se prueba en el banco y, si choca, va en una placa aparte.</p>
   </section>
 
   <section aria-labelledby="voice">
@@ -326,8 +327,8 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       <div class="card">
         <h3>Qué diría</h3>
         <ul class="clean">
-          <li>«¡Nuevo récord! 312 solicitudes en un solo día.»</li>
-          <li>«CreditopX creció 23 % frente a octubre.»</li>
+          <li>«¡Octubre fue el mes con más solicitudes de la historia: 35.140!»</li>
+          <li>«¡Primera venta de Finandina! ¡Vámola!»</li>
           <li>«Atención: la API está caída.»</li>
           <li>«¡Feliz cumpleaños, Pepito!»</li>
           <li>«Bienvenida al equipo, Sofía.»</li>
@@ -351,20 +352,17 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
     <h2 id="color">Los colores, contra el panel real</h2>
     <p class="lead">Los paneles son RGB a todo color: cada LED mezcla rojo, verde y azul. La librería saca hasta 24 bits de color (8 por canal), así que los colores de la simulación se pueden mostrar tal cual.</p>
     <div class="swatches">
-      <span class="sw"><i style="background: rgb(255,176,59)"></i>ámbar · cifras</span>
-      <span class="sw"><i style="background: rgb(60,220,130)"></i>verde · deploy bien</span>
-      <span class="sw"><i style="background: rgb(255,48,40)"></i>rojo · alerta</span>
-      <span class="sw"><i style="background: rgb(255,220,60)"></i>amarillo · detalle de alerta</span>
+      <span class="sw"><i style="background: rgb(236,234,226)"></i>blanco cálido · cifras y texto</span>
+      <span class="sw"><i style="background: #05d587"></i>verde CreditOp #05D587 · lo que importa</span>
+      <span class="sw"><i style="background: rgb(128,126,156)"></i>lavanda grisáceo · etiquetas</span>
+      <span class="sw"><i style="background: rgb(255,84,72)"></i>rojo · alertas y bajadas</span>
+      <span class="sw"><i style="background: rgb(255,206,84)"></i>amarillo · avisos y récords</span>
       <span class="sw"><i style="background: rgb(40,200,175)"></i>turquesa · mascota</span>
-      <span class="sw"><i style="background: rgb(235,235,230)"></i>blanco · texto</span>
-      <span class="sw"><i style="background: rgb(110,116,128)"></i>gris · etiquetas</span>
       <span class="sw"><i style="background: #877aff"></i>morado CreditOp · detalle</span>
-      <span class="sw"><i style="background: #05d587"></i>verde CreditOp #05D587</span>
-      <span class="sw"><i style="background: #9b99b1"></i>lavanda #9B99B1 · etiquetas de marca</span>
     </div>
     <ul class="clean">
       <li><b>Lo que es igual:</b> los colores planos y saturados, que es todo lo que usa el diseño. En el panel se ven más vivos que en una pantalla.</li>
-      <li><b>Lo que cambia:</b> con 8 paneles la librería puede bajar la profundidad de color para no parpadear; los degradados se verían en escalones. El diseño no usa degradados.</li>
+      <li><b>Lo que cambia:</b> con 8 paneles en el ESP32-S3 la librería puede bajar la profundidad de color para no parpadear; los degradados se verían en escalones. El diseño no usa degradados, y con la Raspberry Pi de la opción 3 no pasa.</li>
       <li><b>El gris:</b> es un LED blanco a poca potencia, y a brillo medio se ve como un blanco tenue, un poco azulado. Por eso sólo se usa para etiquetas.</li>
       <li><b>El negro:</b> un LED apagado es negro de verdad y la cara del panel es negra; no hay «fondo» que se vea gris como en la simulación.</li>
       <li><b>Los de marca:</b> fondo negro, blanco para lo que se lee, el verde CreditOp (#05D587) sólo para el dato que importa, el morado (#4C39FF, en su tono claro para que se lea en LED) sólo como detalle chico, y las etiquetas en el lavanda #9B99B1 de la marca. Sin degradados ni fondos de color: en LED un fondo «oscuro» se ve como un resplandor y ensucia.</li>
@@ -382,7 +380,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
           <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="arrow wifi" d="M0,0 L10,5 L0,10 z"/></marker>
         </defs>
         <rect class="box" x="10" y="14" width="200" height="46" rx="6"/><text x="24" y="35">Base de producción</text><text class="sub" x="24" y="51">sólo lectura, agregados</text>
-        <rect class="box" x="10" y="72" width="200" height="46" rx="6"/><text x="24" y="93">GitHub</text><text class="sub" x="24" y="109">deploys</text>
+        <rect class="box" x="10" y="72" width="200" height="46" rx="6"/><text x="24" y="93">Proyectos</text><text class="sub" x="24" y="109">avance que carga el equipo</text>
         <rect class="box" x="10" y="130" width="200" height="46" rx="6"/><text x="24" y="151">Monitoreo de la API</text><text class="sub" x="24" y="167">caídas, errores, uptime</text>
         <rect class="box" x="10" y="188" width="200" height="46" rx="6"/><text x="24" y="209">Calendario del equipo</text><text class="sub" x="24" y="225">cumpleaños, ingresos</text>
 
@@ -395,7 +393,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         <text x="318" y="94" font-weight="600">Servidor propio</text>
         <text class="sub" x="318" y="115">cola con prioridad</text>
         <text class="sub" x="318" y="132">rotación en ciclo</text>
-        <text class="sub" x="318" y="149">ajusta imágenes a 256×H</text>
+        <text class="sub" x="318" y="149">ajusta imágenes al tablero</text>
         <text class="sub" x="318" y="166">valida los 5 tipos</text>
         <text class="sub" x="318" y="183">texto a voz → MP3</text>
 
@@ -403,7 +401,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         <text class="sub" x="528" y="114">JSON + MP3</text>
         <text class="sub" x="528" y="142">por WiFi</text>
 
-        <rect class="box" x="598" y="94" width="130" height="60" rx="6"/><text x="612" y="119">ESP32</text><text class="sub" x="612" y="137">controlador</text>
+        <rect class="box" x="598" y="94" width="130" height="60" rx="6"/><text x="612" y="119">Controlador</text><text class="sub" x="612" y="137">ESP32-S3 o Pi</text>
 
         <path class="wire" d="M728,110 C750,110 750,53 768,53" marker-end="url(#ar)"/>
         <path class="wire" d="M728,138 C750,138 750,143 768,143" marker-end="url(#ar)"/>
@@ -456,13 +454,15 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         <ul class="clean">
           <li>Descargas de la app</li>
           <li>Solicitudes del día</li>
+          <li>Ventas de hoy contra ayer a la misma hora</li>
           <li>Créditos aprobados y desembolsados</li>
           <li>Monto del mes con barra hacia la meta</li>
           <li>Qué comercios suben y cuáles bajan en el trimestre, en un tablero de aeropuerto; y a cuánto cerraría el mes a este ritmo</li>
           <li>Las solicitudes en vivo: cada una avanza por entran, perfil, entidad y venta, y se ve dónde se queda</li>
           <li>La carrera del año: las ventas acumuladas semana a semana, con los rebases entre comercios</li>
+          <li>Top de comercios y de entidades del año, y el crecimiento por mes desde el primer desembolso</li>
           <li>Récords, con un sonido especial</li>
-          <li>Atención: los comercios activos sin solicitudes este mes, los que dejaron de usar CreditOp las entidades asignadas que nadie usa y las que reciben solicitudes pero casi no venden</li>
+          <li>Atención: los comercios sin solicitudes en 30 días y los que dejaron de usar CreditOp, los que vienen frenando, las entidades asignadas que nadie usa, las que reciben solicitudes pero casi no venden y los créditos aprobados que no se desembolsaron</li>
           <li>Canales: la primera venta por e-commerce, las descargas de la app y la primera compra desde la app</li>
           <li>Los primeros: un comercio que sale a producción y la primera venta de un comercio o de una entidad</li>
         </ul>
@@ -470,7 +470,6 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       <div class="card cat">
         <h3><span class="dot" style="background: var(--crit)"></span>Desarrollo</h3>
         <ul class="clean">
-          <li>Deploys exitosos o fallidos</li>
           <li>Caídas o errores de la API (alerta crítica)</li>
           <li>El avance de los proyectos: integraciones y canales, en porcentaje</li>
           <li>Uptime</li>

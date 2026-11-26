@@ -57,7 +57,7 @@ No toca los repos de producto. Es un servicio nuevo más el firmware del control
 8. **Cultura**: cumpleaños, aniversarios, bienvenidas y la mascota en pixel art.
 9. **Montaje** en la pared, con los paneles definitivos.
 
-El prototipo visual de las dos opciones y la arquitectura: `artifacts/notification-display.html`.
+El prototipo visual de las tres opciones y la arquitectura: `artifacts/notification-display.html`.
 
 **El período de cada mensaje** (se eligió el que hace estable y comparable la cifra). Regla: el tablero se mira de día, en horario de trabajo, así que todo lo que se muestra tiene que valer durante todo el día.
 
