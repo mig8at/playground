@@ -243,6 +243,21 @@ func (s *sentinel) explainAlert(subj Subject, rules Rules) {
 }
 
 func (s *sentinel) explainText(ctx context.Context, subj Subject, rules Rules) (string, error) {
+	prompt, err := s.explainPrompt(subj, rules)
+	if err != nil {
+		return "", err
+	}
+	system := noctowlNotes(s.root) + "\n\n" + explainRole
+	ans, err := background.Ask(ctx, s.root, background.Request{Prompt: prompt, System: system})
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(ans.Text), nil
+}
+
+// explainPrompt: lo que recibe el modelo para explicar una señal. Aparte de explainText para poder verlo
+// (`bin/sentinel why <señal> --prompt`) y medirlo sin gastar una pregunta.
+func (s *sentinel) explainPrompt(subj Subject, rules Rules) (string, error) {
 	reach := s.store.reach()
 	if reach.IsZero() {
 		return "", fmt.Errorf("no hay nada guardado")
@@ -270,17 +285,28 @@ func (s *sentinel) explainText(ctx context.Context, subj Subject, rules Rules) (
 			b.WriteString("## sentinel rules " + fmt.Sprint(lender) + " (últimas 24 h contra los 7 días anteriores)\n\n" + r.Text() + "\n")
 		}
 	}
-	system := noctowlNotes(s.root) + "\n\n" + explainRole
-	ans, err := background.Ask(ctx, s.root, background.Request{Prompt: strings.TrimSpace(b.String()), System: system})
-	if err != nil {
-		return "", err
+	// Los errores por etapa (stages.go). De una etapa, lo que la llena: los mensajes, cuántas solicitudes toca y en qué
+	// estado están hoy (lee Loki y producción, sólo lectura). Sin esto el modelo adivinaba desde conteos: el pagaré del
+	// 22/11/2026 eran 20 reintentos de UNA solicitud, y eso sólo se ve en el detalle. De un servicio o de toda la
+	// originación, la tira de etapas: dónde del recorrido está el aumento.
+	switch subj.Kind {
+	case "stage":
+		minutes := max(60, subj.WindowMinutes)
+		key := strings.TrimPrefix(subj.Signal, "stage:")
+		if d, err := stageDetail(key, c.reach.Add(-time.Duration(minutes)*time.Minute), c.reach); err == nil {
+			b.WriteString(fmt.Sprintf("## sentinel stages %s (la ventana de la alerta: mensajes, solicitudes tocadas y su estado de hoy)\n\n", key) + d.Text() + "\n\n")
+		}
+	case "service", "lerr", "all", "queue":
+		o := s.overview(rules, c.reach.Truncate(time.Minute))
+		r := &StagesReport{At: c.reach.Format(time.RFC3339), List: o.Stages, Stages: stages}
+		b.WriteString("## sentinel stages (los errores de la última hora por etapa del recorrido)\n\n" + r.Text() + "\n\n")
 	}
-	return strings.TrimSpace(ans.Text), nil
+	return strings.TrimSpace(b.String()), nil
 }
 
 // verdictCLI: `bin/sentinel verdict [--make]` (el último dictamen, o armar el de hoy ya) y `bin/sentinel why <señal>`
 // (el porqué de una señal ahora, aunque no esté en alerta: no se guarda ni avisa).
-func verdictCLI(c *cli, cmd string, positional []string, makeIt, asJSON bool) int {
+func verdictCLI(c *cli, cmd string, positional []string, makeIt, asJSON, onlyPrompt bool) int {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	if cmd == "why" {
@@ -292,6 +318,15 @@ func verdictCLI(c *cli, cmd string, positional []string, makeIt, asJSON bool) in
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "sentinel:", err)
 			return 1
+		}
+		if onlyPrompt {
+			p, err := c.s.explainPrompt(r.Subject, c.rules)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "sentinel:", err)
+				return 1
+			}
+			fmt.Println(noctowlNotes(c.s.root) + "\n\n" + explainRole + "\n\n---\n\n" + p)
+			return 0
 		}
 		text, err := c.s.explainText(ctx, r.Subject, c.rules)
 		if err != nil {

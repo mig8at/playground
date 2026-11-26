@@ -113,6 +113,12 @@ Lo que ninguna regla ubica queda en **«Sin etapa»**: esa lista dice qué falta
 - **En la interfaz**: en toda la originación, «Errores por etapa del recorrido», el camino numerado con errores de la
   última hora contra lo normal y las transversales como fichas; la pestaña «Etapas» en la tabla; y al elegir una etapa,
   «Qué está fallando» arriba de la curva, con sus proveedores externos (`out:`) y su tasa de falla al lado.
+- **El porqué de una alerta las usa** (`explainPrompt`, en verdict.go): de una etapa, el detalle de la ventana (mensajes,
+  solicitudes tocadas y su estado); de un servicio o de toda la originación, la tira de etapas. `bin/sentinel why <señal>
+  --prompt` muestra lo que recibe el modelo sin preguntarle (~28 mil caracteres, unos 8 mil tokens). Medido el 26/11/2026
+  con Gemini por la web: el de Plataforma nombró la columna (`c.min_fee_number`), lo ató al despliegue y dijo que no
+  toca solicitudes; el de la entidad vio que el aumento venía de antes del despliegue de las 12:14 y apuntó a las
+  credenciales de preapprovals-service, con una solicitud para mirar. ~25 s cada uno.
 - **Para mapear algo nuevo**: `bin/sentinel stages other --hours 24` lista lo que cae sin etapa; se agrega la regla en
   `stageRules`, un caso en `stages_test.go`, y como cambia la plantilla, la historia se puede volver a pedir subiendo
   `logsVersion`.

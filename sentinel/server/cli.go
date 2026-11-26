@@ -38,7 +38,8 @@ const cliHelp = `sentinel — el vigía de producción, por consola. Sólo lee (
   bin/sentinel signal <señal|nombre>        una señal hora por hora, hoy contra lo normal («credifamilia», «merchant:94»)
   bin/sentinel deploy <repo> [versión] [--hours 2]
                                             ¿se dañó algo después de ese despliegue? Sin versión, el último a producción
-  bin/sentinel why <señal>                  el porqué de una señal ahora, como hipótesis (le pregunta al modelo de fondo)
+  bin/sentinel why <señal> [--prompt]       el porqué de una señal ahora, como hipótesis (le pregunta al modelo de fondo);
+                                            con --prompt, lo que recibiría el modelo, sin preguntarle
   bin/sentinel verdict [--make]             el dictamen de la mañana (el último guardado; --make arma el de hoy, ~30 s)
   bin/sentinel cases <señal> [--hours N]    solicitudes de ejemplo de la señal (lee producción)
   bin/sentinel rules <entidad> [--hours N]  qué regla dura rechaza a la entidad, ahora contra antes (lee producción)
@@ -71,6 +72,7 @@ func runCLI(root string, args []string) int {
 	hours := fs.Float64("hours", 2, "deploy: cuántas horas mirar antes y después")
 	undo := fs.Bool("undo", false, "ack: deshace el reconocimiento (vuelve a «Pide atención»)")
 	makeIt := fs.Bool("make", false, "verdict: armar el de hoy ahora (si no, muestra el último guardado)")
+	onlyPrompt := fs.Bool("prompt", false, "why: mostrar lo que recibiría el modelo, sin preguntarle")
 	var positional []string
 	// Los flags pueden ir antes o después de los argumentos.
 	rest := args[1:]
@@ -119,7 +121,7 @@ func runCLI(root string, args []string) int {
 	}
 	// verdict y why le preguntan al modelo de segundo plano (verdict.go).
 	if cmd == "verdict" || cmd == "why" {
-		return verdictCLI(c, cmd, positional, *makeIt, *asJSON)
+		return verdictCLI(c, cmd, positional, *makeIt, *asJSON, *onlyPrompt)
 	}
 	var out any
 	switch cmd {
