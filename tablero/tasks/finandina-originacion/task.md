@@ -36,6 +36,8 @@ final y no se hace plantilla propia de la 149.
   y no 500 «error durante el cálculo del plan de pagos»: si la preaprobación `creditop_x` ya no está aprobada, el plan,
   los documentos y la autorización del riel tienen que devolver el error que el wizard sabe mostrar. Termina con el
   caso 11 de la guía en qa mostrando el aviso de volver al listado.
+  Arreglo listo en la rama local `legacy-backend:fix/CORE-845-delegated-offer-changed` (contra qa, sin push), con la
+  descripción en `artifacts/pr-legacy-riel4-offer-changed.md` y Goldfish atendido.
 - [ ] Encontrar por qué el listado ofrece 15 MM (casos 9 y 10). El motor de qa decide bien: por el backend
   directo, 1,5 MM queda sin perfil y con 0, con los criterios `finandina_*` en `users_category_log`. Lo que
   falla es otro camino del front; en la corrida, el listado recibió 400 y 401 de `POST /v1/preapprovals/check`.
@@ -46,13 +48,18 @@ final y no se hace plantilla propia de la 149.
   `/available-quota`.
 - [ ] Ubicar la suite `tests/test_finandina.py` (sin commitear en ningún repo), subirla y dejar los resultados por
   caso en CRED-519. Depende de: quien corrió el QA.
-- [ ] Revisar con la 149 los huecos de CORE-918 fuera del plan: pagaré y documentos de Credifamilia por
-  `CredifamiliaLenders::engineLenderIdFor`, 500 sin perfil, y firma Netco sin SigningV1. Termina con cada uno
-  corregido o descartado.
-- [ ] Que el recuadro de la huella de los T&C diga «Huella» entero: hoy sale «Huell» porque el texto no cabe (visto en
-  la 505325, última página). Termina con el documento firmado en qa mostrando «Huella» completo.
+- [ ] Que el recuadro de la huella de los T&C diga «Huella» entero: hoy sale «Huell» porque el cuadro de texto del Word
+  es angosto para la fuente con que lo convierte LibreOffice (visto en la 505325, última página). El Word con el cuadro
+  ensanchado está en `artifacts/tyc-finandina-preparado-huella-2026-11-26.docx` (convertido en local da «Huella»).
+  Falta convertirlo con el servicio, revisar que los 19 campos sigan en su lugar y subir `finandina/terminos-y-condiciones`
+  al pdf-mapper de qa. Termina con el documento firmado en qa mostrando «Huella» completo. Depende de: Docker y la VPN.
 
 ### Hecho
+
+- [x] ~~Revisar con la 149 los huecos de CORE-918 fuera del plan~~ — 2026-11-26, descartados para qa: los documentos de
+  Credifamilia sólo los arma `CredifamiliaLenders::supports` (24 y Materiales), y la 149 va por su catálogo; no tiene
+  `netco_lender_settings` y firma con OTP; el 500 sin perfil no aplica en qa (tiene perfil). En prod la 149 es tipo 1 y
+  sin perfil: cargar el perfil va con el paso a producción.
 
 - [x] ~~Ligar la tarea a un issue de Jira~~ — CORE-845 (CORE Sprint 21).
 - [x] ~~Generalizar el riel 4~~ — CORE-918 (#109), en qa desde el 2026-11-03.
