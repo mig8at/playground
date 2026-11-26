@@ -672,7 +672,7 @@ onBeforeUnmount(() => {
 
     <main class="editor">
       <div class="region-head">
-        <span>{{ route.kind === 'report' ? 'Informe de la semana' : selected ? selected.name : 'Sentinel' }}</span>
+        <span>{{ route.kind === 'report' ? 'Informe del día' : selected ? selected.name : 'Sentinel' }}</span>
         <span v-if="selected" class="count">{{ KIND_LABEL[selected.kind] }} · {{ spanLabel(selected).toLowerCase() }} {{ windowRange(selected) }}</span>
       </div>
       <div class="region-body">
@@ -1177,7 +1177,7 @@ onBeforeUnmount(() => {
           </div>
         </section>
         <button type="button" class="row report-link" :class="{ on: route.kind === 'report' }" @click="go(['report']); readRoute()">
-          <span class="ui-icon" data-icon="paper" aria-hidden="true"></span><span>Informe de la semana</span>
+          <span class="ui-icon" data-icon="paper" aria-hidden="true"></span><span>Informe del día</span>
         </button>
         <p v-if="data && !attention.length" class="none">Nada fuera de lo normal en la última hora{{ known.length ? ' que no conozcas' : '' }}.</p>
         <div v-for="s in attention" :key="`a-${s.signal}`" class="attention-item" :class="[`is-${s.state}`, { on: isOn(s) }]">

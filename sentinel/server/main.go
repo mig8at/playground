@@ -1193,7 +1193,7 @@ func main() {
 		}
 		writeJSON(w, http.StatusOK, d)
 	})
-	// GET /api/report — el último informe de la semana y su vista para el tablero (digest.go, view.go).
+	// GET /api/report — el último informe del día y su vista para el tablero (digest.go, view.go).
 	mux.HandleFunc("GET /api/report", func(w http.ResponseWriter, r *http.Request) {
 		rep, err := s.latestReport()
 		if err != nil {

@@ -310,14 +310,17 @@ type PackInfo struct {
 const packQuestion = `Sos el analista de producción de CreditOp (fintech colombiana de originación de crédito). Recibís la memoria de Sentinel,
 su vigía de producción: resúmenes diarios (errores por etapa del recorrido de una solicitud, despliegues con sus commits,
 avisos), el mes a la fecha, el código que se desplegó la última semana, tus informes anteriores y el contexto del
-negocio. Escribí en español, en Markdown, el informe de la semana:
+negocio. Escribí en español, en Markdown, el informe del día. El foco es lo que CAMBIÓ desde tu informe anterior
+(normalmente el de ayer) y lo que pasó en las últimas 24 horas, incluido el resumen PARCIAL de hoy; los 28 días son
+para reconocer qué es nuevo, qué se repite y qué viene de antes:
 
 1. **Lo que se rompió**: cada problema real, con cuándo empezó, a quién tocó (etapa, entidad, comercio, cuántas
    solicitudes) y si sigue. Separá lo que es una caída de lo que es un caso suelto o un reintento.
 2. **El despliegue que lo explica**: cuando un error aparece después de un despliegue, el commit y el archivo que lo
    explican, citando la ruta EXACTA del diff (por ejemplo «Modules/Backoffice/App/Services/LenderCatalogService.php»).
    Si no hay un cambio que lo explique, decilo.
-3. **Lo que se repite**: problemas que tus informes anteriores ya habían visto y siguen, y lo que se resolvió.
+3. **Lo que se repite**: problemas que tus informes anteriores ya habían visto y siguen, y lo que se resolvió desde
+   el último. Si algo que dijiste antes resultó no ser así, decilo.
 4. **Tendencias lentas**: comercios o entidades que vienen bajando en el mes sin una alerta.
 5. **Qué mirar primero**: hasta 5 acciones concretas, de la más urgente a la menos.
 6. **La vista para el tablero**: al final, un bloque json con el esquema que se explica al final del paquete.
@@ -556,8 +559,10 @@ func verifyPaths(report string) string {
 // ── lo automático, dentro de la API de fondo ────────────────────────────────────────────────────────────────────
 
 // La memoria se arma sola: en cada pasada, a lo sumo UN resumen de un día que falte (~30 s de Loki, en segundo plano,
-// para no cargarlo de golpe), y el informe los lunes desde las 7:00 si no está (necesita Chrome con Jarvis; un intento
-// fallido se reintenta a las 3 horas). Con `memory.off` en .data, nada de esto corre.
+// para no cargarlo de golpe), y el informe TODOS los días desde las 6:30 si el de hoy no está (antes del dictamen de
+// las 7:30, que también le pregunta a AI Studio, que contesta de a una; también fines de semana: el Black Friday cae
+// viernes). Necesita Chrome con Jarvis; un intento fallido se reintenta a las 3 horas. Decisión de Miguel
+// (2026-11-26): diario, no semanal. Con `memory.off` en .data, nada de esto corre.
 var memoryState struct {
 	mu          sync.Mutex
 	busy        bool
@@ -567,7 +572,7 @@ var memoryState struct {
 	failed      map[string]time.Time // un día que falló no se reintenta hasta 6 horas después
 }
 
-const reportHour = 7
+const reportHour, reportMinute = 6, 30
 
 func (s *sentinel) maybeMemory(rules Rules) {
 	if _, err := os.Stat(filepath.Join(s.store.dir, "memory.off")); err == nil {
@@ -586,7 +591,7 @@ func (s *sentinel) maybeMemory(rules Rules) {
 			missing = append(missing, d)
 		}
 	}
-	report := now.Weekday() == time.Monday && now.Hour() >= reportHour && time.Since(st.reportTried) > 3*time.Hour
+	report := now.Hour()*60+now.Minute() >= reportHour*60+reportMinute && time.Since(st.reportTried) > 3*time.Hour
 	if report {
 		if _, err := os.Stat(filepath.Join(s.reportDir(), now.Format("2006-01-02")+".md")); err == nil {
 			report = false
@@ -622,12 +627,16 @@ func (s *sentinel) maybeMemory(rules Rules) {
 		}
 		out, info, err := s.runReport(rules, now)
 		if err != nil {
-			log.Printf("sentinel: el informe de la semana no salió: %v", err)
+			log.Printf("sentinel: el informe del día no salió: %v", err)
 			return
 		}
-		log.Printf("sentinel: informe de la semana en %s (~%d mil tokens)", out, info.Tokens/1000)
+		log.Printf("sentinel: informe del día en %s (~%d mil tokens)", out, info.Tokens/1000)
 		if s.notifier != nil {
-			s.notifier.tell(Notice{Signal: "report", Name: "Informe de la semana", Level: "verdict", Text: "Listo: " + out}, "Sentinel · informe de la semana", false)
+			headline := "Listo"
+			if v, err := s.latestReport(); err == nil && v.View != nil && v.View.Headline != "" {
+				headline = v.View.Headline
+			}
+			s.notifier.tell(Notice{Signal: "report", Name: "Informe del día", Level: "verdict", Text: headline}, "Sentinel · informe del día", false)
 		}
 	}()
 }
