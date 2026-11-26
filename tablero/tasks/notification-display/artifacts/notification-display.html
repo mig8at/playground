@@ -181,8 +181,8 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         <button type="button" id="sound" aria-pressed="false">Sonido</button>
       </div>
     </div>
-    <p class="note">33 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y trece mensajes además lo dicen en voz (la del navegador, de ejemplo).</p>
-    <p class="note"><b>Cifras reales, de producción:</b> «Ventas de hoy» (un día real contra el anterior a la misma hora), los dos tops y la «Carrera del año» (ventas de 2026), «Suben y bajan» (desembolsos del trimestre), «Mes récord» (octubre), los cinco de «Atención» (últimos 30 días o la última semana) y «Crecimiento por mes», que muestra la forma real sin cifras absolutas: su porcentaje de 2025 compara el año completo con 2024, y el de 2026, enero a octubre con el mismo tramo de 2025. <b>De ejemplo:</b> el resumen del día, los desembolsos contra la meta, la proyección, los ingresos, la app, los proyectos, el uptime, la alerta y los nombres de Cultura.</p>
+    <p class="note">34 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y trece mensajes además lo dicen en voz (la del navegador, de ejemplo).</p>
+    <p class="note"><b>Cifras reales, de producción:</b> «Ventas de hoy» (un día real contra el anterior a la misma hora), los dos tops y la «Carrera del año» (ventas de 2026), «Suben y bajan» (desembolsos del trimestre), «Mes récord» (octubre), «Un comercio en el tiempo» (las ventas de Sonría y de Amoblando Pullman mes a mes, desde su primer mes), los cinco de «Atención» (últimos 30 días o la última semana) y «Crecimiento por mes», que muestra la forma real sin cifras absolutas: su porcentaje de 2025 compara el año completo con 2024, y el de 2026, enero a octubre con el mismo tramo de 2025. <b>De ejemplo:</b> el resumen del día, los desembolsos contra la meta, la proyección, los ingresos, la app, los proyectos, el uptime, la alerta y los nombres de Cultura.</p>
   </section>
 
   <section aria-labelledby="size">
@@ -461,6 +461,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
           <li>Las solicitudes en vivo: cada una avanza por entran, perfil, entidad y venta, y se ve dónde se queda</li>
           <li>La carrera del año: las ventas acumuladas semana a semana, con los rebases entre comercios</li>
           <li>Top de comercios y de entidades del año, y el crecimiento por mes desde el primer desembolso</li>
+          <li>Un comercio o una entidad en el tiempo: sus ventas mes a mes desde que empezó, cuánto cambió cada año, su mejor mes y, si bajó, cuánto</li>
           <li>Récords, con un sonido especial</li>
           <li>Atención: los comercios sin solicitudes en 30 días y los que dejaron de usar CreditOp, los que vienen frenando, las entidades asignadas que nadie usa, las que reciben solicitudes pero casi no venden y los créditos aprobados que no se desembolsaron</li>
           <li>Canales: la primera venta por e-commerce, las descargas de la app y la primera compra desde la app</li>
@@ -1061,6 +1062,55 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         const lab = "NOV 2025 · BLACK FRIDAY", xr = x0 + rec * step - tw(lab, 1) - 9;
         text(b, lab, xr, big ? 2 : 10, 1, mul(C.bG, ease((t - 2.7) / 0.4)));
       }
+    } },
+    { id: "merchant-growth", group: "Negocio", label: "Un comercio en el tiempo", dur: 14, draw(b, t) {
+      // la vida de un comercio, mes a mes: ventas (disbursed_at) desde su primer mes con ventas, medidas en producción el
+      // 2026-11-26; el último mes (nov-2026) va hasta el día 25 y sale en blanco. Alterna uno que crece y uno que bajó.
+      // Sonría: 2025 contra 2024 de ene a oct, 18.151 vs 12.525 (+45 %); 2026 contra 2025 de ene a oct, 19.119 vs 18.151 (+5 %);
+      // su mejor mes, oct-2026 con 2.143. Amoblando Pullman: pico en nov-2025 (1.493, Black Friday); 2026 de ene a oct contra
+      // el mismo tramo de 2025, 8.424 vs 10.895 (-23 %); oct-2026 con 746, la mitad del pico. 2024 va sin %: Pullman arrancó en junio.
+      const PAGES = [
+        { name: "SONRIA", D: [136,1118,1092,1333,1296,1354,1587,1499,1565,1545,1426,1283, 1750,1553,1649,1828,1839,1711,2083,1814,2012,1912,1650,1619,
+                              1962,1898,2082,1972,2079,1704,1754,1511,2014,2143,1491],
+          years: [[0, "2024", null], [12, "2025", "▲45%"], [24, "2026", "▲5%"]], hi: 33, hiC: C.bG,
+          notes: [[33, "OCT 2026 · 2.143 · SU MEJOR MES", C.bG, 0]] },
+        { name: "AMOBLANDO PULLMAN", D: [2,1,0,111,641,1116,943, 942,841,1019,1000,1097,1046,1303,1230,1118,1299,1493,1114,
+                                         1246,787,840,680,791,859,930,799,746,746,749],
+          years: [[0, "2024", null], [7, "2025", null], [19, "2026", "▼23%"]], hi: 17, hiC: C.yellow, lo: 28,
+          notes: [[17, "PICO · NOV 2025 · 1.493", C.yellow, 0], [28, "OCT 2026 · 746", C.red, 1]] }];
+      const per = 7, pi = Math.floor(t / per) % 2, tp = t - Math.floor(t / per) * per, P = PAGES[pi];
+      const big = b.h >= 64, n = P.D.length, max = Math.max(...P.D), step = Math.floor((b.w - 8) / n), bw = step - 1;
+      const x0 = (b.w - (n * step - 1)) >> 1, top = big ? 23 : 10, bottom = big ? 52 : 30, hmax = bottom - top + 1;   /* en 64, el renglón 13 es de las notas */
+      const hy = big ? 3 : 1;
+      typed(b, P.name, 2, hy, 1, C.white, tp, 0, 30);
+      if (b.w > 256) text(b, " · VENTAS POR MES", 2 + tw(P.name, 1), hy, 1, mul(C.gray, ease((tp - 0.5) / 0.4)));
+      // a la derecha, cuánto cambió cada año contra el anterior (en 32 no hay fila de ejes: va sólo aquí)
+      const yr = P.years.filter(y => y[2]).map(([, y, p]) => [y + " ", p]);
+      let xx = b.w - 2 - yr.reduce((w, [a, c], k) => w + tw(a, 1) + tw(c, 1) + 2 + (k ? tw(" · ", 1) + 1 : 0), 0);
+      yr.forEach(([a, c], k) => {
+        const f = ease((tp - 1.2) / 0.4);
+        if (k) { text(b, " · ", xx, hy, 1, mul(C.bLav, f)); xx += tw(" · ", 1) + 1; }
+        text(b, a, xx, hy, 1, mul(C.bLav, f)); xx += tw(a, 1) + 1;
+        text(b, c, xx, hy, 1, mul(c[0] === "▲" ? C.bG : C.red, f)); xx += tw(c, 1) + 1;
+      });
+      P.D.forEach((d, i) => {
+        const g = ease((tp - 0.3 - i * 0.04) / 0.25); if (g <= 0) return;
+        const h = Math.max(1, Math.round(hmax * d / max * g)), lit = tp > 2.2;
+        const col = i === n - 1 ? C.white : lit && i === P.hi ? P.hiC : lit && i === P.lo ? C.red : mul(C.bLav, 0.8);
+        rect(b, x0 + i * step, bottom - h + 1, bw, h, col);
+      });
+      P.years.forEach(([i, y, p]) => {                       // el año desde su primer mes y, al lado, cuánto cambió
+        const xm = x0 + i * step, f = ease((tp - 0.6 - i * 0.04) / 0.4);
+        if (!big) { rect(b, xm, 31, 1, 1, mul(C.bLav, 0.6)); return; }
+        rect(b, xm, 54, 1, 2, mul(C.bLav, 0.6));
+        text(b, y, xm, 57, 1, mul(C.bLav, f));
+        if (p) text(b, p, xm + tw(y, 1) + 4, 57, 1, mul(p[0] === "▲" ? C.bG : C.red, f));
+      });
+      if (big) P.notes.forEach(([i, lab, c, row]) => {         // en su renglón: la primera a la izquierda de su barra, la segunda al margen derecho
+        const f = ease((tp - 2.4 - row * 0.4) / 0.4); if (f <= 0) return;
+        const xb = x0 + i * step, y = 13, x = row ? rx(b, lab, 1) : Math.max(2, xb - tw(lab, 1) - 4);
+        text(b, lab, x, y, 1, mul(c, f));
+      });
     } },
     // Los «primeros»: Cencosud y Finandina son ejemplos de lo que viene (Finandina no tiene solicitudes en prod, 2026-11-25)
     { id: "go-live", group: "Negocio", label: "En vivo", voice: "¡Cencosud ya está en vivo! ¡Vámola!", sound: () => { pip(784, 100); pip(988, 100, .12); pip(1175, 100, .24); pip(1568, 300, .36); }, draw(b, t) {
