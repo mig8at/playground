@@ -27,48 +27,60 @@ const amount = computed(() => parseInt(digits(state.monto)) || 0)
 </script>
 
 <template>
+  <!-- Tres grupos, en el orden en que pesan en la decisión: lo que pide, de qué vive y qué dice el buró. Cada campo es una
+       fila de rótulo y control compacto (28), como las preferencias de VS Code: en 300 de ancho se lee de un vistazo. -->
   <div class="client-form">
-    <label class="cf-field cf-wide"><span class="label">Monto</span>
-      <input class="input" inputmode="numeric" :value="money(amount)" @change="e => setAmount(e.target.value)" /></label>
-    <label class="cf-field cf-wide" :title="'Sale de ' + profile.salarioFuente + '. Al editarlo se escribe como el de Ágil Data, que es el primero de la cascada.'">
-      <span class="label">Ingreso <small>{{ profile.salarioFuente }}</small></span>
-      <input class="input" inputmode="numeric" :value="money(profile.salario)" @change="e => setIncome(e.target.value)" /></label>
-    <label class="cf-field cf-wide"><span class="label">Ocupación</span>
-      <span class="select"><select class="input" :value="profile.employment ?? ''" @change="e => setBureau('employment', e.target.value, false)">
-        <option v-for="[k, t] in EMP" :key="k" :value="k">{{ t }}</option>
-      </select></span></label>
-    <label class="cf-field cf-wide"><span class="label">Continuidad laboral</span>
-      <span class="select"><select class="input" :value="bureau.agilContinuity ?? ''" @change="e => setBureau('agilContinuity', e.target.value, false)">
-        <option v-for="[k, t] in CONT" :key="k" :value="k">{{ t }}</option>
-      </select></span></label>
-    <label class="cf-field"><span class="label">Edad</span>
-      <input class="input" type="number" :value="profile.edad ?? ''" @change="e => setBureau('edad', e.target.value)" /></label>
-    <label class="cf-field"><span class="label">Score</span>
-      <input class="input" type="number" :value="profile.score ?? ''" @change="e => setBureau('score', e.target.value)" /></label>
-    <label class="cf-field"><span class="label">Negativos 12m</span>
-      <input class="input" type="number" :value="profile.negatives12m ?? ''" @change="e => setBureau('negatives12m', e.target.value)" /></label>
-    <label class="cf-field"><span class="label">Documento</span>
-      <span class="select"><select class="input" :value="state.tipoDoc" @change="e => setDocumentType(e.target.value)">
+    <div class="cf-group">Solicitud</div>
+    <label class="cf-row"><span class="cf-label">Monto</span>
+      <input class="input input-sm" inputmode="numeric" :value="money(amount)" @change="e => setAmount(e.target.value)" /></label>
+    <label class="cf-row"><span class="cf-label">Documento</span>
+      <span class="select"><select class="input input-sm" :value="state.tipoDoc" @change="e => setDocumentType(e.target.value)">
         <option v-for="d in documentTypes" :key="d" :value="d">{{ d }}</option>
       </select></span></label>
-    <label class="cf-field cf-wide" title="Lo que paga por mes en cuotas de las deudas que ya tiene (Experian). La capacidad de Finandina lo descuenta.">
-      <span class="label">Cuotas que ya paga</span>
-      <input class="input" inputmode="numeric" :value="money(bureau.monthlyDebtPayment ?? 0)" @change="e => setBureau('monthlyDebtPayment', digits(e.target.value) || 0)" /></label>
-    <label class="cf-field cf-wide" title="Si tuvo un crédito de al menos el mínimo de la entidad. Sin experiencia, Finandina topa el monto.">
-      <span class="label">Experiencia crediticia</span>
-      <span class="select"><select class="input" :value="bureau.creditExperience === false ? 'no' : 'si'" @change="e => setBureau('creditExperience', e.target.value === 'si', false)">
-        <option value="si">Sí</option><option value="no">No</option>
+    <label class="cf-row"><span class="cf-label">Edad</span>
+      <input class="input input-sm" type="number" :value="profile.edad ?? ''" @change="e => setBureau('edad', e.target.value)" /></label>
+
+    <div class="cf-group">Ingreso y empleo</div>
+    <label class="cf-row" :title="'Sale de ' + profile.salarioFuente + '. Al editarlo se escribe como el de Ágil Data, que es el primero de la cascada.'">
+      <span class="cf-label">Ingreso<small>{{ profile.salarioFuente }}</small></span>
+      <input class="input input-sm" inputmode="numeric" :value="money(profile.salario)" @change="e => setIncome(e.target.value)" /></label>
+    <label class="cf-row"><span class="cf-label">Ocupación</span>
+      <span class="select"><select class="input input-sm" :value="profile.employment ?? ''" @change="e => setBureau('employment', e.target.value, false)">
+        <option v-for="[k, t] in EMP" :key="k" :value="k">{{ t }}</option>
+      </select></span></label>
+    <label class="cf-row"><span class="cf-label">Continuidad</span>
+      <span class="select"><select class="input input-sm" :value="bureau.agilContinuity ?? ''" @change="e => setBureau('agilContinuity', e.target.value, false)">
+        <option v-for="[k, t] in CONT" :key="k" :value="k">{{ t }}</option>
+      </select></span></label>
+    <label class="cf-row" title="Lo que paga por mes en cuotas de las deudas que ya tiene (Experian). La capacidad de Finandina lo descuenta.">
+      <span class="cf-label">Cuotas que paga</span>
+      <input class="input input-sm" inputmode="numeric" :value="money(bureau.monthlyDebtPayment ?? 0)" @change="e => setBureau('monthlyDebtPayment', digits(e.target.value) || 0)" /></label>
+
+    <div class="cf-group">Buró</div>
+    <label class="cf-row"><span class="cf-label">Score</span>
+      <input class="input input-sm" type="number" :value="profile.score ?? ''" @change="e => setBureau('score', e.target.value)" /></label>
+    <label class="cf-row"><span class="cf-label">Negativos 12m</span>
+      <input class="input input-sm" type="number" :value="profile.negatives12m ?? ''" @change="e => setBureau('negatives12m', e.target.value)" /></label>
+    <label class="cf-row" title="Si tuvo un crédito de al menos el mínimo de la entidad. Sin experiencia, Finandina topa el monto.">
+      <span class="cf-label">Experiencia</span>
+      <span class="select"><select class="input input-sm" :value="bureau.creditExperience === false ? 'no' : 'si'" @change="e => setBureau('creditExperience', e.target.value === 'si', false)">
+        <option value="si">Con experiencia</option><option value="no">Sin experiencia</option>
       </select></span></label>
   </div>
 </template>
 
 <style scoped>
-/* Dos columnas: lo corto (edad, score, negativos, documento) de a dos; lo largo, a lo ancho. `.cf-field` y no `.field`:
-   el `.field` de Flow va en fila (lo usan los nodos). */
-.client-form { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3) var(--space-2); }
-.cf-field { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
-.cf-wide { grid-column: 1 / -1; }
-.cf-field .label { display: flex; justify-content: space-between; gap: var(--space-2); }
-.cf-field .label small { font-weight: 400; color: var(--fg-3); font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cf-field .input { width: 100%; font-variant-numeric: tabular-nums; }
+/* `.cf-row` y no `.field`: el `.field` de Flow va en fila con otra forma (lo usan los nodos). */
+.client-form { display: flex; flex-direction: column; gap: var(--space-1); }
+.cf-group { margin: var(--space-2) 0 2px; font-size: var(--text-xs); font-weight: 600; color: var(--fg-3); }
+.cf-group:first-child { margin-top: 0; }
+.cf-row { display: grid; grid-template-columns: minmax(0, 42%) minmax(0, 1fr); align-items: center; gap: var(--space-2); min-height: var(--control-sm); }
+.cf-label { display: flex; flex-direction: column; min-width: 0; font-size: var(--text-sm); color: var(--fg-2); line-height: 1.25; }
+.cf-label small { font-size: var(--text-xs); color: var(--fg-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cf-row .input { width: 100%; font-variant-numeric: tabular-nums; }
+/* En oscuro, el borde del tema (`--input`) casi no se separa del panel y los campos se leían como texto: un relleno
+   tenue de la tinta los marca como editables en los dos temas, sin color propio. */
+.cf-row .input { background: color-mix(in oklab, var(--foreground) 4%, transparent); border-color: color-mix(in oklab, var(--foreground) 12%, transparent); }
+.cf-row .input:hover { border-color: color-mix(in oklab, var(--foreground) 24%, transparent); }
+.cf-row .select { width: 100%; }
 </style>

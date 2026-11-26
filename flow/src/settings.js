@@ -13,8 +13,9 @@ const s = load()
 export const settings = reactive({
   // compat: si venías con alguno de los 3 checks viejos prendidos, arranca revelando
   showExtra: !!(s.showExtra ?? (s.showUnused || s.showBusiness || s.showServicing)),
-  // La vista: 'graph' (el grafo de una entidad) o 'table' (todas las entidades lado a lado, paso por paso).
-  view: s.view === 'table' ? 'table' : 'graph',
+  // La vista: 'table' (todas las entidades lado a lado, paso por paso) es LA vista de Flow; 'graph' (el grafo de una
+  // entidad) se asoma desde el botón del pie y no se recuerda: Flow siempre abre en la tabla (decisión de Miguel, 2026-11-26).
+  view: 'table',
 })
 
 function apply() {
@@ -24,5 +25,5 @@ apply() // sincrónico al importar → sin parpadeo al cargar
 
 watch(settings, () => {
   apply()
-  try { localStorage.setItem('flow-settings', JSON.stringify({ showExtra: settings.showExtra, view: settings.view })) } catch {}
+  try { localStorage.setItem('flow-settings', JSON.stringify({ showExtra: settings.showExtra })) } catch {}
 }, { deep: true })

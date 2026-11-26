@@ -79,6 +79,7 @@ body { font-family: var(--font-sans); color: var(--ink); overflow: hidden; }
 .editor { display: flex; flex-direction: column; }
 .canvas { flex: 1; min-height: 0; overflow: hidden; position: relative; padding: 0; }
 .flow-reset--armed, .flow-reset--armed:hover { background: var(--red); color: var(--badge-fg); }
+.flow-head-meta { margin-left: var(--space-2); font-weight: 400; font-size: var(--text-xs); color: var(--fg-3); }
 .flow-saved { display: inline-flex; align-items: center; gap: 4px; color: var(--green); }
 .vue-flow { background: var(--panel-surface, var(--background)); }
 

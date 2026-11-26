@@ -29,24 +29,26 @@ de vez en cuando y **no tiene que seguir al código al pie de la letra**. Lo que
 
 ## La ventana (2026-11-26): el workbench de la base
 
-- **Sidebar «Escenario»** (`ScenarioSidebar.vue`), a la izquierda y para las dos vistas: el comercio y la sucursal, las
-  **entidades** (elegir una acá es lo mismo que en «Entidades disponibles»; el punto dice si sale en el listado), el
-  **cliente** (`ClientForm.vue`: monto, ingreso, ocupación, continuidad, edad, score, negativos, documento, cuotas que ya
-  paga y experiencia) y la **leyenda**, que antes flotaba sobre el lienzo. Secciones plegables (`<details>`), guardadas
-  en `flow.sidebar-sections`.
-- **Editor**: las pestañas «Grafo | Tabla» son su banda; en el grafo, a la derecha, Encuadrar, mostrar lo que no
-  participa y Reiniciar.
-- **Sidebar secundario**: el detalle de un campo o nodo del grafo (`FieldInfoPanel.vue`) o la calculadora de la celda de
-  la tabla (teletransportada al `.workbench` desde `TableView.vue`). Aparece con lo elegido y se cierra con su ✕ o Esc;
+- **La vista es la tabla.** Flow abre siempre en ella; el **grafo** se asoma desde el botón del pie (icono de flujo) y se
+  cierra con su ✕ o el mismo botón. No se recuerda: al recargar vuelve a la tabla (decisión de Miguel, 2026-11-26).
+- **Sidebar «Escenario»** (`ScenarioSidebar.vue`): en la banda, el comercio y la sucursal; abajo, grupos plegables con el
+  encabezado de grupo de la base (se pegan arriba al scrollear), guardados en `flow.sidebar-sections`:
+  - **Entidades**: chip del riel, nombre, riel · producto y si sale («sale» / «no sale»). Elegir una acá es lo mismo que
+    en la cabecera de la tabla o en el grafo.
+  - **Cliente** (`ClientForm.vue`), en tres grupos con rótulo y campo compacto: Solicitud (monto, documento, edad),
+    Ingreso y empleo (ingreso, ocupación, continuidad, cuotas que ya paga) y Buró (score, negativos, experiencia).
+  - **Leyenda del grafo**, sólo con el grafo a la vista.
+- **Sidebar secundario**: la calculadora de la celda de la tabla (teletransportada al `.workbench` desde `TableView.vue`)
+  o el detalle de un campo o nodo del grafo (`FieldInfoPanel.vue`). Aparece con lo elegido y se cierra con su ✕ o Esc;
   su manija ajusta el ancho pero no lo pliega.
-- **Pie**: la entidad elegida, «escenario guardado» y el botón del sidebar. El tema sigue siendo de Cockpit: el botón del
-  tema está oculto y existe para que `bindThemeToggle` escuche a Cockpit y ponga al lado el botón del panel «Claude».
+- **Pie**: la entidad elegida, «escenario guardado», el botón del grafo, el del sidebar y el del panel «Claude». El tema
+  sigue siendo de Cockpit: el botón del tema está oculto y existe para que `bindThemeToggle` escuche a Cockpit.
 - Las medidas (`flow.sidebar-w`, `flow.sidebar-open`, `flow.auxiliarybar-w`) se guardan; lo que se pinta se deriva con
   `fitRegions` en `App.vue`.
 
-## Dos vistas: Grafo y Tabla
+## Dos vistas: Tabla y Grafo
 
-Arriba, «Grafo | Tabla» (o `bin/flow view table`), guardado en `flow-settings`. El **grafo** cuenta UNA entidad, nodo por
+La tabla es la de siempre; el grafo, desde el pie (o `bin/flow view graph|table`). El **grafo** cuenta UNA entidad, nodo por
 nodo. La **tabla** (`src/TableView.vue`, 2026-11-25) pone el mismo cliente contra todas las entidades: una fila por paso de
 la solicitud y una columna por entidad, y cada celda dice si pasa (verde), si se corta (rojo), si sigue con probabilidad
 baja (ámbar) o si no le aplica. Al abrir una celda sale, a la derecha, la «calculadora» del paso; el cliente se edita en el

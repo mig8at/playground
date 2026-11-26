@@ -1,16 +1,16 @@
 <script setup>
 import { computed, reactive, watch } from 'vue'
 import { customLenders, merchant, lenders, ui, selectOffer, editTick, RT_LABEL } from './store'
+import { settings } from './settings'
 import { readPref, savePref } from './workbench.js'
 import ClientForm from './ClientForm.vue'
 
-// El sidebar de Flow (`sidebar` de la base, 2026-11-26): el ESCENARIO que se simula, y lo que se cambia para ver qué pasa.
-// Tres secciones plegables (`<details>`, porque se pliegan dentro de un cuerpo que scrollea): las entidades del comercio
-// —elegir una acá es lo mismo que en «Entidades disponibles» del grafo—, el cliente y la leyenda del grafo, que antes
-// flotaba sobre el lienzo.
-const open = reactive({ lenders: true, client: true, legend: false, ...readPref('flow.sidebar-sections', {}) })
+// El sidebar de Flow (`sidebar` de la base): el ESCENARIO que se simula y lo que se cambia para ver qué pasa. En la banda,
+// el comercio y la sucursal; abajo, grupos que se pliegan con el encabezado de grupo de la base (`region-head group`, que
+// se pega arriba al scrollear): las entidades —elegir una acá es lo mismo que en la cabecera de la tabla o en el grafo—,
+// el cliente y, sólo con el grafo a la vista, su leyenda. (Rediseñado el 2026-11-26.)
+const open = reactive({ lenders: true, client: true, legend: true, ...readPref('flow.sidebar-sections', {}) })
 watch(open, () => savePref('flow.sidebar-sections', { ...open }), { deep: true })
-const onToggle = (key, e) => { open[key] = e.target.open }
 
 const rows = computed(() => {
   editTick.n // dependencia: recalcula al editar el cliente
@@ -25,44 +25,48 @@ function choose(name) { if (ui.selected === name) ui.selected = null; else selec
 </script>
 
 <template>
-  <div class="region-head">
-    <span>Escenario</span>
+  <div class="region-head sc-head" :title="'Comercio y sucursal de la simulación: los carga bin/flow import'">
+    <span class="sc-head__name"><span class="ui-icon" data-icon="merchant" aria-hidden="true"></span><span>{{ merchant.nombre || 'Sin comercio' }}</span></span>
+    <span class="sc-head__branch">{{ merchant.sucursal }}</span>
   </div>
-  <div class="region-body scenario">
-    <div class="scenario-merchant" :title="'Comercio y sucursal de la simulación (los carga bin/flow import)'">
-      <span class="ui-icon" data-icon="merchant" aria-hidden="true"></span>
-      <span class="scenario-merchant__name">{{ merchant.nombre || 'Sin comercio' }}</span>
-      <span class="scenario-merchant__branch">{{ merchant.sucursal }}</span>
+  <div class="region-body sc">
+    <!-- Entidades -->
+    <button type="button" class="region-head group sc-group" :aria-expanded="open.lenders" @click="open.lenders = !open.lenders">
+      <span>Entidades</span>
+      <span class="count" :title="okCount + ' de ' + rows.length + ' salen en el listado'">{{ okCount }} / {{ rows.length }}</span>
+      <span class="ui-icon sc-chev" data-icon="down" aria-hidden="true"></span>
+    </button>
+    <div v-show="open.lenders" class="sc-body sc-body--list">
+      <p v-if="!rows.length" class="sc-hint">No hay entidades. Se cargan por consola con
+        <code>bin/flow import --branch … --lender …</code></p>
+      <div v-else role="listbox" aria-label="Entidades del comercio">
+        <button v-for="r in rows" :key="r.name" type="button" role="option" class="row sc-lender"
+          :class="{ on: ui.selected === r.name }" :aria-selected="ui.selected === r.name" :title="r.name + ': ' + r.reason"
+          @click="choose(r.name)">
+          <b class="lg__chip" :class="'rt' + r.rt">rt{{ r.rt }}</b>
+          <span class="sc-lender__text">
+            <span class="sc-lender__name">{{ r.name }}</span>
+            <span class="sc-lender__desc">{{ RT_LABEL[r.rt] }} · {{ r.product }}</span>
+          </span>
+          <i class="sc-lender__state" :class="r.ok ? 'is-ok' : 'is-bad'">{{ r.ok ? 'sale' : 'no sale' }}</i>
+        </button>
+      </div>
     </div>
 
-    <details class="accordion-item scenario-sec" :open="open.lenders" @toggle="onToggle('lenders', $event)">
-      <summary class="accordion-trigger"><span>Entidades <span class="count">{{ okCount }} / {{ rows.length }}</span></span><span class="ui-icon accordion-chev" data-icon="down" aria-hidden="true"></span></summary>
-      <div class="accordion-content">
-        <p v-if="!rows.length" class="scenario-hint">No hay entidades. Se cargan por consola:
-          <code>bin/flow import --branch … --lender …</code></p>
-        <div v-else role="listbox" aria-label="Entidades del comercio">
-          <button v-for="r in rows" :key="r.name" type="button" role="option" class="row lender-row"
-            :class="{ on: ui.selected === r.name }" :aria-selected="ui.selected === r.name" :title="r.name + ' · ' + r.reason"
-            @click="choose(r.name)">
-            <b class="lg__chip" :class="'rt' + r.rt">rt{{ r.rt }}</b>
-            <span class="lender-row__text">
-              <span class="lender-row__name">{{ r.name }}</span>
-              <span class="row-desc">{{ RT_LABEL[r.rt] }} · {{ r.product }}</span>
-            </span>
-            <i class="lender-row__dot" :class="r.ok ? 'is-ok' : 'is-bad'" role="img" :aria-label="r.ok ? 'sale' : 'no sale'"></i>
-          </button>
-        </div>
-      </div>
-    </details>
+    <!-- Cliente -->
+    <button type="button" class="region-head group sc-group" :aria-expanded="open.client" @click="open.client = !open.client">
+      <span>Cliente</span>
+      <span class="ui-icon sc-chev" data-icon="down" aria-hidden="true"></span>
+    </button>
+    <div v-show="open.client" class="sc-body"><ClientForm /></div>
 
-    <details class="accordion-item scenario-sec" :open="open.client" @toggle="onToggle('client', $event)">
-      <summary class="accordion-trigger"><span>Cliente</span><span class="ui-icon accordion-chev" data-icon="down" aria-hidden="true"></span></summary>
-      <div class="accordion-content"><ClientForm /></div>
-    </details>
-
-    <details class="accordion-item scenario-sec" :open="open.legend" @toggle="onToggle('legend', $event)">
-      <summary class="accordion-trigger"><span>Leyenda</span><span class="ui-icon accordion-chev" data-icon="down" aria-hidden="true"></span></summary>
-      <div class="accordion-content legend">
+    <!-- Leyenda: sólo explica el grafo -->
+    <template v-if="settings.view === 'graph'">
+      <button type="button" class="region-head group sc-group" :aria-expanded="open.legend" @click="open.legend = !open.legend">
+        <span>Leyenda del grafo</span>
+        <span class="ui-icon sc-chev" data-icon="down" aria-hidden="true"></span>
+      </button>
+      <div v-show="open.legend" class="sc-body legend">
         <div class="lg"><span class="lg__chip rt2">rt2</span> CreditopX · decide CreditOp</div>
         <div class="lg"><span class="lg__chip rt4">rt4</span> delegada · su política, cierra acá</div>
         <div class="lg"><span class="lg__chip rt1">rt1</span> agregador · decide su API</div>
@@ -74,37 +78,44 @@ function choose(name) { if (ui.selected === name) ui.selected = null; else selec
         <div class="lg"><i class="kv-dot inh-heredada"></i> heredada <i class="kv-dot inh-editada"></i> editada</div>
         <div class="lg"><i class="lg-sw lg-sw--won"></i> categoría gana <i class="lg-sw lg-sw--off"></i> no aplica <i class="lg-sw lg-sw--fail"></i> no cumple</div>
       </div>
-    </details>
+    </template>
   </div>
 </template>
 
 <style scoped>
-.scenario { padding: 0 var(--gutter) var(--space-4); }
-.scenario-merchant { display: flex; align-items: center; gap: var(--space-2); min-height: var(--row-h); padding: var(--space-2) 0;
-  border-bottom: 1px solid var(--border); font-size: var(--text-base); color: var(--fg-2); }
-.scenario-merchant .ui-icon { color: var(--fg-3); }
-.scenario-merchant__name { font-weight: 600; color: var(--foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.scenario-merchant__branch { margin-left: auto; font-size: var(--text-xs); color: var(--fg-3); white-space: nowrap; }
-.scenario-sec .accordion-trigger { align-items: center; font-size: var(--text-sm); font-weight: 600; color: var(--fg-2); }
-.scenario-sec .accordion-trigger:hover { text-decoration: none; color: var(--foreground); }
-.scenario-sec .accordion-trigger .count { margin-left: var(--space-1); }
-.scenario-hint { margin: 0; font-size: var(--text-sm); line-height: 1.5; color: var(--fg-3); }
-.scenario-hint code { font-family: var(--font-mono); font-size: var(--text-xs); }
+/* La banda: el comercio (lo que se está simulando) y la sucursal apagada al borde. */
+.sc-head__name { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--foreground); }
+.sc-head__name .ui-icon { color: var(--fg-3); }
+.sc-head__name > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sc-head__branch { flex: none; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; font-size: var(--text-xs); color: var(--fg-3); }
 
-/* La fila de una entidad: dos renglones (nombre y riel · producto), el chip del riel y un punto de si sale. Las filas
-   de la base llevan 4 de margen afuera; acá el cuerpo ya da el margen, así que van a ras. */
-.lender-row { width: 100%; margin: 0; padding: var(--space-1) var(--space-2); min-height: 40px; border: 0; background: none;
+.sc { padding-bottom: var(--space-4); }
+/* El encabezado de grupo de la base, como botón que pliega: el chevron al final gira cuando se cierra. */
+.sc-group { gap: var(--space-2); padding: 0 var(--gutter); }
+.sc-body + .sc-group { margin-top: var(--space-2); }
+.sc-chev { flex: none; color: var(--fg-3); transition: transform .15s; }
+.sc-group[aria-expanded="false"] .sc-chev { transform: rotate(-90deg); }
+.sc-group .count { margin-left: auto; }
+.sc-body { padding: var(--space-1) var(--gutter) var(--space-2); }
+.sc-body--list { padding: 0 0 var(--space-1); }
+.sc-hint { margin: 0; padding: var(--space-1) var(--gutter); font-size: var(--text-sm); line-height: 1.5; color: var(--fg-3); }
+.sc-hint code { font-family: var(--font-mono); font-size: var(--text-xs); }
+
+/* Una entidad: el chip del riel, nombre y riel · producto en dos renglones, y si sale, en texto y color. La fila es la
+   de la base (con su margen de 4 y la elegida con fondo y barra); el chip y el estado no son `span`, porque la base
+   estira cada `span` de una fila para el nombre. */
+.sc-lender { width: calc(100% - 2 * var(--space-1)); min-height: 40px; padding: var(--space-1) var(--space-2); border: 0; background: none;
   font: inherit; text-align: left; white-space: normal; }
-.lender-row .lg__chip { flex: none; font-weight: 400; }
-/* El chip y el punto no son `span`: la base estira cada `span` de una fila para el nombre. */
-.lender-row__text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
-.lender-row__name { font-size: var(--text-base); color: var(--foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lender-row .row-desc { font-size: var(--text-xs); color: var(--fg-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lender-row.on .lender-row__name, .lender-row.on .row-desc { color: var(--accent-foreground); }
-.lender-row__dot { flex: none; width: 8px; height: 8px; border-radius: 50%; }
-.lender-row__dot.is-ok { background: var(--status-ok); }
-.lender-row__dot.is-bad { background: var(--status-bad); }
+.sc-lender .lg__chip { flex: none; width: 30px; text-align: center; font-weight: 400; }
+.sc-lender__text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.sc-lender__name { font-size: var(--text-base); color: var(--foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sc-lender__desc { font-size: var(--text-xs); color: var(--fg-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sc-lender.on .sc-lender__name, .sc-lender.on .sc-lender__desc { color: var(--accent-foreground); }
+.sc-lender__state { flex: none; font-style: normal; font-size: var(--text-xs); display: inline-flex; align-items: center; gap: 5px; }
+.sc-lender__state::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.sc-lender__state.is-ok { color: var(--status-ok); }
+.sc-lender__state.is-bad { color: var(--status-bad); }
 
 .legend { display: flex; flex-direction: column; gap: var(--space-2); }
-.legend .lg { font-size: var(--text-xs); color: var(--fg-2); flex-wrap: wrap; }
+.legend .lg { flex-wrap: wrap; }
 </style>
