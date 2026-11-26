@@ -1166,6 +1166,15 @@ func main() {
 		}
 		writeJSON(w, http.StatusOK, d)
 	})
+	// GET /api/month — el mes a la fecha contra el mismo tramo del mes anterior (month.go). Una vista: no avisa.
+	mux.HandleFunc("GET /api/month", func(w http.ResponseWriter, r *http.Request) {
+		m, err := month(s.follow.all())
+		if err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, m)
+	})
 	// GET /api/examples?signal=reject:167&minutes=180 — solicitudes de ejemplo de la ventana de una señal (examples.go).
 	mux.HandleFunc("GET /api/examples", func(w http.ResponseWriter, r *http.Request) {
 		sig := r.URL.Query().Get("signal")

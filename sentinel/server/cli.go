@@ -28,7 +28,7 @@ import (
 	"time"
 )
 
-var cliCommands = map[string]bool{"now": true, "day": true, "signal": true, "deploy": true, "ack": true, "schema": true, "cases": true, "rules": true, "verdict": true, "why": true}
+var cliCommands = map[string]bool{"now": true, "day": true, "signal": true, "deploy": true, "ack": true, "schema": true, "cases": true, "rules": true, "verdict": true, "why": true, "month": true}
 
 // cliHelp es lo que dicen `bin/sentinel`, `help`, `-h` y `--help`. No arranca nada ni lee nada.
 const cliHelp = `sentinel — el vigía de producción, por consola. Sólo lee (ack es lo único que escribe, y va por la API).
@@ -42,6 +42,7 @@ const cliHelp = `sentinel — el vigía de producción, por consola. Sólo lee (
   bin/sentinel verdict [--make]             el dictamen de la mañana (el último guardado; --make arma el de hoy, ~30 s)
   bin/sentinel cases <señal> [--hours N]    solicitudes de ejemplo de la señal (lee producción)
   bin/sentinel rules <entidad> [--hours N]  qué regla dura rechaza a la entidad, ahora contra antes (lee producción)
+  bin/sentinel month                        el mes a la fecha contra el mismo tramo del mes anterior, por entidad y comercio (lee producción)
   bin/sentinel schema                       lo que producción tiene y dev ya no: columnas renombradas o borradas
   bin/sentinel ack <señal> [--undo]         reconocer un episodio («ya lo sé»); pide la API arriba
 
@@ -88,6 +89,11 @@ func runCLI(root string, args []string) int {
 	// cases y rules leen producción en el momento (examples.go): no necesitan lo guardado.
 	if cmd == "cases" || cmd == "rules" {
 		out, err := casesOrRules(cmd, positional, *hours)
+		return printOut(out, err, *asJSON)
+	}
+	// month lee producción en el momento (month.go); de lo guardado sólo usa lo que se sigue.
+	if cmd == "month" {
+		out, err := month(openFollowing(filepath.Join(root, "sentinel", ".data")).all())
 		return printOut(out, err, *asJSON)
 	}
 	c, err := openCLI(root)

@@ -297,6 +297,48 @@ async function loadDay() {
   } catch { /* sin la línea del día; lo demás sigue */ }
 }
 let dayTimer = null
+// EL MES A LA FECHA (GET /api/month, lo de `bin/sentinel month`): este mes contra el mismo tramo del anterior, por
+// entidad y por comercio. Es una vista, no una regla: ve la tendencia lenta que la curva de la hora no ve. Lee producción
+// (~5 s, con 30 minutos de caché en el servidor): se pide al abrir y cada 30 minutos.
+const monthData = ref(null)
+async function loadMonth() {
+  try {
+    const res = await fetch('/api/month')
+    if (res.ok) monthData.value = await res.json()
+  } catch { /* sin el mes; lo demás sigue */ }
+}
+let monthTimer = null
+// «+24 %», «−33 %», «×25», «—» si el mes anterior no tuvo: lo mismo que `paceText` del servidor.
+const paceText = (p) => {
+  if (p == null || p < 0) return '—'
+  if (p >= 3) return `×${Math.round(p)}`
+  const d = Math.round((p - 1) * 100)
+  return d > 0 ? `+${d} %` : d < 0 ? `−${-d} %` : 'igual'
+}
+// Bajar 15 % o más en el ritmo se marca; es una vista, así que sólo el color del número.
+const paceClass = (p) => (p != null && p >= 0 && p <= 0.85 ? 'pace-down' : '')
+const monthRows = computed(() => {
+  const m = monthData.value
+  if (!m) return null
+  return {
+    total: m.total,
+    lenders: (m.lenders || []).filter((x) => x.followed),
+    merchants: (m.merchants || []).filter((x) => x.followed),
+    span: `del ${dayMonth(m.from)} al ${dayMonth(m.now)}, contra el ${dayMonth(m.prevFrom)} al ${dayMonth(m.prevTo)}`,
+  }
+})
+const dayMonth = (iso) => { const d = new Date(iso); return `${d.getDate()}/${d.getMonth() + 1}` }
+// El mes de lo elegido (una entidad o un comercio), para el renglón de su detalle.
+const selectedMonth = computed(() => {
+  const m = monthData.value
+  const r = route.value
+  if (!m || (r.kind !== 'lender' && r.kind !== 'merchant')) return null
+  return (r.kind === 'lender' ? m.lenders : m.merchants)?.find((x) => x.signal === `${r.kind}:${r.id}`) || null
+})
+function pickMonth(x) {
+  const [kind, id] = x.signal.split(':')
+  location.hash = `#/${kind}/${id}`
+}
 const DAY_ROW = 26 // la etiqueta arriba de su barra, sin pisar la de la fila anterior
 const timeline = computed(() => {
   const d = day.value
@@ -475,9 +517,12 @@ onMounted(() => {
   load().then(schedule)
   loadDay()
   dayTimer = setInterval(loadDay, 600_000)
+  loadMonth()
+  monthTimer = setInterval(loadMonth, 1_800_000)
 })
 onBeforeUnmount(() => {
   clearInterval(dayTimer)
+  clearInterval(monthTimer)
   window.removeEventListener('resize', onWindowResize)
   window.removeEventListener('hashchange', readRoute)
   window.removeEventListener('popstate', readRoute)
@@ -560,6 +605,9 @@ onBeforeUnmount(() => {
           <p v-if="selected.shift" class="note">{{ shiftText(selected) }}</p>
           <p v-if="selected.explain" class="note why-note"><b>Por qué (hipótesis del modelo, al pasar a alerta):</b> {{ selected.explain }}</p>
           <p v-if="selected.stake && selected.stake.share < 1" class="note">Mueve {{ sharePct(selected.stake.share) }} de lo desembolsado en los últimos 28 días (~{{ money(selected.stake.perDay) }} por día, {{ selected.stake.count }} créditos): es lo que se deja de colocar si esto se cae.</p>
+          <p v-if="selectedMonth" class="note">En el mes ({{ monthRows?.span }}): {{ selectedMonth.req.toLocaleString('es-CO') }} solicitudes contra {{ selectedMonth.reqPrev.toLocaleString('es-CO') }}
+            (<span :class="paceClass(selectedMonth.reqPace)">{{ paceText(selectedMonth.reqPace) }}</span>) y {{ selectedMonth.disb.toLocaleString('es-CO') }} desembolsos contra {{ selectedMonth.disbPrev.toLocaleString('es-CO') }}
+            (<span :class="paceClass(selectedMonth.disbPace)">{{ paceText(selectedMonth.disbPace) }}</span>), {{ money(selectedMonth.amount) }}. El porcentaje es el ritmo: cuenta los días hábiles y de descanso de cada mes.</p>
 
           <div class="cards">
             <div class="card-num"><span class="card-label">{{ spanLabel(selected) }}</span><span class="card-value">{{ selected.now.total }}</span>
@@ -689,6 +737,27 @@ onBeforeUnmount(() => {
               </tbody>
             </table>
             <p class="chart-note">De la base: de las que entraron, cuántas se perfilaron, y de esas, cuántas eligieron entidad (la primera vez de cada solicitud), contra lo normal de esta hora. Que entren igual y se queden en una etapa es lo que el volumen no ve.</p>
+          </section>
+
+          <section v-if="selected.kind === 'all' && monthRows" class="steps-box month-box" aria-label="El mes a la fecha">
+            <h3>El mes a la fecha</h3>
+            <div class="month-scroll"><table class="table steps">
+              <thead><tr><th>Lo que seguís</th><th class="num">Solicitudes <small class="muted">este · anterior</small></th><th class="num">Ritmo</th>
+                <th class="num">Desembolsos <small class="muted">este · anterior</small></th><th class="num">Ritmo</th></tr></thead>
+              <tbody>
+                <template v-for="g in [{ title: '', rows: [monthRows.total] }, { title: 'Entidades', rows: monthRows.lenders }, { title: 'Comercios', rows: monthRows.merchants }]" :key="g.title">
+                  <tr v-if="g.title && g.rows.length" class="month-group"><th colspan="5" scope="colgroup">{{ g.title }}</th></tr>
+                  <tr v-for="x in g.rows" :key="x.signal" @click="x.signal.includes(':production') ? pick(null) : pickMonth(x)">
+                    <td>{{ x.name }}</td>
+                    <td class="num">{{ x.req.toLocaleString('es-CO') }} <span class="muted">· {{ x.reqPrev.toLocaleString('es-CO') }}</span></td>
+                    <td class="num" :class="paceClass(x.reqPace)">{{ paceText(x.reqPace) }}</td>
+                    <td class="num">{{ x.disb.toLocaleString('es-CO') }} <span class="muted">· {{ x.disbPrev.toLocaleString('es-CO') }}</span></td>
+                    <td class="num" :class="paceClass(x.disbPace)"><b>{{ paceText(x.disbPace) }}</b></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table></div>
+            <p class="chart-note">De producción, {{ monthRows.span }} a la misma hora. El ritmo divide por los días de cada tramo (un día de descanso pesa {{ String(monthData?.restWeight ?? '').replace('.', ',') }}): un mes con más festivos no se ve como caída. Es una vista, no avisa; lo que ella ve y la curva no es una tendencia lenta. Todo, con <code>bin/sentinel month</code>.<template v-if="monthData?.note"> ⚠ {{ monthData.note }}</template></p>
           </section>
 
           <section v-if="lenderReject" class="chart-box lender-reject">
@@ -1065,6 +1134,10 @@ h3 { margin: 0; font-size: var(--text-xs); font-weight: 600; color: var(--fg-3);
 .steps tbody tr { cursor: pointer }
 .steps tbody tr:hover td { background: var(--hover) }
 .steps td, .steps th { white-space: nowrap }
+.month-scroll { overflow-x: auto }
+.month-box .table { font-variant-numeric: tabular-nums }
+.month-group th { text-align: left; color: var(--fg-2); font-weight: 600; padding-top: var(--space-2) }
+.pace-down { color: var(--status-bad) }
 .chart .deploy-mark line { stroke: var(--status-warn); stroke-width: 1.5; stroke-dasharray: 2 3 }
 .chart .deploy-mark text { fill: var(--status-warn); font-size: 10px }
 .examples { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px }

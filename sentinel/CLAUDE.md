@@ -33,6 +33,7 @@ un agente para que resuma.
 | `bin/sentinel ack <señal> [--undo]` | reconoce un episodio («ya lo sé»): pasa de «Pide atención» a «Conocidos» hasta que se cierra o EMPEORA. Va por la API (`POST/DELETE /api/ack`), porque el avisador vive ahí; en la interfaz, «Reconocer» y «Devolver» |
 | `bin/sentinel cases <señal> [--hours N]` · `bin/sentinel rules <entidad> [--hours N]` | solicitudes de ejemplo de la señal (con su enlace a tracer) · qué regla dura rechaza a la entidad, ahora contra antes (§«De la señal al caso»). Leen producción, no lo guardado |
 | `bin/sentinel verdict [--make]` · `bin/sentinel why <señal>` | el dictamen de la mañana (el último guardado; `--make` arma el de hoy ya, ~30 s) · el porqué de una señal ahora, como hipótesis, sin guardar ni avisar (§«El dictamen y el porqué») |
+| `bin/sentinel month` | **el mes a la fecha**: este mes contra el mismo tramo del anterior (hasta la misma hora del mismo día), toda la originación, lo que se sigue y las 10 entidades y comercios que más desembolsan: solicitudes, desembolsos, el ritmo de cada uno y lo desembolsado. Una vista, no avisa (§«El mes a la fecha»). Lee producción, ~5 s |
 | `bin/sentinel schema` | **la deriva de esquema**: lo que producción tiene y la base de dev/qa/staging ya NO (columnas renombradas o borradas por una migración que corrió en dev: lo que un servicio desplegado puede estar leyendo, como el `countries.cell_phone_lenght` del 18/11/2026), los cambios de tipo y las migraciones de dev que producción no corrió, con las que por el nombre renombran o borran. Sin respaldos, temporales ni vistas `VW_`. ~5 s, sólo lectura (`server/schema.go`) |
 | `bin/sentinel deploy <repo> [versión] [--hours 2]` | **¿se dañó algo después de un despliegue?** Las horas de después contra las mismas de antes y contra esa franja en los días comparables, en TODAS las señales: errores que subieron, solicitudes que cayeron (con piso de volumen), servicios que se callaron. Sin versión, el último a producción del repo (GitHub). Que algo empeore después no prueba que lo causó: dos repos que se despliegan juntos se ven igual |
 
@@ -64,6 +65,28 @@ Su salida queda en `~/Library/Logs/sentinel.log`.
   o la VPN de producción caída dejan un hueco que la pasada siguiente llena entero.
 - **Al abrir hay datos de entrada.** La última vista se guarda en `sentinel/.data/last.json`; al arrancar la API la
   sirve marcada `stale` («lo guardado de las HH:MM; leyendo lo de ahora…») hasta que termina la primera pasada.
+
+## El mes a la fecha (`server/month.go`)
+
+Lo que la curva de la hora no ve: una **tendencia lenta**. Un comercio que coloca un tercio menos en el mes no tiene
+ni una hora fuera de lo normal, porque lo normal son los últimos 14 días y ya incluyen la caída. Idea de Miguel
+(2026-11-26): con poco tráfico, el mes contra el mes anterior se lee mejor. Medido ese día, del 1 al 26 de noviembre
+contra el 1 al 26 de octubre: DENTIX 83 desembolsos contra 123 (−33 %), Crédito Directo 144 contra 194, Credifamilia
+136 contra 220, todos sin una alerta; CrediPullman ×2 y Mario Hernández de 5 a 123.
+
+- **Es una vista, no una regla**: no avisa ni entra a «Pide atención». Avisar con el mes llegaría tarde (una caída de
+  tres horas casi no mueve el acumulado) y lo que se ve en el mes ya pasó a ser lo normal de la hora.
+- **Las dos ventanas terminan en el mismo instante**: del 1 a ahora contra el 1 del mes anterior al mismo día y hora
+  (el 31 de un mes corto cae a su último día). Lee producción en el momento (Redash, ~5 s, 30 minutos de caché): lo
+  guardado son 28 días y no alcanza el mes anterior. Sólo comercios de Colombia, como la plata en juego.
+- **El ritmo cuenta los días**: lo de cada ventana dividido por sus días, donde un hábil pesa 1 y uno de descanso
+  `restDayWeight` (0,55, el festivo del 16/11/2026: 739 solicitudes contra 1.341), y el de hoy sólo lo que lleva. Así
+  un mes con más festivos no se ve como caída. Los conteos van crudos al lado.
+- ⚠ **Diciembre contra noviembre se va a ver mal**: noviembre trae el Black Friday (en 2025 Pullman entró ×2,4 esos
+  cinco días). Ahí sirve más el mismo mes del año anterior, que todavía no está.
+- **Dónde se ve**: en la interfaz, la tabla «El mes a la fecha» debajo del embudo, en la vista de toda la originación
+  (toda la originación y lo que se sigue; tocar una fila lleva a su detalle), y un renglón en el detalle de cada entidad
+  o comercio. Un ritmo que baja 15 % o más va en rojo. `GET /api/month`, `bin/sentinel month [--json]`.
 
 ## Los servicios en producción (`server/services.go`)
 
@@ -399,6 +422,7 @@ modelo supera al otro, se registra y se borra»): `-forecaster chronos` pide vol
 | el embudo del backend (`funnel:`) | `server/funnel.go` |
 | el dictamen de la mañana y el porqué de una alerta | `server/verdict.go` |
 | la plata en juego (lo desembolsado por entidad y comercio) | `server/stake.go` |
+| el mes a la fecha contra el anterior | `server/month.go` |
 | los servicios en producción: versión y tarjetas | `server/services.go` |
 | el LaunchAgent (de fondo) | `server/agent.go` |
 | los despliegues a producción | `go run ./tablero/server/cmd/deploys -json` (lo mismo que `make deploys`) |
