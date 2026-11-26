@@ -630,6 +630,10 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
              "ggwwgwwggggg", "gggwwwgggggg", "ggggwggggggg", "gggggggggggg", "gggggggggggg", ".gggggggggg."],
     heart:  [".ggg...ggg..", "ggggg.ggggg.", "gwggggggggg.", "ggggggggggg.", "ggggggggggg.", ".ggggggggg..",
              "..ggggggg...", "...ggggg....", "....ggg.....", ".....g......", "............", "............"],
+    gear:   ["....kkkk....", ".kk.kkkk.kk.", ".kkkkkkkkkk.", "..kkk..kkk..", "kkkk....kkkk", "kkk......kkk",
+             "kkk......kkk", "kkkk....kkkk", "..kkk..kkk..", ".kkkkkkkkkk.", ".kk.kkkk.kk.", "....kkkk...."],
+    target: ["...gggggg...", "..g......g..", ".g..gggg..g.", "g..g....g..g", "g.g..ww..g.g", "g.g.wwww.g.g",
+             "g.g.wwww.g.g", "g.g..ww..g.g", "g..g....g..g", ".g..gggg..g.", "..g......g..", "...gggggg..."],
     paper:  ["wwwwwww.....", "w.....ww....", "w.....w.w...", "w.....wwww..", "w.gg.....w..", "w........w..",
              "w.ggggg..w..", "w........w..", "w.gggg...w..", "w........w..", "wwwwwwwwww..", "............"]
   };
@@ -857,10 +861,12 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       // avance de los proyectos en curso (ejemplo): el % lo carga el equipo, no se calcula
       const big = b.h >= 64, rows = [["FINANDINA", 80], ["VTEX", 50], ["SHOPIFY", 90]];
       head(b, "PROYECTOS", C.hDev, "AVANCE", C.gray, t);
-      const ys = big ? [17, 33, 49] : [9, 17, 25], bx = 80, pw = tw("100%", 1), bmax = b.w - 2 - pw - 6 - bx;
+      const ys = big ? [17, 33, 49] : [9, 17, 25], nx = big ? 32 : 18, bx = nx + 66, pw = tw("100%", 1), bmax = b.w - 2 - pw - 6 - bx;
+      const gearC = { k: (t * 2 | 0) % 2 ? [190,195,205] : [140,146,158] };     // el engranaje «trabaja»: parpadea suave
+      art(b, ICONS.gear, 2, big ? 26 : 13, big ? 2 : 1, gearC);
       rows.forEach(([name, p], i) => {
         const y = ys[i], g = ease((t - 0.3 - i * 0.25) / 0.9), v = Math.round(p * g), s = v + "%";
-        text(b, name, 2, y, 1, C.white);
+        text(b, name, nx, y, 1, C.white);
         rect(b, bx, y + 1, bmax, 5, C.bTrack);
         rect(b, bx, y + 1, Math.round(bmax * v / 100), 5, p >= 90 ? C.bG : mul(C.bG, 0.65));
         text(b, s, rx(b, s, 1), y, 1, p >= 90 ? C.bG : C.white);
@@ -890,7 +896,11 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       const big = b.h >= 64, n = fmt(12480 * ease(t / 1.6)), k = big ? 3 : 2, ik = big ? 2 : 1;
       head(b, "APP CREDITOP", C.bLav, "+340 HOY", C.bG, t);
       const y = big ? 20 : 11, x = 2;
-      art(b, ICONS.phone, x, y + ((7 * k - 12 * ik) >> 1), ik, ICON_COLORS);
+      const iy = y + ((7 * k - 12 * ik) >> 1), off = (t * 5 | 0) % 3;
+      art(b, ICONS.phone, x, iy, ik, ICON_COLORS);
+      rect(b, x + 5 * ik, iy + (2 + off) * ik, 2 * ik, 2 * ik, C.white);        // ⬇ la flecha baja por la pantalla
+      rect(b, x + 4 * ik, iy + (4 + off) * ik, 4 * ik, ik, C.white);
+      rect(b, x + 5 * ik, iy + (5 + off) * ik, 2 * ik, ik, C.white);
       text(b, n, x + 12 * ik + 8, y, k, C.white);
       text(b, "DESCARGAS", x + 12 * ik + 8 + tw("12.480", k) + 8, y + 7 * k - 7, 1, C.bLav);
       if (big) text(b, "+2.100 ESTE MES", 2, 54, 1, mul(C.bLav, ease((t - 1.6) / 0.5)));
@@ -1003,16 +1013,17 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         text(b, "312 CREDITOS · LA QUE MAS CRECIO", 2, 22, 1, mul(C.bLav, ease((t - 1) / 0.5)));
       }
     } },
-    { id: "team", group: "Marca CreditOp", label: "Buen trabajo", voice: "Buen trabajo, equipo.", draw(b, t) {
-      const big = b.h >= 64;
-      if (big) {
-        typed(b, "BUEN TRABAJO,", cx(b, "BUEN TRABAJO,", 3), 6, 3, C.white, t, 0.1, 16);
-        typed(b, "EQUIPO!", cx(b, "EQUIPO!", 3), 31, 3, C.bG, t, 1.0, 12);
-        text(b, "14 DEPLOYS ESTA SEMANA · VAMOLA!!!", cx(b, "14 DEPLOYS ESTA SEMANA · VAMOLA!!!", 1), 56, 1, mul(C.bLav, ease((t - 1.8) / 0.5)));
-      } else {
-        typed(b, "BUEN TRABAJO, EQUIPO!", cx(b, "BUEN TRABAJO, EQUIPO!", 2), 4, 2, C.white, t, 0.1, 18);
-        text(b, "14 DEPLOYS ESTA SEMANA", cx(b, "14 DEPLOYS ESTA SEMANA", 1), 23, 1, mul(C.bG, ease((t - 1.4) / 0.5)));
-      }
+    { id: "team", group: "Marca CreditOp", label: "Buen trabajo", voice: "¡Buen trabajo, equipo! 30.000 solicitudes en noviembre. ¡Vámola!", sound: () => { pip(784, 100); pip(988, 100, .12); pip(1175, 100, .24); pip(1568, 300, .36); }, draw(b, t) {
+      // un hito del mes (ejemplo: noviembre de 2026 iba en 30.573 solicitudes al día 25)
+      const big = b.h >= 64, n = fmt(30000 * ease((t - 0.8) / 1.4)), k = big ? 3 : 2, ik = big ? 2 : 1, gap = big ? 8 : 5;
+      const unit = big ? "SOLICITUDES" : "SOLICITUDES EN NOV", nw = tw("30.000", k);
+      const gw = 12 * ik + gap + nw + 6 + tw(unit, 1), x = (b.w - gw) >> 1, y = big ? 24 : 14;
+      if (big) typed(b, "BUEN TRABAJO, EQUIPO!", cx(b, "BUEN TRABAJO, EQUIPO!", 2), 4, 2, C.white, t, 0.1, 20);
+      else typed(b, "BUEN TRABAJO, EQUIPO!", cx(b, "BUEN TRABAJO, EQUIPO!", 1), 3, 1, C.white, t, 0.1, 24);
+      if (t > 0.7) art(b, ICONS.target, x, y + ((7 * k - 12 * ik) >> 1), ik, { g: C.bG, w: C.white });
+      text(b, n, x + 12 * ik + gap, y, k, C.bG);
+      text(b, unit, x + 12 * ik + gap + nw + 6, y + 7 * k - 7, 1, mul(C.bLav, ease((t - 1.2) / 0.5)));
+      if (big) text(b, "EN NOVIEMBRE · VAMOLA!!!", cx(b, "EN NOVIEMBRE · VAMOLA!!!", 1), 54, 1, mul(C.bLav, ease((t - 2) / 0.5)));
     } },
     { id: "idle", group: "Reposo", label: "Hora y clima", draw(b, t) {
       const big = b.h >= 64, now = new Date();
