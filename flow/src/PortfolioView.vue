@@ -7,11 +7,11 @@ import './portfolio.css'
 import { Play, Pause, RotateCcw as Restart } from 'lucide-vue-next'
 import {
   portfolio, SCENARIOS, STATES, ARREARS_BANDS, bandOf, CASCADE, DESTINATIONS, fmt, dateOf,
-  portfolioSim as sim, portfolioUi as pui, portfolioLastDay as lastDay, portfolioToday as today,
+  portfolioSim as sim, portfolioUi as clock, portfolioLastDay as lastDay, portfolioToday as today,
   playPortfolio, stopPortfolio, jumpPortfolio,
 } from './portfolio.js'
 
-const day = computed({ get: () => pui.day, set: (v) => { stopPortfolio(); pui.day = v } })
+const day = computed({ get: () => clock.day, set: (v) => { stopPortfolio(); clock.day = v } })
 
 // La línea de tiempo: el saldo total como área y los eventos como marcas.
 const W = 1000, H = 120, TOP = 8, AREA_H = 74
@@ -46,7 +46,7 @@ const debtTotal = computed(() => debtParts.value.reduce((a, p) => a + p.value, 0
 const dueToday = computed(() => Object.values(today.value.due).reduce((a, b) => a + b, 0))
 
 // El último pago hasta hoy: cómo se repartió y su voucher.
-const lastPayment = computed(() => [...sim.value.events].reverse().find((e) => e.kind === 'payment' && e.day <= pui.day) || null)
+const lastPayment = computed(() => [...sim.value.events].reverse().find((e) => e.kind === 'payment' && e.day <= clock.day) || null)
 const paymentParts = computed(() => {
   const p = lastPayment.value?.parts || {}
   const rows = CASCADE.map((c) => ({ key: c.key, label: c.label, value: p[c.key] || 0, cls: 'pf-c-' + c.key }))
@@ -109,8 +109,8 @@ const RAILS = [
       <div class="region-head group"><span>El reloj</span><span class="count">{{ scenarioLabel }} · la historia y los supuestos se eligen en el sidebar</span></div>
       <div class="pf-pad">
         <div class="pf-clock-head">
-          <button type="button" class="region-action" :title="pui.playing ? 'Pausar' : 'Correr las noches'" :aria-label="pui.playing ? 'Pausar' : 'Correr las noches'" @click="playPortfolio">
-            <Pause v-if="pui.playing" :size="15" /><Play v-else :size="15" /></button>
+          <button type="button" class="region-action" :title="clock.playing ? 'Pausar' : 'Correr las noches'" :aria-label="clock.playing ? 'Pausar' : 'Correr las noches'" @click="playPortfolio">
+            <Pause v-if="clock.playing" :size="15" /><Play v-else :size="15" /></button>
           <button type="button" class="region-action" title="Volver al desembolso" aria-label="Volver al desembolso" @click="jumpPortfolio(0)"><Restart :size="14" /></button>
           <strong>Día {{ today.day }}</strong><span class="count">{{ dateOf(today.date) }} · noche de las 00:30</span>
           <span class="pf-grow"></span>
@@ -121,10 +121,10 @@ const RAILS = [
           <rect v-for="(s, k) in lateSpans" :key="k" :x="xOf(s[0])" :y="TOP" :width="Math.max(2, xOf(s[1]) - xOf(s[0]))" :height="AREA_H" class="pf-late-span" />
           <path :d="areaPath" class="pf-area" />
           <line :x1="xOf(today.day)" :x2="xOf(today.day)" :y1="0" :y2="H" class="pf-now" />
-          <g v-for="(e, k) in sim.events" :key="k" class="pf-mark" :class="[MARK[e.kind], { on: pui.selected === k }]" @click="jumpPortfolio(e.day, k)">
+          <g v-for="(e, k) in sim.events" :key="k" class="pf-mark" :class="[MARK[e.kind], { on: clock.selected === k }]" @click="jumpPortfolio(e.day, k)">
             <title>Día {{ e.day }} · {{ e.text }}</title>
             <rect v-if="e.kind === 'billing'" :x="xOf(e.day) - 1" :y="TOP + AREA_H + 6" width="2" height="9" />
-            <circle v-else :cx="xOf(e.day)" :cy="TOP + AREA_H + (e.kind === 'payment' || e.kind === 'disbursement' ? 24 : 34)" :r="pui.selected === k ? 7 : 5" />
+            <circle v-else :cx="xOf(e.day)" :cy="TOP + AREA_H + (e.kind === 'payment' || e.kind === 'disbursement' ? 24 : 34)" :r="clock.selected === k ? 7 : 5" />
           </g>
         </svg>
         <input v-model.number="day" type="range" min="0" :max="lastDay" step="1" class="pf-range" aria-label="El día">

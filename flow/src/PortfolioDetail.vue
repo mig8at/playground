@@ -3,11 +3,11 @@
 // elección y se cierra con su ✕ o con Esc, como el detalle de la tabla y el del grafo.
 import { computed } from 'vue'
 import './portfolio.css'
-import { portfolioSim as sim, portfolioUi as pui, CASCADE, STATES, fmt, dateOf } from './portfolio.js'
+import { portfolioSim as sim, portfolioUi as clock, CASCADE, STATES, fmt, dateOf } from './portfolio.js'
 
 defineProps({ width: { type: Number, default: 340 } })
 const KIND = { disbursement: 'Desembolso', billing: 'Corte', payment: 'Pago', state: 'Cambio de estado', collection: 'Gasto de cobranza' }
-const event = computed(() => (pui.selected === null ? null : sim.value.events[pui.selected] || null))
+const event = computed(() => (clock.selected === null ? null : sim.value.events[clock.selected] || null))
 const snap = computed(() => (event.value ? sim.value.days[event.value.day] : null))
 const parts = computed(() => {
   const p = event.value?.parts || {}
@@ -18,7 +18,7 @@ const parts = computed(() => {
 })
 const due = computed(() => (snap.value ? CASCADE.map((c) => ({ key: c.key, label: c.label, value: snap.value.due[c.key], cls: 'pf-c-' + c.key })) : []))
 const dueTotal = computed(() => due.value.reduce((a, r) => a + r.value, 0))
-function close() { pui.selected = null }
+function close() { clock.selected = null }
 </script>
 
 <template>
