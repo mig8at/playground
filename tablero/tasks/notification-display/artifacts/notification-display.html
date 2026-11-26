@@ -1,0 +1,479 @@
+<meta charset="utf-8">
+<title>Pantalla de notificaciones</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: una columna de lectura; arriba, el tablero simulado a lo ancho como «muestra física»;
+   abajo, hardware, arquitectura y contenido en bloques de dos columnas que se apilan en el teléfono. */
+:root {
+  --bg: #f4f6f9;
+  --surface: #ffffff;
+  --fg: #1a1f29;
+  --muted: #5b6473;
+  --line: #dde2ea;
+  --accent: #b86200;      /* ámbar de LED, oscurecido para fondo claro */
+  --accent-soft: #fff1de;
+  --ok: #1f8a5b;
+  --crit: #c4302b;
+  --wall: #d9dde4;        /* la pared alrededor del tablero */
+  --font-display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12151b; --surface: #1a1e26; --fg: #e5e8ee; --muted: #9aa3b2; --line: #2b313c;
+    --accent: #ffb03b; --accent-soft: #33260f; --ok: #4cc38a; --crit: #ff6b63; --wall: #232832;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12151b; --surface: #1a1e26; --fg: #e5e8ee; --muted: #9aa3b2; --line: #2b313c;
+  --accent: #ffb03b; --accent-soft: #33260f; --ok: #4cc38a; --crit: #ff6b63; --wall: #232832;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 32px 64px;
+}
+.wrap { max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 48px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.15; }
+h1 { font-size: clamp(1.9rem, 4vw, 2.7rem); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 1.45rem; font-weight: 700; }
+h3 { font-size: 1.05rem; font-weight: 500; }
+p { margin: 0; max-width: 68ch; }
+.eyebrow { font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.head { display: flex; flex-direction: column; gap: 12px; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 20px; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
+.meta b { color: var(--fg); font-weight: 600; }
+section { display: flex; flex-direction: column; gap: 18px; }
+.lead { color: var(--muted); }
+
+/* --- el tablero --- */
+.stage { background: var(--wall); border-radius: 6px; padding: 28px 20px 20px; display: flex; flex-direction: column; gap: 28px; }
+.option { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.option-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+.option-head h3 { font-size: 1rem; }
+.tag { font-family: var(--font-mono); font-size: 0.72rem; padding: 2px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); }
+.dims { font-family: var(--font-mono); font-size: 0.78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.bezel { background: #050506; padding: 6px; border-radius: 3px; box-shadow: 0 10px 24px rgba(0,0,0,.28); max-width: 100%; }
+.bezel canvas { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.controls button {
+  font: 500 0.85rem var(--font-body); color: var(--fg); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 6px; padding: 7px 12px; cursor: pointer;
+}
+.controls button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.controls button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.controls .sep { flex: 1; }
+.note { font-size: 0.82rem; color: var(--muted); }
+
+/* --- bloques --- */
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.card.pick { border-color: var(--accent); }
+ul.clean { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+ul.clean li { padding-left: 16px; position: relative; }
+ul.clean li::before { content: ""; position: absolute; left: 0; top: 0.62em; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; font-size: 0.9rem; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; font-variant-numeric: tabular-nums; }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; min-width: 520px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+td.num { font-variant-numeric: tabular-nums; font-family: var(--font-mono); font-size: 0.85rem; }
+pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 14px; overflow-x: auto; }
+.arch svg { width: 100%; min-width: 640px; height: auto; display: block; }
+.arch .box { fill: var(--surface); stroke: var(--line); }
+.arch .box.hot { stroke: var(--accent); }
+.arch text { fill: var(--fg); font-family: var(--font-body); font-size: 13px; }
+.arch text.sub { fill: var(--muted); font-size: 11px; font-family: var(--font-mono); }
+.arch .wire { stroke: var(--muted); stroke-width: 1.5; fill: none; }
+.arch .wire.wifi { stroke: var(--accent); stroke-dasharray: 5 4; }
+.arch .arrow { fill: var(--muted); }
+.arch .arrow.wifi { fill: var(--accent); }
+.cat h3 { display: flex; align-items: center; gap: 10px; }
+.dot { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+.legal { border-left: 3px solid var(--crit); background: var(--surface); padding: 14px 18px; border-radius: 0 6px 6px 0; }
+.legal b { color: var(--crit); }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header class="head">
+    <span class="eyebrow">Tarea #141 · prototipo · evaluación</span>
+    <h1>Pantalla de notificaciones</h1>
+    <p class="lead">Un tablero LED horizontal en la parte alta de la pared de la oficina de desarrollo (unos 4 m × 2 m), sobre los puestos de los 4 desarrolladores. Muestra texto, cifras con meta e imágenes que le manda una API propia, y hace un «pip» corto ante eventos.</p>
+    <div class="meta">
+      <span>Fecha: <b>25 de noviembre de 2026</b></span>
+      <span>Paneles: <b>HUB75 P4 · 64×32 px</b></span>
+      <span>Altura: <b>2,2–2,5 m</b></span>
+    </div>
+  </header>
+
+  <section aria-labelledby="sim">
+    <h2 id="sim">Las dos opciones, a escala</h2>
+    <p class="lead">Simulación píxel por píxel. Las líneas finas marcan dónde termina cada panel de 64×32. Las cifras son de ejemplo, no son datos reales.</p>
+    <div class="stage">
+      <div class="option">
+        <div class="option-head">
+          <h3>Opción 1 · una fila de 4 paneles</h3>
+          <span class="dims">256 × 32 px · 1,02 m × 13 cm · fuente 5 V 20 A</span>
+        </div>
+        <div class="bezel"><canvas id="led32" width="1024" height="128" aria-label="Simulación del tablero de 256 por 32 píxeles"></canvas></div>
+      </div>
+      <div class="option">
+        <div class="option-head">
+          <h3>Opción 2 · dos filas de 4 paneles</h3>
+          <span class="tag">recomendada si caben imágenes</span>
+          <span class="dims">256 × 64 px · 1,02 m × 26 cm · fuente 5 V 40 A</span>
+        </div>
+        <div class="bezel"><canvas id="led64" width="1024" height="256" aria-label="Simulación del tablero de 256 por 64 píxeles"></canvas></div>
+      </div>
+    </div>
+    <div class="controls" role="group" aria-label="Mensaje en pantalla">
+      <button type="button" id="sc-text" data-scene="0">Texto</button>
+      <button type="button" id="sc-counter" data-scene="1">Contador con meta</button>
+      <button type="button" id="sc-icon" data-scene="2">Pixel art</button>
+      <button type="button" id="sc-alert" data-scene="3">Alerta crítica</button>
+      <button type="button" id="sc-idle" data-scene="4">Reposo: hora y clima</button>
+      <span class="sep"></span>
+      <button type="button" id="auto" aria-pressed="true">Rotación automática</button>
+      <button type="button" id="sound" aria-pressed="false">Sonido</button>
+    </div>
+    <p class="note">La rotación cambia de mensaje cada 6 s. Una alerta crítica corta la rotación y suena dos veces; con «Sonido» prendido se oye el «pip».</p>
+  </section>
+
+  <section aria-labelledby="hw">
+    <h2 id="hw">Hardware</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Pieza</th><th>Opción 1</th><th>Opción 2</th><th>Nota</th></tr></thead>
+        <tbody>
+          <tr><td>Paneles RGB HUB75 P4, 64×32 (25,6 × 12,8 cm)</td><td class="num">4</td><td class="num">8</td><td>Paso de 4 mm: se lee bien a 3–6 m.</td></tr>
+          <tr><td>Resolución total</td><td class="num">256 × 32</td><td class="num">256 × 64</td><td>La 2 permite texto al doble de alto, íconos y pixel art.</td></tr>
+          <tr><td>Tamaño</td><td class="num">1,02 m × 13 cm</td><td class="num">1,02 m × 26 cm</td><td>Ocupa una cuarta parte del ancho de la pared.</td></tr>
+          <tr><td>Fuente de 5 V</td><td class="num">20 A</td><td class="num">40 A</td><td>Dimensionada para brillo medio con margen.</td></tr>
+          <tr><td>Controlador</td><td colspan="2">ESP32 con WiFi + adaptador HUB75</td><td>Librería <code>ESP32-HUB75-MatrixPanel-DMA</code>. Alternativa: Raspberry Pi con <code>rpi-rgb-led-matrix</code>.</td></tr>
+          <tr><td>Sonido</td><td colspan="2">Bocina pequeña</td><td>Sólo sonidos cortos: pip, récord, alerta.</td></tr>
+          <tr><td>Montaje</td><td colspan="2">Cables HUB75, cables de poder, soportes</td><td>A 2,2–2,5 m, brillo medio.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="arch">
+    <h2 id="arch">Arquitectura</h2>
+    <p class="lead">Un servidor propio junta los datos, decide qué se muestra y le manda JSON al controlador por WiFi. El controlador sólo dibuja y suena: no consulta nada por su cuenta.</p>
+    <div class="scroll arch">
+      <svg viewBox="0 0 900 250" role="img" aria-label="Fuentes de datos hacia el servidor, del servidor al controlador por WiFi, y del controlador a los paneles y la bocina">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="arrow" d="M0,0 L10,5 L0,10 z"/></marker>
+          <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="arrow wifi" d="M0,0 L10,5 L0,10 z"/></marker>
+        </defs>
+        <rect class="box" x="10" y="14" width="200" height="46" rx="6"/><text x="24" y="35">Base de producción</text><text class="sub" x="24" y="51">sólo lectura, agregados</text>
+        <rect class="box" x="10" y="72" width="200" height="46" rx="6"/><text x="24" y="93">GitHub</text><text class="sub" x="24" y="109">deploys y PRs</text>
+        <rect class="box" x="10" y="130" width="200" height="46" rx="6"/><text x="24" y="151">Monitoreo de la API</text><text class="sub" x="24" y="167">caídas, errores, uptime</text>
+        <rect class="box" x="10" y="188" width="200" height="46" rx="6"/><text x="24" y="209">Calendario del equipo</text><text class="sub" x="24" y="225">cumpleaños, ingresos</text>
+
+        <path class="wire" d="M210,37 C250,37 250,124 300,124" marker-end="url(#ar)"/>
+        <path class="wire" d="M210,95 C250,95 250,124 300,124" marker-end="url(#ar)"/>
+        <path class="wire" d="M210,153 C250,153 250,124 300,124" marker-end="url(#ar)"/>
+        <path class="wire" d="M210,211 C250,211 250,124 300,124" marker-end="url(#ar)"/>
+
+        <rect class="box hot" x="302" y="70" width="220" height="108" rx="6"/>
+        <text x="318" y="94" font-weight="600">Servidor propio</text>
+        <text class="sub" x="318" y="115">cola con prioridad</text>
+        <text class="sub" x="318" y="132">rotación en ciclo</text>
+        <text class="sub" x="318" y="149">ajusta imágenes a 256×H</text>
+        <text class="sub" x="318" y="166">valida los 4 tipos</text>
+
+        <path class="wire wifi" d="M522,124 L612,124" marker-end="url(#arw)"/>
+        <text class="sub" x="534" y="114">JSON · WiFi</text>
+
+        <rect class="box" x="614" y="94" width="130" height="60" rx="6"/><text x="628" y="119">ESP32</text><text class="sub" x="628" y="137">+ adaptador HUB75</text>
+
+        <path class="wire" d="M744,110 L790,62" marker-end="url(#ar)"/>
+        <path class="wire" d="M744,138 L790,186" marker-end="url(#ar)"/>
+        <rect class="box" x="792" y="36" width="100" height="46" rx="6"/><text x="806" y="57">Paneles</text><text class="sub" x="806" y="73">HUB75 P4</text>
+        <rect class="box" x="792" y="166" width="100" height="46" rx="6"/><text x="806" y="187">Bocina</text><text class="sub" x="806" y="203">pip, alerta</text>
+      </svg>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <h3>El contrato: cuatro tipos y nada más</h3>
+        <dl class="kv">
+          <dt><code>text</code></dt><dd>una o dos líneas, fija o desplazándose</dd>
+          <dt><code>counter</code></dt><dd>etiqueta, valor y, si hay, meta con barra</dd>
+          <dt><code>image</code></dt><dd>mapa de bits ya ajustado al panel</dd>
+          <dt><code>sound</code></dt><dd>uno de los sonidos cortos guardados</dd>
+        </dl>
+        <p class="note">Cualquier otro tipo se rechaza. Un mensaje mal formado no puede colgar el tablero.</p>
+      </div>
+      <div class="card">
+        <h3>Un mensaje de ejemplo</h3>
+<pre>{
+  "type": "counter",
+  "priority": "normal",
+  "duration_s": 6,
+  "label": "DESEMBOLSOS NOV",
+  "value": 1284,
+  "goal": 1650,
+  "sound": null
+}</pre>
+        <p class="note"><code>priority: "critical"</code> interrumpe la rotación hasta que se resuelve.</p>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="content">
+    <h2 id="content">Qué muestra</h2>
+    <div class="grid2">
+      <div class="card cat">
+        <h3><span class="dot" style="background: var(--accent)"></span>Negocio</h3>
+        <ul class="clean">
+          <li>Descargas de la app</li>
+          <li>Solicitudes del día</li>
+          <li>Créditos aprobados y desembolsados</li>
+          <li>Monto del mes con barra hacia la meta</li>
+          <li>Récords, con un sonido especial</li>
+        </ul>
+      </div>
+      <div class="card cat">
+        <h3><span class="dot" style="background: var(--crit)"></span>Desarrollo</h3>
+        <ul class="clean">
+          <li>Deploys exitosos o fallidos</li>
+          <li>Caídas o errores de la API (alerta crítica)</li>
+          <li>PRs pendientes de revisión</li>
+          <li>Uptime</li>
+        </ul>
+      </div>
+      <div class="card cat">
+        <h3><span class="dot" style="background: var(--ok)"></span>Cultura</h3>
+        <ul class="clean">
+          <li>Cumpleaños y aniversarios</li>
+          <li>Bienvenidas a quien entra</li>
+          <li>La mascota en pixel art</li>
+          <li>Hora y clima cuando no hay nada más</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Prioridad</h3>
+        <dl class="kv">
+          <dt>Crítica</dt><dd>interrumpe, suena dos veces y se queda hasta resolverse</dd>
+          <dt>Evento</dt><dd>entra en el próximo turno con un pip</dd>
+          <dt>Normal</dt><dd>rota en ciclo, 6 s por mensaje</dd>
+          <dt>Relleno</dt><dd>hora y clima</dd>
+        </dl>
+      </div>
+    </div>
+    <p class="legal"><b>Sólo cifras agregadas.</b> Nunca nombres, cédulas ni montos individuales de clientes (Ley 1581 de 2012). Lo que muestra el tablero sale de conteos y sumas; el servidor no guarda nada de un cliente.</p>
+  </section>
+
+</div>
+
+<script>
+(() => {
+  // --- fuente de 5×7: cada carácter, 7 filas de 5 bits (el bit 4 es la columna izquierda) ---
+  const F = {
+    A:[14,17,17,31,17,17,17],B:[30,17,17,30,17,17,30],C:[14,17,16,16,16,17,14],D:[30,17,17,17,17,17,30],
+    E:[31,16,16,30,16,16,31],F:[31,16,16,30,16,16,16],G:[14,17,16,23,17,17,15],H:[17,17,17,31,17,17,17],
+    I:[14,4,4,4,4,4,14],J:[7,2,2,2,2,18,12],K:[17,18,20,24,20,18,17],L:[16,16,16,16,16,16,31],
+    M:[17,27,21,21,17,17,17],N:[17,17,25,21,19,17,17],O:[14,17,17,17,17,17,14],P:[30,17,17,30,16,16,16],
+    Q:[14,17,17,17,21,18,13],R:[30,17,17,30,20,18,17],S:[15,16,16,14,1,1,30],T:[31,4,4,4,4,4,4],
+    U:[17,17,17,17,17,17,14],V:[17,17,17,17,17,10,4],W:[17,17,17,21,21,21,10],X:[17,17,10,4,10,17,17],
+    Y:[17,17,10,4,4,4,4],Z:[31,1,2,4,8,16,31],
+    0:[14,17,19,21,25,17,14],1:[4,12,4,4,4,4,14],2:[14,17,1,2,4,8,31],3:[31,2,4,2,1,17,14],
+    4:[2,6,10,18,31,2,2],5:[31,16,30,1,1,17,14],6:[6,8,16,30,17,17,14],7:[31,1,2,4,8,8,8],
+    8:[14,17,17,14,17,17,14],9:[14,17,17,15,1,2,12],
+    " ":[0,0,0,0,0,0,0],".":[0,0,0,0,0,12,12],",":[0,0,0,0,12,4,8],":":[0,12,12,0,12,12,0],
+    "!":[4,4,4,4,4,0,4],"-":[0,0,0,31,0,0,0],"/":[1,1,2,4,8,16,16],"%":[24,25,2,4,8,19,3],
+    "+":[0,4,4,31,4,4,0],"°":[12,18,18,12,0,0,0],"·":[0,0,0,12,12,0,0],"$":[4,15,20,14,5,30,4]
+  };
+  const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase();
+  const tw = (s, k) => norm(s).length * 6 * k - k;
+
+  function makeBuf(w, h) { return { w, h, d: new Uint8ClampedArray(w * h * 3) }; }
+  function px(b, x, y, c) {
+    x |= 0; y |= 0; if (x < 0 || y < 0 || x >= b.w || y >= b.h) return;
+    const i = (y * b.w + x) * 3; b.d[i] = c[0]; b.d[i + 1] = c[1]; b.d[i + 2] = c[2];
+  }
+  function rect(b, x, y, w, h, c) { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) px(b, x + i, y + j, c); }
+  function text(b, s, x, y, k, c) {
+    for (const ch of norm(s)) {
+      const g = F[ch] || F[" "];
+      for (let r = 0; r < 7; r++) for (let col = 0; col < 5; col++)
+        if (g[r] & (16 >> col)) rect(b, x + col * k, y + r * k, k, k, c);
+      x += 6 * k;
+    }
+  }
+
+  const C = { amber:[255,176,59], white:[235,235,230], gray:[110,116,128], green:[60,220,130],
+              red:[255,48,40], dred:[90,6,6], yellow:[255,220,60], teal:[40,200,175], dim:[50,54,62] };
+
+  const OWL = [
+    "................",
+    "..o..........o..",
+    "..oo........oo..",
+    "..oooooooooooo..",
+    ".oooooooooooooo.",
+    ".owwwwoooowwwwo.",
+    ".owkkwoooowkkwo.",
+    ".owkkwoooowkkwo.",
+    ".owwwwoyyowwwwo.",
+    ".ooooooyyoooooo.",
+    ".oooooooooooooo.",
+    "..oooyyyyyyooo..",
+    "..oooyyyyyyooo..",
+    "...oooooooooo...",
+    "....yy....yy....",
+    "................"
+  ];
+  function owl(b, x, y, k, blink) {
+    const map = { o: C.teal, w: C.white, k: [10,10,12], y: C.amber };
+    OWL.forEach((row, r) => [...row].forEach((ch, c) => {
+      let col = map[ch]; if (!col) return;
+      if (blink && ch === "k") col = C.white;
+      rect(b, x + c * k, y + r * k, k, k, col);
+    }));
+  }
+  function check(b, x, y, k, c) { // 7×6
+    [[0,3],[1,4],[2,5],[3,4],[4,3],[5,2],[6,1],[6,0]].forEach(([i, j]) => rect(b, x + i * k, y + j * k, k, k, c));
+    [[1,3],[2,4],[3,3],[4,2],[5,1]].forEach(([i, j]) => rect(b, x + i * k, y + j * k, k, k, c));
+  }
+  function warn(b, x, y, k, c, ink) { // triángulo de 11×10
+    for (let r = 0; r < 10; r++) { const half = Math.floor(r / 2 + 0.5); rect(b, x + (5 - half) * k, y + r * k, (half * 2 + 1) * k, k, c); }
+    rect(b, x + 5 * k, y + 3 * k, k, 4 * k, ink); rect(b, x + 5 * k, y + 8 * k, k, k, ink);
+  }
+  const fmt = n => Math.round(n).toLocaleString("es-CO");
+
+  // --- escenas: cada una dibuja en un búfer w×h (h = 32 o 64) en el instante t (s) ---
+  const scenes = [
+    function textScene(b, t) {
+      const big = b.h >= 64, k = big ? 2 : 1;
+      check(b, 2, big ? 4 : 2, 1, C.green);
+      text(b, "DESARROLLO · DEPLOY", 12, big ? 4 : 2, 1, C.gray);
+      const msg = "DEPLOY EXITOSO: API V2.41 EN PRODUCCION · 0 ERRORES · 3 PRS POR REVISAR";
+      const w = tw(msg, k), span = w + b.w, x = b.w - ((t * (big ? 40 : 30)) % span);
+      text(b, msg, x, big ? 30 : 16, k, C.white);
+    },
+    function counterScene(b, t) {
+      const big = b.h >= 64, goal = 1650, val = Math.min(1284, 1284 * Math.min(1, t / 1.6));
+      text(b, "DESEMBOLSOS NOV", 2, big ? 3 : 2, 1, C.gray);
+      const num = fmt(val);
+      if (big) {
+        text(b, num, 2, 14, 3, C.amber);
+        text(b, "/ META " + fmt(goal), 2 + tw(num, 3) + 6, 21, 1, C.gray);
+      } else {
+        text(b, num, b.w - tw(num, 1) - 2, 2, 1, C.amber);
+      }
+      const bx = 2, by = big ? 42 : 13, bw = big ? 220 : 210, bh = big ? 10 : 7;
+      rect(b, bx, by, bw, bh, C.dim);
+      const fill = Math.round(bw * val / goal);
+      rect(b, bx, by, fill, bh, C.amber);
+      const pct = Math.round(100 * val / goal) + "%";
+      text(b, pct, bx + bw + 4, by + (bh - 7) / 2, 1, C.white);
+      text(b, big ? "EJEMPLO · FALTAN " + fmt(goal - 1284) : "META " + fmt(goal) + " · EJEMPLO", 2, big ? 56 : 23, 1, C.gray);
+    },
+    function iconScene(b, t) {
+      const big = b.h >= 64, k = big ? 2 : 1, blink = (t % 3) > 2.8;
+      const bob = Math.round(Math.sin(t * 3) * (big ? 1 : 0));
+      owl(b, 6, (big ? 0 : 8) + bob, k, blink);
+      if (big) {
+        text(b, "BIENVENIDO", 50, 12, 2, C.teal);
+        text(b, "AL EQUIPO!", 50, 34, 2, C.white);
+      } else {
+        text(b, "BIENVENIDO AL EQUIPO!", 28, 8, 1, C.teal);
+        text(b, "HOY ARRANCA EN DESARROLLO", 28, 18, 1, C.white);
+      }
+    },
+    function alertScene(b, t) {
+      const big = b.h >= 64, on = (t % 1) < 0.5;
+      if (on) rect(b, 0, 0, b.w, b.h, C.dred);
+      const fr = on ? C.red : [140,20,16];
+      rect(b, 0, 0, b.w, 1, fr); rect(b, 0, b.h - 1, b.w, 1, fr); rect(b, 0, 0, 1, b.h, fr); rect(b, b.w - 1, 0, 1, b.h, fr);
+      const k = big ? 2 : 1;
+      warn(b, 4, big ? 12 : 6, k, C.yellow, on ? C.dred : [0,0,0]);
+      text(b, "API CAIDA", big ? 34 : 20, big ? 10 : 6, k, on ? C.white : C.red);
+      text(b, "ERRORES 5XX 12% · 4 MIN", big ? 34 : 20, big ? 38 : 18, 1, C.yellow);
+      if (big) text(b, "ALERTA CRITICA", 34, 50, 1, C.white);
+    },
+    function idleScene(b, t) {
+      const big = b.h >= 64, now = new Date();
+      const hm = String(now.getHours()).padStart(2, "0") + (now.getSeconds() % 2 ? ":" : " ") + String(now.getMinutes()).padStart(2, "0");
+      const k = big ? 4 : 3;
+      text(b, hm, 6, big ? 18 : 6, k, C.white);
+      const wx = 6 + tw(hm, k) + 16;
+      // sol detrás de una nube
+      const sy = big ? 20 : 6;
+      for (let a = 0; a < 6.28; a += 0.2) px(b, wx + 7 + Math.cos(a) * 6, sy + 7 + Math.sin(a) * 6, C.amber);
+      rect(b, wx + 3, sy + 9, 16, 5, C.white); rect(b, wx + 6, sy + 6, 8, 3, C.white);
+      text(b, "18° NUBLADO", wx + 24, sy + 4, 1, C.white);
+      text(b, "BOGOTA · EJEMPLO", wx + 24, sy + 14, 1, C.gray);
+    }
+  ];
+
+  // --- dibujo de los LEDs ---
+  const panels = [
+    { cv: document.getElementById("led32"), buf: makeBuf(256, 32) },
+    { cv: document.getElementById("led64"), buf: makeBuf(256, 64) }
+  ];
+  function paint(p) {
+    const { cv, buf } = p, g = cv.getContext("2d");
+    const pitch = cv.width / buf.w, r = pitch * 0.42;
+    g.fillStyle = "#050506"; g.fillRect(0, 0, cv.width, cv.height);
+    for (let y = 0; y < buf.h; y++) for (let x = 0; x < buf.w; x++) {
+      const i = (y * buf.w + x) * 3, R = buf.d[i], G = buf.d[i + 1], B = buf.d[i + 2];
+      g.fillStyle = (R | G | B) ? `rgb(${R},${G},${B})` : "#16171b";
+      g.beginPath(); g.arc(x * pitch + pitch / 2, y * pitch + pitch / 2, r, 0, 6.2832); g.fill();
+    }
+    g.fillStyle = "rgba(120,128,140,.35)";
+    for (let x = 64; x < buf.w; x += 64) g.fillRect(x * pitch - 0.5, 0, 1, cv.height);
+    for (let y = 32; y < buf.h; y += 32) g.fillRect(0, y * pitch - 0.5, cv.width, 1);
+  }
+
+  // --- sonido ---
+  let ac = null, soundOn = false;
+  function pip(freq = 1760, ms = 90, when = 0) {
+    if (!soundOn) return;
+    try {
+      ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+      const o = ac.createOscillator(), v = ac.createGain(), t0 = ac.currentTime + when;
+      o.type = "square"; o.frequency.value = freq;
+      v.gain.setValueAtTime(0.05, t0); v.gain.exponentialRampToValueAtTime(0.0001, t0 + ms / 1000);
+      o.connect(v).connect(ac.destination); o.start(t0); o.stop(t0 + ms / 1000 + 0.02);
+    } catch (e) {}
+  }
+
+  // --- estado y rotación ---
+  let scene = 0, start = performance.now(), auto = true;
+  const btns = [...document.querySelectorAll("[data-scene]")];
+  const autoBtn = document.getElementById("auto"), soundBtn = document.getElementById("sound");
+  function setScene(i) {
+    scene = i; start = performance.now();
+    btns.forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.scene === i)));
+    if (i === 3) { pip(880, 160); pip(880, 160, 0.25); } else pip();
+  }
+  btns.forEach(b => b.addEventListener("click", () => setScene(+b.dataset.scene)));
+  autoBtn.addEventListener("click", () => { auto = !auto; autoBtn.setAttribute("aria-pressed", String(auto)); start = performance.now(); });
+  soundBtn.addEventListener("click", () => { soundOn = !soundOn; soundBtn.setAttribute("aria-pressed", String(soundOn)); if (soundOn) pip(); });
+
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function frame(now) {
+    const t = (now - start) / 1000;
+    // la alerta crítica no rota: se queda hasta que alguien elige otro mensaje
+    if (auto && scene !== 3 && t > 6) setScene(scene === 2 ? 4 : (scene + 1) % 5 === 3 ? 4 : (scene + 1) % 5);
+    for (const p of panels) { p.buf.d.fill(0); scenes[scene](p.buf, reduce ? 3 : t); paint(p); }
+    requestAnimationFrame(frame);
+  }
+  btns[0].setAttribute("aria-pressed", "true");
+  requestAnimationFrame(frame);
+})();
+</script>
