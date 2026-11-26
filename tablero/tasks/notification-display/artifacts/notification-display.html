@@ -139,7 +139,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
   <header class="head">
     <span class="eyebrow">Tarea #141 · prototipo · evaluación</span>
     <h1>Pantalla de notificaciones</h1>
-    <p class="lead">Un tablero LED horizontal en la parte alta de la pared de la oficina de desarrollo (unos 4 m × 2 m), sobre los puestos de los 4 desarrolladores. Muestra texto, cifras con meta e imágenes que le manda una API propia, y hace un «pip» corto ante eventos.</p>
+    <p class="lead">Un tablero LED horizontal en la parte alta de la pared de la oficina de desarrollo (unos 4 m × 2 m), sobre los puestos de los 4 desarrolladores. Muestra texto, cifras con meta e imágenes que le manda una API propia, hace un «pip» ante eventos y dice en voz los importantes.</p>
     <div class="meta">
       <span>Fecha: <b>25 de noviembre de 2026</b></span>
       <span>Paneles: <b>HUB75 P4 · 64×32 px</b></span>
@@ -175,7 +175,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         <button type="button" id="sound" aria-pressed="false">Sonido</button>
       </div>
     </div>
-    <p class="note">13 mensajes de ejemplo. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, y el récord y el cumpleaños tienen su melodía. Las cifras y los nombres son inventados.</p>
+    <p class="note">13 mensajes de ejemplo. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y seis mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados.</p>
   </section>
 
   <section aria-labelledby="size">
@@ -222,14 +222,15 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
           <tr><td>Panel RGB P4 64×32, HUB75, 256×128 mm (trae cable HUB75 de 30 cm y el adaptador de poder)</td><td><a href="https://www.waveshare.com/rgb-matrix-p4-64x32.htm" target="_blank" rel="noopener">Waveshare</a></td><td class="num">US$17,99</td><td class="num">4 · US$71,96</td><td class="num">8 · US$143,92</td></tr>
           <tr><td>Controlador ESP32-S3 con conector HUB75 que se enchufa directo al panel, sin soldar</td><td><a href="https://www.adafruit.com/product/5778" target="_blank" rel="noopener">Adafruit Matrix Portal S3</a></td><td class="num">US$19,95</td><td class="num">1 · US$19,95</td><td class="num">1 · US$19,95</td></tr>
           <tr><td>Fuente 5 V 40 A, 200 W (para la opción 1 basta una de 20 A)</td><td><a href="https://www.digikey.com/en/products/result?keywords=LRS-200-5" target="_blank" rel="noopener">Mean Well LRS-200-5</a></td><td class="num">US$29,30</td><td class="num">≈ US$20</td><td class="num">1 · US$29,30</td></tr>
-          <tr><td>Buzzer pasivo o bocina pequeña de 8 Ω</td><td>tienda local de electrónica</td><td class="num">≈ US$2</td><td class="num">US$2</td><td class="num">US$2</td></tr>
+          <tr><td>Amplificador I2S de 3 W para voz y sonidos (entrada digital, 5 V)</td><td><a href="https://www.adafruit.com/product/3006" target="_blank" rel="noopener">Adafruit MAX98357A</a></td><td class="num">US$5,95</td><td class="num">1 · US$5,95</td><td class="num">1 · US$5,95</td></tr>
+          <tr><td>Parlante de 3 W y 4 Ω, con caja</td><td><a href="https://www.adafruit.com/product/3351" target="_blank" rel="noopener">Adafruit 3351</a></td><td class="num">US$3,95</td><td class="num">1 · US$3,95</td><td class="num">1 · US$3,95</td></tr>
           <tr><td>Cable de poder 18 AWG, terminales, regleta</td><td>tienda local</td><td class="num">≈ US$10</td><td class="num">US$10</td><td class="num">US$15</td></tr>
           <tr><td>Soportes: perfil de aluminio o lámina de MDF negra</td><td>ferretería</td><td class="num">≈ US$20</td><td class="num">US$20</td><td class="num">US$30</td></tr>
-          <tr class="total"><td>Total estimado</td><td></td><td></td><td class="num">≈ US$145</td><td class="num">≈ US$240</td></tr>
+          <tr class="total"><td>Total estimado</td><td></td><td></td><td class="num">≈ US$155</td><td class="num">≈ US$250</td></tr>
         </tbody>
       </table>
     </div>
-    <p class="note">En pesos, a una tasa supuesta de 4.000 COP por dólar: unos <b>580.000</b> para la opción 1 y <b>960.000</b> para la opción 2, antes de envío e importación. Las filas con «≈» son estimaciones, no cotizaciones.</p>
+    <p class="note">En pesos, a una tasa supuesta de 4.000 COP por dólar: unos <b>620.000</b> para la opción 1 y <b>1.000.000</b> para la opción 2, antes de envío e importación. Las filas con «≈» son estimaciones, no cotizaciones.</p>
     <div class="grid2">
       <div class="card">
         <h3>Otros lugares donde buscar</h3>
@@ -281,7 +282,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
           <li>Cada panel, a la fuente con su adaptador de poder de 4 pines (5 V y tierra), con cable de 18 AWG.</li>
           <li>La tierra del controlador, unida a la de la fuente.</li>
           <li>En el código, declarar 4 columnas por 2 filas de 64×32 y la cadena en zigzag con <code>VirtualMatrixPanel</code>.</li>
-          <li>El buzzer, a un pin libre del controlador.</li>
+          <li>El amplificador: BCLK, LRC y DIN a tres de los pines libres del controlador (su tira de 6 GPIO admite I2S); VIN a 5 V y GND a tierra, de la misma fuente. El parlante, a los bornes del amplificador.</li>
         </ul>
       </div>
       <div class="card">
@@ -292,10 +293,50 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
           <li><a href="https://learn.adafruit.com/adafruit-matrixportal-s3" target="_blank" rel="noopener">Guía del Matrix Portal S3</a>: conexión al panel y primer programa.</li>
           <li><a href="https://esphome.io/components/display/hub75/" target="_blank" rel="noopener">ESPHome · HUB75</a>: la alternativa sin escribir firmware a mano.</li>
           <li><a href="https://github.com/hzeller/rpi-rgb-led-matrix" target="_blank" rel="noopener">rpi-rgb-led-matrix</a>: si se usa una Raspberry Pi.</li>
+          <li><a href="https://learn.adafruit.com/adafruit-max98357-i2s-class-d-mono-amp" target="_blank" rel="noopener">Guía del MAX98357A</a>: cableado del amplificador y del parlante.</li>
+          <li><a href="https://github.com/schreibfaul1/ESP32-audioI2S" target="_blank" rel="noopener">ESP32-audioI2S</a>: reproduce un MP3 bajado por WiFi; pensada para el ESP32-S3.</li>
         </ul>
       </div>
     </div>
     <p class="warnbox">Ocho paneles desde un solo ESP32-S3 es posible (hay un montaje documentado con 12 paneles en un Matrix Portal S3), pero la memoria limita la profundidad de color y el refresco. Se comprueba en el banco de prueba con los 8 paneles antes de montar. Si parpadea, la salida es una Raspberry Pi con <code>rpi-rgb-led-matrix</code>.</p>
+  </section>
+
+  <section aria-labelledby="voice">
+    <h2 id="voice">La voz</h2>
+    <p class="lead">Para los eventos importantes el tablero también habla. La voz no se arma en el tablero: el servidor escribe la frase con las cifras agregadas, la convierte en audio con un servicio de texto a voz y el tablero sólo la baja y la reproduce.</p>
+    <div class="grid2">
+      <div class="card">
+        <h3>Cómo llega la voz</h3>
+        <ul class="clean">
+          <li>El servidor detecta el evento: un récord, una alerta, un cumpleaños.</li>
+          <li>Arma la frase con una plantilla y las cifras del día.</li>
+          <li>La manda a un servicio de texto a voz (ElevenLabs u otro) y guarda el MP3 que vuelve.</li>
+          <li>Le manda al tablero un mensaje <code>voice</code> con la dirección del MP3 en la red de la oficina.</li>
+          <li>El controlador lo baja por WiFi y lo reproduce por el amplificador, mientras el mensaje se ve en pantalla.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Qué diría</h3>
+        <ul class="clean">
+          <li>«¡Nuevo récord! 312 solicitudes en un solo día.»</li>
+          <li>«CreditopX creció 23 % frente a octubre.»</li>
+          <li>«Atención: la API está caída.»</li>
+          <li>«¡Feliz cumpleaños, Pepito!»</li>
+          <li>«Bienvenida al equipo, Sofía.»</li>
+        </ul>
+        <p class="note">En la simulación de arriba, con «Sonido» prendido, estos mensajes se dicen con la voz del navegador. La del tablero sale del servicio de texto a voz y suena más natural.</p>
+      </div>
+      <div class="card">
+        <h3>Reglas</h3>
+        <ul class="clean">
+          <li>La voz sigue la misma regla que la pantalla: sólo cifras agregadas, nunca nombres ni datos de clientes.</li>
+          <li>Habla sólo en eventos, no en cada vuelta de la rotación: una oficina con voz cada 7 s no se aguanta.</li>
+          <li>Frases de menos de 6 segundos, con volumen fijo y horario de oficina.</li>
+          <li>Las frases fijas (alerta, bienvenida) se generan una vez y se guardan; sólo las que llevan cifras se generan cada vez.</li>
+        </ul>
+      </div>
+    </div>
+    <p class="warnbox">Que el mismo ESP32-S3 maneje los paneles y el audio a la vez no está comprobado: los paneles usan su salida de pantalla (LCD) y el audio usa I2S, que en el S3 son periféricos distintos, pero nadie lo documenta con 8 paneles. Se prueba en el banco. Si no da, el audio va en una segunda placa ESP32-S3 al lado del parlante (unos US$10–15 más), que recibe el MP3 del mismo servidor.</p>
   </section>
 
   <section aria-labelledby="color">
@@ -323,7 +364,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
     <h2 id="arch">Arquitectura</h2>
     <p class="lead">Un servidor propio junta los datos, decide qué se muestra y le manda JSON al controlador por WiFi. El controlador sólo dibuja y suena: no consulta nada por su cuenta.</p>
     <div class="scroll arch">
-      <svg viewBox="0 0 900 250" role="img" aria-label="Fuentes de datos hacia el servidor, del servidor al controlador por WiFi, y del controlador a los paneles y la bocina">
+      <svg viewBox="0 0 900 250" role="img" aria-label="Fuentes de datos hacia el servidor; el servidor pide la voz a un servicio de texto a voz y manda todo al controlador por WiFi, que maneja los paneles y el parlante">
         <defs>
           <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="arrow" d="M0,0 L10,5 L0,10 z"/></marker>
           <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="arrow wifi" d="M0,0 L10,5 L0,10 z"/></marker>
@@ -338,12 +379,15 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         <path class="wire" d="M210,153 C250,153 250,124 300,124" marker-end="url(#ar)"/>
         <path class="wire" d="M210,211 C250,211 250,124 300,124" marker-end="url(#ar)"/>
 
-        <rect class="box hot" x="302" y="70" width="220" height="108" rx="6"/>
+        <rect class="box hot" x="302" y="70" width="220" height="125" rx="6"/>
         <text x="318" y="94" font-weight="600">Servidor propio</text>
         <text class="sub" x="318" y="115">cola con prioridad</text>
         <text class="sub" x="318" y="132">rotación en ciclo</text>
         <text class="sub" x="318" y="149">ajusta imágenes a 256×H</text>
-        <text class="sub" x="318" y="166">valida los 4 tipos</text>
+        <text class="sub" x="318" y="166">valida los 5 tipos</text>
+        <text class="sub" x="318" y="183">pide la voz y guarda el MP3</text>
+        <rect class="box" x="560" y="8" width="190" height="46" rx="6"/><text x="574" y="29">Texto a voz</text><text class="sub" x="574" y="45">servicio externo</text>
+        <path class="wire" d="M440,70 C440,31 500,31 558,31" marker-end="url(#ar)"/>
 
         <path class="wire wifi" d="M522,124 L612,124" marker-end="url(#arw)"/>
         <text class="sub" x="534" y="114">JSON · WiFi</text>
@@ -353,17 +397,18 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         <path class="wire" d="M744,110 L790,62" marker-end="url(#ar)"/>
         <path class="wire" d="M744,138 L790,186" marker-end="url(#ar)"/>
         <rect class="box" x="792" y="36" width="100" height="46" rx="6"/><text x="806" y="57">Paneles</text><text class="sub" x="806" y="73">HUB75 P4</text>
-        <rect class="box" x="792" y="166" width="100" height="46" rx="6"/><text x="806" y="187">Bocina</text><text class="sub" x="806" y="203">pip, alerta</text>
+        <rect class="box" x="792" y="166" width="100" height="46" rx="6"/><text x="806" y="187">Parlante</text><text class="sub" x="806" y="203">voz y sonidos</text>
       </svg>
     </div>
     <div class="grid2">
       <div class="card">
-        <h3>El contrato: cuatro tipos y nada más</h3>
+        <h3>El contrato: cinco tipos y nada más</h3>
         <dl class="kv">
           <dt><code>text</code></dt><dd>una o dos líneas, fija o desplazándose</dd>
           <dt><code>counter</code></dt><dd>etiqueta, valor y, si hay, meta con barra</dd>
           <dt><code>image</code></dt><dd>mapa de bits ya ajustado al panel</dd>
           <dt><code>sound</code></dt><dd>uno de los sonidos cortos guardados</dd>
+          <dt><code>voice</code></dt><dd>la dirección de un MP3 con la frase, ya generado por el servidor</dd>
         </dl>
         <p class="note">Cualquier otro tipo se rechaza. Un mensaje mal formado no puede colgar el tablero.</p>
       </div>
@@ -377,6 +422,13 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
   "value": 1284,
   "goal": 1650,
   "sound": null
+}
+
+{
+  "type": "voice",
+  "priority": "event",
+  "text": "Nuevo récord: 312 solicitudes en un solo día",
+  "audio": "http://tablero.local/voz/record-1125.mp3"
 }</pre>
         <p class="note"><code>priority: "critical"</code> interrumpe la rotación hasta que se resuelve.</p>
       </div>
@@ -417,7 +469,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       <div class="card">
         <h3>Prioridad</h3>
         <dl class="kv">
-          <dt>Crítica</dt><dd>interrumpe, suena dos veces y se queda hasta resolverse</dd>
+          <dt>Crítica</dt><dd>interrumpe, suena dos veces, lo dice en voz y se queda hasta resolverse</dd>
           <dt>Evento</dt><dd>entra en el próximo turno con un pip</dd>
           <dt>Normal</dt><dd>rota en ciclo, 6 s por mensaje</dd>
           <dt>Relleno</dt><dd>hora y clima</dd>
@@ -434,6 +486,9 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       <a href="https://www.waveshare.com/rgb-matrix-p4-64x32.htm" target="_blank" rel="noopener">Waveshare · tienda y contenido de la caja</a>
       <a href="https://github.com/mrcodetastic/ESP32-HUB75-MatrixPanel-DMA" target="_blank" rel="noopener">ESP32-HUB75-MatrixPanel-DMA · color hasta 24 bits, paneles encadenados</a>
       <a href="https://www.adafruit.com/product/5778" target="_blank" rel="noopener">Adafruit · Matrix Portal S3</a>
+      <a href="https://www.adafruit.com/product/3006" target="_blank" rel="noopener">Adafruit · amplificador I2S MAX98357A (3,2 W en 4 Ω, 2,7–5,5 V)</a>
+      <a href="https://www.adafruit.com/product/3351" target="_blank" rel="noopener">Adafruit · parlante 3 W 4 Ω</a>
+      <a href="https://github.com/schreibfaul1/ESP32-audioI2S" target="_blank" rel="noopener">ESP32-audioI2S · MP3 por WiFi en ESP32-S3</a>
       <a href="https://www.hackster.io/news/this-large-format-led-matrix-display-chains-12-panels-to-a-single-adafruit-matrix-portal-s3-d28617468d8a" target="_blank" rel="noopener">Hackster · 12 paneles en un Matrix Portal S3</a>
       <a href="https://octopart.com/es/part/mean-well/LRS-200-5" target="_blank" rel="noopener">Octopart · Mean Well LRS-200-5</a>
       <a href="https://www.fervicom.com/categoria/inicio/pantallas-led/" target="_blank" rel="noopener">Fervicom · pantallas LED en Bogotá</a>
@@ -615,7 +670,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         text(b, "MILLONES DE PESOS", 2, 25, 1, C.gray);
       }
     } },
-    { id: "lender", group: "Negocio", label: "Entidad que creció", draw(b, t) {
+    { id: "lender", voice: "CreditopX creció 23 por ciento frente a octubre.", group: "Negocio", label: "Entidad que creció", draw(b, t) {
       const big = b.h >= 64, p = "+" + Math.round(23 * ease(t / 1.4)) + "%", bob = Math.round(Math.abs(Math.sin(t * 4)) * 2);
       head(b, "ENTIDAD DEL MES", C.hNeg, big ? "DESEMBOLSOS VS OCTUBRE" : "VS OCTUBRE", C.gray, t);
       if (big) {
@@ -647,7 +702,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         text(b, s, rx(b, s, 1) + off, y, 1, col);
       });
     } },
-    { id: "record", group: "Negocio", label: "Récord", sound: () => { pip(1047, 90); pip(1319, 90, .1); pip(1568, 220, .2); }, draw(b, t) {
+    { id: "record", voice: "¡Nuevo récord! 312 solicitudes en un solo día.", group: "Negocio", label: "Récord", sound: () => { pip(1047, 90); pip(1319, 90, .1); pip(1568, 220, .2); }, draw(b, t) {
       const big = b.h >= 64, gold = i => (Math.sin(t * 5 + i * 0.5) > 0 ? C.yellow : C.amber);
       sparkles(b, t, big ? 60 : 34, C.yellow);
       const n = fmt(312 * ease((t - 0.4) / 1.2));
@@ -693,7 +748,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         text(b, "1 CAIDA DE 4 MIN", x0, 25, 1, C.gray);
       }
     } },
-    { id: "alert", group: "Desarrollo", label: "Alerta crítica", critical: true, sound: () => { pip(880, 160); pip(880, 160, .25); }, draw(b, t) {
+    { id: "alert", voice: "Atención: la API está caída. Errores del 12 por ciento.", group: "Desarrollo", label: "Alerta crítica", critical: true, sound: () => { pip(880, 160); pip(880, 160, .25); }, draw(b, t) {
       const big = b.h >= 64, on = (t % 1) < 0.5;
       if (on) rect(b, 0, 0, b.w, b.h, C.dred);
       const fr = on ? C.red : [140,20,16];
@@ -710,7 +765,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         text(b, "ERRORES 5XX 12% · HACE 4 MIN", 22, 22, 1, C.yellow);
       }
     } },
-    { id: "welcome", group: "Cultura", label: "Bienvenida", draw(b, t) {
+    { id: "welcome", voice: "Bienvenida al equipo, Sofía.", group: "Cultura", label: "Bienvenida", draw(b, t) {
       const big = b.h >= 64, blink = (t % 3) > 2.8, bob = Math.round(Math.sin(t * 3));
       if (big) {
         owl(b, 6, 16 + bob, 2, blink);
@@ -723,7 +778,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         text(b, "HOY ARRANCA EN DESARROLLO", 28, 22, 1, mul(C.white, ease((t - 1.5) / 0.5)));
       }
     } },
-    { id: "birthday", group: "Cultura", label: "Cumpleaños", sound: () => { pip(784, 120); pip(784, 120, .15); pip(880, 200, .3); pip(784, 200, .55); pip(1047, 260, .8); }, draw(b, t) {
+    { id: "birthday", voice: "¡Feliz cumpleaños, Pepito!", group: "Cultura", label: "Cumpleaños", sound: () => { pip(784, 120); pip(784, 120, .15); pip(880, 200, .3); pip(784, 200, .55); pip(1047, 260, .8); }, draw(b, t) {
       const big = b.h >= 64, fl = Math.sin(t * 14) > 0;
       confetti(b, t, big ? 70 : 40);
       const map = { f: fl ? C.yellow : C.amber, y: C.white, c: C.white, p: C.pink, w: C.white, b: [200,120,60], g: C.gray };
@@ -738,7 +793,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         typed(b, "PEPITO! QUE LA PASES BIEN", 26, 22, 1, C.white, t, 0.6, 22);
       }
     } },
-    { id: "anniversary", group: "Cultura", label: "Aniversario", draw(b, t) {
+    { id: "anniversary", voice: "Feliz aniversario, Andrés: tres años en CreditOp.", group: "Cultura", label: "Aniversario", draw(b, t) {
       const big = b.h >= 64;
       sparkles(b, t, big ? 26 : 14, C.amber);
       const map = { y: C.yellow, a: C.amber };
@@ -827,10 +882,24 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
     scene = i; start = performance.now();
     btns.forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.scene === i)));
     (SCENES[i].sound || (() => pip()))();
+    say(SCENES[i].voice, SCENES[i].sound ? 1100 : 300);
+  }
+  // la voz del navegador hace de ejemplo de la voz del tablero
+  let sayTimer = 0;
+  function say(phrase, delay) {
+    try {
+      clearTimeout(sayTimer); window.speechSynthesis && speechSynthesis.cancel();
+      if (!soundOn || !phrase || !window.speechSynthesis) return;
+      sayTimer = setTimeout(() => {
+        const u = new SpeechSynthesisUtterance(phrase), vs = speechSynthesis.getVoices();
+        u.lang = "es-CO"; u.voice = vs.find(v => v.lang === "es-CO") || vs.find(v => v.lang.startsWith("es")) || null;
+        u.rate = 1.02; speechSynthesis.speak(u);
+      }, delay);
+    } catch (e) {}
   }
   btns.forEach(b => b.addEventListener("click", () => setScene(+b.dataset.scene)));
   autoBtn.addEventListener("click", () => { auto = !auto; autoBtn.setAttribute("aria-pressed", String(auto)); start = performance.now(); });
-  soundBtn.addEventListener("click", () => { soundOn = !soundOn; soundBtn.setAttribute("aria-pressed", String(soundOn)); if (soundOn) pip(); });
+  soundBtn.addEventListener("click", () => { soundOn = !soundOn; soundBtn.setAttribute("aria-pressed", String(soundOn)); if (soundOn) { pip(); say(SCENES[scene].voice, 300); } else say(null); });
   // la rotación salta la alerta: una alerta real entra sola y se queda hasta resolverse
   function nextScene(i) { do { i = (i + 1) % SCENES.length; } while (SCENES[i].critical); return i; }
 

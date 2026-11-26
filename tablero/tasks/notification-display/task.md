@@ -14,7 +14,9 @@ jira_title: "Pantalla de notificaciones"
   Depende de: Miguel — si caben imágenes y el presupuesto.
 - [ ] Medir la pared y fijar altura y punto de anclaje; termina cuando haya ancho útil, altura (2,2–2,5 m) y toma de corriente medidos en sitio. El pedido dice que la pared mide 2 m de alto y que el tablero va a 2,2–2,5 m: una de las dos cifras está mal.
 - [ ] Cotizar en pesos y comprar el hardware de la lista del prototipo (paneles Waveshare P4 64×32, Matrix Portal S3, Mean Well LRS-200-5); termina cuando todo esté en la oficina y un panel prenda con un patrón de prueba. Fervicom (Bogotá) debe confirmar si tiene P4 de 64×32.
-- [ ] Probar los 8 paneles encadenados en un solo ESP32-S3; termina cuando 256×64 se vea sin parpadeo con el color planeado, o se pase a Raspberry Pi.- [ ] Definir el contrato JSON de los cuatro tipos (texto, imagen, contador, sonido); termina cuando el controlador rechace cualquier otro tipo y un mensaje mal formado no lo cuelgue.
+- [ ] Probar los 8 paneles encadenados en un solo ESP32-S3; termina cuando 256×64 se vea sin parpadeo con el color planeado, o se pase a Raspberry Pi.
+- [ ] Probar la voz en el mismo ESP32-S3 que maneja los paneles (amplificador I2S MAX98357A y parlante de 3 W); termina cuando un MP3 bajado por WiFi suene sin que los paneles parpadeen, o se pase el audio a una segunda placa.
+- [ ] Definir el contrato JSON de los cinco tipos (texto, imagen, contador, sonido, voz); termina cuando el controlador rechace cualquier otro tipo y un mensaje mal formado no lo cuelgue.
 - [ ] Armar el servidor que junta los datos y empuja al tablero; termina cuando las cifras de negocio salgan agregadas de la base de producción (sólo lectura) y se refresquen solas.
 - [ ] Prioridad de alertas críticas sobre la rotación; termina cuando una caída simulada interrumpa el ciclo, suene y vuelva a la rotación al resolverse.
 - [ ] Revisar que nada de lo que se muestra identifique a un cliente; termina cuando cada fuente esté listada con su agregación y no haya nombres, cédulas ni montos individuales.
@@ -34,7 +36,7 @@ No toca los repos de producto. Es un servicio nuevo más el firmware del control
   - Opción 1: una fila de 4 → 1,02 m × 13 cm, 256×32 px. Una línea de texto y contadores.
   - Opción 2 (recomendada si caben imágenes): 2 filas de 4 → 1,02 m × 26 cm, 256×64 px. Texto más grande, íconos y pixel art.
   - Controlador: ESP32 con WiFi y adaptador HUB75 (`ESP32-HUB75-MatrixPanel-DMA`); alternativa, Raspberry Pi con `rpi-rgb-led-matrix`.
-  - Fuente de 5 V: 20 A para 4 paneles, 40 A para 8. Bocina pequeña, cables HUB75, cables de poder, soportes.
+  - Fuente de 5 V: 20 A para 4 paneles, 40 A para 8. Amplificador I2S MAX98357A y parlante de 3 W 4 Ω para voz y sonidos, cables HUB75, cables de poder, soportes.
   - Altura de 2,2 a 2,5 m, brillo medio.
 - **Servidor**: junta los datos y le manda JSON al controlador por WiFi. Ajusta las imágenes al tamaño exacto del panel antes de mandarlas.
 - **Fuentes de datos**: la base de producción (sólo lectura, agregados), los despliegues y PRs de GitHub, el monitoreo de la API, y un calendario de cumpleaños y aniversarios.
@@ -42,12 +44,13 @@ No toca los repos de producto. Es un servicio nuevo más el firmware del control
 ## Cómo se ataca
 
 1. **Banco de prueba**: un panel, el controlador y la fuente; un patrón de prueba y un texto fijo.
-2. **Contrato**: el JSON de los cuatro tipos (`text`, `image`, `counter`, `sound`), con prioridad y duración; el controlador rechaza lo demás.
+2. **Contrato**: el JSON de los cinco tipos (`text`, `image`, `counter`, `sound`, `voice`), con prioridad y duración; el controlador rechaza lo demás.
 3. **Servidor mínimo**: rotación en ciclo con hora y clima como relleno, y una alerta crítica que interrumpe.
-4. **Contenido de desarrollo**: deploys exitosos o fallidos, caídas o errores de la API, PRs pendientes, uptime.
-5. **Contenido de negocio**: descargas de la app, solicitudes, créditos aprobados y desembolsados, monto del mes con barra hacia la meta; un récord dispara un sonido especial.
-6. **Cultura**: cumpleaños, aniversarios, bienvenidas y la mascota en pixel art.
-7. **Montaje** en la pared, con los paneles definitivos.
+4. **Voz**: el servidor arma la frase con cifras agregadas, pide el audio a un servicio de texto a voz y le manda al tablero la dirección del MP3; sólo en eventos.
+5. **Contenido de desarrollo**: deploys exitosos o fallidos, caídas o errores de la API, PRs pendientes, uptime.
+6. **Contenido de negocio**: descargas de la app, solicitudes, créditos aprobados y desembolsados, monto del mes con barra hacia la meta; un récord dispara un sonido especial.
+7. **Cultura**: cumpleaños, aniversarios, bienvenidas y la mascota en pixel art.
+8. **Montaje** en la pared, con los paneles definitivos.
 
 El prototipo visual de las dos opciones y la arquitectura: `artifacts/notification-display.html`.
 
@@ -87,7 +90,7 @@ Hoy las cifras del negocio y el estado de los despliegues están repartidos en v
 
 ## Qué cambia
 - Un tablero LED horizontal de interior, en la parte alta de la pared sobre el área de desarrollo, de 1,02 m de ancho (13 o 26 cm de alto según la opción).
-- Muestra texto, números con barra hacia la meta, íconos y pixel art, y hace un sonido corto ante eventos.
+- Muestra texto, números con barra hacia la meta, íconos y pixel art, hace un sonido corto ante eventos y dice en voz los importantes (un récord, una alerta, un cumpleaños).
 - **Negocio**: descargas de la app, solicitudes, créditos aprobados y desembolsados, monto del mes contra la meta y récords con sonido especial.
 - **Desarrollo**: despliegues exitosos o fallidos, caídas o errores de la API, PRs pendientes y disponibilidad.
 - **Cultura**: cumpleaños, aniversarios, bienvenidas, una mascota en pixel art, y hora o clima cuando no hay nada más.
@@ -103,18 +106,20 @@ En la oficina de desarrollo, con el tablero montado y conectado a la red WiFi de
 
 ## Cómo validar
 1. Encender el tablero: muestra la hora y el clima.
-2. Mandar un mensaje de texto, uno de contador con meta, una imagen y un sonido: cada uno se ve y suena como se definió.
+2. Mandar un mensaje de texto, uno de contador con meta, una imagen, un sonido y uno de voz: cada uno se ve, suena o se oye como se definió.
 3. Mandar un tipo de mensaje que no existe: se rechaza y el tablero sigue funcionando.
 4. Simular una caída de la API: la alerta interrumpe la rotación, suena, y la rotación vuelve al resolverse.
 5. Revisar cada cifra de negocio contra su reporte: coincide y ninguna identifica a un cliente.
 
 ## Criterios de aceptación
 - El tablero está montado a 2,2–2,5 m, con brillo medio, y se lee desde los puestos de los 4 desarrolladores.
-- Muestra los cuatro tipos de mensaje y rechaza cualquier otro.
+- Muestra los cinco tipos de mensaje (texto, contador, imagen, sonido y voz) y rechaza cualquier otro.
+- La voz sólo dice cifras agregadas y sólo habla en eventos, no en cada vuelta de la rotación.
 - Las alertas críticas interrumpen la rotación; el resto rota en ciclo.
 - Las cifras de negocio se actualizan solas y coinciden con los reportes.
 - Ninguna pantalla muestra datos individuales de clientes.
 
 ## Dependencias / contraparte
-- Compra del hardware (paneles, controlador, fuente, bocina, cables y soportes).
+- Compra del hardware (paneles, controlador, fuente, amplificador, parlante, cables y soportes)
+- Un servicio de texto a voz para generar las frases..
 - Un punto de corriente y WiFi en la pared elegida.
