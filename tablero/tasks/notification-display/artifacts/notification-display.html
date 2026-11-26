@@ -73,7 +73,7 @@ section { display: flex; flex-direction: column; gap: 18px; }
 .controls { flex-direction: column; align-items: stretch; gap: 14px; }
 .scene-groups { display: flex; flex-direction: column; gap: 10px; }
 .scene-group { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.scene-group .eyebrow { width: 92px; flex: none; }
+.scene-group .eyebrow { width: 118px; flex: none; }
 .toggles { display: flex; flex-wrap: wrap; gap: 8px; }
 .note { font-size: 0.82rem; color: var(--muted); }
 
@@ -175,7 +175,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         <button type="button" id="sound" aria-pressed="false">Sonido</button>
       </div>
     </div>
-    <p class="note">13 mensajes de ejemplo. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y seis mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados.</p>
+    <p class="note">18 mensajes de ejemplo; los de «Marca CreditOp» usan los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados.</p>
   </section>
 
   <section aria-labelledby="size">
@@ -350,12 +350,17 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       <span class="sw"><i style="background: rgb(40,200,175)"></i>turquesa · mascota</span>
       <span class="sw"><i style="background: rgb(235,235,230)"></i>blanco · texto</span>
       <span class="sw"><i style="background: rgb(110,116,128)"></i>gris · etiquetas</span>
+      <span class="sw"><i style="background: #4c39ff"></i>morado CreditOp #4C39FF</span>
+      <span class="sw"><i style="background: #05d587"></i>verde CreditOp #05D587</span>
+      <span class="sw"><i style="background: #aff248"></i>verde claro #AFF248</span>
+      <span class="sw"><i style="background: #252256"></i>violeta #252256 · fondo</span>
     </div>
     <ul class="clean">
       <li><b>Lo que es igual:</b> los colores planos y saturados, que es todo lo que usa el diseño. En el panel se ven más vivos que en una pantalla.</li>
       <li><b>Lo que cambia:</b> con 8 paneles la librería puede bajar la profundidad de color para no parpadear; los degradados se verían en escalones. El diseño no usa degradados.</li>
       <li><b>El gris:</b> es un LED blanco a poca potencia, y a brillo medio se ve como un blanco tenue, un poco azulado. Por eso sólo se usa para etiquetas.</li>
       <li><b>El negro:</b> un LED apagado es negro de verdad y la cara del panel es negra; no hay «fondo» que se vea gris como en la simulación.</li>
+      <li><b>Los de marca:</b> el morado, el verde y el verde claro de CreditOp salen tal cual en el panel. El violeta oscuro de fondo se ve como un resplandor tenue: un LED no puede ser «oscuro», sólo poco encendido.</li>
       <li><b>El ángulo:</b> ≥ 140–160° según la hoja de Waveshare; desde los 4 puestos, de frente y hacia arriba, se ve sin cambio de color.</li>
     </ul>
   </section>
@@ -538,12 +543,15 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
   const C = { amber:[255,176,59], white:[235,235,230], gray:[110,116,128], green:[60,220,130],
               red:[255,48,40], dred:[90,6,6], yellow:[255,220,60], teal:[40,200,175], dim:[40,43,50],
               pink:[255,90,160], blue:[70,140,255], amberDim:[150,100,30],
-              hNeg:[200,135,45], hDev:[60,175,105], hCul:[45,170,150] };
+              hNeg:[200,135,45], hDev:[60,175,105], hCul:[45,170,150],
+              // marca CreditOp, del sistema de diseño del front: morado #4C39FF, verde #05D587, violeta #252256, verde claro #AFF248
+              bP:[76,57,255], bP3:[135,122,255], bG:[5,213,135], bLG:[175,242,72], bV:[37,34,86], bVd:[16,14,40] };
 
   // --- utilidades de dibujo y animación ---
   const clamp = v => Math.max(0, Math.min(1, v));
   const ease = v => 1 - Math.pow(1 - clamp(v), 3);
   const mul = (c, a) => c.map(v => v * a | 0);
+  const mix = (a, c, f) => a.map((v, i) => v + (c[i] - v) * clamp(f) | 0);
   const hash = i => { const s = Math.sin(i * 12.9898) * 43758.5453; return s - Math.floor(s); };
   const hsv = h => { const f = n => { const k = (n + h * 6) % 6; return 255 * (1 - Math.max(0, Math.min(k, 4 - k, 1))) | 0; }; return [f(5), f(3), f(1)]; };
   const fmt = n => Math.round(n).toLocaleString("es-CO");
@@ -571,8 +579,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
   function art(b, rows, x, y, k, map) {
     rows.forEach((row, r) => [...row].forEach((ch, c) => { const col = map[ch]; if (col) rect(b, x + c * k, y + r * k, k, k, col); }));
   }
-  function confetti(b, t, n) {
-    const pal = [C.pink, C.yellow, C.teal, C.blue, C.green, C.amber];
+  function confetti(b, t, n, pal = [C.pink, C.yellow, C.teal, C.blue, C.green, C.amber]) {
     for (let i = 0; i < n; i++) {
       const sp = 8 + hash(i + 7) * 16, y = (hash(i + 3) * (b.h + 6) + t * sp) % (b.h + 6) - 3;
       const x = hash(i) * b.w + Math.sin(t * 2 + i) * 2;
@@ -807,6 +814,73 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         art(b, TROPHY, 4, 10, 1, map);
         typed(b, "FELIZ ANIVERSARIO", 20, 3, 2, C.yellow, t, 0.2, 18);
         text(b, "ANDRES · 3 AÑOS EN CREDITOP", 20, 22, 1, mul(C.white, ease((t - 1.2) / 0.5)));
+      }
+    } },
+    { id: "brand", group: "Marca CreditOp", label: "Marca", draw(b, t) {
+      const big = b.h >= 64, k = big ? 4 : 3, w = "CREDITOP", x = cx(b, w, k), y = big ? 8 : 2;
+      const shade = i => mix(C.bG, C.bLG, (Math.sin(t * 3 - i * 0.6) + 1) / 2);
+      [...w].forEach((ch, i) => text(b, ch, x + i * 6 * k, y, k, shade(i)));
+      const sx = Math.round(x - 4 + ease(t / 1.2) * (tw(w, k) + 8));      // barrido morado que la revela
+      if (t < 1.3) { rect(b, sx, y - 1, b.w - sx, 7 * k + 2, [0,0,0]); rect(b, sx, y - 1, big ? 3 : 2, 7 * k + 2, C.bP); }
+      const uw = Math.round(tw(w, k) * ease((t - 1.2) / 0.5)), uy = y + 7 * k + (big ? 3 : 1);
+      if (!big) { typed(b, "SQUAD LOAN ORIGINATION", cx(b, "SQUAD LOAN ORIGINATION", 1), 25, 1, C.bP3, t, 1.4, 30); }
+      else { if (uw > 0) rect(b, x + ((tw(w, k) - uw) >> 1), uy, uw, 2, C.bP); typed(b, "SQUAD LOAN ORIGINATION", cx(b, "SQUAD LOAN ORIGINATION", 1), 48, 1, C.bP3, t, 1.4, 30); }
+    } },
+    { id: "brand-disbursed", group: "Marca CreditOp", label: "Desembolsos en marca", draw(b, t) {
+      const big = b.h >= 64, goal = 1650, v = 1284 * ease(t / 1.8), num = fmt(v), pct = Math.round(100 * v / goal) + "%";
+      rect(b, 0, 0, b.w, b.h, C.bVd);                                       // fondo violeta tenue
+      head(b, "DESEMBOLSOS · NOV", C.bP3, "META " + fmt(goal), C.white, t);
+      const bar2 = (y, h) => { rect(b, 2, y, b.w - 4, h, C.bV); const f = Math.round((b.w - 4) * v / goal); rect(b, 2, y, f, h, C.bG);
+        const sx = (t * 140) % (f + 60) - 30; for (let i = 0; i < 8; i++) if (sx + i >= 0 && sx + i < f) rect(b, 2 + sx + i, y, 1, h, C.bLG); };
+      if (big) {
+        text(b, num, 2, 14, 3, C.bG); text(b, "CREDITOS", 2 + tw(num, 3) + 8, 28, 1, C.bP3);
+        text(b, pct, rx(b, pct, 3), 14, 3, C.bLG); bar2(42, 8);
+        text(b, "FALTAN " + fmt(goal - v) + " PARA LA META", 2, 55, 1, C.bP3);
+      } else {
+        text(b, num, 2, 10, 2, C.bG); text(b, "CREDITOS", 2 + tw(num, 2) + 6, 17, 1, C.bP3);
+        text(b, pct, rx(b, pct, 2), 10, 2, C.bLG); bar2(26, 5);
+      }
+    } },
+    { id: "goal", group: "Marca CreditOp", label: "Meta cumplida", voice: "¡Meta del mes cumplida: 1650 desembolsos!", sound: () => { pip(784, 100); pip(988, 100, .12); pip(1175, 100, .24); pip(1568, 300, .36); }, draw(b, t) {
+      const big = b.h >= 64;
+      confetti(b, t, big ? 70 : 40, [C.bP, C.bG, C.bLG, C.bP3, C.white]);
+      const pop = t > 0.2;
+      if (big) {
+        if (pop) check(b, 6, 22, 3, C.bG);
+        wave(b, "META CUMPLIDA!", 36, 10, 2, i => (i % 2 ? C.bG : C.bLG), t, 1);
+        text(b, fmt(1650 * ease((t - 0.4) / 1.2)) + " / 1.650", 36, 30, 2, C.white);
+        text(b, "DESEMBOLSOS EN NOVIEMBRE", 36, 52, 1, C.bP3);
+      } else {
+        if (pop) check(b, 4, 12, 2, C.bG);
+        wave(b, "META CUMPLIDA!", 24, 3, 2, i => (i % 2 ? C.bG : C.bLG), t, 1);
+        text(b, "1.650 DESEMBOLSOS EN NOV", 24, 22, 1, mul(C.bP3, ease((t - 0.6) / 0.5)));
+      }
+    } },
+    { id: "creditopx", group: "Marca CreditOp", label: "CreditopX", voice: "CreditopX: 312 créditos este mes.", draw(b, t) {
+      const big = b.h >= 64, k = big ? 3 : 2, xc = mix(C.bP, C.bP3, (Math.sin(t * 4) + 1) / 2), up = "+" + Math.round(23 * ease(t / 1.4)) + "%";
+      const y = big ? 10 : 3;
+      typed(b, "CREDITOP", 2, y, k, C.bG, t, 0, 16);
+      if (t > 0.55) text(b, "X", 2 + 8 * 6 * k, y, k, xc);
+      text(b, up, rx(b, up, 2), big ? 13 : 3, 2, C.bLG);
+      if (big) {
+        text(b, "VS OCTUBRE", rx(b, "VS OCTUBRE", 1), 30, 1, C.bP3);
+        text(b, "312 CREDITOS EN NOVIEMBRE", 2, 40, 1, mul(C.white, ease((t - 1) / 0.5)));
+        text(b, "LA ENTIDAD QUE MAS CRECIO", 2, 52, 1, mul(C.bP3, ease((t - 1.3) / 0.5)));
+      } else {
+        text(b, "312 CREDITOS · LA QUE MAS CRECIO", 2, 22, 1, mul(C.bP3, ease((t - 1) / 0.5)));
+      }
+    } },
+    { id: "team", group: "Marca CreditOp", label: "Buen trabajo", voice: "Buen trabajo, equipo.", draw(b, t) {
+      const big = b.h >= 64, deep1 = [34,24,110], deep2 = [0,80,52];
+      for (let y = 0; y < b.h; y++) for (let x = 0; x < b.w; x++)   // ola morada y verde que corre de fondo
+        px(b, x, y, mix(deep1, deep2, (Math.sin((x + y * 2) / 28 - t * 2) + 1) / 2));
+      if (big) {
+        wave(b, "BUEN TRABAJO,", cx(b, "BUEN TRABAJO,", 3), 6, 3, C.white, t, 1);
+        wave(b, "EQUIPO!", cx(b, "EQUIPO!", 3), 31, 3, C.bLG, t, 1);
+        text(b, "14 DEPLOYS ESTA SEMANA", cx(b, "14 DEPLOYS ESTA SEMANA", 1), 56, 1, mul(C.white, ease((t - 1) / 0.5)));
+      } else {
+        wave(b, "BUEN TRABAJO, EQUIPO!", cx(b, "BUEN TRABAJO, EQUIPO!", 2), 4, 2, C.white, t, 1);
+        text(b, "14 DEPLOYS ESTA SEMANA", cx(b, "14 DEPLOYS ESTA SEMANA", 1), 23, 1, mul(C.bLG, ease((t - 1) / 0.5)));
       }
     } },
     { id: "idle", group: "Reposo", label: "Hora y clima", draw(b, t) {
