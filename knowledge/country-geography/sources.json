@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Catálogo geográfico y árbol de opciones",
   "summary": "Relaciones geográficas, selectores y validación de la ciudad de una sucursal, comodines, auditoría, árbol de form-service y límites de la migración de RD y Perú.",
-  "reviewedAt": "2026-11-25T14:12:19+00:00",
+  "reviewedAt": "2026-11-26T13:37:06+00:00",
   "sources": [
     {
       "repo": "legacy-application",
@@ -91,8 +91,8 @@
     {
       "repo": "form-service",
       "path": "internal/infra/handlers/http/module.go",
-      "commit": "cfd0f02ede473649498f47b87218fb9ab075bdb3",
-      "blob": "b5ea2f9d387bc211938d805d1e8fa8262113762a",
+      "commit": "d95ab9eb8fc57c0d45841510668b487a2c380f95",
+      "blob": "d3d43044ea02292af4a4e34d4e3913f5c8e3a206",
       "sections": [
         "reconstruccion-del-catalogo"
       ]

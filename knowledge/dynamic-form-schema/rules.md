@@ -18,7 +18,17 @@ Los data sources `field_options.country_tree.zones` y `field_options.country_tre
 
 ## Persistencia de respuestas
 
-La ruta de escritura es `POST /v1/dynamic-form/:form_id/response/:user_request_id`. El usuario se obtiene de la solicitud; no lo elige un parámetro `user_id` en la ruta actual. El caso de uso rechaza answers vacío. En MySQL reemplaza respuestas mediante DELETE e INSERT dentro de una transacción, acotada por `(form_id, user_id, user_request_id)`; no es un parche parcial por campo. Tras confirmar MySQL serializa y escribe S3, invalida la caché de respuestas si existía y elimina la de información suplementaria del usuario. Un fallo posterior al commit de MySQL puede devolver error aunque las respuestas ya hayan cambiado. Las filas y las copias de lectura deben comprobarse por separado; un error HTTP no demuestra rollback de todos los servicios.
+La ruta de escritura es `POST /v1/dynamic-form/:form_id/response/:user_request_id`. El usuario se obtiene de la
+solicitud; no lo elige un parámetro `user_id` en la ruta actual. El caso de uso rechaza `answers` vacío y, tras
+resolver la solicitud, verifica `userRequest.Closed()`: si está cancelada o autorizada
+(`legacyforms.UserRequestStatusAuthorized`), corta antes de tocar Redis, MySQL o S3 y devuelve
+`CodeRequestCanceled` o `CodeRequestAuthorized` sin escribir nada.
+
+En MySQL reemplaza respuestas mediante DELETE e INSERT dentro de una transacción, acotada por
+`(form_id, user_id, user_request_id)`; no es un parche parcial por campo. Tras confirmar MySQL serializa y
+escribe S3, invalida la caché de respuestas si existía y elimina la de información suplementaria del usuario. Un
+fallo posterior al commit de MySQL puede devolver error aunque las respuestas ya hayan cambiado. Las filas y las
+copias de lectura deben comprobarse por separado; un error HTTP no demuestra rollback de todos los servicios.
 
 ## Lectura de respuestas
 
