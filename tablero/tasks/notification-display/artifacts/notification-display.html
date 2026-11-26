@@ -708,11 +708,16 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
     { id: "today", group: "Negocio", label: "Resumen del día", draw(b, t) {
       const big = b.h >= 64;
       const cols = [["DESCARGAS", 1820, "+12% VS AYER", C.white], ["SOLICITUDES", 640, "+8% VS AYER", C.white], ["APROBADAS", 212, "+5% VS AYER", C.green]];
+      const MINI = [[".www.", "w...w", "wgggw", "wgggw", "wgggw", "w.w.w", ".www."],     // 📱
+                    ["wwww.", "w..ww", "wgg.w", "w...w", "wggww", "w...w", "wwwww"],     // 📄
+                    [".....", "....g", "...gg", "g.gg.", "ggg..", ".g...", "....."]];    // ✔
       for (let s = 1; s < 3; s++) rect(b, Math.round(b.w * s / 3), big ? 8 : 3, 1, big ? 48 : 26, C.dim);
       cols.forEach(([lab, v, d, c], i) => {
         const mid = Math.round(b.w * (2 * i + 1) / 6), t0 = i * 0.25, n = fmt(v * ease((t - t0) / 1.4));
         const ly = big ? 10 : 3, ny = big ? 24 : 14;
-        text(b, lab, mid - (tw(lab, 1) >> 1), ly, 1, mul(C.gray, ease((t - t0) / 0.4)));
+        const gx = mid - ((5 + 4 + tw(lab, 1)) >> 1), a0 = ease((t - t0) / 0.4);
+        art(b, MINI[i], gx, ly, 1, { w: mul([170,170,190], a0), g: mul(C.green, a0) });
+        text(b, lab, gx + 9, ly, 1, mul(C.gray, a0));
         text(b, n, mid - (tw(n, 2) >> 1), ny, 2, c);
         if (big) text(b, d, mid - (tw(d, 1) >> 1), 46, 1, mul(C.green, ease((t - t0 - 1.2) / 0.5)));
       });
@@ -826,7 +831,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       rows.forEach(([name, v], i) => {
         const t0 = 0.2 + i * 0.2, off = Math.round((1 - ease((t - t0) / 0.45)) * b.w), y = ys[i];
         if (off >= b.w) return;
-        text(b, String(i + 1), 2 + off, y, 1, MEDAL[i]);
+        for (let dy = 0; dy < 5; dy++) for (let dx = 0; dx < 5; dx++) if ((dx - 2) ** 2 + (dy - 2) ** 2 <= 5) px(b, 2 + off + dx, y + 1 + dy, MEDAL[i]);   // 🥇🥈🥉 como en la carrera
         text(b, name, 12 + off, y, 1, i === 0 ? C.amber : C.white);
         const g = ease((t - t0 - 0.3) / 0.9);
         rect(b, bx + off, y + 1, Math.max(1, Math.round(bmax * v / rows[0][1] * g)), 5, i === 0 ? C.amber : C.amberDim);
@@ -842,7 +847,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       rows.forEach(([name, v], i) => {
         const t0 = 0.2 + i * 0.2, off = Math.round((1 - ease((t - t0) / 0.45)) * b.w), y = ys[i];
         if (off >= b.w) return;
-        text(b, String(i + 1), 2 + off, y, 1, MEDAL[i]);
+        for (let dy = 0; dy < 5; dy++) for (let dx = 0; dx < 5; dx++) if ((dx - 2) ** 2 + (dy - 2) ** 2 <= 5) px(b, 2 + off + dx, y + 1 + dy, MEDAL[i]);   // 🥇🥈🥉 como en la carrera
         text(b, name, 12 + off, y, 1, i === 0 ? C.amber : C.white);
         const g = ease((t - t0 - 0.3) / 0.9);
         rect(b, bx + off, y + 1, Math.max(1, Math.round(bmax * v / rows[0][1] * g)), 5, i === 0 ? C.amber : C.amberDim);
@@ -897,16 +902,18 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       }
       if (big) funnelT = t;
       // el agua, que se mueve, y las hojas de nenúfar (la de VENTA, con flor)
-      const rx = big ? 8 : 5, ry = big ? 2 : 1, wy = ty + ry + 1;
+      const rx = big ? 10 : 6, ry = big ? 3 : 1, wy = ty + ry + 1;
       for (let x = 2; x < b.w - 2; x++) px(b, x, wy + Math.round(Math.sin(x / 6 + t * 3) * 0.6), [30,70,130]);
       S.forEach((x, k) => {
         const lit = glow[k], fill = lit ? [35,120,60] : [20,85,45], rim = lit ? [90,200,110] : [40,130,70];
         for (let dx = -rx; dx <= rx; dx++) {
-          if (dx === rx - 2 || dx === rx - 1) continue;                 // la muesca de la hoja
           const h = Math.max(0, Math.round(ry * Math.sqrt(1 - (dx / rx) ** 2)));
-          rect(b, x + dx, ty - h, 1, 2 * h + 1, fill); px(b, x + dx, ty - h, rim);
+          for (let yy = ty - h; yy <= ty + h; yy++) {
+            const slit = dx > 1 && yy < ty && yy === ty - Math.round(dx * ry / rx);   // la ranura del nenúfar, del centro al borde
+            if (!slit) px(b, x + dx, yy, yy === ty - h ? rim : fill);
+          }
         }
-        if (k === 3) { px(b, x + rx - 1, ty - ry - 1, C.pink); px(b, x + rx - 2, ty - ry - 2, C.pink); px(b, x + rx, ty - ry - 2, C.pink); px(b, x + rx - 1, ty - ry - 2, C.yellow); }
+        if (k === 3) { const fx = x - rx + 2, fy = ty - 1; px(b, fx, fy - 1, C.pink); px(b, fx - 1, fy, C.pink); px(b, fx + 1, fy, C.pink); px(b, fx, fy, C.yellow); }   // la flor, en el lado opuesto a la ranura
       });
       // el sapito: sentado o con las patas estiradas al saltar; boca arriba cuando se cae
       const FROG = big ? { sit: [".w...w.", "ggggggg", "gglllgg", ".ggggg.", "gg...gg"], hop: [".w...w.", "ggggggg", "gglllgg", ".ggggg.", "g.....g"] }
