@@ -144,6 +144,21 @@ contexto completo, y aprovechar su ventana de cientos de miles de tokens con dat
   Chrome y Jarvis. Los lunes desde las 7:00 lo arma la API (si falla, reintenta a las 3 horas), o a pedido con
   `bin/sentinel report`. Cada informe vuelve a entrar en los siguientes: así sabe qué concluyó antes. Al final, Sentinel
   (no el modelo) verifica contra main cada ruta de código que cita y lista las que no existen.
+- **La vista** (`server/view.go`, `.data/reports/<día>.json`, `#/report`): con el informe, Gemini devuelve un JSON de
+  vocabulario fijo (titular y nivel, hasta 8 hallazgos con sus señales, despliegue y archivos, tendencias, acciones).
+  Decide QUÉ mostrar; los NÚMEROS los pone el tablero desde lo guardado. `validateView` saca las señales que no existen
+  y marca los archivos que no están en main; el paquete lleva la tabla de ids que puede citar.
+- **Medido el 26/11/2026, el primer informe**: paquete de ~335 mil tokens (607 KB de código de 15 despliegues, 491 KB
+  de resúmenes de 28 días), 3 min 13 s. Contra 6 hechos ya conocidos de la semana encontró solo 4 (el pico de Plataforma
+  del 23/11 con sus columnas, el pagaré trabado de una sola solicitud, Credifamilia −38 % en el mes, la caída de toda la
+  originación del 25/11 por la tarde), 1 a medias (Tripleten) y no vio el `starred` de ese mismo día porque el paquete
+  llegaba hasta ayer: desde entonces lleva el resumen PARCIAL de hoy. Además vio lo que nadie había listado:
+  preapprovals-service fallando el 23 y 24/11 (hasta 558 errores por hora), Meddipay inestable toda la semana, el
+  desbloqueo de equipos diario con la trampa F-156, y el alza de rechazo de CreditopX explicada por cambios de política.
+  15 de 15 rutas citadas existen; la vista citó 37 señales y ninguna se descartó.
+- **Límite**: el código de preapprovals-service y merchant-api no entra, porque esos repos no están en la lista de
+  despliegues (`make deploys`); Sentinel sólo conoce su última versión (las tarjetas de servicios). Por eso el informe no
+  pudo explicar con un diff los errores de `failed to save workflow audit leg`.
 - ⚠ **AI Studio por la web es una cuenta de consumidor**: lo que se manda puede revisarlo Google. El paquete va
   agregado y normalizado (`scrub`, con su prueba): sin números de solicitud, cédulas, celulares, correos ni autores de
   commits. El código sí va, como ya va para poner al día knowledge. `.data/memory.off` apaga lo automático.

@@ -21,3 +21,16 @@ func TestScrub(t *testing.T) {
 		}
 	}
 }
+
+func TestScrubSecrets(t *testing.T) {
+	in := "+API_KEY=sk_live_abc123456789\n+    'password' => 'Sup3rS3creto!',\n+CLIENT_SECRET: \"xyzxyzxyz123\"\n+$timeout = 30;"
+	out := scrubSecrets(in)
+	for _, leak := range []string{"sk_live_abc123456789", "Sup3rS3creto!", "xyzxyzxyz123"} {
+		if strings.Contains(out, leak) {
+			t.Errorf("se coló %q: %s", leak, out)
+		}
+	}
+	if !strings.Contains(out, "$timeout = 30;") {
+		t.Errorf("lo que no es secreto queda: %s", out)
+	}
+}

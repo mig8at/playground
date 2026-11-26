@@ -154,6 +154,13 @@ var (
 	reScrubEmail = regexp.MustCompile(`[\w.+-]+@[\w-]+\.[\w.]+`)
 )
 
+var reSecretValue = regexp.MustCompile(`(?i)((?:secret|password|passwd|token|api[_-]?key|private[_-]?key|client[_-]?secret|access[_-]?key)[A-Za-z0-9_\-]*["']?\s*(?:=|:|=>)\s*["']?)([^\s"',;]{6,})`)
+
+// scrubSecrets: el valor de lo que parece un secreto (`API_KEY=…`, `'password' => '…'`), cambiado por <secreto>.
+func scrubSecrets(s string) string {
+	return reSecretValue.ReplaceAllString(s, "${1}<secreto>")
+}
+
 // scrub: lo que no sale de la Mac aunque se haya colado en un texto (un número de solicitud en un porqué, un correo
 // en un mensaje): el paquete va a una cuenta de consumidor.
 func scrub(s string) string {
@@ -226,13 +233,14 @@ func deployDiff(repo, prev, cur string, limit int) (string, error) {
 	if dir == "" || !gitRef(dir, prev) || !gitRef(dir, cur) {
 		return "", fmt.Errorf("sin el rango %s..%s", prev, cur)
 	}
-	excl := []string{"--", ".", ":!*.lock", ":!*lock.yaml", ":!*lock.json", ":!*.json", ":!*.svg", ":!*.png", ":!*.jpg", ":!*.snap", ":!*.min.js", ":!*.map"}
+	excl := []string{"--", ".", ":!*.lock", ":!*lock.yaml", ":!*lock.json", ":!*.json", ":!*.svg", ":!*.png", ":!*.jpg", ":!*.snap", ":!*.min.js", ":!*.map", ":!*.env*", ":!**/.env*", ":!*.pem", ":!*.key", ":!*.p12", ":!*.crt"}
 	stat, _ := runTool(30*time.Second, dir, "git", append([]string{"diff", "--stat=160", prev + ".." + cur}, excl...)...)
 	patch, err := runTool(60*time.Second, dir, "git", append([]string{"diff", "-U2", prev + ".." + cur}, excl...)...)
 	if err != nil {
 		return "", err
 	}
-	p := string(patch)
+	// El código va a una cuenta de consumidor: sin datos de prueba con cédulas o correos, ni el valor de un secreto.
+	p := scrub(scrubSecrets(string(patch)))
 	if len(p) > limit {
 		p = p[:limit] + fmt.Sprintf("\n… (cortado: el cambio entero pesa %d KB; la lista de archivos de arriba está completa)\n", len(patch)>>10)
 	}
@@ -370,6 +378,8 @@ func (s *sentinel) buildPack(rules Rules, path string, now time.Time) (*PackInfo
 		}
 	}
 
+	deps, _ := deploys(s.root, packCodeDays+30)
+
 	// Los resúmenes de los días, del más viejo al más nuevo.
 	var dates []string
 	for i := packDays; i >= 1; i-- {
@@ -385,13 +395,18 @@ func (s *sentinel) buildPack(rules Rules, path string, now time.Time) (*PackInfo
 		section("resúmenes diarios", string(raw)+"\n")
 	}
 
+	// Hoy, hasta ahora: no se guarda (el día no terminó), pero sin esto el informe no ve lo que pasó hoy. Medido el
+	// 26/11/2026: el primer informe no vio el despliegue de las 11:14 que rompió una columna, porque llegaba hasta ayer.
+	if today, err := s.digestDay(rules, now.In(bogota).Format("2006-01-02"), deps); err == nil {
+		section("resúmenes diarios", strings.Replace(today, "# Resumen de producción del ", "# Resumen PARCIAL (el día no terminó) del ", 1)+"\n")
+	}
+
 	// El mes a la fecha (month.go).
 	if m, err := month(s.follow.all()); err == nil {
 		section("mes a la fecha", "# El mes a la fecha\n\n"+m.Text()+"\n")
 	}
 
 	// El código de lo que se desplegó en la última semana.
-	deps, _ := deploys(s.root, packCodeDays+30)
 	since := now.In(bogota).AddDate(0, 0, -packCodeDays).Format(time.RFC3339)
 	var recent []Deploy
 	for _, d := range deps {
@@ -481,7 +496,8 @@ func (s *sentinel) runReport(rules Rules, now time.Time) (string, *PackInfo, err
 	// La vista para el tablero (view.go): se separa, se valida y se guarda aparte; el informe queda sin el bloque.
 	view, rest, verr := parseView(report)
 	if verr == nil {
-		report = rest
+		// Sin el bloque, el título de la sección de la vista queda vacío: se saca.
+		report = strings.TrimSpace(regexp.MustCompile(`(?m)^#{1,3}\s*\d*\.?\s*La vista para el tablero\s*$`).ReplaceAllString(rest, ""))
 		validateView(view, s.knownSignals(rules, now))
 		if vraw, err := json.MarshalIndent(view, "", "  "); err == nil {
 			_ = os.WriteFile(filepath.Join(s.reportDir(), date+".json"), vraw, 0o644)
