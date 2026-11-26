@@ -612,6 +612,10 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
              ".wgggggggg..", "..w.........", "..wwwwwwww..", "............", "...ww...ww..", "...ww...ww.."],
     phone:  ["...wwwwww...", "...w....w...", "...wggggw...", "...wggggw...", "...wggggw...", "...wggggw...",
              "...wggggw...", "...wggggw...", "...w....w...", "...w.ww.w...", "...w....w...", "...wwwwww..."],
+    siren:  ["y....rr....y", ".y..rrrr..y.", "...rrrrrr...", "..rrwrrrrr..", "y.rrwrrrrr.y", "..rrrrrrrr..",
+             "..rrrrrrrr..", "..rrrrrrrr..", ".kkkkkkkkkk.", ".kkkkkkkkkk.", "............", "............"],
+    balloon:["..bbb..", ".bbbbb.", ".bwbbb.", ".bbbbb.", ".bbbbb.", "..bbb..", "...b...", "...w...", "....w..",
+             "...w...", "....w..", "...w..."],
     paper:  ["wwwwwww.....", "w.....ww....", "w.....w.w...", "w.....wwww..", "w.gg.....w..", "w........w..",
              "w.ggggg..w..", "w........w..", "w.gggg...w..", "w........w..", "wwwwwwwwww..", "............"]
   };
@@ -656,10 +660,6 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
   const owl = (b, x, y, k, blink) => art(b, OWL, x, y, k, { o: C.teal, w: C.white, k: blink ? C.white : [10,10,12], y: C.amber });
   function check(b, x, y, k, c) { // 7×6
     [[0,3],[1,4],[2,5],[3,4],[4,3],[5,2],[6,1],[6,0],[1,3],[2,4],[3,3],[4,2],[5,1]].forEach(([i, j]) => rect(b, x + i * k, y + j * k, k, k, c));
-  }
-  function warn(b, x, y, k, c, ink) { // triángulo de 11×10
-    for (let r = 0; r < 10; r++) { const half = Math.floor(r / 2 + 0.5); rect(b, x + (5 - half) * k, y + r * k, (half * 2 + 1) * k, k, c); }
-    rect(b, x + 5 * k, y + 3 * k, k, 4 * k, ink); rect(b, x + 5 * k, y + 8 * k, k, k, ink);
   }
 
   // --- los mensajes: cada uno dibuja en un búfer de 256×32 o 256×64 en el instante t (s) ---
@@ -863,14 +863,14 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       if (on) rect(b, 0, 0, b.w, b.h, C.dred);
       const fr = on ? C.red : [140,20,16];
       rect(b, 0, 0, b.w, 1, fr); rect(b, 0, b.h - 1, b.w, 1, fr); rect(b, 0, 0, 1, b.h, fr); rect(b, b.w - 1, 0, 1, b.h, fr);
-      const ink = on ? C.dred : [0,0,0];
+      const siren = { r: on ? [255,60,50] : [150,20,15], w: [255,235,230], k: [120,124,134], y: on ? C.yellow : null };
       if (big) {
-        warn(b, 8, 21, 2, C.yellow, ink);
+        art(b, ICONS.siren, 8, 20, 2, siren);
         text(b, "API CAIDA", 40, 8, 3, on ? C.white : C.red);
         text(b, "ERRORES 5XX 12% · HACE 4 MIN", 40, 37, 1, C.yellow);
         text(b, "ALERTA CRITICA · REVISAR YA", 40, 50, 1, C.white);
       } else {
-        warn(b, 4, 11, 1, C.yellow, ink);
+        art(b, ICONS.siren, 4, 10, 1, siren);
         text(b, "API CAIDA", 22, 4, 2, on ? C.white : C.red);
         text(b, "ERRORES 5XX 12% · HACE 4 MIN", 22, 22, 1, C.yellow);
       }
@@ -908,11 +908,16 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       confetti(b, t, big ? 70 : 40);
       const map = { f: fl ? C.yellow : C.amber, y: C.white, c: C.white, p: C.pink, w: C.white, b: [200,120,60], g: C.gray };
       const rainbow = i => hsv((t * 0.15 + i * 0.09) % 1);
+      const fl1 = Math.round(Math.sin(t * 2) * 2), fl2 = Math.round(Math.sin(t * 2 + 1.5) * 2);
       if (big) {
+        art(b, ICONS.balloon, 212, 18 + fl1, 2, { b: C.pink, w: C.white });
+        art(b, ICONS.balloon, 232, 14 + fl2, 2, { b: [5,213,135], w: C.white });
         art(b, CAKE, 6, 17, 2, map);
         wave(b, "FELIZ CUMPLE", 48, 10, 2, C.pink, t, 1);
         wave(b, "PEPITO!", 48, 30, 3, rainbow, t, 2);
       } else {
+        art(b, ICONS.balloon, 230, 8 + (fl1 >> 1), 1, { b: C.pink, w: C.white });
+        art(b, ICONS.balloon, 242, 6 + (fl2 >> 1), 1, { b: [5,213,135], w: C.white });
         art(b, CAKE, 4, 9, 1, map);
         wave(b, "FELIZ CUMPLE", 26, 3, 2, C.pink, t, 1);
         typed(b, "PEPITO! QUE LA PASES BIEN", 26, 22, 1, C.white, t, 0.6, 22);
