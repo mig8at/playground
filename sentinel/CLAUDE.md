@@ -33,6 +33,7 @@ un agente para que resuma.
 | `bin/sentinel ack <señal> [--undo]` | reconoce un episodio («ya lo sé»): pasa de «Pide atención» a «Conocidos» hasta que se cierra o EMPEORA. Va por la API (`POST/DELETE /api/ack`), porque el avisador vive ahí; en la interfaz, «Reconocer» y «Devolver» |
 | `bin/sentinel cases <señal> [--hours N]` · `bin/sentinel rules <entidad> [--hours N]` | solicitudes de ejemplo de la señal (con su enlace a tracer) · qué regla dura rechaza a la entidad, ahora contra antes (§«De la señal al caso»). Leen producción, no lo guardado |
 | `bin/sentinel verdict [--make]` · `bin/sentinel why <señal>` | el dictamen de la mañana (el último guardado; `--make` arma el de hoy ya, ~30 s) · el porqué de una señal ahora, como hipótesis, sin guardar ni avisar (§«El dictamen y el porqué») |
+| `bin/sentinel stages [etapa] [--hours N]` | **los errores por etapa del recorrido** (OTP, datos personales, centrales, entidad, identidad, pagaré…) contra lo normal; con una etapa, qué mensajes la llenan, cuántas solicitudes toca y en qué estado están hoy, con ejemplos (§«Los errores por etapa»). Sin etapa lee lo guardado; con una, Loki y producción en el momento (~3 s) |
 | `bin/sentinel month` | **el mes a la fecha**: este mes contra el mismo tramo del anterior (hasta la misma hora del mismo día), toda la originación, lo que se sigue y las 10 entidades y comercios que más desembolsan: solicitudes, desembolsos, el ritmo de cada uno y lo desembolsado. Una vista, no avisa (§«El mes a la fecha»). Lee producción, ~5 s |
 | `bin/sentinel schema` | **la deriva de esquema**: lo que producción tiene y la base de dev/qa/staging ya NO (columnas renombradas o borradas por una migración que corrió en dev: lo que un servicio desplegado puede estar leyendo, como el `countries.cell_phone_lenght` del 18/11/2026), los cambios de tipo y las migraciones de dev que producción no corrió, con las que por el nombre renombran o borran. Sin respaldos, temporales ni vistas `VW_`. ~5 s, sólo lectura (`server/schema.go`) |
 | `bin/sentinel deploy <repo> [versión] [--hours 2]` | **¿se dañó algo después de un despliegue?** Las horas de después contra las mismas de antes y contra esa franja en los días comparables, en TODAS las señales: errores que subieron, solicitudes que cayeron (con piso de volumen), servicios que se callaron. Sin versión, el último a producción del repo (GitHub). Que algo empeore después no prueba que lo causó: dos repos que se despliegan juntos se ven igual |
@@ -65,6 +66,46 @@ Su salida queda en `~/Library/Logs/sentinel.log`.
   o la VPN de producción caída dejan un hueco que la pasada siguiente llena entero.
 - **Al abrir hay datos de entrada.** La última vista se guarda en `sentinel/.data/last.json`; al arrancar la API la
   sirve marcada `stale` («lo guardado de las HH:MM; leyendo lo de ahora…») hasta que termina la primera pasada.
+
+## Los errores por etapa (`server/stages.go`)
+
+Idea de Miguel (2026-11-26): poder decir «está fallando la identidad» o «está fallando el pagaré», no sólo «legacy-backend
+tiene más errores». Cada línea de error de producción se ubica en una **etapa del recorrido** —OTP, datos personales,
+datos laborales, centrales de riesgo, perfilamiento, consulta a la entidad, identidad, firma, pagaré, cobro, desembolso
+y equipo— o en una **transversal** —ecommerce, app de clientes, administración, pedidos HTTP rechazados, plataforma—.
+Lo que ninguna regla ubica queda en **«Sin etapa»**: esa lista dice qué falta mapear.
+
+- **La etapa sale del error, no del estado de la solicitud.** Medido el 26/11/2026: 21.175 de ~38.000 solicitudes del mes
+  estaban en el estado 9 «Formulario de perfil», que no cambia en casi todo el asistente (OTP, datos, centrales,
+  perfilamiento). Agrupar por estado juntaba «falla en datos personales» con «falla en el buró». El estado de HOY de las
+  solicitudes tocadas va aparte, en el detalle.
+- **Una sola fuente, `stageRules`**: la primera regla que cumple decide, por el servicio, el código (`context.error_code`:
+  ONB001 OTP, ONB002 datos personales, ONB004 laborales, ONB040 límite), la etiqueta `lender` que legacy-backend pone en
+  las llamadas a una entidad, o palabras del mensaje, de la clase que falló (`context.controller`) y de la URL
+  (`context.url`). De ahí salen el clasificador en Go y la plantilla de Loki (`label_format stage=…`, ~5,5 KB) con que la
+  pasada cuenta `stage:<etapa>` por bloque de 5 minutos (`logsVersion` 5). `stages_test.go` ejecuta la plantilla con
+  `text/template` y comprueba que clasifique igual que Go.
+- **Cobertura al crearlo**, sobre los ~240 mensajes conocidos de 7 días: el 83 % del volumen con etapa antes de mapear
+  lo HTTP. Lo grande que quedaba eran los `http_exception_rendering` de legacy-application: 404 de escáneres que buscan
+  `.env` o `terraform.tfstate`, 429 de `/welli/webhook` y archivos viejos del panel; tienen su etapa, «Pedidos HTTP
+  rechazados», que va antes que las palabras (la URL de un 403 del panel dice «centrales-de-riesgo»).
+- ⚠ **Muchos «errores» son desvíos del flujo**: ONB002 (usuario temporal, 11.089 en 7 días) y ONB004 (sin datos
+  laborales) sólo mandan al cliente a la pantalla siguiente. Por eso una etapa se compara contra lo normal de ESA etapa,
+  con la misma regla que los errores de un servicio (que SUBAN, con techo).
+- **Avisan** como cualquier señal de errores, salvo «Sin etapa» y «Pedidos HTTP rechazados» (`silentStages`), que se ven
+  pero no avisan. Backtest del 19 al 26/11/2026 (`-backtest 7 -signals 'stage:*'`): 8 alertas, casi todas pegadas a un
+  despliegue (el 23/11, tras legacy-application v1.2.19, Plataforma con 168 errores contra 0).
+- **El detalle** (`GET /api/stage?key=…&hours=1|6|24`, `bin/sentinel stages <etapa>`): lee de Loki las líneas de la etapa
+  (hasta 5.000, las más recientes), las agrupa por mensaje normalizado, cuenta las solicitudes que nombran
+  (`context.user_request_id`) y lee de producción en qué estado están hoy; hasta 8 de ejemplo con su enlace a tracer.
+  ⚠ No todas las líneas nombran la solicitud: las de centrales traen el usuario o el id de la consulta (medido: 0 de 861
+  en 24 h), así que ahí «solicitudes tocadas» da 0 sin que falte nada.
+- **En la interfaz**: en toda la originación, «Errores por etapa del recorrido», el camino numerado con errores de la
+  última hora contra lo normal y las transversales como fichas; la pestaña «Etapas» en la tabla; y al elegir una etapa,
+  «Qué está fallando» arriba de la curva, con sus proveedores externos (`out:`) y su tasa de falla al lado.
+- **Para mapear algo nuevo**: `bin/sentinel stages other --hours 24` lista lo que cae sin etapa; se agrega la regla en
+  `stageRules`, un caso en `stages_test.go`, y como cambia la plantilla, la historia se puede volver a pedir subiendo
+  `logsVersion`.
 
 ## El mes a la fecha (`server/month.go`)
 
@@ -423,6 +464,7 @@ modelo supera al otro, se registra y se borra»): `-forecaster chronos` pide vol
 | el dictamen de la mañana y el porqué de una alerta | `server/verdict.go` |
 | la plata en juego (lo desembolsado por entidad y comercio) | `server/stake.go` |
 | el mes a la fecha contra el anterior | `server/month.go` |
+| los errores por etapa del recorrido | `server/stages.go` |
 | los servicios en producción: versión y tarjetas | `server/services.go` |
 | el LaunchAgent (de fondo) | `server/agent.go` |
 | los despliegues a producción | `go run ./tablero/server/cmd/deploys -json` (lo mismo que `make deploys`) |

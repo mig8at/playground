@@ -240,7 +240,8 @@ const (
 //	2: errores y líneas de todos los servicios (`service:`, `logs:`)
 //	3: errores por entidad (`lerr:`)
 //	4: las llamadas a proveedores externos (`out:`, outbound.go)
-const logsVersion = 4
+//	5: los errores por etapa del recorrido (`stage:`, stages.go)
+const logsVersion = 5
 
 // logKindsSince: las clases de señal que agregó cada versión después de `since`. Se reemplazan sólo ésas: pasar una
 // clase que no se pidió la dejaría en cero.
@@ -254,6 +255,9 @@ func logKindsSince(since int) []string {
 	}
 	if since < 4 {
 		kinds = append(kinds, "out")
+	}
+	if since < 5 {
+		kinds = append(kinds, "stage")
 	}
 	return kinds
 }
@@ -291,6 +295,9 @@ func logErrors(cl *connlogs.Client, from, to time.Time, f Fresh, since int, slug
 	}
 	if since < 4 {
 		jobs = append(jobs, job{query: outCallsLogQL, signalOf: outSignalOf}, job{query: outFailsLogQL, signalOf: outSignalOf, field: "denied"})
+	}
+	if since < 5 {
+		jobs = append(jobs, job{query: stagesLogQL(), signalOf: stageSignalOf})
 	}
 	parts, errs := make([]Fresh, len(jobs)), make([]error, len(jobs))
 	var wg sync.WaitGroup

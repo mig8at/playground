@@ -28,7 +28,7 @@ import (
 	"time"
 )
 
-var cliCommands = map[string]bool{"now": true, "day": true, "signal": true, "deploy": true, "ack": true, "schema": true, "cases": true, "rules": true, "verdict": true, "why": true, "month": true}
+var cliCommands = map[string]bool{"now": true, "day": true, "signal": true, "deploy": true, "ack": true, "schema": true, "cases": true, "rules": true, "verdict": true, "why": true, "month": true, "stages": true}
 
 // cliHelp es lo que dicen `bin/sentinel`, `help`, `-h` y `--help`. No arranca nada ni lee nada.
 const cliHelp = `sentinel — el vigía de producción, por consola. Sólo lee (ack es lo único que escribe, y va por la API).
@@ -42,6 +42,8 @@ const cliHelp = `sentinel — el vigía de producción, por consola. Sólo lee (
   bin/sentinel verdict [--make]             el dictamen de la mañana (el último guardado; --make arma el de hoy, ~30 s)
   bin/sentinel cases <señal> [--hours N]    solicitudes de ejemplo de la señal (lee producción)
   bin/sentinel rules <entidad> [--hours N]  qué regla dura rechaza a la entidad, ahora contra antes (lee producción)
+  bin/sentinel stages [etapa] [--hours N]   los errores por etapa del recorrido contra lo normal; con una etapa, sus mensajes,
+                                            las solicitudes que toca y en qué estado quedaron (lee Loki y producción)
   bin/sentinel month                        el mes a la fecha contra el mismo tramo del mes anterior, por entidad y comercio (lee producción)
   bin/sentinel schema                       lo que producción tiene y dev ya no: columnas renombradas o borradas
   bin/sentinel ack <señal> [--undo]         reconocer un episodio («ya lo sé»); pide la API arriba
@@ -100,6 +102,20 @@ func runCLI(root string, args []string) int {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "sentinel:", err)
 		return 1
+	}
+	// stages: sin etapa, las de lo guardado contra lo normal; con una, su detalle leído en el momento (stages.go).
+	if cmd == "stages" {
+		if len(positional) > 0 {
+			h := *hours
+			if h == 2 { // lo de partida de --hours es para deploy; para una etapa, 6 horas
+				h = 6
+			}
+			now := time.Now().In(bogota)
+			d, err := stageDetail(positional[0], now.Add(-time.Duration(h*float64(time.Hour))), now)
+			return printOut(d, err, *asJSON)
+		}
+		o := c.s.overview(c.rules, c.reach.Truncate(time.Minute))
+		return printOut(&StagesReport{At: c.reach.Format(time.RFC3339), Freshness: c.freshness(), List: o.Stages, Stages: stages}, nil, *asJSON)
 	}
 	// verdict y why le preguntan al modelo de segundo plano (verdict.go).
 	if cmd == "verdict" || cmd == "why" {
@@ -216,7 +232,7 @@ func (c *cli) now() (*NowReport, error) {
 	r := &NowReport{At: c.reach.Format(time.RFC3339), Freshness: c.freshness(), All: o.All, Apps: o.Apps,
 		Unsent: openNotifier(c.s.store.dir).unsent()}
 	acked := openNotifier(c.s.store.dir).acked()
-	for _, list := range [][]Subject{o.Services, o.Liveness, o.LenderErrors, o.Providers, o.Rejections, o.Funnel, o.NewMessages, o.Lenders, o.Merchants} {
+	for _, list := range [][]Subject{o.Services, o.Liveness, o.LenderErrors, o.Stages, o.Providers, o.Rejections, o.Funnel, o.NewMessages, o.Lenders, o.Merchants} {
 		for _, x := range list {
 			if x.State == "alert" || x.State == "warn" {
 				if acked[x.Signal] {
@@ -808,6 +824,8 @@ func (s *sentinel) subjectName(sig Signal) string {
 		return nameOr(s.lenderNames, id)
 	case "lerr":
 		return nameOr(s.lenderNames, id) + " · errores"
+	case "stage":
+		return "Etapa · " + stageName(key)
 	case "merchant":
 		return nameOr(s.merchantNames, id)
 	case "queue":

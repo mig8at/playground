@@ -185,6 +185,13 @@ func (n *notifier) observe(o *Overview, now time.Time) {
 	all = append(all, o.Merchants...)
 	all = append(all, o.Liveness...)
 	all = append(all, o.LenderErrors...)
+	// Las etapas del recorrido avisan, salvo las que no son una falla: «Sin etapa» es un hueco del mapa y «Pedidos HTTP
+	// rechazados», escáneres y webhooks frenados (stages.go, `silentStages`). Se ven igual en la interfaz.
+	for _, st := range o.Stages {
+		if !silentStages[strings.TrimPrefix(st.Signal, "stage:")] {
+			all = append(all, st)
+		}
+	}
 	all = append(all, o.Steps...)
 	all = append(all, o.Providers...)
 	all = append(all, o.Rejections...)

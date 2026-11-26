@@ -106,6 +106,10 @@ type Overview struct {
 	Liveness   []Subject `json:"liveness"` // todas las líneas de Loki por servicio: si deja de escribir, se cayó
 	// LenderErrors: los errores en los logs que nombran a una entidad (preapprovals-service y legacy-backend).
 	LenderErrors []Subject `json:"lenderErrors"`
+	// Stages: los errores por etapa del recorrido (`stage:identity`), en el orden del recorrido (stages.go).
+	Stages []Subject `json:"stages"`
+	// StageList: las etapas con su descripción y sus proveedores, para la interfaz.
+	StageList []Stage `json:"stageList"`
 	// Steps: las pantallas del wizard (PostHog), en todo el wizard (`step:otp`) y por comercio (`step:otp@94`).
 	Steps []Subject `json:"steps"`
 	// Providers: los proveedores externos a los que llama legacy-backend (`out:experian`), por su tasa de falla.
@@ -578,6 +582,8 @@ func (s *sentinel) overview(rules Rules, now time.Time) *Overview {
 			o.Liveness = append(o.Liveness, subj)
 		case "lerr":
 			o.LenderErrors = append(o.LenderErrors, subj)
+		case "stage":
+			o.Stages = append(o.Stages, subj)
 		case "step":
 			o.Steps = append(o.Steps, subj)
 		case "out":
@@ -589,6 +595,9 @@ func (s *sentinel) overview(rules Rules, now time.Time) *Overview {
 		}
 	}
 	o.Apps = s.apps(o)
+	o.StageList = stages
+	// Las etapas van en el orden del recorrido, no por estado: se leen como un camino.
+	sort.SliceStable(o.Stages, func(i, j int) bool { return stageOrder(o.Stages[i].Signal) < stageOrder(o.Stages[j].Signal) })
 	for _, list := range []*[]Subject{&o.Lenders, &o.Merchants, &o.Services, &o.Liveness, &o.LenderErrors, &o.Steps, &o.Providers, &o.Rejections, &o.Funnel, &o.NewMessages} {
 		sortSubjects(*list)
 	}
@@ -624,6 +633,8 @@ func (s *sentinel) subject(e evaluator, sig Signal, now time.Time) Subject {
 		subj.Name = nameOr(s.lenderNames, id)
 	case "lerr":
 		subj.Name = nameOr(s.lenderNames, id) + " · errores"
+	case "stage":
+		subj.Name = "Etapa · " + stageName(key)
 	case "merchant":
 		subj.Name = nameOr(s.merchantNames, id)
 	case "queue":
@@ -768,7 +779,7 @@ func (s *sentinel) decorate(o *Overview) {
 	acked := s.notifier.acked()
 	why := s.notifier.explanations()
 	o.Verdict = s.latestVerdict()
-	for _, list := range []*[]Subject{&o.Lenders, &o.Merchants, &o.Services, &o.Liveness, &o.LenderErrors, &o.Steps, &o.Providers, &o.Rejections, &o.Funnel, &o.NewMessages} {
+	for _, list := range []*[]Subject{&o.Lenders, &o.Merchants, &o.Services, &o.Liveness, &o.LenderErrors, &o.Stages, &o.Steps, &o.Providers, &o.Rejections, &o.Funnel, &o.NewMessages} {
 		for i := range *list {
 			(*list)[i].Explain = why[(*list)[i].Signal]
 			(*list)[i].Acked = acked[(*list)[i].Signal]
@@ -833,7 +844,7 @@ func (s *sentinel) gapSince(before, now time.Time, o *Overview) *gapReport {
 		from, r.Capped = now.Add(-gapReplayMax), true
 	}
 	names := map[Signal]string{}
-	for _, list := range [][]Subject{{o.All}, o.Lenders, o.Merchants, o.Services, o.Liveness, o.LenderErrors, o.Steps, o.Providers, o.NewMessages} {
+	for _, list := range [][]Subject{{o.All}, o.Lenders, o.Merchants, o.Services, o.Liveness, o.LenderErrors, o.Stages, o.Steps, o.Providers, o.NewMessages} {
 		for _, x := range list {
 			names[x.Signal] = x.Name
 		}
@@ -1162,6 +1173,21 @@ func main() {
 		d, err := s.today()
 		if err != nil {
 			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, d)
+	})
+	// GET /api/stage?key=identity&hours=6 — el detalle de una etapa: sus mensajes, las solicitudes que toca y en qué
+	// estado quedaron (stages.go). Lee Loki y producción en el momento.
+	mux.HandleFunc("GET /api/stage", func(w http.ResponseWriter, r *http.Request) {
+		hours, _ := strconv.Atoi(r.URL.Query().Get("hours"))
+		if hours <= 0 || hours > 72 {
+			hours = 6
+		}
+		now := time.Now().In(bogota)
+		d, err := stageDetail(r.URL.Query().Get("key"), now.Add(-time.Duration(hours)*time.Hour), now)
+		if err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
 			return
 		}
 		writeJSON(w, http.StatusOK, d)

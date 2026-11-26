@@ -64,7 +64,7 @@ const filtered = (list) => (query.value.trim() ? (list || []).filter((s) => fold
 // Sin movimiento: lo normal a esta hora es 0 y hoy tampoco entró nada. Van plegados al final de su grupo: son la
 // mayoría de las entidades a cualquier hora y tapaban las que sí se mueven.
 const idle = (s) => s.median === 0 && s.now.total === 0
-const everything = computed(() => [...(data.value?.services || []), ...(data.value?.liveness || []), ...(data.value?.lenderErrors || []), ...(data.value?.providers || []), ...(data.value?.rejections || []), ...(data.value?.funnel || []), ...(data.value?.steps || []), ...(data.value?.lenders || []), ...(data.value?.merchants || [])])
+const everything = computed(() => [...(data.value?.services || []), ...(data.value?.liveness || []), ...(data.value?.lenderErrors || []), ...(data.value?.stages || []), ...(data.value?.providers || []), ...(data.value?.rejections || []), ...(data.value?.funnel || []), ...(data.value?.steps || []), ...(data.value?.lenders || []), ...(data.value?.merchants || [])])
 const bySignal = computed(() => new Map(everything.value.map((s) => [s.signal, s])))
 const followed = computed(() => following.value.map((sig) => bySignal.value.get(sig) || { signal: sig, name: sig, kind: sig.split(':')[0], id: Number(sig.split(':')[1]), state: 'quiet', now: { total: 0 }, median: 0, why: 'Sin datos todavía: no aparece en lo guardado.' }))
 // Lo que se sigue, en dos secciones: entidades primero (son menos y cada una cruza varios comercios), después comercios.
@@ -98,7 +98,7 @@ function spark(s) {
 }
 
 // ── la tabla de la consola: todas las señales ──
-const KIND_TABS = [{ id: 'all', label: 'Todas' }, { id: 'errors', label: 'Errores' }, { id: 'logs', label: 'Vida' }, { id: 'step', label: 'Pantallas' }, { id: 'out', label: 'Proveedores' }, { id: 'reject', label: 'Rechazo' }, { id: 'funnel', label: 'Embudo' }, { id: 'lender', label: 'Entidades' }, { id: 'merchant', label: 'Comercios' }]
+const KIND_TABS = [{ id: 'all', label: 'Todas' }, { id: 'errors', label: 'Errores' }, { id: 'stage', label: 'Etapas' }, { id: 'logs', label: 'Vida' }, { id: 'step', label: 'Pantallas' }, { id: 'out', label: 'Proveedores' }, { id: 'reject', label: 'Rechazo' }, { id: 'funnel', label: 'Embudo' }, { id: 'lender', label: 'Entidades' }, { id: 'merchant', label: 'Comercios' }]
 const tableKind = ref('all')
 const tableQuery = ref('')
 const showIdle = ref(false)
@@ -136,6 +136,7 @@ const selected = computed(() => {
   if (route.value.kind === 'out') return d.providers?.find((s) => s.signal === `out:${route.value.name}`) || d.all
   if (route.value.kind === 'reject') return d.rejections?.find((s) => s.signal === `reject:${route.value.name}`) || d.all
   if (route.value.kind === 'funnel') return d.funnel?.find((s) => s.signal === `funnel:${route.value.name}`) || d.all
+  if (route.value.kind === 'stage') return d.stages?.find((s) => s.signal === `stage:${route.value.name}`) || stagePlaceholder(route.value.name) || d.all
   if (route.value.kind === 'lender') return d.lenders?.find((s) => s.id === route.value.id) || d.all
   if (route.value.kind === 'merchant') return d.merchants?.find((s) => s.id === route.value.id) || d.all
   return d.all
@@ -145,7 +146,7 @@ const selected = computed(() => {
 // este panel y la tabla mostraba alertas que acá no aparecían).
 const stepFollowed = (x) => !x.signal.includes('@') || following.value.includes(`merchant:${x.signal.split('@')[1]}`)
 const outOfNormal = (s) => s.state === 'alert' || s.state === 'warn'
-const noticing = computed(() => [...(data.value?.services || []), ...(data.value?.liveness || []), ...(data.value?.lenderErrors || []), ...(data.value?.providers || []), ...(data.value?.rejections || []), ...(data.value?.funnel || []), ...(data.value?.newMessages || []), ...(data.value?.steps || []).filter(stepFollowed), ...(data.value?.lenders || []), ...(data.value?.merchants || [])]
+const noticing = computed(() => [...(data.value?.services || []), ...(data.value?.liveness || []), ...(data.value?.lenderErrors || []), ...(data.value?.stages || []), ...(data.value?.providers || []), ...(data.value?.rejections || []), ...(data.value?.funnel || []), ...(data.value?.newMessages || []), ...(data.value?.steps || []).filter(stepFollowed), ...(data.value?.lenders || []), ...(data.value?.merchants || [])]
   .filter(outOfNormal)
   // Lo peor primero y, a igual estado, lo que más plata mueve (stake: su parte de lo desembolsado en 28 días).
   .sort((a, b) => (SEVERITY[a.state] ?? 9) - (SEVERITY[b.state] ?? 9) || (b.stake?.share || 0) - (a.stake?.share || 0)))
@@ -166,7 +167,7 @@ async function setAck(s, on) {
 function readRoute() {
   const { parts } = readHashRoute()
   if (parts[0] === 'queue') route.value = { kind: 'queue', id: 0 }
-  else if ((parts[0] === 'service' || parts[0] === 'logs' || parts[0] === 'step' || parts[0] === 'jserr' || parts[0] === 'out' || parts[0] === 'reject' || parts[0] === 'funnel') && parts[1]) route.value = { kind: parts[0], id: 0, name: decodeURIComponent(parts[1]) }
+  else if ((parts[0] === 'service' || parts[0] === 'logs' || parts[0] === 'step' || parts[0] === 'jserr' || parts[0] === 'out' || parts[0] === 'reject' || parts[0] === 'funnel' || parts[0] === 'stage') && parts[1]) route.value = { kind: parts[0], id: 0, name: decodeURIComponent(parts[1]) }
   else route.value = (parts[0] === 'lender' || parts[0] === 'merchant' || parts[0] === 'lerr') && parts[1] ? { kind: parts[0], id: Number(parts[1]) } : { kind: 'all', id: 0 }
 }
 // Ir a una señal: `setRoute` recibe una URL, no las partes; con la lista escribía `/merchant,94` en la ruta y el
@@ -182,11 +183,12 @@ function pick(s) {
   else if (s.kind === 'out') go(['out', s.signal.slice(4)])
   else if (s.kind === 'reject') go(['reject', s.signal.slice(7)])
   else if (s.kind === 'funnel') go(['funnel', s.signal.slice(7)])
+  else if (s.kind === 'stage') go(['stage', s.signal.slice(6)])
   else if (s.kind === 'newmsg') go(['service', s.message.service]) // el error nuevo se mira en su servicio
   else go([s.kind, String(s.id)])
   readRoute()
 }
-const isOn = (s) => route.value.kind === s.kind && (s.kind === 'queue' || (s.kind === 'service' ? route.value.name === s.name : s.kind === 'logs' || s.kind === 'step' || s.kind === 'jserr' || s.kind === 'out' || s.kind === 'reject' || s.kind === 'funnel' ? `${s.kind}:${route.value.name}` === s.signal : route.value.id === s.id))
+const isOn = (s) => route.value.kind === s.kind && (s.kind === 'queue' || (s.kind === 'service' ? route.value.name === s.name : s.kind === 'logs' || s.kind === 'step' || s.kind === 'jserr' || s.kind === 'out' || s.kind === 'reject' || s.kind === 'funnel' || s.kind === 'stage' ? `${s.kind}:${route.value.name}` === s.signal : route.value.id === s.id))
 
 // El último despliegue a producción de un servicio: los servicios de Loki se llaman como sus repos.
 const lastDeployOf = (name) => (data.value?.deploys || []).find((d) => d.repo === name)
@@ -216,8 +218,8 @@ const ago = (iso) => {
 // ── textos ──
 const STATE_LABEL = { alert: 'alerta', warn: 'para mirar', ok: 'normal', quiet: 'poco volumen' }
 // En la tabla, corto: es una columna.
-const TABLE_KIND = { reject: 'Rechazo', out: 'Proveedor', newmsg: 'Error nuevo', jserr: 'Errores', step: 'Pantalla', lerr: 'Errores', lender: 'Entidad', merchant: 'Comercio', service: 'Errores', queue: 'Cola', all: 'Producción', logs: 'Vida' }
-const KIND_LABEL = { funnel: 'Embudo del backend', reject: 'Rechazo de CreditopX', out: 'Proveedor externo', newmsg: 'Error que no estaba', jserr: 'Errores del front', step: 'Pantalla del wizard', lerr: 'Errores de una entidad', lender: 'Entidad', merchant: 'Comercio', all: 'Producción', service: 'Errores en los logs', queue: 'La cola', logs: 'Líneas en los logs' }
+const TABLE_KIND = { stage: 'Etapa', reject: 'Rechazo', out: 'Proveedor', newmsg: 'Error nuevo', jserr: 'Errores', step: 'Pantalla', lerr: 'Errores', lender: 'Entidad', merchant: 'Comercio', service: 'Errores', queue: 'Cola', all: 'Producción', logs: 'Vida' }
+const KIND_LABEL = { stage: 'Etapa del recorrido', funnel: 'Embudo del backend', reject: 'Rechazo de CreditopX', out: 'Proveedor externo', newmsg: 'Error que no estaba', jserr: 'Errores del front', step: 'Pantalla del wizard', lerr: 'Errores de una entidad', lender: 'Entidad', merchant: 'Comercio', all: 'Producción', service: 'Errores en los logs', queue: 'La cola', logs: 'Líneas en los logs' }
 const NOTICE_LABEL = { alert: 'Alerta', warn: 'Para mirar', recovered: 'Volvió a lo normal', stale: 'Sin leer producción', late: 'Atrasados', gap: 'No estuvo mirando', verdict: 'Dictamen', why: 'Por qué' }
 const NOTICE_DOT = { alert: 'alert', warn: 'warn', recovered: 'ok', stale: 'warn', late: 'warn', gap: 'warn', verdict: 'ok', why: 'warn' }
 // EL DICTAMEN DE LA MAÑANA (verdict.go): lo escribe el modelo de segundo plano de lunes a viernes desde las 7:30. Su
@@ -270,7 +272,7 @@ function windowRange(s) {
 // «normal» con 29 errores contra 0 de mediana se leía como contradicción: está por debajo del techo (el percentil 99 de
 // cualquier hora de los días comparables), y por eso no avisa. La marca lo dice.
 const overButUnderCeiling = (s) => s.state === 'ok' && isErrors(s) && s.now.total >= 10 && s.now.total >= 1.5 * Math.max(s.median, 1)
-const isErrors = (s) => s?.kind === 'service' || s?.kind === 'queue' || s?.kind === 'lerr' || s?.kind === 'jserr'
+const isErrors = (s) => s?.kind === 'service' || s?.kind === 'queue' || s?.kind === 'lerr' || s?.kind === 'jserr' || s?.kind === 'stage'
 const shortDate = (d) => new Date(`${d}T12:00:00`).toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric' })
 // El cambio de nivel: no es alerta, es que lo normal se movió y se quedó (la última semana contra las anteriores).
 const shiftText = (s) => s?.shift && `Cambio de nivel: ×${fmt(s.shift.ratio)} por día (de ${fmt(s.shift.before)} a ${fmt(s.shift.after)}), la última semana contra las anteriores. Ya cuenta como lo normal; si nadie lo explicó, vale la pena mirarlo.`
@@ -286,6 +288,47 @@ const money = (x) => (x >= 1e9 ? `$${Math.round(x / 1e6).toLocaleString('es-CO')
 const sharePct = (x) => (x < 0.01 ? 'menos del 1 %' : pct(x))
 const fmt = (x) => (Number.isInteger(x) ? String(x) : (x || 0).toFixed(1))
 const repoShort = (r) => r.replace('legacy-', '')
+
+// ── LOS ERRORES POR ETAPA DEL RECORRIDO (`stage:<etapa>`, server/stages.go) ──
+// Cada error de producción ubicado en una etapa: OTP, datos personales, centrales, entidad, identidad, pagaré… En toda la
+// originación, una tira con las etapas en el orden del recorrido; al elegir una, qué mensajes la llenan, cuántas
+// solicitudes toca y en qué estado quedaron (GET /api/stage, que lee Loki y producción en el momento).
+const stageInfo = (key) => (data.value?.stageList || []).find((s) => s.key === key) || null
+const stageOf = (key) => (data.value?.stages || []).find((s) => s.signal === `stage:${key}`) || null
+// Una etapa sin errores en las cuatro semanas no tiene señal: se muestra igual, en cero, para que el camino se lea entero.
+const stagePlaceholder = (key) => {
+  const info = stageInfo(key)
+  return info ? { signal: `stage:${key}`, kind: 'stage', name: `Etapa · ${info.label}`, state: 'quiet', now: { total: 0 }, median: 0, low: 0, high: 0, why: 'Sin errores en lo guardado.' } : null
+}
+const stageStrip = computed(() => {
+  const list = data.value?.stageList || []
+  const row = (s) => ({ ...s, subj: stageOf(s.key) || stagePlaceholder(s.key) })
+  return { journey: list.filter((s) => s.journey).map(row), cross: list.filter((s) => !s.journey).map(row) }
+})
+const selectedStageKey = computed(() => (route.value.kind === 'stage' ? route.value.name : null))
+const stageHours = ref(6)
+const stageDetail = ref(null)
+const stageBusy = ref(false)
+const stageError = ref('')
+async function loadStage() {
+  const key = selectedStageKey.value
+  if (!key) return
+  stageBusy.value = true
+  stageError.value = ''
+  try {
+    const res = await fetch(`/api/stage?key=${encodeURIComponent(key)}&hours=${stageHours.value}`)
+    const body = await res.json()
+    if (body.error) stageError.value = body.error
+    else if (selectedStageKey.value === key) stageDetail.value = body
+  } catch (err) { stageError.value = String(err) } finally { stageBusy.value = false }
+}
+watch([selectedStageKey, stageHours], () => { stageDetail.value = null; loadStage() })
+// Los proveedores externos de la etapa (`out:`), con su tasa de falla: la otra mitad de «está fallando X».
+const stageProviders = computed(() => {
+  const info = stageInfo(selectedStageKey.value)
+  if (!info) return []
+  return (info.providers || []).map((p) => (data.value?.providers || []).find((x) => x.signal === `out:${p}`)).filter(Boolean)
+})
 
 // ── la curva: hoy contra lo normal (mediana y rango de los 7 días anteriores), por hora ──
 const W = 720
@@ -639,7 +682,7 @@ onBeforeUnmount(() => {
 
           <div class="cards">
             <div class="card-num"><span class="card-label">{{ spanLabel(selected) }}</span><span class="card-value">{{ selected.now.total }}</span>
-              <span class="card-what">{{ selected.kind === 'jserr' ? 'errores de JavaScript en el front (PostHog)' : selected.kind === 'step' ? 'enviaron esta pantalla (la curva: por hora)' : selected.kind === 'lerr' ? 'errores en los logs que nombran a la entidad' : selected.kind === 'service' ? 'errores en los logs de producción' : selected.kind === 'queue' ? 'trabajos fallidos en la cola' : selected.kind === 'logs' ? 'líneas que escribió en los logs (si deja de escribir, probablemente se cayó)' : selected.kind === 'reject' ? 'ofertas: perfilamientos en que el cliente vio la entidad' : selected.kind === 'funnel' ? `${selected.funnel?.toText || 'llegaron'} (la curva: por hora)` : 'solicitudes que entraron' }}</span></div>
+              <span class="card-what">{{ selected.kind === 'jserr' ? 'errores de JavaScript en el front (PostHog)' : selected.kind === 'step' ? 'enviaron esta pantalla (la curva: por hora)' : selected.kind === 'lerr' ? 'errores en los logs que nombran a la entidad' : selected.kind === 'stage' ? 'errores de producción ubicados en esta etapa' : selected.kind === 'service' ? 'errores en los logs de producción' : selected.kind === 'queue' ? 'trabajos fallidos en la cola' : selected.kind === 'logs' ? 'líneas que escribió en los logs (si deja de escribir, probablemente se cayó)' : selected.kind === 'reject' ? 'ofertas: perfilamientos en que el cliente vio la entidad' : selected.kind === 'funnel' ? `${selected.funnel?.toText || 'llegaron'} (la curva: por hora)` : 'solicitudes que entraron' }}</span></div>
             <div class="card-num"><span class="card-label">Lo normal</span><span class="card-value">{{ fmt(selected.median) }}</span>
               <span class="card-what">casi siempre entre {{ selected.low }} y {{ selected.high }} {{ hours(selected) === 1 ? 'a esta hora' : `en estas ${hours(selected)} horas` }}, en {{ selected.samples?.length || 0 }} días comparables</span></div>
             <div v-if="isService(selected)" class="card-num"><span class="card-label">Desplegado en producción</span>
@@ -660,6 +703,56 @@ onBeforeUnmount(() => {
             <div v-else-if="!isErrors(selected)" class="card-num"><span class="card-label">Aprobadas · negadas</span><span class="card-value">{{ selected.now.approved }} · {{ selected.now.denied }}</span>
               <span class="card-what">negadas {{ pct(selected.deniedRate) }} de las que terminaron; lo de hoy todavía avanza</span></div>
           </div>
+
+          <section v-if="selected.kind === 'stage'" class="chart-box stage-detail" aria-label="Qué llena esta etapa">
+            <div class="chart-head">
+              <h3>Qué está fallando</h3>
+              <span class="stage-hours" role="group" aria-label="Ventana">
+                <button v-for="h in [1, 6, 24]" :key="h" type="button" class="btn btn-ghost btn-xs" :aria-pressed="stageHours === h" @click="stageHours = h">{{ h }} h</button>
+              </span>
+            </div>
+            <p class="chart-note">{{ stageInfo(selectedStageKey)?.what }}.</p>
+            <p v-if="stageError" class="source-note" role="status">⚠ {{ stageError }}</p>
+            <p v-else-if="stageBusy && !stageDetail" class="chart-note">Leyendo los logs y la base…</p>
+            <template v-if="stageDetail">
+              <dl class="facts">
+                <div class="fact"><dt>Errores en {{ stageHours }} h</dt><dd><b>{{ stageDetail.lines.toLocaleString('es-CO') }}</b><small v-if="stageDetail.capped"> (las más recientes)</small></dd></div>
+                <div class="fact"><dt>Solicitudes tocadas</dt><dd><b>{{ stageDetail.requests.toLocaleString('es-CO') }}</b> <small>{{ stageDetail.named }} líneas la nombran</small></dd></div>
+                <div v-for="x in stageDetail.statuses.slice(0, 4)" :key="x.id" class="fact"><dt>Hoy en «{{ x.name }}»</dt><dd><b>{{ x.count }}</b></dd></div>
+              </dl>
+              <table v-if="stageDetail.messages.length" class="table steps stage-msgs">
+                <thead><tr><th class="num">Veces</th><th>Servicio</th><th>Mensaje</th></tr></thead>
+                <tbody>
+                  <tr v-for="m in stageDetail.messages" :key="m.service + m.text" :title="m.sample">
+                    <td class="num">{{ m.count.toLocaleString('es-CO') }}</td>
+                    <td class="muted">{{ m.service }}<small v-if="m.code"> · {{ m.code }}</small></td>
+                    <td class="msg-cell">{{ m.text }}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p v-else class="chart-note">Sin errores en esta ventana.</p>
+              <p v-if="stageDetail.examples.length" class="stage-examples">
+                <span class="muted">Solicitudes de ejemplo:</span>
+                <a v-for="u in stageDetail.examples" :key="u" :href="stageDetail.tracerURL + u" target="_blank" rel="noopener">#{{ u }}</a>
+              </p>
+              <p v-if="stageDetail.note" class="chart-note">⚠ {{ stageDetail.note }}</p>
+            </template>
+            <template v-if="stageProviders.length">
+              <h3 class="stage-sub">Sus proveedores</h3>
+              <table class="table steps">
+                <thead><tr><th>Proveedor</th><th class="num">Llamadas</th><th class="num">Fallaron</th><th class="num">Lo normal</th></tr></thead>
+                <tbody>
+                  <tr v-for="p in stageProviders" :key="p.signal" :title="p.why" @click="pick(p)">
+                    <td><i class="dot" :class="`is-${p.state}`" aria-hidden="true"></i>{{ p.name.replace(' · llamadas', '') }}</td>
+                    <td class="num">{{ p.out?.calls ?? p.now.total }}</td>
+                    <td class="num"><b>{{ p.out ? pct(p.out.failRate) : '—' }}</b></td>
+                    <td class="num muted">{{ p.out ? pct(p.out.baseFail) : '—' }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </template>
+            <p class="chart-note">De Loki (los errores de la etapa) y de producción (el estado de HOY de las solicitudes que nombran). No todas las líneas nombran una solicitud: las de centrales traen el usuario. Por consola, <code>bin/sentinel stages {{ selectedStageKey }} --hours {{ stageHours }}</code>.</p>
+          </section>
 
           <section class="chart-box">
             <div class="chart-head">
@@ -766,6 +859,26 @@ onBeforeUnmount(() => {
               </tbody>
             </table>
             <p class="chart-note">De la base: de las que entraron, cuántas se perfilaron, y de esas, cuántas eligieron entidad (la primera vez de cada solicitud), contra lo normal de esta hora. Que entren igual y se queden en una etapa es lo que el volumen no ve.</p>
+          </section>
+
+          <section v-if="selected.kind === 'all' && stageStrip.journey.length" class="steps-box stage-box" aria-label="Errores por etapa">
+            <h3>Errores por etapa del recorrido</h3>
+            <ol class="stage-strip">
+              <li v-for="(st, i) in stageStrip.journey" :key="st.key">
+                <button type="button" class="stage-step" :class="`is-${st.subj.state}`" :title="`${st.what}. ${st.subj.why}`" @click="pick(st.subj)">
+                  <span class="stage-n">{{ i + 1 }}</span>
+                  <span class="stage-label"><i class="dot" :class="`is-${st.subj.state}`" aria-hidden="true"></i>{{ st.label }}</span>
+                  <span class="stage-nums"><b>{{ compact(st.subj.now.total) }}</b> · {{ compact(st.subj.median) }}</span>
+                </button>
+              </li>
+            </ol>
+            <div class="stage-cross">
+              <span class="muted">Transversales:</span>
+              <button v-for="st in stageStrip.cross" :key="st.key" type="button" class="stage-chip" :class="`is-${st.subj.state}`" :title="`${st.what}. ${st.subj.why}`" @click="pick(st.subj)">
+                <i class="dot" :class="`is-${st.subj.state}`" aria-hidden="true"></i>{{ st.label }} <b>{{ compact(st.subj.now.total) }}</b>
+              </button>
+            </div>
+            <p class="chart-note">Errores de la última hora · lo normal a esta hora. Cada error de producción, ubicado en la etapa donde pasó por su código, su servicio o su mensaje; «Sin etapa» es lo que falta mapear. Por consola, <code>bin/sentinel stages</code>.</p>
           </section>
 
           <section v-if="selected.kind === 'all' && monthRows" class="steps-box month-box" aria-label="El mes a la fecha">
@@ -1181,6 +1294,31 @@ h3 { margin: 0; font-size: var(--text-xs); font-weight: 600; color: var(--fg-3);
 .steps tbody tr { cursor: pointer }
 .steps tbody tr:hover td { background: var(--hover) }
 .steps td, .steps th { white-space: nowrap }
+/* Errores por etapa: el recorrido como una fila de pasos numerados (se parte en renglones si no entra) y las
+   transversales como fichas debajo. */
+.stage-strip { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-2) }
+.stage-step { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: var(--space-2); row-gap: 2px; width: 100%;
+  padding: var(--space-2); border: 1px solid var(--border); border-radius: 6px; background: var(--card); color: var(--foreground); font: inherit; text-align: left; cursor: pointer }
+.stage-step:hover { background: var(--hover) }
+.stage-step.is-alert { border-color: var(--status-bad) }
+.stage-step.is-warn { border-color: var(--status-warn) }
+.stage-n { grid-row: span 2; align-self: center; font-size: var(--text-xs); color: var(--fg-3); font-variant-numeric: tabular-nums }
+.stage-label { font-size: var(--text-sm); font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.stage-nums { font-size: var(--text-xs); color: var(--fg-2); font-variant-numeric: tabular-nums }
+.stage-nums b { color: var(--foreground); font-size: var(--text-sm) }
+.stage-cross { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); font-size: var(--text-sm) }
+.stage-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px var(--space-2); border: 1px solid var(--border); border-radius: 999px;
+  background: none; color: var(--foreground); font: inherit; font-size: var(--text-sm); cursor: pointer }
+.stage-chip:hover { background: var(--hover) }
+.stage-chip.is-alert { border-color: var(--status-bad) }
+.stage-chip.is-warn { border-color: var(--status-warn) }
+.stage-chip .dot { margin-right: 0 }
+.stage-detail { display: flex; flex-direction: column; gap: var(--space-2) }
+.stage-hours { display: inline-flex; gap: 2px }
+.stage-hours [aria-pressed="true"] { background: var(--accent); color: var(--accent-foreground) }
+.stage-msgs .msg-cell { white-space: normal; overflow-wrap: anywhere }
+.stage-examples { margin: 0; display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-2); font-size: var(--text-sm) }
+.stage-sub { margin-top: var(--space-2) }
 .month-scroll { overflow-x: auto }
 .month-box .table { font-variant-numeric: tabular-nums }
 .month-group th { text-align: left; color: var(--fg-2); font-weight: 600; padding-top: var(--space-2) }
