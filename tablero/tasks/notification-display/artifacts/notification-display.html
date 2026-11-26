@@ -525,7 +525,9 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
   };
   F["\u0001"] = [13,22,17,25,21,19,17];
   F["▲"] = [0,4,14,31,0,0,0];               // flecha de subida
-  F["▼"] = [0,31,14,4,0,0,0];               // flecha de bajada   // Ñ: la tilde arriba y la N en 5 filas
+  F["▼"] = [0,31,14,4,0,0,0];               // flecha de bajada
+  F["→"] = [0,4,2,31,2,4,0];
+  F["="] = [0,0,31,0,31,0,0];   // Ñ: la tilde arriba y la N en 5 filas
   const norm = s => s.toUpperCase().replace(/Ñ/g, "\u0001").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const tw = (s, k) => norm(s).length * 6 * k - k;
 
@@ -645,12 +647,21 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
              ".yyyywwyyyy.", ".yyyyyywyyy.", ".yyywwwyyyy.", ".yyyyyyyyyy.", "..yyyyyyyy..", "...yyyyyy..."],
     bill:   ["............", "............", "gggggggggggg", "gwggggggggwg", "ggggwwwwgggg", "gggwggggwggg",
              "gggwggggwggg", "ggggwwwwgggg", "gwggggggggwg", "gggggggggggg", "............", "............"],
+    unplug: ["..w.w..", "..w.w..", ".wwwww.", ".wwwww.", "..www..", "...w...", "...w..."],
+    chartDown: ["wr.....", "w.r....", "w..r.r.", "w...r.r", "w.....r", "w......", "wwwwwww"],
     paper:  ["wwwwwww.....", "w.....ww....", "w.....w.w...", "w.....wwww..", "w.gg.....w..", "w........w..",
              "w.ggggg..w..", "w........w..", "w.gggg...w..", "w........w..", "wwwwwwwwww..", "............"]
   };
   const BAG = { y: [215,150,55], w: [255,240,210], k: [140,90,45] }, BILL = { g: [40,170,90], w: [200,250,215] };
   const ICON_COLORS = { w: [235,235,230], g: [5,213,135], a: [255,176,59], y: [255,205,60], p: [135,122,255] };
 
+  function attnHead(b, icon, label, right, t) {
+    const big = b.h >= 64, k = big ? 2 : 1, y = big ? 3 : 1, iy = big ? 0 : 1;
+    art(b, ICONS[icon], 2, iy, k, { w: [190,190,205], r: C.red });
+    if (icon === "unplug") for (let j = 0; j < 7; j++) rect(b, 2 + j * k, iy + (6 - j) * k, k, k, C.red);   // la raya de «sin uso»
+    text(b, label, 2 + 7 * k + 4, y, 1, C.gray);
+    if (right) text(b, right, rx(b, right, 1), y, 1, mul(C.gray, ease((t - 0.4) / 0.5)));
+  }
   // Avisos de «primero»: cortos y para el equipo, sin explicar lo obvio. Tres piezas centradas:
   //   qué pasó (verde, parpadea dos veces) · el nombre (grande, blanco) · el cierre (VAMOLA!!!)
   function firstOf(b, t, o) {
@@ -1003,14 +1014,13 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       // entidades activas y asignadas a comercios, con casi nada de uso en 30 días. Medido en producción al 25-nov-2026:
       // 82 de 148 sin solicitudes. Banco de Bogotá: asignado a 62 comercios, 1 solicitud; Servicrédito 7 y 0; Sufi 5 y 0.
       const big = b.h >= 64, rows = [["BANCO DE BOGOTA", 62, 1], ["SERVICREDITO", 7, 0], ["SUFI", 5, 0]];
-      text(b, "ENTIDADES SIN USO · 30 DIAS", 2, big ? 3 : 1, 1, C.gray);
+      attnHead(b, "unplug", "ENTIDADES SIN USO · 30 DIAS", null, t);
       const tot = "82 DE 148"; text(b, tot, rx(b, tot, 1), big ? 3 : 1, 1, mul(C.yellow, ease((t - 0.4) / 0.5)));
       const ys = big ? [17, 33, 49] : [9, 17, 25];
       rows.forEach(([name, com, sol], i) => {
         const t0 = 0.3 + i * 0.25, off = Math.round((1 - ease((t - t0) / 0.45)) * b.w), y = ys[i];
         if (off >= b.w) return;
-        text(b, "▼", 2 + off, y, 1, C.red);
-        text(b, name, 12 + off, y, 1, C.white);
+        text(b, name, 2 + off, y, 1, C.white);
         const r = com + " COMERCIOS · " + sol + " SOL.";
         const x = rx(b, r, 1) + off, cut = tw(com + " COMERCIOS · ", 1) + 1;
         text(b, com + " COMERCIOS · ", x, y, 1, C.gray);
@@ -1018,21 +1028,21 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       });
     } },
     { id: "low-conversion", group: "Atención", label: "Solicitudes sin venta", draw(b, t) {
-      // entidades con muchas solicitudes y pocas ventas en 30 días, contra el promedio de las solicitudes que eligen entidad.
-      // Medido en producción al 25-nov-2026: promedio 35 %. Bancolombia consumo 1.896 → 10 (0,5 %), Mayi 135 → 3 (2,2 %),
-      // Nequi 259 → 7 (2,7 %). Las solicitudes de los últimos días todavía pueden venderse.
-      const big = b.h >= 64, rows = [["BANCOLOMBIA CONSUMO", 1896, "0,5%"], ["MAYI", 135, "2,2%"], ["NEQUI", 259, "2,7%"]];
-      text(b, big ? "NO SE VUELVEN VENTA · 30 DIAS" : "NO SE VUELVEN VENTA", 2, big ? 3 : 1, 1, C.gray);
-      const avg = "PROMEDIO 35%"; text(b, avg, rx(b, avg, 1), big ? 3 : 1, 1, mul(C.green, ease((t - 0.4) / 0.5)));
+      // de tantas solicitudes, sólo tantas ventas, y cuántas vendió el mes anterior (= sigue igual, ▼ bajó). Medido en
+      // producción al 25-nov-2026, 30 días contra los 30 anteriores: Bancolombia consumo 1.896 → 10 (antes 1.756 → 10),
+      // Nequi 259 → 7 (antes 341 → 9), Mayi 135 → 3 (antes 148 → 3). Promedio de las que eligen entidad: 35 %.
+      const big = b.h >= 64, rows = [["BANCOLOMBIA CONSUMO", 1896, 10, 10], ["NEQUI", 259, 7, 9], ["MAYI", 135, 3, 3]];
+      attnHead(b, "chartDown", "SOLICITUDES → VENTAS", "MES ANT.", t);
       const ys = big ? [17, 33, 49] : [9, 17, 25];
-      rows.forEach(([name, sol, pct], i) => {
+      rows.forEach(([name, sol, v, before], i) => {
         const t0 = 0.3 + i * 0.25, off = Math.round((1 - ease((t - t0) / 0.45)) * b.w), y = ys[i];
         if (off >= b.w) return;
-        text(b, "▼", 2 + off, y, 1, C.red);
-        text(b, name, 12 + off, y, 1, C.white);
-        const solS = fmt(sol) + " SOL.", px0 = rx(b, pct, 1) + off;
-        text(b, pct, px0, y, 1, C.red);
-        text(b, solS, px0 - 8 - tw(solS, 1), y, 1, C.gray);
+        text(b, name, 2 + off, y, 1, C.white);
+        const tr = (v < before ? "▼ " : "= ") + before, trx = rx(b, tr, 1) + off;
+        text(b, tr, trx, y, 1, v < before ? C.red : C.yellow);
+        const vs = String(Math.round(v * ease((t - t0 - 0.3) / 0.6))), right = trx - 12;
+        text(b, vs, right - tw(vs, 1), y, 1, C.red);
+        const ss = fmt(sol) + " → "; text(b, ss, right - tw(vs, 1) - tw(ss, 1) - 1, y, 1, C.gray);
       });
     } },
     { id: "uptime", group: "Desarrollo", label: "Uptime", draw(b, t) {
