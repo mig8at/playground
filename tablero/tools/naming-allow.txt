@@ -191,3 +191,5 @@ json: sabueso/server/sources.go nit_propietario razon_social estado_matricula ca
 json: sabueso/server/people.go representante_legal estado_matricula fecha_actualizacion
 # las palabras que se le quitan a una razón social para compararla (formas jurídicas y artículos): datos, no nombres
 json: sabueso/server/model.go sas s a ltda sa y cia de la el los las bic zomac sigla
+# `blacklist` es inglés (la lista negra de documentos del perfilamiento: `isBlacklisted` en flow/src/store.js, 2026-11-26)
+blacklist
