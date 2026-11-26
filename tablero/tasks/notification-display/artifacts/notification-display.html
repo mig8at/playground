@@ -113,9 +113,9 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
 .tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .room-body { display: grid; grid-template-columns: auto 1fr; gap: 10px; }
 /* la pared es blanca de verdad: no cambia con el tema */
-.wall-box { position: relative; aspect-ratio: 2 / 1; max-width: 100%; background: #ffffff; border: 1px solid #d4d8de; box-shadow: inset 0 -18px 40px rgba(0,0,0,.04); }
+.wall-box { position: relative; aspect-ratio: 8 / 5; max-width: 100%; background: #ffffff; border: 1px solid #d4d8de; box-shadow: inset 0 -18px 40px rgba(0,0,0,.04); }
 /* el marco: un filo de 2 px por fuera (no cambia la escala) y sombras que lo separan de la pared */
-.wall-led { position: absolute; left: 37.2%; width: 25.6%; top: 10%; background: #050506; border-radius: 0;
+.wall-led { position: absolute; left: 37.2%; width: 25.6%; top: 12%; background: #050506; border-radius: 0;
   box-shadow: 0 0 0 1px #2a2b30, 0 2px 3px 2px rgba(0,0,0,.28), 0 10px 18px rgba(0,0,0,.22), 0 18px 34px -8px rgba(0,0,0,.18); }
 .wall-led::after { content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: 0;
   background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,0) 35%, rgba(0,0,0,.18));
@@ -165,6 +165,14 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         </div>
         <div class="bezel"><canvas id="led64" width="1024" height="256" aria-label="Simulación del tablero de 256 por 64 píxeles"></canvas></div>
       </div>
+      <div class="option">
+        <div class="option-head">
+          <h3>Opción 3 · dos filas de 6 paneles</h3>
+          <span class="tag">más ancho, a la misma altura</span>
+          <span class="dims">384 × 64 px · 1,54 m × 26 cm · dos fuentes 5 V 40 A</span>
+        </div>
+        <div class="bezel"><canvas id="led96" width="1536" height="256" aria-label="Simulación del tablero de 384 por 64 píxeles"></canvas></div>
+      </div>
     </div>
     <div class="controls">
       <div class="scene-groups" id="sceneBtns" role="group" aria-label="Mensaje en pantalla"></div>
@@ -181,15 +189,15 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
     <p class="lead">Un panel P4 de 64×32 mide <b>256 × 128 mm</b>: 64 LED × 4 mm de ancho y 32 × 4 mm de alto. Sin marco, los paneles se juntan borde con borde, así que el tablero mide exactamente la suma.</p>
     <div class="scroll">
       <table>
-        <thead><tr><th></th><th>Opción 1</th><th>Opción 2</th></tr></thead>
+        <thead><tr><th></th><th>Opción 1</th><th>Opción 2</th><th>Opción 3</th></tr></thead>
         <tbody>
-          <tr><td>Paneles</td><td class="num">4 × 1</td><td class="num">4 × 2</td></tr>
-          <tr><td>Píxeles</td><td class="num">256 × 32</td><td class="num">256 × 64</td></tr>
-          <tr><td>Medida de la cara</td><td class="num">1.024 × 128 mm</td><td class="num">1.024 × 256 mm</td></tr>
-          <tr><td>Letra chica (7 px)</td><td class="num">28 mm de alto</td><td class="num">28 mm de alto</td></tr>
-          <tr><td>Letra grande (14 px)</td><td class="num">sólo una línea, 56 mm</td><td class="num">56 mm de alto</td></tr>
-          <tr><td>Consumo máximo (todo blanco)</td><td class="num">≤ 80 W</td><td class="num">≤ 160 W</td></tr>
-          <tr><td>Fuente de 5 V</td><td class="num">20 A</td><td class="num">40 A</td></tr>
+          <tr><td>Paneles</td><td class="num">4 × 1</td><td class="num">4 × 2</td><td class="num">6 × 2</td></tr>
+          <tr><td>Píxeles</td><td class="num">256 × 32</td><td class="num">256 × 64</td><td class="num">384 × 64</td></tr>
+          <tr><td>Medida de la cara</td><td class="num">1.024 × 128 mm</td><td class="num">1.024 × 256 mm</td><td class="num">1.536 × 256 mm</td></tr>
+          <tr><td>Letra chica (7 px)</td><td class="num">28 mm de alto</td><td class="num">28 mm de alto</td><td class="num">28 mm de alto</td></tr>
+          <tr><td>Letra grande (14 px)</td><td class="num">sólo una línea, 56 mm</td><td class="num">56 mm de alto</td><td class="num">56 mm de alto</td></tr>
+          <tr><td>Consumo máximo (todo blanco)</td><td class="num">≤ 80 W</td><td class="num">≤ 160 W</td><td class="num">≤ 240 W</td></tr>
+          <tr><td>Fuente de 5 V</td><td class="num">20 A</td><td class="num">40 A</td><td class="num">2 × 40 A</td></tr>
         </tbody>
       </table>
     </div>
@@ -197,16 +205,17 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       <div class="tabs" role="tablist" aria-label="Opción en la pared">
         <button type="button" role="tab" id="wall-tab-1" aria-selected="true" aria-controls="wall-panel" data-opt="0">Opción 1 · 4 paneles</button>
         <button type="button" role="tab" id="wall-tab-2" aria-selected="false" aria-controls="wall-panel" data-opt="1" tabindex="-1">Opción 2 · 8 paneles</button>
+        <button type="button" role="tab" id="wall-tab-3" aria-selected="false" aria-controls="wall-panel" data-opt="2" tabindex="-1">Opción 3 · 12 paneles</button>
       </div>
       <div class="room-body" id="wall-panel" role="tabpanel" aria-labelledby="wall-tab-1">
-        <div class="h-dim"><span>2,00 m</span></div>
+        <div class="h-dim"><span>2,50 m</span></div>
         <div class="wall-box">
           <div class="wall-led"><canvas id="wallCanvas" width="1024" height="128" aria-label="El tablero en la pared, a escala"></canvas></div>
         </div>
         <div></div>
         <div class="w-dim"><span>4,00 m</span></div>
       </div>
-      <p class="note">A escala: la pared de 4 × 2 m y el tablero centrado, a 20 cm del borde de arriba. El tablero muestra lo mismo que la simulación de arriba.</p>
+      <p class="note">A escala: una pared de 4 m de ancho y unos 2,5 m de alto (un techo normal; falta medirla) y el tablero centrado, con el borde de abajo a unos 1,95 m del piso. El tablero muestra lo mismo que la simulación de arriba.</p>
     </div>
   </section>
 
@@ -215,20 +224,21 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
     <p class="lead">Precios de lista en dólares, vistos el 25 de noviembre de 2026, sin envío ni impuestos de importación. Ninguna tienda colombiana publica hoy el panel P4 de 64×32 con precio; lo más cercano en Bogotá es Fervicom, a quien hay que preguntarle la resolución.</p>
     <div class="scroll">
       <table>
-        <thead><tr><th>Pieza</th><th>Dónde</th><th>Precio unidad</th><th>Opción 1</th><th>Opción 2</th></tr></thead>
+        <thead><tr><th>Pieza</th><th>Dónde</th><th>Precio unidad</th><th>Opción 1</th><th>Opción 2</th><th>Opción 3</th></tr></thead>
         <tbody>
-          <tr><td>Panel RGB P4 64×32, HUB75, 256×128 mm (trae cable HUB75 de 30 cm y el adaptador de poder)</td><td><a href="https://www.waveshare.com/rgb-matrix-p4-64x32.htm" target="_blank" rel="noopener">Waveshare</a></td><td class="num">US$17,99</td><td class="num">4 · US$71,96</td><td class="num">8 · US$143,92</td></tr>
-          <tr><td>Controlador ESP32-S3 con conector HUB75 que se enchufa directo al panel, sin soldar</td><td><a href="https://www.adafruit.com/product/5778" target="_blank" rel="noopener">Adafruit Matrix Portal S3</a></td><td class="num">US$19,95</td><td class="num">1 · US$19,95</td><td class="num">1 · US$19,95</td></tr>
-          <tr><td>Fuente 5 V 40 A, 200 W (para la opción 1 basta una de 20 A)</td><td><a href="https://www.digikey.com/en/products/result?keywords=LRS-200-5" target="_blank" rel="noopener">Mean Well LRS-200-5</a></td><td class="num">US$29,30</td><td class="num">≈ US$20</td><td class="num">1 · US$29,30</td></tr>
-          <tr><td>Amplificador I2S de 3 W para voz y sonidos (entrada digital, 5 V)</td><td><a href="https://www.adafruit.com/product/3006" target="_blank" rel="noopener">Adafruit MAX98357A</a></td><td class="num">US$5,95</td><td class="num">1 · US$5,95</td><td class="num">1 · US$5,95</td></tr>
-          <tr><td>Parlante de 3 W y 4 Ω, con caja</td><td><a href="https://www.adafruit.com/product/3351" target="_blank" rel="noopener">Adafruit 3351</a></td><td class="num">US$3,95</td><td class="num">1 · US$3,95</td><td class="num">1 · US$3,95</td></tr>
-          <tr><td>Cable de poder 18 AWG, terminales, regleta</td><td>tienda local</td><td class="num">≈ US$10</td><td class="num">US$10</td><td class="num">US$15</td></tr>
-          <tr><td>Soportes: perfil de aluminio o lámina de MDF negra</td><td>ferretería</td><td class="num">≈ US$20</td><td class="num">US$20</td><td class="num">US$30</td></tr>
-          <tr class="total"><td>Total estimado</td><td></td><td></td><td class="num">≈ US$155</td><td class="num">≈ US$250</td></tr>
+          <tr><td>Panel RGB P4 64×32, HUB75, 256×128 mm (trae cable HUB75 de 30 cm y el adaptador de poder)</td><td><a href="https://www.waveshare.com/rgb-matrix-p4-64x32.htm" target="_blank" rel="noopener">Waveshare</a></td><td class="num">US$17,99</td><td class="num">4 · US$71,96</td><td class="num">8 · US$143,92</td><td class="num">12 · US$215,88</td></tr>
+          <tr><td>Controlador ESP32-S3 con conector HUB75 que se enchufa directo al panel, sin soldar</td><td><a href="https://www.adafruit.com/product/5778" target="_blank" rel="noopener">Adafruit Matrix Portal S3</a></td><td class="num">US$19,95</td><td class="num">1 · US$19,95</td><td class="num">1 · US$19,95</td><td class="num">—</td></tr>
+          <tr><td>Para la opción 3: Raspberry Pi 4 (2 GB) con la placa que la une a los paneles HUB75</td><td><a href="https://www.adafruit.com/product/3211" target="_blank" rel="noopener">Adafruit RGB Matrix Bonnet</a> + Raspberry Pi</td><td class="num">US$14,95 + ≈ US$45</td><td class="num">—</td><td class="num">—</td><td class="num">≈ US$60</td></tr>
+          <tr><td>Fuente 5 V 40 A, 200 W (para la opción 1 basta una de 20 A)</td><td><a href="https://www.digikey.com/en/products/result?keywords=LRS-200-5" target="_blank" rel="noopener">Mean Well LRS-200-5</a></td><td class="num">US$29,30</td><td class="num">≈ US$20</td><td class="num">1 · US$29,30</td><td class="num">2 · US$58,60</td></tr>
+          <tr><td>Amplificador I2S de 3 W para voz y sonidos (entrada digital, 5 V)</td><td><a href="https://www.adafruit.com/product/3006" target="_blank" rel="noopener">Adafruit MAX98357A</a></td><td class="num">US$5,95</td><td class="num">1 · US$5,95</td><td class="num">1 · US$5,95</td><td class="num">1 · US$5,95</td></tr>
+          <tr><td>Parlante de 3 W y 4 Ω, con caja</td><td><a href="https://www.adafruit.com/product/3351" target="_blank" rel="noopener">Adafruit 3351</a></td><td class="num">US$3,95</td><td class="num">1 · US$3,95</td><td class="num">1 · US$3,95</td><td class="num">1 · US$3,95</td></tr>
+          <tr><td>Cable de poder 18 AWG, terminales, regleta</td><td>tienda local</td><td class="num">≈ US$10</td><td class="num">US$10</td><td class="num">US$15</td><td class="num">US$20</td></tr>
+          <tr><td>Soportes: perfil de aluminio o lámina de MDF negra</td><td>ferretería</td><td class="num">≈ US$20</td><td class="num">US$20</td><td class="num">US$30</td><td class="num">US$40</td></tr>
+          <tr class="total"><td>Total estimado</td><td></td><td></td><td class="num">≈ US$155</td><td class="num">≈ US$250</td><td class="num">≈ US$405</td></tr>
         </tbody>
       </table>
     </div>
-    <p class="note">En pesos, a una tasa supuesta de 4.000 COP por dólar: unos <b>620.000</b> para la opción 1 y <b>1.000.000</b> para la opción 2, antes de envío e importación. Las filas con «≈» son estimaciones, no cotizaciones.</p>
+    <p class="note">En pesos, a una tasa supuesta de 4.000 COP por dólar: unos <b>620.000</b> para la opción 1 y <b>1.000.000</b> para la opción 2 y <b>1.620.000</b> para la opción 3, antes de envío e importación. Las filas con «≈» son estimaciones, no cotizaciones.</p>
     <div class="grid2">
       <div class="card">
         <h3>Otros lugares donde buscar</h3>
@@ -296,7 +306,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         </ul>
       </div>
     </div>
-    <p class="warnbox">Ocho paneles desde un solo ESP32-S3 es posible (hay un montaje documentado con 12 paneles en un Matrix Portal S3), pero la memoria limita la profundidad de color y el refresco. Se comprueba en el banco de prueba con los 8 paneles antes de montar. Si parpadea, la salida es una Raspberry Pi con <code>rpi-rgb-led-matrix</code>.</p>
+    <p class="warnbox">Ocho paneles desde un solo ESP32-S3 es posible (hay un montaje documentado con 12 paneles en un Matrix Portal S3), pero la memoria limita la profundidad de color y el refresco. Se comprueba en el banco de prueba con los 8 paneles antes de montar. Si parpadea, la salida es una Raspberry Pi con <code>rpi-rgb-led-matrix</code>. Para los 12 paneles de la opción 3 se va directo a la Raspberry Pi: tiene memoria de sobra para el color completo, y el mismo amplificador I2S le sirve para el audio.</p>
   </section>
 
   <section aria-labelledby="voice">
@@ -806,7 +816,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       const big = b.h >= 64, v = 1240 * ease(t / 1.6), s = "$" + fmt(v) + " M";
       head(b, "INGRESOS · NOV", C.hNeg, "+18% VS OCT", C.green, t);
       const data = [52, 61, 58, 70, 66, 74, 69, 81, 77, 88, 84, 100];
-      const n = data.length, bw = big ? 4 : 7, gap = big ? 2 : 3, x0 = b.w - 2 - (n * (bw + gap) - gap);
+      const n = data.length, bw = big ? (b.w > 256 ? 8 : 4) : 7 /* en 384 las barras crecen con el ancho */, gap = big ? 2 : 3, x0 = b.w - 2 - (n * (bw + gap) - gap);
       const top = big ? 14 : 10, bottom = big ? 59 : 30, hmax = bottom - top;
       data.forEach((d, i) => {
         const h = Math.max(1, Math.round(hmax * d / 100 * ease((t - 0.3 - i * 0.07) / 0.5)));
@@ -860,7 +870,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       // con cada evento del backend; donde se queda, se cae y se estampa. Dónde se queda sigue la
       // conversión real de los últimos 30 días (1.214 → 516 → 390 → 174 al día). Acelerado: una bolita cada 0,4 s.
       const big = b.h >= 64, BASE = [1214, 516, 390, 174], L = ["ENTRAN", "PERFIL", "ENTIDAD", "VENTA"];
-      const S = [32, 96, 160, 224], ty = big ? 34 : 16, r = big ? 5 : 3, floor = big ? 61 : 31, hop = big ? 7 : 4;
+      const S = [0.125, 0.375, 0.625, 0.875].map(f => Math.round(b.w * f)), ty = big ? 34 : 16, r = big ? 5 : 3, floor = big ? 61 : 31, hop = big ? 7 : 4;
       const keep = [BASE[1] / BASE[0], BASE[2] / BASE[1], BASE[3] / BASE[2]], every = 0.4, G = big ? 300 : 200;
       const fate = i => { for (let k = 0; k < 3; k++) if (hash(i * 3 + k + 50) > keep[k]) return k; return 3; };
       // dónde está la bolita i a los tau segundos de entrar; passed = estaciones que ya alcanzó
@@ -967,7 +977,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       const wsum = N * (N + 1) / 2, pos = RACE.map((_, i) => hist.reduce((a, r, k) => a + r[i] * (N - k), 0) / wsum);
       const rNow = hist[0], rAgo = rankAt(t - 0.8), now = RACE.map(([, v]) => valAt(v, t));
       const passing = RACE.map((_, i) => rNow[i] < rAgo[i] && t > 1);
-      const show = big ? 5 : 4, rowH = big ? 10 : 8, y0 = big ? 11 : 1, mx = 2, nx = 10, bx = 74, bmax = big ? 136 : 112;
+      const show = big ? 5 : 4, rowH = big ? 10 : 8, y0 = big ? 11 : 1, mx = 2, nx = 10, bx = 74, bmax = big ? b.w - 120 : 112;
       const f = Math.max(0, (t - 0.4) / per), week = Math.min(days, Math.floor(f) + 1);
       const mes = MES[Math.min(10, Math.floor(((week - 1) * 7) / 30.5))], anyPass = passing.some((p, i) => p && rNow[i] < show);
       if (big) {
@@ -992,7 +1002,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       // la FORMA real: desembolsos por mes (disbursed_at) de ago-2023 a nov-2026, medidos en producción el 2026-11-25,
       // guardados como % del mejor mes (nov-2025) para no publicar cifras; nov-2026 va hasta el día 25
       const D = [0,0,0,0,0,2,12,12,13,12,14,19,15,17,21,25,23,26,23,25,27,28,28,34,35,44,77,100,47,38,38,35,34,39,37,41,40,48,48,39];
-      const big = b.h >= 64, n = D.length, bw = 5, x0 = (b.w - (n * 6 - 1)) >> 1, rec = D.indexOf(100);
+      const big = b.h >= 64, n = D.length, step = Math.floor((b.w - 8) / n), bw = step - 1, x0 = (b.w - (n * step - 1)) >> 1, rec = D.indexOf(100);   // la gráfica usa todo el ancho
       const top = big ? 2 : 10, bottom = big ? 53 : 30, hmax = bottom - top + 1;   // sin título: en 64 la gráfica usa todo el alto
       // crecimiento por año: 2025 completo contra 2024 (56.014 vs 21.112) y 2026 de ene a oct contra el mismo tramo
       // de 2025 (45.169 vs 39.344); 2024 va sin % porque 2023 sólo tuvo 5 meses
@@ -1010,10 +1020,10 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         const g = ease((t - 0.3 - i * 0.05) / 0.25); if (g <= 0) return;
         const h = Math.max(1, Math.round(hmax * d / 100 * g));
         const col = i === n - 1 ? C.white : (i === rec && t > 2.7 ? C.bG : mul(C.bLav, 0.8));
-        rect(b, x0 + i * 6, bottom - h + 1, bw, h, col);
+        rect(b, x0 + i * step, bottom - h + 1, bw, h, col);
       });
       YEARS.forEach(([i, y, p]) => {                          // el año desde su enero y, al lado, cuánto subió
-        const xm = x0 + i * 6, f = ease((t - 0.6 - i * 0.05) / 0.4);
+        const xm = x0 + i * step, f = ease((t - 0.6 - i * 0.05) / 0.4);
         if (big) {
           rect(b, xm, 55, 1, 2, mul(C.bLav, 0.6));
           text(b, y, xm, 57, 1, mul(C.bLav, f));
@@ -1022,7 +1032,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       });
       if (t > 2.7) {
         // el mes récord: Black Friday (28-nov-2025), el fin de semana de más desembolsos; el detalle, en la pila de la tarea
-        const lab = "NOV 2025 · BLACK FRIDAY", xr = x0 + rec * 6 - tw(lab, 1) - 9;
+        const lab = "NOV 2025 · BLACK FRIDAY", xr = x0 + rec * step - tw(lab, 1) - 9;
         text(b, lab, xr, big ? 2 : 10, 1, mul(C.bG, ease((t - 2.7) / 0.4)));
       }
     } },
@@ -1209,14 +1219,14 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       const map = { f: fl ? C.yellow : C.amber, y: C.white, c: C.white, p: C.pink, w: C.white, b: [200,120,60], g: C.gray };
       const fl1 = Math.round(Math.sin(t * 2) * 2), fl2 = Math.round(Math.sin(t * 2 + 1.5) * 2);
       if (big) {
-        art(b, ICONS.balloon, 212, 18 + fl1, 2, { b: C.pink, w: C.white });
-        art(b, ICONS.balloon, 232, 14 + fl2, 2, { b: [5,213,135], w: C.white });
+        art(b, ICONS.balloon, b.w - 44, 18 + fl1, 2, { b: C.pink, w: C.white });
+        art(b, ICONS.balloon, b.w - 24, 14 + fl2, 2, { b: [5,213,135], w: C.white });
         art(b, CAKE, 6, 17, 2, map);
         wave(b, "FELIZ CUMPLE", 48, 10, 2, C.pink, t, 1);
         wave(b, "PEPITO!", 48, 30, 3, C.white, t, 2);
       } else {
-        art(b, ICONS.balloon, 230, 8 + (fl1 >> 1), 1, { b: C.pink, w: C.white });
-        art(b, ICONS.balloon, 242, 6 + (fl2 >> 1), 1, { b: [5,213,135], w: C.white });
+        art(b, ICONS.balloon, b.w - 26, 8 + (fl1 >> 1), 1, { b: C.pink, w: C.white });
+        art(b, ICONS.balloon, b.w - 14, 6 + (fl2 >> 1), 1, { b: [5,213,135], w: C.white });
         art(b, CAKE, 4, 9, 1, map);
         wave(b, "FELIZ CUMPLE", 26, 3, 2, C.pink, t, 1);
         typed(b, "PEPITO! QUE LA PASES BIEN", 26, 22, 1, C.white, t, 0.6, 22);
@@ -1229,13 +1239,13 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       const pop = { o: C.amber, p: C.pink, g: [5,213,135], b: C.blue, y: C.yellow }, hop = Math.round(Math.abs(Math.sin(t * 3)) * 2);
       if (big) {
         art(b, ICONS.trophy, 6, 20, 2, map);
-        if (t > 0.8) art(b, ICONS.popper, 228, 32 - hop, 2, pop);
+        if (t > 0.8) art(b, ICONS.popper, b.w - 28, 32 - hop, 2, pop);
         typed(b, "FELIZ ANIVERSARIO", 36, 10, 2, C.yellow, t, 0.2, 18);
         text(b, "ANDRES · 3 AÑOS", 36, 30, 2, mul(C.white, ease((t - 1.1) / 0.5)));
         text(b, "EN CREDITOP", 36, 50, 1, mul(C.gray, ease((t - 1.5) / 0.5)));
       } else {
         art(b, ICONS.trophy, 4, 10, 1, map);
-        if (t > 0.8) art(b, ICONS.popper, 240, 19 - (hop >> 1), 1, pop);
+        if (t > 0.8) art(b, ICONS.popper, b.w - 16, 19 - (hop >> 1), 1, pop);
         typed(b, "FELIZ ANIVERSARIO", 20, 3, 2, C.yellow, t, 0.2, 18);
         text(b, "ANDRES · 3 AÑOS EN CREDITOP", 20, 22, 1, mul(C.white, ease((t - 1.2) / 0.5)));
       }
@@ -1295,7 +1305,8 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
   // --- dibujo de los LEDs ---
   const panels = [
     { cv: document.getElementById("led32"), buf: makeBuf(256, 32), seams: 64 },
-    { cv: document.getElementById("led64"), buf: makeBuf(256, 64), seams: 64 }
+    { cv: document.getElementById("led64"), buf: makeBuf(256, 64), seams: 64 },
+    { cv: document.getElementById("led96"), buf: makeBuf(384, 64), seams: 64 }
   ];
   // un LED SMD2121 mide ~2,1 mm en un paso de 4 mm: el punto ocupa ~53 % del paso
   function paint(p) {
@@ -1381,13 +1392,15 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
     wallOpt = i;
     tabs.forEach((t, k) => { t.setAttribute("aria-selected", String(k === i)); t.tabIndex = k === i ? 0 : -1; });
     document.getElementById("wall-panel").setAttribute("aria-labelledby", tabs[i].id);
-    wallCv.height = i ? 256 : 128;
+    wallCv.width = i === 2 ? 1536 : 1024; wallCv.height = i ? 256 : 128;
+    const led = document.querySelector(".wall-led"), w = i === 2 ? 38.4 : 25.6;   // 1,54 m o 1,02 m de 4 m
+    led.style.width = w + "%"; led.style.left = (100 - w) / 2 + "%";
   }
   tabs.forEach((t, k) => {
     t.addEventListener("click", () => setWall(k));
     t.addEventListener("keydown", e => {
       if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
-      const n = (k + 1) % 2; setWall(n); tabs[n].focus();
+      const n = (k + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length; setWall(n); tabs[n].focus();
     });
   });
 
