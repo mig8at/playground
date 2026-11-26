@@ -2,11 +2,13 @@
 import { computed } from 'vue'
 import { state, bureau, clientProfile as profile, setNull, editTick, money, requestDocumentTypes } from './store'
 
-// El cliente de la solicitud: los datos que deciden. Vive en el sidebar «Escenario» y vale para las dos vistas —el grafo y
-// la tabla leen lo mismo de `store.js`—, así que editarlo acá recalcula todo. (Hasta el 2026-11-26 era una barra arriba de
-// la tabla y sólo se veía en esa vista.)
+// El cliente de la solicitud: TODOS los datos que deciden en Flow —los grupos de reglas de la sucursal, las reglas de
+// centrales y las de cada categoría—, para poder hacer cumplir (o fallar) cualquier categoría desde acá. Vive en el
+// sidebar «Escenario» y vale para las dos vistas: el grafo y la tabla leen lo mismo de `store.js`. (2026-11-26: se
+// sumaron género, identidad, listas, fuente del ingreso, mora, consultas e historia, que sólo estaban en los nodos.)
 const EMP = [['empleado', 'Empleado'], ['independiente', 'Independiente'], ['pensionado', 'Pensionado'], ['desempleado', 'Desempleado']]
 const CONT = [['<3m', '< 3 meses'], ['3m', '3 meses'], ['6m', '6 meses'], ['12m', '12 meses o más']]
+const GENDER = [['F', 'Mujer'], ['M', 'Hombre']]
 function setBureau(key, v, numeric = true) {
   bureau[key] = numeric ? (v === '' ? null : Number(v)) : v
   setNull(key, v === '' || v == null)
@@ -14,9 +16,27 @@ function setBureau(key, v, numeric = true) {
 }
 const digits = (v) => String(v).replace(/\D/g, '')
 function setAmount(v) { state.monto = digits(v); editTick.n++ }
-// El ingreso que deciden las reglas es el primero de la cascada (Ágil Data → Mareigua → Quanto → declarado). Editarlo
-// acá lo escribe como el de Ágil Data, que es el que gana: para las reglas no importa de qué central venga.
-function setIncome(v) { const n = digits(v); setBureau('agilIncome', n === '' ? '' : Number(n)) }
+
+// El ingreso sale de la primera central que lo trae (Ágil Data → Mareigua → Quanto) o, si ninguna, del declarado. La
+// fuente importa: «ingreso verificado» exige una central, y Finandina sólo acepta Ágil Data o Mareigua. Elegir la fuente
+// deja el mismo monto en esa central y apaga las que van antes en la cascada (como si no hubieran contestado).
+const SOURCES = [['agilIncome', 'Ágil Data'], ['mareiguaIncome', 'Mareigua'], ['quantoIncome', 'Quanto'], ['declared', 'Declarado']]
+const sourceKey = computed(() => (SOURCES.find(([, label]) => label === profile.value.salarioFuente) || ['declared'])[0])
+function setIncomeAt(key, n) {
+  if (key === 'declared') state.salario = String(n)
+  else { bureau[key] = n; setNull(key, false) }
+}
+function setIncome(v) { const n = Number(digits(v)) || 0; setIncomeAt(sourceKey.value, n); editTick.n++ }
+function setIncomeSource(key) {
+  const n = profile.value.salario || 0
+  for (const [k] of SOURCES) {
+    if (k === key) break
+    setNull(k, true)                                   // las de antes en la cascada no contestaron
+  }
+  setIncomeAt(key, n)
+  editTick.n++
+}
+
 // Los tipos de documento del país del comercio (o todos si no tiene), y el actual aunque no esté en la lista.
 const documentTypes = computed(() => {
   const list = requestDocumentTypes()
@@ -27,8 +47,8 @@ const amount = computed(() => parseInt(digits(state.monto)) || 0)
 </script>
 
 <template>
-  <!-- Tres grupos, en el orden en que pesan en la decisión: lo que pide, de qué vive y qué dice el buró. Cada campo es una
-       fila de rótulo y control compacto (28), como las preferencias de VS Code: en 300 de ancho se lee de un vistazo. -->
+  <!-- Cuatro grupos: lo que pide, quién es, de qué vive y qué dice el buró. Cada campo es una fila de rótulo y control
+       compacto (28), como las preferencias de VS Code: en 300 de ancho se lee de un vistazo. -->
   <div class="client-form">
     <div class="cf-group">Solicitud</div>
     <label class="cf-row"><span class="cf-label">Monto</span>
@@ -37,13 +57,30 @@ const amount = computed(() => parseInt(digits(state.monto)) || 0)
       <span class="select"><select class="input input-sm" :value="state.tipoDoc" @change="e => setDocumentType(e.target.value)">
         <option v-for="d in documentTypes" :key="d" :value="d">{{ d }}</option>
       </select></span></label>
+
+    <div class="cf-group">Persona</div>
     <label class="cf-row"><span class="cf-label">Edad</span>
       <input class="input input-sm" type="number" :value="profile.edad ?? ''" @change="e => setBureau('edad', e.target.value)" /></label>
+    <label class="cf-row" title="El de Ágil Data. Lo piden los grupos de reglas de algunas sucursales y las categorías."><span class="cf-label">Género</span>
+      <span class="select"><select class="input input-sm" :value="profile.gender ?? ''" @change="e => setBureau('gender', e.target.value, false)">
+        <option v-for="[k, t] in GENDER" :key="k" :value="k">{{ t }}</option>
+      </select></span></label>
+    <label class="cf-row" title="TusDatos: si se pudo validar la identidad. Lo exige la regla «identidad verificada» de la sucursal."><span class="cf-label">Identidad</span>
+      <span class="select"><select class="input input-sm" :value="profile.identidad === false ? 'no' : 'si'" @change="e => setBureau('identidad', e.target.value === 'si', false)">
+        <option value="si">Verificada</option><option value="no">No verificada</option>
+      </select></span></label>
+    <label class="cf-row" title="TusDatos: listas restrictivas (lavado, terrorismo). Lo exige la regla «AML limpio» de la sucursal."><span class="cf-label">Listas AML</span>
+      <span class="select"><select class="input input-sm" :value="profile.listas ?? 'limpio'" @change="e => setBureau('listas', e.target.value, false)">
+        <option value="limpio">Limpio</option><option value="hit">Con coincidencia</option>
+      </select></span></label>
 
     <div class="cf-group">Ingreso y empleo</div>
-    <label class="cf-row" :title="'Sale de ' + profile.salarioFuente + '. Al editarlo se escribe como el de Ágil Data, que es el primero de la cascada.'">
-      <span class="cf-label">Ingreso<small>{{ profile.salarioFuente }}</small></span>
+    <label class="cf-row"><span class="cf-label">Ingreso</span>
       <input class="input input-sm" inputmode="numeric" :value="money(profile.salario)" @change="e => setIncome(e.target.value)" /></label>
+    <label class="cf-row" title="De dónde sale el ingreso. «Ingreso verificado» exige una central; Finandina, Ágil Data o Mareigua."><span class="cf-label">Fuente del ingreso</span>
+      <span class="select"><select class="input input-sm" :value="sourceKey" @change="e => setIncomeSource(e.target.value)">
+        <option v-for="[k, t] in SOURCES" :key="k" :value="k">{{ t }}</option>
+      </select></span></label>
     <label class="cf-row"><span class="cf-label">Ocupación</span>
       <span class="select"><select class="input input-sm" :value="profile.employment ?? ''" @change="e => setBureau('employment', e.target.value, false)">
         <option v-for="[k, t] in EMP" :key="k" :value="k">{{ t }}</option>
@@ -61,6 +98,13 @@ const amount = computed(() => parseInt(digits(state.monto)) || 0)
       <input class="input input-sm" type="number" :value="profile.score ?? ''" @change="e => setBureau('score', e.target.value)" /></label>
     <label class="cf-row"><span class="cf-label">Negativos 12m</span>
       <input class="input input-sm" type="number" :value="profile.negatives12m ?? ''" @change="e => setBureau('negatives12m', e.target.value)" /></label>
+    <label class="cf-row" title="Obligaciones en mora hoy (Experian)."><span class="cf-label">Mora vigente</span>
+      <input class="input input-sm" type="number" :value="profile.currentArrears ?? ''" @change="e => setBureau('currentArrears', e.target.value)" /></label>
+    <label class="cf-row" title="Cuántas veces lo consultaron en centrales en los últimos 6 meses (Experian)."><span class="cf-label">Consultas 6m</span>
+      <input class="input input-sm" type="number" :value="profile.inquiries6m ?? ''" @change="e => setBureau('inquiries6m', e.target.value)" /></label>
+    <label class="cf-row" title="Meses desde su primer crédito (Experian). Lo usan la madurez de las centrales y la «historia» de las categorías.">
+      <span class="cf-label">Historia crediticia<small>meses</small></span>
+      <input class="input input-sm" type="number" :value="profile.creditHistoryMonths ?? ''" @change="e => setBureau('creditHistoryMonths', e.target.value)" /></label>
     <label class="cf-row" title="Si tuvo un crédito de al menos el mínimo de la entidad. Sin experiencia, Finandina topa el monto.">
       <span class="cf-label">Experiencia</span>
       <span class="select"><select class="input input-sm" :value="bureau.creditExperience === false ? 'no' : 'si'" @change="e => setBureau('creditExperience', e.target.value === 'si', false)">

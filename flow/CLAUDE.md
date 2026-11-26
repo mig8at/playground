@@ -35,8 +35,14 @@ de vez en cuando y **no tiene que seguir al código al pie de la letra**. Lo que
   encabezado de grupo de la base (se pegan arriba al scrollear), guardados en `flow.sidebar-sections`:
   - **Entidades**: chip del riel, nombre, riel · producto y si sale («sale» / «no sale»). Elegir una acá es lo mismo que
     en la cabecera de la tabla o en el grafo.
-  - **Cliente** (`ClientForm.vue`), en tres grupos con rótulo y campo compacto: Solicitud (monto, documento, edad),
-    Ingreso y empleo (ingreso, ocupación, continuidad, cuotas que ya paga) y Buró (score, negativos, experiencia).
+  - **Cliente** (`ClientForm.vue`): TODOS los datos que deciden en Flow —grupos de reglas de la sucursal, reglas de
+    centrales y categorías—, en cuatro grupos de rótulo y campo: Solicitud (monto, documento), Persona (edad, género,
+    identidad, listas AML), Ingreso y empleo (ingreso, **fuente del ingreso**, ocupación, continuidad, cuotas que ya paga)
+    y Buró (score, negativos, mora vigente, consultas 6m, historia crediticia, experiencia). La fuente deja el ingreso en
+    esa central y apaga las de antes en la cascada: decide «ingreso verificado» y si aplica la política de Finandina.
+    Un dato nuevo que use una regla va acá (2026-11-26: AltaX no salía porque su sucursal pide género M).
+  - La regla «reportado en centrales» de los grupos de la sucursal no está modelada: `applyProductionImport` la deja
+    fuera (no se inventa su efecto).
   - **Leyenda del grafo**, sólo con el grafo a la vista.
 - **Sidebar secundario**: la calculadora de la celda de la tabla (teletransportada al `.workbench` desde `TableView.vue`)
   o el detalle de un campo o nodo del grafo (`FieldInfoPanel.vue`). Aparece con lo elegido y se cierra con su ✕ o Esc;
