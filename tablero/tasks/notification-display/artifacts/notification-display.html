@@ -102,24 +102,14 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
 .dot { width: 10px; height: 10px; border-radius: 2px; flex: none; }
 .legal { border-left: 3px solid var(--crit); background: var(--surface); padding: 14px 18px; border-radius: 0 6px 6px 0; }
 .legal b { color: var(--crit); }
-.mini-row { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; }
-.mini-row .bezel { width: min(100%, 360px); border-radius: 10px; padding: 10px 14px; background: #f2f0ec; }
-.mini-row .bezel canvas { border-radius: 2px; }
 .scale svg { width: 100%; min-width: 620px; height: auto; display: block; }
 .scale .wall { fill: var(--surface); stroke: var(--line); }
-.scale .floor { stroke: var(--muted); stroke-width: 2; }
 .scale .led { fill: #0b0b0d; }
 .scale .ledline { stroke: rgba(150,155,165,.5); stroke-width: 1; }
-.scale .desk { fill: var(--line); }
-.scale .person { fill: none; stroke: var(--muted); stroke-width: 2; }
 .scale .dim { stroke: var(--accent); stroke-width: 1.2; fill: none; }
 .scale text { fill: var(--fg); font-family: var(--font-mono); font-size: 12px; }
 .scale text.m { fill: var(--muted); }
 .warnbox { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 0 6px 6px 0; font-size: 0.9rem; }
-.real { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
-.real-led { width: 64mm; height: 32mm; max-width: 100%; background-color: #0b0b0d;
-  background-image: radial-gradient(circle at center, #ffb03b 0 1.05mm, transparent 1.15mm);
-  background-size: 4mm 4mm; border-radius: 2px; }
 .total td { font-weight: 600; border-bottom: none; }
 .src { font-size: 0.82rem; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
 .src a, .card a, td a { color: var(--accent); text-underline-offset: 2px; }
@@ -174,17 +164,6 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       <button type="button" id="sound" aria-pressed="false">Sonido</button>
     </div>
     <p class="note">La rotación cambia de mensaje cada 6 s. Una alerta crítica corta la rotación y suena dos veces; con «Sonido» prendido se oye el «pip». Cada LED se dibuja como en el panel: un punto de unos 2,1 mm cada 4 mm sobre fondo negro.</p>
-    <div class="option">
-      <div class="option-head">
-        <h3>Opción mini · un aparato de escritorio</h3>
-        <span class="tag">sólo avisos y pip</span>
-        <span class="dims">32 × 8 px · Ulanzi TC001 · buzzer incluido</span>
-      </div>
-      <div class="mini-row">
-        <div class="bezel"><canvas id="led8" width="512" height="128" aria-label="Simulación del reloj de píxeles de 32 por 8"></canvas></div>
-        <p class="note" style="max-width: 46ch">Para quien quiera sólo el aviso: una tira de 32×8 que muestra un mensaje corto y suena. Sirve aunque no se monte el tablero grande. Detalle más abajo.</p>
-      </div>
-    </div>
   </section>
 
   <section aria-labelledby="size">
@@ -192,47 +171,34 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
     <p class="lead">Un panel P4 de 64×32 mide <b>256 × 128 mm</b>: 64 LED × 4 mm de ancho y 32 × 4 mm de alto. Sin marco, los paneles se juntan borde con borde, así que el tablero mide exactamente la suma.</p>
     <div class="scroll">
       <table>
-        <thead><tr><th></th><th>Opción 1</th><th>Opción 2</th><th>Mini</th></tr></thead>
+        <thead><tr><th></th><th>Opción 1</th><th>Opción 2</th></tr></thead>
         <tbody>
-          <tr><td>Paneles</td><td class="num">4 × 1</td><td class="num">4 × 2</td><td class="num">aparato único</td></tr>
-          <tr><td>Píxeles</td><td class="num">256 × 32</td><td class="num">256 × 64</td><td class="num">32 × 8</td></tr>
-          <tr><td>Medida de la cara</td><td class="num">1.024 × 128 mm</td><td class="num">1.024 × 256 mm</td><td class="num">a confirmar al comprar</td></tr>
-          <tr><td>Letra chica (7 px)</td><td class="num">28 mm de alto</td><td class="num">28 mm de alto</td><td class="num">7 px</td></tr>
-          <tr><td>Letra grande (14 px)</td><td class="num">sólo una línea, 56 mm</td><td class="num">56 mm de alto</td><td class="num">—</td></tr>
-          <tr><td>Consumo máximo (todo blanco)</td><td class="num">≤ 80 W</td><td class="num">≤ 160 W</td><td class="num">5 V 1 A</td></tr>
-          <tr><td>Fuente de 5 V</td><td class="num">20 A</td><td class="num">40 A</td><td class="num">cargador USB</td></tr>
+          <tr><td>Paneles</td><td class="num">4 × 1</td><td class="num">4 × 2</td></tr>
+          <tr><td>Píxeles</td><td class="num">256 × 32</td><td class="num">256 × 64</td></tr>
+          <tr><td>Medida de la cara</td><td class="num">1.024 × 128 mm</td><td class="num">1.024 × 256 mm</td></tr>
+          <tr><td>Letra chica (7 px)</td><td class="num">28 mm de alto</td><td class="num">28 mm de alto</td></tr>
+          <tr><td>Letra grande (14 px)</td><td class="num">sólo una línea, 56 mm</td><td class="num">56 mm de alto</td></tr>
+          <tr><td>Consumo máximo (todo blanco)</td><td class="num">≤ 80 W</td><td class="num">≤ 160 W</td></tr>
+          <tr><td>Fuente de 5 V</td><td class="num">20 A</td><td class="num">40 A</td></tr>
         </tbody>
       </table>
     </div>
     <div class="scroll scale">
-      <svg viewBox="0 0 760 520" role="img" aria-label="Pared de 4 metros con el tablero de 1,02 metros a 2,2 metros del piso, sobre cuatro puestos">
-        <rect class="wall" x="80" y="54" width="640" height="416"/>
-        <text class="m" x="88" y="160">pared, 4 m de ancho</text><text class="m" x="88" y="176">el alto, por medir</text>
-        <!-- puestos: escritorio a 75 cm y una cabeza sentada a ~125 cm -->
-        <g>
-          <rect class="desk" x="96" y="350" width="144" height="6"/><rect class="desk" x="110" y="356" width="4" height="114"/><rect class="desk" x="222" y="356" width="4" height="114"/><circle class="person" cx="168" cy="270" r="16"/><path class="person" d="M150,350 L150,300 Q168,288 186,300 L186,350"/>
-          <rect class="desk" x="256" y="350" width="144" height="6"/><rect class="desk" x="270" y="356" width="4" height="114"/><rect class="desk" x="382" y="356" width="4" height="114"/><circle class="person" cx="328" cy="270" r="16"/><path class="person" d="M310,350 L310,300 Q328,288 346,300 L346,350"/>
-          <rect class="desk" x="416" y="350" width="144" height="6"/><rect class="desk" x="430" y="356" width="4" height="114"/><rect class="desk" x="542" y="356" width="4" height="114"/><circle class="person" cx="488" cy="270" r="16"/><path class="person" d="M470,350 L470,300 Q488,288 506,300 L506,350"/>
-          <rect class="desk" x="576" y="350" width="144" height="6"/><rect class="desk" x="590" y="356" width="4" height="114"/><rect class="desk" x="702" y="356" width="4" height="114"/><circle class="person" cx="648" cy="270" r="16"/><path class="person" d="M630,350 L630,300 Q648,288 666,300 L666,350"/>
-        </g>
-        <!-- tablero opción 2: 102,4 × 25,6 cm, borde inferior a 2,20 m; escala 1 cm = 1,6 px -->
-        <rect class="led" x="318" y="77" width="164" height="41"/>
-        <line class="ledline" x1="359" y1="77" x2="359" y2="118"/><line class="ledline" x1="400" y1="77" x2="400" y2="118"/><line class="ledline" x1="441" y1="77" x2="441" y2="118"/><line class="ledline" x1="318" y1="97.5" x2="482" y2="97.5"/>
-        <rect x="318" y="97.5" width="164" height="20.5" fill="none" stroke="var(--accent)" stroke-dasharray="3 3"/>
-        <text x="318" y="68">1,02 m</text>
-        <text class="m" x="490" y="92">opción 2: 25,6 cm</text>
-        <text class="m" x="490" y="112">opción 1: 12,8 cm (punteado)</text>
-        <path class="dim" d="M300,118 L300,470 M294,118 L306,118 M294,470 L306,470"/>
-        <text x="236" y="300">2,20 m</text>
-        <line class="floor" x1="60" y1="470" x2="740" y2="470"/>
-        <path class="dim" d="M80,494 L720,494 M80,488 L80,500 M720,488 L720,500"/>
-        <text x="380" y="512">4,00 m</text>
+      <svg viewBox="0 0 760 420" role="img" aria-label="Pared de 4 por 2 metros con el tablero de 1,02 metros centrado en la parte alta">
+        <!-- escala: 1 cm = 1,6 px. Pared 400 × 200 cm; el tablero centrado, a 20 cm del borde de arriba -->
+        <rect class="wall" x="60" y="40" width="640" height="320"/>
+        <rect class="led" x="298" y="72" width="164" height="41"/>
+        <line class="ledline" x1="339" y1="72" x2="339" y2="113"/><line class="ledline" x1="380" y1="72" x2="380" y2="113"/><line class="ledline" x1="421" y1="72" x2="421" y2="113"/><line class="ledline" x1="298" y1="92.5" x2="462" y2="92.5"/>
+        <rect x="298" y="72" width="164" height="20.5" fill="none" stroke="var(--accent)" stroke-dasharray="3 3"/>
+        <path class="dim" d="M298,62 L462,62 M298,57 L298,67 M462,57 L462,67"/>
+        <text x="356" y="54">1,02 m</text>
+        <text class="m" x="472" y="86">opción 1: 12,8 cm (punteado)</text>
+        <text class="m" x="472" y="108">opción 2: 25,6 cm</text>
+        <path class="dim" d="M60,382 L700,382 M60,376 L60,388 M700,376 L700,388"/>
+        <text x="356" y="404">4,00 m</text>
+        <path class="dim" d="M52,40 L52,360 M47,40 L57,40 M47,360 L57,360"/>
+        <text x="0" y="204">2,00 m</text>
       </svg>
-    </div>
-    <p class="warnbox">El pedido dice que la pared mide 2 m de alto y que el tablero va a 2,2–2,5 m. Las dos cosas no caben juntas: o la pared es más alta, o los 2 m se miden desde otro punto. Hay que medirla antes de comprar los soportes; es el segundo pendiente de la tarea. El dibujo está a escala en lo ancho y en la altura del tablero.</p>
-    <div class="real">
-      <div class="real-led" role="img" aria-label="Un trozo de 16 por 8 LED a tamaño real"></div>
-      <p class="note" style="max-width: 50ch">Un trozo de 16 × 8 LED a tamaño nominal (64 × 32 mm). Depende de la pantalla en que se mire: si se pone una regla encima y no da 64 mm, la pantalla escala distinto. El tablero real es 16 de estos trozos de ancho.</p>
     </div>
   </section>
 
@@ -253,7 +219,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         </tbody>
       </table>
     </div>
-    <p class="note">En pesos, a una tasa supuesta de 4.000 COP por dólar: unos <b>580.000</b> para la opción 1 y <b>960.000</b> para la opción 2, antes de envío e importación. Las filas con «≈» son estimaciones, no cotizaciones. La mini (Ulanzi TC001) va aparte: US$45,99 en <a href="https://www.ulanzi.com/products/ulanzi-pixel-smart-clock-2882" target="_blank" rel="noopener">la tienda de Ulanzi</a>.</p>
+    <p class="note">En pesos, a una tasa supuesta de 4.000 COP por dólar: unos <b>580.000</b> para la opción 1 y <b>960.000</b> para la opción 2, antes de envío e importación. Las filas con «≈» son estimaciones, no cotizaciones.</p>
     <div class="grid2">
       <div class="card">
         <h3>Otros lugares donde buscar</h3>
@@ -320,27 +286,6 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       </div>
     </div>
     <p class="warnbox">Ocho paneles desde un solo ESP32-S3 es posible (hay un montaje documentado con 12 paneles en un Matrix Portal S3), pero la memoria limita la profundidad de color y el refresco. Se comprueba en el banco de prueba con los 8 paneles antes de montar. Si parpadea, la salida es una Raspberry Pi con <code>rpi-rgb-led-matrix</code>.</p>
-  </section>
-
-  <section aria-labelledby="mini">
-    <h2 id="mini">El aparato chico: Ulanzi TC001</h2>
-    <div class="grid2">
-      <div class="card">
-        <h3>Qué es</h3>
-        <dl class="kv">
-          <dt>Pantalla</dt><dd>32 × 8 LED a todo color</dd>
-          <dt>Sonido</dt><dd>buzzer pasivo: pitidos y melodías cortas, no audio</dd>
-          <dt>Conexión</dt><dd>WiFi, con un ESP32 adentro</dd>
-          <dt>Energía</dt><dd>cargador de 5 V 1 A y batería de respaldo</dd>
-          <dt>Precio</dt><dd>US$45,99 en la tienda de Ulanzi</dd>
-        </dl>
-      </div>
-      <div class="card">
-        <h3>Cómo recibe los avisos</h3>
-        <p>Con el firmware libre <a href="https://blueforcer.github.io/awtrix3/" target="_blank" rel="noopener">AWTRIX 3</a> expone una API HTTP: el mismo servidor que alimenta el tablero grande le manda un aviso corto y un sonido. El volumen va de 0 a 30 y se puede silenciar por la API.</p>
-        <p class="note">Sirve como primer paso barato, o como repetidor en otro puesto. Los foros describen su buzzer como chillón: alcanza para un pip, no para música.</p>
-      </div>
-    </div>
   </section>
 
   <section aria-labelledby="color">
@@ -481,8 +426,6 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       <a href="https://www.adafruit.com/product/5778" target="_blank" rel="noopener">Adafruit · Matrix Portal S3</a>
       <a href="https://www.hackster.io/news/this-large-format-led-matrix-display-chains-12-panels-to-a-single-adafruit-matrix-portal-s3-d28617468d8a" target="_blank" rel="noopener">Hackster · 12 paneles en un Matrix Portal S3</a>
       <a href="https://octopart.com/es/part/mean-well/LRS-200-5" target="_blank" rel="noopener">Octopart · Mean Well LRS-200-5</a>
-      <a href="https://www.ulanzi.com/products/ulanzi-pixel-smart-clock-2882" target="_blank" rel="noopener">Ulanzi · TC001</a>
-      <a href="https://svitrix.github.io/svitrix-firmware/sounds.html" target="_blank" rel="noopener">Firmware del TC001 · buzzer pasivo y volumen</a>
       <a href="https://www.fervicom.com/categoria/inicio/pantallas-led/" target="_blank" rel="noopener">Fervicom · pantallas LED en Bogotá</a>
     </div>
   </section>
@@ -631,28 +574,14 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
   ];
 
   // --- dibujo de los LEDs ---
-  // el TC001: 32×8, sólo avisos cortos
-  function miniScene(b, t, scene) {
-    const msgs = [
-      ["DEPLOY OK", C.green], ["1.284", C.amber], ["HOLA!", C.teal], ["API CAIDA", C.red], [null, C.white]
-    ];
-    let [s, c] = msgs[scene];
-    if (!s) { const n = new Date(); s = String(n.getHours()).padStart(2, "0") + ":" + String(n.getMinutes()).padStart(2, "0"); }
-    if (scene === 3 && (t % 1) > 0.5) return;
-    const w = tw(s, 1);
-    const x = w <= b.w ? Math.floor((b.w - w) / 2) : b.w - ((t * 18) % (w + b.w));
-    text(b, s, x, 1, 1, c);
-  }
-
   const panels = [
     { cv: document.getElementById("led32"), buf: makeBuf(256, 32), seams: 64 },
-    { cv: document.getElementById("led64"), buf: makeBuf(256, 64), seams: 64 },
-    { cv: document.getElementById("led8"), buf: makeBuf(32, 8), seams: 0, mini: true }
+    { cv: document.getElementById("led64"), buf: makeBuf(256, 64), seams: 64 }
   ];
   // un LED SMD2121 mide ~2,1 mm en un paso de 4 mm: el punto ocupa ~53 % del paso
   function paint(p) {
     const { cv, buf } = p, g = cv.getContext("2d");
-    const pitch = cv.width / buf.w, s = pitch * (p.mini ? 0.8 : 0.53), o = (pitch - s) / 2;
+    const pitch = cv.width / buf.w, s = pitch * 0.53;
     g.fillStyle = "#050506"; g.fillRect(0, 0, cv.width, cv.height);
     for (let y = 0; y < buf.h; y++) for (let x = 0; x < buf.w; x++) {
       const i = (y * buf.w + x) * 3, R = buf.d[i], G = buf.d[i + 1], B = buf.d[i + 2];
@@ -704,7 +633,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
     if (auto && scene !== 3 && t > 6) setScene(scene === 2 ? 4 : (scene + 1) % 5 === 3 ? 4 : (scene + 1) % 5);
     for (const p of panels) {
       p.buf.d.fill(0);
-      if (p.mini) miniScene(p.buf, reduce ? 3 : t, scene); else scenes[scene](p.buf, reduce ? 3 : t);
+      scenes[scene](p.buf, reduce ? 3 : t);
       paint(p);
     }
     requestAnimationFrame(frame);

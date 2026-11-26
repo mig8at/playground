@@ -14,10 +14,7 @@ jira_title: "Pantalla de notificaciones"
   Depende de: Miguel — si caben imágenes y el presupuesto.
 - [ ] Medir la pared y fijar altura y punto de anclaje; termina cuando haya ancho útil, altura (2,2–2,5 m) y toma de corriente medidos en sitio. El pedido dice que la pared mide 2 m de alto y que el tablero va a 2,2–2,5 m: una de las dos cifras está mal.
 - [ ] Cotizar en pesos y comprar el hardware de la lista del prototipo (paneles Waveshare P4 64×32, Matrix Portal S3, Mean Well LRS-200-5); termina cuando todo esté en la oficina y un panel prenda con un patrón de prueba. Fervicom (Bogotá) debe confirmar si tiene P4 de 64×32.
-- [ ] Probar los 8 paneles encadenados en un solo ESP32-S3; termina cuando 256×64 se vea sin parpadeo con el color planeado, o se pase a Raspberry Pi.
-- [ ] Decidir si se compra el aparato mini (Ulanzi TC001, 32×8 con buzzer, US$45,99) como primer paso o como repetidor; termina con la decisión en «Cómo se ataca».
-  Depende de: Miguel.
-- [ ] Definir el contrato JSON de los cuatro tipos (texto, imagen, contador, sonido); termina cuando el controlador rechace cualquier otro tipo y un mensaje mal formado no lo cuelgue.
+- [ ] Probar los 8 paneles encadenados en un solo ESP32-S3; termina cuando 256×64 se vea sin parpadeo con el color planeado, o se pase a Raspberry Pi.- [ ] Definir el contrato JSON de los cuatro tipos (texto, imagen, contador, sonido); termina cuando el controlador rechace cualquier otro tipo y un mensaje mal formado no lo cuelgue.
 - [ ] Armar el servidor que junta los datos y empuja al tablero; termina cuando las cifras de negocio salgan agregadas de la base de producción (sólo lectura) y se refresquen solas.
 - [ ] Prioridad de alertas críticas sobre la rotación; termina cuando una caída simulada interrumpa el ciclo, suene y vuelva a la rotación al resolverse.
 - [ ] Revisar que nada de lo que se muestra identifique a un cliente; termina cuando cada fuente esté listada con su agregación y no haya nombres, cédulas ni montos individuales.
@@ -56,7 +53,7 @@ El prototipo visual de las dos opciones y la arquitectura: `artifacts/notificati
 
 ## Lo que se evaluó y NO se eligió
 
-Todavía nada: la elección entre la opción 1 y la 2 es el primer pendiente.
+Un aparato de escritorio sólo para avisos (Ulanzi TC001: 32×8 LED, WiFi y buzzer, US$45,99). Se descartó porque lo que se quiere es el tablero de paneles HUB75 P4 en la pared; la elección entre la opción 1 y la 2 sigue abierta.
 
 ## Lo que NO entra
 
