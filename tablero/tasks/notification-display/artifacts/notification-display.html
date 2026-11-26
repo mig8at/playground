@@ -173,7 +173,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         <button type="button" id="sound" aria-pressed="false">Sonido</button>
       </div>
     </div>
-    <p class="note">30 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados, salvo «Crecimiento por mes» y «Ciudad de comercios», cuya forma es real, y los dos tops (comercios y entidades), con las ventas reales de 2026 (desembolsos por mes en producción, sin cifras absolutas). Su porcentaje de 2025 compara el año completo con 2024; el de 2026, enero a octubre con el mismo tramo de 2025.</p>
+    <p class="note">30 mensajes de ejemplo; los de «Marca CreditOp» usan, con moderación, los colores del sistema de diseño de la compañía. La rotación pasa al siguiente cada 7 s y salta la alerta crítica: una alerta real entra sola, corta la rotación y se queda hasta resolverse. Con «Sonido» prendido se oye el pip de cada mensaje, el récord y el cumpleaños tienen su melodía, y nueve mensajes además lo dicen en voz (la del navegador, de ejemplo). Las cifras y los nombres son inventados, salvo «Crecimiento por mes» y «Ciudad de comercios», cuya forma es real, los dos tops (comercios y entidades), con las ventas reales de 2026, y «Suben y bajan», con los desembolsos reales del trimestre (desembolsos por mes en producción, sin cifras absolutas). Su porcentaje de 2025 compara el año completo con 2024; el de 2026, enero a octubre con el mismo tramo de 2025.</p>
   </section>
 
   <section aria-labelledby="size">
@@ -448,7 +448,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
           <li>Solicitudes del día</li>
           <li>Créditos aprobados y desembolsados</li>
           <li>Monto del mes con barra hacia la meta</li>
-          <li>Cuántos comercios van en ritmo, en riesgo o atrasados contra su meta, y a cuánto cerraría el mes a este ritmo</li>
+          <li>Qué comercios suben y cuáles bajan en el trimestre, en un tablero de aeropuerto; y a cuánto cerraría el mes a este ritmo</li>
           <li>La ciudad de comercios: un edificio por comercio, tan alto como sus solicitudes</li>
           <li>Las solicitudes en vivo: cada una avanza por entran, perfil, entidad y venta, y se ve dónde se queda</li>
           <li>Récords, con un sonido especial</li>
@@ -524,7 +524,8 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
     "+":[0,4,4,31,4,4,0],"°":[12,18,18,12,0,0,0],"·":[0,0,0,12,12,0,0],"$":[4,15,20,14,5,30,4]
   };
   F["\u0001"] = [13,22,17,25,21,19,17];
-  F["▲"] = [0,4,14,31,0,0,0];               // flecha de subida   // Ñ: la tilde arriba y la N en 5 filas
+  F["▲"] = [0,4,14,31,0,0,0];               // flecha de subida
+  F["▼"] = [0,31,14,4,0,0,0];               // flecha de bajada   // Ñ: la tilde arriba y la N en 5 filas
   const norm = s => s.toUpperCase().replace(/Ñ/g, "\u0001").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const tw = (s, k) => norm(s).length * 6 * k - k;
 
@@ -719,25 +720,37 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         bar(b, 2, 26, b.w - 4, 5, v / goal, C.amber, t);
       }
     } },
-    { id: "goal-light", group: "Negocio", label: "Comercios vs meta", draw(b, t) {
-      // el semáforo de la meta del mes, como lo calcula forecast: lo desembolsado contra la meta × días transcurridos / días del mes.
-      // ≥ 95 % en ritmo, ≥ 75 % en riesgo, menos, atrasado. La meta es de MONTO. Cifras de ejemplo.
-      const big = b.h >= 64, cols = [["EN RITMO", 12, C.bG], ["EN RIESGO", 5, C.yellow], ["ATRASADOS", 3, C.red]];
-      text(b, big ? "COMERCIOS VS META · DIA 25 DE 30" : "VS META · DIA 25/30", 2, big ? 3 : 1, 1, C.bLav);
-      cols.forEach(([lab, v, c], i) => {
-        const mid = Math.round(b.w * (2 * i + 1) / 6), t0 = 0.3 + i * 0.25, n = String(Math.round(v * ease((t - t0) / 1)));
-        const pulse = 0.65 + 0.35 * Math.sin(t * 4 + i), r = big ? 4 : 2;
-        if (big) {
-          for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) if (dx * dx + dy * dy <= r * r + 1) px(b, mid + dx, 16 + dy, mul(c, pulse));
-          text(b, n, mid - (tw(n, 3) >> 1), 24, 3, c);
-          text(b, lab, mid - (tw(lab, 1) >> 1), 53, 1, mul(C.bLav, ease((t - t0) / 0.5)));
-        } else {
-          const w = tw(n, 2), x = mid - ((w + 8) >> 1);
-          for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) if (dx * dx + dy * dy <= r * r + 1) px(b, x + 2 + dx, 15 + dy, mul(c, pulse));
-          text(b, n, x + 8, 9, 2, c);
-          text(b, lab, mid - (tw(lab, 1) >> 1), 25, 1, mul(C.bLav, ease((t - t0) / 0.5)));
+    { id: "goal-light", group: "Negocio", label: "Suben y bajan (Q)", draw(b, t) {
+      // Un tablero de aeropuerto: las letras giran hasta quedarse quietas. Alterna los comercios que más SUBEN y más BAJAN en
+      // el trimestre: desembolsos del Q4 (1-oct al 25-nov-2026) contra el mismo tramo del Q3 (1-jul al 25-ago), medidos en
+      // producción, sin puntos de prueba y sólo con volumen.
+      const big = b.h >= 64, PAGES = [
+        { head: "SUBEN EN EL Q4", up: true, rows: [["FREE SPIRIT", "+693%"], ["REFURBI", "+200%"], ["MOTAI", "+99%"]] },
+        { head: "BAJAN EN EL Q4", up: false, rows: [["SMART ACADEMIA", "-79%"], ["ALKOSTO", "-50%"], ["EMO MATERIALES", "-36%"]] }];
+      const cw = big ? 7 : 6, ch = big ? 11 : 9, cols = Math.floor((b.w - 4) / cw), nrows = big ? 4 : 3, gap = 2;
+      const y0 = (b.h - (nrows * ch + (nrows - 1) * gap)) >> 1, x0 = (b.w - cols * cw) >> 1;
+      const per = 3.6, pi = Math.floor(t / per) % 2, since = t - Math.floor(t / per) * per, page = PAGES[pi], prevP = PAGES[1 - pi];
+      // cada fila como texto de ancho fijo: la flecha, el nombre y el porcentaje a la derecha
+      const line = (p, r) => {
+        if (r === 0) { const right = "VS Q3"; return (" " + p.head).padEnd(cols - right.length - 1) + right + " "; }
+        const row = p.rows[r - 1]; if (!row) return "".padEnd(cols);
+        return ((p.up ? "▲ " : "▼ ") + row[0]).padEnd(cols - row[1].length - 1) + row[1] + " ";
+      };
+      const ABC = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789%+-";
+      for (let r = 0; r < nrows; r++) {
+        const want = [...line(page, r)], had = t < per ? [..."".padEnd(cols)] : [...line(prevP, r)], y = y0 + r * (ch + gap);   // al entrar, gira desde vacío
+        for (let c = 0; c < cols; c++) {
+          const x = x0 + c * cw;
+          rect(b, x, y, cw - 1, ch, [26,26,32]);                          // la paleta
+          rect(b, x, y + (ch >> 1), cw - 1, 1, [8,8,12]);                  // la ranura del medio
+          const done = 0.25 + c * 0.02 + r * 0.06 + hash(r * 50 + c) * 0.3, flipping = since < done && (want[c] !== " " || had[c] !== " ");
+          let chr = want[c], col = [255,205,90];
+          if (flipping) { chr = ABC[(hash(c * 13 + r * 7 + Math.floor(t / 0.06)) * ABC.length) | 0]; col = [170,135,60]; }
+          else if (r > 0 && (chr === "▲" || chr === "▼" || c >= cols - 6)) col = page.up ? C.bG : C.red;
+          else if (r === 0) col = C.white;
+          if (chr !== " ") text(b, chr, x + ((cw - 1 - 5) >> 1), y + ((ch - 7) >> 1), 1, col);
         }
-      });
+      }
     } },
     { id: "projection", group: "Negocio", label: "Proyección del cierre", draw(b, t) {
       // a este ritmo, ¿cómo cerramos el mes? Meta de MONTO. Ejemplo: van $3.700 M de $5.000 M al día 25 de 30
