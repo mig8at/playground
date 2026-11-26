@@ -59,6 +59,10 @@ section { display: flex; flex-direction: column; gap: 18px; }
 .option { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .option-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
 .option-head h3 { font-size: 1rem; }
+[hidden] { display: none !important; }
+#simTabs { margin-bottom: 12px; }
+.scene-desc { margin: 0; min-height: 2.8em; max-width: 72ch; font-size: 0.95rem; line-height: 1.45; color: var(--fg); }
+.scene-desc b { font-weight: 600; }
 .tag { font-family: var(--font-mono); font-size: 0.72rem; padding: 2px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); }
 .dims { font-family: var(--font-mono); font-size: 0.78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .bezel { background: #050506; padding: 6px; border-radius: 3px; box-shadow: 0 10px 24px rgba(0,0,0,.28); max-width: 100%; }
@@ -149,15 +153,20 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
   <section aria-labelledby="sim">
     <h2 id="sim">Las tres opciones, a escala</h2>
     <p class="lead">Simulación píxel por píxel. Las líneas finas marcan dónde termina cada panel de 64×32. Varias cifras son reales, de producción; la nota de abajo dice cuáles.</p>
+    <div class="tabs" role="tablist" aria-label="Opción en la simulación" id="simTabs">
+      <button type="button" role="tab" id="sim-tab-1" aria-selected="false" aria-controls="sim-panel-1" tabindex="-1">Opción 1 · 4 paneles</button>
+      <button type="button" role="tab" id="sim-tab-2" aria-selected="false" aria-controls="sim-panel-2" tabindex="-1">Opción 2 · 8 paneles</button>
+      <button type="button" role="tab" id="sim-tab-3" aria-selected="true" aria-controls="sim-panel-3">Opción 3 · 12 paneles</button>
+    </div>
     <div class="stage">
-      <div class="option">
+      <div class="option" role="tabpanel" id="sim-panel-1" aria-labelledby="sim-tab-1" hidden>
         <div class="option-head">
           <h3>Opción 1 · una fila de 4 paneles</h3>
           <span class="dims">256 × 32 px · 1,02 m × 13 cm · fuente 5 V 20 A</span>
         </div>
         <div class="bezel"><canvas id="led32" width="1024" height="128" aria-label="Simulación del tablero de 256 por 32 píxeles"></canvas></div>
       </div>
-      <div class="option">
+      <div class="option" role="tabpanel" id="sim-panel-2" aria-labelledby="sim-tab-2" hidden>
         <div class="option-head">
           <h3>Opción 2 · dos filas de 4 paneles</h3>
           <span class="tag">recomendada si caben imágenes</span>
@@ -165,7 +174,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         </div>
         <div class="bezel"><canvas id="led64" width="1024" height="256" aria-label="Simulación del tablero de 256 por 64 píxeles"></canvas></div>
       </div>
-      <div class="option">
+      <div class="option" role="tabpanel" id="sim-panel-3" aria-labelledby="sim-tab-3">
         <div class="option-head">
           <h3>Opción 3 · dos filas de 6 paneles</h3>
           <span class="tag">más ancho, a la misma altura</span>
@@ -173,6 +182,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         </div>
         <div class="bezel"><canvas id="led96" width="1536" height="256" aria-label="Simulación del tablero de 384 por 64 píxeles"></canvas></div>
       </div>
+      <p class="scene-desc" id="sceneDesc" aria-live="polite"></p>
     </div>
     <div class="controls">
       <div class="scene-groups" id="sceneBtns" role="group" aria-label="Mensaje en pantalla"></div>
@@ -203,10 +213,10 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       </table>
     </div>
     <div class="room">
-      <div class="tabs" role="tablist" aria-label="Opción en la pared">
-        <button type="button" role="tab" id="wall-tab-1" aria-selected="true" aria-controls="wall-panel" data-opt="0">Opción 1 · 4 paneles</button>
+      <div class="tabs" role="tablist" aria-label="Opción en la pared" id="wallTabs">
+        <button type="button" role="tab" id="wall-tab-1" aria-selected="false" aria-controls="wall-panel" data-opt="0" tabindex="-1">Opción 1 · 4 paneles</button>
         <button type="button" role="tab" id="wall-tab-2" aria-selected="false" aria-controls="wall-panel" data-opt="1" tabindex="-1">Opción 2 · 8 paneles</button>
-        <button type="button" role="tab" id="wall-tab-3" aria-selected="false" aria-controls="wall-panel" data-opt="2" tabindex="-1">Opción 3 · 12 paneles</button>
+        <button type="button" role="tab" id="wall-tab-3" aria-selected="true" aria-controls="wall-panel" data-opt="2">Opción 3 · 12 paneles</button>
       </div>
       <div class="room-body" id="wall-panel" role="tabpanel" aria-labelledby="wall-tab-1">
         <div class="h-dim"><span>2,50 m</span></div>
@@ -717,7 +727,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
   // Rejilla común: margen de 2 px a los lados; cabecera en y=1 (32) o y=3 (64); todo en múltiplos del alto de letra.
   let funnelT = -1;                     // el embudo suena sólo con lo que pasó desde el cuadro anterior
   const SCENES = [
-    { id: "today", group: "Negocio", label: "Resumen del día", draw(b, t) {
+    { id: "today", desc: "Lo del día: descargas de la app, solicitudes y créditos aprobados, contra ayer a la misma hora.", group: "Negocio", label: "Resumen del día", draw(b, t) {
       const big = b.h >= 64;
       const cols = [["DESCARGAS", 1820, "+12% VS AYER", C.white], ["SOLICITUDES", 640, "+8% VS AYER", C.white], ["APROBADAS", 212, "+5% VS AYER", C.green]];
       const MINI = [[".www.", "w...w", "wgggw", "wgggw", "wgggw", "w.w.w", ".www."],     // 📱
@@ -734,7 +744,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         if (big) text(b, d, mid - (tw(d, 1) >> 1), 46, 1, mul(C.green, ease((t - t0 - 1.2) / 0.5)));
       });
     } },
-    { id: "today-sales", group: "Negocio", label: "Ventas de hoy", draw(b, t) {
+    { id: "today-sales", desc: "Las ventas (créditos desembolsados) de hoy y su monto, contra las que llevábamos ayer a esta misma hora.", group: "Negocio", label: "Ventas de hoy", draw(b, t) {
       // ventas (desembolsos) de hoy contra ayer a la misma hora. Medido en producción: el 25-nov-2026 hasta las 17:15
       // iban 194 ventas por $692 M; el 24-nov a esa hora iban 131 (+48 %). En vivo lo calcula el servidor a cada minuto.
       const big = b.h >= 64, v = 194, prev = 131, cur = v * ease(t / 1.6), num = fmt(cur);
@@ -759,7 +769,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         text(b, "$692 M", 18 + tw("194", 2) + 6, 18, 1, C.gray);
       }
     } },
-    { id: "disbursed", group: "Negocio", label: "Desembolsos y meta", draw(b, t) {
+    { id: "disbursed", desc: "Los créditos desembolsados en el mes, contra la meta del mes.", group: "Negocio", label: "Desembolsos y meta", draw(b, t) {
       const big = b.h >= 64, goal = 1650, v = 1284 * ease(t / 1.8), num = fmt(v), pct = Math.round(100 * v / goal) + "%";
       head(b, "DESEMBOLSOS · NOV", C.hNeg, "META " + fmt(goal), C.gray, t);
       const flap = (t * 3 | 0) % 2;                                       // el billete aletea
@@ -775,7 +785,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         bar(b, 2, 26, b.w - 4, 5, v / goal, C.amber, t);
       }
     } },
-    { id: "goal-light", group: "Negocio", label: "Suben y bajan (Q)", draw(b, t) {
+    { id: "goal-light", desc: "Los comercios que más suben y más bajan en desembolsos este trimestre, contra el mismo tramo del anterior.", group: "Negocio", label: "Suben y bajan (Q)", draw(b, t) {
       // Un tablero de aeropuerto: las letras giran hasta quedarse quietas. Alterna los comercios que más SUBEN y más BAJAN en
       // el trimestre: desembolsos del Q4 (1-oct al 25-nov-2026) contra el mismo tramo del Q3 (1-jul al 25-ago), medidos en
       // producción, sin puntos de prueba y sólo con volumen.
@@ -809,7 +819,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         }
       }
     } },
-    { id: "projection", group: "Negocio", label: "Proyección del cierre", draw(b, t) {
+    { id: "projection", desc: "Cuánto llevamos de la meta de monto del mes y en qué porcentaje cerraríamos a este ritmo. La raya blanca marca dónde deberíamos ir hoy.", group: "Negocio", label: "Proyección del cierre", draw(b, t) {
       // a este ritmo, ¿cómo cerramos el mes? Meta de MONTO. Ejemplo: van $3.700 M de $5.000 M al día 25 de 30
       // (hoy deberíamos ir en 83 %); al mismo ritmo se cierra en $4.440 M = 89 %, en riesgo (≥ 75 %, < 95 %).
       const big = b.h >= 64, meta = 5000, van = 3700 * ease(t / 1.6), hoy = 25 / 30, proy = 3700 / 25 * 30 / meta;
@@ -834,7 +844,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       const hx = bx + Math.round(bw * hoy), on = (t * 2 | 0) % 2;
       rect(b, hx, by - 2, 1, bh + 4, on ? C.white : C.gray);
     } },
-    { id: "revenue", group: "Negocio", label: "Ingresos del mes", draw(b, t) {
+    { id: "revenue", desc: "Los ingresos del mes contra el mes pasado; las barras son los meses anteriores.", group: "Negocio", label: "Ingresos del mes", draw(b, t) {
       const big = b.h >= 64, v = 1240 * ease(t / 1.6), s = "$" + fmt(v) + " M";
       head(b, "INGRESOS · NOV", C.hNeg, "+18% VS OCT", C.green, t);
       const data = [52, 61, 58, 70, 66, 74, 69, 81, 77, 88, 84, 100];
@@ -853,7 +863,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         text(b, s, 18, 10, 2, C.amber);
       }
     } },
-    { id: "ranking", group: "Negocio", label: "Top de entidades", draw(b, t) {
+    { id: "ranking", desc: "Las entidades con más ventas en lo que va del año.", group: "Negocio", label: "Top de entidades", draw(b, t) {
       // las entidades que más venden en el año: ventas (desembolsos) de 2026 al 25-nov, medidas en producción
       const big = b.h >= 64, rows = [["ADDI", 13939], ["WELLI", 8567], ["MEDDIPAY", 6773]];
       head(b, "TOP ENTIDADES · 2026", C.hNeg, null, C.gray, t);
@@ -869,7 +879,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         text(b, s, rx(b, s, 1) + off, y, 1, i === 0 ? C.amber : C.white);
       });
     } },
-    { id: "top-merchants", group: "Negocio", label: "Top de comercios", draw(b, t) {
+    { id: "top-merchants", desc: "Los comercios con más ventas en lo que va del año.", group: "Negocio", label: "Top de comercios", draw(b, t) {
       // los que más venden en el año: ventas (desembolsos) de 2026 al 25-nov, medidas en producción
       const big = b.h >= 64, rows = [["SONRIA", 20594], ["AMOBLANDO PULLMAN", 9162], ["CREDIMOVIL", 3147]];
       head(b, "TOP COMERCIOS · 2026", C.hNeg, null, C.gray, t);
@@ -885,7 +895,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         text(b, s, rx(b, s, 1) + off, y, 1, i === 0 ? C.amber : C.white);
       });
     } },
-    { id: "funnel", group: "Negocio", label: "Solicitudes en vivo", draw(b, t) {
+    { id: "funnel", desc: "Cada sapito es una solicitud que entra en vivo y salta de hoja en hoja: perfil, entidad y venta. Donde se cae, ahí se quedó.", group: "Negocio", label: "Solicitudes en vivo", draw(b, t) {
       // Un estanque con cuatro hojas. Cada solicitud es un sapito: llega hasta ENTRAN y salta de hoja en hoja
       // con cada evento del backend; donde se queda, se cae y se estampa. Dónde se queda sigue la
       // conversión real de los últimos 30 días (1.214 → 516 → 390 → 174 al día). Acelerado: una bolita cada 0,4 s.
@@ -970,7 +980,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         else { text(b, n, x - (tw(n, 1) >> 1), 1, 1, c); text(b, L[k], x - (tw(L[k], 1) >> 1), 23, 1, C.bLav); }
       });
     } },
-    { id: "race", group: "Negocio", label: "Carrera del año", dur: 14, draw(b, t) {
+    { id: "race", desc: "Las ventas acumuladas del año, semana a semana: se ve quién rebasa a quién.", group: "Negocio", label: "Carrera del año", dur: 14, draw(b, t) {
       // Una carrera de barras del año: ventas acumuladas semana a semana de 2026 (al 25-nov, 47 semanas), medidas en
       // producción. Sonría y Pullman, primero y segundo todo el año; Credimovil arranca en cero hacia mayo y a principios
       // de noviembre rebasa a Dentix por el 3.er puesto; Crédito Directo y Tripleten se pelean el 5.º.
@@ -1018,7 +1028,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         text(b, fmt(now[i]), bx + w + 4, y, 1, pass ? C.yellow : C.white);
       });
     } },
-    { id: "growth", group: "Negocio", label: "Crecimiento por mes", voice: "Así hemos crecido: 165 por ciento en 2025, y 15 por ciento en lo que va de 2026.", draw(b, t) {
+    { id: "growth", desc: "Las ventas de toda la compañía mes a mes desde el primer desembolso, y cuánto creció cada año.", group: "Negocio", label: "Crecimiento por mes", voice: "Así hemos crecido: 165 por ciento en 2025, y 15 por ciento en lo que va de 2026.", draw(b, t) {
       // la FORMA real: desembolsos por mes (disbursed_at) de ago-2023 a nov-2026, medidos en producción el 2026-11-25,
       // guardados como % del mejor mes (nov-2025) para no publicar cifras; nov-2026 va hasta el día 25
       const D = [0,0,0,0,0,2,12,12,13,12,14,19,15,17,21,25,23,26,23,25,27,28,28,34,35,44,77,100,47,38,38,35,34,39,37,41,40,48,48,39];
@@ -1056,7 +1066,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         text(b, lab, xr, big ? 2 : 10, 1, mul(C.bG, ease((t - 2.7) / 0.4)));
       }
     } },
-    { id: "merchant-growth", group: "Negocio", label: "Un comercio o entidad en el tiempo", dur: 21, draw(b, t) {
+    { id: "merchant-growth", desc: "Las ventas de un comercio o una entidad mes a mes desde que empezó: si crece, si bajó y su mes más alto.", group: "Negocio", label: "Un comercio o entidad en el tiempo", dur: 21, draw(b, t) {
       // la vida de un comercio, mes a mes: ventas (disbursed_at) desde su primer mes con ventas, medidas en producción el
       // 2026-11-26; el último mes (nov-2026) va hasta el día 25 y sale en blanco. Alterna uno que crece y uno que bajó.
       // Sonría: 2025 contra 2024 de ene a oct, 18.151 vs 12.525 (+45 %); 2026 contra 2025 de ene a oct, 19.119 vs 18.151 (+5 %);
@@ -1111,16 +1121,16 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       });
     } },
     // Los «primeros»: Cencosud y Finandina son ejemplos de lo que viene (Finandina no tiene solicitudes en prod, 2026-11-25)
-    { id: "go-live", group: "Negocio", label: "En vivo", voice: "¡Cencosud ya está en vivo! ¡Vámola!", sound: () => { pip(784, 100); pip(988, 100, .12); pip(1175, 100, .24); pip(1568, 300, .36); }, draw(b, t) {
+    { id: "go-live", desc: "Un comercio que acaba de salir a producción.", group: "Negocio", label: "En vivo", voice: "¡Cencosud ya está en vivo! ¡Vámola!", sound: () => { pip(784, 100); pip(988, 100, .12); pip(1175, 100, .24); pip(1568, 300, .36); }, draw(b, t) {
       firstOf(b, t, { icon: "rocket", what: "YA EN VIVO", name: "CENCOSUD" });
     } },
-    { id: "first-disb-merchant", group: "Negocio", label: "Primera venta (comercio)", voice: "¡Primera venta de Cencosud! ¡Vámola!", sound: () => { pip(784, 100); pip(988, 100, .12); pip(1175, 100, .24); pip(1568, 300, .36); }, draw(b, t) {
+    { id: "first-disb-merchant", desc: "La primera venta de un comercio nuevo.", group: "Negocio", label: "Primera venta (comercio)", voice: "¡Primera venta de Cencosud! ¡Vámola!", sound: () => { pip(784, 100); pip(988, 100, .12); pip(1175, 100, .24); pip(1568, 300, .36); }, draw(b, t) {
       firstOf(b, t, { icon: "medal", what: "PRIMERA VENTA", name: "CENCOSUD" });
     } },
-    { id: "first-disb-lender", group: "Negocio", label: "Primera venta (entidad)", voice: "¡Primera venta de Finandina! ¡Vámola!", sound: () => { pip(784, 100); pip(988, 100, .12); pip(1175, 100, .24); pip(1568, 300, .36); }, draw(b, t) {
+    { id: "first-disb-lender", desc: "La primera venta de una entidad nueva.", group: "Negocio", label: "Primera venta (entidad)", voice: "¡Primera venta de Finandina! ¡Vámola!", sound: () => { pip(784, 100); pip(988, 100, .12); pip(1175, 100, .24); pip(1568, 300, .36); }, draw(b, t) {
       firstOf(b, t, { icon: "medal", what: "PRIMERA VENTA", name: "FINANDINA" });
     } },
-    { id: "record", voice: "¡Octubre fue el mes con más solicitudes de la historia: 35.140!", group: "Negocio", label: "Récord", sound: () => { pip(1047, 90); pip(1319, 90, .1); pip(1568, 220, .2); }, draw(b, t) {
+    { id: "record", desc: "Se rompió el récord: el mes con más solicitudes de la historia.", voice: "¡Octubre fue el mes con más solicitudes de la historia: 35.140!", group: "Negocio", label: "Récord", sound: () => { pip(1047, 90); pip(1319, 90, .1); pip(1568, 220, .2); }, draw(b, t) {
       // Un récord se celebra sobre un período CERRADO (ayer, la semana o el mes pasado): así vale todo el día y nadie se lo
       // pierde. Un récord del día se completaría de noche. Medido en producción al 25-nov-2026: octubre de 2026, 35.140
       // solicitudes, el mes con más de la historia (antes, abril de 2026 con 32.405: +8 %).
@@ -1142,7 +1152,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       }
     } },
     // Atención: lo que no va bien, para verlo igual que lo bueno. Amarillo para avisar, rojo para lo que se perdió.
-    { id: "idle-merchants", group: "Atención", label: "Comercios sin uso", draw(b, t) {
+    { id: "idle-merchants", desc: "Comercios activos sin solicitudes en 30 días, y cuántos de ellos sí usaban CreditOp el mes anterior.", group: "Atención", label: "Comercios sin uso", draw(b, t) {
       // comercios activos que ya habían usado CreditOp y no tienen solicitudes en los últimos 30 días (ventana móvil: un
       // mes calendario engaña al principio del mes); y los que sí tenían en los 30 anteriores. Medido en producción al
       // 25-nov-2026, sin comercios de prueba: 73 de 164 sin solicitudes, 16 de ellos usaban el mes anterior.
@@ -1158,7 +1168,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       const lost = "▼ 16 DEJARON DE USAR";
       text(b, lost, 2, big ? 54 : 25, 1, mul(C.red, ease((t - 1.6) / 0.5)));
     } },
-    { id: "idle-lenders", group: "Atención", label: "Entidades sin uso", draw(b, t) {
+    { id: "idle-lenders", desc: "Entidades asignadas a comercios que casi nadie usa: a cuántos comercios están asignadas y cuántas solicitudes tuvieron.", group: "Atención", label: "Entidades sin uso", draw(b, t) {
       // entidades activas y asignadas a comercios, con casi nada de uso en 30 días. Medido en producción al 25-nov-2026:
       // 82 de 148 sin solicitudes. Banco de Bogotá: asignado a 62 comercios, 1 solicitud; Servicrédito 7 y 0; Sufi 5 y 0.
       const big = b.h >= 64, rows = [["BANCO DE BOGOTA", 62, 1], ["SERVICREDITO", 7, 0], ["SUFI", 5, 0]];
@@ -1175,7 +1185,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         text(b, sol + " SOL.", x + cut, y, 1, sol === 0 ? C.red : C.yellow);
       });
     } },
-    { id: "low-conversion", group: "Atención", label: "Solicitudes sin venta", draw(b, t) {
+    { id: "low-conversion", desc: "Entidades con muchas solicitudes y muy pocas ventas, y cuántas vendieron el mes anterior.", group: "Atención", label: "Solicitudes sin venta", draw(b, t) {
       // de tantas solicitudes, sólo tantas ventas, y cuántas vendió el mes anterior (= sigue igual, ▼ bajó). Medido en
       // producción al 25-nov-2026, 30 días contra los 30 anteriores: Bancolombia consumo 1.896 → 10 (antes 1.756 → 10),
       // Nequi 259 → 7 (antes 341 → 9), Mayi 135 → 3 (antes 148 → 3). Promedio de las que eligen entidad: 35 %.
@@ -1193,7 +1203,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         const ss = fmt(sol) + " → "; text(b, ss, right - tw(vs, 1) - tw(ss, 1) - 1, y, 1, C.gray);
       });
     } },
-    { id: "approved-idle", group: "Atención", label: "Aprobadas sin desembolsar", draw(b, t) {
+    { id: "approved-idle", desc: "Plata que quedó sobre la mesa: créditos que la entidad aprobó y nunca se desembolsaron.", group: "Atención", label: "Aprobadas sin desembolsar", draw(b, t) {
       // créditos que la entidad aprobó y no se desembolsaron (estado «Aprobada no desembolsada»): plata que quedó sobre la
       // mesa. Medido en producción, solicitudes creadas del 27-oct al 25-nov-2026: 66 por $218 M (monto pedido). Addi 38,
       // Welli 13 (más 3 de Welli Risk), Meddipay 10.
@@ -1213,7 +1223,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         text(b, String(n), rx(b, String(n), 1) + off, y, 1, C.yellow);
       });
     } },
-    { id: "slowing-merchants", group: "Atención", label: "Comercios que frenan", draw(b, t) {
+    { id: "slowing-merchants", desc: "Comercios que esta semana venden menos que su ritmo de las 4 anteriores: avisan antes de que dejen de usar.", group: "Atención", label: "Comercios que frenan", draw(b, t) {
       // comercios que venden menos que su propio ritmo: ventas de la última semana contra el promedio semanal de las 4
       // anteriores, sólo comercios con 8 o más por semana. Medido en producción al 25-nov-2026: My Tech 4 contra 13,5
       // (-70 %), Refurbi 19 contra 28 (-32 %), Credimovil 138 contra 154 (-10 %). Avisa antes de que lleguen a «sin uso».
@@ -1228,7 +1238,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         text(b, pc, px0, y, 1, C.red);
       });
     } },
-    { id: "uptime", group: "Desarrollo", label: "Uptime", draw(b, t) {
+    { id: "uptime", desc: "Qué tanto estuvo arriba la plataforma en 30 días; el día en amarillo tuvo una caída.", group: "Desarrollo", label: "Uptime", draw(b, t) {
       const big = b.h >= 64, u = (90 + 9.98 * ease(t / 1.2)).toFixed(2).replace(".", ",") + "%";
       head(b, "UPTIME · 30 DIAS", C.hDev, null, C.white, t);
       // 30 barras que llenan exacto de x0 al margen derecho (algunas miden 1 px más)
@@ -1252,7 +1262,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         text(b, "1 CAIDA · 4 MIN", x0, 25, 1, C.gray);
       }
     } },
-    { id: "projects", group: "Desarrollo", label: "Proyectos", draw(b, t) {
+    { id: "projects", desc: "El avance de las integraciones en curso.", group: "Desarrollo", label: "Proyectos", draw(b, t) {
       // avance de los proyectos en curso (ejemplo): el % lo carga el equipo, no se calcula
       const big = b.h >= 64, rows = [["SHOPIFY", 90, "cart"], ["FINANDINA", 80, "bank"], ["VTEX", 50, "cart"]];   // de más a menos avance; el tipo de integración
       head(b, "PROYECTOS", C.hDev, null, C.gray, t);
@@ -1271,7 +1281,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         text(b, s, rx(b, s, 1), y, 1, p >= 90 ? C.bG : C.white);
       });
     } },
-    { id: "alert", voice: "Atención: la API está caída. Errores del 12 por ciento.", group: "Desarrollo", label: "Alerta crítica", critical: true, sound: () => { pip(880, 160); pip(880, 160, .25); }, draw(b, t) {
+    { id: "alert", desc: "La API está fallando: el aviso entra solo, corta la rotación y se queda hasta que se resuelve.", voice: "Atención: la API está caída. Errores del 12 por ciento.", group: "Desarrollo", label: "Alerta crítica", critical: true, sound: () => { pip(880, 160); pip(880, 160, .25); }, draw(b, t) {
       const big = b.h >= 64, on = (t % 1) < 0.5;
       if (on) rect(b, 0, 0, b.w, b.h, C.dred);
       const fr = on ? C.red : [140,20,16];
@@ -1287,10 +1297,10 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         text(b, "ERRORES 5XX 12% · HACE 4 MIN", 22, 22, 1, C.yellow);
       }
     } },
-    { id: "first-ecommerce", group: "Canales", label: "Primera venta e-commerce", voice: "¡Primera venta por e-commerce! ¡Vámola!", sound: () => { pip(784, 100); pip(988, 100, .12); pip(1175, 100, .24); pip(1568, 300, .36); }, draw(b, t) {
+    { id: "first-ecommerce", desc: "La primera venta por un canal de e-commerce.", group: "Canales", label: "Primera venta e-commerce", voice: "¡Primera venta por e-commerce! ¡Vámola!", sound: () => { pip(784, 100); pip(988, 100, .12); pip(1175, 100, .24); pip(1568, 300, .36); }, draw(b, t) {
       firstOf(b, t, { icon: "cart", what: "PRIMERA VENTA ECOMMERCE", name: "SHOPIFY" });
     } },
-    { id: "app-downloads", group: "Canales", label: "Descargas de la app", draw(b, t) {
+    { id: "app-downloads", desc: "Las descargas de la app de CreditOp y las de este mes.", group: "Canales", label: "Descargas de la app", draw(b, t) {
       const big = b.h >= 64, n = fmt(12480 * ease(t / 1.6)), k = big ? 3 : 2, ik = big ? 2 : 1;
       head(b, "APP CREDITOP", C.bLav, "+340 HOY", C.bG, t);
       const y = big ? 20 : 11, x = 2;
@@ -1303,10 +1313,10 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       text(b, "DESCARGAS", x + 12 * ik + 8 + tw("12.480", k) + 8, y + 7 * k - 7, 1, C.bLav);
       if (big) text(b, "+2.100 ESTE MES", 2, 54, 1, mul(C.bLav, ease((t - 1.6) / 0.5)));
     } },
-    { id: "first-app", group: "Canales", label: "Primera compra en la app", voice: "¡Primera compra desde la app! ¡Vámola!", sound: () => { pip(784, 100); pip(988, 100, .12); pip(1175, 100, .24); pip(1568, 300, .36); }, draw(b, t) {
+    { id: "first-app", desc: "La primera compra hecha desde la app.", group: "Canales", label: "Primera compra en la app", voice: "¡Primera compra desde la app! ¡Vámola!", sound: () => { pip(784, 100); pip(988, 100, .12); pip(1175, 100, .24); pip(1568, 300, .36); }, draw(b, t) {
       firstOf(b, t, { icon: "shop", what: "PRIMERA COMPRA", name: "DESDE LA APP" });
     } },
-    { id: "welcome", voice: "Bienvenida al equipo, Sofía.", group: "Cultura", label: "Bienvenida", draw(b, t) {
+    { id: "welcome", desc: "Alguien nuevo arranca hoy en el equipo.", voice: "Bienvenida al equipo, Sofía.", group: "Cultura", label: "Bienvenida", draw(b, t) {
       const big = b.h >= 64, blink = (t % 3) > 2.8, bob = Math.round(Math.sin(t * 3));
       if (big) {
         owl(b, 6, 16 + bob, 2, blink);
@@ -1318,7 +1328,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         typed(b, "BIENVENIDA, SOFIA!", 28, 9, 2, C.green, t, 0.2, 14);
       }
     } },
-    { id: "birthday", voice: "¡Feliz cumpleaños, Pepito!", group: "Cultura", label: "Cumpleaños", sound: () => { pip(784, 120); pip(784, 120, .15); pip(880, 200, .3); pip(784, 200, .55); pip(1047, 260, .8); }, draw(b, t) {
+    { id: "birthday", desc: "El cumpleaños de alguien del equipo.", voice: "¡Feliz cumpleaños, Pepito!", group: "Cultura", label: "Cumpleaños", sound: () => { pip(784, 120); pip(784, 120, .15); pip(880, 200, .3); pip(784, 200, .55); pip(1047, 260, .8); }, draw(b, t) {
       const big = b.h >= 64, fl = Math.sin(t * 14) > 0;
       confetti(b, t, big ? 24 : 12, [C.pink, C.yellow, C.green, C.white]);
       const map = { f: fl ? C.yellow : C.amber, y: C.white, c: C.white, p: C.pink, w: C.white, b: [200,120,60], g: C.gray };
@@ -1337,7 +1347,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         typed(b, "PEPITO! QUE LA PASES BIEN", 26, 22, 1, C.white, t, 0.6, 22);
       }
     } },
-    { id: "anniversary", voice: "Feliz aniversario, Andrés: tres años en CreditOp.", group: "Cultura", label: "Aniversario", draw(b, t) {
+    { id: "anniversary", desc: "El aniversario de alguien en CreditOp.", voice: "Feliz aniversario, Andrés: tres años en CreditOp.", group: "Cultura", label: "Aniversario", draw(b, t) {
       const big = b.h >= 64;
       sparkles(b, t, big ? 12 : 6, mul(C.yellow, 0.6));
       const map = { y: C.yellow, a: C.amber, w: C.white, k: [150,100,60] };
@@ -1356,7 +1366,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
     } },
     // Marca CreditOp, sobria: fondo negro; blanco para lo que se lee; verde CreditOp sólo para el dato que importa;
     // morado sólo como detalle chico (una línea, la X); lavanda apagado para etiquetas. Sin degradados ni mezclas.
-    { id: "brand", group: "Marca CreditOp", label: "Marca", draw(b, t) {
+    { id: "brand", desc: "El eslogan de la marca, entre un mensaje y otro.", group: "Marca CreditOp", label: "Marca", draw(b, t) {
       const big = b.h >= 64, k = big ? 4 : 3, w = "CREDITOP", x = cx(b, w, k), y = big ? 9 : 1, ww = tw(w, k);
       const shown = Math.round(ease(t / 1.1) * (ww + 2));                   // aparece de izquierda a derecha
       text(b, w, x, y, k, C.bG);
@@ -1367,7 +1377,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         typed(b, "VAMOLA!!!", cx(b, "VAMOLA!!!", 2), 46, 2, C.white, t, 1.4, 12);
       } else typed(b, "VAMOLA!!!", cx(b, "VAMOLA!!!", 1), 25, 1, C.white, t, 1.2, 20);
     } },
-    { id: "goal", group: "Marca CreditOp", label: "Meta cumplida", voice: "¡Meta del mes cumplida: 1650 desembolsos!", sound: () => { pip(784, 100); pip(988, 100, .12); pip(1175, 100, .24); pip(1568, 300, .36); }, draw(b, t) {
+    { id: "goal", desc: "Se cumplió la meta de desembolsos del mes.", group: "Marca CreditOp", label: "Meta cumplida", voice: "¡Meta del mes cumplida: 1650 desembolsos!", sound: () => { pip(784, 100); pip(988, 100, .12); pip(1175, 100, .24); pip(1568, 300, .36); }, draw(b, t) {
       const big = b.h >= 64;
       sparkles(b, t, big ? 18 : 10, mul(C.bG, 0.7));                       // pocos destellos, del mismo verde
       if (t > 0.2) art(b, ICONS.check, big ? 6 : 4, big ? 20 : 12, big ? 2 : 1, { g: [20,160,100], w: C.white });
@@ -1380,7 +1390,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
         text(b, "1.650 DESEMBOLSOS", 24, 22, 1, mul(C.bG, ease((t - 1) / 0.5)));
       }
     } },
-    { id: "team", group: "Marca CreditOp", label: "Buen trabajo", voice: "¡Buen trabajo, equipo! 30.000 solicitudes en noviembre. ¡Vámola!", sound: () => { pip(784, 100); pip(988, 100, .12); pip(1175, 100, .24); pip(1568, 300, .36); }, draw(b, t) {
+    { id: "team", desc: "Un hito del equipo: las solicitudes del mes pasaron una cifra redonda.", group: "Marca CreditOp", label: "Buen trabajo", voice: "¡Buen trabajo, equipo! 30.000 solicitudes en noviembre. ¡Vámola!", sound: () => { pip(784, 100); pip(988, 100, .12); pip(1175, 100, .24); pip(1568, 300, .36); }, draw(b, t) {
       // un hito del mes (ejemplo: noviembre de 2026 iba en 30.573 solicitudes al día 25)
       const big = b.h >= 64, n = fmt(30000 * ease((t - 0.8) / 1.4)), k = big ? 3 : 2, ik = big ? 2 : 1, gap = big ? 8 : 5;
       const unit = "SOLICITUDES", nw = tw("30.000", k);
@@ -1392,7 +1402,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       text(b, unit, x + 12 * ik + gap + nw + 6, y + 7 * k - 7, 1, mul(C.bLav, ease((t - 1.2) / 0.5)));
       if (big) text(b, "VAMOLA!!!", cx(b, "VAMOLA!!!", 1), 54, 1, mul(C.bLav, ease((t - 2) / 0.5)));
     } },
-    { id: "idle", group: "Reposo", label: "Hora y clima", draw(b, t) {
+    { id: "idle", desc: "Cuando no hay nada más que mostrar: la hora y el clima.", group: "Reposo", label: "Hora y clima", draw(b, t) {
       const big = b.h >= 64, now = new Date();
       const hm = String(now.getHours()).padStart(2, "0") + (now.getSeconds() % 2 ? ":" : " ") + String(now.getMinutes()).padStart(2, "0");
       const k = big ? 4 : 3, gw = tw(hm, k) + 12 + 24 + 8 + tw("18° NUBLADO", 1), x = Math.floor((b.w - gw) / 2);
@@ -1462,8 +1472,10 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
   });
   const btns = [...document.querySelectorAll("[data-scene]")];
   const autoBtn = document.getElementById("auto"), soundBtn = document.getElementById("sound");
+  const descEl = document.getElementById("sceneDesc");
+  function showDesc(i) { descEl.innerHTML = "<b>" + SCENES[i].label + ".</b> " + (SCENES[i].desc || ""); }
   function setScene(i) {
-    scene = i; start = performance.now();
+    scene = i; start = performance.now(); showDesc(i);
     btns.forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.scene === i)));
     (SCENES[i].sound || (() => pip()))();
     say(SCENES[i].voice, SCENES[i].sound ? 1100 : 300);
@@ -1489,23 +1501,26 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
 
   // la pared: la opción elegida, copiada en vivo desde su simulación
   const wallCv = document.getElementById("wallCanvas");
-  const tabs = [...document.querySelectorAll('[role="tab"]')];
-  let wallOpt = 0;
+  const tabs = [...document.querySelectorAll('#wallTabs [role="tab"]')], simTabs = [...document.querySelectorAll('#simTabs [role="tab"]')];
+  let wallOpt = 2;
+  // una sola opción elegida: la simulación y la pared muestran la misma
   function setWall(i) {
     wallOpt = i;
-    tabs.forEach((t, k) => { t.setAttribute("aria-selected", String(k === i)); t.tabIndex = k === i ? 0 : -1; });
+    for (const set of [tabs, simTabs]) set.forEach((t, k) => { t.setAttribute("aria-selected", String(k === i)); t.tabIndex = k === i ? 0 : -1; });
+    simTabs.forEach((t, k) => { document.getElementById("sim-panel-" + (k + 1)).hidden = k !== i; });
     document.getElementById("wall-panel").setAttribute("aria-labelledby", tabs[i].id);
     wallCv.width = i === 2 ? 1536 : 1024; wallCv.height = i ? 256 : 128;
     const led = document.querySelector(".wall-led"), w = i === 2 ? 38.4 : 25.6;   // 1,54 m o 1,02 m de 4 m
     led.style.width = w + "%"; led.style.left = (100 - w) / 2 + "%";
   }
-  tabs.forEach((t, k) => {
+  for (const set of [tabs, simTabs]) set.forEach((t, k) => {
     t.addEventListener("click", () => setWall(k));
     t.addEventListener("keydown", e => {
       if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
-      const n = (k + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length; setWall(n); tabs[n].focus();
+      const n = (k + (e.key === "ArrowRight" ? 1 : set.length - 1)) % set.length; setWall(n); set[n].focus();
     });
   });
+  setWall(2);
 
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   function frame(now) {
@@ -1513,7 +1528,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
     // la alerta crítica no rota: se queda hasta que alguien elige otro mensaje
     if (auto && !SCENES[scene].critical && t > (SCENES[scene].dur || 7)) setScene(nextScene(scene));   // la carrera dura más
     const tt = reduce ? 9 : t, fade = reduce ? 1 : ease(t / 0.25);   // cada mensaje entra con un fundido corto
-    for (const p of panels) {
+    for (const p of [panels[wallOpt]]) {                 // sólo la opción a la vista
       p.buf.d.fill(0);
       SCENES[scene].draw(p.buf, tt);
       if (fade < 1) for (let i = 0; i < p.buf.d.length; i++) p.buf.d[i] *= fade;
@@ -1522,7 +1537,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
     wallCv.getContext("2d").drawImage(panels[wallOpt].cv, 0, 0, wallCv.width, wallCv.height);
     requestAnimationFrame(frame);
   }
-  btns[0].setAttribute("aria-pressed", "true");
+  btns[0].setAttribute("aria-pressed", "true"); showDesc(0);
   requestAnimationFrame(frame);
 })();
 </script>
