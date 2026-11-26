@@ -37,8 +37,11 @@ Para ir directo a una pregunta:
   comercio (el hash se resuelve a su comercio y se busca en el setting `kyc_pipeline_allieds`).
 - **Asesor**: el vendedor del comercio que acompaña al cliente en el punto de venta; la solicitud
   queda a su nombre (`user_requests.corporate_user_id`).
-- **Entidad** (`lenders`): quien presta. Puede ser externa (un banco, una fintech) o un producto
-  propio de CreditOp, CreditopX.
+- **Entidad** (`lenders`): quien presta. Puede ser externa (un banco, una fintech) o una entidad
+  **CreditopX** (`response_type` 2 y 3): la política, el flujo y la administración de la cartera son de
+  CreditOp, pero **el capital lo pone el comercio**, que es el dueño del crédito (así lo cuenta el modelo de
+  revenue: ver «Cómo gana plata CreditOp»). Por eso el cobro de una cuota firma con la credencial de Wompi de
+  la sucursal o del comercio (`creditopx-payment-application#wompi-intencion-y-webhook`).
 - **Solicitud** (`user_requests`): un intento de financiar una compra: cliente, comercio, sucursal,
   entidad elegida, monto, plazo, cuota, cuota inicial y tasa.
 
@@ -115,6 +118,32 @@ el pago se reversa vuelve a Cancelado (ver `user-request-lifecycle`).
   equipos financiados pueden bloquearse por mora (IMEI).
 
 Detalle: `creditopx-payment-application`, `creditopx-portfolio-servicing`, `device-locking`.
+
+## Cómo gana plata CreditOp
+
+CreditOp **no presta ni cobra intereses para sí**. Su ingreso por comercio y mes, como lo calcula `forecast`
+(la herramienta del equipo comercial, en el repo compartido; el detalle y lo que queda sin confirmar, en
+[business-context.md](../business-context.md)):
+
+- **SaaS**: la cuota mensual fija que paga el comercio por usar la plataforma.
+- **Comisión del agregador**: lo que le paga la entidad externa (`response_type` 0, 1 y 4) por lo que desembolsó
+  en ese comercio, `max(0, desembolsado − base mínima) × tasa`, por pareja comercio–entidad. Muchas parejas tienen
+  tasa 0.
+- **Comisión CreditopX (CTX)**: lo desembolsado con las entidades CreditopX del comercio × su tasa CTX.
+
+Lo que se mide es el **desembolso** (`user_requests.disbursed_at`), no el estado 11. Los intereses, la mora y el
+gasto de cobranza de un crédito CreditopX son de la cartera del comercio; el subsidio de intereses de las primeras
+cuotas es un **costo** de CreditOp, que se los paga a la entidad (`creditopx-portfolio-servicing#subsidio-de-intereses-creditop`).
+
+«Cartera» quiere decir dos cosas según quién hable: en producto y operación, **los créditos CreditopX vivos** que
+CreditOp administra (sus saldos, su mora, el reporte por riesgo: `creditopx-portfolio-servicing`); en el equipo
+comercial, **los comercios que lleva cada KAM** (gerente de cuenta), con metas de monto desembolsado y de revenue.
+
+## Los dos vouchers
+
+El cliente recibe dos comprobantes distintos, con la misma forma de tirilla: el de la **compra**, una vez, cuando
+la solicitud queda Autorizada (es lo que mira el comercio para entregar), y el de **cada pago** de una cuota, que
+sólo existe cuando CreditOp administra la cartera (CreditopX). El detalle: `vouchers`.
 
 ## Qué sistema hace qué
 

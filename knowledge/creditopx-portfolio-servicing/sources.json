@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Cartera CreditopX: noche, cobranza, colilla y beneficios",
   "summary": "Qué le pasa a un crédito CreditopX sin que el cliente pague: la cadena nocturna que corre loan-servicing sobre los comandos de legacy-application, el gasto de cobranza por tramo de mora y qué caminos lo incluyen en el saldo total (y por qué la vista previa de la refinanciación lo cuenta dos veces), la colilla que se condona en el corte, cuándo se puede cambiar la fecha de pago, recuperación, condonación libre, refinanciación y paz y salvo desde el admin, y el subsidio de intereses Creditop.",
-  "reviewedAt": "2026-11-25T14:24:33+00:00",
+  "reviewedAt": "2026-11-26T20:00:35+00:00",
   "sources": [
     {
       "repo": "legacy-application",
@@ -285,6 +285,33 @@
       "blob": "bba2be2c3f8e94408d48e597b9f2c35b9b1a3297",
       "sections": [
         "la-causacion-por-dentro-corte-interes-del-dia-y-mora"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Http/Controllers/Admin/CreditopXRiskController.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "8f369ea97f580f2eb8225ac48867366994ac6822",
+      "sections": [
+        "cartera-por-riesgo-el-reporte-del-admin"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "routes/admin.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "a1ad36026b0fe68b8e1e0d2c1bcda49784e276e1",
+      "sections": [
+        "cartera-por-riesgo-el-reporte-del-admin"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Models/CreditopXUserRequestStatus.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "568344b674bced9f3b650a85cf4e7212f9ed8283",
+      "sections": [
+        "cartera-por-riesgo-el-reporte-del-admin"
       ]
     }
   ]

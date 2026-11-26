@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Negocio: cómo funciona CreditOp",
   "summary": "El mapa del negocio: quién es quién (cliente, comercio y sucursal, asesor, entidad, solicitud), los rieles por response_type, los cuatro canales de entrada, las etapas de una originación hasta Autorizada, qué pasa después según la entidad, qué sistema hace qué, y qué tema de esta biblioteca contesta cada pregunta.",
-  "reviewedAt": "2026-11-25T14:24:33+00:00",
+  "reviewedAt": "2026-11-26T20:01:17+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -109,9 +109,10 @@
     {
       "repo": "legacy-application",
       "path": "app/Support/CreditBenefits/Strategies/InterestSubsidyStrategy.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
       "blob": "3b7ee03a1e65ef77624b3644d71783869012c284",
       "sections": [
+        "como-gana-plata-creditop",
         "despues-de-originar"
       ]
     },
@@ -250,6 +251,52 @@
       "blob": "3987d02509d07ae61b12f4d65d0642657c77849e",
       "sections": [
         "por-donde-entra-un-cliente"
+      ]
+    },
+    {
+      "repo": "playground-equipo",
+      "path": "tools/forecast/revenue.js",
+      "commit": "04beba18bb28db554e67605c109ac41a6f05a3fc",
+      "blob": "438a1245deb9398b08ff929b13f5e5f9ee965063",
+      "sections": [
+        "como-gana-plata-creditop"
+      ]
+    },
+    {
+      "repo": "playground-equipo",
+      "path": "tools/forecast/server.js",
+      "commit": "04beba18bb28db554e67605c109ac41a6f05a3fc",
+      "blob": "f90e351efbee531c94be34588c798858b71987ba",
+      "sections": [
+        "como-gana-plata-creditop",
+        "quien-es-quien"
+      ]
+    },
+    {
+      "repo": "playground-equipo",
+      "path": "tools/forecast/README.md",
+      "commit": "04beba18bb28db554e67605c109ac41a6f05a3fc",
+      "blob": "77a610a5522b6bc595d249987cb221fa0d19943a",
+      "sections": [
+        "como-gana-plata-creditop"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/VoucherService.php",
+      "commit": "da7f59d01def3ce08fae1cf79fa9c7d4c3c50550",
+      "blob": "65dcd6d98bc98a3be5b324b6ec8bf7da1c1f8294",
+      "sections": [
+        "los-dos-vouchers"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/CreditopXPaymentService.php",
+      "commit": "da7f59d01def3ce08fae1cf79fa9c7d4c3c50550",
+      "blob": "bd2f27b8f92fb5928bffd35805e4d49154010b6b",
+      "sections": [
+        "los-dos-vouchers"
       ]
     }
   ]

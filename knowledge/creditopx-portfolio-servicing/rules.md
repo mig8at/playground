@@ -260,6 +260,29 @@ Los **estados especiales** (`CreditopXCreditStateController`, rastro en
   vigente con el mismo saldo y le reprograma las fechas, sin causar ni facturar el tiempo suspendido; no
   aplica si ya no tiene saldo.
 
+## Cartera por riesgo: el reporte del admin
+
+`/admin/cartera-por-riesgo` (`CreditopXRiskController@index`, sólo en legacy-application) es la foto de la cartera
+CreditopX que ve el admin. Lee la vista `VW_CtopX_Credits_Summary` (una fila por crédito, con su estado por nombre y
+sus días de mora), quita las solicitudes marcadas de prueba y acota por rol: el comercial ve sus créditos, la
+entidad los suyos, los administradores de comercio sus comercios o sucursales, y Mesa de servicio, Tesorería,
+Contabilidad y Logística sólo ciertos estados de la solicitud. Se filtra por comercio, sucursal, ciudad, canal (punto
+de venta o ecommerce) y fecha de originación; los selectores sólo ofrecen comercios y sucursales con entidades de
+`response_type` 2.
+
+Agrupa por **entidad y categoría** (el segmento con que se originó) y por cada grupo cuenta: total, en mora, las
+franjas **1-30, 31-60, 61-90, 91-180 y «castigada» (más de 180 días)**, los que están en un estado especial, al día y
+en paz y salvo; y suma cuotas iniciales recaudadas, cartera a la fecha (saldo total), saldo de capital, monto
+financiado y el saldo del fondo de garantía (`guarantee_amount_balance`). Cada grupo lleva su porcentaje de la
+cartera total.
+
+- **«Castigada» es un rótulo del reporte, no un estado del crédito.** No hay estado de castigo: un crédito con 200
+  días de mora sigue en «En mora» (2) y cae en esa franja.
+- **Un estado especial no entra en las franjas** aunque su fila conserve días de mora (`inArrearsBand` descarta
+  Fallecido, Fraude, Incapacidad, Insolvencia y sus recuperaciones con `isSpecialStateName`); se cuentan aparte.
+- **«Solicitar venta de cartera»** (`requestLoanPortfolioSale`) sólo manda un correo, con el usuario y el nombre de su
+  comercio, a las direcciones del setting `loan_portfolio_sale_emails`: no marca ni mueve ningún crédito.
+
 ## Subsidio de intereses Creditop
 
 Un programa de beneficio hace que **Creditop le pague a la entidad el interés corriente** de las

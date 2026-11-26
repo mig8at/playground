@@ -12,6 +12,8 @@ en el código de `main` (los dos monolitos) y se suma a knowledge.
 
 - **Quién es quién** (cliente, comercio y sucursal, asesor, entidad, solicitud) y qué sistema hace qué:
   [business-overview](knowledge/business-overview/rules.md).
+- **Cómo gana plata CreditOp** (SaaS, comisión del agregador y comisión CreditopX; nunca intereses) y quién pone el
+  capital de CreditopX (el comercio): [business-overview#como-gana-plata-creditop](knowledge/business-overview/rules.md).
 - **Los rieles** (`lenders.response_type`): de quién es la política y por dónde se origina.
   [lender-response-types#la-politica-es-lo-que-separa-a-los-rieles](knowledge/lender-response-types/rules.md)
 
@@ -117,6 +119,7 @@ en el código de `main` (los dos monolitos) y se suma a knowledge.
   - `#al-autorizar-se-cancelan-las-solicitudes-hermanas-creditopx`.
   - `#con-originacion-delegada-11-se-confirma-antes-de-radicar`: el riel 4 entrega después del commit.
 - [creditopx-payment-application#cuota-inicial](knowledge/creditopx-payment-application/rules.md).
+- [vouchers#el-voucher-de-compra-cuando-sale](knowledge/vouchers/rules.md): el comprobante que sale al quedar en 11 y que el comercio mira para entregar.
 
 ### 11. Después del 11
 
@@ -124,6 +127,8 @@ en el código de `main` (los dos monolitos) y se suma a knowledge.
 - **Cartera CreditopX:**
   - [creditopx-portfolio-servicing](knowledge/creditopx-portfolio-servicing/rules.md): la noche, la causación, la mora y la cobranza, las acciones del admin.
   - [creditopx-payment-application](knowledge/creditopx-payment-application/rules.md): la cascada del pago y Wompi.
+  - [vouchers#el-voucher-de-pago-cuando-sale](knowledge/vouchers/rules.md): el comprobante de cada cuota pagada, y las reglas para generarlo a mano.
+  - [creditopx-portfolio-servicing#cartera-por-riesgo-el-reporte-del-admin](knowledge/creditopx-portfolio-servicing/rules.md): las franjas de mora y la «castigada» del reporte.
   - [creditopx-revolving-credit#pagar-y-liberar](knowledge/creditopx-revolving-credit/rules.md).
   - [creditopx-credit-states](knowledge/creditopx-credit-states/rules.md): **los estados del crédito** (al día, mora, Insolvencia, Fallecido, Fraude, Incapacidad y sus recuperaciones, cancelado): quién los cambia y qué cambian en pagos, cobranza, cupo y pantallas.
 - **Cobranza y avisos:** [weekly-collection-reminders](knowledge/weekly-collection-reminders/rules.md) y [whatsapp-campaigns](knowledge/whatsapp-campaigns/rules.md).
