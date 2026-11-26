@@ -78,6 +78,11 @@ en el grafo trae su columna a la vista.
   experiencia y los máximos. `bin/flow import` trae las bandas, el tope sin experiencia, `capacity_rate` y el SMMLV
   (`settings.smmlv_by_year`). En la tabla se editan el ingreso (se escribe como el de Ágil Data), las cuotas que ya paga,
   la experiencia crediticia y el tipo de documento. No modela el tope del mes de la entidad ni sus créditos recientes.
+- **La política que aplica con monto 0** (verificado en main el 2026-11-26, `LenderUserCategoryService::evaluateEligibility`
+  y `FinandinaAmountCalculator`, `origin/main` e98bfe119; legacy-application no la tiene): el perfil es elegible si la
+  política APLICA, aunque el monto dé 0 (por ejemplo, cuando las cuotas que ya paga se comen la capacidad). Gana igual,
+  no se prueba la siguiente categoría, y la tarjeta queda sin cupo. Flow lo replica y en la calculadora lo marca en ámbar
+  («gana con cupo $ 0»), con el tope que manda.
 - Una categoría sin `max_fee_number` (NULL en la base) no recorta los plazos, como en main; hasta el 2026-11-25 Flow lo
   leía como 0 y dejaba a CreditopX sin plazos.
 - **No tiene lógica propia**: usa la de `store.js` (el listado, `sucursalGate`, `perfilDiag`, `bondOf`,

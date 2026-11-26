@@ -1003,7 +1003,11 @@ export function categoryRequirements(lenderName, c) {
   const months = (n) => (n == null ? none : n + ' meses')
   const policy = c.capacityMethod === 'finandina_v1' ? finandinaAmount(l, c, s) : null
   const defs = {
-    capacity: { label: 'Política de Finandina', asks: 'ingreso de Ágil Data o Mareigua dentro de sus bandas', has: policy ? (policy.applies ? 'aplica: ' + money(policy.amount) : policy.reason) : none, restricts: true },
+    // En main (LenderUserCategoryService::evaluateEligibility, 2026-11-26) el perfil es elegible si la política APLICA,
+    // aunque el monto dé 0: gana igual y la tarjeta queda sin cupo. Por eso cumple, pero con aviso (`warn`).
+    capacity: { label: 'Política de Finandina', asks: 'ingreso de Ágil Data o Mareigua dentro de sus bandas',
+      has: policy ? (policy.applies ? `aplica · monto ${money(policy.amount)} (manda ${policy.binding})` : policy.reason) : none, restricts: true,
+      warn: policy?.applies && policy.amount <= 0 ? `cumple, pero el monto da $ 0 (manda ${policy.binding}): si gana, la tarjeta queda sin cupo` : null },
     occupation: { label: 'Ocupación', asks: list(c.occupation, OCC_LABEL), has: v(OCC_LABEL[s.employment] || s.employment), restricts: !OCCUPATIONS.every(o => c.occupation.includes(o)) },
     age: { label: 'Edad', asks: `entre ${c.minAge} y ${c.maxAge} años`, has: v(s.age, ' años'), restricts: true },
     income: { label: 'Ingreso verificado', asks: c.verifiedIncome ? 'de una central (no declarado)' : 'cualquiera', has: s.incomeSource || none, restricts: !!c.verifiedIncome },

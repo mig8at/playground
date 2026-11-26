@@ -205,7 +205,7 @@ const preDetail = computed(() => {
     const reqs = all.filter(x => x.restricts || !x.ok).sort((a, b) => Number(a.ok) - Number(b.ok))
     const fails = all.filter(x => !x.ok).length
     const state = row.won ? 'won' : row.ok ? 'ok' : 'no'
-    const stateLabel = cats.blacklisted ? 'lista negra' : row.won ? 'gana' : row.ok ? 'también cumple' : `no cumple ${fails} de ${reqs.length}`
+    const stateLabel = cats.blacklisted ? 'lista negra' : row.won ? (row.cupo > 0 ? 'gana' : 'gana con cupo $ 0') : row.ok ? 'también cumple' : `no cumple ${fails} de ${reqs.length}`
     return { row, reqs, free: all.filter(x => !x.restricts && x.ok).map(x => x.label), state, stateLabel, open: row.won }
   })
   // El resumen, arriba: quién ganó y qué tumbó a las que tenían más prioridad (cuántas falló cada requisito).
@@ -214,6 +214,7 @@ const preDetail = computed(() => {
   before.forEach(x => x.reqs.filter(q => !q.ok).forEach(q => { tally[q.label] = (tally[q.label] || 0) + 1 }))
   const catSummary = cats && !isBlacklisted(l.name) ? {
     winner: winAt >= 0 ? cats.rows[winAt].cat.label : null,
+    winnerCupo: winAt >= 0 ? cats.rows[winAt].cupo : null,
     before: before.length,
     reasons: Object.entries(tally).sort((a, b) => b[1] - a[1]).map(([k, n]) => ({ label: k, n })),
   } : null
@@ -365,14 +366,14 @@ const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
                rojo lo que no; abierta sólo la que gana, las demás plegadas. -->
           <template v-if="preDetail.cats">
             <div class="tv-sec">Categorías, en orden de prioridad: gana la primera que cumple todo</div>
-            <div v-if="preDetail.catSummary" class="tv-cat-sum" :class="preDetail.catSummary.winner ? 'ok' : 'no'">
-              <div><template v-if="preDetail.catSummary.winner">Gana <b>{{ preDetail.catSummary.winner }}</b></template><template v-else><b>Ninguna categoría cumple</b></template><template v-if="preDetail.catSummary.before">{{ preDetail.catSummary.winner ? ': las ' + preDetail.catSummary.before + ' de antes fallaron por' : ': fallan por' }}</template></div>
+            <div v-if="preDetail.catSummary" class="tv-cat-sum" :class="!preDetail.catSummary.winner ? 'no' : preDetail.catSummary.winnerCupo > 0 ? 'ok' : 'warn'">
+              <div><template v-if="preDetail.catSummary.winner">Gana <b>{{ preDetail.catSummary.winner }}</b><template v-if="!(preDetail.catSummary.winnerCupo > 0)"> con cupo $ 0 (la tarjeta queda sin cupo; no se prueba la siguiente)</template></template><template v-else><b>Ninguna categoría cumple</b></template><template v-if="preDetail.catSummary.before">{{ preDetail.catSummary.winner ? ': las ' + preDetail.catSummary.before + ' de antes fallaron por' : ': fallan por' }}</template></div>
               <div v-if="preDetail.catSummary.reasons.length" class="tv-cat-sum__why">
                 <span v-for="x in preDetail.catSummary.reasons" :key="x.label" class="tv-cat-sum__chip"><X :size="11" /> {{ x.label }}<small v-if="preDetail.catSummary.before > 1"> ×{{ x.n }}</small></span>
               </div>
             </div>
             <div v-if="preDetail.blacklisted" class="tv-verdict no">El documento está en la lista negra de {{ preDetail.l.name }}: ninguna categoría aplica.</div>
-            <details v-for="cat in preDetail.catRows" :key="cat.row.cat.id" class="tv-cat" :class="cat.state" :open="cat.open">
+            <details v-for="cat in preDetail.catRows" :key="cat.row.cat.id" class="tv-cat" :class="[cat.state, { zero: cat.row.won && !(cat.row.cupo > 0) }]" :open="cat.open">
               <summary class="tv-cat__h">
                 <span class="tv-cat__ic"><Check v-if="cat.row.ok" :size="12" /><X v-else :size="12" /></span>
                 <b class="tv-cat__name">{{ cat.row.cat.label }}</b>
@@ -380,10 +381,11 @@ const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
                 <ChevronRight class="tv-cat__chev" :size="14" />
               </summary>
               <div v-if="cat.row.won" class="tv-cat__won">Cupo {{ money(cat.row.cupo) }} · {{ cat.row.cat.maxFeeNumber ? 'hasta ' + cat.row.cat.maxFeeNumber + ' cuotas' : 'sin tope de cuotas' }}<template v-if="cat.row.cat.fga != null"> · FGA {{ cat.row.cat.fga }} %</template></div>
-              <div v-for="r in cat.reqs" :key="r.key" class="tv-req" :class="r.ok ? 'ok' : 'no'">
-                <span class="tv-req__ic"><Check v-if="r.ok" :size="12" /><X v-else :size="12" /></span>
+              <div v-for="r in cat.reqs" :key="r.key" class="tv-req" :class="!r.ok ? 'no' : r.warn ? 'warn' : 'ok'">
+                <span class="tv-req__ic"><X v-if="!r.ok" :size="12" /><CircleAlert v-else-if="r.warn" :size="12" /><Check v-else :size="12" /></span>
                 <span class="tv-req__label">{{ r.label }}</span>
                 <span class="tv-req__vals"><span>pide <b>{{ r.asks }}</b></span><span>tiene <b>{{ r.has }}</b></span></span>
+                <span v-if="r.ok && r.warn" class="tv-req__warn">{{ r.warn }}</span>
               </div>
               <div v-if="cat.free.length" class="tv-req-open">Sin restricción: {{ cat.free.join(' · ') }}</div>
             </details>
@@ -668,6 +670,7 @@ const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
 .tv-cat-sum { padding: var(--space-2) var(--space-3); margin-bottom: var(--space-2); border-left: 2px solid; font-size: var(--text-sm); }
 .tv-cat-sum.ok { border-left-color: var(--green); background: var(--tint-green); }
 .tv-cat-sum.no { border-left-color: var(--red); background: var(--tint-red); }
+.tv-cat-sum.warn { border-left-color: var(--amber); background: var(--tint-amber); }
 .tv-cat-sum__why { display: flex; flex-wrap: wrap; gap: 4px; margin-top: var(--space-1); }
 .tv-cat-sum__chip { display: inline-flex; align-items: center; gap: 3px; padding: 1px 8px; border-radius: 999px; background: color-mix(in oklab, var(--red) 16%, var(--card)); color: var(--red); font-size: var(--text-xs); font-weight: 600; }
 .tv-cat-sum__chip small { font-weight: 400; }
@@ -685,6 +688,8 @@ const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
 .tv-cat__name { font-weight: 600; color: var(--foreground); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tv-cat__state { margin-left: auto; font-size: var(--text-xs); color: var(--fg-2); white-space: nowrap; }
 .tv-cat.won .tv-cat__state { color: var(--green); font-weight: 600; }
+.tv-cat.won.zero { border-left-color: var(--amber); }
+.tv-cat.won.zero .tv-cat__state { color: var(--amber); }
 .tv-cat.no .tv-cat__state { color: var(--red); }
 .tv-cat__chev { flex: none; color: var(--fg-3); transition: transform .15s; }
 .tv-cat[open] .tv-cat__chev { transform: rotate(90deg); }
@@ -693,6 +698,10 @@ const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
 .tv-req + .tv-req { border-top: 1px solid color-mix(in oklab, var(--border) 60%, transparent); }
 .tv-req__ic { grid-row: 1 / 3; display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; margin-top: 1px; }
 .tv-req.ok .tv-req__ic { color: var(--green); }
+/* Cumple, pero con algo que mirar (la política de Finandina que aplica con monto 0): ámbar. */
+.tv-req.warn { background: var(--tint-amber); }
+.tv-req.warn .tv-req__ic, .tv-req.warn .tv-req__label { color: var(--amber); }
+.tv-req__warn { grid-column: 2; font-size: var(--text-xs); color: var(--amber); }
 .tv-req.no { background: var(--tint-red); }
 .tv-req.no .tv-req__ic, .tv-req.no .tv-req__label { color: var(--red); }
 .tv-req__label { font-weight: 600; color: var(--foreground); }
