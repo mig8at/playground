@@ -47,6 +47,13 @@ ambiente. La extensión no guarda credenciales. `make harness-extension` dice c�
     vuelve a `…/confirmation`. Sólo si la solicitud es del celular de arriba y su cliente tiene correo de prueba; nunca
     prod. Es un rodeo: no prueba que la validación real funcione.
 
+- **Documentos firmados** (2026-11-26), entre el recorrido y la base, cuando la solicitud tiene alguno en
+  `user_request_signing_documents`: uno por fila (formulario de vinculación, T&C, pagaré…) con la hora de la firma,
+  **Ver** (el PDF dentro del panel, en un visor debajo) y **Descargar** (`<solicitud>_<documento>.pdf`); «descargar
+  todos» si hay más de uno. El panel los sirve (`/api/ext/documents` y `/api/ext/document`) porque el bucket los entrega
+  como descarga; sólo desde el bucket de S3 o el S3 local, y fuera de local sólo de un cliente de prueba. Se vuelve a
+  leer cada 15 s. Probado con la 505329 de qa: los tres documentos, la hora bien y los T&C abiertos en el visor.
+
 ⚠ Sólo qa y local aceptan dictado (F-149): en dev y staging el panel lo avisa y las centrales contestan lo de por
 defecto. Nunca prod. `sidepanel.html#tab=<id>` ata el panel a una pestaña (para abrirlo como página o probarlo).
 

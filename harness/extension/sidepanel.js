@@ -61,7 +61,7 @@ async function syncTab() {
   entryBase = tab?.url ? entryOf(tab.url) : null;
   lockPerson(!!target && inProgress(tab?.url));
   const u = tab?.url ? ureqOf(tab.url) : null;
-  if (u !== lastUreq) { lastUreq = u; lastStatus = null; $('reqLine').textContent = u ? String(u) : ''; refreshDb(); }
+  if (u !== lastUreq) { lastUreq = u; lastStatus = null; $('reqLine').textContent = u ? String(u) : ''; viewing = null; refreshDb(); refreshDocs(true); }
   renderStep(tab?.url);
   await trackScreen(tab?.url);
   renderFlow();
@@ -473,6 +473,59 @@ function renderDb() {
   foot.append(Object.assign(document.createElement('span'), { textContent: `${db.at}${db.error ? ' · ⚠ ' + db.error : ''}${recentCount ? ` · ● ${recentCount} cambio(s)` : ''}` }), all);
 }
 
+// ── LOS DOCUMENTOS FIRMADOS de la solicitud: la lista (`/api/ext/documents`) y cada PDF servido por el panel, que se ve
+// acá mismo («Ver», en un visor debajo) o se baja con el nombre `<solicitud>_<documento>.pdf`. Aparece cuando la solicitud
+// tiene alguno; se vuelve a leer cada 15 s. Fuera de local, sólo de un cliente de prueba (lo decide el panel).
+// La base guarda la hora de Colombia sin zona y el conector la marca «Z»: se lee como hora local, no como UTC.
+const DOC_NAMES = { promissory_note: 'Pagaré', vinculacion: 'Formulario de vinculación', 'terminos-y-condiciones': 'Términos y condiciones',
+  consent: 'Autorización', payment_plan: 'Plan de pagos', fga: 'Garantía' };
+let docs = { ureq: null, list: [], error: '' }, docsAt = 0, viewing = null;
+const docUrl = (id, download) => `${API}/document?target=${encodeURIComponent(target)}&ureq=${docs.ureq}&id=${id}${download ? '&download=1' : ''}`;
+async function refreshDocs(force = false) {
+  if (!target || !lastUreq) { docs = { ureq: null, list: [], error: '' }; renderDocs(); return; }
+  if (!force && docs.ureq === lastUreq && Date.now() - docsAt < 15000) return;
+  docsAt = Date.now();
+  try {
+    const r = await api(`/documents?ureq=${lastUreq}`);
+    docs = { ureq: lastUreq, list: r.documents || [], error: r.error || '' };
+  } catch (e) { docs = { ureq: lastUreq, list: [], error: e.message }; }
+  if (viewing && !docs.list.some((d) => d.id === viewing)) viewing = null;
+  renderDocs();
+}
+function renderDocs() {
+  const show = !!target && !!lastUreq && docs.ureq === lastUreq && (docs.list.length > 0 || !!docs.error);
+  $('docs').hidden = $('docsTitle').hidden = !show;
+  if (!show) return;
+  const files = docs.list.filter((d) => d.hasFile);
+  $('docsAll').hidden = files.length < 2;
+  const ul = $('docsList');
+  ul.innerHTML = '';
+  if (docs.error) { ul.append(Object.assign(document.createElement('li'), { className: 'warn', textContent: docs.error })); }
+  for (const d of docs.list) {
+    const li = document.createElement('li');
+    const when = d.signedAt ? new Date(String(d.signedAt).replace(' ', 'T').replace(/Z$/, '')).toLocaleString('es-CO', { hour12: false, day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+    const name = Object.assign(document.createElement('span'), { className: 'name', textContent: DOC_NAMES[d.type] || d.type });
+    const meta = Object.assign(document.createElement('small'), { textContent: d.signedAt ? `firmado ${when}` : (d.status || 'sin firmar') });
+    li.append(name, meta);
+    if (d.hasFile) {
+      const see = Object.assign(document.createElement('button'), { className: viewing === d.id ? 'on' : '', textContent: viewing === d.id ? 'Ocultar' : 'Ver' });
+      see.onclick = () => { viewing = viewing === d.id ? null : d.id; renderDocs(); };
+      const down = Object.assign(document.createElement('a'), { className: 'btn', textContent: 'Descargar', href: docUrl(d.id, true), target: '_blank' });
+      li.append(see, down);
+    }
+    ul.append(li);
+  }
+  const doc = docs.list.find((d) => d.id === viewing);
+  $('viewer').hidden = !doc;
+  if (doc) {
+    $('viewerName').textContent = DOC_NAMES[doc.type] || doc.type;
+    const src = docUrl(doc.id, false);
+    if ($('viewerFrame').dataset.src !== src) { $('viewerFrame').src = src; $('viewerFrame').dataset.src = src; }
+  } else if ($('viewerFrame').dataset.src) { $('viewerFrame').removeAttribute('src'); delete $('viewerFrame').dataset.src; }
+}
+$('viewerClose').onclick = () => { viewing = null; renderDocs(); };
+$('docsAll').onclick = () => { for (const d of docs.list.filter((x) => x.hasFile)) window.open(docUrl(d.id, true), '_blank'); };
+
 // ── lo que avisa la página ──────────────────────────────────────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   if (sender.tab?.id !== tabId) return false;
@@ -488,5 +541,5 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
 
 chrome.tabs.onActivated.addListener(syncTab);
 chrome.tabs.onUpdated.addListener((id, info) => { if (id === tabId && info.url) syncTab(); });
-setInterval(() => { syncTab(); readOtp(); refreshDb(); }, 5000);
+setInterval(() => { syncTab(); readOtp(); refreshDb(); refreshDocs(); }, 5000);
 load().then(syncTab).then(() => { refreshState(); readOtp(); });

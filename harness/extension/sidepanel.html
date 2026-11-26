@@ -62,6 +62,15 @@
   <h2 class="split">Recorrido <span id="reqLine"></span></h2>
   <div id="flow" class="flow"></div>
 
+  <h2 class="split" id="docsTitle" hidden>Documentos firmados <button class="link" id="docsAll" title="Bajar todos los PDF de la solicitud">descargar todos</button></h2>
+  <section id="docs" class="docs" hidden>
+    <ul id="docsList"></ul>
+    <div class="viewer" id="viewer" hidden>
+      <div class="vbar"><span id="viewerName"></span><button class="link" id="viewerClose">cerrar</button></div>
+      <iframe id="viewerFrame" title="Documento firmado"></iframe>
+    </div>
+  </section>
+
   <h2 id="dbTitle">Base</h2>
   <section id="dbConsole" class="console">
     <div class="tabs" id="dbTabs"></div>

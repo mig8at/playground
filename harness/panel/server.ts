@@ -1985,6 +1985,35 @@ const server = createServer(async (req, res) => {
                 const r = await dbopsJson(['decrypt-central', String(ureq), String(id)], tgt);
                 return send(r?.ok ? 200 : 409, r ? { ok: !!r.ok, central: r.central, plain: r.plain, detail: r.motivo } : { ok: false, detail: 'sin respuesta' });
             }
+            if (path === '/api/ext/documents' || path === '/api/ext/document') {
+                // LOS DOCUMENTOS FIRMADOS de la solicitud (`user_request_signing_documents`): la lista, y cada PDF servido desde
+                // acá para que la extensión lo muestre adentro (el bucket lo entrega como descarga) o lo baje con un nombre
+                // legible. Sólo lectura, y fuera de local sólo de un cliente de PRUEBA, como el descifrado.
+                const ureq = Number(digits(q.get('ureq')));
+                if (!ureq) return send(400, { error: 'falta la solicitud' });
+                if (tgt !== 'local') {
+                    const mail = String(sqlJson(`SELECT u.email FROM user_requests ur JOIN users u ON u.id = ur.user_id WHERE ur.id = ${ureq}`)[0]?.email ?? '');
+                    if (!TEST_MAIL.test(mail)) return send(409, { error: `el cliente de ${ureq} no parece de prueba (correo «${mail || 'vacío'}»): sus documentos no se abren desde acá` });
+                }
+                const docs = sqlJson(`SELECT id, document_type, signer_role, status, signed_at, created_at, url FROM user_request_signing_documents WHERE user_request_id = ${ureq} ORDER BY id`);
+                if (path === '/api/ext/documents') {
+                    return send(200, { ureq, documents: docs.map((d: any) => ({ id: d.id, type: d.document_type, role: d.signer_role, status: d.status, signedAt: d.signed_at, createdAt: d.created_at, hasFile: !!d.url })) });
+                }
+                const id = Number(digits(q.get('id')));
+                const doc: any = docs.find((d: any) => Number(d.id) === id);
+                if (!doc?.url) return send(404, { error: `la solicitud ${ureq} no tiene el documento ${id}` });
+                // Sólo de donde se guardan los documentos: el bucket de S3 o el S3 local (ministack, MinIO).
+                const src = new URL(String(doc.url));
+                if (!/\.s3[.-][\w.-]*amazonaws\.com$/.test(src.host) && !/^(localhost|127\.0\.0\.1):(4566|9000)$/.test(src.host)) {
+                    return send(409, { error: `el documento apunta a ${src.host}, que no es un bucket de documentos` });
+                }
+                const r = await fetch(src);
+                if (!r.ok) return send(502, { error: `el bucket contestó ${r.status} para ${doc.document_type}` });
+                const name = `${ureq}_${String(doc.document_type).replace(/[^\w-]+/g, '-')}.pdf`;
+                res.writeHead(200, { 'content-type': 'application/pdf', 'cache-control': 'no-store', ...cors,
+                    'content-disposition': `${q.get('download') ? 'attachment' : 'inline'}; filename="${name}"` });
+                return res.end(Buffer.from(await r.arrayBuffer()));
+            }
             if (path === '/api/ext/verdict') {
                 const ureq = Number(digits(q.get('ureq')));
                 if (!ureq) return send(400, { error: 'falta la solicitud' });

@@ -98,3 +98,18 @@ h2.split span { color: var(--fg2); font-weight: 400; overflow: hidden; text-over
 h2 .lock { color: var(--accent); font-weight: 400 }
 .log:empty, .state[hidden] { display: none }
 .tune summary { cursor: pointer; color: var(--fg3); font-size: 11.5px; margin: 2px 0 8px }
+/* Los documentos firmados: una fila por documento con «Ver» y «Descargar», y el visor del PDF debajo. */
+.docs ul { list-style: none; margin: 0; padding: 0 }
+.docs li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; grid-template-rows: auto auto; column-gap: 6px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line) }
+.docs li .name { grid-column: 1; font-size: 12.5px }
+.docs li small { grid-column: 1; grid-row: 2; color: var(--fg3); font-size: 11px }
+.docs li button, .docs li .btn { grid-row: 1 / span 2; height: 26px }
+.docs li button.on { border-color: var(--accent); color: var(--accent) }
+.docs li.warn { display: block; color: var(--warn); font-size: 11.5px; border: 0 }
+.docs .btn { display: inline-flex; align-items: center; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; color: var(--fg); text-decoration: none; font-size: 12px }
+.docs .btn:hover { border-color: var(--fg3) }
+.viewer { margin-top: 8px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden }
+.viewer .vbar { display: flex; justify-content: space-between; align-items: center; padding: 4px 8px; font-size: 11.5px; color: var(--fg2); border-bottom: 1px solid var(--line) }
+.viewer iframe { display: block; width: 100%; height: 70vh; border: 0; background: #fff }
+h2 button.link, .viewer button.link { all: unset; cursor: pointer; color: var(--accent); font-size: 11px; font-weight: 400 }
+h2 button.link[hidden] { display: none }
