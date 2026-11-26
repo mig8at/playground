@@ -1084,7 +1084,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
                                              1242,1195,1221,1218,1474,1266,1340,1058,1360,1456,1124],
           years: [[0, "2024", null], [12, "2025", "▲56%"], [24, "2026", "▼23%"]], hi: 22, hiC: C.yellow,
           notes: [[22, "PICO · NOV 2025 · 5.213 · BLACK FRIDAY", C.yellow, 0]] }];
-      const per = 7, pi = Math.floor(t / per) % PAGES.length, tp = t - Math.floor(t / per) * per, P = PAGES[pi];
+      const per = 7, tt = Math.max(0, t), pi = Math.floor(tt / per) % PAGES.length, tp = tt - Math.floor(tt / per) * per, P = PAGES[pi];   /* el primer cuadro puede llegar con t un pelo negativo */
       const big = b.h >= 64, n = P.D.length, max = Math.max(...P.D), step = Math.floor((b.w - 8) / n), bw = step - 1;
       const x0 = (b.w - (n * step - 1)) >> 1, top = big ? 23 : 10, bottom = big ? 52 : 30, hmax = bottom - top + 1;   /* en 64, el renglón 13 es de las notas */
       const hy = big ? 3 : 1;
@@ -1525,7 +1525,7 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
 
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   function frame(now) {
-    const t = (now - start) / 1000;
+    const t = Math.max(0, (now - start) / 1000);   // al elegir un mensaje, el primer cuadro puede traer un «now» anterior al arranque
     // la alerta crítica no rota: se queda hasta que alguien elige otro mensaje
     if (auto && !SCENES[scene].critical && t > (SCENES[scene].dur || 7)) setScene(nextScene(scene));   // la carrera dura más
     const tt = reduce ? 9 : t, fade = reduce ? 1 : ease(t / 0.25);   // cada mensaje entra con un fundido corto
