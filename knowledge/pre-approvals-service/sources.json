@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Servicio de preaprobaciones: una puerta para todas las entidades",
   "summary": "Qué hace pre-approvals-service y qué hace el asistente con su respuesta: el servicio no decide ni guarda la preaprobación (cada consulta vuelve a la entidad), guarda historia en DynamoDB y credenciales en memoria; el asistente veta, resuelve, oculta y ordena cada tarjeta según la respuesta.",
-  "reviewedAt": "2026-11-25T14:12:19+00:00",
+  "reviewedAt": "2026-11-26T20:30:00+00:00",
   "sources": [
     {
       "repo": "pre-approvals-service",
@@ -176,6 +176,78 @@
       "blob": "8a2522eaa4a2fe2a441cfdb44fe2f93ce746fda0",
       "sections": [
         "lo-que-hace-el-asistente-con-cada-respuesta-el-estado-de-la-tarjeta"
+      ]
+    },
+    {
+      "repo": "pre-approvals-service",
+      "path": "internal/infra/services/credentials_service.go",
+      "commit": "b2684a2e697f67063d04ffa714a30b4d5fc367d4",
+      "blob": "ce96b70308d5a4b28868b57e457711c82b47b684",
+      "sections": [
+        "sin-credencial-la-entidad-falla-antes-de-llamarla"
+      ]
+    },
+    {
+      "repo": "pre-approvals-service",
+      "path": "internal/infra/lending_products/factory/factory.go",
+      "commit": "b2684a2e697f67063d04ffa714a30b4d5fc367d4",
+      "blob": "216655047626f4e8e763399a862a4f5c71690603",
+      "sections": [
+        "sin-credencial-la-entidad-falla-antes-de-llamarla"
+      ]
+    },
+    {
+      "repo": "pre-approvals-service",
+      "path": "internal/infra/lending_products/workflow.go",
+      "commit": "b2684a2e697f67063d04ffa714a30b4d5fc367d4",
+      "blob": "897d46cb71cf58e9da7c3651093da1b8d479e2c0",
+      "sections": [
+        "sin-credencial-la-entidad-falla-antes-de-llamarla"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/lenders/LenderCredentialService.php",
+      "commit": "da7f59d01def3ce08fae1cf79fa9c7d4c3c50550",
+      "blob": "8584482493b41fc81fc494a5abb06c7bf850c608",
+      "sections": [
+        "sin-credencial-la-entidad-falla-antes-de-llamarla"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/routes/api.php",
+      "commit": "da7f59d01def3ce08fae1cf79fa9c7d4c3c50550",
+      "blob": "a0a88314475f99d50a446dafd6c80863367c40ad",
+      "sections": [
+        "sin-credencial-la-entidad-falla-antes-de-llamarla"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Models/LenderAlliedCredential.php",
+      "commit": "da7f59d01def3ce08fae1cf79fa9c7d4c3c50550",
+      "blob": "9d8580b53bfd8676d1866b75428bafc08e3e2f2f",
+      "sections": [
+        "sin-credencial-la-entidad-falla-antes-de-llamarla"
+      ]
+    },
+    {
+      "repo": "pre-approvals-service",
+      "path": "internal/core/usecases/preapproval/check_preapproval.go",
+      "commit": "b2684a2e697f67063d04ffa714a30b4d5fc367d4",
+      "blob": "25fb7f0388cdac07c8ee785f7ab689aa91289c7d",
+      "sections": [
+        "la-auditoria-por-pata-es-de-mejor-esfuerzo"
+      ]
+    },
+    {
+      "repo": "pre-approvals-service",
+      "path": "internal/core/usecases/preapproval/record_preflight_rejection.go",
+      "commit": "b2684a2e697f67063d04ffa714a30b4d5fc367d4",
+      "blob": "2acc2a878e6c506e33444534b6ea22a8a201f67c",
+      "sections": [
+        "la-auditoria-por-pata-es-de-mejor-esfuerzo"
       ]
     }
   ]

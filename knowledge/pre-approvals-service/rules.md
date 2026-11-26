@@ -77,6 +77,35 @@ hasta que se reinicia la instancia. `ClearCache` y `ClearCacheForLender` existen
 por el id de la entidad, que no es la clave con la que se guarda. Una credencial rotada en el admin no se ve hasta un
 reinicio.
 
+## Sin credencial, la entidad falla antes de llamarla
+
+La primera etapa de cada consulta son las credenciales (`workflow.go`): pre-approvals las pide a legacy-backend
+(`POST /api/onboarding/credentials/get-by-lender`, con la entidad, el comercio y el hash de la sucursal). legacy-backend
+(`LenderCredentialService`) busca primero una credencial del **comercio** y, si no hay, la de la **sucursal** (la del
+hash, o la primera del comercio si no viene). Contesta **404** con el código `LCS004` en cinco casos que sólo distingue
+el `message`: el comercio no existe, la entidad no existe, el hash no es de ese comercio, el comercio no tiene
+sucursales, o **no hay credencial** («No existe la credencial configurada»). Una credencial apagada cuenta como
+inexistente: `LenderAlliedCredential` lleva un scope global `status = 1`. Ese endpoint sólo existe en legacy-backend.
+
+Con cualquier respuesta distinta de 200, pre-approvals loguea «credentials service returned non-200 status» (con la
+entidad, el comercio y el cuerpo) y la entidad termina en la etapa `credentials` con el código `missing_credentials`,
+sin llegar a la API de la entidad. Los fallos no se cachean (sólo las credenciales buenas): cada consulta vuelve a
+pedirla.
+
+Piden credencial así (`factory.go`, con su alcance): Bancolombia BNPL y crédito de consumo, Meddipay y Brilla, de
+comercio (Credito365 también, con un comentario que dice que el alcance está pendiente de confirmar con ellos);
+Sistecrédito, Welli, Prami, Credifamilia y Flamingo, de sucursal. Brilla, además, saca de la credencial la URL del
+distribuidor, el token, el ciiu y el `sale_type`. No la piden CreditopX, BCP consumo y BCP vehicular. Una entidad que
+pasa a consultarse por pre-approvals empieza a exigir la credencial: el síntoma, en [F-250](../traps/traps.md#f-250).
+
+## La auditoría por pata es de mejor esfuerzo
+
+Si guardar la pata de auditoría en DynamoDB falla, la consulta no se entera: «failed to save workflow audit leg»
+(`check_preapproval.go`) y «failed to save preflight rejection leg» (`record_preflight_rejection.go`) se loguean y
+la preaprobación contesta igual, sólo sin la referencia a la pata (`leg_ref` vacío). El comentario del rechazo previo lo
+dice así: fallar al auditar nunca convierte un 400 en un 500. Un alud de esos errores (el 24/11/2026, casi 2.000 por
+hora) es ruido de la auditoría, no preaprobaciones caídas.
+
 ## Lo que hace el asistente con cada respuesta: el estado de la tarjeta
 
 El listado (`lenders-v2`) llega primero y cada tarjeta que no es tipo 0 arranca en `processing`. El asistente

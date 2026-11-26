@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Cartera CreditopX: noche, cobranza, colilla y beneficios",
   "summary": "Qué le pasa a un crédito CreditopX sin que el cliente pague: la cadena nocturna que corre loan-servicing sobre los comandos de legacy-application, el gasto de cobranza por tramo de mora y qué caminos lo incluyen en el saldo total (y por qué la vista previa de la refinanciación lo cuenta dos veces), la colilla que se condona en el corte, cuándo se puede cambiar la fecha de pago, recuperación, condonación libre, refinanciación y paz y salvo desde el admin, y el subsidio de intereses Creditop.",
-  "reviewedAt": "2026-11-26T20:00:35+00:00",
+  "reviewedAt": "2026-11-26T20:30:00+00:00",
   "sources": [
     {
       "repo": "legacy-application",
@@ -312,6 +312,33 @@
       "blob": "568344b674bced9f3b650a85cf4e7212f9ed8283",
       "sections": [
         "cartera-por-riesgo-el-reporte-del-admin"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "database/migrations/2025_08_04_180510_add_fg_fixed_value_to_creditop_x_requests_history.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "393fa9b359bfe11be8a283b60e2996dafa51a864",
+      "sections": [
+        "las-columnas-de-la-fianza-y-el-desborde-que-cortaba-la-noche"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2026_10_30_120000_widen_guarantee_columns_to_double_15_4.php",
+      "commit": "da7f59d01def3ce08fae1cf79fa9c7d4c3c50550",
+      "blob": "8ef7bb84e499b3e51e1764fc7740ffa2cad139a4",
+      "sections": [
+        "las-columnas-de-la-fianza-y-el-desborde-que-cortaba-la-noche"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Console/Commands/UpdateCreditopXRequestsCommand.php",
+      "commit": "cb3e2f5418bfca5bdd40bbb221a02df098f2ba1a",
+      "blob": "f1cd517702b20adef772ead526454892a04916b2",
+      "sections": [
+        "las-columnas-de-la-fianza-y-el-desborde-que-cortaba-la-noche"
       ]
     }
   ]

@@ -69,6 +69,7 @@ en el código de `main` (los dos monolitos) y se suma a knowledge.
 ### 5. La decisión: preaprobación o motor
 
 - **Cualquier riel con tarjeta que espera:** [pre-approvals-service](knowledge/pre-approvals-service/rules.md).
+  - [pre-approvals-service#sin-credencial-la-entidad-falla-antes-de-llamarla](knowledge/pre-approvals-service/rules.md): de dónde salen las credenciales de cada entidad y qué pasa sin una (404 `LCS004`, `missing_credentials`).
   - `#cada-consulta-vuelve-a-la-entidad-no-hay-cache-de-preaprobaciones`.
   - `#lo-que-hace-el-asistente-con-cada-respuesta-el-estado-de-la-tarjeta`: approved, rejected, processing, policy_blocked…
 - **Rieles 2 y 3, el motor de perfiles:**
@@ -129,6 +130,7 @@ en el código de `main` (los dos monolitos) y se suma a knowledge.
   - [creditopx-payment-application](knowledge/creditopx-payment-application/rules.md): la cascada del pago y Wompi.
   - [vouchers#el-voucher-de-pago-cuando-sale](knowledge/vouchers/rules.md): el comprobante de cada cuota pagada, y las reglas para generarlo a mano.
   - [creditopx-portfolio-servicing#cartera-por-riesgo-el-reporte-del-admin](knowledge/creditopx-portfolio-servicing/rules.md): las franjas de mora y la «castigada» del reporte.
+  - [creditopx-portfolio-servicing#las-columnas-de-la-fianza-y-el-desborde-que-cortaba-la-noche](knowledge/creditopx-portfolio-servicing/rules.md): el `double(8,2)` de la fianza y la ampliación que le falta a legacy-application.
   - [creditopx-revolving-credit#pagar-y-liberar](knowledge/creditopx-revolving-credit/rules.md).
   - [creditopx-credit-states](knowledge/creditopx-credit-states/rules.md): **los estados del crédito** (al día, mora, Insolvencia, Fallecido, Fraude, Incapacidad y sus recuperaciones, cancelado): quién los cambia y qué cambian en pagos, cobranza, cupo y pantallas.
 - **Cobranza y avisos:** [weekly-collection-reminders](knowledge/weekly-collection-reminders/rules.md) y [whatsapp-campaigns](knowledge/whatsapp-campaigns/rules.md).

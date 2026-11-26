@@ -235,6 +235,8 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«en local el mismo caso consulta Experian una vez sí y otra no»** · «la categoría cambia entre corridas idénticas» (comercio sin CreditopX ni disparador) | **F-246** |
 | **«quedó en Seleccionó entidad y al asesor le sigue saliendo Gestionar, pero el cliente dice que pagó con Nequi»** | **F-247** |
 | **«en el admin sale desembolsado un monto y el voucher dice otro»** | **F-248** |
+| **«una migración dejó colgadas las consultas al historial de CreditopX»** · el ALTER espera y todo se encola detrás | **F-249** |
+| **«faltan las credenciales» de una entidad que antes funcionaba sin integración** (Brilla en Sonría) · `credentials service returned non-200 status` | **F-250** |
 | **«el backend se cayó bajo carga»** / muchos 504 a los 60 s exactos que igual terminaron escribiendo | **F-180** |
 | **«el código serializa»** / medir concurrencia en local y ver las peticiones de a una | **F-181** |
 | **«genera el documento en prod y en local tira 500»** / `Undefined variable` en una plantilla de Rent to Own | **F-182** · F-150 |
@@ -254,6 +256,8 @@ distinto según con qué pregunta llegues.
 | F-243 | En la base compartida, un comercio del pipeline de KYC (`kyc_pipeline_allieds`, hoy sólo Mediarte) **no pasa el OTP con un teléfono de `qa_otp_bypass_phones`**: el bypass viejo desvía el envío y el código nunca llega al servicio de OTP ni a **#qa-messages**, que es el mecanismo de hoy; la validación v2 le preguntaba al servicio. Con un teléfono FUERA de la lista, el código sale en #qa-messages y valida | ARREGLADO en `main` (`dbcf666b2`) · sin medir en qa |
 | F-244 | El pipeline de KYC **termina** cuando falta un dato personal, y el arranque que sigue al formulario, si llega antes de 30 s, da **429**: el wizard no reintenta y a los 120 s muestra «No pudimos verificar tu información». Además, el guardado v2 de datos personales acepta 4 por cédula y por hora | ABIERTO · en `develop` y `main` |
 | F-245 | Lo dictado a la lambda de centrales de qa vive en UN contenedor: la confirmación sale verde y la consulta del pipeline cae en otro y contesta la persona por defecto | TRAMPA |
+| F-249 | Un `Schema::table` sobre `creditop_x_requests_history` espera el bloqueo detrás de una consulta larga y encola todas las consultas al historial: va con `ALGORITHM=INSTANT` y `lock_wait_timeout` corto | regla de migraciones |
+| F-250 | Una entidad que pasa a consultarse por pre-approvals empieza a exigir credencial: el comercio que la usaba sin integración ve «faltan las credenciales» | ABIERTO · por comercio |
 | F-247 | Nequi no avisa cuando el cliente aprueba y sólo la pantalla abierta le pregunta: si se cerró, el cobro aprobado no llega y la solicitud queda en «Seleccionó entidad» | ABIERTO · barrido sin agendar |
 | F-248 | El voucher no cuadra con el monto del admin porque el monto se cambió a mano después de desembolsar: lo que se hace es anular y originar de nuevo | regla de operación |
 | F-246 | En `local` y `development`, `validatePreApproveLender` se reemplaza por un booleano al azar al guardar los datos laborales: en un comercio que no dispara Experian, la consulta de viabilidad al buró corre o no según una moneda | TRAMPA |
@@ -6487,3 +6491,40 @@ dos. **No se sabe cuántos diagnósticos viejos eran esto.**
 - **La regla de operación:** no se cambian valores después de desembolsar. Como los documentos ya están firmados,
   se cancela la solicitud y se origina otra por el valor nuevo.
 - **Estado:** regla de operación; no hay arreglo de código pendiente.
+
+### F-249 · Una migración sobre el historial de CreditopX encola la app: el ALTER espera el bloqueo y todo se pone detrás
+
+- **Síntoma:** al correr una migración que toca `creditop_x_requests_history`, las consultas al historial dejan de
+  contestar y se acumulan; nada falla, todo espera. Pasó el 2026-11-04 con la primera versión de
+  `add_installment_freeze`, hasta que se canceló a mano.
+- **Causa raíz (verificada en `main` cb3e2f54 de legacy-application):** el `ALTER TABLE` de `Schema::table` necesita
+  el bloqueo de metadatos de la tabla; si una consulta larga la está leyendo, el ALTER espera, y MySQL pone detrás de él
+  todas las consultas nuevas a esa tabla. La tabla pesa ~1,6 GB, así que un ALTER que la reconstruye además tarda.
+- **El patrón que quedó** (`database/migrations/2026_11_05_090000_add_installment_freeze.php:68-94`, idéntica en
+  legacy-backend): `ALGORITHM=INSTANT` en SQL crudo (sólo cambia la definición; si MySQL no puede, falla en vez de
+  reconstruir) y `SET SESSION lock_wait_timeout = 5` (si alguien tiene la tabla, falla a los 5 s en vez de encolar),
+  devuelto a su valor en un `finally`. Fuera de MySQL (los tests en sqlite) usa `Schema::table`.
+- **Para una migración nueva sobre esa tabla:** copiar ese patrón, y correrla cuando no haya consultas largas y fuera
+  de la causación de la noche (00:30 a 04:15). Si falla por el timeout, se vuelve a correr; no hay plan B en el código.
+- **Estado:** regla de migraciones.
+
+### F-250 · «Faltan las credenciales» de una entidad que antes funcionaba sin integración
+
+- **Síntoma:** un comercio que usaba una entidad «como perfilador», sin integración, empieza a ver que la entidad no da
+  cupo y que «faltan las credenciales, como si ya estuviera funcionando la integración». Caso 254 de #tech-ops
+  (2026-11-25): Brilla en Sonría. En los logs, `credentials service returned non-200 status` de preapprovals-service
+  (143 el 25/11 y 189 en medio día del 26/11, contra 0 a 22 por día antes).
+- **Causa raíz (verificada en `main` b2684a2 de pre-approvals-service y da7f59d0 de legacy-backend):** al consultarse por
+  pre-approvals, la entidad pasa primero por la etapa de credenciales, que las pide a legacy-backend. Sin credencial del
+  comercio ni de la sucursal, legacy-backend contesta 404 `LCS004` «No existe la credencial configurada»
+  (`Modules/Onboarding/App/Services/lenders/LenderCredentialService.php:112`), pre-approvals lo loguea
+  (`internal/infra/services/credentials_service.go:150`) y la entidad termina en `missing_credentials` sin llamar a su
+  API. Brilla se consulta así desde pre-approvals-service v0.1.23 (tag del 2026-11-23 19:46), y saca de la credencial
+  la URL del distribuidor y el token: sin ella no hay cómo consultarla. El mecanismo:
+  [pre-approvals-service](../pre-approvals-service/rules.md#sin-credencial-la-entidad-falla-antes-de-llamarla).
+- **Cómo se resolvió el caso 254:** desde soporte se habilitó la gestión para Sonría («ya debería permitirles»); el
+  hilo no dice si se cargó la credencial o se cambió cómo se ofrece la entidad. No verificado.
+- **Para diagnosticar otro:** el `message` del 404 distingue «no hay credencial» de los otros cuatro casos (comercio o
+  entidad que no existen, hash de otro comercio, comercio sin sucursales); una credencial apagada (`status = 0`) cuenta
+  como que no existe.
+- **Estado:** abierto, por comercio: cada comercio que ofrece la entidad necesita su credencial.

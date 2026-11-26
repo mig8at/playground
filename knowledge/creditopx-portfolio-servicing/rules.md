@@ -94,6 +94,19 @@ este orden:
    (`GuaranteeInsuranceBalance`), condona intereses si la cuota está dentro de `installments_waived_interest` y deja el
    rastro en `creditop_x_log` (si condonó, si entró en mora, si fue corte). El subsidio de Creditop no se aplica acá.
 
+## Las columnas de la fianza y el desborde que cortaba la noche
+
+`next_payment_guarantee` y las demás columnas de fianza del historial nacieron como `float()` de Laravel
+(`2025_08_04_180510_add_fg_fixed_value_to_creditop_x_requests_history`), que es `double(8,2)`: no entra un valor de
+$1.000.000 o más. El 30/10/2026 un crédito desbordó esa columna en su corte y, como entonces el error cortaba la corrida
+entera, miles de créditos quedaron sin causar hasta que se reanudó a mano (el comentario del comando dice 5.714; el
+commit, unos 5.400). Desde ese día cada crédito va en su propia transacción (la sección anterior), y la migración
+`2026_10_30_120000_widen_guarantee_columns_to_double_15_4` de legacy-backend las amplía a `double(15,4)` donde siguen
+angostas: en `creditop_x_requests_history`, `next_payment_guarantee`, `guarantee_amount_balance`,
+`guarantee_fixed_value`, `paid_guarantee` y `late_payment_principal_exclude`; en `creditop_x_payments`, `paid_guarantee`.
+Su comentario dice que en producción se amplió a mano ese día y que legacy-application lleva una migración espejo;
+**esa migración no está en legacy-application**: una base armada sólo con sus migraciones deja las columnas angostas.
+
 ## Gasto de cobranza por días de mora
 
 Cada entidad configura en `creditop_x_lender_collection_charges` tramos de días de mora con un monto
