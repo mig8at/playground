@@ -5,7 +5,7 @@ import { watch, nextTick } from 'vue'
 import { logLine, describeCommand } from './consoleLog'
 import { settings } from './settings'
 import { customLenders, addCustomLender, removeCustomLender, selectOffer, findLenderDef, setDelegated, delegatedOf, markDelegatedBaseline, bondOf,
-  applyProductionImport, merchant, ui, persistPing, lenders, bureau, state, setNull } from './store'
+  applyProductionImport, merchant, ui, persistPing, lenders, bureau, state, setNull, applyBestClient, editTick } from './store'
 
 const KEYS = { usesQuotaEngine: 'usesQuotaEngine', formalization: 'formalization', paymentDays: 'paymentDays', bondPct: 'bondPct', bondType: 'bondType', bondSource: 'bondSource', extraDaysInterest: 'extraDaysInterest' }
 function applyDelegated(l, d) {
@@ -15,7 +15,9 @@ function applyDelegated(l, d) {
 
 // El cliente de la solicitud: los datos de las centrales que deciden (bin/flow client) y el monto.
 const CLIENT = { score: 'score', negatives: 'negatives12m', arrears: 'currentArrears', inquiries: 'inquiries6m', history: 'creditHistoryMonths',
-  occupation: 'employment', continuity: 'agilContinuity', age: 'edad', gender: 'gender', income: 'agilIncome' }
+  occupation: 'employment', continuity: 'agilContinuity', age: 'edad', gender: 'gender', income: 'agilIncome', debt: 'monthlyDebtPayment' }
+// Los sí/no y los de texto (2026-11-26): experiencia crediticia, identidad verificada y listas AML.
+const YES = ['yes', 'si', 'sí', '1', 'true']
 const CONT = ['<3m', '3m', '6m', '12m'], EMP = ['empleado', 'independiente', 'pensionado', 'desempleado']
 const HANDLERS = {
   // La foto de una entidad leída de la base (bin/flow import): categorías, tramos, reglas de sucursal y, si es
@@ -32,6 +34,12 @@ const HANDLERS = {
   clear() { const names = customLenders.map(l => l.name); names.forEach(removeCustomLender); return { removed: names } },
   client(c) {
     const set = {}
+    // `--preset best`: el cliente premium de store.js (BEST_CLIENT); los demás campos, si vienen, se aplican encima.
+    if (c.fields.preset) { if (c.fields.preset !== 'best') throw new Error('preset: best'); applyBestClient(); set.preset = 'best' }
+    if (c.fields.experience != null) { bureau.creditExperience = YES.includes(String(c.fields.experience).toLowerCase()); set.experience = bureau.creditExperience }
+    if (c.fields.identity != null) { bureau.identidad = YES.includes(String(c.fields.identity).toLowerCase()); setNull('identidad', false); set.identity = bureau.identidad }
+    if (c.fields.aml != null) { if (!['clean', 'hit'].includes(c.fields.aml)) throw new Error('aml: clean | hit'); bureau.listas = c.fields.aml === 'clean' ? 'limpio' : 'hit'; setNull('listas', false); set.aml = c.fields.aml }
+    if (c.fields.document != null) { state.tipoDoc = String(c.fields.document).toUpperCase(); set.document = state.tipoDoc }
     for (const [flag, key] of Object.entries(CLIENT)) {
       if (c.fields[flag] == null) continue
       let v = c.fields[flag]
@@ -42,6 +50,7 @@ const HANDLERS = {
       bureau[key] = v; setNull(key, false); set[flag] = v
     }
     if (c.fields.amount != null) { state.monto = String(Number(c.fields.amount)); set.amount = Number(c.fields.amount) }
+    editTick.n++
     return { client: set }
   },
   view(c) { settings.view = c.view === 'table' ? 'table' : 'graph'; return { view: settings.view } },

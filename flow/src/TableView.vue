@@ -39,6 +39,12 @@ function listingCell(c) {
   return { status: 'warn', title: 'Sale con prob. baja', line: gate.reason, gate }
 }
 
+// ── Qué CORTA la cadena (2026-11-26): un paso rojo, uno al que no se llegó, o uno ámbar que frena de verdad (`blocks`:
+// la identidad sin proveedor, el plan sin plazos). «No aplica» NO corta: el paso lo hace la entidad en su flujo y la
+// solicitud sigue; tampoco «sale con probabilidad baja». Antes las filas 4 a 6 exigían verde y un «no aplica» dejaba
+// todo lo de abajo en «no llega».
+const stops = (p) => p.status === 'fail' || p.status === 'off' || !!p.blocks
+
 // ── Fila 2 · la PREAPROBACIÓN: ¿cuánto le prestan? Quién contesta depende del tipo de la entidad.
 function whoDecides(l) {
   if (l.rt === 0) return 'nadie: redirige a su sitio'
@@ -58,7 +64,7 @@ function maxQuota(l) {
   return Math.min(q, cap)
 }
 function preApprovalCell(c, first) {
-  if (first.status === 'fail' || first.status === 'off') return { status: 'off', title: 'No llega', line: 'se cortó en el listado' }
+  if (stops(first)) return { status: 'off', title: 'No llega', line: 'se cortó en el listado' }
   const l = c.def, r = c.row
   if (l.rt === 0) return { status: 'na', title: 'No aplica', line: 'redirige: decide la entidad en su sitio' }
   const max = maxQuota(l)
@@ -77,7 +83,7 @@ const NEXT_BY_RT = {
   4: 'sigue en CreditOp: validación de identidad',
 }
 function selectionCell(c, previous) {
-  if (previous.status === 'fail' || previous.status === 'off') return { status: 'off', title: 'No llega', line: 'se cortó antes' }
+  if (stops(previous)) return { status: 'off', title: 'No llega', line: 'se cortó antes' }
   const check = selectionCheck(c.def.name)
   if (!check.allowed) return { status: 'fail', title: 'No la deja elegir', line: check.checks.find(x => !x.ok)?.label }
   return { status: 'pass', title: 'Pasa a 3 · Selección', line: NEXT_BY_RT[c.def.rt] || '' }
@@ -87,10 +93,10 @@ function selectionCell(c, previous) {
 // que quien está del otro lado es el dueño de la cédula; si el primario no valida, pasa al siguiente en orden
 // (`identityOutcome`, knowledge/identity-validation). El agregador y el redirect la hacen en el flujo de la entidad.
 function identityCell(c, previous) {
-  if (previous.status !== 'pass') return { status: 'off', title: 'No llega', line: 'se cortó antes' }
+  if (stops(previous)) return { status: 'off', title: 'No llega', line: 'se cortó antes' }
   if (c.def.rt === 0 || c.def.rt === 1) return { status: 'na', title: 'No aplica', line: 'la valida la entidad en su flujo' }
   const o = identityOutcome(c.def)
-  if (o.status === 'unset') return { status: 'warn', title: 'Sin proveedor', line: 'el backend contesta error y el cliente ve las instrucciones de siempre' }
+  if (o.status === 'unset') return { status: 'warn', blocks: true, title: 'Sin proveedor', line: 'el backend contesta error y el cliente ve las instrucciones de siempre' }
   const names = o.providers.map(p => p.label.replace(/^Validación /, '')).join(' → ')
   if (o.status === 'pass') return { status: 'pass', title: 'Validada', line: names }
   return { status: 'fail', title: 'No validó', line: names + ': ninguno validó' }
@@ -109,10 +115,10 @@ function planFor(c) {
   return { opts, first, dues, n, plan: r && n && first ? paymentSchedule(r, n, first) : null }
 }
 function planCell(c, previous) {
-  if (previous.status !== 'pass') return { status: 'off', title: 'No llega', line: 'se cortó antes' }
+  if (stops(previous)) return { status: 'off', title: 'No llega', line: 'se cortó antes' }
   if (c.def.rt === 0 || c.def.rt === 1) return { status: 'na', title: 'No aplica', line: 'el plan lo arma la entidad' }
   const p = planFor(c)
-  if (!p.plan) return { status: 'warn', title: 'Sin plan', line: 'no hay plazos o fechas para armarlo' }
+  if (!p.plan) return { status: 'warn', blocks: true, title: 'Sin plan', line: 'no hay plazos o fechas para armarlo' }
   const extra = p.plan.extraInterest && p.plan.extraOn ? ` · +${money(p.plan.extraInterest)} en la ${p.plan.extraOn === 1 ? 'primera' : 'última'}` : ''
   return { status: 'pass', title: `${money(p.plan.breakdown.cuota)} × ${p.n} cuotas`, line: `1.ª fecha ${p.first.label}${extra}` }
 }
@@ -121,7 +127,7 @@ function planCell(c, previous) {
 // según su ficha. Si la categoría que ganó lleva codeudor, firma la rama con codeudor del catálogo.
 const withCosigner = (c) => /codeudor/i.test(String(c.row?.category || ''))
 function closingCell(c, previous) {
-  if (previous.status !== 'pass') return { status: 'off', title: 'No llega', line: 'se cortó antes' }
+  if (stops(previous)) return { status: 'off', title: 'No llega', line: 'se cortó antes' }
   if (c.def.rt === 0 || c.def.rt === 1) return { status: 'na', title: 'No aplica', line: c.def.rt === 0 ? 'cierra en el sitio de la entidad' : 'la entidad informa el resultado' }
   const o = closingOutcome(c.def, withCosigner(c))
   if (!o.signs) return { status: 'fail', title: 'No firmó', line: 'sin OTP no se autoriza: no llega a 11' }
@@ -359,7 +365,9 @@ const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
 
         <div v-else-if="preDetail" class="region-body tv-calc__b">
           <h3>¿Cuánto le prestan?</h3>
-          <p class="tv-p">El servicio de preaprobación le pregunta a <b>{{ preDetail.who }}</b>. Lo que contesta es el <b>cupo</b>:
+          <p v-if="preDetail.l.rt === 0" class="tv-p">Nadie: {{ preDetail.l.name }} es un <b>redirect</b>. CreditOp no le pregunta un cupo;
+            la tarjeta se muestra y la decisión la toma la entidad en su sitio.</p>
+          <p v-else class="tv-p">El servicio de preaprobación le pregunta a <b>{{ preDetail.who }}</b>. Lo que contesta es el <b>cupo</b>:
             el máximo que le prestan a este cliente. Si pide más, la tarjeta le pide bajar el monto.</p>
 
           <!-- Decide el motor: la categoría. Cada una con lo que pide y lo que tiene el cliente, en verde lo que cumple y en
@@ -417,7 +425,9 @@ const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
             <label class="tv-f tv-f--row"><span>Tasa % mensual</span><input class="input input-sm" type="number" step="0.01" :value="preDetail.pa.rate ?? ''" placeholder="la de la entidad" @change="e => setPa('rate', e.target.value)" /></label>
           </template>
 
-          <div class="tv-verdict" :class="preDetail.r && preDetail.r.ok ? 'ok' : 'no'">
+          <div v-if="preDetail.l.rt === 0" class="tv-verdict na">No aplica: el redirect no pasa por la preaprobación. La tarjeta sale y,
+            al elegirla, el cliente sigue en el sitio de {{ preDetail.l.name }}, que decide ahí.</div>
+          <div v-else class="tv-verdict" :class="preDetail.r && preDetail.r.ok ? 'ok' : 'no'">
             <template v-if="preDetail.r && preDetail.r.ok">Aprobada: le prestan hasta <b>{{ money(maxQuota(preDetail.l)) }}</b> y pide {{ money(amount) }}</template>
             <template v-else>{{ preDetail.r ? preDetail.r.reason : 'sin respuesta' }}</template>
           </div>
@@ -711,7 +721,8 @@ const setPa = (k, v) => { setPreApprovalField(open.value.name, k, v) }
 .tv-req-open { padding: var(--space-1) var(--space-2) var(--space-2) calc(var(--space-2) + 24px); font-size: var(--text-xs); color: var(--fg-3); }
 .tv-chips { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-bottom: 6px; }
 .tv-verdict { margin-top: var(--space-3); padding: var(--space-2) var(--space-3); border-left: 2px solid; font-size: var(--text-base); }
-.tv-verdict.ok { background: var(--tint-green); border-left-color: var(--green); } .tv-verdict.no { background: var(--tint-red); border-left-color: var(--red); }
+.tv-verdict.ok { background: var(--tint-green); border-left-color: var(--green); }
+.tv-verdict.na { background: var(--tint-neutral); border-left-color: var(--line); } .tv-verdict.no { background: var(--tint-red); border-left-color: var(--red); }
 .tv-kv--hi { background: var(--tint-amber); padding: 2px 4px; margin: 0 -4px; }
 .tv-total { display: flex; justify-content: space-between; margin-top: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--card2); font-size: var(--text-base); }
 .tv-total b { font-size: var(--text-body); font-variant-numeric: tabular-nums; }

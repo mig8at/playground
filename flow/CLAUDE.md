@@ -14,7 +14,12 @@ de vez en cuando y **no tiene que seguir al código al pie de la letra**. Lo que
   - `bin/flow import --target qa --branch <id|hash> --lender 149[,24] [--select <nombre>] [--replace]` — la entidad REAL:
     línea, categorías activas con su regla de titular inicial, tramos, reglas de la sucursal, producto y la ficha delegada
     (`delegated_origination_profiles`).
-  - `bin/flow client --occupation pensionado --continuity 12m --score 800 …` — el cliente de la solicitud.
+  - `bin/flow client --occupation pensionado --continuity 12m --score 800 …` — el cliente de la solicitud (también
+    `--debt`, `--experience yes|no`, `--identity yes|no`, `--aml clean|hit`, `--document`). `--preset best` pone el
+    **cliente premium** (`BEST_CLIENT` en `src/store.js`): el que cumple casi todo, para que salgan la mayoría de las
+    entidades con su mejor categoría; es también el de un escenario nuevo y el del botón «Perfil premium» del sidebar.
+    Medido el 2026-11-26 con las 9 entidades de Cockpit: salen las 9, y CrediPullman gana Premium, Finandina Riesgo AA,
+    AltaX Perfil General y Motai y Rent to Own Directa.
   - `bin/flow add|select|remove|clear|delegated|view graph|table|open`. `bin/flow` sin argumentos lo dice todo.
   - Hoy en Cockpit (2026-11-25, de qa): Motai Renting y Rent to Own (sucursal 682), Credifamilia y CrediPullman (2232) y
     Banco Finandina (2247), con el cliente empleado, sin negativos y 12 meses de continuidad.
@@ -95,6 +100,10 @@ en el grafo trae su columna a la vista.
   política APLICA, aunque el monto dé 0 (por ejemplo, cuando las cuotas que ya paga se comen la capacidad). Gana igual,
   no se prueba la siguiente categoría, y la tarjeta queda sin cupo. Flow lo replica y en la calculadora lo marca en ámbar
   («gana con cupo $ 0»), con el tope que manda.
+- **Qué corta la cadena de la tabla** (`stops` en `TableView.vue`, 2026-11-26): un paso rojo, uno al que no se llegó o uno
+  ámbar que frena (la identidad sin proveedor, el plan sin plazos). «No aplica» no corta: el agregador y el redirect
+  siguen con «no aplica» hasta el final (lo hace la entidad en su flujo). Antes las filas 4 a 6 exigían verde y un «no
+  aplica» dejaba lo de abajo en «no llega».
 - Una categoría sin `max_fee_number` (NULL en la base) no recorta los plazos, como en main; hasta el 2026-11-25 Flow lo
   leía como 0 y dejaba a CreditopX sin plazos.
 - **No tiene lógica propia**: usa la de `store.js` (el listado, `sucursalGate`, `perfilDiag`, `bondOf`,

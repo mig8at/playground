@@ -25,7 +25,9 @@ const USAGE = `bin/flow — Flow por consola (le habla a la app abierta; si no h
   bin/flow delegated <nombre> [--engine 0|1] [--radica 0|1] [--days 2,16] [--bond 10] [--bond-type anticipada|vencida|pre_approval] [--bond-source pre_approval|fng_table]
   bin/flow client [--score 800] [--negatives 0] [--arrears 0] [--inquiries 2] [--history 24] [--occupation empleado|independiente|pensionado|desempleado]
                   [--continuity <3m|3m|6m|12m] [--age 41] [--gender F|M] [--income 5400000] [--amount 1200000]
-                                                 el cliente de la solicitud (lo que contestan las centrales) y el monto
+                  [--debt 650000] [--experience yes|no] [--identity yes|no] [--aml clean|hit] [--document CC] [--preset best]
+                                                 el cliente de la solicitud (lo que contestan las centrales) y el monto;
+                                                 --preset best: el cliente premium (cumple casi todo), y encima lo que se pase
   bin/flow view graph|table                      el grafo de una entidad o la tabla (todas las entidades, paso por paso)
   bin/flow open                                  la trae al frente en Cockpit
 
@@ -195,7 +197,7 @@ async function main() {
     case 'delegated': if (!o._[1]) throw new Error('falta el nombre'); return send([{ type: 'delegated', name: o._.slice(1).join(' '), fields: delegatedFlags(o) }])
     case 'client': {
       const fields = {}
-      for (const k of ['score', 'negatives', 'arrears', 'inquiries', 'history', 'occupation', 'continuity', 'age', 'gender', 'income', 'amount']) if (o[k] !== undefined && o[k] !== true) fields[k] = String(o[k])
+      for (const k of ['preset', 'score', 'negatives', 'arrears', 'inquiries', 'history', 'occupation', 'continuity', 'age', 'gender', 'income', 'amount', 'debt', 'experience', 'identity', 'aml', 'document']) if (o[k] !== undefined && o[k] !== true) fields[k] = String(o[k])
       if (!Object.keys(fields).length) throw new Error('nada para cambiar (bin/flow client --score 800 …)')
       await send([{ type: 'client', fields }])
       await new Promise(r => setTimeout(r, 1200))

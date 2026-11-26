@@ -715,6 +715,23 @@ function seedBureau(keys) {
   }
 }
 seedBureau()
+// ── El cliente PREMIUM (2026-11-26, decisión de Miguel): el que cumple la mayor cantidad de reglas —buró limpio, score
+// alto, empleado con continuidad, ingreso de Ágil Data dentro de las bandas de Finandina, sin deudas, hombre (hay
+// sucursales que lo exigen, como la de AltaX)— para que la mayoría de las entidades salgan y ganen su mejor categoría.
+// Es el de un escenario nuevo, el del botón «Perfil premium» del sidebar y el de `bin/flow client --preset best`; a
+// partir de ahí se empeora un dato para ver qué entidad se cae y por qué. El monto queda bajo para no chocar con topes.
+export const BEST_CLIENT = {
+  bureau: { score: 950, negatives12m: 0, currentArrears: 0, inquiries6m: 0, creditHistoryMonths: 120, employment: 'empleado',
+    agilContinuity: '12m', edad: 40, gender: 'M', agilIncome: 8000000, monthlyDebtPayment: 0, creditExperience: true, identidad: true, listas: 'limpio' },
+  state: { monto: '2000000', tipoDoc: 'CC', nombre: 'Carlos', apellido: 'Gómez' },
+}
+export function applyBestClient() {
+  for (const [k, v] of Object.entries(BEST_CLIENT.bureau)) { bureau[k] = v; setNull(k, false) }
+  for (const k of Object.keys(providerDown)) providerDown[k] = false   // ninguna central caída
+  Object.assign(state, BEST_CLIENT.state)
+  editTick.n++
+}
+applyBestClient()   // por defecto; un escenario guardado lo pisa al rehidratar
 watch(() => state.numDoc, () => { if (!restoring) seedBureau() }) // no re-sembrar mientras se rehidrata
 
 /* ============================================================================

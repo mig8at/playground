@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { state, bureau, clientProfile as profile, setNull, editTick, money, requestDocumentTypes } from './store'
+import { state, bureau, clientProfile as profile, setNull, editTick, money, requestDocumentTypes, applyBestClient } from './store'
 
 // El cliente de la solicitud: TODOS los datos que deciden en Flow —los grupos de reglas de la sucursal, las reglas de
 // centrales y las de cada categoría—, para poder hacer cumplir (o fallar) cualquier categoría desde acá. Vive en el
@@ -50,6 +50,11 @@ const amount = computed(() => parseInt(digits(state.monto)) || 0)
   <!-- Cuatro grupos: lo que pide, quién es, de qué vive y qué dice el buró. Cada campo es una fila de rótulo y control
        compacto (28), como las preferencias de VS Code: en 300 de ancho se lee de un vistazo. -->
   <div class="client-form">
+    <div class="cf-preset">
+      <span>Desde el cliente que cumple casi todo, empeorá un dato para ver qué se cae.</span>
+      <button type="button" class="btn btn-outline btn-xs" title="Buró limpio, score 950, empleado 12 meses, ingreso de Ágil Data de $ 8.000.000, sin deudas, hombre, monto $ 2.000.000"
+        @click="applyBestClient">Perfil premium</button>
+    </div>
     <div class="cf-group">Solicitud</div>
     <label class="cf-row"><span class="cf-label">Monto</span>
       <input class="input input-sm" inputmode="numeric" :value="money(amount)" @change="e => setAmount(e.target.value)" /></label>
@@ -116,8 +121,10 @@ const amount = computed(() => parseInt(digits(state.monto)) || 0)
 <style scoped>
 /* `.cf-row` y no `.field`: el `.field` de Flow va en fila con otra forma (lo usan los nodos). */
 .client-form { display: flex; flex-direction: column; gap: var(--space-1); }
+.cf-preset { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-1); font-size: var(--text-xs); color: var(--fg-3); line-height: 1.35; }
+.cf-preset .btn { flex: none; }
 .cf-group { margin: var(--space-2) 0 2px; font-size: var(--text-xs); font-weight: 600; color: var(--fg-3); }
-.cf-group:first-child { margin-top: 0; }
+.cf-preset + .cf-group { margin-top: var(--space-1); }
 .cf-row { display: grid; grid-template-columns: minmax(0, 42%) minmax(0, 1fr); align-items: center; gap: var(--space-2); min-height: var(--control-sm); }
 .cf-label { display: flex; flex-direction: column; min-width: 0; font-size: var(--text-sm); color: var(--fg-2); line-height: 1.25; }
 .cf-label small { font-size: var(--text-xs); color: var(--fg-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
