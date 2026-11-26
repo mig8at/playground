@@ -827,10 +827,10 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       // las entidades que más venden en el año: ventas (desembolsos) de 2026 al 25-nov, medidas en producción
       const big = b.h >= 64, rows = [["ADDI", 13939], ["WELLI", 8567], ["MEDDIPAY", 6773]];
       head(b, "TOP ENTIDADES · 2026", C.hNeg, "VENTAS", C.gray, t);
-      const ys = big ? [17, 33, 49] : [9, 17, 25], bx = 120, vw = tw("13.939", 1), bmax = b.w - 2 - vw - 6 - bx;
+      const ys = big ? [17, 33, 49] : [12, 23]   /* en 256×32, dos filas con aire */, bx = 120, vw = tw("13.939", 1), bmax = b.w - 2 - vw - 6 - bx;
       rows.forEach(([name, v], i) => {
         const t0 = 0.2 + i * 0.2, off = Math.round((1 - ease((t - t0) / 0.45)) * b.w), y = ys[i];
-        if (off >= b.w) return;
+        if (off >= b.w || y === undefined) return;
         for (let dy = 0; dy < 5; dy++) for (let dx = 0; dx < 5; dx++) if ((dx - 2) ** 2 + (dy - 2) ** 2 <= 5) px(b, 2 + off + dx, y + 1 + dy, MEDAL[i]);   // 🥇🥈🥉 como en la carrera
         text(b, name, 12 + off, y, 1, i === 0 ? C.amber : C.white);
         const g = ease((t - t0 - 0.3) / 0.9);
@@ -843,10 +843,10 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       // los que más venden en el año: ventas (desembolsos) de 2026 al 25-nov, medidas en producción
       const big = b.h >= 64, rows = [["SONRIA", 20594], ["AMOBLANDO PULLMAN", 9162], ["CREDIMOVIL", 3147]];
       head(b, "TOP COMERCIOS · 2026", C.hNeg, "VENTAS", C.gray, t);
-      const ys = big ? [17, 33, 49] : [9, 17, 25], bx = 120, vw = tw("20.594", 1), bmax = b.w - 2 - vw - 6 - bx;
+      const ys = big ? [17, 33, 49] : [12, 23]   /* en 256×32, dos filas con aire */, bx = 120, vw = tw("20.594", 1), bmax = b.w - 2 - vw - 6 - bx;
       rows.forEach(([name, v], i) => {
         const t0 = 0.2 + i * 0.2, off = Math.round((1 - ease((t - t0) / 0.45)) * b.w), y = ys[i];
-        if (off >= b.w) return;
+        if (off >= b.w || y === undefined) return;
         for (let dy = 0; dy < 5; dy++) for (let dx = 0; dx < 5; dx++) if ((dx - 2) ** 2 + (dy - 2) ** 2 <= 5) px(b, 2 + off + dx, y + 1 + dy, MEDAL[i]);   // 🥇🥈🥉 como en la carrera
         text(b, name, 12 + off, y, 1, i === 0 ? C.amber : C.white);
         const g = ease((t - t0 - 0.3) / 0.9);
@@ -1080,10 +1080,10 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       const big = b.h >= 64, rows = [["BANCO DE BOGOTA", 62, 1], ["SERVICREDITO", 7, 0], ["SUFI", 5, 0]];
       attnHead(b, "unplug", "ENTIDADES SIN USO · 30 DIAS", null, t);
       const tot = "82 DE 148"; text(b, tot, rx(b, tot, 1), big ? 3 : 1, 1, mul(C.yellow, ease((t - 0.4) / 0.5)));
-      const ys = big ? [17, 33, 49] : [9, 17, 25];
+      const ys = big ? [17, 33, 49] : [12, 23]   /* en 256×32, dos filas con aire */;
       rows.forEach(([name, com, sol], i) => {
         const t0 = 0.3 + i * 0.25, off = Math.round((1 - ease((t - t0) / 0.45)) * b.w), y = ys[i];
-        if (off >= b.w) return;
+        if (off >= b.w || y === undefined) return;
         text(b, name, 2 + off, y, 1, C.white);
         const r = com + " COMERCIOS · " + sol + " SOL.";
         const x = rx(b, r, 1) + off, cut = tw(com + " COMERCIOS · ", 1) + 1;
@@ -1097,10 +1097,10 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       // Nequi 259 → 7 (antes 341 → 9), Mayi 135 → 3 (antes 148 → 3). Promedio de las que eligen entidad: 35 %.
       const big = b.h >= 64, rows = [["BANCOLOMBIA CONSUMO", 1896, 10, 10], ["NEQUI", 259, 7, 9], ["MAYI", 135, 3, 3]];
       attnHead(b, "chartDown", "SOLICITUDES → VENTAS", "MES ANT.", t);
-      const ys = big ? [17, 33, 49] : [9, 17, 25];
+      const ys = big ? [17, 33, 49] : [12, 23]   /* en 256×32, dos filas con aire */;
       rows.forEach(([name, sol, v, before], i) => {
         const t0 = 0.3 + i * 0.25, off = Math.round((1 - ease((t - t0) / 0.45)) * b.w), y = ys[i];
-        if (off >= b.w) return;
+        if (off >= b.w || y === undefined) return;
         text(b, name, 2 + off, y, 1, C.white);
         const tr = (v < before ? "▼ " : "= ") + before, trx = rx(b, tr, 1) + off;
         text(b, tr, trx, y, 1, v < before ? C.red : C.yellow);
@@ -1132,12 +1132,13 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
     } },
     { id: "projects", group: "Desarrollo", label: "Proyectos", draw(b, t) {
       // avance de los proyectos en curso (ejemplo): el % lo carga el equipo, no se calcula
-      const big = b.h >= 64, rows = [["FINANDINA", 80], ["VTEX", 50], ["SHOPIFY", 90]];
+      const big = b.h >= 64, rows = [["SHOPIFY", 90], ["FINANDINA", 80], ["VTEX", 50]];   // de más a menos avance
       head(b, "PROYECTOS", C.hDev, "AVANCE", C.gray, t);
-      const ys = big ? [17, 33, 49] : [9, 17, 25], nx = big ? 32 : 18, bx = nx + 66, pw = tw("100%", 1), bmax = b.w - 2 - pw - 6 - bx;
+      const ys = big ? [17, 33, 49] : [12, 23]   /* en 256×32, dos filas con aire */, nx = big ? 32 : 18, bx = nx + 66, pw = tw("100%", 1), bmax = b.w - 2 - pw - 6 - bx;
       const gearC = { k: (t * 2 | 0) % 2 ? [190,195,205] : [140,146,158] };     // el engranaje «trabaja»: parpadea suave
       art(b, ICONS.gear, 2, big ? 26 : 13, big ? 2 : 1, gearC);
       rows.forEach(([name, p], i) => {
+        if (ys[i] === undefined) return;
         const y = ys[i], g = ease((t - 0.3 - i * 0.25) / 0.9), v = Math.round(p * g), s = v + "%";
         text(b, name, nx, y, 1, C.white);
         rect(b, bx, y + 1, bmax, 5, C.bTrack);
