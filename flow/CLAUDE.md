@@ -132,6 +132,10 @@ La lógica es `src/portfolio.js` (`simulate`, día por día) y la vista `src/Por
   cobranza: el código no dice a quién llega).
 - **Estado y cobranza**: las franjas del reporte de riesgo del admin y la alternativa M1-M8 de la rama `cobranza` de
   frontend-monorepo (sin mergear al 2026-11-26), y la bitácora de eventos.
+- **Se ve como el workbench** (2026-11-26): secciones con `region-head group`, `toggle` para las historias, `table`,
+  `log-line` y `region-action`; los colores son tokens del tema (capital = `--primary-ink`, intereses y seguros = las
+  `--chart-*`, mora y cobranza = `--status-*`), así que siguen la paleta de Cockpit. Las píldoras son `pf-pill` y no
+  `.badge`: la `.badge` vieja de `styles.css` (la de los nodos, verde) le gana a la del workbench.
 - Simplifica a propósito: corte mensual con vencimiento 5 días después, tasa diaria = mensual / 30, sin colillas,
   subsidio, pronto pago ni rotativo. Las fuentes: knowledge/ `creditopx-portfolio-servicing`, `creditopx-payment-application`,
   `creditopx-credit-states` y `creditopx-offer-calculation`.

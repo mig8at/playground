@@ -3,7 +3,7 @@
 // es `portfolio.js`; acá sólo se dibuja: la comparación de los rieles, el reloj de noches, el saldo, la cascada del
 // último pago con su voucher, a quién va cada peso, el estado con su franja de mora y la bitácora.
 import { computed, ref, watch, onUnmounted } from 'vue'
-import { Play, Pause, RotateCcw as Restart, Receipt } from 'lucide-vue-next'
+import { Play, Pause, RotateCcw as Restart } from 'lucide-vue-next'
 import {
   portfolio, simulate, SCENARIOS, STATES, ARREARS_BANDS, bandOf, CASCADE, DESTINATIONS, COLLECTION_TIERS,
   DEFAULT_ASSUMPTIONS, fmt, dateOf,
@@ -46,7 +46,7 @@ const lateSpans = computed(() => {
   if (from !== null) out.push([from, lastDay.value])
   return out
 })
-const MARK = { disbursement: 'mk-blue', billing: 'mk-tick', payment: 'mk-green', state: 'mk-amber', collection: 'mk-red' }
+const MARK = { disbursement: 'mk-disbursement', billing: 'mk-billing', payment: 'mk-payment', state: 'mk-state', collection: 'mk-collection' }
 
 // Lo que debe hoy, por componente.
 const debtParts = computed(() => {
@@ -106,230 +106,238 @@ const RAILS = [
 
 <template>
   <div class="pf">
-    <section class="pf-rails" aria-label="Quién presta y quién cobra en cada riel">
-      <article v-for="r in RAILS" :key="r.key" class="pf-rail" :class="{ here: r.here }">
-        <header><b>{{ r.name }}</b><small>{{ r.rt }}</small><span v-if="r.here" class="pf-here">esta pista</span></header>
-        <dl>
-          <dt>Presta</dt><dd>{{ r.lends }}</dd>
-          <dt>Cobra las cuotas</dt><dd>{{ r.collects }}</dd>
-          <dt>Voucher de pago</dt><dd>{{ r.voucher }}</dd>
-          <dt>Gana CreditOp</dt><dd>{{ r.earns }}</dd>
-        </dl>
-      </article>
+    <section class="pf-sec" aria-label="Quién presta y quién cobra en cada riel">
+      <div class="region-head group"><span>Los tres rieles</span><span class="count">quién presta, quién cobra, qué gana CreditOp</span></div>
+      <div class="pf-rails">
+        <article v-for="r in RAILS" :key="r.key" class="pf-rail" :class="{ here: r.here }">
+          <header><strong>{{ r.name }}</strong><span class="count">{{ r.rt }}</span><span v-if="r.here" class="pf-pill pf-pill-outline">esta pista</span></header>
+          <dl class="pf-kv">
+            <dt>Presta</dt><dd>{{ r.lends }}</dd>
+            <dt>Cobra</dt><dd>{{ r.collects }}</dd>
+            <dt>Voucher de pago</dt><dd>{{ r.voucher }}</dd>
+            <dt>Gana CreditOp</dt><dd>{{ r.earns }}</dd>
+          </dl>
+        </article>
+      </div>
     </section>
 
-    <section class="pf-controls">
-      <div class="pf-scenarios" role="radiogroup" aria-label="La historia">
-        <button v-for="s in SCENARIOS" :key="s.key" type="button" role="radio" :aria-checked="portfolio.scenario === s.key"
-          :class="{ on: portfolio.scenario === s.key }" @click="portfolio.scenario = s.key; jump(0)">{{ s.label }}</button>
-      </div>
-      <p class="pf-hint">{{ scenarioHint }}</p>
-      <details class="pf-assume">
-        <summary>Supuestos del ejemplo · {{ fmt(portfolio.assumptions.amount) }} a {{ portfolio.assumptions.term }} cuotas · cuota {{ fmt(sim.quota) }}</summary>
-        <div class="pf-assume-grid">
-          <label>Monto<input v-model.number="portfolio.assumptions.amount" type="number" min="100000" step="100000"></label>
-          <label>Cuotas<input v-model.number="portfolio.assumptions.term" type="number" min="1" max="48"></label>
-          <label>Interés mensual %<input v-model.number="portfolio.assumptions.monthlyRate" type="number" min="0" step="0.1"></label>
-          <label>Mora mensual %<input v-model.number="portfolio.assumptions.lateRate" type="number" min="0" step="0.1"></label>
-          <label>FGA %<input v-model.number="portfolio.assumptions.guaranteeFundPct" type="number" min="0" step="1"></label>
-          <label>Seguro de vida por millón<input v-model.number="portfolio.assumptions.lifePerMillion" type="number" min="0" step="100"></label>
-          <label>Seguro de garantía por corte<input v-model.number="portfolio.assumptions.guaranteeFee" type="number" min="0" step="500"></label>
-          <label>Comisión CTX %<input v-model.number="portfolio.assumptions.ctxCommissionPct" type="number" min="0" step="0.5"></label>
+    <section class="pf-sec" aria-label="La historia y el reloj">
+      <div class="region-head group">
+        <div class="toggle-group" role="radiogroup" aria-label="La historia">
+          <button v-for="s in SCENARIOS" :key="s.key" type="button" class="toggle" role="radio" :aria-checked="portfolio.scenario === s.key"
+            :aria-pressed="portfolio.scenario === s.key" @click="portfolio.scenario = s.key; jump(0)">{{ s.label }}</button>
         </div>
-        <p class="pf-note">FGA {{ fmt(sim.guaranteeFund) }} (con IVA) sobre {{ fmt(sim.financed) }}: Juan debe {{ fmt(sim.base) }}. Gasto de cobranza:
-          {{ COLLECTION_TIERS.map((t) => `${fmt(t.amount)} el día ${t.from}`).join(' · ') }}. Números de juguete, ninguno es de una entidad real.
-          <button type="button" class="pf-link" @click="portfolio.assumptions = { ...DEFAULT_ASSUMPTIONS }">volver a los de ejemplo</button></p>
-      </details>
-    </section>
-
-    <section class="pf-card pf-clock" aria-label="El reloj de la cartera">
-      <div class="pf-clock-head">
-        <button type="button" class="pf-icon" :aria-label="playing ? 'Pausar' : 'Correr las noches'" @click="play">
-          <Pause v-if="playing" :size="15" /><Play v-else :size="15" /></button>
-        <button type="button" class="pf-icon" aria-label="Volver al desembolso" @click="jump(0)"><Restart :size="14" /></button>
-        <b>Día {{ today.day }}</b><span class="pf-mut">{{ dateOf(today.date) }} · noche de las 00:30</span>
-        <span class="pf-state" :class="['st-' + state.group, { 'st-late': today.status === 2 }]">{{ state.name }}<template v-if="today.daysLate"> · {{ today.daysLate }} días de mora</template></span>
       </div>
-      <svg :viewBox="`0 0 ${W} ${H}`" preserveAspectRatio="none" class="pf-line" role="img" aria-label="El saldo total y los eventos del crédito">
-        <rect v-for="(s, k) in lateSpans" :key="k" :x="xOf(s[0])" :y="TOP" :width="Math.max(2, xOf(s[1]) - xOf(s[0]))" :height="AREA_H" class="pf-late-span" />
-        <path :d="areaPath" class="pf-area" />
-        <line :x1="xOf(today.day)" :x2="xOf(today.day)" :y1="0" :y2="H" class="pf-now" />
-        <g v-for="(e, k) in sim.events" :key="k" class="pf-mark" :class="MARK[e.kind]" @click="jump(e.day)">
-          <title>Día {{ e.day }} · {{ e.text }}</title>
-          <rect v-if="e.kind === 'billing'" :x="xOf(e.day) - 1" :y="TOP + AREA_H + 6" width="2" height="9" />
-          <circle v-else :cx="xOf(e.day)" :cy="TOP + AREA_H + (e.kind === 'payment' || e.kind === 'disbursement' ? 24 : 34)" r="5" />
-        </g>
-      </svg>
-      <input v-model.number="day" type="range" min="0" :max="lastDay" step="1" class="pf-range" aria-label="El día" @input="stop">
-      <div class="pf-legend">
-        <span><i class="mk-blue"></i>desembolso · voucher de compra</span><span><i class="mk-tick"></i>corte</span>
-        <span><i class="mk-green"></i>pago · voucher de pago</span><span><i class="mk-red"></i>gasto de cobranza</span>
-        <span><i class="mk-amber"></i>cambio de estado</span><span><i class="pf-late-sw"></i>en mora</span>
-      </div>
-    </section>
-
-    <div class="pf-grid">
-      <section class="pf-card" aria-label="Lo que debe hoy">
-        <h3>Lo que debe hoy <span class="pf-mut">{{ fmt(debtTotal) }}</span></h3>
-        <div class="pf-bar"><span v-for="p in debtParts" :key="p.key" :class="p.cls" :style="{ width: pct(p.value, debtTotal) }" :title="`${p.label}: ${fmt(p.value)}`"></span></div>
-        <ul class="pf-rows">
-          <li v-for="p in debtParts" :key="p.key"><i :class="p.cls"></i>{{ p.label }}<b>{{ fmt(p.value) }}</b></li>
-          <li v-if="!debtParts.length" class="pf-mut">Nada: el crédito está cerrado.</li>
-        </ul>
-        <p class="pf-note">El mínimo exigible es lo vencido: <b>{{ fmt(dueToday) }}</b><template v-if="today.nextPayment !== null">, {{ today.nextPayment < today.day ? 'venció' : 'vence' }} el día {{ today.nextPayment }}</template>.
-          Cada noche el interés se causa sobre el capital por facturar; en el corte, lo causado y la cuota pasan al mínimo, que acumula lo que no se pagó.</p>
-      </section>
-
-      <section class="pf-card" aria-label="El último pago">
-        <h3>El último pago <span class="pf-mut">en cascada</span></h3>
-        <template v-if="lastPayment">
-          <div class="pf-pay">
-            <div>
-              <div class="pf-bar"><span v-for="p in paymentParts.filter((x) => x.value)" :key="p.key" :class="p.cls" :style="{ width: pct(p.value, lastPayment.amount) }" :title="`${p.label}: ${fmt(p.value)}`"></span></div>
-              <ol class="pf-rows pf-cascade">
-                <li v-for="p in paymentParts" :key="p.key" :class="{ zero: !p.value }"><i :class="p.cls"></i>{{ p.label }}<b>{{ p.value ? fmt(p.value) : '—' }}</b></li>
-              </ol>
-            </div>
-            <figure class="pf-voucher" aria-label="El voucher de pago">
-              <div class="pf-voucher-top"><Receipt :size="14" /> Comprobante de pago</div>
-              <b>¡Transacción exitosa!</b>
-              <small>{{ dateOf(sim.days[lastPayment.day].date) }}</small>
-              <dl><dt>Entidad</dt><dd>CrediComercio</dd><dt>Monto pagado</dt><dd>{{ fmt(lastPayment.amount) }}</dd><dt>Método</dt><dd>En línea</dd></dl>
-              <span class="pf-voucher-ref">REF 00{{ 505000 + lastPayment.day }}</span>
-            </figure>
+      <div class="pf-pad">
+        <p class="pf-hint">{{ scenarioHint }}</p>
+        <div class="pf-clock-head">
+          <button type="button" class="region-action" :title="playing ? 'Pausar' : 'Correr las noches'" :aria-label="playing ? 'Pausar' : 'Correr las noches'" @click="play">
+            <Pause v-if="playing" :size="15" /><Play v-else :size="15" /></button>
+          <button type="button" class="region-action" title="Volver al desembolso" aria-label="Volver al desembolso" @click="jump(0)"><Restart :size="14" /></button>
+          <strong>Día {{ today.day }}</strong><span class="count">{{ dateOf(today.date) }} · noche de las 00:30</span>
+          <span class="pf-grow"></span>
+          <span class="pf-pill" :class="today.status === 2 ? 'pf-pill-bad' : today.status === 1 ? 'pf-pill-ok' : 'pf-pill-muted'">
+            {{ state.name }}<template v-if="today.daysLate"> · {{ today.daysLate }} días</template></span>
+        </div>
+        <svg :viewBox="`0 0 ${W} ${H}`" preserveAspectRatio="none" class="pf-line" role="img" aria-label="El saldo total y los eventos del crédito">
+          <rect v-for="(s, k) in lateSpans" :key="k" :x="xOf(s[0])" :y="TOP" :width="Math.max(2, xOf(s[1]) - xOf(s[0]))" :height="AREA_H" class="pf-late-span" />
+          <path :d="areaPath" class="pf-area" />
+          <line :x1="xOf(today.day)" :x2="xOf(today.day)" :y1="0" :y2="H" class="pf-now" />
+          <g v-for="(e, k) in sim.events" :key="k" class="pf-mark" :class="MARK[e.kind]" @click="jump(e.day)">
+            <title>Día {{ e.day }} · {{ e.text }}</title>
+            <rect v-if="e.kind === 'billing'" :x="xOf(e.day) - 1" :y="TOP + AREA_H + 6" width="2" height="9" />
+            <circle v-else :cx="xOf(e.day)" :cy="TOP + AREA_H + (e.kind === 'payment' || e.kind === 'disbursement' ? 24 : 34)" r="5" />
+          </g>
+        </svg>
+        <input v-model.number="day" type="range" min="0" :max="lastDay" step="1" class="pf-range" aria-label="El día" @input="stop">
+        <div class="pf-legend">
+          <span><i class="mk-disbursement"></i>desembolso · voucher de compra</span><span><i class="mk-billing"></i>corte</span>
+          <span><i class="mk-payment"></i>pago · voucher de pago</span><span><i class="mk-collection"></i>gasto de cobranza</span>
+          <span><i class="mk-state"></i>cambio de estado</span><span><i class="pf-late-sw"></i>en mora</span>
+        </div>
+        <details class="pf-assume">
+          <summary>Supuestos del ejemplo · {{ fmt(portfolio.assumptions.amount) }} a {{ portfolio.assumptions.term }} cuotas · cuota {{ fmt(sim.quota) }}</summary>
+          <div class="pf-assume-grid">
+            <label>Monto<input v-model.number="portfolio.assumptions.amount" class="input" type="number" min="100000" step="100000"></label>
+            <label>Cuotas<input v-model.number="portfolio.assumptions.term" class="input" type="number" min="1" max="48"></label>
+            <label>Interés mensual %<input v-model.number="portfolio.assumptions.monthlyRate" class="input" type="number" min="0" step="0.1"></label>
+            <label>Mora mensual %<input v-model.number="portfolio.assumptions.lateRate" class="input" type="number" min="0" step="0.1"></label>
+            <label>FGA %<input v-model.number="portfolio.assumptions.guaranteeFundPct" class="input" type="number" min="0" step="1"></label>
+            <label>Seguro de vida por millón<input v-model.number="portfolio.assumptions.lifePerMillion" class="input" type="number" min="0" step="100"></label>
+            <label>Seguro de garantía por corte<input v-model.number="portfolio.assumptions.guaranteeFee" class="input" type="number" min="0" step="500"></label>
+            <label>Comisión CTX %<input v-model.number="portfolio.assumptions.ctxCommissionPct" class="input" type="number" min="0" step="0.5"></label>
           </div>
-          <p class="pf-note">{{ lastPayment.text }} El voucher sale después del cobro, en una cola aparte: si el PDF falla, el pago no se deshace.</p>
-        </template>
-        <p v-else class="pf-note">Todavía no hay pagos. Corré el reloj hasta el primer vencimiento (día 35).</p>
+          <p class="pf-note">FGA {{ fmt(sim.guaranteeFund) }} (con IVA) sobre {{ fmt(sim.financed) }}: Juan debe {{ fmt(sim.base) }}. Gasto de cobranza:
+            {{ COLLECTION_TIERS.map((t) => `${fmt(t.amount)} el día ${t.from}`).join(' · ') }}. Números de juguete, ninguno es de una entidad real.
+            <button type="button" class="btn btn-link" @click="portfolio.assumptions = { ...DEFAULT_ASSUMPTIONS }">volver a los de ejemplo</button></p>
+        </details>
+      </div>
+    </section>
+
+    <div class="pf-cols">
+      <section class="pf-sec" aria-label="Lo que debe hoy">
+        <div class="region-head group"><span>Lo que debe hoy</span><span class="count">{{ fmt(debtTotal) }}</span></div>
+        <div class="pf-pad">
+          <div class="pf-bar"><span v-for="p in debtParts" :key="p.key" :class="p.cls" :style="{ width: pct(p.value, debtTotal) }" :title="`${p.label}: ${fmt(p.value)}`"></span></div>
+          <ul class="pf-rows">
+            <li v-for="p in debtParts" :key="p.key"><i :class="p.cls"></i>{{ p.label }}<b>{{ fmt(p.value) }}</b></li>
+            <li v-if="!debtParts.length" class="zero">Nada: el crédito está cerrado.</li>
+          </ul>
+          <p class="pf-note">El mínimo exigible es lo vencido: <b>{{ fmt(dueToday) }}</b><template v-if="today.nextPayment !== null">, {{ today.nextPayment < today.day ? 'venció' : 'vence' }} el día {{ today.nextPayment }}</template>.
+            Cada noche el interés se causa sobre el capital por facturar; en el corte, lo causado y la cuota pasan al mínimo, que acumula lo que no se pagó.</p>
+        </div>
       </section>
 
-      <section class="pf-card" aria-label="A quién va cada peso">
-        <h3>A quién va cada peso <span class="pf-mut">acumulado · Juan pagó {{ fmt(paidByCustomer) }}</span></h3>
-        <table class="pf-flows">
-          <tbody>
-            <tr v-for="f in flows" :key="f.key" :class="{ zero: !f.value }">
-              <td>{{ f.label }}</td><td class="num">{{ fmt(f.value) }}</td>
-              <td><span class="pf-dest" :class="{ inferred: !f.read }" :title="f.note">→ {{ f.to }}</span></td>
-            </tr>
-          </tbody>
-        </table>
-        <div class="pf-ctop">
-          <b>CreditOp</b> no cobra intereses: gana el SaaS mensual del comercio y la comisión CTX, {{ fmt(sim.commission) }} por este crédito
-          ({{ portfolio.assumptions.ctxCommissionPct }} % de lo desembolsado). Y si hay subsidio de intereses, lo pone de su bolsillo.
+      <section class="pf-sec" aria-label="El último pago">
+        <div class="region-head group"><span>El último pago</span><span class="count">en cascada</span></div>
+        <div class="pf-pad">
+          <template v-if="lastPayment">
+            <div class="pf-pay">
+              <div>
+                <div class="pf-bar"><span v-for="p in paymentParts.filter((x) => x.value)" :key="p.key" :class="p.cls" :style="{ width: pct(p.value, lastPayment.amount) }" :title="`${p.label}: ${fmt(p.value)}`"></span></div>
+                <ol class="pf-rows pf-cascade">
+                  <li v-for="p in paymentParts" :key="p.key" :class="{ zero: !p.value }"><i :class="p.cls"></i>{{ p.label }}<b>{{ p.value ? fmt(p.value) : '—' }}</b></li>
+                </ol>
+              </div>
+              <figure class="pf-voucher" aria-label="El voucher de pago">
+                <div class="pf-voucher-head">Comprobante de pago</div>
+                <div class="pf-voucher-ok">¡Transacción exitosa!</div>
+                <div class="pf-voucher-date">{{ dateOf(sim.days[lastPayment.day].date) }}</div>
+                <dl><dt>Entidad</dt><dd>CrediComercio</dd><dt>Pagado</dt><dd>{{ fmt(lastPayment.amount) }}</dd><dt>Método</dt><dd>En línea</dd></dl>
+                <div class="pf-voucher-ref">REF 00{{ 505000 + lastPayment.day }}</div>
+                <div class="pf-voucher-foot">** CLIENTE **</div>
+              </figure>
+            </div>
+            <p class="pf-note">{{ lastPayment.text }} El voucher sale después del cobro, en una cola aparte: si el PDF falla, el pago no se deshace.</p>
+          </template>
+          <p v-else class="pf-note">Todavía no hay pagos. Corré el reloj hasta el primer vencimiento (día 35).</p>
         </div>
-        <p class="pf-note"><span class="pf-dest inferred">punteado</span> = inferido: el código no dice a quién llega.</p>
       </section>
 
-      <section class="pf-card" aria-label="El estado y la cobranza">
-        <h3>Estado y cobranza</h3>
-        <div class="pf-bands">
-          <span v-for="b in ARREARS_BANDS" :key="b.key" class="pf-band" :class="{ on: today.status === 2 ? band.key === b.key : (b.key === 'ok' && today.status === 1) }">{{ b.label }}</span>
-          <span v-for="(s, id) in STATES" v-show="+id > 2" :key="id" class="pf-band pf-band-end" :class="{ on: today.status === +id }">{{ s.name }}</span>
+      <section class="pf-sec" aria-label="A quién va cada peso">
+        <div class="region-head group"><span>A quién va cada peso</span><span class="count">acumulado · Juan pagó {{ fmt(paidByCustomer) }}</span></div>
+        <div class="pf-pad">
+          <table class="table pf-flows">
+            <tbody>
+              <tr v-for="f in flows" :key="f.key" :class="{ zero: !f.value }">
+                <td>{{ f.label }}</td><td class="num">{{ fmt(f.value) }}</td>
+                <td><span class="pf-pill" :class="f.read ? 'pf-pill-outline' : 'pf-pill-inferred'" :title="f.note">{{ f.to }}</span></td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="pf-callout"><strong>CreditOp</strong> no cobra intereses: gana el SaaS mensual del comercio y la comisión CTX, {{ fmt(sim.commission) }} por este crédito
+            ({{ portfolio.assumptions.ctxCommissionPct }} % de lo desembolsado). Y si hay subsidio de intereses, lo pone de su bolsillo.</p>
+          <p class="pf-note"><span class="pf-pill pf-pill-inferred">punteado</span> inferido: el código no dice a quién llega.</p>
         </div>
-        <p v-if="today.status === 2" class="pf-note">Franja <b>{{ band.label }}</b> del reporte de riesgo. Cobranza ofrecería: {{ band.offer }}.
-          <span class="pf-mut">(Las alternativas M1-M8 son de la rama «cobranza», sin mergear.)</span></p>
-        <p v-else-if="today.status === 1" class="pf-note">Al día: recibe recordatorios antes del vencimiento. Sólo los estados 1 y 2 se cobran.</p>
-        <p v-else-if="today.status === 9" class="pf-note">Suspendido: no hay fila vigente, el saldo queda congelado y no se causa nada mientras se reclama al seguro.</p>
-        <p v-else class="pf-note">Cerrado: {{ state.name }}.</p>
-        <h4>Bitácora</h4>
-        <ul class="pf-log">
-          <li v-for="(e, k) in log" :key="k" :class="MARK[e.kind]" @click="jump(e.day)"><span>día {{ e.day }}</span>{{ e.text }}</li>
-        </ul>
+      </section>
+
+      <section class="pf-sec" aria-label="El estado y la cobranza">
+        <div class="region-head group"><span>Estado y cobranza</span></div>
+        <div class="pf-pad">
+          <div class="pf-bands">
+            <span v-for="b in ARREARS_BANDS" :key="b.key" class="pf-pill" :class="(today.status === 2 ? band.key === b.key : (b.key === 'ok' && today.status === 1)) ? (b.key === 'ok' ? 'pf-pill-ok' : 'pf-pill-bad') : 'pf-pill-outline'">{{ b.label }}</span>
+            <span v-for="(s, id) in STATES" v-show="+id > 2" :key="id" class="pf-pill" :class="today.status === +id ? 'pf-pill-muted' : 'pf-pill-inferred'">{{ s.name }}</span>
+          </div>
+          <p v-if="today.status === 2" class="pf-note">Franja <b>{{ band.label }}</b> del reporte de riesgo. Cobranza ofrecería: {{ band.offer }}.
+            <span class="count">Las alternativas M1-M8 son de la rama «cobranza», sin mergear.</span></p>
+          <p v-else-if="today.status === 1" class="pf-note">Al día: recibe recordatorios antes del vencimiento. Sólo los estados 1 y 2 se cobran.</p>
+          <p v-else-if="today.status === 9" class="pf-note">Suspendido: no hay fila vigente, el saldo queda congelado y no se causa nada mientras se reclama al seguro.</p>
+          <p v-else class="pf-note">Cerrado: {{ state.name }}.</p>
+        </div>
+        <div class="region-head group"><span>Bitácora</span><span class="count">{{ log.length }}</span></div>
+        <div class="pf-log">
+          <div v-for="(e, k) in log" :key="k" class="log-line" :class="MARK[e.kind]" @click="jump(e.day)"><span class="log-time">día {{ e.day }}</span><span>{{ e.text }}</span></div>
+        </div>
       </section>
     </div>
   </div>
 </template>
 
 <style scoped>
-.pf { padding: 14px 16px 24px; display: flex; flex-direction: column; gap: 12px; font-size: 12.5px; color: var(--foreground);
-  --c-principal: #534ab7; --c-principal-soft: color-mix(in oklab, #534ab7 35%, var(--card)); --c-interest: #7f77dd;
-  --c-interest-soft: color-mix(in oklab, #7f77dd 35%, var(--card)); --c-late: #d85a30; --c-collection: #993c1d;
-  --c-life: #1d9e75; --c-guarantee: #5dcaa5; --c-favor: var(--fg-3) }
-.pf-mut { color: var(--fg-3); font-weight: 400 }
-.pf-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg, 10px); padding: 12px 14px; min-width: 0 }
-.pf-card h3 { margin: 0 0 10px; font-size: 13px; font-weight: 600; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap }
-.pf-card h4 { margin: 12px 0 6px; font-size: 12px; font-weight: 600; color: var(--fg-2) }
-.pf-note { margin: 8px 0 0; color: var(--fg-2); line-height: 1.5 }
-.pf-rails { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px }
-.pf-rail { border: 1px solid var(--border); border-radius: var(--radius-lg, 10px); padding: 10px 12px; background: var(--card) }
-.pf-rail.here { border-color: var(--purple); background: var(--tint-purple) }
-.pf-rail header { display: flex; gap: 6px; align-items: baseline; margin-bottom: 6px }
-.pf-rail header small { color: var(--fg-3) }
-.pf-here { margin-left: auto; font-size: 11px; color: var(--purple-d) }
-.pf-rail dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0 }
-.pf-rail dt { color: var(--fg-3) } .pf-rail dd { margin: 0 }
-.pf-controls { display: flex; flex-direction: column; gap: 6px }
-.pf-scenarios { display: flex; gap: 6px; flex-wrap: wrap }
-.pf-scenarios button { all: unset; cursor: pointer; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--border); color: var(--fg-2) }
-.pf-scenarios button:hover { color: var(--foreground); border-color: var(--fg-3) }
-.pf-scenarios button.on { background: var(--tint-purple); border-color: var(--purple); color: var(--foreground); font-weight: 600 }
-.pf-hint { margin: 0; color: var(--fg-2) }
-.pf-assume summary { cursor: pointer; color: var(--fg-3) }
-.pf-assume-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-top: 8px }
-.pf-assume-grid label { display: flex; flex-direction: column; gap: 3px; color: var(--fg-3); font-size: 11.5px }
-.pf-assume-grid input { font: inherit; color: var(--foreground); background: var(--input, var(--card)); border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px }
-.pf-link { all: unset; cursor: pointer; color: var(--blue); margin-left: 4px }
-.pf-clock-head { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; flex-wrap: wrap }
-.pf-icon { all: unset; cursor: pointer; display: inline-flex; padding: 4px; border-radius: 6px; border: 1px solid var(--border) }
-.pf-icon:hover { border-color: var(--fg-3) }
-.pf-state { margin-left: auto; padding: 2px 9px; border-radius: 999px; font-weight: 600; background: var(--tint-green); color: var(--green) }
-.pf-state.st-vivo { background: var(--tint-green) }
-.pf-state.st-late { background: var(--tint-red); color: var(--red) }
-.pf-state.st-suspendido { background: var(--tint-amber); color: var(--amber) }
-.pf-state.st-cierre { background: var(--muted); color: var(--fg-2) }
+/* Los colores de la pista salen del tema: el capital es la tinta de la marca, los intereses y seguros las series del
+   tema y la mora y la cobranza los estados. Nada de colores fijos: cambia con la paleta de Cockpit. */
+.pf { display: flex; flex-direction: column; font-size: var(--text-base); color: var(--foreground);
+  --c-principal: var(--primary-ink); --c-principal-soft: color-mix(in oklab, var(--primary-ink) 35%, var(--card));
+  --c-interest: var(--chart-1); --c-interest-soft: color-mix(in oklab, var(--chart-1) 35%, var(--card));
+  --c-late: var(--status-warn); --c-collection: var(--status-bad); --c-life: var(--chart-3); --c-guarantee: var(--chart-4);
+  --c-favor: var(--fg-3) }
+.pf-sec { border-bottom: 1px solid var(--border); min-width: 0 }
+.pf-sec > .region-head.group { gap: var(--space-2) }
+.pf-sec > .region-head.group .count { margin-left: auto }
+.pf-pad { padding: var(--space-3) var(--space-4) var(--space-4) }
+.pf-grow { flex: 1 }
+.pf-note { margin: var(--space-2) 0 0; color: var(--fg-2); line-height: 1.55 }
+.pf-hint { margin: 0 0 var(--space-2); color: var(--fg-2) }
+.pf-pill { display: inline-flex; align-items: center; height: 20px; padding: 0 var(--space-2); border-radius: 999px; border: 1px solid transparent;
+  font-size: var(--text-xs); font-weight: 500; white-space: nowrap; color: var(--fg-2) }
+.pf-pill-outline { border-color: var(--border) }
+.pf-pill-inferred { border-color: var(--border); border-style: dashed; color: var(--fg-3) }
+.pf-pill-muted { background: var(--muted); color: var(--foreground) }
+.pf-pill-ok { border-color: var(--status-ok); color: var(--status-ok) }
+.pf-pill-bad { background: var(--status-bad); color: var(--on-status-bad) }
+.pf-rails { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) }
+.pf-rail { padding: var(--space-3) var(--space-4); min-width: 0 }
+.pf-rail + .pf-rail { border-left: 1px solid var(--border) }
+.pf-rail.here { box-shadow: inset 0 2px 0 var(--primary-ink) }
+.pf-rail header { display: flex; gap: var(--space-2); align-items: center; margin-bottom: var(--space-2) }
+.pf-rail header .pf-pill { margin-left: auto }
+.pf-kv { display: grid; grid-template-columns: auto 1fr; gap: 2px var(--space-3); margin: 0 }
+.pf-kv dt { color: var(--fg-3) } .pf-kv dd { margin: 0; color: var(--fg-2) }
+.pf-clock-head { display: flex; gap: var(--space-2); align-items: center; margin-bottom: var(--space-2) }
 .pf-line { width: 100%; height: 120px; display: block }
-.pf-area { fill: color-mix(in oklab, var(--purple) 22%, transparent); stroke: var(--purple); stroke-width: 1.5; vector-effect: non-scaling-stroke }
-.pf-late-span { fill: color-mix(in oklab, var(--red) 14%, transparent) }
-.pf-now { stroke: var(--foreground); stroke-width: 1.5; vector-effect: non-scaling-stroke }
+.pf-area { fill: color-mix(in oklab, var(--primary-ink) 18%, transparent); stroke: var(--primary-ink); stroke-width: 1.5; vector-effect: non-scaling-stroke }
+.pf-late-span { fill: color-mix(in oklab, var(--status-bad) 14%, transparent) }
+.pf-now { stroke: var(--foreground); stroke-width: 1; vector-effect: non-scaling-stroke }
 .pf-mark { cursor: pointer }
-.pf-mark circle { vector-effect: non-scaling-stroke }
-.mk-blue circle, .pf-legend .mk-blue { fill: var(--blue); background: var(--blue) }
-.mk-green circle, .pf-legend .mk-green { fill: var(--green); background: var(--green) }
-.mk-red circle, .pf-legend .mk-red { fill: var(--red); background: var(--red) }
-.mk-amber circle, .pf-legend .mk-amber { fill: var(--amber); background: var(--amber) }
-.mk-tick rect, .pf-legend .mk-tick { fill: var(--fg-3); background: var(--fg-3) }
-.pf-range { width: 100%; margin: 4px 0 2px }
-.pf-legend { display: flex; gap: 14px; flex-wrap: wrap; color: var(--fg-3); font-size: 11.5px }
-.pf-legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: 0 }
-.pf-legend .mk-tick { width: 2px; height: 9px; border-radius: 0 }
-.pf-legend .pf-late-sw { width: 12px; border-radius: 2px; background: color-mix(in oklab, var(--red) 20%, transparent) }
-.pf-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px }
-.pf-bar { display: flex; height: 18px; border-radius: 5px; overflow: hidden; background: var(--muted) }
-.pf-bar span { display: block; min-width: 2px; transition: width .15s }
-.pf-rows { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px }
-.pf-rows li { display: flex; align-items: center; gap: 7px }
-.pf-rows li b { margin-left: auto; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap }
+.mk-disbursement circle, .pf-legend .mk-disbursement { fill: var(--primary-ink); background: var(--primary-ink) }
+.mk-payment circle, .pf-legend .mk-payment { fill: var(--status-ok); background: var(--status-ok) }
+.mk-collection circle, .pf-legend .mk-collection { fill: var(--status-bad); background: var(--status-bad) }
+.mk-state circle, .pf-legend .mk-state { fill: var(--status-warn); background: var(--status-warn) }
+.mk-billing rect, .pf-legend .mk-billing { fill: var(--fg-3); background: var(--fg-3) }
+.pf-range { width: 100%; margin: var(--space-1) 0; accent-color: var(--primary-ink) }
+.pf-legend { display: flex; gap: var(--space-4); flex-wrap: wrap; color: var(--fg-3); font-size: var(--text-sm) }
+.pf-legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px }
+.pf-legend .mk-billing { width: 2px; height: 9px; border-radius: 0 }
+.pf-legend .pf-late-sw { width: 12px; border-radius: 2px; background: color-mix(in oklab, var(--status-bad) 22%, transparent) }
+.pf-assume { margin-top: var(--space-3) }
+.pf-assume summary { cursor: pointer; color: var(--fg-3); font-size: var(--text-sm) }
+.pf-assume-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-2); margin-top: var(--space-2) }
+.pf-assume-grid label { display: flex; flex-direction: column; gap: var(--space-1); color: var(--fg-3); font-size: var(--text-sm) }
+.pf-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) }
+.pf-cols > .pf-sec:nth-child(odd) { border-right: 1px solid var(--border) }
+.pf-bar { display: flex; height: 14px; border-radius: var(--radius-sm); overflow: hidden; background: var(--muted) }
+.pf-bar span { display: block; min-width: 2px; transition: width var(--motion-fast) }
+.pf-rows { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: flex; flex-direction: column }
+.pf-rows li { display: flex; align-items: center; gap: var(--space-2); min-height: 24px }
+.pf-rows li b { margin-left: auto; font-weight: 500; font-family: var(--font-mono); font-size: var(--text-sm); white-space: nowrap }
 .pf-rows li.zero { color: var(--fg-3) }
-.pf-rows i { width: 9px; height: 9px; border-radius: 2px; flex: none }
-.pf-cascade { counter-reset: c } .pf-cascade li::before { counter-increment: c; content: counter(c); color: var(--fg-3); width: 12px; font-size: 11px }
-.c-principal, .pf-bar .c-principal { background: var(--c-principal) } .c-principal-soft { background: var(--c-principal-soft) }
+.pf-rows i { width: 8px; height: 8px; border-radius: 2px; flex: none }
+.pf-cascade { counter-reset: c } .pf-cascade li::before { counter-increment: c; content: counter(c); color: var(--fg-3); width: 12px; font-size: var(--text-xs) }
+.c-principal { background: var(--c-principal) } .c-principal-soft { background: var(--c-principal-soft) }
 .c-interest { background: var(--c-interest) } .c-interest-soft { background: var(--c-interest-soft) }
 .c-late { background: var(--c-late) } .c-collection { background: var(--c-collection) }
 .c-life { background: var(--c-life) } .c-guarantee { background: var(--c-guarantee) } .c-favor { background: var(--c-favor) }
-.pf-pay { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 12px; align-items: start }
-.pf-voucher { margin: 0; background: var(--paper); color: var(--paper-ink); border-radius: 12px 12px 4px 4px; padding: 0 0 10px; text-align: center;
-  display: flex; flex-direction: column; gap: 3px; font-size: 11px; overflow: hidden; border: 1px solid var(--border) }
-.pf-voucher-top { background: #252256; color: #cfcdf0; padding: 9px 6px; display: flex; gap: 5px; justify-content: center; align-items: center; margin-bottom: 4px }
-.pf-voucher b { font-size: 12px } .pf-voucher small { color: #777 }
-.pf-voucher dl { display: grid; grid-template-columns: auto auto; justify-content: space-between; gap: 1px 8px; margin: 4px 10px; text-align: left }
-.pf-voucher dt { color: #777 } .pf-voucher dd { margin: 0; text-align: right }
-.pf-voucher-ref { margin: 2px 10px 0; background: #eeedfe; color: #3c3489; border-radius: 6px; padding: 3px 0; font-weight: 600 }
-.pf-flows { width: 100%; border-collapse: collapse }
-.pf-flows td { padding: 3px 4px; border-bottom: 1px solid var(--border) }
+.pf-pay { display: grid; grid-template-columns: minmax(0, 1fr) 176px; gap: var(--space-4); align-items: start }
+/* El voucher: la tirilla, con la tinta del tema y el corte en zigzag del papel. */
+.pf-voucher { margin: 0; padding: var(--space-3) var(--space-3) var(--space-4); background: var(--background); color: var(--foreground);
+  border: 1px solid var(--border); border-bottom: 0; text-align: center; font-size: var(--text-sm);
+  --zz: 6px; mask: conic-gradient(from -45deg at bottom, transparent 90deg, black 0) bottom / calc(var(--zz) * 2) var(--zz) repeat-x,
+    linear-gradient(black 0 0) top / 100% calc(100% - var(--zz)) no-repeat }
+.pf-voucher-head { color: var(--fg-3); font-size: var(--text-xs); letter-spacing: .04em; padding-bottom: var(--space-2); border-bottom: 1px dashed var(--border) }
+.pf-voucher-ok { margin-top: var(--space-2); font-weight: 600; color: var(--status-ok) }
+.pf-voucher-date { color: var(--fg-3); font-size: var(--text-xs) }
+.pf-voucher dl { display: grid; grid-template-columns: auto auto; justify-content: space-between; gap: 2px var(--space-2); margin: var(--space-2) 0; text-align: left }
+.pf-voucher dt { color: var(--fg-3) } .pf-voucher dd { margin: 0; text-align: right; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.pf-voucher-ref { padding: var(--space-1) 0; border-top: 1px dashed var(--border); border-bottom: 1px dashed var(--border); font-family: var(--font-mono); color: var(--primary-ink) }
+.pf-voucher-foot { margin-top: var(--space-2); color: var(--fg-3); font-family: var(--font-mono); font-size: var(--text-xs) }
 .pf-flows tr.zero td { color: var(--fg-3) }
-.pf-flows .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap }
-.pf-dest { padding: 1px 7px; border-radius: 999px; border: 1px solid var(--fg-3); white-space: nowrap; font-size: 11.5px }
-.pf-dest.inferred { border-style: dashed; color: var(--fg-2) }
-.pf-ctop { margin-top: 10px; padding: 8px 10px; border-radius: 8px; background: var(--tint-blue); line-height: 1.5 }
-.pf-bands { display: flex; flex-wrap: wrap; gap: 4px }
-.pf-band { padding: 3px 8px; border-radius: 6px; border: 1px solid var(--border); color: var(--fg-2) }
-.pf-band.on { background: var(--tint-red); border-color: var(--red); color: var(--foreground); font-weight: 600 }
-.pf-band:first-child.on { background: var(--tint-green); border-color: var(--green) }
-.pf-band-end { border-style: dashed } .pf-band-end.on { background: var(--muted); border-color: var(--fg-3); border-style: solid }
-.pf-log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 210px; overflow: auto }
-.pf-log li { cursor: pointer; padding-left: 9px; border-left: 3px solid var(--fg-3); line-height: 1.4 }
-.pf-log li span { color: var(--fg-3); margin-right: 6px; font-variant-numeric: tabular-nums }
-.pf-log li.mk-green { border-color: var(--green) } .pf-log li.mk-red { border-color: var(--red) }
-.pf-log li.mk-amber { border-color: var(--amber) } .pf-log li.mk-blue { border-color: var(--blue) }
-@media (max-width: 900px) { .pf-rails, .pf-grid { grid-template-columns: 1fr } .pf-pay { grid-template-columns: 1fr } }
+.pf-flows .num { font-family: var(--font-mono); font-size: var(--text-sm); white-space: nowrap }
+.pf-callout { margin: var(--space-3) 0 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--muted); color: var(--fg-2); line-height: 1.55 }
+.pf-bands { display: flex; flex-wrap: wrap; gap: var(--space-1) }
+.pf-log { padding: var(--space-2) 0 var(--space-3); max-height: 220px; overflow: auto }
+.pf-log .log-line { cursor: pointer; border-left: 2px solid transparent }
+.pf-log .log-line:hover { background: var(--hover) }
+.pf-log .mk-payment { border-left-color: var(--status-ok) } .pf-log .mk-collection { border-left-color: var(--status-bad) }
+.pf-log .mk-state { border-left-color: var(--status-warn) } .pf-log .mk-disbursement { border-left-color: var(--primary-ink) }
+@media (max-width: 900px) { .pf-rails, .pf-cols { grid-template-columns: 1fr } .pf-pay { grid-template-columns: 1fr } .pf-rail + .pf-rail { border-left: 0 } }
 </style>
