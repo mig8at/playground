@@ -714,7 +714,9 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       const D = [0,0,0,0,0,2,12,12,13,12,14,19,15,17,21,25,23,26,23,25,27,28,28,34,35,44,77,100,47,38,38,35,34,39,37,41,40,48,48,39];
       const big = b.h >= 64, n = D.length, bw = 5, x0 = (b.w - (n * 6 - 1)) >> 1, rec = D.indexOf(100);
       const top = big ? 14 : 10, bottom = big ? 53 : 30, hmax = bottom - top + 1;
-      head(b, "DESEMBOLSOS POR MES", C.bLav, "DESDE AGO 2023", C.bLav, t);
+      head(b, "DESEMBOLSOS POR MES", C.bLav, null, C.bLav, t);
+      const hy = big ? 3 : 1, gr = "2,9 VECES 2024";      // el dato va en la cabecera: al lado del récord no cabe
+      text(b, gr, rx(b, gr, 1), hy, 1, mul(C.bG, ease((t - 3) / 0.4)));
       D.forEach((d, i) => {
         const g = ease((t - 0.3 - i * 0.05) / 0.25); if (g <= 0) return;
         const h = Math.max(1, Math.round(hmax * d / 100 * g));
@@ -729,7 +731,6 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       if (t > 2.7) {
         const xr = x0 + rec * 6 - tw("RECORD", 1) - 9;
         text(b, "RECORD", xr, big ? 15 : 10, 1, mul(C.bG, ease((t - 2.7) / 0.4)));
-        text(b, "2,9 VECES 2024", rx(b, "2,9 VECES 2024", 1), big ? 16 : 11, 1, mul(C.bG, ease((t - 3) / 0.4)));
       }
     } },
     { id: "record", voice: "¡Nuevo récord! 312 solicitudes en un solo día.", group: "Negocio", label: "Récord", sound: () => { pip(1047, 90); pip(1319, 90, .1); pip(1568, 220, .2); }, draw(b, t) {
