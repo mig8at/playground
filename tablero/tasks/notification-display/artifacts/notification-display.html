@@ -1119,6 +1119,9 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
       for (let i = 0; i < n; i++) {
         const xa = x0 + Math.round(i * W / n), xb = x0 + Math.round((i + 1) * W / n) - 1;
         if (t > 0.3 + i * 0.03) rect(b, xa, y, xb - xa, h, i === 17 ? C.yellow : C.green);
+        if (i === 17 && t > 1.2 && Math.sin(t * 5) > -0.3) {           // ⚠ una flechita sobre el día de la caída
+          const mx = (xa + xb - 1) >> 1; rect(b, mx - 1, y - 4, 3, 1, C.yellow); px(b, mx, y - 3, C.yellow);
+        }
       }
       if (big) {
         art(b, ICONS.heart, 2, 13, 2, heart);
@@ -1132,15 +1135,18 @@ pre { margin: 0; font: 0.8rem/1.6 var(--font-mono); background: var(--bg); borde
     } },
     { id: "projects", group: "Desarrollo", label: "Proyectos", draw(b, t) {
       // avance de los proyectos en curso (ejemplo): el % lo carga el equipo, no se calcula
-      const big = b.h >= 64, rows = [["SHOPIFY", 90], ["FINANDINA", 80], ["VTEX", 50]];   // de más a menos avance
+      const big = b.h >= 64, rows = [["SHOPIFY", 90, "cart"], ["FINANDINA", 80, "bank"], ["VTEX", 50, "cart"]];   // de más a menos avance; el tipo de integración
       head(b, "PROYECTOS", C.hDev, "AVANCE", C.gray, t);
-      const ys = big ? [17, 33, 49] : [12, 23]   /* en 256×32, dos filas con aire */, nx = big ? 32 : 18, bx = nx + 66, pw = tw("100%", 1), bmax = b.w - 2 - pw - 6 - bx;
+      const ys = big ? [17, 33, 49] : [12, 23]   /* en 256×32, dos filas con aire */, nx = big ? 32 : 18, bx = nx + 74, pw = tw("100%", 1), bmax = b.w - 2 - pw - 6 - bx;
       const gearC = { k: (t * 2 | 0) % 2 ? [190,195,205] : [140,146,158] };     // el engranaje «trabaja»: parpadea suave
       art(b, ICONS.gear, 2, big ? 26 : 13, big ? 2 : 1, gearC);
-      rows.forEach(([name, p], i) => {
+      const KIND = { bank: [".www.", "wwwww", "w.w.w", "w.w.w", "wwwww"],          // 🏦 entidad
+                     cart: ["ww...", ".wwww", ".www.", ".w.w.", "....."] };       // 🛒 e-commerce
+      rows.forEach(([name, p, kind], i) => {
         if (ys[i] === undefined) return;
         const y = ys[i], g = ease((t - 0.3 - i * 0.25) / 0.9), v = Math.round(p * g), s = v + "%";
-        text(b, name, nx, y, 1, C.white);
+        art(b, KIND[kind], nx, y + 1, 1, { w: [170,170,190] });
+        text(b, name, nx + 8, y, 1, C.white);
         rect(b, bx, y + 1, bmax, 5, C.bTrack);
         rect(b, bx, y + 1, Math.round(bmax * v / 100), 5, p >= 90 ? C.bG : mul(C.bG, 0.65));
         text(b, s, rx(b, s, 1), y, 1, p >= 90 ? C.bG : C.white);
